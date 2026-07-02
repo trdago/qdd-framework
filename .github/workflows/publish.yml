@@ -75,6 +75,11 @@ jobs:
             fi
           done
           
+          if [ ! -f "package-lock.json" ]; then
+            echo "::error::Falta package-lock.json (necesario para NPM CI y Caché)."
+            exit 1
+          fi
+
           if [ $MISSING_FIELDS -ne 0 ]; then
             echo "::error::package.json no es consistente. Por favor, corrige los errores antes de publicar."
             exit 1
