@@ -1,0 +1,18 @@
+# QDD Meta-Configuration
+# Este archivo configura cómo QDD se audita a sí mismo.
+
+project: auto-detected
+languages: [Go]
+databases: [PostgreSQL]
+architecture: "Hexagonal / Clean Architecture"
+
+# Gobernanza estricta para el propio framework
+governance:
+  certification_first: true
+  enforce_rfc: true
+  evidence_required_for_fixes: true
+
+# Plugins activos para desarrollar QDD
+plugins:
+  - go
+  - markdown
