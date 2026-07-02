@@ -70,4 +70,3 @@ function extractBinary() {
     console.error('[QDD] Error al extraer el binario:', err);
   }
 }
-}
