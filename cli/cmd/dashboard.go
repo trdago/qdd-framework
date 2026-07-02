@@ -40,9 +40,9 @@ var dashboardCmd = &cobra.Command{
 				"score":          100,
 				"grade":          "World-Class",
 				"version":        "v0.1.1",
-				"findings":       []map[string]string{},
-				"certifications": []map[string]string{},
-				"sprints":        []map[string]string{},
+				"findings":       []map[string]interface{}{},
+				"certifications": []map[string]interface{}{},
+				"sprints":        []map[string]interface{}{},
 				"config":         map[string]interface{}{},
 				"audit_status":   "",
 			}
@@ -70,10 +70,21 @@ var dashboardCmd = &cobra.Command{
 			certs, _ := os.ReadDir(certDir)
 			for _, c := range certs {
 				if !c.IsDir() {
-					response["certifications"] = append(response["certifications"].([]map[string]string), map[string]string{
+					certPath := filepath.Join(certDir, c.Name())
+					certData, _ := os.ReadFile(certPath)
+					var rawData map[string]interface{}
+					yaml.Unmarshal(certData, &rawData)
+					
+					status := "PASS"
+					if rawData["status"] != nil {
+						status = fmt.Sprintf("%v", rawData["status"])
+					}
+
+					response["certifications"] = append(response["certifications"].([]map[string]interface{}), map[string]interface{}{
 						"id":     c.Name(),
-						"status": "PASS",
+						"status": status,
 						"name":   "Cumplimiento verificado",
+						"raw":    rawData,
 					})
 				}
 			}
@@ -84,16 +95,25 @@ var dashboardCmd = &cobra.Command{
 			openFindings := 0
 			for _, f := range fnds {
 				if !f.IsDir() {
+					fndPath := filepath.Join(fndDir, f.Name())
+					fndData, _ := os.ReadFile(fndPath)
+					var rawData map[string]interface{}
+					yaml.Unmarshal(fndData, &rawData)
+
 					status := "OPEN"
-					openFindings++
-					if f.Name() == "FND-002.yaml" {
-						status = "RESOLVED"
-						openFindings--
+					if rawData["status"] != nil {
+						status = fmt.Sprintf("%v", rawData["status"])
 					}
-					response["findings"] = append(response["findings"].([]map[string]string), map[string]string{
+					
+					if status != "RESOLVED" && status != "resolved" {
+						openFindings++
+					}
+
+					response["findings"] = append(response["findings"].([]map[string]interface{}), map[string]interface{}{
 						"id":     f.Name(),
 						"status": status,
 						"desc":   "Deuda técnica documentada.",
+						"raw":    rawData,
 					})
 				}
 			}
@@ -112,9 +132,20 @@ var dashboardCmd = &cobra.Command{
 			sprintsData, _ := os.ReadDir(sprintDir)
 			for _, s := range sprintsData {
 				if !s.IsDir() {
-					response["sprints"] = append(response["sprints"].([]map[string]string), map[string]string{
+					sprintPath := filepath.Join(sprintDir, s.Name())
+					sprintData, _ := os.ReadFile(sprintPath)
+					var rawData map[string]interface{}
+					yaml.Unmarshal(sprintData, &rawData)
+					
+					status := "IN-PROGRESS"
+					if rawData["status"] != nil {
+						status = fmt.Sprintf("%v", rawData["status"])
+					}
+
+					response["sprints"] = append(response["sprints"].([]map[string]interface{}), map[string]interface{}{
 						"id":     s.Name(),
-						"status": "IN-PROGRESS",
+						"status": status,
+						"raw":    rawData,
 					})
 				}
 			}

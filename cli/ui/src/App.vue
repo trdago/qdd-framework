@@ -175,31 +175,33 @@ onUnmounted(() => {
           <button class="close-btn" @click="closeDetail">✕</button>
         </div>
         <div class="slide-over-content">
-          <div v-if="activeDetail?.type === 'Sprint'">
-            <div class="detail-block">
-              <h4>Status</h4>
-              <span class="status-pill in-progress">{{ activeDetail.status }}</span>
-            </div>
+          <div class="detail-block">
+            <h4>Status</h4>
+            <span class="status-pill" :class="activeDetail?.status === 'PASS' || activeDetail?.status === 'RESOLVED' ? 'resolved' : (activeDetail?.status === 'IN-PROGRESS' ? 'in-progress' : 'open')">{{ activeDetail?.status }}</span>
           </div>
-          <div v-if="activeDetail?.type === 'Finding'">
-            <div class="detail-block">
-              <h4>Status</h4>
-              <span class="status-pill" :class="activeDetail.status === 'RESOLVED' ? 'resolved' : 'open'">{{ activeDetail.status }}</span>
+
+          <template v-if="activeDetail?.raw">
+            <div class="detail-block" v-for="(val, key) in activeDetail.raw" :key="key" v-show="key !== 'id' && key !== 'status'">
+              <h4 class="raw-key">{{ key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') }}</h4>
+              
+              <div v-if="Array.isArray(val)" class="raw-array">
+                <ul>
+                  <li v-for="(item, idx) in val" :key="idx">{{ item }}</li>
+                </ul>
+              </div>
+              
+              <div v-else-if="typeof val === 'object' && val !== null" class="raw-object">
+                <div v-for="(v, k) in val" :key="k" class="raw-object-item">
+                  <span class="raw-sub-key">{{ k }}:</span> <span class="raw-sub-val">{{ v }}</span>
+                </div>
+              </div>
+              
+              <p v-else class="detail-text">{{ val }}</p>
             </div>
-            <div class="detail-block">
-              <h4>Description</h4>
-              <p class="detail-text">{{ activeDetail.desc }}</p>
-            </div>
-          </div>
-          <div v-if="activeDetail?.type === 'Certification'">
-            <div class="detail-block">
-              <h4>Status</h4>
-              <span class="status-pill" :class="activeDetail.status === 'PASS' ? 'resolved' : 'open'">{{ activeDetail.status }}</span>
-            </div>
-            <div class="detail-block">
-              <h4>Description</h4>
-              <p class="detail-text">{{ activeDetail.name }}</p>
-            </div>
+          </template>
+
+          <div v-else class="detail-block">
+             <p class="detail-text">No detailed content available.</p>
           </div>
           
           <div class="detail-footer-mock">
@@ -616,9 +618,54 @@ body {
   padding: 1rem;
   background-color: var(--bg-dark);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 24px;
 }
 
+.raw-key {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.raw-array ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.raw-object {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.raw-object-item {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.raw-object-item:last-child {
+  margin-bottom: 0;
+}
+
+.raw-sub-key {
+  color: var(--text-secondary);
+  margin-right: 8px;
+}
+
+.raw-sub-val {
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+/* Scrollbar styling */
 .sprint-info {
   display: flex;
   align-items: center;
