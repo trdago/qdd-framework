@@ -18,6 +18,7 @@ Estos comandos puedes ejecutarlos sin miedo. Su único trabajo es leer tu reposi
 | `qdd score` | Calcula tu calificación de calidad matemática (Ej: 100/100 World-Class). **Seguro.** |
 | `qdd audit` | Ejecuta un Linter estático asegurando las reglas del framework (ej. Cero uso de `else`). **Seguro.** |
 | `qdd certify` | Revisa la carpeta `.qdd/certification/` y emite un veredicto de calidad del proyecto. **Seguro.** |
+| `qdd dashboard` | Inicia el Centro de Comando Web. Despliega un panel interactivo (Drill-down) para inspeccionar métricas, Sprints, Findings y Certificaciones en tiempo real, operando con aislamiento de puertos. **Seguro.** |
 
 ### ⚡ Comandos de Mutación (Estructurales)
 Estos comandos modifican el repositorio agregando carpetas o archivos de gobernanza:
@@ -27,6 +28,7 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd init` | Inicializa el entorno creando el directorio `.qdd/`, `config.yaml` y `state.json`. |
 | `qdd sprint <n>` | Crea la plantilla de trabajo para una nueva iteración modificando `.qdd/sprints/`. |
 | `qdd release <version>` | Genera un Git Tag oficial y actualiza la versión del framework en `state.json`. |
+| `qdd sync` / `qdd sync-ai` | Sincroniza las reglas nativas (QDD Protocol) con los asistentes de IA (Cursor, Claude Code, Antigravity) configurando los Slash Commands de manera idempotente sin usar prompt injections. |
 
 ## Cognitive Path (Pipeline Inteligente)
 

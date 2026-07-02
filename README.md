@@ -82,6 +82,8 @@ QDD incluye una CLI escrita en Go dividida en dos vías de ejecución:
 - `qdd score`: Calcula automáticamente tu grado de calidad (World-Class, A, B, C, D) en base a la deuda técnica.
 - `qdd sprint <n>`: Prepara la documentación e inicializa el ciclo iterativo de trabajo.
 - `qdd release <version>`: Empaqueta una versión (tag y state) lista para producción.
+- `qdd dashboard`: Inicia el Centro de Comando Web interactivo (Frontend embebido).
+- `qdd sync`: Integra QDD nativamente con tus asistentes de IA (Cursor, Claude Code, Antigravity).
 
 **Cognitive Path Commands (Motor QCL):**
 - `qdd "cualquier intención libre"`: El pipeline cognitivo evaluará la intención (Feature, Fix, Ask), evaluará riesgos y generará un Plan de Ejecución Inteligente. Incluye **Resolución Interactiva de Ambigüedad** para guiarte si el prompt es muy genérico.
