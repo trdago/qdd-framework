@@ -28,6 +28,13 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 	}
 
 	qddWorkflowPath := filepath.Join(workflowsDir, "qdd.md")
+	
+	// Create with frontmatter if it doesn't exist
+	if _, err := os.Stat(qddWorkflowPath); os.IsNotExist(err) {
+		frontmatter := "---\ndescription: QDD Framework native AI commands\n---\n\n"
+		os.WriteFile(qddWorkflowPath, []byte(frontmatter), 0644)
+	}
+
 	err = SafeInjectIdempotent(qddWorkflowPath)
 	if err != nil {
 		return fmt.Errorf("Antigravity adapter failed to sync %s: %w", qddWorkflowPath, err)
