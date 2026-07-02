@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
+
+var docsFlag string
 
 var learnCmd = &cobra.Command{
 	Use:     "learn",
@@ -22,6 +25,28 @@ var learnCmd = &cobra.Command{
 		
 		// Carpetas de documentación a escanear
 		docFolders := []string{"docs", "rfcs", "specification"}
+
+		if docsFlag != "" {
+			extra := strings.Split(docsFlag, ",")
+			for _, e := range extra {
+				docFolders = append(docFolders, strings.TrimSpace(e))
+			}
+		} else {
+			fileInfo, _ := os.Stdin.Stat()
+			if (fileInfo.Mode() & os.ModeCharDevice) != 0 {
+				fmt.Print("¿Deseas incluir carpetas de documentación adicionales personalizadas? (separadas por coma, presiona Enter para omitir): ")
+				reader := bufio.NewReader(os.Stdin)
+				input, _ := reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+				if input != "" {
+					extra := strings.Split(input, ",")
+					for _, e := range extra {
+						docFolders = append(docFolders, strings.TrimSpace(e))
+					}
+				}
+			}
+		}
+
 		var docIndex []string
 
 		for _, folder := range docFolders {
@@ -73,5 +98,6 @@ var learnCmd = &cobra.Command{
 }
 
 func init() {
+	learnCmd.Flags().StringVar(&docsFlag, "docs", "", "Carpetas adicionales de documentación separadas por coma (ej: wiki,ai_docs)")
 	rootCmd.AddCommand(learnCmd)
 }
