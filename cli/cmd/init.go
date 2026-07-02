@@ -196,7 +196,7 @@ func createStateFile(qddDir string) error {
 
 	state := map[string]interface{}{
 		"status":  "initialized",
-		"version": "v0.1.0",
+		"version": rootCmd.Version,
 	}
 
 	data, err := json.MarshalIndent(state, "", "  ")

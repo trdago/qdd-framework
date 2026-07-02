@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -54,5 +55,44 @@ func TestDetectLanguagesRecursively(t *testing.T) {
 	// but for simplicity, detectLanguages usually appends in a deterministic order (Go, then Node, then Java)
 	if !reflect.DeepEqual(languages, expected) {
 		t.Errorf("Expected detected languages %v, but got %v", expected, languages)
+	}
+}
+
+// TestFND004StateVersionSynchronization verifica que createStateFile asigne la versión dinámica correcta del CLI
+// y no escriba un valor estático/hardcodeado en state.json.
+// Cumple con la Regla Global: "todos los bugs encontrados se tienen que documentar y generar test unitario".
+func TestFND004StateVersionSynchronization(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "qdd-test-fnd004-*")
+	if err != nil {
+		t.Fatalf("No se pudo crear directorio temporal: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	qddDir := filepath.Join(tempDir, ".qdd")
+	err = os.MkdirAll(qddDir, 0755)
+	if err != nil {
+		t.Fatalf("No se pudo crear directorio .qdd: %v", err)
+	}
+
+	expectedVersion := "v9.9.9-test"
+	originalVersion := rootCmd.Version
+	rootCmd.Version = expectedVersion
+	defer func() { rootCmd.Version = originalVersion }()
+
+	err = createStateFile(qddDir)
+	if err != nil {
+		t.Fatalf("createStateFile falló: %v", err)
+	}
+
+	statePath := filepath.Join(qddDir, "state.json")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("No se pudo leer state.json: %v", err)
+	}
+
+	// Basic check using string matching since we haven't imported encoding/json
+	importCheck := string(data)
+	if !strings.Contains(importCheck, expectedVersion) {
+		t.Errorf("🚨 Regresión FND-004: La versión en state.json no contiene la dinámica '%v'", expectedVersion)
 	}
 }
