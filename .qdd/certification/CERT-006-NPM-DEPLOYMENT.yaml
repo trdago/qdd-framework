@@ -8,3 +8,8 @@ criteria:
   - "Se requiere 2FA Bypass (Automation Token) u OIDC Provenance para publicar en NPM."
   - "El script install.js de NPM descarga correctamente el binario pre-compilado de Go desde GitHub Releases."
   - "El comando 'qdd' queda disponible globalmente en la máquina del usuario tras 'npm install -g qdd-framework'."
+evidence:
+  timestamp: "2026-07-02T19:12:00Z"
+  version: "v0.1.6"
+  pipeline_id: "28615173643"
+  test_result: "Quality-Driven Development (QDD) Framework - Executed natively from NPM global install"
