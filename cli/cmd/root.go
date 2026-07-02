@@ -58,6 +58,8 @@ func runQCL(input string) {
 	pipeline := qcl.NewPipeline(
 		nodes.NewContextAnalyzer(),
 		nodes.NewIntentAnalyzer(),
+		nodes.NewRiskAnalyzer(),
+		nodes.NewStrategyPlanner(),
 		nodes.NewPlanBuilder(),
 	)
 

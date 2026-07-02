@@ -19,7 +19,8 @@ type Risk struct {
 }
 
 type StrategyPlan struct {
-	Steps []string
+	Steps           []string
+	TargetArtifacts []string
 }
 
 // ApprovalRequest se devuelve a la CLI cuando se requiere intervención humana.

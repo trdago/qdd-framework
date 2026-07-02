@@ -56,18 +56,22 @@ QDD está compuesto por:
 
 ## 💻 CLI (Command Line Interface)
 
-QDD incluye una CLI escrita en Go con comandos como:
+QDD incluye una CLI escrita en Go dividida en dos vías de ejecución:
+- **Fast Path (Determinista)**: Comandos locales para operaciones estructurales y de gobernanza.
+- **Cognitive Path (IA)**: Flujo conversacional e inteligente para crear o arreglar código.
+
+**Fast Path Commands:**
 - `qdd init`: Detecta el stack tecnológico y prepara el Runtime.
-- `qdd learn`: Lee el proyecto, entiende la arquitectura y genera conocimiento inicial sin modificar código.
-- `qdd discover`: Construye el mapa completo del sistema.
-- `qdd baseline`: Genera la certificación, findings, ADR, roadmap y estado inicial.
-- `qdd audit`: Realiza una auditoría completa descubriendo bugs, riesgos y deuda técnica.
-- `qdd feature`: Genera una nueva funcionalidad creando primero la certificación.
-- `qdd fix`: Resuelve findings (un commit por finding) generando nueva evidencia.
-- `qdd sprint`: Ejecuta una iteración de mejora continua.
-- `qdd release`
-- `qdd doctor`: Entrega el estado general del proyecto (Quality Score, Coverage, etc.).
-- `qdd ask`: Permite consultar el conocimiento utilizando únicamente la especificación y documentación (sin inventar).
+- `qdd learn`: Lee el proyecto, entiende la arquitectura y genera conocimiento inicial.
+- `qdd certify`: Ejecuta las certificaciones y garantiza la calidad del código.
+- `qdd audit`: Un linter interno que escanea la base de código buscando violaciones de reglas (ej. no usar `else`).
+- `qdd status`: Muestra un panel de control con el estado de certificaciones y bugs (Findings) abiertos.
+- `qdd score`: Calcula automáticamente tu grado de calidad (World-Class, A, B, C, D) en base a la deuda técnica.
+- `qdd sprint <n>`: Prepara la documentación e inicializa el ciclo iterativo de trabajo.
+- `qdd release <version>`: Empaqueta una versión (tag y state) lista para producción.
+
+**Cognitive Path Commands (Motor QCL):**
+- `qdd "cualquier intención libre"`: El pipeline cognitivo evaluará la intención (Feature, Fix, Ask), evaluará riesgos y generará un Plan de Ejecución Inteligente. Incluye **Resolución Interactiva de Ambigüedad** para guiarte si el prompt es muy genérico.
 
 ---
 

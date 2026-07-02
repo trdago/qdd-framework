@@ -69,9 +69,10 @@ var certifyCmd = &cobra.Command{
 
 		if certified == total {
 			fmt.Printf("[🏆] Proyecto 100%% Certificado (%d/%d reglas cumplidas).\n", certified, total)
-		} else {
-			fmt.Printf("[⚠️] Proyecto No Certificado (%d/%d reglas cumplidas).\n", certified, total)
+			return
 		}
+		
+		fmt.Printf("[⚠️] Proyecto No Certificado (%d/%d reglas cumplidas).\n", certified, total)
 	},
 }
 
