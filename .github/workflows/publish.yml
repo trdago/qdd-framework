@@ -1,0 +1,113 @@
+name: Publish to NPM
+
+# Resource: .github/workflows/publish.yml
+# Managed by: QDD
+# Mode: merge
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*.*.*'
+
+# Control de concurrencia: Evita que múltiples ejecuciones de este workflow 
+# publiquen simultáneamente y causen conflictos en NPM.
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Build, Validate and Publish
+    runs-on: ubuntu-latest
+    environment: prod
+    
+    # Permisos mínimos necesarios
+    # id-token: write es ESTRICTAMENTE NECESARIO para NPM Trusted Publishing (OIDC)
+    permissions:
+      contents: read
+      id-token: write
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Para asegurarnos de tener el código más reciente asociado al tag/release
+          fetch-depth: 1
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          # Especificamos 'lts/*' para que siempre use la última versión LTS 
+          # (compatible con futuras actualizaciones)
+          node-version: 'lts/*'
+          # Habilita el caché automático de npm basado en package-lock.json
+          cache: 'npm'
+          cache-dependency-path: 'npm/package-lock.json'
+          # Configura el registry para npm usando Trusted Publishing
+          registry-url: 'https://registry.npmjs.org'
+
+      # Se asume que el paquete NPM a publicar está en la carpeta 'npm/'
+      - name: Install Dependencies
+        working-directory: ./npm
+        run: |
+          echo "Restaurando e instalando dependencias con npm ci..."
+          npm ci || (echo "::error::Fallo la instalación de dependencias" && exit 1)
+
+      - name: Validate package.json Consistency
+        working-directory: ./npm
+        run: |
+          echo "Validando integridad del package.json..."
+          
+          # Función helper para extraer valores (usando jq o grep/sed básico)
+          # Aquí usamos grep para no depender de jq si no está disponible, 
+          # pero jq suele estar preinstalado en ubuntu-latest. Usaremos jq.
+          
+          MISSING_FIELDS=0
+          
+          for field in name version repository license homepage author; do
+            value=$(jq -r ".$field" package.json)
+            if [ "$value" = "null" ] || [ -z "$value" ]; then
+              echo "::error::El campo requerido '$field' no existe o está vacío en package.json."
+              MISSING_FIELDS=1
+            fi
+          done
+          
+          if [ $MISSING_FIELDS -ne 0 ]; then
+            echo "::error::package.json no es consistente. Por favor, corrige los errores antes de publicar."
+            exit 1
+          fi
+          echo "Validación exitosa: package.json cumple con los requisitos."
+
+      - name: Run Linter
+        working-directory: ./npm
+        run: |
+          echo "Ejecutando análisis estático (Lint)..."
+          npm run lint || (echo "::error::Fallo en la validación de código (Lint)" && exit 1)
+
+      - name: Run Tests
+        working-directory: ./npm
+        run: |
+          echo "Ejecutando suite de pruebas unitarias..."
+          npm run test || (echo "::error::Las pruebas fallaron" && exit 1)
+
+      - name: Build Package
+        working-directory: ./npm
+        run: |
+          echo "Generando el build para producción..."
+          npm run build || (echo "::error::El proceso de build falló" && exit 1)
+
+      - name: Publish to NPM
+        working-directory: ./npm
+        # Se ejecutará solo si TODAS las etapas anteriores fueron exitosas
+        run: |
+          echo "Publicando paquete en NPM con Provenance..."
+          
+          # Publicamos usando provenance para firmar criptográficamente que 
+          # el paquete proviene exactamente de este workflow y commit (OIDC).
+          npm publish --provenance --access public || (echo "::error::Fallo al publicar el paquete en NPM" && exit 1)
+        env:
+          # Utiliza el token OIDC si está configurado para la organización, 
+          # o el secreto NPM_TOKEN si OIDC no está enlazado todavía.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
