@@ -1,0 +1,63 @@
+name: E2E Certification (NPM & Init)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0' # Run weekly on Sunday
+
+jobs:
+  e2e-verification:
+    name: Verify NPM Distribution & Initialization
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          
+      - name: Install QDD Framework Globally
+        run: |
+          echo "Simulando instalación global desde NPM en máquina prístina..."
+          npm install -g qdd-framework@latest
+          
+      - name: Verify CLI availability
+        run: |
+          echo "Verificando enlace de binarios globales..."
+          npx qdd --help || (echo "::error::El ejecutable qdd no está disponible tras la instalación." && exit 1)
+
+      - name: Create Test Workspace
+        run: |
+          mkdir -p /tmp/qdd-e2e-workspace
+          cd /tmp/qdd-e2e-workspace
+          # Simulamos un entorno con Go y Node
+          touch go.mod package.json
+          
+      - name: Test Initialization (qdd init)
+        run: |
+          cd /tmp/qdd-e2e-workspace
+          npx qdd init || (echo "::error::Falló la inicialización inicial del proyecto." && exit 1)
+          
+          # Verificar archivos generados
+          if [ ! -f ".qdd/config.yaml" ]; then
+            echo "::error::Falta el archivo .qdd/config.yaml"
+            exit 1
+          fi
+          
+          if [ ! -f ".qdd/state.json" ]; then
+            echo "::error::Falta el archivo .qdd/state.json"
+            exit 1
+          fi
+          
+      - name: Test Knowledge Extraction (qdd learn)
+        run: |
+          cd /tmp/qdd-e2e-workspace
+          npx qdd learn || (echo "::error::Falló el descubrimiento del entorno (qdd learn)." && exit 1)
+          
+      - name: Test Certification Engine (qdd certify)
+        run: |
+          cd /tmp/qdd-e2e-workspace
+          npx qdd certify || (echo "::error::Falló el validador de certificación (qdd certify)." && exit 1)
+          
+      - name: E2E Successful
+        run: echo "🚀 El ciclo End-to-End desde NPM completó satisfactoriamente."
