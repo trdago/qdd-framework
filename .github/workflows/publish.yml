@@ -110,9 +110,8 @@ jobs:
         run: |
           echo "Publicando paquete en NPM con Provenance..."
           
-          # Publicamos usando provenance para firmar criptográficamente que 
-          # el paquete proviene exactamente de este workflow y commit (OIDC).
-          npm publish --provenance --access public || (echo "::error::Fallo al publicar el paquete en NPM" && exit 1)
+          # Eliminamos --provenance porque NPM solo lo soporta en repositorios PÚBLICOS.
+          npm publish --access public || (echo "::error::Fallo al publicar el paquete en NPM" && exit 1)
         env:
           # Utiliza el token OIDC si está configurado para la organización, 
           # o el secreto NPM_TOKEN si OIDC no está enlazado todavía.
