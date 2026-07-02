@@ -1,6 +1,6 @@
 id: CERT-006
 title: Despliegue y Descarga de Paquete NPM
-status: PASSED
+status: certified
 level: strict
 description: "Garantiza que el framework QDD puede empaquetarse, publicarse mediante CI/CD a npmjs, y que el instalador postinstall funcione descargando el binario adecuado."
 criteria:

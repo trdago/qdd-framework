@@ -1,5 +1,6 @@
 id: CERT-006-DASHBOARD
-name: "Certificación de Dashboard UI (Centro de Comando)"
+title: "Certificación de Dashboard UI (Centro de Comando)"
+status: certified
 description: "Valida que el Dashboard embebido de QDD exponga correctamente la información crítica de gobernanza de todo el proyecto en tiempo real."
 version: 1.0.0
 level: MANDATORY
