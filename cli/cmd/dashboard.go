@@ -82,10 +82,10 @@ var dashboardCmd = &cobra.Command{
 			for _, f := range fnds {
 				if !f.IsDir() {
 					status := "OPEN"
+					openFindings++
 					if f.Name() == "FND-002.yaml" {
 						status = "RESOLVED"
-					} else {
-						openFindings++
+						openFindings--
 					}
 					response["findings"] = append(response["findings"].([]map[string]string), map[string]string{
 						"id":     f.Name(),

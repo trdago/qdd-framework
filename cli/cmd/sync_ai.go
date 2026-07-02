@@ -62,9 +62,9 @@ You MUST adhere to the following strict architectural and behavioral rules at al
 			err := os.WriteFile(path, []byte(aiRules), 0644)
 			if err != nil {
 				fmt.Printf("[!] Error escribiendo reglas para %s (%s): %v\n", aiName, path, err)
-			} else {
-				fmt.Printf("[✔] Reglas de %s sincronizadas en: %s\n", aiName, path)
+				continue
 			}
+			fmt.Printf("[✔] Reglas de %s sincronizadas en: %s\n", aiName, path)
 		}
 
 		fmt.Println("\n[🏆] ¡Sincronización completa! A partir de ahora, cualquier IA que lea este repositorio obedecerá el framework QDD automáticamente.")
