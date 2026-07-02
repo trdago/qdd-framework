@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/spf13/cobra"
 )
 
@@ -45,6 +46,12 @@ func runInit(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Printf("[!] Error creando estructura: %v\n", err)
 		return
+	}
+
+	fmt.Println("[+] Sincronizando integraciones de Inteligencia Artificial (QDD Adapters)...")
+	manager := integration.NewIntegrationManager()
+	if err := manager.SyncAll(cwd); err != nil {
+		fmt.Printf("[!] Advertencia: fallo al sincronizar adaptadores IA: %v\n", err)
 	}
 
 	fmt.Println("[!] QDD inicializado exitosamente. Siguiente paso: ejecuta `qdd learn`")
