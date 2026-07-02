@@ -6,7 +6,10 @@
     "qdd": "bin/qdd.js"
   },
   "scripts": {
-    "postinstall": "node install.js"
+    "postinstall": "node install.js",
+    "lint": "echo 'No linting required for wrapper' && exit 0",
+    "test": "echo 'No tests required for wrapper' && exit 0",
+    "build": "echo 'No build required for wrapper' && exit 0"
   },
   "repository": {
     "type": "git",
@@ -18,6 +21,7 @@
     "quality",
     "governance"
   ],
-  "author": "",
+  "author": "QDD Team",
+  "homepage": "https://github.com/trdago/qdd-framework#readme",
   "license": "MIT"
 }

@@ -1,0 +1,7 @@
+id: FND-003
+title: Bug en el Despliegue NPM (Pipeline CI/CD)
+type: BUG
+severity: HIGH
+status: OPEN
+desc: "El pipeline de despliegue en GitHub Actions falló tras la creación del tag v0.1.2. Falta confirmar los logs de GitHub para determinar la causa exacta (¿Problema de autenticación con NPM_TOKEN, nombre de paquete 'qdd-framework' ya registrado, u otra validación?)."
+created_at: 2026-07-02T16:29:00Z

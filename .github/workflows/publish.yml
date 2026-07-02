@@ -10,6 +10,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch: # Permite ejecutar el pipeline manualmente desde la interfaz de GitHub
 
 # Control de concurrencia: Evita que múltiples ejecuciones de este workflow 
 # publiquen simultáneamente y causen conflictos en NPM.
