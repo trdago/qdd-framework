@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
@@ -134,11 +137,45 @@ var dashboardCmd = &cobra.Command{
 			json.NewEncoder(w).Encode(response)
 		})
 
-		fmt.Println("✅ Servidor listo y escuchando en el puerto 8080.")
-		if err := http.ListenAndServe(":8080", nil); err != nil {
-			fmt.Println("Error iniciando el servidor:", err)
+		port := 8080
+		var listener net.Listener
+		for {
+			addr := fmt.Sprintf(":%d", port)
+			listener, err = net.Listen("tcp", addr)
+			if err == nil {
+				break
+			}
+			port++
 		}
+
+		dashboardURL := fmt.Sprintf("http://localhost:%d", port)
+		fmt.Printf("✅ Servidor listo y escuchando en %s\n", dashboardURL)
+
+		go func() {
+			http.Serve(listener, nil)
+		}()
+
+		if err := openBrowser(dashboardURL); err != nil {
+			fmt.Printf("Por favor abre manualmente: %s\n", dashboardURL)
+		}
+
+		select {}
 	},
+}
+
+func openBrowser(url string) error {
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	return err
 }
 
 func init() {
