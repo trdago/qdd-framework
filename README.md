@@ -10,6 +10,19 @@ Nuestro objetivo es crear un estándar abierto que pueda ser utilizado por cualq
 
 La IA será únicamente el motor de ejecución. Toda la inteligencia del proceso vive dentro del Framework.
 
+## Instalación
+
+### Opción 1: NPM (Recomendado para Web Devs)
+```bash
+npm install -g qdd-framework
+```
+> Esto descargará automáticamente el binario nativo súper rápido escrito en Go según tu sistema operativo.
+
+### Opción 2: Compilación Manual (Go)
+Si prefieres instalarlo desde el código fuente de Go:
+```bash
+go install github.com/trdago/qdd-framework/cli@latest
+```
 ---
 
 ## 🎯 Problema que buscamos resolver

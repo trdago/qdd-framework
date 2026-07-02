@@ -1,0 +1,23 @@
+{
+  "name": "qdd-framework",
+  "version": "0.1.1",
+  "description": "QDD Framework: Quality-Driven Development Tool",
+  "bin": {
+    "qdd": "bin/qdd.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trdago/qdd-framework.git"
+  },
+  "keywords": [
+    "qdd",
+    "framework",
+    "quality",
+    "governance"
+  ],
+  "author": "",
+  "license": "MIT"
+}

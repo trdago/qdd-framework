@@ -3,7 +3,15 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const state = ref(null)
 const loading = ref(true)
+const activeDetail = ref(null)
 let pollInterval = null
+
+const openDetail = (item, type) => {
+  activeDetail.value = { ...item, type }
+}
+const closeDetail = () => {
+  activeDetail.value = null
+}
 
 const fetchState = async () => {
   try {
@@ -114,7 +122,7 @@ onUnmounted(() => {
           </div>
           <div class="sprint-list" aria-live="polite">
             <div v-if="state.sprints.length === 0" class="empty-state">No active sprints found. Run `qdd sprint` to begin.</div>
-            <div class="sprint-row" v-for="sprint in state.sprints" :key="sprint.id">
+            <div class="sprint-row clickable-row" v-for="sprint in state.sprints" :key="sprint.id" @click="openDetail(sprint, 'Sprint')">
               <div class="sprint-info">
                 <span class="sprint-icon">🏃</span>
                 <span class="sprint-id">{{ sprint.id }}</span>
@@ -130,13 +138,12 @@ onUnmounted(() => {
               <h2 id="cert-title" class="panel-title">Certifications</h2>
             </div>
             <ul class="clean-list" aria-label="Certifications List">
-              <li v-for="cert in state.certifications" :key="cert.id" class="list-row" role="listitem">
+              <li v-for="cert in state.certifications" :key="cert.id" class="list-row clickable-row" role="listitem" @click="openDetail(cert, 'Certification')">
                 <div class="row-main">
                   <svg v-if="cert.status === 'PASS'" class="icon-pass" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                   <svg v-else class="icon-fail" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
                   <span class="item-id">{{ cert.id }}</span>
                 </div>
-                <span class="item-desc">{{ cert.name }}</span>
               </li>
             </ul>
           </section>
@@ -146,17 +153,60 @@ onUnmounted(() => {
               <h2 id="findings-title" class="panel-title">Technical Debt</h2>
             </div>
             <ul class="clean-list" aria-label="Findings List">
-              <li v-for="f in state.findings" :key="f.id" class="list-row" :class="{ 'is-resolved': f.status === 'RESOLVED' }" role="listitem">
+              <li v-for="f in state.findings" :key="f.id" class="list-row clickable-row" :class="{ 'is-resolved': f.status === 'RESOLVED' }" role="listitem" @click="openDetail(f, 'Finding')">
                 <div class="row-main">
                   <span class="finding-id">{{ f.id }}</span>
                   <span class="status-pill" :class="f.status === 'RESOLVED' ? 'resolved' : 'open'">{{ f.status }}</span>
                 </div>
-                <p class="finding-desc">{{ f.desc }}</p>
               </li>
             </ul>
           </section>
         </div>
       </div>
+      
+      <!-- Slide Over Panel -->
+      <div v-if="activeDetail" class="slide-over-backdrop" @click="closeDetail"></div>
+      <aside class="slide-over" :class="{ 'is-open': activeDetail }" aria-label="Detail Panel">
+        <div class="slide-over-header">
+          <div class="slide-title-group">
+            <span class="slide-type">{{ activeDetail?.type }}</span>
+            <h2>{{ activeDetail?.id }}</h2>
+          </div>
+          <button class="close-btn" @click="closeDetail">✕</button>
+        </div>
+        <div class="slide-over-content">
+          <div v-if="activeDetail?.type === 'Sprint'">
+            <div class="detail-block">
+              <h4>Status</h4>
+              <span class="status-pill in-progress">{{ activeDetail.status }}</span>
+            </div>
+          </div>
+          <div v-if="activeDetail?.type === 'Finding'">
+            <div class="detail-block">
+              <h4>Status</h4>
+              <span class="status-pill" :class="activeDetail.status === 'RESOLVED' ? 'resolved' : 'open'">{{ activeDetail.status }}</span>
+            </div>
+            <div class="detail-block">
+              <h4>Description</h4>
+              <p class="detail-text">{{ activeDetail.desc }}</p>
+            </div>
+          </div>
+          <div v-if="activeDetail?.type === 'Certification'">
+            <div class="detail-block">
+              <h4>Status</h4>
+              <span class="status-pill" :class="activeDetail.status === 'PASS' ? 'resolved' : 'open'">{{ activeDetail.status }}</span>
+            </div>
+            <div class="detail-block">
+              <h4>Description</h4>
+              <p class="detail-text">{{ activeDetail.name }}</p>
+            </div>
+          </div>
+          
+          <div class="detail-footer-mock">
+            <p class="muted">Detailed telemetry and audit trails available.</p>
+          </div>
+        </div>
+      </aside>
     </main>
   </div>
 </template>
@@ -228,6 +278,7 @@ body {
   height: 28px;
   border-radius: 6px;
   object-fit: contain;
+  mix-blend-mode: screen;
 }
 
 .brand h1 {
@@ -592,6 +643,118 @@ body {
 .status-pill.resolved { background: var(--success-bg); color: var(--success); }
 .status-pill.open { background: var(--danger-bg); color: var(--danger); }
 .status-pill.in-progress { background: var(--accent-glow); color: var(--accent-color); border: 1px solid rgba(59, 130, 246, 0.2); }
+
+.clickable-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-row:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: rgba(255,255,255,0.15);
+  transform: translateX(4px);
+}
+
+/* Slide Over */
+.slide-over-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+.slide-over {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 400px;
+  background-color: var(--bg-panel);
+  border-left: 1px solid var(--border-color);
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.slide-over.is-open {
+  transform: translateX(0);
+}
+
+.slide-over-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.slide-title-group h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.slide-type {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.5rem;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: var(--text-primary);
+}
+
+.slide-over-content {
+  padding: 2rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.detail-block {
+  margin-bottom: 2rem;
+}
+
+.detail-block h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-text {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.detail-footer-mock {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-color);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
 
 .empty-state {
   color: var(--text-muted);
