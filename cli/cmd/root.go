@@ -13,13 +13,13 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "qdd [intención]",
-	Short: "QDD is an AI-Native Software Engineering Framework",
-	Long: `Quality-Driven Development (QDD) Framework.
-This CLI orchestrates the lifecycle of AI-assisted software development,
-ensuring certification, evidence, and quality from day one.
+	Short: "QDD es un Framework de Ingeniería de Software Nativo-IA",
+	Long: `QDD (Quality-Driven Development) orquesta el ciclo de vida del 
+desarrollo de software asistido por IA, garantizando certificaciones,
+evidencia y calidad desde el día uno.
 
-You can run specific commands (like 'qdd init') or express a natural language intent.
-Example: qdd "Necesito agregar autenticación"`,
+Puedes ejecutar comandos específicos (como 'qdd init') o expresar una intención en lenguaje natural.
+Ejemplo: qdd "Necesito agregar autenticación"`,
 	Args: cobra.ArbitraryArgs,
 	// Disable default error printing so we can intercept it gracefully
 	SilenceErrors: true,

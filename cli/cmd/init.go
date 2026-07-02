@@ -13,9 +13,9 @@ import (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize QDD in the current project",
-	Long: `Scans the current directory to detect the environment (language, framework, cloud)
-and sets up the .qdd directory with the appropriate runtime and specification.`,
+	Short: "Inicializa el entorno QDD en el proyecto actual",
+	Long: `Escanea el directorio actual para detectar el ecosistema (lenguaje, framework)
+y configura el directorio .qdd con el runtime y la especificación apropiada.`,
 	Run: runInit,
 }
 
