@@ -19,8 +19,60 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-binaries:
+    name: Build Go Binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            ext: tar.gz
+          - os: linux
+            arch: arm64
+            ext: tar.gz
+          - os: darwin
+            arch: amd64
+            ext: tar.gz
+          - os: darwin
+            arch: arm64
+            ext: tar.gz
+          - os: windows
+            arch: amd64
+            ext: zip
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build Binary
+        working-directory: ./cli
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -o qdd${{ matrix.os == 'windows' && '.exe' || '' }} .
+          if [ "${{ matrix.ext }}" = "zip" ]; then
+            zip qdd_${{ matrix.os }}_${{ matrix.arch }}.zip qdd.exe
+          else
+            tar -czvf qdd_${{ matrix.os }}_${{ matrix.arch }}.tar.gz qdd
+          fi
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ./cli/qdd_${{ matrix.os }}_${{ matrix.arch }}.${{ matrix.ext }}
+
   publish:
     name: Build, Validate and Publish
+    needs: build-binaries
     runs-on: ubuntu-latest
     environment: prod
     

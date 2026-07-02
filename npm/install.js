@@ -4,7 +4,8 @@ const https = require('https');
 const { execSync } = require('child_process');
 
 // Configuración del Release (Automático según tu GitHub)
-const VERSION = 'v0.1.1';
+const pkg = require('./package.json');
+const VERSION = 'v' + pkg.version;
 const REPO = 'trdago/qdd-framework';
 
 const platformMap = {
@@ -37,9 +38,7 @@ const downloadDest = path.join(__dirname, `qdd-download.${ext}`);
 console.log(`[QDD] Descargando binario nativo para ${os}-${arch}...`);
 console.log(`[QDD] URL: ${url}`);
 
-// (Para efectos de desarrollo y prueba, comentamos la descarga real 
-// hasta que el repo de GitHub tenga sus primeros Releases configurados con GoReleaser)
-/*
+// Realizando la descarga del binario desde GitHub Releases
 const file = fs.createWriteStream(downloadDest);
 https.get(url, (response) => {
   if (response.statusCode === 301 || response.statusCode === 302) {
@@ -71,5 +70,4 @@ function extractBinary() {
     console.error('[QDD] Error al extraer el binario:', err);
   }
 }
-*/
-console.log('[QDD] NOTA: Script preparado para producción. Descomenta la descarga cuando GoReleaser publique los binarios en GitHub Releases.');
+}
