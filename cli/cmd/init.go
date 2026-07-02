@@ -8,6 +8,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var initCmd = &cobra.Command{
@@ -169,14 +170,21 @@ func createConfigFile(qddDir string, languages []string) error {
 		return nil
 	}
 
-	content := fmt.Sprintf(`project: auto-detected
-languages: %v
-governance:
-  certification_first: true
-  evidence_required_for_fixes: true
-`, languages)
+	config := map[string]interface{}{
+		"project":   "auto-detected",
+		"languages": languages,
+		"governance": map[string]interface{}{
+			"certification_first":         true,
+			"evidence_required_for_fixes": true,
+		},
+	}
 
-	return os.WriteFile(configPath, []byte(content), 0644)
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(configPath, data, 0644)
 }
 
 func createStateFile(qddDir string) error {
