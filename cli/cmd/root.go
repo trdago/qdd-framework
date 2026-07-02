@@ -12,8 +12,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "qdd [intención]",
-	Short: "QDD es un Framework de Ingeniería de Software Nativo-IA",
+	Use:     "qdd [intención]",
+	Version: "v0.2.4",
+	Short:   "QDD es un Framework de Ingeniería de Software Nativo-IA",
 	Long: `QDD (Quality-Driven Development) orquesta el ciclo de vida del 
 desarrollo de software asistido por IA, garantizando certificaciones,
 evidencia y calidad desde el día uno.
