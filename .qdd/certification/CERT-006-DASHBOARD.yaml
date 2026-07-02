@@ -1,0 +1,14 @@
+id: CERT-006-DASHBOARD
+name: "Certificación de Dashboard UI (Centro de Comando)"
+description: "Valida que el Dashboard embebido de QDD exponga correctamente la información crítica de gobernanza de todo el proyecto en tiempo real."
+version: 1.0.0
+level: MANDATORY
+rules:
+  - id: DASH-01-METRICS
+    description: "El Dashboard debe mostrar el Quality Score y el Grado del proyecto calculado dinámicamente."
+  - id: DASH-02-GAPS
+    description: "El Dashboard debe mostrar todas las Brechas (Findings/Deuda Técnica) y su estado de resolución."
+  - id: DASH-03-PROGRESS
+    description: "El Dashboard debe leer e integrar los Avances del proyecto a través de la lectura de Sprints (.qdd/sprints/)."
+  - id: DASH-04-AUDIT
+    description: "El Dashboard debe indicar el estado de Auditoría Estática del framework."

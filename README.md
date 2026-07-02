@@ -110,6 +110,14 @@ El repositorio sigue un modelo de comunidad abierta inspirado en Rust, Kubernete
 
 ---
 
+## 🌍 Estándares Internacionales (Compliance)
+
+QDD no solo impone calidad en tu software, sino que predica con el ejemplo. Nuestro Dashboard Web (Centro de Comando) está desarrollado bajo el cumplimiento de normativas globales:
+- **WCAG Nivel AA (W3C)**: Interfaz 100% accesible, inyectada con atributos semánticos y ARIA tags para garantizar que sea Perceptible, Operable, Comprensible y Robusta (POUR).
+- **ISO/IEC 25010 (Calidad de Software)**: Diseñado siguiendo el pilar de **Usabilidad** (Reconocibilidad y Protección contra errores), así como el de **Seguridad y Portabilidad** (sirviendo un binario 100% embebido que no requiere internet).
+
+---
+
 ## 🤝 Contribuyendo y RFCs
 
 QDD es un estándar abierto. Todas las propuestas de arquitectura y diseño importantes deben pasar por un proceso de Request for Comments (RFC) en la carpeta `rfcs/`. Lee `CONTRIBUTING.md` para más información.
