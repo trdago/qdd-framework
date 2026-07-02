@@ -31,7 +31,9 @@ var learnCmd = &cobra.Command{
 			for _, e := range extra {
 				docFolders = append(docFolders, strings.TrimSpace(e))
 			}
-		} else {
+		} 
+		
+		if docsFlag == "" {
 			fileInfo, _ := os.Stdin.Stat()
 			if (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 				fmt.Print("¿Deseas incluir carpetas de documentación adicionales personalizadas? (separadas por coma, presiona Enter para omitir): ")
@@ -78,7 +80,7 @@ var learnCmd = &cobra.Command{
 
 		// Si no hay arquitecturas definidas o lenguajes, agregamos placeholders para pasar el Gatekeeper
 		if _, ok := config["architecture"]; !ok {
-			config["architecture"] = []string{"Hexagonal Architecture (Auto-detected)"}
+			config["architecture"] = "Hexagonal Architecture (Auto-detected)"
 		}
 		if _, ok := config["languages"]; !ok {
 			config["languages"] = []string{"Go"}
