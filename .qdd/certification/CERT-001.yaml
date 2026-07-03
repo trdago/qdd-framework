@@ -1,9 +1,0 @@
-id: CERT-001
-title: "Certificación de Detección Recursiva de Entorno"
-status: certified
-related_finding: FND-001
-rules:
-  - id: RUL-001
-    description: "El comando init debe detectar lenguajes incluso si los archivos indicadores (go.mod, package.json) están en un subdirectorio directo."
-    method: "Unit Test en Go"
-    target: "cli/cmd/init_test.go"

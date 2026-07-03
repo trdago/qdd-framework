@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/qdd-framework/qdd/pkg/qcl/adapters"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -96,6 +97,49 @@ var learnCmd = &cobra.Command{
 
 		fmt.Printf("  -> Asimilados %d documentos oficiales al contexto cognitivo.\n", len(docIndex))
 		fmt.Println("[✔] Conocimiento inicial generado y guardado en config.yaml.")
+		
+		fmt.Println("  -> Invocando Motor Cognitivo para asimilar el entendimiento del proyecto...")
+		
+		var fullContext string
+		for _, doc := range docIndex {
+			content, err := os.ReadFile(filepath.Join(cwd, doc))
+			if err == nil {
+				fullContext += fmt.Sprintf("\n--- Documento: %s ---\n%s\n", doc, string(content))
+			}
+		}
+
+		engine := adapters.NewGeminiEngine()
+		prompt := fmt.Sprintf(`Eres el Platform Architect del proyecto.
+Lee el siguiente contexto del proyecto (documentación y estructura) y redacta un Informe de Inteligencia profesional.
+Debes demostrar comprensión absoluta del negocio, la solución técnica, y los objetivos.
+Responde estrictamente con un JSON que cumpla esta estructura:
+{
+  "summary": "Resumen ejecutivo profesional y profundo del proyecto (2-3 párrafos)",
+  "components": ["Lista de los componentes principales identificados (ej. 'Motor Cognitivo', 'CLI', 'Dashboard')"],
+  "objectives": ["Lista de los objetivos o lineamientos principales identificados"],
+  "guidelines": ["Lista de las directrices arquitectónicas identificadas"],
+  "next_steps": "El siguiente paso lógico recomendado para mejorar la plataforma basado en tu análisis crítico"
+}
+
+Contexto del Proyecto:
+%s
+`, fullContext)
+		
+		resp, err := engine.Ask(prompt, "Tu objetivo es generar el informe de entendimiento en formato JSON puro. No uses backticks de markdown (```json).")
+		
+		if err != nil || resp == "" {
+			fmt.Printf("[!] Advertencia: No se pudo generar el informe de inteligencia: %v\n", err)
+			return
+		}
+
+		resp = strings.TrimPrefix(resp, "```json")
+		resp = strings.TrimPrefix(resp, "```")
+		resp = strings.TrimSuffix(resp, "```")
+		resp = strings.TrimSpace(resp)
+		
+		undPath := filepath.Join(cwd, ".qdd", "understanding.json")
+		os.WriteFile(undPath, []byte(resp), 0644)
+		fmt.Println("[✔] Informe de Inteligencia generado y guardado exitosamente.")
 	},
 }
 

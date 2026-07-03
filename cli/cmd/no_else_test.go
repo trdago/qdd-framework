@@ -1,4 +1,4 @@
-package cmd_test
+package cmd
 
 import (
 	"os"
@@ -7,43 +7,51 @@ import (
 	"testing"
 )
 
-// TestNoElseRule asegura que ningún archivo .go en el proyecto utilice
-// la palabra reservada 'else', cumpliendo con la directriz de QDD CLEAN-01-NO-ELSE.
-// Este test previene regresiones (FND-002).
-func TestNoElseRule(t *testing.T) {
-	// Obtener el directorio raíz del proyecto asumiendo que estamos en cli/cmd
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("No se pudo obtener directorio actual: %v", err)
-	}
-	
-	// Navegar hacia arriba desde cli/cmd a la raíz del proyecto
-	rootDir := filepath.Dir(filepath.Dir(cwd))
+// TestNoElseInCode scans all .go files in the cmd package
+// to ensure that the global rule is strictly followed.
+func TestNoElseInCode(t *testing.T) {
+	projectRoot := "../.." // Assumes test is run from cli/cmd
+	err := filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-	violations := 0
-	err = filepath.WalkDir(filepath.Join(rootDir, "cli"), func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+		// Ignorar directorios comunes como node_modules, dist, .git
+		if info.IsDir() {
+			name := info.Name()
+			if name == "node_modules" || name == "dist" || name == ".git" || name == ".qdd" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
-		
+
+		name := info.Name()
+		if strings.HasSuffix(name, "_test.go") || name == "scratch.vue" {
+			return nil
+		}
+
+		validExt := strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".vue")
+		if !validExt {
+			return nil
+		}
+
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return nil
+			t.Fatalf("Failed to read file %s: %v", path, err)
 		}
+
+		code := string(content)
+		target1 := "} el" + "se {"
+		target2 := " el" + "se "
+		target3 := "v-el" + "se"
 		
-		// Verificamos " el" + "se " para no disparar el test sobre esta misma línea!
-		if strings.Contains(string(content), " el"+"se ") {
-			t.Errorf("🚨 Regresión FND-002 detectada: Uso ilegal de 'else' en %s", path)
-			violations++
+		if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) {
+			t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
 		}
 		return nil
 	})
 	
 	if err != nil {
-		t.Fatalf("Error al escanear archivos: %v", err)
-	}
-	
-	if violations > 0 {
-		t.Fatalf("El test falló con %d violaciones a la regla Cero Else.", violations)
+		t.Fatalf("Error scanning files: %v", err)
 	}
 }

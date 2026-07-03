@@ -1,0 +1,14 @@
+{
+  "name": "qdd-framework",
+  "version": "1.1.0",
+  "description": "QDD Framework Root Tooling",
+  "scripts": {
+    "build:ui": "cd cli/ui && npm install && npm run build",
+    "build:cli": "rm -rf cli/cmd/core_assets && mkdir -p cli/cmd/core_assets/core && cp -r .qdd/core/* cli/cmd/core_assets/core/ && find cli/cmd/core_assets -type d -empty -exec touch {}/.keep \\; && cd cli && go build -o ../qdd",
+    "install:cli": "cd cli && go install",
+    "build": "npm run build:ui && npm run build:cli",
+    "install:all": "npm run build && npm run install:cli"
+  },
+  "author": "",
+  "license": "ISC"
+}

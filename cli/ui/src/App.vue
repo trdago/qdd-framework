@@ -1,17 +1,153 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import mermaid from 'mermaid'
+
+mermaid.initialize({ startOnLoad: false, theme: 'dark' })
 
 const state = ref(null)
 const loading = ref(true)
 const activeDetail = ref(null)
 const activeTab = ref('overview')
 const omniInput = ref('')
-let pollInterval = null
+const searchQuery = ref('')
+const qclLoading = ref(false)
+const lifecycleSvg = ref('')
+const connectionStatus = ref('DISCONNECTED')
+const syncingTabs = ref({
+  overview: false,
+  intelligence: false,
+  sprints: false,
+  findings: false,
+  certifications: false,
+  knowledge: false,
+  lifecycle: false
+})
 
-const executeOmni = () => {
+const triggerSync = (tabName) => {
+  syncingTabs.value[tabName] = true
+  setTimeout(() => {
+    syncingTabs.value[tabName] = false
+  }, 2500)
+}
+
+let evtSource = null
+
+const certSearchQuery = ref('')
+
+const certStats = computed(() => {
+  if (!state.value?.certifications) return { total: 0, pass: 0, fail: 0 }
+  const certs = state.value.certifications
+  return {
+    total: certs.length,
+    pass: certs.filter(c => c.status === 'PASS' || c.status.toLowerCase() === 'certified').length,
+    fail: certs.filter(c => c.status !== 'PASS' && c.status.toLowerCase() !== 'certified').length
+  }
+})
+
+const filteredCerts = computed(() => {
+  if (!state.value?.certifications) return []
+  let certs = state.value.certifications.map(c => {
+    return { ...c, typeLabel: c.type || 'Proyecto' }
+  })
+  
+  if (certSearchQuery.value) {
+    const q = certSearchQuery.value.toLowerCase()
+    certs = certs.filter(c => 
+      c.id.toLowerCase().includes(q) || 
+      (c.raw?.description || '').toLowerCase().includes(q) ||
+      (c.raw?.title || '').toLowerCase().includes(q) ||
+      (c.type || '').toLowerCase().includes(q)
+    )
+  }
+  return certs
+})
+
+const filteredKnowledge = computed(() => {
+  if (!state.value?.knowledge) return []
+  if (!searchQuery.value) return state.value.knowledge
+  const q = searchQuery.value.toLowerCase()
+  return state.value.knowledge.filter(k => 
+    k.path.toLowerCase().includes(q) || 
+    k.content.toLowerCase().includes(q)
+  )
+})
+
+const renderLifecycle = async () => {
+  if (!state.value?.knowledge) return
+  const doc = state.value.knowledge.find(k => k.path === 'docs/command-reference.md')
+  if (doc) {
+    const match = doc.content.match(/```mermaid\n([\s\S]*?)```/)
+    if (match && match[1]) {
+      try {
+        const { svg } = await mermaid.render('mermaid-chart', match[1])
+        lifecycleSvg.value = svg
+      } catch (err) {
+        console.error("Mermaid error:", err)
+      }
+    }
+  }
+}
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'lifecycle') {
+    renderLifecycle()
+  }
+})
+
+watch(() => state.value?.certifications, (newVal, oldVal) => {
+  if (oldVal) triggerSync('certifications')
+}, { deep: true })
+
+watch(() => state.value?.findings, (newVal, oldVal) => {
+  if (oldVal) triggerSync('findings')
+}, { deep: true })
+
+watch(() => state.value?.sprints, (newVal, oldVal) => {
+  if (oldVal) triggerSync('sprints')
+}, { deep: true })
+
+watch(() => state.value?.understanding, (newVal, oldVal) => {
+  if (oldVal) triggerSync('intelligence')
+}, { deep: true })
+
+watch(() => state.value?.knowledge, (newVal, oldVal) => {
+  if (oldVal) triggerSync('knowledge')
+}, { deep: true })
+
+watch(() => state.value?.score, (newVal, oldVal) => {
+  if (oldVal !== undefined) triggerSync('overview')
+})
+
+const executeOmni = async () => {
     if (!omniInput.value) return;
-    alert("Ejecutando QDD Intent: " + omniInput.value + "\n(Próximamente backend)");
+    const intent = omniInput.value;
     omniInput.value = '';
+    qclLoading.value = true;
+    
+    try {
+        const res = await fetch('/api/intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ input: intent })
+        });
+        
+        if (!res.ok) {
+            throw new Error(`Error ${res.status}: ${await res.text()}`);
+        }
+        
+        const data = await res.json();
+        
+        activeDetail.value = {
+            id: 'QCL Intent Result',
+            type: 'AI Execution Plan',
+            status: 'COMPLETED',
+            raw: data,
+        }
+    } catch (err) {
+        alert("Error procesando intent con QCL: " + err.message);
+    } finally {
+        qclLoading.value = false;
+    }
 }
 
 const openDetail = (item, type) => {
@@ -21,45 +157,40 @@ const closeDetail = () => {
   activeDetail.value = null
 }
 
-const fetchState = async () => {
-  try {
-    const res = await fetch('/api/state')
-    state.value = await res.json()
-  } catch (e) {
-    console.error("Error loading QDD state:", e)
-    // Fallback mock data if API is not running
-    state.value = {
-      score: 100,
-      grade: 'World-Class',
-      version: 'v0.1.1',
-      findings: [
-        { id: 'FND-002', status: 'RESOLVED', desc: 'Uso ilegal de else detectado y corregido.' }
-      ],
-      certifications: [
-        { id: 'CERT-005', status: 'PASS', name: 'Clean Code' }
-      ],
-      sprints: [
-        { id: 'Sprint-2', status: 'IN-PROGRESS'}
-      ],
-      config: {
-        architecture: ['Hexagonal Architecture'],
-        languages: ['Go'],
-        databases: ['PostgreSQL']
-      },
-      audit_status: 'PASS'
-    }
-  } finally {
+const initRealTime = () => {
+  evtSource = new EventSource('/api/stream')
+  
+  evtSource.onopen = () => {
+    connectionStatus.value = 'CONNECTED'
+  }
+  
+  evtSource.onmessage = (e) => {
+    state.value = JSON.parse(e.data)
     loading.value = false
+    connectionStatus.value = 'CONNECTED'
+    if (activeTab.value === 'lifecycle') {
+      renderLifecycle()
+    }
+  }
+  
+  evtSource.onerror = (e) => {
+    console.error("Error in SSE stream, trying to reconnect...", e)
+    connectionStatus.value = 'DISCONNECTED'
   }
 }
 
+const handleKeydown = (e) => {
+  if (e.key === 'Escape') closeDetail()
+}
+
 onMounted(() => {
-  fetchState()
-  pollInterval = setInterval(fetchState, 2000) // Poll every 2 seconds
+  initRealTime()
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
+  if (evtSource) evtSource.close()
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -74,30 +205,42 @@ onUnmounted(() => {
         <h1>QDD Framework</h1>
         <span class="version-tag">{{ state?.version }}</span>
       </div>
-      <div class="nav-section">
+      <div class="nav-section" role="tablist" aria-label="Main Tabs">
         <div class="nav-label">Governance</div>
-        <a href="#" class="nav-item" :class="{active: activeTab==='overview'}" @click.prevent="activeTab='overview'"><span class="icon">◱</span> Overview</a>
-        <a href="#" class="nav-item" :class="{active: activeTab==='sprints'}" @click.prevent="activeTab='sprints'"><span class="icon">🏃</span> Sprints</a>
-        <a href="#" class="nav-item" :class="{active: activeTab==='findings'}" @click.prevent="activeTab='findings'"><span class="icon">🐞</span> Findings</a>
-        <a href="#" class="nav-item" :class="{active: activeTab==='certifications'}" @click.prevent="activeTab='certifications'"><span class="icon">🛡️</span> Certifications</a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='overview'" :class="{active: activeTab==='overview'}" @click.prevent="activeTab='overview'"><span class="icon">◱</span> <span style="flex:1;">Overview</span><div v-if="syncingTabs['overview']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='intelligence'" :class="{active: activeTab==='intelligence'}" @click.prevent="activeTab='intelligence'"><span class="icon">🧠</span> <span style="flex:1;">Intelligence</span><div v-if="syncingTabs['intelligence']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='sprints'" :class="{active: activeTab==='sprints'}" @click.prevent="activeTab='sprints'"><span class="icon">🏃</span> <span style="flex:1;">Sprints</span><div v-if="syncingTabs['sprints']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='findings'" :class="{active: activeTab==='findings'}" @click.prevent="activeTab='findings'"><span class="icon">🐞</span> <span style="flex:1;">Findings</span><div v-if="syncingTabs['findings']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='certifications'" :class="{active: activeTab==='certifications'}" @click.prevent="activeTab='certifications'"><span class="icon">🛡️</span> <span style="flex:1;">Certifications</span><div v-if="syncingTabs['certifications']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='knowledge'" :class="{active: activeTab==='knowledge'}" @click.prevent="activeTab='knowledge'"><span class="icon">📚</span> <span style="flex:1;">Knowledge</span><div v-if="syncingTabs['knowledge']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='lifecycle'" :class="{active: activeTab==='lifecycle'}" @click.prevent="activeTab='lifecycle'"><span class="icon">🗺️</span> <span style="flex:1;">Lifecycle Map</span><div v-if="syncingTabs['lifecycle']" class="sync-spinner" aria-hidden="true"></div></a>
       </div>
       
       <div class="sidebar-footer">
         <div class="status-indicator" aria-live="polite">
-          <div class="pulse-dot" aria-hidden="true"></div> Live Sync Active
+          <div v-if="connectionStatus === 'CONNECTED'" class="pulse-dot" aria-hidden="true"></div>
+          <div v-if="connectionStatus === 'DISCONNECTED'" class="pulse-dot disconnected" aria-hidden="true"></div>
+          {{ connectionStatus === 'CONNECTED' ? 'Live Sync Active' : 'Desconectado (Reintentando...)' }}
         </div>
       </div>
     </nav>
 
-    <main v-if="!loading && state" class="content-area" id="main-content" aria-live="polite">
+    <div v-if="loading" class="loading-state" aria-busy="true" aria-live="polite">
+      <div class="pulse-dot"></div> Cargando sistema cognitivo...
+    </div>
+
+    <main v-if="!loading" class="content-area" id="main-content" aria-live="polite">
       <header class="top-nav glassmorphism" role="banner" aria-label="App Header">
         <div class="breadcrumbs">
           <span>QDD</span> <span class="separator">/</span> <span class="current" style="text-transform: capitalize;">{{ activeTab }}</span>
         </div>
         
-        <div class="omnibar">
-            <input type="text" v-model="omniInput" @keyup.enter="executeOmni" placeholder="QDD Intent (e.g. qdd sprint 3)..." class="omni-input" />
-            <button @click="executeOmni" class="omni-btn">✨</button>
+        <div class="omnibar" :class="{ 'is-loading': qclLoading }">
+            <input type="text" v-model="omniInput" @keyup.enter="executeOmni" :disabled="qclLoading" placeholder="QDD Intent (e.g. qdd sprint 3)..." class="omni-input" aria-label="QDD Intent Input" />
+            <button @click="executeOmni" :disabled="qclLoading" class="omni-btn" aria-label="Ejecutar Intent">
+                <span v-if="!qclLoading">✨</span>
+                <span v-if="qclLoading" class="spinner">⏳</span>
+            </button>
         </div>
         <div class="header-actions">
           <div class="audit-badge" :class="state?.audit_status.startsWith('PASS') ? 'pass' : 'fail'">
@@ -108,22 +251,42 @@ onUnmounted(() => {
 
       <div class="page-content">
         <!-- OVERVIEW TAB -->
-        <section v-show="activeTab === 'overview'" class="grid-layout glass-panel fade-in" aria-label="Key Metrics">
-          <div class="panel score-panel" role="region" aria-labelledby="score-title" style="align-self: start;">
+        <section v-show="activeTab === 'overview'" class="grid-layout cols-3 fade-in" aria-label="Key Metrics">
+          <div class="panel glass-panel score-panel" role="region" aria-labelledby="score-title">
             <h3 id="score-title" class="panel-title">Quality Score</h3>
-            <div class="score-container">
-              <div class="score-value">{{ state.score }}</div>
-              <div class="score-grade" :class="'grade-' + state.grade.charAt(0).toLowerCase()" style="white-space: nowrap;">Grade {{ state.grade }}</div>
-            </div>
-            <div class="qdd-ring-container">
-              <svg class="qdd-ring" viewBox="0 0 100 100">
-                <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
-                <circle class="ring-progress" cx="50" cy="50" r="45" :style="{'stroke-dashoffset': 283 - (283 * state.score) / 100}"></circle>
-              </svg>
+            <div class="score-row">
+              <div class="score-container">
+                <div class="score-value">{{ state.score }}</div>
+                <div class="score-grade" :class="'grade-' + state.grade.charAt(0).toLowerCase()">Grade {{ state.grade }}</div>
+              </div>
+              <div class="qdd-ring-container">
+                <svg class="qdd-ring" viewBox="0 0 100 100">
+                  <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
+                  <circle class="ring-progress" cx="50" cy="50" r="45" :style="{'stroke-dashoffset': 283 - (283 * state.score) / 100}"></circle>
+                </svg>
+              </div>
             </div>
           </div>
           
-          <div class="panel" role="region" aria-labelledby="stack-title" style="align-self: start;">
+          <div class="panel glass-panel" role="region" aria-labelledby="telemetry-title">
+            <h3 id="telemetry-title" class="panel-title">System Telemetry</h3>
+            <div class="telemetry-grid">
+              <div class="telemetry-stat">
+                <span class="t-label">UPTIME</span>
+                <span class="t-value">{{ state.telemetry?.uptime || '0s' }}</span>
+              </div>
+              <div class="telemetry-stat">
+                <span class="t-label">MEM (SYS)</span>
+                <span class="t-value">{{ state.telemetry?.memory_sys || '0 MB' }}</span>
+              </div>
+              <div class="telemetry-stat">
+                <span class="t-label">GOROUTINES</span>
+                <span class="t-value">{{ state.telemetry?.goroutines || 0 }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel glass-panel" role="region" aria-labelledby="stack-title">
             <h3 id="stack-title" class="panel-title">Infrastructure Stack</h3>
             <div class="stack-grid" aria-label="Technology Stack">
               <div class="stack-item" v-if="state.config?.architecture">
@@ -142,6 +305,49 @@ onUnmounted(() => {
           </div>
         </section>
 
+        <!-- INTELLIGENCE TAB -->
+        <section v-show="activeTab === 'intelligence'" class="fade-in" role="region" aria-labelledby="intel-title">
+          <div v-if="state?.understanding" class="intel-layout">
+            <div class="panel glass-panel intel-main" role="region">
+              <h2 class="panel-title">Platform Understanding</h2>
+              <div class="intel-summary">
+                <p>{{ state.understanding.summary }}</p>
+              </div>
+              
+              <div class="intel-grid">
+                <div class="intel-box">
+                  <h4><span class="icon">🧩</span> Components</h4>
+                  <ul>
+                    <li v-for="comp in state.understanding.components" :key="comp">{{ comp }}</li>
+                  </ul>
+                </div>
+                
+                <div class="intel-box">
+                  <h4><span class="icon">🎯</span> Objectives</h4>
+                  <ul>
+                    <li v-for="obj in state.understanding.objectives" :key="obj">{{ obj }}</li>
+                  </ul>
+                </div>
+                
+                <div class="intel-box">
+                  <h4><span class="icon">📐</span> Guidelines</h4>
+                  <ul>
+                    <li v-for="guide in state.understanding.guidelines" :key="guide">{{ guide }}</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div class="intel-next-steps panel glass-panel mt-4" style="border-color: var(--accent-color);">
+                <h4><span class="icon">🚀</span> Next Steps (Architect Recommendation)</h4>
+                <p>{{ state.understanding.next_steps }}</p>
+              </div>
+            </div>
+          </div>
+          <div v-if="!state.understanding" class="empty-state">
+            No intelligence report found. Run <code>qdd learn</code> to generate the platform understanding report.
+          </div>
+        </section>
+
         <!-- SPRINTS TAB -->
         <section v-show="activeTab === 'sprints'" class="panel glass-panel fade-in mb-section" role="region" aria-labelledby="sprints-title">
           <div class="panel-header">
@@ -149,7 +355,7 @@ onUnmounted(() => {
           </div>
           <div class="sprint-list" aria-live="polite">
             <div v-if="state.sprints.length === 0" class="empty-state">No active sprints found. Run `qdd sprint` to begin.</div>
-            <div class="sprint-row clickable-row" v-for="sprint in state.sprints" :key="sprint.id" @click="openDetail(sprint, 'Sprint')">
+            <div class="sprint-row clickable-row" tabindex="0" v-for="sprint in state.sprints" :key="sprint.id" @click="openDetail(sprint, 'Sprint')" @keydown.enter="openDetail(sprint, 'Sprint')">
               <div class="sprint-info">
                 <span class="sprint-icon">🏃</span>
                 <span class="sprint-id">{{ sprint.id }}</span>
@@ -161,18 +367,59 @@ onUnmounted(() => {
 
         <!-- CERTIFICATIONS TAB -->
         <section v-show="activeTab === 'certifications'" class="panel glass-panel fade-in" role="region" aria-labelledby="cert-title">
-            <div class="panel-header">
-              <h2 id="cert-title" class="panel-title">Certifications</h2>
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <h2 id="cert-title" class="panel-title" style="margin: 0;">Certifications</h2>
+              <input type="text" v-model="certSearchQuery" placeholder="Filtrar por conceptos o estándares..." class="search-input" />
             </div>
-            <ul class="clean-list" aria-label="Certifications List">
-              <li v-for="cert in state.certifications" :key="cert.id" class="list-row clickable-row" role="listitem" @click="openDetail(cert, 'Certification')">
-                <div class="row-main">
-                  <svg v-if="cert.status === 'PASS' || cert.status.toLowerCase() === 'certified'" class="icon-pass" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                  <svg v-else class="icon-fail" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                  <span class="item-id">{{ cert.id }}</span>
-                </div>
-              </li>
-            </ul>
+            
+            <div class="stats-cards">
+              <div class="stat-card">
+                <span class="stat-value">{{ certStats.total }}</span>
+                <span class="stat-label">Total Certs</span>
+              </div>
+              <div class="stat-card pass">
+                <span class="stat-value">{{ certStats.pass }}</span>
+                <span class="stat-label">Certified</span>
+              </div>
+              <div class="stat-card fail" v-if="certStats.fail > 0">
+                <span class="stat-value">{{ certStats.fail }}</span>
+                <span class="stat-label">Pending</span>
+              </div>
+            </div>
+
+            <div class="table-responsive mt-4">
+              <table class="qdd-table">
+                <thead>
+                  <tr>
+                    <th width="50">Status</th>
+                    <th width="30%">Certificación</th>
+                    <th width="15%">Tipo</th>
+                    <th>Descripción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="filteredCerts.length === 0">
+                    <td colspan="4" class="empty-state">No se encontraron certificaciones.</td>
+                  </tr>
+                  <tr v-for="cert in filteredCerts" :key="cert.id" class="clickable-row" tabindex="0" @click="openDetail(cert, 'Certification')" @keydown.enter="openDetail(cert, 'Certification')">
+                    <td class="status-cell">
+                      <svg v-if="cert.status === 'PASS' || cert.status.toLowerCase() === 'certified'" class="icon-pass" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                      <svg v-if="cert.status !== 'PASS' && cert.status.toLowerCase() !== 'certified'" class="icon-fail" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                    </td>
+                    <td class="cert-name-cell">
+                      <strong>{{ cert.id }}</strong>
+                      <div class="cert-subtitle" v-if="cert.raw?.title">{{ cert.raw.title }}</div>
+                    </td>
+                    <td>
+                      <span class="type-badge" :class="cert.typeLabel.toLowerCase()">{{ cert.typeLabel }}</span>
+                    </td>
+                    <td class="desc-cell">
+                      <span class="truncate-text">{{ cert.raw?.description || 'Sin descripción' }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
         </section>
         
         <!-- FINDINGS TAB -->
@@ -181,13 +428,41 @@ onUnmounted(() => {
               <h2 id="findings-title" class="panel-title">Technical Debt</h2>
             </div>
             <ul class="clean-list" aria-label="Findings List">
-              <li v-for="f in state.findings" :key="f.id" class="list-row clickable-row" :class="{ 'is-resolved': f.status.toUpperCase() === 'RESOLVED' }" role="listitem" @click="openDetail(f, 'Finding')">
+              <li v-for="f in state.findings" :key="f.id" tabindex="0" class="list-row clickable-row" :class="{ 'is-resolved': f.status.toUpperCase() === 'RESOLVED' }" role="listitem" @click="openDetail(f, 'Finding')" @keydown.enter="openDetail(f, 'Finding')">
                 <div class="row-main">
                   <span class="finding-id">{{ f.id }}</span>
                   <span class="status-pill" :class="f.status.toUpperCase() === 'RESOLVED' ? 'resolved' : 'open'">{{ f.status }}</span>
                 </div>
               </li>
             </ul>
+        </section>
+
+        <!-- KNOWLEDGE TAB -->
+        <section v-show="activeTab === 'knowledge'" class="panel glass-panel fade-in" role="region" aria-labelledby="knowledge-title">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <h2 id="knowledge-title" class="panel-title" style="margin: 0;">Knowledge Base</h2>
+              <input type="text" v-model="searchQuery" placeholder="Search architecture, modules, etc..." class="search-input" />
+            </div>
+            <div class="sprint-list" aria-live="polite">
+              <div v-if="filteredKnowledge.length === 0" class="empty-state">No knowledge documents found matching "{{ searchQuery }}".</div>
+              <div class="sprint-row clickable-row" tabindex="0" v-for="doc in filteredKnowledge" :key="doc.id" @click="openDetail(doc, 'Knowledge')" @keydown.enter="openDetail(doc, 'Knowledge')">
+                <div class="sprint-info">
+                  <span class="sprint-icon">📄</span>
+                  <span class="item-id">{{ doc.path }}</span>
+                </div>
+                <span class="status-pill in-progress">Markdown</span>
+              </div>
+            </div>
+        </section>
+
+        <!-- LIFECYCLE TAB -->
+        <section v-show="activeTab === 'lifecycle'" class="panel glass-panel fade-in" role="region" aria-labelledby="lifecycle-title" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh;">
+            <div class="panel-header" style="width: 100%; text-align: center; margin-bottom: 2rem;">
+              <h2 id="lifecycle-title" class="panel-title" style="font-size: 24px;">Ciclo de Mejora Continua</h2>
+              <p style="color: var(--text-secondary); font-size: 14px;">Generado dinámicamente desde <code>docs/command-reference.md</code></p>
+            </div>
+            <div v-if="lifecycleSvg" class="mermaid-container fade-in" v-html="lifecycleSvg" style="background: rgba(0,0,0,0.2); padding: 24px; border-radius: 12px; border: 1px solid var(--border-color); overflow-x: auto; width: 100%; display: flex; justify-content: center;"></div>
+            <div v-if="!lifecycleSvg" class="empty-state">No se encontró diagrama Mermaid o el documento aún no está indexado. Ejecuta <code>qdd learn</code>.</div>
         </section>
 
       </div>
@@ -200,7 +475,7 @@ onUnmounted(() => {
             <span class="slide-type">{{ activeDetail?.type }}</span>
             <h2>{{ activeDetail?.id }}</h2>
           </div>
-          <button class="close-btn" @click="closeDetail">✕</button>
+          <button class="close-btn" aria-label="Cerrar detalles" @click="closeDetail">✕</button>
         </div>
         <div class="slide-over-content">
           <div class="detail-block">
@@ -218,13 +493,19 @@ onUnmounted(() => {
                 </ul>
               </div>
               
-              <div v-else-if="typeof val === 'object' && val !== null" class="raw-object">
+              <div v-if="!Array.isArray(val) && typeof val === 'object' && val !== null" class="raw-object">
                 <div v-for="(v, k) in val" :key="k" class="raw-object-item">
                   <span class="raw-sub-key">{{ k }}:</span> <span class="raw-sub-val">{{ v }}</span>
                 </div>
               </div>
               
-              <p v-else class="detail-text">{{ val }}</p>
+              <p v-if="!Array.isArray(val) && (typeof val !== 'object' || val === null)" class="detail-text">{{ val }}</p>
+            </div>
+          </template>
+
+          <template v-if="activeDetail?.type === 'Knowledge'">
+            <div class="knowledge-content">
+              <pre class="detail-text" style="white-space: pre-wrap; word-break: break-word;">{{ activeDetail.content }}</pre>
             </div>
           </template>
         </div>
@@ -268,28 +549,34 @@ body {
   letter-spacing: -0.01em;
 }
 
+*:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* DASHBOARD 2.0 STYLES */
 .bg-orb {
   position: fixed;
   border-radius: 50%;
   filter: blur(80px);
   z-index: 0;
-  opacity: 0.4;
+  opacity: 0.6;
   animation: float 10s infinite ease-in-out alternate;
 }
 .orb-1 {
   width: 400px;
   height: 400px;
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.4);
   top: -100px;
-  left: -100px;
+  left: 200px;
 }
 .orb-2 {
   width: 300px;
   height: 300px;
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(16, 185, 129, 0.35);
   bottom: -50px;
-  right: 10%;
+  right: 20%;
   animation-delay: -5s;
 }
 @keyframes float {
@@ -391,6 +678,15 @@ body {
   opacity: 0.8;
 }
 
+.sync-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(16, 185, 129, 0.2);
+  border-top-color: var(--success);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
 .sidebar-footer {
   padding: 16px 20px;
   border-top: 1px solid var(--border-color);
@@ -417,6 +713,28 @@ body {
   0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
   70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.pulse-dot.disconnected {
+  background-color: var(--danger);
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.loading-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .content-area {
@@ -492,6 +810,27 @@ body {
 }
 .omni-btn:hover { filter: grayscale(0); }
 
+.search-input {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 250px;
+  transition: border-color 0.2s;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -533,6 +872,9 @@ body {
   overflow-y: auto;
   padding: 32px;
   padding-bottom: 100px; /* space for slide over shadow */
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .grid-layout {
@@ -542,8 +884,8 @@ body {
   margin-bottom: 24px;
 }
 
-.grid-layout.cols-2 {
-  grid-template-columns: 1fr 1fr;
+.grid-layout.cols-3 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .mb-section {
@@ -585,13 +927,20 @@ body {
 .score-panel {
   display: flex;
   flex-direction: column;
-  position: relative;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .score-container {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .score-value {
@@ -615,12 +964,9 @@ body {
 
 /* Animated Ring */
 .qdd-ring-container {
-  width: 120px;
-  height: 120px;
-  position: absolute;
-  right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
 }
 .qdd-ring {
   width: 100%;
@@ -697,6 +1043,81 @@ body {
   align-items: center;
   gap: 12px;
   width: 100%;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.telemetry-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.t-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.t-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .saas-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .brand {
+    display: none;
+  }
+  .nav-section {
+    display: flex;
+    overflow-x: auto;
+    padding: 12px;
+    gap: 8px;
+    align-items: center;
+  }
+  .nav-label, .sidebar-footer {
+    display: none;
+  }
+  .nav-item {
+    white-space: nowrap;
+    margin-bottom: 0;
+    padding: 10px 16px;
+  }
+  .top-nav {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 16px;
+    gap: 12px;
+  }
+  .breadcrumbs {
+    width: 100%;
+  }
+  .omnibar {
+    width: 100%;
+    margin-left: 0;
+  }
+  .page-content {
+    padding: 16px;
+  }
+  .grid-layout {
+    grid-template-columns: 1fr;
+  }
+  .score-row {
+    justify-content: center;
+    gap: 32px;
+  }
 }
 
 .item-id, .finding-id {
@@ -913,6 +1334,119 @@ body {
 
 .muted {
   color: var(--text-muted);
+}
+
+/* CERTIFICATIONS STATS & TABLE STYLES */
+.stats-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.stat-card.pass {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+}
+.stat-card.fail {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+.stat-card .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.stat-card.pass .stat-value {
+  color: var(--success);
+}
+.stat-card.fail .stat-value {
+  color: var(--danger);
+}
+.stat-card .stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+.qdd-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.qdd-table th {
+  padding: 12px 16px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+.qdd-table td {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  vertical-align: top;
+}
+.qdd-table tbody tr {
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+.qdd-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.qdd-table .status-cell {
+  text-align: center;
+}
+.qdd-table .cert-name-cell strong {
+  display: block;
+  font-size: 14px;
+  color: var(--accent-color);
+}
+.qdd-table .cert-subtitle {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+.type-badge.core {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.type-badge.proyecto {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.desc-cell .truncate-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .fade-in {

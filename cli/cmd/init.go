@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/spf13/cobra"
@@ -117,14 +120,18 @@ func createQDDStructure(baseDir string, languages []string) error {
 	}
 
 	dirsToCreate := []string{
-		"runtime",
-		"specification",
-		"templates",
-		"plugins",
-		"findings",
-		"certification",
-		"evidence",
-		"metrics",
+		"core/runtime",
+		"core/specification",
+		"core/templates",
+		"core/plugins",
+		"core/certification",
+		"core/wisdom",
+		"project/findings",
+		"project/sprints",
+		"project/certification",
+		"project/evidence",
+		"project/metrics",
+		"project/adr",
 		"dashboard",
 	}
 
@@ -145,7 +152,7 @@ func createQDDStructure(baseDir string, languages []string) error {
 		return err
 	}
 
-	err = createSystemSpecFile(qddDir)
+	err = unpackCoreAssets(qddDir)
 	if err != nil {
 		return err
 	}
@@ -153,15 +160,38 @@ func createQDDStructure(baseDir string, languages []string) error {
 	return nil
 }
 
-func createSystemSpecFile(qddDir string) error {
-	specPath := filepath.Join(qddDir, "specification", "qdd-spec.md")
-	
-	if fileExists(specPath) {
-		return nil
-	}
+//go:embed all:core_assets/core
+var coreAssets embed.FS
 
-	return os.WriteFile(specPath, []byte(SystemPromptTemplate), 0644)
+func unpackCoreAssets(qddDir string) error {
+	basePath := "core_assets/core"
+	return fs.WalkDir(coreAssets, basePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		
+		relPath := strings.TrimPrefix(path, basePath+"/")
+		destPath := filepath.Join(qddDir, "core", relPath)
+		
+		if fileExists(destPath) {
+			return nil
+		}
+		
+		content, err := coreAssets.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return err
+		}
+		return os.WriteFile(destPath, content, 0644)
+	})
 }
+
 
 func createConfigFile(qddDir string, languages []string) error {
 	configPath := filepath.Join(qddDir, "config.yaml")

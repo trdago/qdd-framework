@@ -1,61 +1,80 @@
 package nodes
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/qdd-framework/qdd/pkg/qcl/adapters"
 	"github.com/qdd-framework/qdd/pkg/qcl/models"
 )
 
 type IntentAnalyzer struct {
-	// Aquí inyectaríamos el LLMAdapter en el futuro
+	Engine adapters.CognitiveEngine
 }
 
-func NewIntentAnalyzer() *IntentAnalyzer {
-	return &IntentAnalyzer{}
+func NewIntentAnalyzer(engine adapters.CognitiveEngine) *IntentAnalyzer {
+	return &IntentAnalyzer{
+		Engine: engine,
+	}
 }
 
 func (i *IntentAnalyzer) Process(session *models.CognitiveSession) error {
-	fmt.Println("🤖 [QCL] IntentAnalyzer: Analizando input...")
-	
-	// Simulación básica del comportamiento del LLM
-	lowerInput := strings.ToLower(session.RawInput)
-	
+	fmt.Println("🤖 [QCL] IntentAnalyzer: Analizando input con LLM...")
+
 	session.Intent = &models.IntentModel{
 		Objectives: []string{session.RawInput},
 		Type:       "ASK", // Default
 	}
 
-	// 🛑 Filtro de Ambigüedad
-	ambiguas := []string{"algo", "eso", "cosas", "lo de ayer", "ayuda"}
-	for _, palabra := range ambiguas {
-		if strings.Contains(lowerInput, palabra) {
-			session.ClarificationRequest = &models.ClarificationRequest{
-				Message: fmt.Sprintf("Ambigüedad detectada. La intención '%s' es demasiado genérica. ¿Qué deseas hacer exactamente?", palabra),
-				Options: []string{
-					"Agregar Autenticación",
-					"Agregar Base de Datos",
-					"Agregar Endpoint REST",
-					"Auditar Código",
-				},
-			}
-			// Retornamos sin error para que el pipeline devuelva la sesión a la CLI
-			return nil
-		}
+	if i.Engine == nil {
+		fmt.Println("   [!] No engine configured, using fallback.")
+		return nil
 	}
 
-	if strings.Contains(lowerInput, "autenticación") || strings.Contains(lowerInput, "agregar") {
-		session.Intent.Type = "FEATURE"
-		fmt.Printf("   -> Intención detectada: %s\n", session.Intent.Type)
+	systemContext := `Your specific task right now is to classify the user's intent into one of the following types:
+- FEATURE (Adding a new feature or functionality)
+- FIX (Fixing a bug or error)
+- ASK (Asking a question, default)
+- CLARIFY (If the request is too ambiguous)
+
+Respond strictly with a JSON object in this format:
+{
+  "type": "FEATURE|FIX|ASK|CLARIFY",
+  "reasoning": "string"
+}`
+
+	resp, err := i.Engine.Ask(session.RawInput, systemContext)
+	if err != nil {
+		fmt.Printf("   [!] LLM error: %v. Using fallback.\n", err)
 		return nil
 	}
 	
-	if strings.Contains(lowerInput, "bug") || strings.Contains(lowerInput, "error") {
-		session.Intent.Type = "FIX"
-		fmt.Printf("   -> Intención detectada: %s\n", session.Intent.Type)
+	// Remove markdown ticks if present
+	resp = strings.TrimPrefix(resp, "```json")
+	resp = strings.TrimPrefix(resp, "```")
+	resp = strings.TrimSuffix(resp, "```")
+	resp = strings.TrimSpace(resp)
+
+	var result struct {
+		Type      string `json:"type"`
+		Reasoning string `json:"reasoning"`
+	}
+
+	if err := json.Unmarshal([]byte(resp), &result); err != nil {
+		fmt.Printf("   [!] JSON Parse error: %v. Raw: %s\n", err, resp)
 		return nil
 	}
 
-	fmt.Printf("   -> Intención detectada: %s\n", session.Intent.Type)
+	if result.Type == "CLARIFY" {
+		session.ClarificationRequest = &models.ClarificationRequest{
+			Message: "Ambigüedad detectada: " + result.Reasoning,
+			Options: []string{"Agregar Autenticación", "Agregar Base de Datos", "Auditar Código"},
+		}
+		return nil
+	}
+
+	session.Intent.Type = result.Type
+	fmt.Printf("   -> Intención detectada por %s: %s\n", i.Engine.ModelName(), session.Intent.Type)
 	return nil
 }

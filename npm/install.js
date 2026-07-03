@@ -59,7 +59,8 @@ function extractBinary() {
   try {
     if (os === 'windows') {
       execSync(`tar -xf ${downloadDest} -C ${__dirname}`);
-    } else {
+    }
+    if (os !== 'windows') {
       execSync(`tar -xzf ${downloadDest} -C ${__dirname}`);
     }
     fs.renameSync(path.join(__dirname, binaryName), path.join(binDir, binaryName));

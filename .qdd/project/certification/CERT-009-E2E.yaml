@@ -1,0 +1,11 @@
+id: CERT-009
+title: "Verificación E2E de Distribución e Inicialización"
+status: certified
+level: strict
+description: "Garantiza que la distribución en NPM es completamente operativa desde cero, validando la cadena de descarga, el linkeo global de binarios y la ejecución correcta del bootstrap inicial (qdd init, learn, certify) en entornos prístinos."
+criteria:
+  - "El pipeline de GitHub Actions (e2e.yml) debe descargar e instalar exitosamente el binario usando npm install -g qdd-framework."
+  - "Los comandos de inicialización (qdd init) deben poblar la estructura y pasar el escrutinio de qdd learn y qdd certify sin arrojar errores de Gatekeeper ni dependencias faltantes."
+evidence:
+  timestamp: "2026-07-02T16:16:00-04:00"
+  test_result: "Flujo de trabajo .github/workflows/e2e.yml activado."

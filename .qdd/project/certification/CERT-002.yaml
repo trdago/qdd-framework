@@ -1,0 +1,11 @@
+id: CERT-002
+title: "Certificación de Enrutamiento Híbrido (Fast Path)"
+status: certified
+related_feature: "Hybrid Routing"
+rules:
+  - id: RUL-002
+    description: "Comandos nativos explícitos (ej. CERTIFY) no deben invocar al Cognitive Layer."
+    method: "Terminal Output Verification"
+  - id: RUL-003
+    description: "Cualquier texto no reconocido debe derivar al Pipeline QCL."
+    method: "Terminal Output Verification"

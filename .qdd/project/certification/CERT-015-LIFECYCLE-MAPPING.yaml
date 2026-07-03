@@ -1,0 +1,11 @@
+id: CERT-015
+title: "Mapeo Visual del Ciclo de Vida (SSOT)"
+status: certified
+level: standard
+description: "Todo framework avanzado necesita una representación arquitectónica viva de su ciclo operativo (Integration Lifecycle) accesible tanto para humanos como para agentes de IA."
+criteria:
+  - "El flujo de ejecución de la herramienta debe estar modelado y versionado usando sintaxis pura de Mermaid.js dentro de los documentos base de la arquitectura (Single Source of Truth)."
+  - "El Dashboard interactivo debe ser capaz de interceptar dinámicamente estos mapas y utilizar el motor de Mermaid para renderizarlos en un formato gráfico y animado (SVG), aislando la capa de datos (Markdown) de la capa de presentación (Vue)."
+evidence:
+  timestamp: "2026-07-02T22:24:37-04:00"
+  test_result: "Implementación exitosa de Mermaid.js en App.vue con parseo recursivo de expresiones regulares para inyectar gráficos vectoriales desde docs/command-reference.md."

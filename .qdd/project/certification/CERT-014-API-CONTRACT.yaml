@@ -1,0 +1,11 @@
+id: CERT-014
+title: "Type-Safety y API Contracts Estrictos"
+status: certified
+level: strict
+description: "Para garantizar una comunicación robusta, inquebrantable e interoperable, todo flujo de comunicación interna y externa (como la API REST o SSE) debe regirse por un estándar de la industria (OpenAPI) y ser forzado mediante tipado estricto a nivel de compilador."
+criteria:
+  - "El servidor Go debe exponer la data usando structs estáticos, prohibiendo estrictamente el uso de map[string]interface{} dinámicos para los payloads de comunicación."
+  - "El contrato debe estar formalmente definido y documentado bajo el formato OpenAPI 3.0 (OAS) en la carpeta de especificaciones del proyecto."
+evidence:
+  timestamp: "2026-07-02T21:57:26-04:00"
+  test_result: "Refactorización exitosa de dashboard.go eliminando diccionarios dinámicos, creación del archivo openapi.yaml, y exitosa compilación/funcionamiento del endpoint SSE bajo el nuevo contrato estricto."

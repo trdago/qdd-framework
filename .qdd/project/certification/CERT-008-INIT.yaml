@@ -1,0 +1,11 @@
+id: CERT-008
+title: "Generación Válida de YAML (QDD Init)"
+status: certified
+level: strict
+description: "Valida que el comando 'qdd init' genere archivos de configuración estructuralmente válidos según el estándar YAML v3, previniendo corrupciones en el parseo por parte del Gatekeeper."
+criteria:
+  - "El archivo .qdd/config.yaml debe generarse usando un serializador de YAML formal, no concatenación de strings."
+  - "Las estructuras de datos tipo slice (ej. languages) deben representarse como arrays YAML válidos."
+evidence:
+  timestamp: "2026-07-02T16:13:00-04:00"
+  test_result: "Refactorizado qdd init para usar yaml.Marshal(map[string]interface{}), resolviendo la corrupción del Gatekeeper."

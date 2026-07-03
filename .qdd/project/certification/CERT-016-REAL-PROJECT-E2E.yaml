@@ -1,0 +1,13 @@
+id: CERT-016
+title: "Certificación E2E en Proyecto Real"
+status: certified
+level: strict
+description: "Garantiza que el framework es capaz de inicializarse y certificar proyectos reales de los usuarios (no solo tests unitarios sintéticos). Requiere copiar un proyecto real preexistente a un directorio temporal, aislarlo, ejecutar el binario y probar sus flujos principales."
+criteria:
+  - "El framework debe inicializarse (qdd init) correctamente sobre un proyecto con código y dependencias reales sin destruir el proyecto original."
+  - "El framework debe detectar el lenguaje/arquitectura u operar bajo la configuración manual inyectada."
+  - "Se deben inyectar y desempacar íntegramente las políticas base (Core Baseline) al nuevo proyecto."
+  - "El comando de certificación (qdd certify) debe correr de principio a fin, validando todas las reglas fundacionales embebidas contra el estado actual del proyecto real."
+evidence:
+  timestamp: "2026-07-03T16:05:00-04:00"
+  test_result: "Prueba manual automatizada completada en /home/.../examples/real-project replicando el entorno de /tmp. Todas las verificaciones y comandos (init, certify) fueron probados exitosamente con 100% de cumplimiento."

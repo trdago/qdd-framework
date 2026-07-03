@@ -1,0 +1,12 @@
+id: CERT-007
+title: "Integración Nativa Multimodal de IA (Protocolo QCP)"
+status: certified
+level: strict
+description: "Garantiza que el framework inyecta de manera segura y estandarizada los flujos de Slash Commands a los IDEs y Asistentes más avanzados del mercado, sin recurrir a prompt injections ocultos."
+criteria:
+  - "El adaptador de Antigravity inyecta .agents/workflows/qdd.md con frontmatter válido."
+  - "El adaptador de Claude Code inyecta .claude/commands/qdd.md con la cabecera description requerida."
+  - "El adaptador de Cursor inyecta las reglas nativas idempotentes."
+evidence:
+  timestamp: "2026-07-02T16:03:00-04:00"
+  test_result: "Sincronización de IDEs confirmada y Slash Commands habilitados a nivel GUI."

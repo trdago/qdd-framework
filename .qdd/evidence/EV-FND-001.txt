@@ -1,5 +1,0 @@
-?   	github.com/qdd-framework/qdd	[no test files]
-=== RUN   TestDetectLanguagesRecursively
---- PASS: TestDetectLanguagesRecursively (0.00s)
-PASS
-ok  	github.com/qdd-framework/qdd/cmd	0.002s

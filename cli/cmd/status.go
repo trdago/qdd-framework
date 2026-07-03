@@ -34,32 +34,40 @@ var statusCmd = &cobra.Command{
 		fmt.Println("📊 **Métricas de Calidad y Gobernanza:**")
 
 		// 2. Contar Certificaciones
-		certDir := filepath.Join(qddDir, "certification")
-		entries, _ := os.ReadDir(certDir)
+		certDirs := []string{
+			filepath.Join(qddDir, "core", "certification"),
+			filepath.Join(qddDir, "project", "certification"),
+		}
 		totalCerts := 0
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-				totalCerts++
+		for _, certDir := range certDirs {
+			entries, _ := os.ReadDir(certDir)
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+					totalCerts++
+				}
 			}
 		}
 		fmt.Printf("✅ **Certificaciones Activas (%d):**\n", totalCerts)
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-				content, _ := os.ReadFile(filepath.Join(certDir, entry.Name()))
-				var cert Certification // defined in certify.go
-				yaml.Unmarshal(content, &cert)
-				
-				icon := "[ ]"
-				if cert.Status == "certified" {
-					icon = "[x]"
+		for _, certDir := range certDirs {
+			entries, _ := os.ReadDir(certDir)
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+					content, _ := os.ReadFile(filepath.Join(certDir, entry.Name()))
+					var cert Certification // defined in certify.go
+					yaml.Unmarshal(content, &cert)
+					
+					icon := "[ ]"
+					if cert.Status == "certified" {
+						icon = "[x]"
+					}
+					fmt.Printf("- %s **%s:** (%s)\n", icon, cert.ID, cert.Status)
 				}
-				fmt.Printf("- %s **%s:** (%s)\n", icon, cert.ID, cert.Status)
 			}
 		}
 
 		// 3. Contar Findings
 		fmt.Println("\n🐞 **Hallazgos (Findings):**")
-		findDir := filepath.Join(qddDir, "findings")
+		findDir := filepath.Join(qddDir, "project", "findings")
 		findEntries, _ := os.ReadDir(findDir)
 		
 		type Finding struct {

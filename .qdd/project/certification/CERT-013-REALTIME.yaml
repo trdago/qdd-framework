@@ -1,0 +1,11 @@
+id: CERT-013
+title: "Arquitectura Push Streaming (Real-Time)"
+status: certified
+level: strict
+description: "Las interfaces orientadas a telemetría (como el Dashboard) deben usar flujos persistentes (Server-Sent Events o WebSockets) en lugar de HTTP Polling periódico para minimizar la carga de red y garantizar cero latencia."
+criteria:
+  - "El servidor Go debe exponer un endpoint de stream persistente (text/event-stream)."
+  - "El frontend debe conectarse vía EventSource y prescindir de ciclos setInterval para consumo del estado de QDD."
+evidence:
+  timestamp: "2026-07-02T21:52:31-04:00"
+  test_result: "Eliminado setInterval, implementado EventSource en Vue, y refactorizado Go endpoint a /api/stream con flush asíncrono."

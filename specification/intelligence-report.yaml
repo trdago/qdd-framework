@@ -1,0 +1,32 @@
+schemaVersion: "v1.0.0"
+title: "QDD Intelligence Report Contract"
+description: "Estructura estricta que todo Motor Cognitivo (Local o Remoto) debe generar y guardar en .qdd/understanding.json para ser consumido por el Dashboard."
+type: object
+required:
+  - summary
+  - components
+  - objectives
+  - guidelines
+  - next_steps
+properties:
+  summary:
+    type: string
+    description: "Resumen ejecutivo de qué hace la solución y de qué se trata el proyecto."
+  components:
+    type: array
+    items:
+      type: string
+    description: "Lista de los componentes principales identificados en la arquitectura."
+  objectives:
+    type: array
+    items:
+      type: string
+    description: "Cuáles son los lineamientos y objetivos de negocio detectados."
+  guidelines:
+    type: array
+    items:
+      type: string
+    description: "Reglas de ingeniería (ej. NO-ELSE, Timeouts obligatorios) descubiertas."
+  next_steps:
+    type: string
+    description: "Recomendación cognitiva sobre cómo se mejora y cuál es el siguiente paso."

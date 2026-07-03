@@ -1,5 +1,0 @@
-project: auto-detected
-languages: [Go]
-governance:
-  certification_first: true
-  evidence_required_for_fixes: true

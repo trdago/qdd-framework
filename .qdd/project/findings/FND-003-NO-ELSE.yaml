@@ -1,0 +1,9 @@
+id: FND-003
+type: technical-debt
+title: "Uso de 'else' en Backend, Frontend y Scripts"
+status: RESOLVED
+severity: high
+description: "Se detectaron bloques 'else' en las funciones de procesamiento del Dashboard, en componentes Vue (App.vue) y scripts (install.js), lo que viola la regla global de Clean Code: 'nunca usamos else en el codigo' (CLEAN-01)."
+evidence:
+  timestamp: "2026-07-02T22:03:13-04:00"
+  test_result: "Refactorizado aplicando retornos tempranos en Go y condicionales `v-if` negados en Vue. Se actualizó la prueba unitaria no_else_test.go para escanear todo el repositorio (.go, .vue, .js, .ts) y garantizar el cumplimiento futuro."

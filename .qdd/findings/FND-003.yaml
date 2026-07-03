@@ -1,6 +1,0 @@
-id: FND-003
-title: Bug en el Despliegue NPM (Pipeline CI/CD)
-type: BUG
-severity: HIGH
-status: RESOLVED
-desc: "El pipeline falló inicialmente porque package-lock.json no estaba commiteado. Se corrigió y se agregó un test de validación en el pipeline. El error residual de 403 Forbidden se debe estrictamente a configuración de Token (2FA) en NPM."

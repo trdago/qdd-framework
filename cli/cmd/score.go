@@ -20,26 +20,31 @@ var scoreCmd = &cobra.Command{
 		qddDir := filepath.Join(".", ".qdd")
 		
 		// Certificaciones
-		certDir := filepath.Join(qddDir, "certification")
-		entries, _ := os.ReadDir(certDir)
+		certDirs := []string{
+			filepath.Join(qddDir, "core", "certification"),
+			filepath.Join(qddDir, "project", "certification"),
+		}
 		
 		totalCerts := 0
 		certifiedCerts := 0
 
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-				totalCerts++
-				content, _ := os.ReadFile(filepath.Join(certDir, entry.Name()))
-				var cert Certification
-				yaml.Unmarshal(content, &cert)
-				if cert.Status == "certified" {
-					certifiedCerts++
+		for _, certDir := range certDirs {
+			entries, _ := os.ReadDir(certDir)
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+					totalCerts++
+					content, _ := os.ReadFile(filepath.Join(certDir, entry.Name()))
+					var cert Certification
+					yaml.Unmarshal(content, &cert)
+					if cert.Status == "certified" {
+						certifiedCerts++
+					}
 				}
 			}
 		}
 
 		// Findings
-		findDir := filepath.Join(qddDir, "findings")
+		findDir := filepath.Join(qddDir, "project", "findings")
 		findEntries, _ := os.ReadDir(findDir)
 		
 		type Finding struct {

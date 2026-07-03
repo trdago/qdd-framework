@@ -23,10 +23,10 @@ var findingsCmd = &cobra.Command{
 	Aliases: []string{"FINDINGS"},
 	Short:   "Muestra todos los hallazgos técnicos (bugs, vulnerabilidades) del proyecto",
 	Run: func(cmd *cobra.Command, args []string) {
-		qddDir := filepath.Join(".", ".qdd", "findings")
+		qddDir := filepath.Join(".", ".qdd", "project", "findings")
 		
 		if _, err := os.Stat(qddDir); os.IsNotExist(err) {
-			fmt.Println("[-] No se encontró el directorio de findings (.qdd/findings).")
+			fmt.Println("[-] No se encontró el directorio de findings (.qdd/project/findings).")
 			return
 		}
 
@@ -63,13 +63,15 @@ var findingsCmd = &cobra.Command{
 			total++
 			icon := "🔴"
 			statusLower := strings.ToLower(f.Status)
+			
 			if statusLower == "resolved" || statusLower == "closed" {
 				icon = "🟢"
 				resolved++
-			} else {
-				pending++
+				fmt.Printf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
+				continue
 			}
 
+			pending++
 			fmt.Printf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
 		}
 

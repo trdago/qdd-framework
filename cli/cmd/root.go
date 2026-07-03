@@ -8,16 +8,17 @@ import (
 	"github.com/spf13/cobra"
 	
 	"github.com/qdd-framework/qdd/pkg/qcl"
+	"github.com/qdd-framework/qdd/pkg/qcl/adapters"
 	"github.com/qdd-framework/qdd/pkg/qcl/nodes"
 )
 
 var rootCmd = &cobra.Command{
 	Use:     "qdd [intención]",
-	Version: "v0.2.10",
-	Short:   "QDD es un Framework de Ingeniería de Software Nativo-IA",
+	Version: "v1.1.0",
+	Short:   "QDD es una Plataforma de Ingeniería de Software basada en Mejora Continua",
 	Long: `QDD (Quality-Driven Development) orquesta el ciclo de vida del 
-desarrollo de software asistido por IA, garantizando certificaciones,
-evidencia y calidad desde el día uno.
+desarrollo de software mediante un Motor Cognitivo en Modo Consultivo,
+garantizando certificaciones, evidencia y calidad desde el día uno.
 
 Puedes ejecutar comandos específicos (como 'qdd init') o expresar una intención en lenguaje natural.
 Ejemplo: qdd "Necesito agregar autenticación"`,
@@ -56,12 +57,14 @@ func runQCL(input string) {
 
 	fmt.Printf("[QCL] Iniciando proceso cognitivo para: '%s'\n", input)
 
+	engine := adapters.NewGeminiEngine()
+	
 	pipeline := qcl.NewPipeline(
 		nodes.NewContextAnalyzer(),
-		nodes.NewIntentAnalyzer(),
+		nodes.NewIntentAnalyzer(engine),
 		nodes.NewRiskAnalyzer(),
-		nodes.NewStrategyPlanner(),
-		nodes.NewPlanBuilder(),
+		nodes.NewStrategyPlanner(engine),
+		nodes.NewPlanBuilder(engine),
 	)
 
 	session, err := pipeline.Execute(input)

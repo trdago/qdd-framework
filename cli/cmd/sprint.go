@@ -18,7 +18,7 @@ var sprintCmd = &cobra.Command{
 		fmt.Printf("🏃 Inicializando Sprint %s...\n", sprintNum)
 
 		qddDir := filepath.Join(".", ".qdd")
-		sprintsDir := filepath.Join(qddDir, "sprints")
+		sprintsDir := filepath.Join(qddDir, "project", "sprints")
 		
 		if err := os.MkdirAll(sprintsDir, 0755); err != nil {
 			fmt.Printf("[!] Error creando directorio de sprints: %v\n", err)

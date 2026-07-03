@@ -1,0 +1,23 @@
+id: FND-004
+type: bug
+title: "Desincronización de Versión Hardcodeada en state.json"
+status: resolved
+severity: high
+description: |
+  Durante la Auditoría de Código (Phase 8), se detectó que el comando de inicialización (`cli/cmd/init.go`)
+  escribe un valor quemado (hardcoded) `"version": "v0.1.0"` en el archivo `.qdd/state.json`.
+  Esto causa que el archivo de estado de los proyectos inicializados siempre nazca desincronizado
+  respecto a la versión real de la CLI (actualmente v0.2.5+), lo que podría corromper la lógica de
+  migración de esquemas en el futuro.
+impact: |
+  Ruptura del principio de fuente única de verdad (Single Source of Truth). El State debe reflejar siempre 
+  la versión en tiempo de ejecución de la CLI.
+context:
+  discovered_by: Antigravity AI Engine (Audit Phase 8)
+  date_discovered: "2026-07-02"
+  related_components:
+    - cli/cmd/init.go (createStateFile)
+    - cli/cmd/root.go (rootCmd.Version)
+resolution:
+  requires_certification: true
+  evidence_required: EV-FND-004-UNIT-TEST.txt

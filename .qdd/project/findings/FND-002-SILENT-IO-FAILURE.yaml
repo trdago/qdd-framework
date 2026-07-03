@@ -1,0 +1,7 @@
+id: FND-002
+title: "Falla silenciosa de I/O en init.go (unpackCoreAssets)"
+status: resolved
+severity: high
+description: "La función unpackCoreAssets ignoraba los errores provenientes del sistema operativo al fallar la creación de una carpeta (os.MkdirAll). Esto causaba que si el usuario no tenía permisos, la inicialización aparentara éxito dejando una estructura vacía o corrupta."
+remediation: "Se refactorizó unpackCoreAssets para atrapar explícitamente el error de MkdirAll y propagarlo mediante un retorno (return err). Se generó un test unitario en init_bug_test.go que provee una ruta inválida/sin permisos para garantizar que el error sea atrapado."
+timestamp: "2026-07-03T16:20:00-04:00"
