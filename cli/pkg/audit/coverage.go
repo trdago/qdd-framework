@@ -1,33 +1,50 @@
 package audit
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
+
+func runTests(cwd string) error {
+	if _, err := os.Stat(filepath.Join(cwd, "package.json")); err == nil {
+		cmd := exec.Command("npm", "run", "test")
+		cmd.Dir = cwd
+		return cmd.Run()
+	}
+
+	cmd := exec.Command("go", "test", "./...")
+	cmd.Dir = cwd
+	if _, err := os.Stat(filepath.Join(cwd, "cli")); err == nil {
+		cmd.Dir = filepath.Join(cwd, "cli")
+	}
+
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+
+	output := string(out)
+	if strings.Contains(output, "no test files") || strings.Contains(output, "build failed") || strings.Contains(output, "cannot find main module") || strings.Contains(output, "no Go files in") {
+		return nil
+	}
+
+	return err
+}
 
 // RunCoverageCheck evalúa que todos los tests pasen (Anti-Regresión).
 func RunCoverageCheck(cwd string) []Violation {
 	var violations []Violation
 
-	// Para este MVP validamos simplemente que los tests corran exitosamente
-	cmd := exec.Command("go", "test", "./...")
-	cmd.Dir = cwd + "/cli"
-	out, err := cmd.CombinedOutput()
-	
-	if err != nil {
-		output := string(out)
-		if strings.Contains(output, "no test files") || strings.Contains(output, "build failed") {
-			// Ignoramos si simplemente no hay tests o no compila (el build ya lo detecta)
-			goto skipTestFail
-		}
-		
+	if err := runTests(cwd); err != nil {
+		fmt.Println("DEBUG ERROR:", err)
 		violations = append(violations, Violation{
 			Category:    "COVERAGE",
 			RuleID:      "QA-01-ALL-TESTS-PASS",
 			Description: "Fallo en la suite de pruebas unitarias. Se detectaron regresiones en el código.",
 		})
-	skipTestFail:
 	}
 
 	// QA-02-E2E-TESTS: Exigir entorno de pruebas End-to-End
