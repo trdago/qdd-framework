@@ -38,7 +38,8 @@ func TestFND007VersionMismatch(t *testing.T) {
 	err = validateProjectVersion("v0.2.10")
 	if err == nil {
 		t.Errorf("🚨 Regresión FND-007: Se esperaba un error al usar una versión más antigua del CLI")
-	} else if err != nil && !stringsContains(err.Error(), "Revisa si un gestor") {
+	}
+	if err != nil && !stringsContains(err.Error(), "Revisa si un gestor") {
 		t.Errorf("Error inesperado: %v", err)
 	}
 

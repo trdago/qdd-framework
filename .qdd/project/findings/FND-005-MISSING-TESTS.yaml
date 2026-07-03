@@ -12,7 +12,7 @@ files_affected:
   - cli/pkg/qcl/nodes/*
   - cli/pkg/qcl/prompts/*
   - cli/ui/*
-occurrences: >8 packages
+occurrences: ">8 packages"
 recommendation: "Implementar unit tests en los paquetes `pkg/audit` y `pkg/qcl` para certificar la estabilidad del motor QDD. Específicamente, asegurar tests para las reglas de auditoría y parsing."
-status: OPEN
+status: resolved
 date_discovered: 2026-07-03

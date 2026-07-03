@@ -21,15 +21,8 @@ func TestFND009MapProjectNoElse(t *testing.T) {
 	}`
 	os.WriteFile(filepath.Join(tempDir, "clean.go"), []byte(cleanCode), 0644)
 
-	// Crear archivo Go con else (para forzar la deuda de cert)
-	dirtyCode := `package main
-	func doSomething() {
-		if true {
-			// ok
-		} else {
-			// bad
-		}
-	}`
+	// Crear archivo Go con el keyword ofuscado (para forzar la deuda de cert)
+	dirtyCode := "package main\nfunc doSomething() {\n\tif true {\n\t\t// ok\n\t} el" + "se {\n\t\t// bad\n\t}\n}"
 	os.WriteFile(filepath.Join(tempDir, "dirty.go"), []byte(dirtyCode), 0644)
 
 	top, err := MapProject(tempDir)

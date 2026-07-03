@@ -4,7 +4,7 @@
       <span class="icon" v-if="node.children && node.children.length > 0">
         {{ expanded ? '▼' : '▶' }}
       </span>
-      <span class="icon" v-else>
+      <span class="icon" v-if="!node.children || node.children.length === 0">
         {{ node.certified ? '✅' : '❌' }}
       </span>
       

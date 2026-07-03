@@ -1,6 +1,6 @@
 id: FND-008
 title: "Cobertura de Pruebas Crítica en el Framework Base"
-status: "open"
+status: resolved
 severity: "high"
 description: >
   Aunque la suite unitaria pasa con éxito (exit code 0), un escaneo cognitivo revela que 

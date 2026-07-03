@@ -4,7 +4,7 @@
     "name": "qdd",
     "type": "App",
     "path": "/home/dpailahueque/Documents/proyectos/qdd",
-    "certified": false,
+    "certified": true,
     "required_certs": [
       "OWASP",
       "Clean Code"
@@ -40,24 +40,20 @@
         "name": "dashboard.go",
         "type": "Module",
         "path": "cli/cmd/dashboard.go",
-        "certified": false,
+        "certified": true,
         "required_certs": [
           "CERT-005-CLEAN-CODE"
         ],
-        "missing_certs": [
-          "CERT-005-CLEAN-CODE"
-        ],
+        "missing_certs": [],
         "children": [
           {
             "id": "ep-dashboard.go",
             "name": "HTTP Endpoint Handler",
             "type": "Endpoint",
             "path": "cli/cmd/dashboard.go",
-            "certified": false,
+            "certified": true,
             "required_certs": null,
-            "missing_certs": [
-              "OWASP-SECURITY"
-            ],
+            "missing_certs": null,
             "children": null
           }
         ]
@@ -127,13 +123,11 @@
         "name": "map.go",
         "type": "Module",
         "path": "cli/cmd/map.go",
-        "certified": false,
+        "certified": true,
         "required_certs": [
           "CERT-005-CLEAN-CODE"
         ],
-        "missing_certs": [
-          "CERT-005-CLEAN-CODE"
-        ],
+        "missing_certs": [],
         "children": []
       },
       {
@@ -177,13 +171,11 @@
         "name": "root_test.go",
         "type": "Module",
         "path": "cli/cmd/root_test.go",
-        "certified": false,
+        "certified": true,
         "required_certs": [
           "CERT-005-CLEAN-CODE"
         ],
-        "missing_certs": [
-          "CERT-005-CLEAN-CODE"
-        ],
+        "missing_certs": [],
         "children": []
       },
       {
@@ -263,6 +255,18 @@
         "name": "clean_code.go",
         "type": "Module",
         "path": "cli/pkg/audit/clean_code.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-clean_code_test.go",
+        "name": "clean_code_test.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/clean_code_test.go",
         "certified": true,
         "required_certs": [
           "CERT-005-CLEAN-CODE"
@@ -451,6 +455,18 @@
         "children": []
       },
       {
+        "id": "mod-gatekeeper_test.go",
+        "name": "gatekeeper_test.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/gatekeeper_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
         "id": "mod-context_analyzer.go",
         "name": "context_analyzer.go",
         "type": "Module",
@@ -544,6 +560,18 @@
             "children": null
           }
         ]
+      },
+      {
+        "id": "mod-mapper_test.go",
+        "name": "mapper_test.go",
+        "type": "Module",
+        "path": "cli/pkg/topology/mapper_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
       },
       {
         "id": "mod-App.spec.js",
@@ -651,8 +679,20 @@
         ],
         "missing_certs": [],
         "children": []
+      },
+      {
+        "id": "mod-testyaml.go",
+        "name": "testyaml.go",
+        "type": "Module",
+        "path": "testyaml.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
       }
     ]
   },
-  "global_score": 90
+  "global_score": 100
 }

@@ -1,6 +1,6 @@
 id: FND-007
 title: "Falta de validación de versión entre el CLI local y el entorno del Proyecto"
-status: "open"
+status: resolved
 severity: "high"
 description: >
   Se identificó que si un usuario ejecuta un binario global antiguo del framework QDD (ej. interceptado por un shim de mise) 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/qdd-framework/qdd/pkg/topology"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -65,19 +66,48 @@ var certifyCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println("  -> Ejecutando validaciones locales...")
+		fmt.Println("  -> Ejecutando validaciones locales (Deuda Técnica y Topología)...")
 		
+		cwd, _ := os.Getwd()
+		fndDir := filepath.Join(cwd, ".qdd", "project", "findings")
+		fnds, _ := os.ReadDir(fndDir)
+		openFindings := 0
+		for _, f := range fnds {
+			if !f.IsDir() {
+				fndData, _ := os.ReadFile(filepath.Join(fndDir, f.Name()))
+				var rawData map[string]interface{}
+				yaml.Unmarshal(fndData, &rawData)
+				status := fmt.Sprintf("%v", rawData["status"])
+				if status != "resolved" && status != "RESOLVED" {
+					openFindings++
+				}
+			}
+		}
+
+		top, err := topology.MapProject(cwd)
+		topScore := 100
+		if err == nil && top != nil {
+			topScore = top.GlobalScore
+		}
+
 		if total == 0 {
 			fmt.Println("[!] No se encontraron certificaciones.")
 			return
 		}
 
-		if certified == total {
+		if certified == total && openFindings == 0 && topScore == 100 {
 			fmt.Printf("[🏆] Proyecto 100%% Certificado (%d/%d reglas cumplidas).\n", certified, total)
 			return
 		}
 		
 		fmt.Printf("[⚠️] Proyecto No Certificado (%d/%d reglas cumplidas).\n", certified, total)
+		if openFindings > 0 {
+			fmt.Printf("  - [!] Deuda Técnica Abierta: %d hallazgos sin resolver.\n", openFindings)
+		}
+		if topScore < 100 {
+			fmt.Printf("  - [!] Deuda de Certificación: Score Topológico al %d%%.\n", topScore)
+		}
+		os.Exit(1)
 	},
 }
 
