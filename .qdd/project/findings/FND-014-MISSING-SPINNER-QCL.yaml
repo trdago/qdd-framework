@@ -1,0 +1,10 @@
+id: FND-014-MISSING-SPINNER-QCL
+title: "Spinner de carga faltante cuando se invoca la capa cognitiva (QCL)"
+severity: low
+category: ui_ux
+description: |
+  Cuando el usuario ejecuta un comando cognitivo (ej. `qdd "hace un resumen"`), el comando raíz en Cobra se registra como "qdd" en el archivo de semáforo `.qdd/working`. Sin embargo, el frontend de Vue no tiene mapeado el estado "qdd" a ninguna pestaña, provocando que no se muestre el spinner de sincronización durante ejecuciones de inteligencia artificial.
+occurrences: "1 package (cli/ui/src/App.vue)"
+recommendation: "Añadir `state?.working_on === 'qdd'` a la condición del spinner en la pestaña Intelligence dentro de App.vue."
+status: resolved
+date_discovered: 2026-07-03
