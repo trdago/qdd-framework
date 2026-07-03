@@ -1,6 +1,6 @@
 {
   "name": "qdd-framework",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "QDD Framework: Quality-Driven Development Tool",
   "bin": {
     "qdd": "bin/qdd.js"
