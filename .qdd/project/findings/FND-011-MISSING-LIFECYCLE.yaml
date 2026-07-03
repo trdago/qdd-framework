@@ -1,0 +1,10 @@
+id: FND-011-MISSING-LIFECYCLE
+title: "Ausencia de diagrama Lifecycle en proyectos nuevos por dependencia rígida"
+severity: medium
+category: logic
+description: |
+  Se detectó que la vista de "Ciclo de Mejora Continua" en el Dashboard requiere explícitamente un archivo `docs/command-reference.md` poblado con un diagrama de flujo en Mermaid. Los nuevos proyectos inicializados con QDD carecen de este archivo, rompiendo la vista.
+occurrences: "1 package (cli/cmd/dashboard.go)"
+recommendation: "Interceptar la creación de la Knowledge Base en `buildState()`. Si el archivo `docs/command-reference.md` no se encontró durante el barrido, inyectar dinámicamente un Documento Virtual con el diagrama por defecto de QDD para preservar la funcionalidad y compatibilidad UI."
+status: resolved
+date_discovered: 2026-07-03

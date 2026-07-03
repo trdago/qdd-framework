@@ -1,0 +1,10 @@
+id: FND-010-DASHBOARD-NOT-REACTING
+title: "Falta de Reactividad Visual en el Dashboard durante comandos de larga duración"
+severity: medium
+category: ui_ux
+description: |
+  Se detectó que el Dashboard (Centro de Comando Web) no muestra un indicador visual (ícono verde / spinner) mientras un comando pesado como `qdd map` o `qdd certify` está en ejecución. El problema radica en que los comandos CLI no informan su estado en progreso, escribiendo archivos solo al finalizar. 
+occurrences: "1 package (cli/cmd)"
+recommendation: "Implementar un archivo semáforo `.qdd/working` en los hooks persistentes del CLI (`PersistentPreRunE` y `PersistentPostRun`), e interpretarlo en `dashboard.go` para transmitirlo al front end en tiempo real."
+status: resolved
+date_discovered: 2026-07-03

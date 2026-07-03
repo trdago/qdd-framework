@@ -1,0 +1,10 @@
+id: FND-012-WORKSPACE-NAME-BREADCRUMBS
+title: "Nombre del workspace hardcodeado en los breadcrumbs del Dashboard"
+severity: low
+category: ui_ux
+description: |
+  En el header del Dashboard, los breadcrumbs muestran estáticamente "QDD / Overview" en lugar de mostrar dinámicamente el nombre del proyecto o workspace actual en el que se está trabajando.
+occurrences: "1 package (cli/ui/src/App.vue)"
+recommendation: "Exponer el nombre del directorio base (cwd) como `project_name` en el payload JSON de `dashboard.go` y reemplazar el texto estático en `App.vue`."
+status: resolved
+date_discovered: 2026-07-03

@@ -16,7 +16,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "qdd [intención]",
-	Version: "v1.1.0",
+	Version: "v1.2.0",
 	Short:   "QDD es una Plataforma de Ingeniería de Software basada en Mejora Continua",
 	Long: `QDD (Quality-Driven Development) orquesta el ciclo de vida del 
 desarrollo de software mediante un Motor Cognitivo en Modo Consultivo,
