@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -26,6 +28,12 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 	// Disable default error printing so we can intercept it gracefully
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Detectar version mismatch
+		if err := validateProjectVersion(cmd.Version); err != nil {
+			fmt.Printf("[🛑 ERROR DE ENTORNO] %v\n", err)
+			os.Exit(1)
+		}
+
 		// No exigimos contexto si apenas estamos inicializando o aprendiendo
 		if cmd.Name() == "init" || cmd.Name() == "learn" {
 			return nil
@@ -113,4 +121,51 @@ func Execute() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func validateProjectVersion(cliVersion string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	statePath := filepath.Join(cwd, ".qdd", "state.json")
+	if _, err := os.Stat(statePath); os.IsNotExist(err) {
+		return nil
+	}
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		return nil
+	}
+	var state map[string]interface{}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil
+	}
+	projVersion, ok := state["version"].(string)
+	if !ok || projVersion == "" {
+		return nil
+	}
+
+	if isOlder(cliVersion, projVersion) {
+		return fmt.Errorf("El proyecto requiere QDD %s, pero estás ejecutando %s. Revisa si un gestor como 'mise' o 'asdf' está interceptando el binario.", projVersion, cliVersion)
+	}
+
+	return nil
+}
+
+func parseVersion(v string) (int, int, int) {
+	v = strings.TrimPrefix(v, "v")
+	parts := strings.Split(strings.Split(v, "-")[0], ".")
+	var major, minor, patch int
+	if len(parts) > 0 { fmt.Sscanf(parts[0], "%d", &major) }
+	if len(parts) > 1 { fmt.Sscanf(parts[1], "%d", &minor) }
+	if len(parts) > 2 { fmt.Sscanf(parts[2], "%d", &patch) }
+	return major, minor, patch
+}
+
+func isOlder(v1, v2 string) bool {
+	m1, min1, p1 := parseVersion(v1)
+	m2, min2, p2 := parseVersion(v2)
+	if m1 != m2 { return m1 < m2 }
+	if min1 != min2 { return min1 < min2 }
+	return p1 < p2
 }
