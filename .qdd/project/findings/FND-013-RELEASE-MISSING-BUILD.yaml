@@ -1,0 +1,10 @@
+id: FND-013-RELEASE-MISSING-BUILD
+title: "Comando Release no ejecuta paso de build antes de empaquetar"
+severity: high
+category: cicd
+description: |
+  El comando `qdd release` se encarga de actualizar `state.json` y crear un tag en git, pero no ejecuta los procesos de transpilación o compilación del proyecto (`npm run build`, `make build`, etc.). Esto genera que se liberen versiones que empaquetan artefactos antiguos (dist/), como ocurrió con la v1.2.0 donde la interfaz en Vue no se transpiló.
+occurrences: "1 package (cli/cmd/release.go)"
+recommendation: "Implementar un paso de pre-release genérico `runBuildStep(cwd string)` que detecte la presencia de `package.json` o `Makefile` y ejecute los comandos de build correspondientes antes de firmar el release. Siguiendo la regla Zero-Else, cada caso debe retornar temprano."
+status: resolved
+date_discovered: 2026-07-03
