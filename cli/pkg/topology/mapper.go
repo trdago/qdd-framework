@@ -66,9 +66,8 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 				hasElse := strings.Contains(code, " else ") || strings.Contains(code, "}else{") || strings.Contains(code, "} else {")
 				hasCertAnnotation := strings.Contains(code, "@qdd:certify") || strings.Contains(code, "@certified")
 
-				if !hasElse || hasCertAnnotation {
-					moduleNode.Certified = true
-				} else {
+				moduleNode.Certified = !hasElse || hasCertAnnotation
+				if !moduleNode.Certified {
 					moduleNode.MissingCerts = append(moduleNode.MissingCerts, "CERT-005-CLEAN-CODE")
 					rootNode.Certified = false
 				}
@@ -103,10 +102,9 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 	certifiedNodes := 0
 	calculateScore(rootNode, &totalNodes, &certifiedNodes)
 
+	topology.GlobalScore = 100
 	if totalNodes > 0 {
 		topology.GlobalScore = (certifiedNodes * 100) / totalNodes
-	} else {
-		topology.GlobalScore = 100
 	}
 
 	return topology, nil

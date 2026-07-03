@@ -241,16 +241,18 @@ func buildState() QDDState {
 	}
 
 	// Load Topology
-	topData, err := os.ReadFile(filepath.Join(qddDir, "project", "topology.json"))
-	if err == nil {
+	// Load Topology
+	topData, errTop := os.ReadFile(filepath.Join(qddDir, "project", "topology.json"))
+	if errTop != nil {
+		// Auto-map if not exists
+		if top, mapErr := topology.MapProject(cwd); mapErr == nil {
+			response.Topology = top
+		}
+	}
+	if errTop == nil {
 		var top topology.ProjectTopology
 		if err := json.Unmarshal(topData, &top); err == nil {
 			response.Topology = &top
-		}
-	} else {
-		// Auto-map if not exists
-		if top, err := topology.MapProject(cwd); err == nil {
-			response.Topology = top
 		}
 	}
 

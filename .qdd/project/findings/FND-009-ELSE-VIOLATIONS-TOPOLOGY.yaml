@@ -1,0 +1,16 @@
+id: FND-009
+title: "Regresiones de Clean Code (Uso de 'else') en el Módulo de Topología"
+status: "resolved"
+severity: "high"
+description: >
+  Durante la implementación del QDD Project Topology (QPT), se introdujeron sentencias 'else' en el código fuente,
+  lo cual viola la Regla Global #1 (Clean Code: Early Returns).
+  
+  Archivos afectados:
+  - cli/cmd/dashboard.go
+  - cli/cmd/map.go
+  - cli/pkg/topology/mapper.go
+resolution_steps:
+  - "Refactorizar todos los bloques 'else' utilizando el patrón de 'Early Return' o asignaciones por defecto."
+  - "Implementar tests unitarios para las funciones afectadas (especialmente en mapper.go) garantizando que la lógica de early return sea equivalente."
+rule_violated: "CLEAN-01-NO-ELSE"
