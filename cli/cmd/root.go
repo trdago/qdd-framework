@@ -34,16 +34,36 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 			os.Exit(1)
 		}
 
-		// No exigimos contexto si apenas estamos inicializando o aprendiendo
-		if cmd.Name() == "init" || cmd.Name() == "learn" {
+		name := cmd.Name()
+		if name == "dashboard" || name == "ui" {
 			return nil
 		}
+
+		cwd, _ := os.Getwd()
+		workingPath := filepath.Join(cwd, ".qdd", "working")
+		os.WriteFile(workingPath, []byte(name), 0644)
+
+		// No exigimos contexto si apenas estamos inicializando o aprendiendo
+		if name == "init" || name == "learn" {
+			return nil
+		}
+		
 		// Para todo lo demás, el Gatekeeper bloquea si falta contexto crítico
 		if err := qcl.CheckMinimumAlignment(); err != nil {
 			fmt.Printf("[🛑 GATEKEEPER] %v\n", err)
+			os.Remove(workingPath)
 			os.Exit(1)
 		}
 		return nil
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		name := cmd.Name()
+		if name == "dashboard" || name == "ui" {
+			return
+		}
+		cwd, _ := os.Getwd()
+		workingPath := filepath.Join(cwd, ".qdd", "working")
+		os.Remove(workingPath)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {

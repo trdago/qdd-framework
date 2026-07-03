@@ -170,6 +170,7 @@ type QDDState struct {
 	Topology       *topology.ProjectTopology `json:"topology"`
 	Config         map[string]interface{}   `json:"config"`
 	Telemetry      DashboardTelemetry       `json:"telemetry"`
+	WorkingOn      string                   `json:"working_on"`
 }
 
 func buildState() QDDState {
@@ -205,6 +206,11 @@ func buildState() QDDState {
 		if ver, ok := state["version"]; ok {
 			response.Version = fmt.Sprintf("%v", ver)
 		}
+	}
+
+	workData, err := os.ReadFile(filepath.Join(qddDir, "working"))
+	if err == nil {
+		response.WorkingOn = strings.TrimSpace(string(workData))
 	}
 
 	// Read config.yaml
