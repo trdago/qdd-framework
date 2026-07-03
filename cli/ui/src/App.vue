@@ -201,9 +201,11 @@ onUnmounted(() => {
     
     <nav class="sidebar" role="navigation" aria-label="Main Sidebar">
       <div class="brand">
-        <img src="/logo.png" alt="QDD Logo" class="brand-logo" />
-        <h1>QDD Framework</h1>
-        <span class="version-tag">{{ state?.version }}</span>
+        <div class="brand-logo"><span class="icon" style="color:var(--accent-color)">◬</span></div>
+        <div class="brand-text">
+          <h1>QDD Framework</h1>
+          <span class="version-badge">{{ state?.version || 'v1.1.0' }}</span>
+        </div>
       </div>
       <div class="nav-section" role="tablist" aria-label="Main Tabs">
         <div class="nav-label">Governance</div>
