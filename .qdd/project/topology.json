@@ -1,0 +1,658 @@
+{
+  "application": {
+    "id": "app-root",
+    "name": "qdd",
+    "type": "App",
+    "path": "/home/dpailahueque/Documents/proyectos/qdd",
+    "certified": false,
+    "required_certs": [
+      "OWASP",
+      "Clean Code"
+    ],
+    "missing_certs": null,
+    "children": [
+      {
+        "id": "mod-audit.go",
+        "name": "audit.go",
+        "type": "Module",
+        "path": "cli/cmd/audit.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-certify.go",
+        "name": "certify.go",
+        "type": "Module",
+        "path": "cli/cmd/certify.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-dashboard.go",
+        "name": "dashboard.go",
+        "type": "Module",
+        "path": "cli/cmd/dashboard.go",
+        "certified": false,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "children": [
+          {
+            "id": "ep-dashboard.go",
+            "name": "HTTP Endpoint Handler",
+            "type": "Endpoint",
+            "path": "cli/cmd/dashboard.go",
+            "certified": false,
+            "required_certs": null,
+            "missing_certs": [
+              "OWASP-SECURITY"
+            ],
+            "children": null
+          }
+        ]
+      },
+      {
+        "id": "mod-findings.go",
+        "name": "findings.go",
+        "type": "Module",
+        "path": "cli/cmd/findings.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-init.go",
+        "name": "init.go",
+        "type": "Module",
+        "path": "cli/cmd/init.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-init_bug_test.go",
+        "name": "init_bug_test.go",
+        "type": "Module",
+        "path": "cli/cmd/init_bug_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-init_test.go",
+        "name": "init_test.go",
+        "type": "Module",
+        "path": "cli/cmd/init_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-learn.go",
+        "name": "learn.go",
+        "type": "Module",
+        "path": "cli/cmd/learn.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-map.go",
+        "name": "map.go",
+        "type": "Module",
+        "path": "cli/cmd/map.go",
+        "certified": false,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "children": []
+      },
+      {
+        "id": "mod-no_else_test.go",
+        "name": "no_else_test.go",
+        "type": "Module",
+        "path": "cli/cmd/no_else_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-release.go",
+        "name": "release.go",
+        "type": "Module",
+        "path": "cli/cmd/release.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-root.go",
+        "name": "root.go",
+        "type": "Module",
+        "path": "cli/cmd/root.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-root_test.go",
+        "name": "root_test.go",
+        "type": "Module",
+        "path": "cli/cmd/root_test.go",
+        "certified": false,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "children": []
+      },
+      {
+        "id": "mod-score.go",
+        "name": "score.go",
+        "type": "Module",
+        "path": "cli/cmd/score.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-score_test.go",
+        "name": "score_test.go",
+        "type": "Module",
+        "path": "cli/cmd/score_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-sprint.go",
+        "name": "sprint.go",
+        "type": "Module",
+        "path": "cli/cmd/sprint.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-status.go",
+        "name": "status.go",
+        "type": "Module",
+        "path": "cli/cmd/status.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-sync.go",
+        "name": "sync.go",
+        "type": "Module",
+        "path": "cli/cmd/sync.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-main.go",
+        "name": "main.go",
+        "type": "Module",
+        "path": "cli/main.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-clean_code.go",
+        "name": "clean_code.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/clean_code.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-coverage.go",
+        "name": "coverage.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/coverage.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-engine.go",
+        "name": "engine.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/engine.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-owasp.go",
+        "name": "owasp.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/owasp.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-traceability.go",
+        "name": "traceability.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/traceability.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-twelve_factor.go",
+        "name": "twelve_factor.go",
+        "type": "Module",
+        "path": "cli/pkg/audit/twelve_factor.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-antigravity.go",
+        "name": "antigravity.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/antigravity.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-base.go",
+        "name": "base.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/base.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-base_test.go",
+        "name": "base_test.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/base_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-claude.go",
+        "name": "claude.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/claude.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-cursor.go",
+        "name": "cursor.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/cursor.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-detector.go",
+        "name": "detector.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/detector.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-detector_test.go",
+        "name": "detector_test.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/detector_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-manager.go",
+        "name": "manager.go",
+        "type": "Module",
+        "path": "cli/pkg/integration/manager.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-llm.go",
+        "name": "llm.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/adapters/llm.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-gatekeeper.go",
+        "name": "gatekeeper.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/gatekeeper.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-context_analyzer.go",
+        "name": "context_analyzer.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/nodes/context_analyzer.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-intent_analyzer.go",
+        "name": "intent_analyzer.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/nodes/intent_analyzer.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-plan_builder.go",
+        "name": "plan_builder.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/nodes/plan_builder.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-risk_analyzer.go",
+        "name": "risk_analyzer.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/nodes/risk_analyzer.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-strategy_planner.go",
+        "name": "strategy_planner.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/nodes/strategy_planner.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-pipeline.go",
+        "name": "pipeline.go",
+        "type": "Module",
+        "path": "cli/pkg/qcl/pipeline.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-mapper.go",
+        "name": "mapper.go",
+        "type": "Module",
+        "path": "cli/pkg/topology/mapper.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": [
+          {
+            "id": "ep-mapper.go",
+            "name": "HTTP Endpoint Handler",
+            "type": "Endpoint",
+            "path": "cli/pkg/topology/mapper.go",
+            "certified": true,
+            "required_certs": null,
+            "missing_certs": null,
+            "children": null
+          }
+        ]
+      },
+      {
+        "id": "mod-App.spec.js",
+        "name": "App.spec.js",
+        "type": "Module",
+        "path": "cli/ui/src/App.spec.js",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-App.vue",
+        "name": "App.vue",
+        "type": "Module",
+        "path": "cli/ui/src/App.vue",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-HelloWorld.vue",
+        "name": "HelloWorld.vue",
+        "type": "Module",
+        "path": "cli/ui/src/components/HelloWorld.vue",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-TopologyNode.vue",
+        "name": "TopologyNode.vue",
+        "type": "Module",
+        "path": "cli/ui/src/components/TopologyNode.vue",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-updateActa.js",
+        "name": "updateActa.js",
+        "type": "Module",
+        "path": "examples/real-project/src/mesa/updateActa.js",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-main.go",
+        "name": "main.go",
+        "type": "Module",
+        "path": "examples/serverless-go/main.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": [
+          {
+            "id": "ep-main.go",
+            "name": "HTTP Endpoint Handler",
+            "type": "Endpoint",
+            "path": "examples/serverless-go/main.go",
+            "certified": true,
+            "required_certs": null,
+            "missing_certs": null,
+            "children": null
+          }
+        ]
+      },
+      {
+        "id": "mod-main_test.go",
+        "name": "main_test.go",
+        "type": "Module",
+        "path": "examples/serverless-go/main_test.go",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      },
+      {
+        "id": "mod-install.js",
+        "name": "install.js",
+        "type": "Module",
+        "path": "npm/install.js",
+        "certified": true,
+        "required_certs": [
+          "CERT-005-CLEAN-CODE"
+        ],
+        "missing_certs": [],
+        "children": []
+      }
+    ]
+  },
+  "global_score": 90
+}

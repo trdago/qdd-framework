@@ -1,0 +1,11 @@
+id: FND-006
+title: "Fallo de sincronización de versión al ejecutar qdd init en proyectos existentes"
+severity: medium
+description: |
+  Se descubrió un error en el comando `qdd init` (específicamente en `createStateFile`). Cuando se ejecutaba sobre un proyecto antiguo que ya tenía un `.qdd/state.json`, la función validaba la existencia del archivo e inmediatamente retornaba de forma temprana (`Early Return`), saltándose la re-escritura del archivo. Esto impedía que el proyecto heredara la nueva versión del framework (ej. se quedaba pegado en v1.0.0 a pesar de usar el binario v1.1.0).
+impact: |
+  - Los dashboards y el motor interno operan con la impresión de estar en una versión antigua, ocultando features y generando falsos negativos.
+resolution: |
+  - Se modificó `createStateFile` en `cli/cmd/init.go` para que, si el archivo existe, lo lea, deserialice su contenido para no perder el estado, sobrescriba la clave `"version"` con `rootCmd.Version` dinámicamente y lo vuelva a guardar.
+  - Se agregó una prueba unitaria `TestFND006InitVersionUpdate` en `cli/cmd/init_test.go` para garantizar que la versión de un state antiguo sea pisada exitosamente tras un init.
+rule_violated: "CLEAN-02-IDEMPOTENT-INIT"

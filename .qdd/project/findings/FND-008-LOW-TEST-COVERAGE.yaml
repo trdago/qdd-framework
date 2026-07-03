@@ -1,0 +1,18 @@
+id: FND-008
+title: "Cobertura de Pruebas Crítica en el Framework Base"
+status: "open"
+severity: "high"
+description: >
+  Aunque la suite unitaria pasa con éxito (exit code 0), un escaneo cognitivo revela que 
+  la cobertura real de código (Code Coverage) de los módulos centrales del QDD Framework 
+  es extremadamente deficiente:
+  - pkg/audit: 0.0%
+  - pkg/qcl: 0.0%
+  - pkg/integration: 30.6%
+  - cmd: 11.4%
+  Esto es una anomalía estructural para una plataforma orientada a la calidad.
+resolution_steps:
+  - "Establecer un threshold mínimo de cobertura del 80% en el Makefile o CI pipeline."
+  - "Implementar unit tests para el paquete qcl (Cognitive Layer)."
+  - "Implementar unit tests para el motor audit."
+rule_violated: "QA-01-ALL-TESTS-PASS"

@@ -29,7 +29,7 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Detectar version mismatch
-		if err := validateProjectVersion(cmd.Version); err != nil {
+		if err := validateProjectVersion(cmd.Root().Version); err != nil {
 			fmt.Printf("[🛑 ERROR DE ENTORNO] %v\n", err)
 			os.Exit(1)
 		}

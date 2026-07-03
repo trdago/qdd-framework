@@ -1,0 +1,18 @@
+id: FND-005-MISSING-TESTS
+title: "Baja cobertura de tests en paquetes core del Framework"
+severity: HIGH
+category: code_quality
+description: |
+  Se ha ejecutado la suite de pruebas unitarias (`go test ./...`) sobre el CLI del framework QDD. Se detectó que múltiples paquetes críticos carecen de archivos de prueba, lo cual representa un riesgo de regresión y contraviene la regla global que exige acompañar el código (y sus refactorizaciones/bugs) con tests unitarios.
+files_affected:
+  - cli/pkg/audit/*
+  - cli/pkg/qcl/*
+  - cli/pkg/qcl/adapters/*
+  - cli/pkg/qcl/models/*
+  - cli/pkg/qcl/nodes/*
+  - cli/pkg/qcl/prompts/*
+  - cli/ui/*
+occurrences: >8 packages
+recommendation: "Implementar unit tests en los paquetes `pkg/audit` y `pkg/qcl` para certificar la estabilidad del motor QDD. Específicamente, asegurar tests para las reglas de auditoría y parsing."
+status: OPEN
+date_discovered: 2026-07-03

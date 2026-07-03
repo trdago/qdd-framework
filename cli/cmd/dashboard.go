@@ -18,6 +18,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/qcl"
 	"github.com/qdd-framework/qdd/pkg/qcl/adapters"
 	"github.com/qdd-framework/qdd/pkg/qcl/nodes"
+	"github.com/qdd-framework/qdd/pkg/topology"
 	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -166,6 +167,7 @@ type QDDState struct {
 	Sprints        []DashboardSprint        `json:"sprints"`
 	Knowledge      []DashboardKnowledgeDoc  `json:"knowledge"`
 	Understanding  *DashboardUnderstanding  `json:"understanding"`
+	Topology       *topology.ProjectTopology `json:"topology"`
 	Config         map[string]interface{}   `json:"config"`
 	Telemetry      DashboardTelemetry       `json:"telemetry"`
 }
@@ -235,6 +237,20 @@ func buildState() QDDState {
 		var und DashboardUnderstanding
 		if err := json.Unmarshal(undData, &und); err == nil {
 			response.Understanding = &und
+		}
+	}
+
+	// Load Topology
+	topData, err := os.ReadFile(filepath.Join(qddDir, "project", "topology.json"))
+	if err == nil {
+		var top topology.ProjectTopology
+		if err := json.Unmarshal(topData, &top); err == nil {
+			response.Topology = &top
+		}
+	} else {
+		// Auto-map if not exists
+		if top, err := topology.MapProject(cwd); err == nil {
+			response.Topology = top
 		}
 	}
 

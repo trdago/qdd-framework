@@ -1,0 +1,13 @@
+id: FND-007
+title: "Falta de validación de versión entre el CLI local y el entorno del Proyecto"
+status: "open"
+severity: "high"
+description: >
+  Se identificó que si un usuario ejecuta un binario global antiguo del framework QDD (ej. interceptado por un shim de mise) 
+  sobre un proyecto que ya fue inicializado con una versión más nueva (ej. v1.1.0), el CLI antiguo se ejecuta sin percatarse,
+  generando comportamientos inconsistentes, levantando puertos erróneos y confundiendo la experiencia de usuario.
+resolution_steps:
+  - "Implementar un check de versión en el PersistentPreRunE de root.go."
+  - "Si el CLI detecta que el state.json del proyecto exige una versión más reciente que la del ejecutable actual, debe abortar con un error explícito (ej. 'Estás usando v0.2.10 pero el proyecto requiere v1.1.0. Revisa tus shims de mise o tu PATH.')."
+  - "Escribir test unitario de regresión para esta funcionalidad."
+rule_violated: "SYS-03-ENVIRONMENT-INTEGRITY"

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import mermaid from 'mermaid'
+import TopologyNode from './components/TopologyNode.vue'
 
 mermaid.initialize({ startOnLoad: false, theme: 'dark' })
 
@@ -20,7 +21,8 @@ const syncingTabs = ref({
   findings: false,
   certifications: false,
   knowledge: false,
-  lifecycle: false
+  lifecycle: false,
+  topology: false
 })
 
 const triggerSync = (tabName) => {
@@ -118,6 +120,10 @@ watch(() => state.value?.score, (newVal, oldVal) => {
   if (oldVal !== undefined) triggerSync('overview')
 })
 
+watch(() => state.value?.topology, (newVal, oldVal) => {
+  if (oldVal) triggerSync('topology')
+}, { deep: true })
+
 const executeOmni = async () => {
     if (!omniInput.value) return;
     const intent = omniInput.value;
@@ -211,6 +217,7 @@ onUnmounted(() => {
         <div class="nav-label">Governance</div>
         <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='overview'" :class="{active: activeTab==='overview'}" @click.prevent="activeTab='overview'"><span class="icon">◱</span> <span style="flex:1;">Overview</span><div v-if="syncingTabs['overview']" class="sync-spinner" aria-hidden="true"></div></a>
         <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='intelligence'" :class="{active: activeTab==='intelligence'}" @click.prevent="activeTab='intelligence'"><span class="icon">🧠</span> <span style="flex:1;">Intelligence</span><div v-if="syncingTabs['intelligence']" class="sync-spinner" aria-hidden="true"></div></a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='topology'" :class="{active: activeTab==='topology'}" @click.prevent="activeTab='topology'"><span class="icon">🕸️</span> <span style="flex:1;">Project Topology</span><div v-if="syncingTabs['topology']" class="sync-spinner" aria-hidden="true"></div></a>
         <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='sprints'" :class="{active: activeTab==='sprints'}" @click.prevent="activeTab='sprints'"><span class="icon">🏃</span> <span style="flex:1;">Sprints</span><div v-if="syncingTabs['sprints']" class="sync-spinner" aria-hidden="true"></div></a>
         <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='findings'" :class="{active: activeTab==='findings'}" @click.prevent="activeTab='findings'"><span class="icon">🐞</span> <span style="flex:1;">Findings</span><div v-if="syncingTabs['findings']" class="sync-spinner" aria-hidden="true"></div></a>
         <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='certifications'" :class="{active: activeTab==='certifications'}" @click.prevent="activeTab='certifications'"><span class="icon">🛡️</span> <span style="flex:1;">Certifications</span><div v-if="syncingTabs['certifications']" class="sync-spinner" aria-hidden="true"></div></a>
@@ -348,6 +355,25 @@ onUnmounted(() => {
           <div v-if="!state.understanding" class="empty-state">
             No intelligence report found. Run <code>qdd learn</code> to generate the platform understanding report.
           </div>
+        </section>
+
+        <!-- TOPOLOGY TAB -->
+        <section v-show="activeTab === 'topology'" class="panel glass-panel fade-in" role="region" aria-labelledby="topology-title">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <h2 id="topology-title" class="panel-title" style="margin: 0;">Certification Topology Map</h2>
+              <div v-if="state?.topology" class="audit-badge" :class="state.topology.global_score === 100 ? 'pass' : 'fail'">
+                Score: {{ state.topology.global_score }}%
+              </div>
+            </div>
+            
+            <div class="topology-container mt-4" v-if="state?.topology?.application">
+              <div class="tree-root">
+                <TopologyNode :node="state.topology.application" />
+              </div>
+            </div>
+            <div v-if="!state?.topology" class="empty-state">
+              No topology map found. Run <code>qdd map</code> in the terminal to generate it.
+            </div>
         </section>
 
         <!-- SPRINTS TAB -->
