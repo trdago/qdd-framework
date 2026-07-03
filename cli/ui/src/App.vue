@@ -241,7 +241,7 @@ onUnmounted(() => {
     <main v-if="!loading" class="content-area" id="main-content" aria-live="polite">
       <header class="top-nav glassmorphism" role="banner" aria-label="App Header">
         <div class="breadcrumbs">
-          <span>QDD</span> <span class="separator">/</span> <span class="current" style="text-transform: capitalize;">{{ activeTab }}</span>
+          <span style="text-transform: capitalize;">{{ state?.project_name || 'QDD' }}</span> <span class="separator">/</span> <span class="current" style="text-transform: capitalize;">{{ activeTab }}</span>
         </div>
         
         <div class="omnibar" :class="{ 'is-loading': qclLoading }">

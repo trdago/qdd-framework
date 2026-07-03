@@ -26,6 +26,37 @@ import (
 
 var startTime = time.Now()
 
+const qddLifecycleMermaid = "```mermaid\ngraph TD\n" +
+`    classDef default fill:#1e1e1e,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef init fill:#6366f1,stroke:#4338ca,stroke-width:2px,color:#fff;
+    classDef agent fill:#ec4899,stroke:#be185d,stroke-width:2px,color:#fff;
+    classDef gatekeeper fill:#14b8a6,stroke:#0f766e,stroke-width:2px,color:#fff;
+    classDef success fill:#22c55e,stroke:#15803d,stroke-width:2px,color:#fff;
+    classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+
+    A[qdd init<br/>Crea Entorno y Wisdom Registry]:::init
+    B[qdd sprint<br/>Define Requerimientos]:::default
+    C[qdd 'prompt'<br/>Delegación a IA]:::agent
+    D{Gatekeeper<br/>Pre-Flight Check}:::gatekeeper
+    E[qdd learn<br/>Absorber Arquitectura e Intelligence Report]:::default
+    F[Modo Consultivo<br/>Propuesta de Estándares]:::agent
+    G[qdd audit<br/>Inspección Técnica]:::warning
+    H[qdd certify<br/>Sello de Gobernanza]:::success
+    I[qdd release<br/>Git Tag / Deploy]:::success
+
+    A --> B
+    B --> C
+    C --> D
+    D -- Contexto Incompleto --> E
+    E --> C
+    D -- Autorizado --> F
+    F --> G
+    G -- Fallo Técnico --> C
+    G -- Reglas Cumplidas --> H
+    H --> I
+    I --> B
+` + "```\n"
+
 type StateBroker struct {
 	sync.RWMutex
 	clients map[chan []byte]bool
@@ -171,6 +202,7 @@ type QDDState struct {
 	Config         map[string]interface{}   `json:"config"`
 	Telemetry      DashboardTelemetry       `json:"telemetry"`
 	WorkingOn      string                   `json:"working_on"`
+	ProjectName    string                   `json:"project_name"`
 }
 
 func buildState() QDDState {
@@ -182,6 +214,7 @@ func buildState() QDDState {
 		Grade:          "World-Class",
 		Version:        "v0.1.1",
 		AuditStatus:    "PASS",
+		ProjectName:    filepath.Base(cwd),
 		Findings:       []DashboardFinding{},
 		Certifications: []DashboardCertification{},
 		Sprints:        []DashboardSprint{},
@@ -235,6 +268,21 @@ func buildState() QDDState {
 				}
 			}
 		}
+	}
+
+	hasLifecycle := false
+	for _, k := range response.Knowledge {
+		if k.Path == "docs/command-reference.md" {
+			hasLifecycle = true
+			break
+		}
+	}
+	if !hasLifecycle {
+		response.Knowledge = append(response.Knowledge, DashboardKnowledgeDoc{
+			ID:      "command-reference.md",
+			Path:    "docs/command-reference.md",
+			Content: qddLifecycleMermaid,
+		})
 	}
 
 	// Read Understanding
