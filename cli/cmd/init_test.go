@@ -96,3 +96,48 @@ func TestFND004StateVersionSynchronization(t *testing.T) {
 		t.Errorf("🚨 Regresión FND-004: La versión en state.json no contiene la dinámica '%v'", expectedVersion)
 	}
 }
+
+// TestFND006InitVersionUpdate asegura que si state.json ya existe, qdd init actualiza la versión y mantiene el estado.
+func TestFND006InitVersionUpdate(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "qdd-test-fnd006-*")
+	if err != nil {
+		t.Fatalf("No se pudo crear directorio temporal: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	qddDir := filepath.Join(tempDir, ".qdd")
+	err = os.MkdirAll(qddDir, 0755)
+	if err != nil {
+		t.Fatalf("No se pudo crear directorio .qdd: %v", err)
+	}
+
+	statePath := filepath.Join(qddDir, "state.json")
+	oldState := []byte(`{"status":"old","version":"v0.1.0"}`)
+	err = os.WriteFile(statePath, oldState, 0644)
+	if err != nil {
+		t.Fatalf("No se pudo escribir state antiguo: %v", err)
+	}
+
+	expectedVersion := "v2.0.0-test"
+	originalVersion := rootCmd.Version
+	rootCmd.Version = expectedVersion
+	defer func() { rootCmd.Version = originalVersion }()
+
+	err = createStateFile(qddDir)
+	if err != nil {
+		t.Fatalf("createStateFile falló: %v", err)
+	}
+
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("No se pudo leer state.json: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, expectedVersion) {
+		t.Errorf("🚨 Regresión FND-006: La versión no fue actualizada. Contenido: %s", content)
+	}
+	if !strings.Contains(content, "old") {
+		t.Errorf("🚨 Regresión FND-006: Se borró el status anterior. Contenido: %s", content)
+	}
+}

@@ -219,15 +219,22 @@ func createConfigFile(qddDir string, languages []string) error {
 
 func createStateFile(qddDir string) error {
 	statePath := filepath.Join(qddDir, "state.json")
+	var state map[string]interface{}
 
 	if fileExists(statePath) {
-		return nil
+		data, err := os.ReadFile(statePath)
+		if err == nil {
+			json.Unmarshal(data, &state)
+		}
+	}
+	
+	if state == nil {
+		state = map[string]interface{}{
+			"status": "initialized",
+		}
 	}
 
-	state := map[string]interface{}{
-		"status":  "initialized",
-		"version": rootCmd.Version,
-	}
+	state["version"] = rootCmd.Version
 
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
