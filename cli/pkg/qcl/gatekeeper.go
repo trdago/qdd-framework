@@ -36,10 +36,6 @@ func CheckMinimumAlignment() error {
 		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el lenguaje (languages) en config.yaml o ejecuta `qdd learn`")
 	}
 
-	if len(config.Databases) == 0 {
-		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara la base de datos (databases) en config.yaml o ejecuta `qdd learn`")
-	}
-
 	if config.Architecture == "" {
 		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el patrón arquitectónico (architecture) en config.yaml o ejecuta `qdd learn`")
 	}
