@@ -1,0 +1,10 @@
+id: FND-015-AUDIT-HARDCODED-CLI
+title: "El validador de cobertura asume el uso de Go y el directorio cli/"
+severity: medium
+category: logic
+description: |
+  El componente `coverage.go` dentro de `pkg/audit/` en el framework QDD ejecuta `go test ./...` de forma estática sobre una carpeta `cli/`. Si el framework audita un proyecto Node.js o frontend (ej. Vue), falla al no encontrar el directorio, causando falsos positivos en la regla QA-01-ALL-TESTS-PASS.
+occurrences: "1 package (pkg/audit/coverage.go)"
+recommendation: "Implementar detección dinámica de `package.json` para proyectos basados en Node y remover el uso de `else` en la lógica (Zero-Else rule)."
+status: resolved
+date_discovered: 2026-07-03
