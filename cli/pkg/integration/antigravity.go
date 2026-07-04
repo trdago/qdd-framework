@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // AntigravityAdapter implements integration for the Antigravity IDE.
@@ -29,10 +30,18 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 
 	qddWorkflowPath := filepath.Join(workflowsDir, "qdd.md")
 	
-	// Create with frontmatter if it doesn't exist
+	// Ensure frontmatter exists
+	frontmatter := "---\ndescription: QDD Framework native AI commands\n---\n\n"
 	if _, err := os.Stat(qddWorkflowPath); os.IsNotExist(err) {
-		frontmatter := "---\ndescription: QDD Framework native AI commands\n---\n\n"
 		os.WriteFile(qddWorkflowPath, []byte(frontmatter), 0644)
+	}
+	
+	if _, err := os.Stat(qddWorkflowPath); err == nil {
+		content, _ := os.ReadFile(qddWorkflowPath)
+		contentStr := string(content)
+		if !strings.Contains(contentStr, "description:") {
+			os.WriteFile(qddWorkflowPath, []byte(frontmatter+contentStr), 0644)
+		}
 	}
 
 	err = SafeInjectIdempotent(qddWorkflowPath)
