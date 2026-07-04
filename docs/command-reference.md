@@ -56,7 +56,9 @@ Estos comandos puedes ejecutarlos sin miedo. Su único trabajo es leer tu reposi
 | `qdd status` | Panel de control. Escanea el repositorio para mostrar certificaciones activas y *Findings* (bugs) abiertos. **Seguro.** |
 | `qdd score` | Calcula tu calificación de calidad matemática (Ej: 100/100 World-Class). **Seguro.** |
 | `qdd audit` | Ejecuta un Linter estático asegurando las reglas del framework (ej. Cero uso de `else`). **Seguro.** |
-| `qdd certify` | Revisa la carpeta `.qdd/certification/` y emite un veredicto de calidad del proyecto. **Seguro.** |
+| `qdd validate` | Verifica el repositorio en busca de anomalías estructurales y arquitectónicas. **Seguro.** |
+| `qdd review` | Revisa los cambios actuales de código frente a las guías estandarizadas de QDD. **Seguro.** |
+| `qdd certify` | Revisa la carpeta `.qdd/core/certification/` y emite un veredicto de calidad del proyecto. **Seguro.** |
 | `qdd dashboard` | Inicia el Centro de Comando Web. Despliega el Intelligence Report, métricas, Sprints y Certificaciones. **Seguro.** |
 
 ### ⚡ Comandos de Mutación (Estructurales)
@@ -65,9 +67,13 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | Comando | Descripción |
 |---------|-------------|
 | `qdd init` | Inicializa el entorno creando el directorio `.qdd/`, `config.yaml`, y lo más importante, el **Wisdom Registry** (`manifesto.md`). |
-| `qdd sprint <n>` | Crea la plantilla de trabajo para una nueva iteración modificando `.qdd/sprints/`. |
+| `qdd sprint <n>` | Crea la plantilla de trabajo para una nueva iteración modificando `.qdd/project/sprints/`. |
 | `qdd release <version>` | Genera un Git Tag oficial y actualiza la versión del framework en `state.json`. |
 | `qdd sync` / `qdd sync-ai` | Sincroniza las reglas nativas y el Manifiesto con los asistentes de IA (Cursor, Claude Code, Antigravity) configurando los perfiles de manera idempotente. |
+| `qdd ui` | Genera o audita componentes de UI frontend basándose en estándares SaaS premium de QDD. |
+| `qdd api` | Audita o genera endpoints de backend siguiendo estándares REST/GraphQL de QDD. |
+| `qdd db` | Audita o genera esquemas y consultas de bases de datos. |
+| `qdd docs` | Regenera la documentación de QDD basándose en el estado actual del proyecto. |
 
 ## Cognitive Path (Pipeline Inteligente)
 
