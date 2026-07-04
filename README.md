@@ -1,5 +1,7 @@
 # QDD Framework — Quality-Driven Development
 
+![QDD Dashboard Demo](docs/assets/dashboard_demo.webp)
+
 QDD no es un generador de código.
 QDD no es un asistente de programación.
 QDD no es un agente conversacional.
@@ -33,6 +35,75 @@ QDD resuelve este problema operando bajo el **Manifiesto QDD** y el principio fu
 
 ---
 
+## 🚀 Getting Started: Ciclo Completo de Desarrollo Gobernado
+
+El siguiente ejemplo demuestra cómo se utiliza QDD para desarrollar de forma iterativa y segura.
+
+### 1. Inicialización y Aprendizaje
+Prepara el entorno y haz que QDD absorba el contexto arquitectónico de tu proyecto.
+```bash
+qdd init
+qdd learn
+```
+
+### 2. Identificación de Brechas (Auditoría Segura)
+Visualiza tu deuda técnica y calidad en el panel de control.
+```bash
+qdd dashboard   # Visualiza el Centro de Comando (ver GIF de arriba)
+qdd status      # Muestra bugs y certificaciones en terminal
+```
+
+### 3. Aplicación de Soluciones (Cognitive Path)
+Delega la solución de problemas. QDD entrará en Modo Consultivo si los cambios conllevan riesgos de seguridad o arquitectura.
+```bash
+qdd "resuelve los bugs críticos identificados en el validador"
+```
+
+### 4. Certificación y Entrega
+Asegura que el nuevo código cumpla las reglas del framework antes del despliegue.
+```bash
+qdd certify
+qdd release v1.0.0
+```
+
+---
+
+## 🔄 Ciclo de Vida (Mejora Continua)
+
+```mermaid
+graph TD
+    classDef default fill:#1e1e1e,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef init fill:#6366f1,stroke:#4338ca,stroke-width:2px,color:#fff;
+    classDef agent fill:#ec4899,stroke:#be185d,stroke-width:2px,color:#fff;
+    classDef gatekeeper fill:#14b8a6,stroke:#0f766e,stroke-width:2px,color:#fff;
+    classDef success fill:#22c55e,stroke:#15803d,stroke-width:2px,color:#fff;
+    classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+
+    A[qdd init<br/>Crea Entorno y Wisdom Registry]:::init
+    B[qdd sprint<br/>Define Requerimientos]:::default
+    C[qdd 'prompt'<br/>Delegación a IA]:::agent
+    D{Gatekeeper<br/>Pre-Flight Check}:::gatekeeper
+    E[qdd learn<br/>Absorber Arquitectura e Intelligence Report]:::default
+    F[Modo Consultivo<br/>Propuesta de Estándares]:::agent
+    G[qdd audit<br/>Inspección Técnica]:::warning
+    H[qdd certify<br/>Sello de Gobernanza]:::success
+    I[qdd release<br/>Git Tag / Deploy]:::success
+
+    A --> B
+    B --> C
+    C --> D
+    D -- Contexto Incompleto --> E
+    E --> C
+    D -- Autorizado --> F
+    F --> G
+    G -- Fallo Técnico --> C
+    G -- Reglas Cumplidas --> H
+    H --> I
+    I --> B
+```
+
+---
+
 ## Instalación
 
 ### Opción 1: NPM (Recomendado para Web Devs)
@@ -50,50 +121,12 @@ go install github.com/trdago/qdd-framework/cli@latest
 ## 🏗️ Arquitectura General
 
 QDD está compuesto por:
-- **Wisdom Registry:** La mente y constitución del proyecto (`.qdd/wisdom/`).
+- **Wisdom Registry:** La mente y constitución del proyecto (`.qdd/core/wisdom/`).
 - **Specification:** Definiciones independientes del modelo de IA.
 - **Runtime:** El núcleo de ejecución y certificaciones.
 - **CLI:** Herramientas de análisis, auditoría y comandos IA.
 - **Dashboard:** Centro de Comando Web que despliega el *Intelligence Report*.
 - **AI Adapters:** Integraciones independientes (Gemini, Claude, ChatGPT, Cursor, etc.).
-
----
-
-## 💻 CLI (Command Line Interface)
-
-QDD incluye una CLI escrita en Go dividida en dos vías de ejecución:
-
-**Fast Path Commands (Seguros y Deterministas):**
-- `qdd init`: Detecta el stack tecnológico y prepara el Entorno Base y el Wisdom Registry.
-- `qdd learn`: Inyecta la arquitectura al Motor Cognitivo generando el **Intelligence Report**.
-- `qdd certify`: Ejecuta las certificaciones y garantiza la calidad del código.
-- `qdd audit`: Un linter interno que escanea la base de código buscando violaciones de reglas.
-- `qdd status`: Muestra un panel de control con el estado de certificaciones y bugs (Findings) abiertos.
-- `qdd score`: Calcula automáticamente tu grado de calidad (World-Class, A, B, C, D) en base a la deuda técnica.
-- `qdd sprint <n>`: Inicializa el ciclo iterativo de trabajo.
-- `qdd release <version>`: Empaqueta una versión lista para producción.
-- `qdd dashboard`: Inicia el Centro de Comando Web interactivo (Frontend embebido).
-- `qdd sync`: Sincroniza las reglas de gobernanza con tus asistentes de IA.
-
-**Cognitive Path Commands (Motor QCL):**
-- `qdd "cualquier intención libre"`: El pipeline cognitivo evaluará la intención. Al estar regido por el *Manifiesto*, actuará en **Modo Consultivo** para proponer certificaciones industriales y mejoras arquitectónicas antes de alterar el código.
-
----
-
-## 📦 Repositorio y Estructura
-
-- `specification/`: Definiciones independientes del modelo de IA.
-- `cli/`: Código de la interfaz de línea de comandos.
-- `runtime/`: El núcleo del framework.
-- `rfcs/`: Request for Comments.
-
----
-
-## 🌍 Estándares Internacionales (Compliance)
-
-QDD predica con el ejemplo. Nuestro Dashboard Web está desarrollado bajo:
-- **WCAG Nivel AA (W3C)**: Interfaz 100% accesible (POUR).
-- **ISO/IEC 25010**: Diseñado siguiendo los pilares de Usabilidad, Seguridad y Portabilidad.
 
 ---
 
