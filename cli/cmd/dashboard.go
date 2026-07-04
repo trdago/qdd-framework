@@ -508,9 +508,12 @@ var dashboardCmd = &cobra.Command{
 			
 			pipeline := qcl.NewPipeline(
 				nodes.NewIntentAnalyzer(engine),
-				&nodes.ContextAnalyzer{},
+				nodes.NewContextAnalyzer(),
+				nodes.NewRiskAnalyzer(),
+				nodes.NewConsultativeNode(),
 				nodes.NewStrategyPlanner(engine),
 				nodes.NewPlanBuilder(engine),
+				nodes.NewApprovalManager(),
 			)
 
 			session, err := pipeline.Execute(req.Input)

@@ -4,7 +4,7 @@ QDD (Quality-Driven Development) es una Plataforma de Ingeniería de Software ba
 
 ## The Wisdom Registry (El Cerebro)
 
-El núcleo absoluto de QDD es el **Wisdom Registry** ubicado en `.qdd/wisdom/`. Esta es la mente del proyecto.
+El núcleo absoluto de QDD es el **Wisdom Registry** ubicado en `.qdd/core/wisdom/`. Esta es la mente del proyecto.
 En lugar de depender del conocimiento efímero de los desarrolladores o de un LLM aislado, QDD almacena su Constitución aquí:
 - **`manifesto.md`**: Define las reglas inquebrantables del framework (Production-First, Quality-First).
 - **`principles.md`**: Contiene las reglas de ingeniería (No-Else, Timeouts, Contratos).
@@ -27,7 +27,7 @@ qdd "Agrega un estándar estricto que prohíba usar la librería Axios a favor d
 QDD operará en **Modo Consultivo**. Si detecta que falta un estándar de la industria (ej. no estás usando Clean Architecture), te propondrá adoptarlo antes de generar el código. Si lo autorizas, creará automáticamente el artefacto de certificación YAML.
 
 #### 2. La Vía Estructural (Archivos de Certificación)
-Si prefieres el control manual, los estándares se guardan como archivos YAML en la carpeta `.qdd/certification/`. 
+Si prefieres el control manual, los estándares se guardan como archivos YAML en la carpeta `.qdd/core/certification/` (framework) o `.qdd/project/certification/` (proyecto). 
 Para crear un nuevo estándar, simplemente creas un archivo (ej: `CERT-010-UI-PERFORMANCE.yaml`):
 
 ```yaml
@@ -79,9 +79,9 @@ El motor de QDD, compilado en Go para máximo rendimiento y distribución, opera
 
 QDD trata el conocimiento como el activo más valioso. Los artefactos son los "documentos vivos" que persisten este conocimiento dentro de `.qdd/`:
 
-- **Findings (`.qdd/findings/`)**: Todo bug encontrado se documenta aquí. Describe la causa raíz, la evidencia y la prueba asociada. Evita que un bug resuelto vuelva a ocurrir.
-- **ADRs (`.qdd/adr/`)**: Architecture Decision Records. Congelan en el tiempo el "por qué" se tomó una decisión (ej. "Por qué usamos gRPC en lugar de REST").
-- **Sprints (`.qdd/sprints/`)**: Archivos Markdown que orquestan el trabajo iterativo, definiendo el alcance, los criterios de aceptación y las certificaciones requeridas para el ciclo.
+- **Findings (`.qdd/project/findings/`)**: Todo bug encontrado se documenta aquí. Describe la causa raíz, la evidencia y la prueba asociada. Evita que un bug resuelto vuelva a ocurrir.
+- **ADRs (`.qdd/project/adr/`)**: Architecture Decision Records. Congelan en el tiempo el "por qué" se tomó una decisión (ej. "Por qué usamos gRPC en lugar de REST").
+- **Sprints (`.qdd/project/sprints/`)**: Archivos Markdown que orquestan el trabajo iterativo, definiendo el alcance, los criterios de aceptación y las certificaciones requeridas para el ciclo.
 
 ## Plugins (Extensibilidad)
 
