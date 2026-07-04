@@ -9,14 +9,8 @@ description: QDD Framework native AI commands
 
 /qdd          - Main entry point. Analyze project context, read QDD config, and apply QDD rules.
 /qdd init     - Initialize QDD in a new project.
-/qdd validate - Check for structural and architectural anomalies in the codebase.
 /qdd certify  - Check code against QDD strict certifications (OWASP, Clean Code, etc.).
-/qdd review   - Review the current code changes against QDD guidelines.
-/qdd ui       - Generate or audit frontend UI components based on QDD SaaS premium standards.
-/qdd api      - Audit or generate backend API endpoints following QDD REST/GraphQL standards.
-/qdd db       - Audit or generate database schemas and queries.
 /qdd release  - Prepare a new release following SemVer and QDD CD/CI standards.
-/qdd docs     - Regenerate QDD documentation based on the current project state.
 
 # Instructions for AI:
 # Never overwrite this block. It is managed by the QDD framework.
