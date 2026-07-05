@@ -1,4 +1,5 @@
 id: CERT-001
+version: "1.0.0"
 title: "Certificación de Detección Recursiva de Entorno"
 status: certified
 related_finding: FND-001

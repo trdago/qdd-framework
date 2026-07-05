@@ -1,4 +1,5 @@
 id: CERT-011
+version: "1.0.0"
 title: "Estándar de Interfaz ISO 9241 (Human-Centered Design)"
 status: certified
 level: strict

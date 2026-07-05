@@ -1,4 +1,5 @@
 id: CERT-015
+version: "1.0.0"
 title: "Mapeo Visual del Ciclo de Vida (SSOT)"
 status: certified
 level: standard

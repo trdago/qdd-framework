@@ -1,4 +1,5 @@
 id: CERT-013
+version: "1.0.0"
 title: "Arquitectura Push Streaming (Real-Time)"
 status: certified
 level: strict

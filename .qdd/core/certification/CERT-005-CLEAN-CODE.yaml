@@ -1,4 +1,5 @@
 id: CERT-005-CLEAN-CODE
+version: "1.0.0"
 title: "Certificación de Arquitectura y Código Limpio (Reglas de QDD)"
 status: certified
 related_feature: "Industry Standard Baseline"
@@ -13,3 +14,6 @@ rules:
   - id: CLEAN-03-DOCUMENTED-BUGS
     description: "Cada bug resuelto (Finding) debe tener su test unitario asociado para evitar regresiones antes de poder fusionarse a la rama principal."
     method: "CI/CD Quality Gate"
+  - id: CLEAN-04-ZERO-HARDCODING
+    description: "Estricta prohibición de código 'en duro' (hardcoded). Ninguna variable quemada, ninguna API key, ni mocks en el código base, asumiendo que todo el entorno es 100% productivo siempre."
+    method: "Static Code Analysis / AI Analysis"

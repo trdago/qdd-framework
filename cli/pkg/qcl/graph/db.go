@@ -126,6 +126,36 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 				if err != nil {
 					fmt.Printf("Error upserting node %s: %v\n", id, err)
 				}
+
+				// Extract edges
+				g.db.Exec("DELETE FROM edges WHERE source_id = ?", id)
+				
+				if parent, ok := raw["parent"].(string); ok && parent != "" {
+					targetID := fmt.Sprintf("rule:%s", parent)
+					if !strings.HasSuffix(parent, ".yaml") {
+						targetID = fmt.Sprintf("rule:%s.yaml", parent)
+					}
+					g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
+				}
+
+				if dependsOn, ok := raw["depends_on"]; ok {
+					var deps []string
+					if list, isList := dependsOn.([]interface{}); isList {
+						for _, item := range list {
+							deps = append(deps, fmt.Sprintf("%v", item))
+						}
+					} else if str, isStr := dependsOn.(string); isStr {
+						deps = append(deps, str)
+					}
+
+					for _, d := range deps {
+						targetID := fmt.Sprintf("rule:%s", d)
+						if !strings.HasSuffix(d, ".yaml") {
+							targetID = fmt.Sprintf("rule:%s.yaml", d)
+						}
+						g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "DEPENDS_ON")
+					}
+				}
 			}
 		}
 	}

@@ -1,4 +1,5 @@
 id: CERT-009
+version: "1.0.0"
 title: "Verificación E2E de Distribución e Inicialización"
 status: certified
 level: strict

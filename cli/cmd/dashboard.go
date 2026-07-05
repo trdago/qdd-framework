@@ -155,11 +155,12 @@ type DashboardFinding struct {
 }
 
 type DashboardCertification struct {
-	ID     string                 `json:"id"`
-	Status string                 `json:"status"`
-	Name   string                 `json:"name"`
-	Type   string                 `json:"type"`
-	Raw    map[string]interface{} `json:"raw"`
+	ID      string                 `json:"id"`
+	Version string                 `json:"version"`
+	Status  string                 `json:"status"`
+	Name    string                 `json:"name"`
+	Type    string                 `json:"type"`
+	Raw     map[string]interface{} `json:"raw"`
 }
 
 type DashboardSprint struct {
@@ -334,12 +335,18 @@ func buildState() QDDState {
 					status = fmt.Sprintf("%v", rawData["status"])
 				}
 
+				version := "unknown"
+				if rawData != nil && rawData["version"] != nil {
+					version = fmt.Sprintf("%v", rawData["version"])
+				}
+
 				response.Certifications = append(response.Certifications, DashboardCertification{
-					ID:     name,
-					Status: status,
-					Name:   "Cumplimiento verificado",
-					Type:   "Proyecto",
-					Raw:    rawData,
+					ID:      name,
+					Version: version,
+					Status:  status,
+					Name:    "Cumplimiento verificado",
+					Type:    "Proyecto",
+					Raw:     rawData,
 				})
 			}
 			rows.Close()

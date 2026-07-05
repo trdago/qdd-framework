@@ -1,4 +1,5 @@
 id: CERT-006
+version: "1.0.0"
 title: Despliegue y Descarga de Paquete NPM
 status: certified
 level: strict

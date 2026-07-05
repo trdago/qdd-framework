@@ -1,4 +1,5 @@
 id: CERT-003-TWELVE-FACTOR
+version: "1.0.0"
 title: "Certificación Twelve-Factor App"
 status: certified
 related_feature: "Industry Standard Baseline"

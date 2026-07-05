@@ -1,4 +1,5 @@
 id: CERT-008
+version: "1.0.0"
 title: "Generación Válida de YAML (QDD Init)"
 status: certified
 level: strict

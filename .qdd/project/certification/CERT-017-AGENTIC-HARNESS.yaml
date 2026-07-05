@@ -1,4 +1,5 @@
 id: CERT-017
+version: "1.0.0"
 title: "Control de Alucinaciones y Determinismo (Agentic Harness & MCP)"
 status: certified
 level: strict

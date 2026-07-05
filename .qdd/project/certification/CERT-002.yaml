@@ -1,4 +1,5 @@
 id: CERT-002
+version: "1.0.0"
 title: "Certificación de Enrutamiento Híbrido (Fast Path)"
 status: certified
 related_feature: "Hybrid Routing"

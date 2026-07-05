@@ -1,4 +1,5 @@
 id: CERT-007
+version: "1.0.0"
 title: "Integración Nativa Multimodal de IA (Protocolo QCP)"
 status: certified
 level: strict

@@ -1,4 +1,5 @@
 id: CERT-004-OWASP
+version: "1.0.0"
 title: "Certificación OWASP Top 10 (Baseline de Seguridad)"
 status: certified
 related_feature: "Industry Standard Baseline"
