@@ -39,36 +39,30 @@ QDD resuelve este problema operando bajo el **Manifiesto QDD** y el principio fu
 
 El siguiente ejemplo demuestra cómo se utiliza QDD para desarrollar de forma iterativa y segura.
 
-### 1. Inicialización y Aprendizaje
-Prepara el entorno y haz que QDD absorba el contexto arquitectónico de tu proyecto.
+### 1. Inicialización e Inyección de MCP
+Prepara el entorno y haz que tu IDE (Cursor, Claude Code, Antigravity) absorba el contexto arquitectónico de tu proyecto automáticamente vía MCP:
 ```bash
 qdd init
-qdd learn
 ```
 
 ### 2. Identificación de Brechas (Auditoría Segura)
-Visualiza tu deuda técnica y calidad en el panel de control.
+Visualiza tu deuda técnica y calidad en el panel de control interactivo.
 ```bash
 qdd dashboard   # Visualiza el Centro de Comando (ver GIF de arriba)
-qdd status      # Muestra bugs y certificaciones en terminal
 ```
 
 ### 3. Aplicación de Soluciones (Cognitive Path)
-Delega la solución de problemas. QDD entrará en Modo Consultivo si los cambios conllevan riesgos de seguridad o arquitectura.
+Delega la solución de problemas desde tu IDE. Las herramientas MCP de QDD (`qdd_audit`, `qdd_learn`, `qdd_certify`) gobernarán a tu IA para que aplique estándares de producción.
 ```bash
-qdd "resuelve los bugs críticos identificados en el validador"
+/qdd "resuelve los bugs críticos identificados en el validador"
 ```
 
-### 4. Certificación y Entrega
-Asegura que el nuevo código cumpla las reglas del framework antes del despliegue.
-```bash
-qdd certify
-qdd release v1.0.0
-```
+### 4. Certificación y Entrega Automática
+Tu asistente verificará que el nuevo código cumpla las reglas usando las herramientas MCP antes de sugerir el despliegue.
 
 ---
 
-## 🔄 Ciclo de Vida (Mejora Continua)
+## 🔄 Ciclo de Vida (Arquitectura MCP)
 
 ```mermaid
 graph TD
@@ -79,15 +73,14 @@ graph TD
     classDef success fill:#22c55e,stroke:#15803d,stroke-width:2px,color:#fff;
     classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
 
-    A[qdd init<br/>Crea Entorno y Wisdom Registry]:::init
-    B[qdd sprint<br/>Define Requerimientos]:::default
-    C[qdd 'prompt'<br/>Delegación a IA]:::agent
-    D{Gatekeeper<br/>Pre-Flight Check}:::gatekeeper
-    E[qdd learn<br/>Absorber Arquitectura e Intelligence Report]:::default
+    A[qdd init<br/>Inyecta MCP Config en IDE]:::init
+    B[qdd_sprint<br/>Define Requerimientos]:::default
+    C[/qdd 'prompt'<br/>IDE delega a MCP]:::agent
+    D{Gatekeeper<br/>MCP Policy Check}:::gatekeeper
+    E[qdd_learn<br/>Absorber Arquitectura]:::default
     F[Modo Consultivo<br/>Propuesta de Estándares]:::agent
-    G[qdd audit<br/>Inspección Técnica]:::warning
-    H[qdd certify<br/>Sello de Gobernanza]:::success
-    I[qdd release<br/>Git Tag / Deploy]:::success
+    G[qdd_audit<br/>Inspección Técnica MCP]:::warning
+    H[qdd_certify<br/>Sello de Gobernanza]:::success
 
     A --> B
     B --> C
@@ -98,8 +91,7 @@ graph TD
     F --> G
     G -- Fallo Técnico --> C
     G -- Reglas Cumplidas --> H
-    H --> I
-    I --> B
+    H --> B
 ```
 
 ---
@@ -123,10 +115,9 @@ go install github.com/trdago/qdd-framework/cli@latest
 QDD está compuesto por:
 - **Wisdom Registry:** La mente y constitución del proyecto (`.qdd/core/wisdom/`).
 - **Specification:** Definiciones independientes del modelo de IA.
-- **Runtime:** El núcleo de ejecución y certificaciones.
-- **CLI:** Herramientas de análisis, auditoría y comandos IA.
+- **Runtime MCP (Model Context Protocol):** El motor principal que expone las herramientas a tu IDE (`qdd_audit`, `qdd_certify`, etc.).
 - **Dashboard:** Centro de Comando Web que despliega el *Intelligence Report*.
-- **AI Adapters:** Integraciones independientes (Gemini, Claude, ChatGPT, Cursor, etc.).
+- **AI Adapters:** Integraciones Zero-Config para Cursor, Claude Code y Antigravity.
 
 ---
 

@@ -1,0 +1,10 @@
+id: FND-016-MCP-LEARN-HARDCODED-API
+title: "La herramienta qdd_learn en MCP usa API externa en lugar de delegar al IDE"
+severity: high
+category: architecture
+description: |
+  La herramienta `qdd_learn` del servidor MCP dependía de `adapters.NewGeminiEngine()` e instanciaba una llamada a la API externa de Gemini. Esto violaba el principio arquitectónico donde el IDE local (Antigravity/Claude) debe ser el proveedor de inteligencia (cerebro) y procesar los prompts de forma nativa sin requerir que la CLI solicite una API key externa de LLM. Al fallar silenciosamente sin API key, el archivo `understanding.json` requerido por el Dashboard nunca se generaba.
+occurrences: "1 package (cli/cmd/mcp_telemetry.go)"
+recommendation: "Refactorizar `qdd_learn` para retornar el contexto y un prompt de instrucciones al IDE. El IDE se encargará de ejecutar el LLM local/integrado y generar el archivo `understanding.json` usando sus propias herramientas."
+status: resolved
+date_discovered: 2026-07-04

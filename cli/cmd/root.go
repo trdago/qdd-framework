@@ -15,11 +15,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "qdd [intención]",
-	Version: "v1.3.1",
-	Short:   "QDD es una Plataforma de Ingeniería de Software basada en Mejora Continua",
-	Long: `QDD (Quality-Driven Development) orquesta el ciclo de vida del 
-desarrollo de software mediante un Motor Cognitivo en Modo Consultivo,
+	Use:     "qdd",
+	Short:   "QDD (Quality Driven Development) Framework CLI",
+	Version: "v1.5.0",
+	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando certificaciones de calidad obligatorias.
 garantizando certificaciones, evidencia y calidad desde el día uno.
 
 Puedes ejecutar comandos específicos (como 'qdd init') o expresar una intención en lenguaje natural.
@@ -35,7 +34,7 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 		}
 
 		name := cmd.Name()
-		if name == "dashboard" || name == "ui" {
+		if name == "dashboard" || name == "ui" || name == "mcp-server" {
 			return nil
 		}
 
@@ -58,7 +57,7 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		name := cmd.Name()
-		if name == "dashboard" || name == "ui" {
+		if name == "dashboard" || name == "ui" || name == "mcp-server" {
 			return
 		}
 		cwd, _ := os.Getwd()

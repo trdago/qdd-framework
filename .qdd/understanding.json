@@ -1,26 +1,24 @@
 {
-  "summary": "QDD (Quality-Driven Development) es una Plataforma de Ingeniería de Software basada en Mejora Continua. Su propósito no es generar código rápido, sino preservar, auditar y gobernar el conocimiento del sistema (Production-First). Orquesta a la IA para que actúe como Arquitecto, forzando estándares, creando certificaciones y documentando toda deuda técnica (Findings).",
+  "summary": "Quality-Driven Development (QDD) es una Plataforma de Ingeniería de Software basada en Mejora Continua. Gobernando el ciclo de vida bajo estrictos estándares 'Production-First', reemplaza prompts manuales por un Framework (Wisdom Registry y Cognitive Layer) que asegura la calidad, validaciones automáticas, certificaciones como 'Rules-as-Code' y conocimiento persistido desde el día cero.",
   "components": [
-    "Wisdom Registry (.qdd/wisdom/): Cerebro del proyecto (Manifiesto y Principios).",
-    "QDD Cognitive Engine (QCL): Pipeline inteligente de 2 vías (Fast Path y Cognitive Path).",
-    "Gatekeeper: Módulo de bloqueo ante violaciones arquitectónicas.",
-    "Dashboard UI: Centro de Comando Web Vue.js embebido.",
-    "Artifacts Manager: Gestor de Findings, Sprints y ADRs.",
-    "AI Adapters: Puente agnóstico (Protocolo QCP) hacia Gemini, Claude y Cursor."
+    "Wisdom Registry (.qdd/core/wisdom/ - Manifiesto y principios base)",
+    "Engine & CLI (Fast Path determinista para certificaciones y Cognitive Path para inteligencia integrada)",
+    "QDD Cognitive Layer (QCL - Analizadores y orquestadores que planean la ejecución sin depender del prompt humano)",
+    "Gobernanza y Certificaciones (Archivos YAML con validación automatizada)",
+    "Artifacts (Findings, ADRs y Sprints persistidos para memoria estructural)",
+    "AI Adapters & Plugins (Capa de extensibilidad independiente del proveedor LLM y del lenguaje)"
   ],
   "objectives": [
-    "Erradicar la generación de prototipos desechables (Production-First).",
-    "Transformar cada bug descubierto en conocimiento permanente (Test + Finding).",
-    "Automatizar la Gobernanza Arquitectónica mediante 'Rules-as-Code'.",
-    "Obligar a la Inteligencia Artificial a operar en 'Modo Consultivo' antes de codificar."
+    "Permitir que el usuario exprese únicamente la intención de negocio sin redactar prompts manuales.",
+    "Proteger el conocimiento del sistema asegurando que no dependa de la memoria de desarrolladores ni de un LLM aislado.",
+    "Validar estricta y automáticamente la calidad del proyecto mediante certificaciones antes de generar código.",
+    "Sincronizar estándares estructurales (Protocolo QCP) directamente en el cerebro de los asistentes IA (IDE local)."
   ],
   "guidelines": [
-    "CLEAN-01: Prohibido el uso absoluto de la instrucción 'else' (Early Returns).",
-    "NET-01: Toda llamada externa debe estar gobernada por Timeouts rígidos.",
-    "SEC-01: Obligación de trazabilidad y observabilidad en APIs externas.",
-    "ARCH-01: Sistemas deterministas; prohibido el uso de caminos 'default' no pensados.",
-    "API-01: Contratos de comunicación estrictos y exigidos transversalmente.",
-    "MEM-01: Control absoluto sobre posibles fugas de memoria (Memory Leaks)."
+    "Zero-Else Rule: Utilizar 'early returns' (cláusulas de guarda) y evitar completamente bloques 'else' en todo el proyecto.",
+    "Production-First & Quality-First: Todo bug se vuelve un Finding y ningún Release se lanza con penalizaciones en el QDD Score.",
+    "Rules-as-Code: Los estándares son artefactos de certificación YAML validados estrictamente por la CLI o en modo consultivo.",
+    "El Framework (IDE/IA) no modifica el proyecto hasta que el Execution Plan sea generado y aprobado (Risk Analyzer)."
   ],
-  "next_steps": "Desarrollar el 'Execution Runtime' para que el CLI pueda aplicar autónomamente los cambios programáticos al sistema con seguridad perimetral, y construir el 'Knowledge Base Engine' para gestionar los Findings dinámicamente."
+  "next_steps": "Aprobar y ejecutar planes de refactorización automáticos que consoliden los plugins de MCP (como qdd_learn), y expandir los Nodos del Cognitive Layer (QCL) para habilitar análisis de riesgos de contratos y planificación de estrategia nativos."
 }

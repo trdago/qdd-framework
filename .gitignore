@@ -6,6 +6,9 @@
 *.dylib
 cli/qdd
 
+# SQLite Knowledge DB
+.qdd/knowledge.db
+
 # Test binary, built with `go test -c`
 *.test
 

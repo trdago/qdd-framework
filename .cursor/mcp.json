@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "qdd": {
+      "command": "/home/dpailahueque/Documents/proyectos/qdd/qdd",
+      "args": ["mcp-server"]
+    }
+  }
+}

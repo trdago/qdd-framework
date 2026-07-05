@@ -1,0 +1,12 @@
+id: CERT-017
+title: "Control de Alucinaciones y Determinismo (Agentic Harness & MCP)"
+status: certified
+level: strict
+description: "Garantiza que la IA opere bajo un arnés metodológico estricto y herramientas MCP deterministas, minimizando alucinaciones y asegurando que los LLM respeten los contratos estructurales (Matriz de Confusión / Accuracy)."
+criteria:
+  - "El servidor MCP expone herramientas fuertemente tipadas y validadas (Cero free-text prompt injections)."
+  - "El QDD Agentic Harness inyecta metodologías de Cadena de Pensamiento (XML) obligatorias antes de permitir llamadas a funciones."
+  - "Se establece el concepto de Matriz de Confusión para medir los falsos positivos/negativos en auditorías generativas."
+evidence:
+  timestamp: "2026-07-05T11:26:00-04:00"
+  test_result: "QDD Agentic Harness y herramientas MCP (qdd_harness_generate, qdd_graph_query) implementadas satisfactoriamente."

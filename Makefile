@@ -16,6 +16,7 @@ build: build-ui build-cli
 install: build
 	@echo "==> Instalando 'qdd' en ~/.local/bin/ ..."
 	mkdir -p ~/.local/bin
+	rm -f ~/.local/bin/qdd
 	cp qdd ~/.local/bin/qdd
 	@echo "==> ¡Instalación completada! Ahora puedes usar el comando 'qdd' en cualquier lugar."
 

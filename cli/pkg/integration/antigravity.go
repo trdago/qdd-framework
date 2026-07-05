@@ -49,5 +49,23 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 		return fmt.Errorf("Antigravity adapter failed to sync %s: %w", qddWorkflowPath, err)
 	}
 
+	cursorDir := filepath.Join(projectPath, ".cursor")
+	if err := os.MkdirAll(cursorDir, 0755); err != nil {
+		return err
+	}
+	
+	mcpPath := filepath.Join(cursorDir, "mcp.json")
+	if _, err := os.Stat(mcpPath); os.IsNotExist(err) {
+		mcpContent := `{
+  "mcpServers": {
+    "qdd": {
+      "command": "qdd",
+      "args": ["mcp-server"]
+    }
+  }
+}`
+		os.WriteFile(mcpPath, []byte(mcpContent), 0644)
+	}
+
 	return nil
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/qdd-framework/qdd/pkg/qcl"
 	"github.com/qdd-framework/qdd/pkg/qcl/adapters"
+	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/qcl/nodes"
 	"github.com/qdd-framework/qdd/pkg/topology"
 	"github.com/qdd-framework/qdd/ui"
@@ -310,115 +311,107 @@ func buildState() QDDState {
 		}
 	}
 
-	// Read Certifications
-	certDirs := []string{
-		filepath.Join(qddDir, "core", "certification"),
-		filepath.Join(qddDir, "project", "certification"),
-	}
+	openFindings := 0
+	finalScore := 100
 
-	for _, certDir := range certDirs {
-		certs, _ := os.ReadDir(certDir)
-		for _, c := range certs {
-			if !c.IsDir() && strings.HasSuffix(c.Name(), ".yaml") {
-				certPath := filepath.Join(certDir, c.Name())
-				certData, _ := os.ReadFile(certPath)
+	dbGraph, errDB := graph.InitDB()
+	if errDB == nil {
+		defer dbGraph.Close()
+		dbGraph.SyncToGraph(cwd)
+		db := dbGraph.GetDB()
+
+		// Read Certifications (rules)
+		rows, err := db.Query("SELECT id, name, metadata FROM nodes WHERE type = 'rule'")
+		if err == nil {
+			for rows.Next() {
+				var id, name, metaStr string
+				rows.Scan(&id, &name, &metaStr)
 				var rawData map[string]interface{}
-				yaml.Unmarshal(certData, &rawData)
-				
+				json.Unmarshal([]byte(metaStr), &rawData)
+
 				status := "PASS"
 				if rawData != nil && rawData["status"] != nil {
 					status = fmt.Sprintf("%v", rawData["status"])
 				}
 
-				certType := "Core"
-				if strings.Contains(certDir, "project") {
-					certType = "Proyecto"
-				}
-
 				response.Certifications = append(response.Certifications, DashboardCertification{
-					ID:     c.Name(),
+					ID:     name,
 					Status: status,
 					Name:   "Cumplimiento verificado",
-					Type:   certType,
+					Type:   "Proyecto",
 					Raw:    rawData,
 				})
 			}
+			rows.Close()
 		}
-	}
 
-	// Read Findings
-	fndDir := filepath.Join(qddDir, "project", "findings")
-	fnds, _ := os.ReadDir(fndDir)
-	openFindings := 0
-	for _, f := range fnds {
-		if !f.IsDir() {
-			fndPath := filepath.Join(fndDir, f.Name())
-			fndData, _ := os.ReadFile(fndPath)
-			var rawData map[string]interface{}
-			yaml.Unmarshal(fndData, &rawData)
+		// Read Findings
+		rows, err = db.Query("SELECT id, name, metadata FROM nodes WHERE type = 'finding'")
+		if err == nil {
+			for rows.Next() {
+				var id, name, metaStr string
+				rows.Scan(&id, &name, &metaStr)
+				var rawData map[string]interface{}
+				json.Unmarshal([]byte(metaStr), &rawData)
 
-			status := "OPEN"
-			if rawData != nil && rawData["status"] != nil {
-				status = fmt.Sprintf("%v", rawData["status"])
+				status := "OPEN"
+				if rawData != nil && rawData["status"] != nil {
+					status = fmt.Sprintf("%v", rawData["status"])
+				}
+
+				if status != "RESOLVED" && status != "resolved" {
+					openFindings++
+				}
+
+				response.Findings = append(response.Findings, DashboardFinding{
+					ID:     name,
+					Status: status,
+					Desc:   "Deuda técnica documentada.",
+					Raw:    rawData,
+				})
 			}
-			
-			if status != "RESOLVED" && status != "resolved" {
-				openFindings++
-			}
-
-			response.Findings = append(response.Findings, DashboardFinding{
-				ID:     f.Name(),
-				Status: status,
-				Desc:   "Deuda técnica documentada.",
-				Raw:    rawData,
-			})
+			rows.Close()
 		}
-	}
 
-	// Compute dynamic score
-	baseScore := 100
-	findingPenalty := openFindings * 30
-	finalScore := baseScore - findingPenalty
-	if finalScore < 0 {
-		finalScore = 0
-	}
-	response.Score = finalScore
+		// Compute dynamic score
+		baseScore := 100
+		findingPenalty := openFindings * 30
+		finalScore = baseScore - findingPenalty
+		if finalScore < 0 {
+			finalScore = 0
+		}
+		response.Score = finalScore
 
-	// Read Sprints (Avances)
-	sprintDir := filepath.Join(qddDir, "project", "sprints")
-	sprintsData, _ := os.ReadDir(sprintDir)
-	for _, s := range sprintsData {
-		if !s.IsDir() {
-			sprintPath := filepath.Join(sprintDir, s.Name())
-			sprintData, _ := os.ReadFile(sprintPath)
-			var rawData map[string]interface{}
-			yaml.Unmarshal(sprintData, &rawData)
-			
-			status := "IN-PROGRESS"
-			if rawData != nil && rawData["status"] != nil {
-				status = fmt.Sprintf("%v", rawData["status"])
+		// Read Sprints (tasks)
+		rows, err = db.Query("SELECT id, name, content, metadata FROM nodes WHERE type = 'task'")
+		if err == nil {
+			for rows.Next() {
+				var id, name, contentStr, metaStr string
+				rows.Scan(&id, &name, &contentStr, &metaStr)
+				var rawData map[string]interface{}
+				json.Unmarshal([]byte(metaStr), &rawData)
+
+				status := "IN-PROGRESS"
+				if rawData != nil && rawData["status"] != nil {
+					status = fmt.Sprintf("%v", rawData["status"])
+				}
+				
+				if rawData == nil || rawData["status"] == nil {
+					if strings.Contains(contentStr, "- [x]") && !strings.Contains(contentStr, "- [ ]") {
+						status = "COMPLETED"
+					}
+					if !strings.Contains(contentStr, "- [x]") && !strings.Contains(contentStr, "- [ ]") {
+						status = "BACKLOG"
+					}
+				}
+
 				response.Sprints = append(response.Sprints, DashboardSprint{
-					ID:     s.Name(),
+					ID:     name,
 					Status: status,
 					Raw:    rawData,
 				})
-				continue
 			}
-
-			// Infer from markdown checkboxes
-			contentStr := string(sprintData)
-			if strings.Contains(contentStr, "- [x]") && !strings.Contains(contentStr, "- [ ]") {
-				status = "COMPLETED"
-			}
-			if !strings.Contains(contentStr, "- [x]") && !strings.Contains(contentStr, "- [ ]") {
-				status = "BACKLOG"
-			}
-
-			response.Sprints = append(response.Sprints, DashboardSprint{
-				ID:     s.Name(),
-				Status: status,
-				Raw:    rawData,
-			})
+			rows.Close()
 		}
 	}
 
