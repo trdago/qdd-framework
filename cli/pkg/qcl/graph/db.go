@@ -144,7 +144,8 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 						for _, item := range list {
 							deps = append(deps, fmt.Sprintf("%v", item))
 						}
-					} else if str, isStr := dependsOn.(string); isStr {
+					}
+					if str, isStr := dependsOn.(string); isStr {
 						deps = append(deps, str)
 					}
 
