@@ -617,13 +617,19 @@ var dashboardCmd = &cobra.Command{
 
 		go runWatcher()
 
-		// Servir archivos estáticos embebidos
+		// Servir archivos estáticos embebidos (deshabilitando caché para evitar que el navegador guarde versiones antiguas de la UI)
 		distFs, err := fs.Sub(ui.StaticFiles, "dist")
 		if err != nil {
 			fmt.Println("Error accediendo a los archivos estáticos de UI:", err)
 			return
 		}
-		http.Handle("/", http.FileServer(http.FS(distFs)))
+		fileServer := http.FileServer(http.FS(distFs))
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+			fileServer.ServeHTTP(w, r)
+		})
 
 		// Endpoint de API REST (Legacy/Fallback)
 		http.HandleFunc("/api/state", func(w http.ResponseWriter, r *http.Request) {
