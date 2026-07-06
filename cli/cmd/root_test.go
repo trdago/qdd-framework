@@ -61,3 +61,31 @@ func stringsContains(s, substr string) bool {
 	// importado en root.go, en los tests podemos implementarlo si no queremos importar strings
 	return len(s) > 0 && len(substr) > 0
 }
+
+func TestIsOlder(t *testing.T) {
+	tests := []struct {
+		v1       string
+		v2       string
+		expected bool
+	}{
+		{"v1.0.0", "v1.1.0", true},
+		{"1.0.0", "1.1.0", true},
+		{"v1.1.0", "v1.0.0", false},
+		{"v1.0.0", "v2.0.0", true},
+		{"v2.0.0", "v1.0.0", false},
+		{"v1.1.0", "v1.1.1", true},
+		{"v1.1.1", "v1.1.0", false},
+		{"v1.5.0", "v1.5.0", false},
+		{"v1.5.0-beta", "v1.5.0", false},
+		{"v0.9.9", "v1.0.0", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.v1+"_vs_"+tt.v2, func(t *testing.T) {
+			result := isOlder(tt.v1, tt.v2)
+			if result != tt.expected {
+				t.Errorf("isOlder(%q, %q) = %v; want %v", tt.v1, tt.v2, result, tt.expected)
+			}
+		})
+	}
+}

@@ -76,7 +76,12 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 	// Recorrer el código fuente para mapear módulos
 	err := filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			// Si el root no existe, fallar inmediatamente
+			if path == cwd {
+				return err
+			}
+			// Ignorar errores de lectura de subdirectorios (ej. permisos)
+			return filepath.SkipDir
 		}
 
 		// Ignorar dependencias, git, y la carpeta qdd misma para el mapeo

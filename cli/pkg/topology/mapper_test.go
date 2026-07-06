@@ -60,3 +60,30 @@ func TestFND009MapProjectNoElse(t *testing.T) {
 		t.Errorf("No se encontraron los archivos esperados en la topología")
 	}
 }
+
+func TestMapProject_EdgeCases(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "qdd-edge-cases-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create project and core cert dir
+	os.MkdirAll(filepath.Join(tempDir, ".qdd", "core", "certification"), 0755)
+	
+	// Create unreadable file (using mode 0000 might not work as root/in all OS, but we try)
+	// We'll simulate error by passing a path that doesn't exist
+	_, err = MapProject("/this/path/should/not/exist/ever")
+	if err == nil {
+		t.Errorf("Expected error when mapping a non-existent directory")
+	}
+
+	// Create an empty project
+	top, err := MapProject(tempDir)
+	if err != nil {
+		t.Fatalf("Unexpected error mapping empty project: %v", err)
+	}
+	if top.GlobalScore != 100 {
+		t.Errorf("Empty project should score 100")
+	}
+}

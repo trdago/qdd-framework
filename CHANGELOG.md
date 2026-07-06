@@ -4,6 +4,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.1] - 2026-07-06
+
+### 🛡️ Robustez y Fiabilidad (Robustness & Reliability)
+- **Campaña de Resiliencia (10 Sprints Continuos)**: Ejecución autónoma de 10 ciclos de refactorización enfocados en elevar drásticamente la cobertura de tests para Casos de Borde (Edge Cases).
+- **Control de Pánico Cero (Zero-Panic)**: Mitigados fallos críticos (Silent Failures / Panics) en la inicialización de bases de datos de conocimiento (`pkg/qcl/graph/db.go`), serialización YAML y manejo de permisos denegados en escaneos masivos (`pkg/topology/mapper.go`).
+- **Pipelining Blindado**: Corregido un bug donde el `Gatekeeper` interfería prematuramente en comandos nativos dentro del modo tubería (`qdd run`). Pruebas E2E implementadas nativamente utilizando subprocesos `os/exec`.
+- **Cobertura General Aumentada**: Incremento substancial de Code Coverage en `cmd`, `audit`, `topology`, `integration`, y 100% de cobertura en inyección dinámica de arneses XML (`harness/generator.go`).
+
 ## [v1.6.0] - 2026-07-06
 
 ### 🚀 Añadido (Added)

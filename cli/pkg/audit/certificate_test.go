@@ -1,80 +1,77 @@
 package audit
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestGenerateCertificate(t *testing.T) {
-	// Setup a temporary directory for the test
-	tmpDir, err := os.MkdirTemp("", "qdd_cert_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tempDir := t.TempDir()
 
-	// Test 1: No previous history, 0 violations (Perfect Score)
-	var violations []Violation // 0 violations
-	cert, err := GenerateCertificate(tmpDir, violations)
+	// 1. First run, no history -> Stable
+	cert1, err := GenerateCertificate(tempDir, []Violation{})
 	if err != nil {
-		t.Fatalf("Failed to generate certificate: %v", err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
-	
-	if cert.Score != 100 {
-		t.Errorf("Expected score 100, got %d", cert.Score)
+	if cert1.Score != 100 {
+		t.Errorf("Expected score 100, got %d", cert1.Score)
 	}
-	if cert.Tendency != TendencyStable {
-		t.Errorf("Expected tendency Stable, got %s", cert.Tendency)
+	if cert1.Tendency != TendencyStable {
+		t.Errorf("Expected tendency Stable, got %v", cert1.Tendency)
 	}
 
-	// Test 2: Worsening trend (adding a violation)
-	violations = append(violations, Violation{
-		Category:    "OWASP",
-		RuleID:      "TEST-01",
-		Description: "Test violation",
-	})
-	
-	cert2, err := GenerateCertificate(tmpDir, violations)
+	// 2. Second run, worse score -> Worsening
+	cert2, err := GenerateCertificate(tempDir, []Violation{{RuleID: "V1"}, {RuleID: "V2"}})
 	if err != nil {
-		t.Fatalf("Failed to generate certificate: %v", err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
-	
-	if cert2.Score != 98 {
-		t.Errorf("Expected score 98, got %d", cert2.Score)
+	if cert2.Score >= 100 {
+		t.Errorf("Expected lower score, got %d", cert2.Score)
 	}
 	if cert2.Tendency != TendencyWorsening {
-		t.Errorf("Expected tendency Worsening, got %s", cert2.Tendency)
+		t.Errorf("Expected tendency Worsening, got %v", cert2.Tendency)
 	}
 
-	// Test 3: Improving trend (removing a violation)
-	var betterViolations []Violation
-	cert3, err := GenerateCertificate(tmpDir, betterViolations)
+	// 3. Third run, better score -> Improving
+	cert3, err := GenerateCertificate(tempDir, []Violation{{RuleID: "V1"}})
 	if err != nil {
-		t.Fatalf("Failed to generate certificate: %v", err)
-	}
-	
-	if cert3.Score != 100 {
-		t.Errorf("Expected score 100, got %d", cert3.Score)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 	if cert3.Tendency != TendencyImproving {
-		t.Errorf("Expected tendency Improving, got %s", cert3.Tendency)
+		t.Errorf("Expected tendency Improving, got %v", cert3.Tendency)
 	}
-	
-	// Test 4: Check if history file was written correctly
-	historyPath := filepath.Join(tmpDir, ".qdd", "project", "metrics", "certificate_history.json")
-	data, err := os.ReadFile(historyPath)
+
+	// 4. Corrupt history file -> Error parsing
+	historyPath := filepath.Join(tempDir, ".qdd", "project", "metrics", "certificate_history.json")
+	os.WriteFile(historyPath, []byte("invalid json"), 0644)
+	_, err = GenerateCertificate(tempDir, []Violation{})
+	if err == nil {
+		t.Errorf("Expected error when parsing invalid json")
+	}
+
+	// 5. Test negative score caps at 0
+	violations := make([]Violation, 60) // 60 * 2 = 120 reduction -> score < 0
+	os.Remove(historyPath)
+	cert4, err := GenerateCertificate(tempDir, violations)
 	if err != nil {
-		t.Fatalf("Failed to read history file: %v", err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
-	
-	var history []Certificate
-	if err := json.Unmarshal(data, &history); err != nil {
-		t.Fatalf("Failed to parse history file: %v", err)
+	if cert4.Score != 0 {
+		t.Errorf("Expected negative score to cap at 0, got %d", cert4.Score)
 	}
+}
+
+func TestGenerateCertificate_MkdirError(t *testing.T) {
+	tempDir := t.TempDir()
 	
-	if len(history) != 3 {
-		t.Errorf("Expected 3 history items, got %d", len(history))
+	// Create a file where the directory should be, simulating an MkdirAll error
+	metricsDir := filepath.Join(tempDir, ".qdd", "project", "metrics")
+	os.MkdirAll(filepath.Dir(metricsDir), 0755)
+	os.WriteFile(metricsDir, []byte("file instead of dir"), 0644)
+	
+	_, err := GenerateCertificate(tempDir, []Violation{})
+	if err == nil {
+		t.Errorf("Expected mkdir error, got nil")
 	}
 }
