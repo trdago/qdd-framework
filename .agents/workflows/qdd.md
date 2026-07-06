@@ -32,3 +32,12 @@ description: QDD Framework native AI commands
 # 2. Desplegar/Subir los cambios a GitHub (commit, push y tag si aplica).
 # 3. Validar de forma automatizada (o pedirle al usuario que verifique) que el despliegue en el entorno local u oficial haya sido exitoso.
 # 4. Instalar el binario compilado en el entorno local (ej. copiar `qdd-bin` a la ruta bin del usuario o ejecutar el instalador) para dejarlo inmediatamente usable.
+# 
+# FILOSOFÍA DE DESARROLLO ESTRICTA (QDD PHILOSOPHY):
+# 1. Zero-Else & Guard Clauses: Nunca uses 'else'. Usa 'return' tempranos para manejar flujos alternativos o de error.
+# 2. UI Predictiva: Al requerir decisión del usuario, usa modales, opciones estructuradas o comandos sugeridos antes que pedir input libre.
+# 3. Sprints y Testing: Si generas un sprint, autoconstruye el test. Pregunta solo para resolver ambigüedades.
+# 4. Casos de Borde: Todos los tests deben mapear escenarios de fallo (timeouts, nulls), no solo el camino feliz. Todo bug genera test obligatorio.
+# 5. Paralelismo Contextual: Si paraleliza tareas, contextualiza al usuario sobre qué funcionalidad se está interviniendo.
+# 6. Pipelining de Comandos: Si recibes una cadena de comandos como `/qdd audit sprint validate`, ejecútalos de manera SECUENCIAL. Termina iterativamente cada eslabón de la tubería, usándolo como contexto base para el siguiente comando. No saltes etapas.
+# 7. Release y Changelog: Siempre que el usuario solicite un release (`/qdd release`), debes obligatoriamente generar y/o actualizar el archivo `CHANGELOG.md` con los últimos cambios y actualizar la documentación oficial del proyecto.

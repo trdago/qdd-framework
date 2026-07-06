@@ -1,3 +1,6 @@
+tags:
+    - core
+active: true
 version: "1.0"
 id: "CERT-030-MANDATORY-ADR"
 name: "Mandatory Architecture Decision Records (Enterprise-Grade)"
@@ -5,6 +8,6 @@ description: "Proyectos de escala masiva deben registrar formalmente el análisi
 category: "Architecture"
 severity: "CRITICAL"
 rules:
-  - type: "dir-exist"
-    target: "docs/adr"
-    message: "Enterprise-Grade: Falta el registro de decisiones arquitectónicas. El directorio docs/adr es obligatorio para sistemas complejos."
+    - type: "dir-exist"
+      target: "docs/adr"
+      message: "Enterprise-Grade: Falta el registro de decisiones arquitectónicas. El directorio docs/adr es obligatorio para sistemas complejos."

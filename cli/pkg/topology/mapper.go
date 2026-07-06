@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"gopkg.in/yaml.v3"
 )
 
 // MapProject scans the project directory and generates a native structural topology.
@@ -21,6 +22,55 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 
 	topology := &ProjectTopology{
 		Application: rootNode,
+	}
+
+	type CertYAML struct {
+		ID     string   `yaml:"id"`
+		Active *bool    `yaml:"active"`
+		Tags   []string `yaml:"tags"`
+		IsCore bool
+	}
+	var availableCerts []CertYAML
+
+	// Load Core Certs
+	coreCertDir := filepath.Join(cwd, ".qdd", "core", "certification")
+	if coreFiles, err := os.ReadDir(coreCertDir); err == nil {
+		for _, cf := range coreFiles {
+			if !cf.IsDir() && strings.HasSuffix(cf.Name(), ".yaml") {
+				if data, err := os.ReadFile(filepath.Join(coreCertDir, cf.Name())); err == nil {
+					var cy CertYAML
+					if yaml.Unmarshal(data, &cy) == nil {
+						if cy.Active == nil {
+							active := true
+							cy.Active = &active
+						}
+						cy.IsCore = true
+						availableCerts = append(availableCerts, cy)
+					}
+				}
+			}
+		}
+	}
+
+	// Load Project Certs
+	projCertDir := filepath.Join(cwd, ".qdd", "project", "certification")
+	os.MkdirAll(projCertDir, 0755) // Ensure exists
+	if projFiles, err := os.ReadDir(projCertDir); err == nil {
+		for _, pf := range projFiles {
+			if !pf.IsDir() && strings.HasSuffix(pf.Name(), ".yaml") {
+				if data, err := os.ReadFile(filepath.Join(projCertDir, pf.Name())); err == nil {
+					var cy CertYAML
+					if yaml.Unmarshal(data, &cy) == nil {
+						if cy.Active == nil {
+							active := true
+							cy.Active = &active
+						}
+						cy.IsCore = false
+						availableCerts = append(availableCerts, cy)
+					}
+				}
+			}
+		}
 	}
 
 	// Recorrer el código fuente para mapear módulos
@@ -51,15 +101,65 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 			if strings.Contains(code, "func ") || strings.Contains(code, "function ") || strings.Contains(code, "class ") || strings.Contains(code, "<template>") {
 				relPath, _ := filepath.Rel(cwd, path)
 				
+				// Inferencia básica de tags
+				var fileTags []string
+				if ext == ".vue" || ext == ".css" || ext == ".html" {
+					fileTags = append(fileTags, "frontend", "vue")
+				}
+				if ext == ".go" {
+					fileTags = append(fileTags, "backend", "go")
+				}
+				if strings.Contains(relPath, "ui/") {
+					fileTags = append(fileTags, "ui")
+				}
+				if strings.Contains(relPath, "pkg/") {
+					fileTags = append(fileTags, "core")
+				}
+				
 				moduleNode := &TopologyNode{
 					ID:            "mod-" + d.Name(),
 					Name:          d.Name(),
 					Type:          "Module",
 					Path:          relPath,
 					Certified:     false,
-					RequiredCerts: []string{"CERT-005-CLEAN-CODE"},
+					Tags:          fileTags,
+					RequiredCerts: []string{},
 					MissingCerts:  []string{},
 					Children:      []*TopologyNode{},
+				}
+
+				// Determinar RequiredCerts basado en los tags
+				hasProjectCert := false
+				for _, c := range availableCerts {
+					if !*c.Active {
+						continue // Certificado desactivado
+					}
+					
+					applies := false
+					for _, ct := range c.Tags {
+						if ct == "core" || ct == "all" {
+							applies = true
+							break
+						}
+						for _, ft := range fileTags {
+							if ft == ct {
+								applies = true
+								break
+							}
+						}
+					}
+					
+					if applies {
+						moduleNode.RequiredCerts = append(moduleNode.RequiredCerts, c.ID)
+						if !c.IsCore {
+							hasProjectCert = true
+						}
+					}
+				}
+
+				// Enforce nested certification philosophy
+				if !hasProjectCert {
+					moduleNode.RequiredCerts = append(moduleNode.RequiredCerts, "MISSING-PROJECT-CERT")
 				}
 
 				// Verificar si el archivo tiene anotación de certificación o si está limpio (sin 'else', por ejemplo)
@@ -69,7 +169,10 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 
 				moduleNode.Certified = !hasElse || hasCertAnnotation
 				if !moduleNode.Certified {
-					moduleNode.MissingCerts = append(moduleNode.MissingCerts, "CERT-005-CLEAN-CODE")
+					// Add missing certs from RequiredCerts
+					for _, req := range moduleNode.RequiredCerts {
+						moduleNode.MissingCerts = append(moduleNode.MissingCerts, req)
+					}
 					rootNode.Certified = false
 				}
 

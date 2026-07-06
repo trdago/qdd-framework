@@ -1,15 +1,20 @@
+tags:
+    - frontend
+    - backend
+    - core
+active: true
 id: CERT-004-OWASP
 title: "Certificación OWASP Top 10 (Baseline de Seguridad)"
 status: certified
 related_feature: "Industry Standard Baseline"
 description: "Asegura que el código base está protegido contra las vulnerabilidades más críticas de aplicaciones web."
 rules:
-  - id: OWASP-A01-BROKEN-ACCESS
-    description: "Todos los endpoints y funciones críticas deben validar explícitamente los permisos de acceso del usuario."
-    method: "Security Unit Test (Authz)"
-  - id: OWASP-A02-CRYPTOGRAPHY
-    description: "Datos sensibles (contraseñas, tokens) jamás deben guardarse en texto plano. Usar HTTPS para comunicación externa."
-    method: "Static Code Analysis / Architecture Review"
-  - id: OWASP-A03-INJECTION
-    description: "Toda consulta a base de datos debe estar parametrizada. No se permite concatenación de strings para SQL."
-    method: "Static Code Analysis (SQLi Check)"
+    - id: OWASP-A01-BROKEN-ACCESS
+      description: "Todos los endpoints y funciones críticas deben validar explícitamente los permisos de acceso del usuario."
+      method: "Security Unit Test (Authz)"
+    - id: OWASP-A02-CRYPTOGRAPHY
+      description: "Datos sensibles (contraseñas, tokens) jamás deben guardarse en texto plano. Usar HTTPS para comunicación externa."
+      method: "Static Code Analysis / Architecture Review"
+    - id: OWASP-A03-INJECTION
+      description: "Toda consulta a base de datos debe estar parametrizada. No se permite concatenación de strings para SQL."
+      method: "Static Code Analysis (SQLi Check)"

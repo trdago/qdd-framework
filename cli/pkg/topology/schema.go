@@ -9,6 +9,7 @@ type TopologyNode struct {
 	Certified     bool            `json:"certified" yaml:"certified"`
 	RequiredCerts []string        `json:"required_certs" yaml:"required_certs"`
 	MissingCerts  []string        `json:"missing_certs" yaml:"missing_certs"`
+	Tags          []string        `json:"tags" yaml:"tags"`
 	Children      []*TopologyNode `json:"children" yaml:"children"`
 }
 

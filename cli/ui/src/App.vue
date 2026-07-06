@@ -28,8 +28,8 @@ const toggleFullScreen = () => { isFullScreen.value = !isFullScreen.value; reset
 
 const onGraphWheel = (e) => {
   e.preventDefault()
-  if (e.deltaY > 0) zoomOut()
-  else zoomIn()
+  if (e.deltaY > 0) { zoomOut(); return; }
+  zoomIn()
 }
 const onGraphMouseDown = (e) => {
   isDragging = true
@@ -165,13 +165,17 @@ const knowledgeGroups = computed(() => {
     const p = k.path.toLowerCase()
     if (p.includes('adr')) {
       groups[0].items.push(metaK)
-    } else if (p.includes('guide') || p.includes('manual')) {
-      groups[1].items.push(metaK)
-    } else if (p.includes('workflow') || p.includes('flow')) {
-      groups[2].items.push(metaK)
-    } else {
-      groups[3].items.push(metaK)
+      return
     }
+    if (p.includes('guide') || p.includes('manual')) {
+      groups[1].items.push(metaK)
+      return
+    }
+    if (p.includes('workflow') || p.includes('flow')) {
+      groups[2].items.push(metaK)
+      return
+    }
+    groups[3].items.push(metaK)
   })
 
   return groups.filter(g => g.items.length > 0)
@@ -555,9 +559,9 @@ onUnmounted(() => {
                <div v-if="activeDetail.type === 'Knowledge'" class="markdown-body" v-html="renderedMarkdown" style="font-size: 14px; line-height: 1.6; color: var(--text-secondary);"></div>
                
                <!-- Fallback for other details -->
-               <pre v-else>{{ JSON.stringify(activeDetail, null, 2) }}</pre>
-            </div>
-          </div>
+               <pre v-if="activeDetail.type !== 'Knowledge'">{{ JSON.stringify(activeDetail, null, 2) }}</pre>
+             </div>
+           </div>
         </div>
 
         <!-- OVERVIEW TAB -->
@@ -583,19 +587,19 @@ onUnmounted(() => {
               <h3 class="panel-title">ROI & Value Realization</h3>
               <div class="stats-cards" style="margin-top: 1rem;">
                 <div class="stat-card">
-                  <span class="stat-value"><span v-if="state.usage_time">{{ state.usage_time }}</span><span v-else>&nbsp;</span></span>
+                  <span class="stat-value"><span v-if="state.usage_time">{{ state.usage_time }}</span><span v-if="!state.usage_time">&nbsp;</span></span>
                   <span class="stat-label">Tiempo de Uso QDD</span>
                 </div>
                 <div class="stat-card pass">
-                  <span class="stat-value"><span v-if="state.value_metrics?.hours_saved !== undefined">{{ state.value_metrics.hours_saved }} hrs</span><span v-else>&nbsp;</span></span>
+                  <span class="stat-value"><span v-if="state.value_metrics?.hours_saved !== undefined">{{ state.value_metrics.hours_saved }} hrs</span><span v-if="state.value_metrics?.hours_saved === undefined">&nbsp;</span></span>
                   <span class="stat-label">Horas Ahorradas (IA)</span>
                 </div>
                 <div class="stat-card">
-                  <span class="stat-value"><span v-if="state.value_metrics?.debt_reduced !== undefined">{{ state.value_metrics.debt_reduced }}</span><span v-else>&nbsp;</span></span>
+                  <span class="stat-value"><span v-if="state.value_metrics?.debt_reduced !== undefined">{{ state.value_metrics.debt_reduced }}</span><span v-if="state.value_metrics?.debt_reduced === undefined">&nbsp;</span></span>
                   <span class="stat-label">Bugs Prevenidos</span>
                 </div>
                 <div class="stat-card" style="border-left: 2px solid #10b981;">
-                  <span class="stat-value" style="color: #10b981;"><span v-if="state.value_metrics?.hours_saved !== undefined">${{ (state.value_metrics.hours_saved * 50).toLocaleString() }}</span><span v-else>&nbsp;</span></span>
+                  <span class="stat-value" style="color: #10b981;"><span v-if="state.value_metrics?.hours_saved !== undefined">${{ (state.value_metrics.hours_saved * 50).toLocaleString() }}</span><span v-if="state.value_metrics?.hours_saved === undefined">&nbsp;</span></span>
                   <span class="stat-label">ROI Estimado</span>
                 </div>
               </div>
@@ -726,7 +730,7 @@ onUnmounted(() => {
                 <button class="btn btn-outline" @click="openDetail({title: 'Reglas y Guidelines', content: state.understanding.guidelines.map(c=>'- '+c).join('\n')}, 'Cognitive')" v-if="state.understanding.guidelines?.length > 0">Ver Reglas</button>
             </div>
           </div>
-          <div v-else class="empty-state">No hay reporte cognitivo. Ejecuta <code>qdd learn</code>.</div>
+          <div v-if="!state.usage_time" class="empty-state">No hay reporte cognitivo. Ejecuta <code>qdd learn</code>.</div>
 
           <div class="panel glass-panel" v-if="state?.knowledge?.length > 0">
              <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: none; padding-bottom: 0;">
@@ -961,8 +965,8 @@ onUnmounted(() => {
 
                 <div class="policy-card glass-panel" style="padding: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: rgba(59, 130, 246, 0.05);">
                   <div>
-                    <h3 style="margin: 0; font-size: 15px; color: var(--accent-color);">Regla: Zero Else</h3>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-secondary);">Obliga el uso de Early Returns (Guards). Si la apagas, se ignoran las fallas de `else`.</p>
+                    <h3 style="margin: 0; font-size: 15px; color: var(--accent-color);">Regla: Zero-Else</h3>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-secondary);">Obliga el uso de Early Returns (Guards). Si la apagas, se ignoran las fallas estructurales de este tipo.</p>
                   </div>
                   <label class="switch">
                     <input type="checkbox" :checked="state?.policies?.zero_else" @change="togglePolicy('zero_else')">

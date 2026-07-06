@@ -15,7 +15,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:     "qdd",
 	Short:   "QDD (Quality Driven Development) Framework CLI",
-	Version: "v1.5.0",
+	Version: "v1.6.0",
 	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando certificaciones de calidad obligatorias.
 garantizando certificaciones, evidencia y calidad desde el día uno.
 
@@ -83,6 +83,34 @@ func runQCL(input string) {
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
+	if len(os.Args) > 1 && os.Args[1] == "run" {
+		// Native Pipelining: Execute each subsequent argument sequentially
+		for _, cmdStr := range os.Args[2:] {
+			fmt.Printf("\n🚀 [QDD PIPELINE] Ejecutando: qdd %s\n", cmdStr)
+			
+			// Creamos un nuevo rootCmd por cada iteración para limpiar estado
+			// o podemos usar os/exec para aislar la ejecución
+			
+			// Para evitar problemas de estado de Cobra, delegamos a un subproceso
+			execCmd := os.Args[0]
+			process, err := os.StartProcess(execCmd, []string{execCmd, cmdStr}, &os.ProcAttr{
+				Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+			})
+			if err != nil {
+				fmt.Printf("[🛑 ERROR PIPELINE] No se pudo iniciar el comando %s: %v\n", cmdStr, err)
+				os.Exit(1)
+			}
+			
+			state, err := process.Wait()
+			if err != nil || !state.Success() {
+				fmt.Printf("\n[🛑 ERROR PIPELINE] El comando '%s' falló. Abortando pipeline secuencial.\n", cmdStr)
+				os.Exit(1)
+			}
+		}
+		fmt.Printf("\n✅ [QDD PIPELINE] Todos los comandos ejecutados exitosamente.\n")
+		return
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		// Interceptamos "unknown command" para pasarlo al Cognitive Layer
 		if strings.HasPrefix(err.Error(), "unknown command") {

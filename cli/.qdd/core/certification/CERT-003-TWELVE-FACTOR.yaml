@@ -1,18 +1,21 @@
+tags:
+    - core
+active: true
 id: CERT-003-TWELVE-FACTOR
 title: "Certificación Twelve-Factor App"
 status: certified
 related_feature: "Industry Standard Baseline"
 description: "Garantiza que el software cumpla con los 12 factores esenciales para aplicaciones Cloud-Native."
 rules:
-  - id: 12F-01-CODEBASE
-    description: "Existe un único repositorio (Codebase) rastreado en control de versiones, con múltiples despliegues."
-    method: "Git Repository Verification"
-  - id: 12F-03-CONFIG
-    description: "Toda configuración que varíe entre entornos (credenciales, hosts) debe almacenarse en variables de entorno, no hardcodeada."
-    method: "Static Code Analysis (Env Vars)"
-  - id: 12F-06-STATELESS
-    description: "Los procesos se ejecutan sin estado (stateless). Cualquier dato persistente debe almacenarse en un servicio de respaldo (BD, Caché)."
-    method: "Architecture Review"
-  - id: 12F-11-LOGS
-    description: "Los logs se tratan como un flujo de eventos (event streams) enviados a stdout/stderr."
-    method: "Code Review"
+    - id: 12F-01-CODEBASE
+      description: "Existe un único repositorio (Codebase) rastreado en control de versiones, con múltiples despliegues."
+      method: "Git Repository Verification"
+    - id: 12F-03-CONFIG
+      description: "Toda configuración que varíe entre entornos (credenciales, hosts) debe almacenarse en variables de entorno, no hardcodeada."
+      method: "Static Code Analysis (Env Vars)"
+    - id: 12F-06-STATELESS
+      description: "Los procesos se ejecutan sin estado (stateless). Cualquier dato persistente debe almacenarse en un servicio de respaldo (BD, Caché)."
+      method: "Architecture Review"
+    - id: 12F-11-LOGS
+      description: "Los logs se tratan como un flujo de eventos (event streams) enviados a stdout/stderr."
+      method: "Code Review"

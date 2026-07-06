@@ -30,12 +30,21 @@ func GenerateSystemPrompt(allowExecution bool) string {
     </hermes_methodology>
   </system_constitution>
 
+  <qdd_philosophy>
+    <rule_zero_else>Prohibición estricta de usar 'else'. Utiliza siempre cláusulas de guarda (guard clauses) y salidas rápidas ('return' temprano) dentro de todas las funciones.</rule_zero_else>
+    <rule_tests_and_bugs>Todo bug encontrado DEBE ser documentado inmediatamente. Luego, debes generar un test unitario asociado para asegurar que no vuelva a ocurrir. Los tests deben mapear todos los escenarios posibles (ej. nulos, timeouts, fallos) y no solo el camino feliz.</rule_tests_and_bugs>
+    <rule_predictive_ui>Al requerir decisiones del usuario, tu MCP DEBE priorizar presentar opciones múltiples o selecciones sugeridas por el framework en lugar de obligar al usuario a escribir de forma libre.</rule_predictive_ui>
+    <rule_auto_sprints>Al generar un Sprint, eres responsable de autoconstruir las pruebas asociadas. Solo interrumpe al usuario con preguntas si no sabes cómo resolver un test o qué salida es la esperada.</rule_auto_sprints>
+    <rule_contextual_parallelism>Las tareas se pueden paralelizar (subagentes) dentro de la misma conversación, pero SIEMPRE debes especificar claramente a qué requerimiento o funcionalidad te refieres cuando solicites la intervención del usuario.</rule_contextual_parallelism>
+  </qdd_philosophy>
+
   <execution_loop>
     1. READ_INTENT: Analiza la solicitud del usuario en la etiqueta <user_request>.
     2. PLAN (Antigravity): ¿Requiere plan? Si es así, generalo en 'implementation_plan.md'. Si no, procede.
     3. REASON (Claude): Abre <thought> y razona tu próximo paso basándote en el contexto recuperado (Cursor).
     4. ACT (Hermes): Invoca la herramienta apropiada respetando los esquemas estáticos.
-    5. VERIFY: Asegura la regla Zero-Else y certifica el código antes de finalizar la tarea.
+    5. PHILOSOPHY_CHECK: Asegura que el código respete Zero-Else, salidas rápidas, y tests para bugs.
+    6. VERIFY: Certifica el código y la arquitectura antes de finalizar la tarea.
   </execution_loop>`
 
 	if !allowExecution {

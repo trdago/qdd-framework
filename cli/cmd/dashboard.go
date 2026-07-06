@@ -276,14 +276,10 @@ func buildState() QDDState {
 	if info, err := os.Stat(qddDir); err == nil {
 		duration := time.Since(info.ModTime())
 		days := int(duration.Hours() / 24)
-		if days == 0 {
-			response.UsageTime = "Recientemente iniciado"
-		} else {
+		response.UsageTime = "Recientemente iniciado"
+		if days > 0 {
 			response.UsageTime = fmt.Sprintf("%d días", days)
 		}
-
-	} else {
-		response.UsageTime = "Desconocido"
 	}
 
 	// Read MCP logs
@@ -377,10 +373,9 @@ func buildState() QDDState {
 		var config struct {
 			AutoUICertification *bool `yaml:"auto_ui_certification"`
 		}
+		response.AutoUICert = true // Default
 		if yaml.Unmarshal(configData, &config) == nil && config.AutoUICertification != nil {
 			response.AutoUICert = *config.AutoUICertification
-		} else {
-			response.AutoUICert = true // Default
 		}
 
 		if err := json.Unmarshal(undData, &und); err == nil {
@@ -458,9 +453,11 @@ func buildState() QDDState {
 					status = fmt.Sprintf("%v", rawData["status"])
 				}
 
-				if status != "RESOLVED" && status != "resolved" {
+				isResolved := (status == "RESOLVED" || status == "resolved")
+				if !isResolved {
 					openFindings++
-				} else {
+				}
+				if isResolved {
 					response.ValueMetrics.DebtReduced++
 					response.ValueMetrics.HoursSaved += 2 // 2 hours saved per finding resolved
 				}
@@ -474,14 +471,17 @@ func buildState() QDDState {
 				nameLower := strings.ToLower(name)
 				searchStr := nameLower + " " + descLower
 
+				if strings.Contains(searchStr, "cert") || strings.Contains(searchStr, "missing") || strings.Contains(searchStr, "adr") || strings.Contains(searchStr, "doc") {
+					pillar = "Certificación"
+				}
+				if strings.Contains(searchStr, "timeout") || strings.Contains(searchStr, "count") || strings.Contains(searchStr, "performance") || strings.Contains(searchStr, "flaky") || strings.Contains(searchStr, "estabilidad") {
+					pillar = "Estabilidad"
+				}
+				if strings.Contains(searchStr, "key") || strings.Contains(searchStr, "secret") || strings.Contains(searchStr, "sql") || strings.Contains(searchStr, "auth") || strings.Contains(searchStr, "cors") || strings.Contains(searchStr, "seguridad") {
+					pillar = "Seguridad"
+				}
 				if strings.Contains(searchStr, "else") || strings.Contains(searchStr, "complexity") || strings.Contains(searchStr, "ciclomática") || strings.Contains(searchStr, "legacy") || strings.Contains(searchStr, "estructural") {
 					pillar = "Estructural"
-				} else if strings.Contains(searchStr, "key") || strings.Contains(searchStr, "secret") || strings.Contains(searchStr, "sql") || strings.Contains(searchStr, "auth") || strings.Contains(searchStr, "cors") || strings.Contains(searchStr, "seguridad") {
-					pillar = "Seguridad"
-				} else if strings.Contains(searchStr, "timeout") || strings.Contains(searchStr, "count") || strings.Contains(searchStr, "performance") || strings.Contains(searchStr, "flaky") || strings.Contains(searchStr, "estabilidad") {
-					pillar = "Estabilidad"
-				} else if strings.Contains(searchStr, "cert") || strings.Contains(searchStr, "missing") || strings.Contains(searchStr, "adr") || strings.Contains(searchStr, "doc") {
-					pillar = "Certificación"
 				}
 
 				response.Findings = append(response.Findings, DashboardFinding{

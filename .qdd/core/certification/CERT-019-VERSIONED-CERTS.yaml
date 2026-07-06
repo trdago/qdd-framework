@@ -1,3 +1,6 @@
+tags:
+    - core
+active: true
 id: CERT-019-VERSIONED-CERTS
 version: "1.0.0"
 title: "Versionamiento Obligatorio de Certificaciones (SemVer)"
@@ -5,8 +8,8 @@ status: certified
 level: strict
 description: "Garantiza que toda certificación actúe como un contrato inmutable con compatibilidad hacia atrás."
 criteria:
-  - "Toda certificación (Core o Proyecto) debe definir explícitamente el atributo 'version' usando SemVer."
-  - "Certificaciones sin versión se consideran nulas o deuda técnica crítica."
+    - "Toda certificación (Core o Proyecto) debe definir explícitamente el atributo 'version' usando SemVer."
+    - "Certificaciones sin versión se consideran nulas o deuda técnica crítica."
 evidence:
-  timestamp: "2026-07-05T13:15:00-04:00"
-  test_result: "Todas las certificaciones migran a v1.0.0 y el Dashboard las consume."
+    timestamp: "2026-07-05T13:15:00-04:00"
+    test_result: "Todas las certificaciones migran a v1.0.0 y el Dashboard las consume."

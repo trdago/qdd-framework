@@ -1,3 +1,6 @@
+tags:
+    - core
+active: true
 version: "1.0"
 id: "CERT-031-CYCLOMATIC-LIMIT"
 name: "Extreme Modularization (Cyclomatic Limit)"
@@ -5,6 +8,6 @@ description: "Prohíbe funciones espagueti. Toda función debe tener una complej
 category: "Clean Code"
 severity: "CRITICAL"
 rules:
-  - type: "ast-complexity"
-    target: "5"
-    message: "Enterprise-Grade: Complejidad ciclomática excede el límite de 5. Desacople esta función para asegurar mantenibilidad y testing."
+    - type: "ast-complexity"
+      target: "5"
+      message: "Enterprise-Grade: Complejidad ciclomática excede el límite de 5. Desacople esta función para asegurar mantenibilidad y testing."

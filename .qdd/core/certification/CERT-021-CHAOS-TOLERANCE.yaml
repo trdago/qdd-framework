@@ -1,3 +1,6 @@
+tags:
+    - core
+active: true
 version: "1.0"
 id: "CERT-021-CHAOS-TOLERANCE"
 name: "Chaos Engineering Resilience (Netflix-Grade)"
@@ -5,9 +8,9 @@ description: "Exige que toda llamada externa a Bases de Datos o APIs incluya un 
 category: "Security"
 severity: "CRITICAL"
 rules:
-  - type: "ast-ban"
-    target: "QueryRow("
-    message: "Netflix-Grade: Uso de QueryRow sin contexto detectado. Use QueryRowContext con Timeout."
-  - type: "ast-ban"
-    target: "Query("
-    message: "Netflix-Grade: Uso de Query sin contexto detectado. Use QueryContext con Timeout."
+    - type: "ast-ban"
+      target: "QueryRow("
+      message: "Netflix-Grade: Uso de QueryRow sin contexto detectado. Use QueryRowContext con Timeout."
+    - type: "ast-ban"
+      target: "Query("
+      message: "Netflix-Grade: Uso de Query sin contexto detectado. Use QueryContext con Timeout."
