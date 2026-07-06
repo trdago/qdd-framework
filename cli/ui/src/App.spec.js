@@ -65,19 +65,19 @@ describe('App.vue - Enterprise Dashboard', () => {
     await loadData(wrapper);
     
     // La pestaña por defecto es 'overview'
-    const overviewSection = wrapper.find('section[aria-label="Key Metrics"]')
+    const overviewSection = wrapper.find('section[aria-label="Overview Dashboard"]')
     expect(overviewSection.element.style.display).not.toBe('none')
 
-    const sprintsSection = wrapper.find('#sprints-title')
-    expect(sprintsSection.element.closest('section').style.display).toBe('none')
+    const qualitySection = wrapper.find('section[aria-labelledby="quality-title"]')
+    expect(qualitySection.element.style.display).toBe('none')
     
-    // Simulamos el click en el Tab de Sprints
+    // Simulamos el click en el Tab de Quality Gates
     const navItems = wrapper.findAll('.nav-item')
-    const sprintsTab = navItems.find(w => w.text().includes('Sprints'))
-    await sprintsTab.trigger('click')
+    const qualityTab = navItems.find(w => w.text().includes('Quality Gates'))
+    await qualityTab.trigger('click')
 
-    // Ahora Sprints debe ser visible y Overview oculto
+    // Ahora Quality debe ser visible y Overview oculto
     expect(overviewSection.element.style.display).toBe('none')
-    expect(sprintsSection.element.closest('section').style.display).not.toBe('none')
+    expect(qualitySection.element.style.display).not.toBe('none')
   })
 })

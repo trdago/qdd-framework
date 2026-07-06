@@ -606,7 +606,7 @@ onUnmounted(() => {
             </div>
             
             <div class="panel glass-panel fade-in stagger-3" role="region">
-              <h3 class="panel-title">System Telemetry</h3>
+              <h3 id="telemetry-title" class="panel-title">System Telemetry</h3>
               <div class="telemetry-grid">
                 <div class="telemetry-stat">
                   <span class="t-label">UPTIME</span>
