@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	
 	"github.com/qdd-framework/qdd/pkg/qcl"
-	"github.com/qdd-framework/qdd/pkg/qcl/adapters"
-	"github.com/qdd-framework/qdd/pkg/qcl/nodes"
 )
 
 var rootCmd = &cobra.Command{
@@ -76,58 +74,11 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 }
 
 func runQCL(input string) {
-	// Revisión manual de Gatekeeper por si entra vía interceptor de Execute()
-	if err := qcl.CheckMinimumAlignment(); err != nil {
-		fmt.Printf("[🛑 GATEKEEPER] %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("[QCL] Iniciando proceso cognitivo para: '%s'\n", input)
-
-	engine := adapters.NewGeminiEngine()
-	
-	pipeline := qcl.NewPipeline(
-		nodes.NewContextAnalyzer(),
-		nodes.NewIntentAnalyzer(engine),
-		nodes.NewRiskAnalyzer(),
-		nodes.NewConsultativeNode(),
-		nodes.NewStrategyPlanner(engine),
-		nodes.NewPlanBuilder(engine),
-		nodes.NewApprovalManager(),
-	)
-
-	session, err := pipeline.Execute(input)
-	if err != nil {
-		fmt.Printf("[!] Error en la capa cognitiva: %v\n", err)
-		os.Exit(1)
-	}
-
-	if session.ClarificationRequest != nil {
-		fmt.Printf("\n[🤔] %s\n", session.ClarificationRequest.Message)
-		for i, opt := range session.ClarificationRequest.Options {
-			fmt.Printf("  %d. %s\n", i+1, opt)
-		}
-		fmt.Print("Selecciona una opción (número): ")
-		
-		var choice int
-		_, err := fmt.Scanf("%d", &choice)
-		if err != nil || choice < 1 || choice > len(session.ClarificationRequest.Options) {
-			fmt.Println("[!] Selección inválida. Abortando.")
-			os.Exit(1)
-		}
-		
-		newInput := session.ClarificationRequest.Options[choice-1]
-		fmt.Printf("\n[+] Re-evaluando con intención aclarada: '%s'\n\n", newInput)
-		runQCL(newInput)
-		return
-	}
-
-	if session.ApprovalRequest != nil {
-		fmt.Printf("\n[?] Aprobación Requerida: %s\n", session.ApprovalRequest.Reason)
-		return
-	}
-
-	fmt.Println("\n[✔] Plan cognitivo completado.")
+	fmt.Printf("[QCL] Intención recibida: '%s'\n\n", input)
+	fmt.Println("⚠️  ATENCIÓN: El motor cognitivo interno basado en API ha sido deprecado.")
+	fmt.Println("El QDD Framework ahora opera exclusivamente como un entorno Agentic Harness (Servidor MCP).")
+	fmt.Println("Para procesar esta intención, por favor comunícate directamente con tu IA externa (Antigravity, Claude Code, Cursor) y pídele que utilice las herramientas de QDD para cumplir tu petición.")
+	os.Exit(0)
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

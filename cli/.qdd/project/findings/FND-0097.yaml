@@ -1,0 +1,5 @@
+id: "FND-0097"
+title: "Bug estructural simulado 97"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

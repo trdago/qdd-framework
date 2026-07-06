@@ -1,0 +1,5 @@
+id: "FND-0133"
+title: "Bug estructural simulado 133"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

@@ -1,0 +1,101 @@
+[
+  {
+    "timestamp": "2026-07-05T23:27:06-04:00",
+    "scores": {
+      "context_score": 100,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 100,
+    "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-07-05T23:30:06-04:00",
+    "scores": {
+      "context_score": 100,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 100,
+    "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-07-05T23:41:08-04:00",
+    "scores": {
+      "context_score": 44,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 86,
+    "tendency": "Empeorando"
+  },
+  {
+    "timestamp": "2026-07-05T23:46:58-04:00",
+    "scores": {
+      "context_score": 44,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 86,
+    "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-07-06T00:01:05-04:00",
+    "scores": {
+      "context_score": 44,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 86,
+    "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-07-06T00:02:06-04:00",
+    "scores": {
+      "context_score": 100,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 95
+    },
+    "total": 98,
+    "tendency": "Mejorando"
+  },
+  {
+    "timestamp": "2026-07-06T00:03:03-04:00",
+    "scores": {
+      "context_score": 100,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 100,
+    "tendency": "Mejorando"
+  },
+  {
+    "timestamp": "2026-07-06T00:09:42-04:00",
+    "scores": {
+      "context_score": 75,
+      "understanding_score": 70,
+      "improvement_score": 100,
+      "compliance_score": 90
+    },
+    "total": 83,
+    "tendency": "Empeorando"
+  },
+  {
+    "timestamp": "2026-07-06T00:53:52-04:00",
+    "scores": {
+      "context_score": 75,
+      "understanding_score": 70,
+      "improvement_score": 100,
+      "compliance_score": 90
+    },
+    "total": 83,
+    "tendency": "Estable"
+  }
+]

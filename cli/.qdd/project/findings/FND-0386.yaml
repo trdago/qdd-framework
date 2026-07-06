@@ -1,0 +1,5 @@
+id: "FND-0386"
+title: "Bug estructural simulado 386"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

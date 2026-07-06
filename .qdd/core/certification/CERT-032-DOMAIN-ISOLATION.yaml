@@ -1,0 +1,10 @@
+version: "1.0"
+id: "CERT-032-DOMAIN-ISOLATION"
+name: "Clean Architecture Enforcer (Domain Isolation)"
+description: "Las entidades de dominio (core/domain) no pueden importar bibliotecas externas de infraestructura (SQL, HTTP, APIs)."
+category: "Architecture"
+severity: "CRITICAL"
+rules:
+  - type: "ast-imports"
+    target: "domain"
+    message: "Enterprise-Grade: Se detectó importación acoplada en paquete del dominio central. Desacople la infraestructura usando interfaces (Puertos y Adaptadores)."

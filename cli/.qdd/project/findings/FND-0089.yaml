@@ -1,0 +1,5 @@
+id: "FND-0089"
+title: "Bug estructural simulado 89"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

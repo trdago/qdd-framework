@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -157,9 +159,42 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 						g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "DEPENDS_ON")
 					}
 				}
+
+				// Map features (funcionalidad)
+				if feat, ok := raw["feature"].(string); ok && feat != "" {
+					featID := fmt.Sprintf("feature:%s", feat)
+					g.db.Exec(query, featID, "feature", feat, "", "{}")
+					
+					var relation string
+					switch nodeType {
+					case "rule":
+						relation = "IMPLEMENTS"
+					case "finding":
+						relation = "AFFECTS"
+					case "task":
+						relation = "WORKS_ON"
+					default:
+						relation = "RELATED_TO"
+					}
+					g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, featID, relation)
+				}
+				
+				// Map bug/finding resolutions for tasks
+				if resolves, ok := raw["resolves"].(string); ok && resolves != "" {
+					findingID := fmt.Sprintf("finding:%s", resolves)
+					if !strings.HasSuffix(resolves, ".yaml") {
+						findingID = fmt.Sprintf("finding:%s.yaml", resolves)
+					}
+					g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, findingID, "RESOLVES")
+				}
 			}
 		}
 	}
+	
+	if err := g.syncCodebase(projectPath); err != nil {
+		fmt.Printf("Error al mapear código fuente: %v\n", err)
+	}
+	
 	return nil
 }
 
@@ -167,5 +202,117 @@ func (g *GraphDB) Close() error {
 	if g.db != nil {
 		return g.db.Close()
 	}
+	return nil
+}
+
+func (g *GraphDB) syncCodebase(projectPath string) error {
+	fset := token.NewFileSet()
+	
+	err := filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		
+		if info.IsDir() {
+			if info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == ".qdd" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		
+		if !strings.HasSuffix(info.Name(), ".go") {
+			return nil
+		}
+		
+		relPath, err := filepath.Rel(projectPath, path)
+		if err != nil {
+			relPath = path
+		}
+		
+		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return nil
+		}
+		
+		fileID := fmt.Sprintf("file:%s", relPath)
+		fileName := info.Name()
+		
+		isTest := strings.HasSuffix(fileName, "_test.go") || strings.HasSuffix(fileName, ".spec.ts")
+		if isTest {
+			fileID = fmt.Sprintf("test:%s", relPath)
+		}
+		
+		query := `
+		INSERT INTO nodes (id, type, name, content, metadata) 
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET 
+			type=excluded.type, 
+			name=excluded.name, 
+			content=excluded.content, 
+			metadata=excluded.metadata;
+		`
+		_, err = g.db.Exec(query, fileID, "file", fileName, "", "{}")
+		if isTest {
+			_, err = g.db.Exec(query, fileID, "test", fileName, "", "{}")
+			
+			// Try to link test to the file it tests
+			baseFileName := strings.TrimSuffix(fileName, "_test.go") + ".go"
+			baseFileID := fmt.Sprintf("file:%s", filepath.Join(filepath.Dir(relPath), baseFileName))
+			g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, baseFileID, "TESTS")
+		}
+
+		if err != nil {
+			fmt.Printf("Error insertando file %s: %v\n", fileID, err)
+		}
+		
+		_, err = g.db.Exec("DELETE FROM edges WHERE source_id = ?", fileID)
+		if err != nil {
+			fmt.Printf("Error borrando edges para %s: %v\n", fileID, err)
+		}
+		
+		for _, imp := range f.Imports {
+			pkgPath := strings.Trim(imp.Path.Value, "\"")
+			pkgID := fmt.Sprintf("package:%s", pkgPath)
+			
+			_, err = g.db.Exec(query, pkgID, "package", pkgPath, "", "{}")
+			if err != nil {
+				fmt.Printf("Error insertando pkg %s: %v\n", pkgID, err)
+			}
+			
+			_, err = g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, pkgID, "IMPORTS")
+			if err != nil {
+				fmt.Printf("Error insertando edge %s -> %s: %v\n", fileID, pkgID, err)
+			}
+		}
+		
+		return nil
+	})
+	
+	if err != nil {
+		return err
+	}
+	
+	// Sincronizar documentación
+	docFolders := []string{"docs", "rfcs", "specification"}
+	for _, folder := range docFolders {
+		folderPath := filepath.Join(projectPath, folder)
+		filepath.WalkDir(folderPath, func(path string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
+				relPath, _ := filepath.Rel(projectPath, path)
+				docID := fmt.Sprintf("doc:%s", relPath)
+				
+				query := `
+				INSERT INTO nodes (id, type, name, content, metadata) 
+				VALUES (?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET 
+					name=excluded.name, 
+					content=excluded.content;
+				`
+				g.db.Exec(query, docID, "doc", d.Name(), "", "{}")
+			}
+			return nil
+		})
+	}
+	
 	return nil
 }

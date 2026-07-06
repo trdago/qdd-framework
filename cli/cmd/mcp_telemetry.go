@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/qcl/harness"
 	"github.com/qdd-framework/qdd/pkg/topology"
@@ -165,7 +167,70 @@ func handleLearnTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 	os.MkdirAll(filepath.Dir(indexPath), 0755)
 	os.WriteFile(indexPath, indexData, 0644)
 
-	instructions := `[INSTRUCCIÓN PARA LA IA DEL IDE] (MAP-REDUCE COGNITIVO)
+	// Leer config.yaml para saber si Auto-UI Certification está activo (por defecto sí, a menos que sea explícitamente false)
+	autoUIEnabled := true
+	if configData, err := os.ReadFile(filepath.Join(cwd, ".qdd", "config.yaml")); err == nil {
+		var config struct {
+			AutoUICertification *bool `yaml:"auto_ui_certification"`
+		}
+		if yaml.Unmarshal(configData, &config) == nil && config.AutoUICertification != nil {
+			autoUIEnabled = *config.AutoUICertification
+		}
+	}
+
+	uiInstruction := ""
+	if autoUIEnabled {
+		// Descubrimiento Dinámico de Componentes UI (Auto-UI Certification)
+		var uiComponents []KnowledgeIndexEntry
+		uiExtensions := map[string]bool{".vue": true, ".tsx": true, ".jsx": true, ".svelte": true, ".ts": true, ".js": true}
+		
+		filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() && (strings.HasPrefix(d.Name(), ".") || d.Name() == "node_modules" || d.Name() == "vendor" || d.Name() == "dist") {
+				return filepath.SkipDir
+			}
+			if !d.IsDir() && uiExtensions[filepath.Ext(d.Name())] {
+				info, errInfo := d.Info()
+				if errInfo == nil && info.Size() > 0 {
+					relPath, _ := filepath.Rel(cwd, path)
+					uiComponents = append(uiComponents, KnowledgeIndexEntry{
+						Path:      relPath,
+						SizeBytes: info.Size(),
+						ModTime:   info.ModTime().Format("2006-01-02 15:04:05"),
+					})
+				}
+			}
+			return nil
+		})
+
+		// Ordenar por tamaño descendente y extraer los top 3
+		sort.Slice(uiComponents, func(i, j int) bool {
+			return uiComponents[i].SizeBytes > uiComponents[j].SizeBytes
+		})
+		
+		var topUIComponents []string
+		for i := 0; i < len(uiComponents) && i < 3; i++ {
+			topUIComponents = append(topUIComponents, uiComponents[i].Path)
+		}
+		
+		if len(topUIComponents) > 0 {
+			uiInstruction = fmt.Sprintf(`
+[AUTO-UI CERTIFICATION]
+Se han detectado componentes de UI en el proyecto. Debes leer los 3 componentes más grandes:
+%v
+
+Tu tarea es:
+1. Extraer el patrón de diseño (Tokens CSS, estructura, peso cognitivo).
+2. Generar el archivo YAML técnico estricto en ".qdd/certifications/ui-consistency.yml" que use este patrón (ej. exigir var(--bg-panel)). El método de evaluación será por Percentage Score (umbral 80%%).
+3. Generar el catálogo de prevención de duplicados en ".qdd/core-components.json" mapeando por intención analítica (ej. {"feedback_visual_carga": "LoadingSpinner.vue"}).
+4. Fusionar esto con la documentación existente y escribir ".qdd/knowledge/design_system.md".
+`, topUIComponents)
+		}
+	}
+
+	instructions := fmt.Sprintf(`[INSTRUCCIÓN PARA LA IA DEL IDE] (MAP-REDUCE COGNITIVO)
 Como Arquitecto Principal del Proyecto, debes leer los documentos listados en .qdd/knowledge_index.json y generar el reporte de inteligencia (Intelligence Report).
 Por favor genera un archivo JSON estrictamente válido en la ruta ".qdd/understanding.json" con la siguiente estructura exacta:
 {
@@ -179,7 +244,8 @@ Por favor genera un archivo JSON estrictamente válido en la ruta ".qdd/understa
 1. NO intentes leer todos los documentos de golpe.
 2. Usa tus herramientas nativas para leer los archivos uno por uno según el índice.
 3. Al finalizar, genera el archivo .qdd/understanding.json.
-`
+%s
+`, uiInstruction)
 
 	return mcp.NewToolResultText(instructions), nil
 }
@@ -214,7 +280,9 @@ func registerHarnessTool(s *server.MCPServer) {
 		mcp.WithDescription("Genera el QDD Agentic Harness (System Prompt) combinando Claude, Antigravity, Cursor y Hermes."),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		prompt := harness.GenerateSystemPrompt()
+		cwd, _ := os.Getwd()
+		p := audit.LoadPolicies(cwd)
+		prompt := harness.GenerateSystemPrompt(p.AllowExecution)
 		return mcp.NewToolResultText(prompt), nil
 	})
 }

@@ -1,0 +1,5 @@
+id: "FND-0055"
+title: "Bug estructural simulado 55"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

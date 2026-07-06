@@ -1,0 +1,5 @@
+id: "FND-0286"
+title: "Bug estructural simulado 286"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

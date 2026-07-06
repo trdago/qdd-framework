@@ -10,9 +10,10 @@ import (
 
 type ConfigFile struct {
 	Project      string   `yaml:"project"`
-	Languages    []string `yaml:"languages"`
-	Databases    []string `yaml:"databases"`
-	Architecture string   `yaml:"architecture"`
+	Languages             []string `yaml:"languages"`
+	Databases             []string `yaml:"databases"`
+	Architecture          string   `yaml:"architecture"`
+	AutoUICertification   bool     `yaml:"auto_ui_certification"`
 }
 
 func CheckMinimumAlignment() error {

@@ -1,0 +1,5 @@
+id: "FND-0312"
+title: "Bug estructural simulado 312"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

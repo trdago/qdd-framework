@@ -1,0 +1,5 @@
+id: "FND-0323"
+title: "Bug estructural simulado 323"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

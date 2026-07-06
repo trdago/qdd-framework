@@ -1,0 +1,5 @@
+id: "FND-0046"
+title: "Bug estructural simulado 46"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

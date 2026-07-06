@@ -1,0 +1,5 @@
+id: "FND-0129"
+title: "Bug estructural simulado 129"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

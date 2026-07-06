@@ -1,0 +1,14 @@
+[
+  {
+    "timestamp": "2026-07-05T23:19:21-04:00",
+    "score": 100,
+    "total_violations": 0,
+    "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-07-06T00:02:14-04:00",
+    "score": 98,
+    "total_violations": 1,
+    "tendency": "Empeorando"
+  }
+]

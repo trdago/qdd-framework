@@ -45,6 +45,9 @@ var mcpCmd = &cobra.Command{
 		registerSyncTool(s)
 		registerReleaseTool(s)
 		
+		registerQueryGraphTool(s)
+		registerSyncGraphTool(s)
+		
 		// Start serving
 		return ss.Listen(context.Background(), os.Stdin, os.Stdout)
 	},

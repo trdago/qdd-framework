@@ -1,0 +1,5 @@
+id: "FND-0307"
+title: "Bug estructural simulado 307"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

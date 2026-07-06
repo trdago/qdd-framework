@@ -1,0 +1,5 @@
+id: "FND-0339"
+title: "Bug estructural simulado 339"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

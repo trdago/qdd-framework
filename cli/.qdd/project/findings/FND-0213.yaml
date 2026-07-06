@@ -1,0 +1,5 @@
+id: "FND-0213"
+title: "Bug estructural simulado 213"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

@@ -1,0 +1,9 @@
+qdd_certificate:
+  version: "1.0"
+  sprint_id: "82"
+  status: "CERTIFIED"
+  goal: "Sprint objetivo simulado 82"
+  business_rules:
+    - "Simulated rule"
+  executable_tests:
+    - "go test"

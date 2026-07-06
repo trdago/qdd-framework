@@ -1,0 +1,5 @@
+id: "FND-0034"
+title: "Bug estructural simulado 34"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

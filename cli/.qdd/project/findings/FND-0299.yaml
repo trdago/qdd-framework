@@ -1,0 +1,5 @@
+id: "FND-0299"
+title: "Bug estructural simulado 299"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

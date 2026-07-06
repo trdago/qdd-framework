@@ -1,0 +1,5 @@
+id: "FND-0354"
+title: "Bug estructural simulado 354"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

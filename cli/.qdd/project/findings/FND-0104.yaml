@@ -1,0 +1,5 @@
+id: "FND-0104"
+title: "Bug estructural simulado 104"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

@@ -31,6 +31,7 @@ func runTests(cwd string) error {
 		return nil
 	}
 
+	fmt.Println("TEST FAILURE LOG:\n", output)
 	return err
 }
 

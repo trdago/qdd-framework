@@ -1,0 +1,5 @@
+id: "FND-0351"
+title: "Bug estructural simulado 351"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

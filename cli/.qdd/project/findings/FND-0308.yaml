@@ -1,0 +1,5 @@
+id: "FND-0308"
+title: "Bug estructural simulado 308"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

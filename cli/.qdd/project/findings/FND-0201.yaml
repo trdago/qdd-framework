@@ -1,0 +1,5 @@
+id: "FND-0201"
+title: "Bug estructural simulado 201"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

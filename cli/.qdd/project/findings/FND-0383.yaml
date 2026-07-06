@@ -1,0 +1,5 @@
+id: "FND-0383"
+title: "Bug estructural simulado 383"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

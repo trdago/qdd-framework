@@ -1,0 +1,5 @@
+id: "FND-0158"
+title: "Bug estructural simulado 158"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

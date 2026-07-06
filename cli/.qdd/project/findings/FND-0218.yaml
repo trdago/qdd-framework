@@ -1,0 +1,5 @@
+id: "FND-0218"
+title: "Bug estructural simulado 218"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

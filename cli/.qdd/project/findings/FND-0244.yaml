@@ -1,0 +1,5 @@
+id: "FND-0244"
+title: "Bug estructural simulado 244"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

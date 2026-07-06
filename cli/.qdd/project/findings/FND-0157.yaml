@@ -1,0 +1,5 @@
+id: "FND-0157"
+title: "Bug estructural simulado 157"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

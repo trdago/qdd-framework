@@ -2,7 +2,7 @@ package harness
 
 import "fmt"
 
-func GenerateSystemPrompt() string {
+func GenerateSystemPrompt(allowExecution bool) string {
 	prompt := `
 <qdd_agentic_harness>
   <system_constitution>
@@ -36,7 +36,18 @@ func GenerateSystemPrompt() string {
     3. REASON (Claude): Abre <thought> y razona tu próximo paso basándote en el contexto recuperado (Cursor).
     4. ACT (Hermes): Invoca la herramienta apropiada respetando los esquemas estáticos.
     5. VERIFY: Asegura la regla Zero-Else y certifica el código antes de finalizar la tarea.
-  </execution_loop>
+  </execution_loop>`
+
+	if !allowExecution {
+		prompt += `
+  <security_override>
+    CRITICAL SECURITY ALERT: The QDD Framework Execution Mode is DISABLED (Audit/Discovery Mode only).
+    You are FORBIDDEN from modifying code, creating files, or running destructive commands.
+    Your capabilities are strictly limited to code analysis, auditing, and generating intelligence reports.
+  </security_override>`
+	}
+
+	prompt += `
 </qdd_agentic_harness>
 `
 	return fmt.Sprintf("%s", prompt)

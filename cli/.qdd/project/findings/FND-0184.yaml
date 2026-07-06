@@ -1,0 +1,5 @@
+id: "FND-0184"
+title: "Bug estructural simulado 184"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

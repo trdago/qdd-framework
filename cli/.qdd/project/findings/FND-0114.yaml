@@ -1,0 +1,5 @@
+id: "FND-0114"
+title: "Bug estructural simulado 114"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

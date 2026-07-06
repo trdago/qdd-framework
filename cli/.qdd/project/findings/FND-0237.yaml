@@ -1,0 +1,5 @@
+id: "FND-0237"
+title: "Bug estructural simulado 237"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."

@@ -1,0 +1,5 @@
+id: "FND-0292"
+title: "Bug estructural simulado 292"
+status: "RESOLVED"
+severity: "HIGH"
+description: "Detectado por QDD Audit, corregido."
