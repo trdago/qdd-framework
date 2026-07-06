@@ -19,15 +19,15 @@ graph TD
     classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
 
     %% Nodos
-    A[qdd init<br/>Crea Entorno y Wisdom Registry]:::init
-    B[qdd sprint<br/>Define Requerimientos]:::default
-    C[qdd 'prompt'<br/>Delegación a IA]:::agent
-    D{Gatekeeper<br/>Pre-Flight Check}:::gatekeeper
-    E[qdd learn<br/>Absorber Arquitectura e Intelligence Report]:::default
-    F[Modo Consultivo<br/>Propuesta de Estándares]:::agent
-    G[qdd audit<br/>Inspección Técnica]:::warning
-    H[qdd certify<br/>Sello de Gobernanza]:::success
-    I[qdd release<br/>Git Tag / Deploy]:::success
+    A["qdd init<br/>Crea Entorno y Wisdom Registry"]:::init
+    B["qdd sprint<br/>Define Requerimientos"]:::default
+    C["/qdd 'prompt'<br/>Delegación a IA"]:::agent
+    D{"Gatekeeper<br/>Pre-Flight Check"}:::gatekeeper
+    E["qdd learn<br/>Absorber Arquitectura e Intelligence Report"]:::default
+    F["Modo Consultivo<br/>Propuesta de Estándares"]:::agent
+    G["qdd audit<br/>Inspección Técnica"]:::warning
+    H["qdd certify<br/>Sello de Gobernanza"]:::success
+    I["qdd release<br/>Git Tag / Deploy"]:::success
 
     %% Conexiones
     A --> B
@@ -75,19 +75,18 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd db` | Audita o genera esquemas y consultas de bases de datos. |
 | `qdd docs` | Regenera la documentación de QDD basándose en el estado actual del proyecto. |
 
-## Cognitive Path (Pipeline Inteligente)
+## Cognitive Path (Pipeline Inteligente vía MCP)
 
-Para invocar a la Inteligencia Artificial, simplemente escribe tu intención:
+El motor cognitivo interno del CLI ha sido deprecado. En su lugar, QDD actúa como un **Servidor MCP** que transfiere su gobernanza directamente a tu IDE (Cursor, Claude Code, Antigravity).
+
+Para invocar a la Inteligencia Artificial bajo el amparo de QDD, utiliza los comandos integrados de tu IDE:
 
 ```bash
-qdd "agrega autenticación a la API"
-qdd "resuelve la deuda técnica en el validador"
+/qdd "agrega autenticación a la API"
+/qdd "resuelve la deuda técnica en el validador"
 ```
 
-### 🧠 Capacidades del QCL (QDD Cognitive Layer)
-- **Modo Consultivo (Production-First)**: El motor no es un "generador de código ciego". Si pides algo que requiera certificación (ej. Autenticación), pausará la ejecución, te propondrá un estándar (ej. OWASP ASVS) y solicitará tu aprobación antes de implementar.
-- **Guardián (Gatekeeper)**: El CLI abortará la misión si falta conocimiento esencial en `config.yaml` hasta que ejecutes `qdd learn`.
-- **Detección de Intención**: Diferencia si quieres hacer un *Feature*, un *Fix*, o un *Ask*.
-- **Resolución de Ambigüedades**: Si tu orden es muy vaga, pausará el flujo y te mostrará opciones interactivas en tu consola.
-- **Análisis de Riesgo**: Antes de programar, evaluará si tu petición romperá la retrocompatibilidad.
-- **Estrategia (Strategy Planner)**: Diseñará qué artefactos crear antes de tocar el código (ej. Findings, ADRs).
+### 🧠 Capacidades del Ecosistema MCP
+- **Modo Consultivo (Production-First)**: El framework inyecta reglas que prohíben a la IA ser un "generador de código ciego". Si pides algo que requiera certificación (ej. Autenticación), la IA te propondrá un estándar (ej. OWASP ASVS) y solicitará tu aprobación antes de implementar, gracias a las políticas del MCP.
+- **Guardián (Gatekeeper)**: Las herramientas de MCP (`qdd_audit`, `qdd_certify`) abortarán la misión si el código generado por la IA no cumple los estándares estrictos (ej. uso de `else`).
+- **Detección de Intención y Riesgo**: A través de las *tools* expuestas, la IA evalúa si tu petición romperá la retrocompatibilidad antes de programar.

@@ -23,14 +23,15 @@ qdd score   # Obtén tu calificación matemática (A, B, C, D)
 qdd audit   # Ejecuta el Linter de reglas estructurales
 ```
 
-## Paso 4: Programación Guiada y Modo Consultivo
-Cuando estés listo para desarrollar, utiliza el **Cognitive Path**. QDD leerá el contexto, evaluará los riesgos y actuará en **Modo Consultivo**. 
+## Paso 4: Programación Guiada con MCP
+Cuando estés listo para desarrollar, delega el trabajo a tu IDE asistido por IA (Cursor, Claude Code, Antigravity). QDD opera como un **Servidor MCP** que inyecta todo el contexto, reglas y herramientas de certificación directamente en el cerebro de la IA.
 
-Si le pides que desarrolle una característica que requiere seguridad, QDD *no generará un prototipo rápido*. Detendrá el flujo y te propondrá adoptar un estándar (como OWASP o OpenAPI), pidiendo tu autorización para garantizar una ingeniería "Production-First".
+Si tu IDE intenta desarrollar una característica que requiere seguridad, QDD (actuando como Gatekeeper a través de MCP) *no permitirá un prototipo rápido*. Rechazará el código deficiente y propondrá adoptar un estándar (como OWASP o OpenAPI), exigiendo autorización para garantizar una ingeniería "Production-First".
 
 ```bash
-qdd "agrega un endpoint de login"
-qdd "resuelve el bug de conexión a la base de datos"
+# Ejemplo: Pide a tu IDE (Claude/Cursor) que ejecute herramientas QDD:
+/qdd "agrega un endpoint de login y certifícalo"
+/qdd "resuelve el bug de conexión y genera el finding"
 ```
 
 ## Paso 5: Versionado y Calidad Evolutiva

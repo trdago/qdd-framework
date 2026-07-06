@@ -19,12 +19,12 @@ La Gobernanza en QDD es el mecanismo que asegura que el proyecto cumpla con los 
 
 El framework te ofrece un enfoque de 3 capas para definir y aplicar estándares:
 
-#### 1. La Vía Cognitiva (Lenguaje Natural y Modo Consultivo)
-Dado que QDD gobierna a la IA, puedes delegarle la creación del estándar directamente al CLI usando lenguaje natural:
+#### 1. La Vía Cognitiva (A través del IDE y MCP)
+Dado que QDD gobierna a la IA, puedes delegarle la creación del estándar directamente a tu IDE (Claude/Cursor) usando lenguaje natural:
 ```bash
-qdd "Agrega un estándar estricto que prohíba usar la librería Axios a favor de fetch nativo en el componente UI"
+/qdd "Agrega un estándar estricto que prohíba usar la librería Axios a favor de fetch nativo en el componente UI"
 ```
-QDD operará en **Modo Consultivo**. Si detecta que falta un estándar de la industria (ej. no estás usando Clean Architecture), te propondrá adoptarlo antes de generar el código. Si lo autorizas, creará automáticamente el artefacto de certificación YAML.
+QDD operará como Gatekeeper. Si detecta que falta un estándar de la industria, el servidor MCP bloqueará el código libre y exigirá la adopción de un estándar antes de generar el código. Si lo autorizas, creará automáticamente el artefacto de certificación YAML.
 
 #### 2. La Vía Estructural (Archivos de Certificación)
 Si prefieres el control manual, los estándares se guardan como archivos YAML en la carpeta `.qdd/core/certification/` (framework) o `.qdd/project/certification/` (proyecto). 
@@ -60,20 +60,19 @@ La capa de **Specification** es el conjunto de reglas agnósticas que definen la
 - **Formatos Universales**: Dicta cómo se estructuran las *Certifications*, *Findings*, *ADRs* y *Sprints* utilizando estándares YAML y JSON rígidos.
 - **Protocolo de Interacción**: Define los contratos que deben respetar los IDEs y los LLMs para leer el conocimiento y proponer cambios. Esto garantiza que una regla escrita hoy será entendida por los modelos de IA del mañana.
 
-## Engine (QDD Runtime & QCL)
+## Engine (QDD Runtime & MCP Server)
 
-El motor de QDD, compilado en Go para máximo rendimiento y distribución, opera sobre dos rieles (Paths) independientes:
+El motor de QDD, compilado en Go para máximo rendimiento y distribución, opera como el cerebro certificador y Servidor MCP:
 
 1. **Fast Path (Determinista)**: 
    Un motor rápido y local que ejecuta validaciones estrictas y seguras sin necesidad de invocar Inteligencia Artificial. Comandos como `qdd certify`, `qdd audit`, y `qdd score` viven aquí. Son inmediatos, reproducibles offline y actúan como el verdadero "juez" de calidad.
 
-2. **Cognitive Path (QCL - QDD Cognitive Layer)**: 
-   Cuando se usa lenguaje natural (ej. `qdd "refactoriza la base de datos"`), la orden entra en un Pipeline Inteligente compuesto por múltiples Nodos:
-   - **Gatekeeper**: Aborta la misión si falta entendimiento crítico (`config.yaml`).
-   - **Context Analyzer**: Extrae el *Intelligence Report* (`understanding.json`) y las certificaciones.
-   - **Risk Analyzer**: Evalúa si la orden puede romper contratos públicos.
-   - **Strategy Planner**: Diseña los artefactos (*Findings*, *ADRs*) a crear antes de tocar código.
-   - **Consultative Node**: Propone al usuario el estándar aplicable (ej. OpenAPI) antes de implementar.
+2. **Servidor MCP (Model Context Protocol)**: 
+   Cuando pides a tu IA (ej. Antigravity) que trabaje en el repositorio, la orden entra en un ecosistema guiado por las herramientas MCP expuestas por QDD:
+   - **Gatekeeper**: Las tools abortan si el código incumple el `config.yaml`.
+   - **Context Provider**: Entrega el *Intelligence Report* y las certificaciones a la IA.
+   - **Risk Analyzer**: Impide que la IA proponga cambios que rompan contratos públicos.
+   - **Consultative Node**: Impone el uso de estándares (ej. OpenAPI) exigiendo a la IA pedir aprobación antes de escribir código base.
 
 ## Artifacts (Gestión del Conocimiento)
 
@@ -90,10 +89,10 @@ La arquitectura de **Plugins** permite a QDD integrarse nativamente con cualquie
 - Mediante inyección de dependencias o subprocesos (RPC), los plugins proveen lógicas específicas de escaneo.
 - Ejemplo: Un plugin de "Go" enseñará a `qdd audit` a buscar goroutines mal gestionadas, mientras que un plugin de "Node" auditará el árbol de dependencias de npm.
 
-## AI Adapters
+## Protocolo MCP (Model Context Protocol)
 
-Para cumplir la directiva de **Independencia Tecnológica**, QDD utiliza **AI Adapters**.
+Para cumplir la directiva de **Independencia Tecnológica**, QDD utiliza el **Protocolo MCP**.
 
-- La interfaz del adaptador aísla completamente al modelo de IA (Gemini, Claude, ChatGPT, modelos locales) del resto del framework.
-- Si hoy usas Claude y mañana decides usar Gemini, el *Engine* sigue aplicando la misma Gobernanza y el mismo Wisdom Registry; únicamente cambia el conector que traduce las instrucciones hacia el LLM.
-- Esta capa es la encargada de inyectar el *Modo Consultivo* en las peticiones enviadas al modelo.
+- Al usar MCP, el framework se aísla completamente de un modelo de IA específico (Gemini, Claude, ChatGPT).
+- El *Engine* aplica la misma Gobernanza y el mismo Wisdom Registry; simplemente expone un conjunto de *Tools* estandarizadas que cualquier IDE moderno puede consumir.
+- Esta capa es la encargada de obligar al modelo (ej. Claude Code, Cursor) a operar en *Modo Consultivo* en lugar de escribir código a ciegas.

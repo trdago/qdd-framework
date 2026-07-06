@@ -7,7 +7,7 @@
 [![QDD Certified](https://img.shields.io/badge/QDD-Certified-success)](#)
 
 <p align="center">
-  <img src="docs/assets/dashboard_demo.webp" alt="QDD Dashboard Demo" width="800">
+  <img src="docs/assets/dashboard_demo.png" alt="QDD Dashboard Demo" width="800">
 </p>
 
 > QDD no es un generador de código.  
@@ -56,7 +56,7 @@ qdd init
 ### 2. Identificación de Brechas (Auditoría Segura)
 Visualiza tu deuda técnica y calidad en el panel de control interactivo.
 ```bash
-qdd dashboard   # Visualiza el Centro de Comando (ver GIF de arriba)
+qdd dashboard   # Visualiza el Centro de Comando (ver captura de arriba)
 ```
 
 ### 3. Aplicación de Soluciones (Cognitive Path)
@@ -81,14 +81,14 @@ graph TD
     classDef success fill:#22c55e,stroke:#15803d,stroke-width:2px,color:#fff;
     classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
 
-    A[qdd init<br/>Inyecta MCP Config en IDE]:::init
-    B[qdd_sprint<br/>Define Requerimientos]:::default
-    C[/qdd 'prompt'<br/>IDE delega a MCP]:::agent
-    D{Gatekeeper<br/>MCP Policy Check}:::gatekeeper
-    E[qdd_learn<br/>Absorber Arquitectura]:::default
-    F[Modo Consultivo<br/>Propuesta de Estándares]:::agent
-    G[qdd_audit<br/>Inspección Técnica MCP]:::warning
-    H[qdd_certify<br/>Sello de Gobernanza]:::success
+    A["qdd init<br/>Inyecta MCP Config en IDE"]:::init
+    B["qdd_sprint<br/>Define Requerimientos"]:::default
+    C["/qdd 'prompt'<br/>IDE delega a MCP"]:::agent
+    D{"Gatekeeper<br/>MCP Policy Check"}:::gatekeeper
+    E["qdd_learn<br/>Absorber Arquitectura"]:::default
+    F["Modo Consultivo<br/>Propuesta de Estándares"]:::agent
+    G["qdd_audit<br/>Inspección Técnica MCP"]:::warning
+    H["qdd_certify<br/>Sello de Gobernanza"]:::success
 
     A --> B
     B --> C
