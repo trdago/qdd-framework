@@ -1,10 +1,18 @@
 # QDD Framework — Quality-Driven Development
 
-![QDD Dashboard Demo](docs/assets/dashboard_demo.webp)
+[![Go Report Card](https://goreportcard.com/badge/github.com/trdago/qdd-framework)](https://goreportcard.com/report/github.com/trdago/qdd-framework)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/trdago/qdd-framework)](https://github.com/trdago/qdd-framework/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/trdago/qdd-framework/azure-pipelines.yml?branch=main)](https://github.com/trdago/qdd-framework/actions)
+[![QDD Certified](https://img.shields.io/badge/QDD-Certified-success)](#)
 
-QDD no es un generador de código.
-QDD no es un asistente de programación.
-QDD no es un agente conversacional.
+<p align="center">
+  <img src="docs/assets/dashboard_demo.webp" alt="QDD Dashboard Demo" width="800">
+</p>
+
+> QDD no es un generador de código.  
+> QDD no es un asistente de programación.  
+> QDD no es un agente conversacional.  
 
 **QDD es una Plataforma de Ingeniería de Software basada en Mejora Continua**, cuyo propósito es ayudar a construir y evolucionar productos de software preparados para producción siguiendo estándares de clase mundial.
 
