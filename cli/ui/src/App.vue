@@ -130,8 +130,11 @@ const topologyMaxDepth = ref(2) // Default abstraction level
 const activeConcepts = ref(['CodeRoot', 'BugRoot', 'SprintRoot', 'CertRoot', 'KnowRoot'])
 const toggleConcept = (concept) => {
   const idx = activeConcepts.value.indexOf(concept)
-  if (idx > -1) activeConcepts.value.splice(idx, 1)
-  else activeConcepts.value.push(concept)
+  if (idx > -1) {
+    activeConcepts.value.splice(idx, 1)
+    return
+  }
+  activeConcepts.value.push(concept)
 }
 const graphZoom = ref(1)
 const graphPan = ref({ x: 0, y: 0 })
@@ -551,9 +554,9 @@ const topologyD3Nodes = computed(() => {
   const assignValues = (node) => {
     if (node.children && node.children.length > 0) {
       node.children.forEach(assignValues)
-    } else {
-      node.value = 1
+      return
     }
+    node.value = 1
   }
   assignValues(megaRoot)
 
@@ -1131,7 +1134,7 @@ onUnmounted(() => {
                         </g>
                       </svg>
                    </div>
-                   <div v-else class="empty-state">Renderizando D3 Topology Graph...</div>
+                   <div v-if="topologyD3Nodes.length === 0" class="empty-state">Renderizando D3 Topology Graph...</div>
                 </div>
               </div>
            </div>

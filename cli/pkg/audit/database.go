@@ -3,6 +3,7 @@ package audit
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -29,7 +30,7 @@ func CheckDatabasePerformance(cwd string) []Violation {
 		// Only check Go files and SQL files
 		ext := filepath.Ext(path)
 		if !d.IsDir() && (ext == ".go" || ext == ".sql") {
-			content, readErr := fs.ReadFile(osFS{}, path)
+			content, readErr := os.ReadFile(path)
 			if readErr != nil {
 				return nil
 			}
@@ -58,11 +59,4 @@ func CheckDatabasePerformance(cwd string) []Violation {
 	}
 
 	return violations
-}
-
-// osFS is a simple implementation of fs.FS to read local files
-type osFS struct{}
-
-func (osFS) Open(name string) (fs.File, error) {
-	panic("not implemented") // Only using ReadFile from os package
 }

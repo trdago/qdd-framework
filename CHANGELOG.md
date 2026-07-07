@@ -4,6 +4,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.1] - 2026-07-07
+
+### 🐛 Bug Fixes (Hotfix)
+- **Zero-Else Violations**: Corregidas varias violaciones a la política "Zero-Else" en `App.vue` introducidas en v1.7.0. Se reemplazaron por `v-if` negados y *Guard Clauses*.
+- **Database Audit Panic**: Corregido un `panic: not implemented` en los tests y la ejecución del motor de auditoría `database.go` al utilizar erróneamente `fs.ReadFile(osFS{})`. Reemplazado de manera segura por `os.ReadFile`.
+- **Limpieza de Archivos de Prueba**: Eliminación de archivos temporales (`test_sqlite.go`, `cli/test.db`, etc.) que causaban fallos de build (`main redeclared in this block`) durante el testing nativo.
+
 ## [v1.7.0] - 2026-07-07
 
 ### 🗺️ Project Map: Mega-Jerarquía Conceptual (D3 Ecosystem Graph)
