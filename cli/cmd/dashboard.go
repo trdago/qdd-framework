@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -168,11 +170,19 @@ type DashboardFinding struct {
 
 type DashboardCertification struct {
 	ID      string                 `json:"id"`
+	Name    string                 `json:"name"`
 	Version string                 `json:"version"`
 	Status  string                 `json:"status"`
-	Name    string                 `json:"name"`
 	Type    string                 `json:"type"`
-	Raw     map[string]interface{} `json:"raw"`
+	Raw     map[string]interface{} `json:"raw,omitempty"`
+	History []CertificationRun     `json:"history,omitempty"`
+}
+
+type CertificationRun struct {
+	RunID     string `json:"run_id"`
+	Timestamp string `json:"timestamp"`
+	Status    string `json:"status"`
+	Duration  string `json:"duration"`
 }
 
 type DashboardSprint struct {
@@ -427,6 +437,15 @@ func buildState() QDDState {
 					version = fmt.Sprintf("%v", rawData["version"])
 				}
 
+				// Generate mock history for demonstration of Prefect-like board
+				mockHistory := []CertificationRun{
+					{RunID: "run-001", Timestamp: time.Now().Add(-48 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.2s"},
+					{RunID: "run-002", Timestamp: time.Now().Add(-24 * time.Hour).Format(time.RFC3339), Status: "FAIL", Duration: "0.8s"},
+					{RunID: "run-003", Timestamp: time.Now().Add(-12 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.1s"},
+					{RunID: "run-004", Timestamp: time.Now().Add(-2 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "0.9s"},
+					{RunID: "run-005", Timestamp: time.Now().Format(time.RFC3339), Status: status, Duration: "1.0s"},
+				}
+
 				response.Certifications = append(response.Certifications, DashboardCertification{
 					ID:      name,
 					Version: version,
@@ -434,6 +453,7 @@ func buildState() QDDState {
 					Name:    "Cumplimiento verificado",
 					Type:    "Proyecto",
 					Raw:     rawData,
+					History: mockHistory,
 				})
 			}
 			rows.Close()
@@ -721,7 +741,7 @@ var dashboardCmd = &cobra.Command{
 			json.NewEncoder(w).Encode(mockResponse)
 		})
 
-		port := 8080
+		port := 8099
 		var listener net.Listener
 		for {
 			addr := fmt.Sprintf(":%d", port)
@@ -743,7 +763,11 @@ var dashboardCmd = &cobra.Command{
 			fmt.Printf("Por favor abre manualmente: %s\n", dashboardURL)
 		}
 
-		select {}
+		// Esperar señal de interrupción (Ctrl+C) para apagar el servidor
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+		<-quit
+		fmt.Println("\nApagando QDD Dashboard de forma segura. ¡Hasta pronto!")
 	},
 }
 

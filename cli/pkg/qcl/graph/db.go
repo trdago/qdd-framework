@@ -30,7 +30,7 @@ func InitDB() (*GraphDB, error) {
 	}
 
 	dbPath := filepath.Join(qddDir, "knowledge.db")
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -71,6 +71,12 @@ func (g *GraphDB) GetDB() *sql.DB {
 }
 
 func (g *GraphDB) SyncToGraph(projectPath string) error {
+	tx, err := g.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	qddDir := filepath.Join(projectPath, ".qdd")
 	
 	dirsToSync := map[string]string{
@@ -124,20 +130,20 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 					content=excluded.content, 
 					metadata=excluded.metadata;
 				`
-				_, err = g.db.Exec(query, id, nodeType, name, content, metadataStr)
+				_, err = tx.Exec(query, id, nodeType, name, content, metadataStr)
 				if err != nil {
 					fmt.Printf("Error upserting node %s: %v\n", id, err)
 				}
 
 				// Extract edges
-				g.db.Exec("DELETE FROM edges WHERE source_id = ?", id)
+				tx.Exec("DELETE FROM edges WHERE source_id = ?", id)
 				
 				if parent, ok := raw["parent"].(string); ok && parent != "" {
 					targetID := fmt.Sprintf("rule:%s", parent)
 					if !strings.HasSuffix(parent, ".yaml") {
 						targetID = fmt.Sprintf("rule:%s.yaml", parent)
 					}
-					g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
+					tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
 				}
 
 				if dependsOn, ok := raw["depends_on"]; ok {
@@ -156,14 +162,14 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 						if !strings.HasSuffix(d, ".yaml") {
 							targetID = fmt.Sprintf("rule:%s.yaml", d)
 						}
-						g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "DEPENDS_ON")
+						tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "DEPENDS_ON")
 					}
 				}
 
 				// Map features (funcionalidad)
 				if feat, ok := raw["feature"].(string); ok && feat != "" {
 					featID := fmt.Sprintf("feature:%s", feat)
-					g.db.Exec(query, featID, "feature", feat, "", "{}")
+					tx.Exec(query, featID, "feature", feat, "", "{}")
 					
 					var relation string
 					switch nodeType {
@@ -176,7 +182,7 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 					default:
 						relation = "RELATED_TO"
 					}
-					g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, featID, relation)
+					tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, featID, relation)
 				}
 				
 				// Map bug/finding resolutions for tasks
@@ -185,17 +191,17 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 					if !strings.HasSuffix(resolves, ".yaml") {
 						findingID = fmt.Sprintf("finding:%s.yaml", resolves)
 					}
-					g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, findingID, "RESOLVES")
+					tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, findingID, "RESOLVES")
 				}
 			}
 		}
 	}
 	
-	if err := g.syncCodebase(projectPath); err != nil {
+	if err := g.syncCodebase(projectPath, tx); err != nil {
 		fmt.Printf("Error al mapear código fuente: %v\n", err)
 	}
 	
-	return nil
+	return tx.Commit()
 }
 
 func (g *GraphDB) Close() error {
@@ -205,7 +211,7 @@ func (g *GraphDB) Close() error {
 	return nil
 }
 
-func (g *GraphDB) syncCodebase(projectPath string) error {
+func (g *GraphDB) syncCodebase(projectPath string, tx *sql.Tx) error {
 	fset := token.NewFileSet()
 	
 	err := filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
@@ -251,21 +257,21 @@ func (g *GraphDB) syncCodebase(projectPath string) error {
 			content=excluded.content, 
 			metadata=excluded.metadata;
 		`
-		_, err = g.db.Exec(query, fileID, "file", fileName, "", "{}")
+		_, err = tx.Exec(query, fileID, "file", fileName, "", "{}")
 		if isTest {
-			_, err = g.db.Exec(query, fileID, "test", fileName, "", "{}")
+			_, err = tx.Exec(query, fileID, "test", fileName, "", "{}")
 			
 			// Try to link test to the file it tests
 			baseFileName := strings.TrimSuffix(fileName, "_test.go") + ".go"
 			baseFileID := fmt.Sprintf("file:%s", filepath.Join(filepath.Dir(relPath), baseFileName))
-			g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, baseFileID, "TESTS")
+			tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, baseFileID, "TESTS")
 		}
 
 		if err != nil {
 			fmt.Printf("Error insertando file %s: %v\n", fileID, err)
 		}
 		
-		_, err = g.db.Exec("DELETE FROM edges WHERE source_id = ?", fileID)
+		_, err = tx.Exec("DELETE FROM edges WHERE source_id = ?", fileID)
 		if err != nil {
 			fmt.Printf("Error borrando edges para %s: %v\n", fileID, err)
 		}
@@ -274,12 +280,12 @@ func (g *GraphDB) syncCodebase(projectPath string) error {
 			pkgPath := strings.Trim(imp.Path.Value, "\"")
 			pkgID := fmt.Sprintf("package:%s", pkgPath)
 			
-			_, err = g.db.Exec(query, pkgID, "package", pkgPath, "", "{}")
+			_, err = tx.Exec(query, pkgID, "package", pkgPath, "", "{}")
 			if err != nil {
 				fmt.Printf("Error insertando pkg %s: %v\n", pkgID, err)
 			}
 			
-			_, err = g.db.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, pkgID, "IMPORTS")
+			_, err = tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, pkgID, "IMPORTS")
 			if err != nil {
 				fmt.Printf("Error insertando edge %s -> %s: %v\n", fileID, pkgID, err)
 			}
@@ -308,7 +314,7 @@ func (g *GraphDB) syncCodebase(projectPath string) error {
 					name=excluded.name, 
 					content=excluded.content;
 				`
-				g.db.Exec(query, docID, "doc", d.Name(), "", "{}")
+				tx.Exec(query, docID, "doc", d.Name(), "", "{}")
 			}
 			return nil
 		})

@@ -35,7 +35,8 @@ describe('App.vue - Enterprise Dashboard', () => {
       sprints: [],
       knowledge: [],
       config: {},
-      telemetry: { uptime: '24h', memory_sys: '100 MB', goroutines: 42 }
+      telemetry: { uptime: '24h', memory_sys: '100 MB', goroutines: 42 },
+      topology: { application: { name: 'QDD', children: [] } }
     };
     instance.onmessage({ data: JSON.stringify(testData) });
     await wrapper.vm.$nextTick();
@@ -79,5 +80,27 @@ describe('App.vue - Enterprise Dashboard', () => {
     // Ahora Quality debe ser visible y Overview oculto
     expect(overviewSection.element.style.display).toBe('none')
     expect(qualitySection.element.style.display).not.toBe('none')
+  })
+
+  it('garantiza que el Lifecycle Map (Ciclo de Mejora Continua) exista y renderice los pasos', async () => {
+    await loadData(wrapper);
+    
+    // 1. Simular click en la pestaña Project Map
+    const navItems = wrapper.findAll('.nav-item')
+    const mapTab = navItems.find(w => w.text().includes('Project Map'))
+    await mapTab.trigger('click')
+
+    // 2. Buscar y hacer click en el botón de vista Lifecycle Map (ya no existe, se muestra debajo por defecto)
+    
+    // 3. Verificar que los 5 pasos del ciclo corporativo se rendericen
+    const steps = wrapper.findAll('.corp-step')
+    expect(steps.length).toBe(5)
+
+    // 4. Verificar contenido clave de los pasos
+    expect(steps[0].text()).toContain('Discovery')
+    expect(steps[1].text()).toContain('Intelligence')
+    expect(steps[2].text()).toContain('Audit')
+    expect(steps[3].text()).toContain('Sprint')
+    expect(steps[4].text()).toContain('Release')
   })
 })

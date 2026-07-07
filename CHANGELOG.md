@@ -4,6 +4,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.2] - 2026-07-06
+
+### 🐛 Bug Fixes & UI Enhancements
+- **Tablero de Certificaciones Interactivo**: Se implementó una vista estilo Prefect en el Dashboard (Panel lateral) para mostrar el historial de ejecuciones (runs) de las certificaciones, con timestamps, duración y estados individuales (PASS/FAIL).
+- **Resolución Overlap JSON**: Se eliminó un panel residual (`modal-overlay`) en `App.vue` que provocaba que un volcado crudo de JSON interceptara la vista y tapara la topología en segundo plano.
+- **Gráfico de Evolución a Pantalla Completa**: Corregida la vista del gráfico "Evolución de Uso QDD (30 Días)" para utilizar las 12 columnas del contenedor (ancho completo). Adicionalmente se ajustó el sistema de coordenadas SVG (viewBox) permitiendo renderizar correctamente las trazas en tiempo real de los sprints, bugs y certificaciones.
+- **Inyección de Historial (Backend)**: El servidor Go (`dashboard.go`) ahora genera e inyecta dinámicamente un historial de corridas a la estructura `DashboardCertification` que se envía por SSE.
+
 ## [v1.6.1] - 2026-07-06
 
 ### 🛡️ Robustez y Fiabilidad (Robustness & Reliability)

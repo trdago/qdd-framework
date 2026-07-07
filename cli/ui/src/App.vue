@@ -547,23 +547,6 @@ onUnmounted(() => {
       </header>
 
       <div class="page-content">
-        <!-- DETAIL MODAL -->
-        <div v-if="activeDetail" class="modal-overlay" @click.self="activeDetail = null">
-          <div class="modal-content glass-panel fade-in">
-            <div class="modal-header">
-              <h3 style="margin:0; font-size: 18px;">{{ activeDetail.type }}: {{ activeDetail.title || activeDetail.id || activeDetail.name || activeDetail.path?.split('/').pop() }}</h3>
-              <button class="btn-close" @click="activeDetail = null" aria-label="Close modal">×</button>
-            </div>
-            <div class="modal-body">
-               <!-- Markdown Renderer for Knowledge -->
-               <div v-if="activeDetail.type === 'Knowledge'" class="markdown-body" v-html="renderedMarkdown" style="font-size: 14px; line-height: 1.6; color: var(--text-secondary);"></div>
-               
-               <!-- Fallback for other details -->
-               <pre v-if="activeDetail.type !== 'Knowledge'">{{ JSON.stringify(activeDetail, null, 2) }}</pre>
-             </div>
-           </div>
-        </div>
-
         <!-- OVERVIEW TAB -->
         <section v-show="activeTab === 'overview'" aria-label="Overview Dashboard">
           <div class="grid-layout cols-4 mb-section">
@@ -642,31 +625,31 @@ onUnmounted(() => {
             </div>
           </div>
           
-          <div class="grid-layout cols-2">
+          <div class="grid-layout cols-1">
              <div class="panel glass-panel" style="display: flex; flex-direction: column;">
                 <h3 class="panel-title">Evolución de Uso QDD (30 Días)</h3>
                 <div class="chart-container" style="flex: 1; min-height: 220px; position: relative; margin-top: 16px;">
-                   <svg width="100%" height="100%" preserveAspectRatio="none" style="overflow: visible; padding-bottom: 20px;">
+                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width: 100%; height: 100%; overflow: visible; padding-bottom: 20px;">
                      <!-- Grid lines -->
-                     <line x1="0" y1="20%" x2="100%" y2="20%" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-                     <line x1="0" y1="40%" x2="100%" y2="40%" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-                     <line x1="0" y1="60%" x2="100%" y2="60%" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-                     <line x1="0" y1="80%" x2="100%" y2="80%" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+                     <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" />
+                     <line x1="0" y1="40" x2="100" y2="40" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" />
+                     <line x1="0" y1="60" x2="100" y2="60" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" />
+                     <line x1="0" y1="80" x2="100" y2="80" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
                      
                      <!-- X Axis Labels -->
-                     <text x="0%" y="95%" fill="var(--text-muted)" font-size="10">Sem 1</text>
-                     <text x="33%" y="95%" fill="var(--text-muted)" font-size="10">Sem 2</text>
-                     <text x="66%" y="95%" fill="var(--text-muted)" font-size="10">Sem 3</text>
-                     <text x="100%" y="95%" fill="var(--text-muted)" font-size="10" text-anchor="end">Hoy</text>
+                     <text x="0" y="95" fill="var(--text-muted)" font-size="4">Sem 1</text>
+                     <text x="33" y="95" fill="var(--text-muted)" font-size="4">Sem 2</text>
+                     <text x="66" y="95" fill="var(--text-muted)" font-size="4">Sem 3</text>
+                     <text x="100" y="95" fill="var(--text-muted)" font-size="4" text-anchor="end">Hoy</text>
 
                      <!-- Bugs (Deuda Técnica) Line - Red -->
-                     <polyline points="0,50% 33%,60% 66%,40% 100%,70%" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                     <polyline points="0,50 33,60 66,40 100,70" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                      
                      <!-- Sprints Line - Orange -->
-                     <polyline points="0,80% 33%,70% 66%,50% 100%,30%" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                     <polyline points="0,80 33,70 66,50 100,30" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                      
                      <!-- Certifications Line - Green -->
-                     <polyline points="0,75% 33%,65% 66%,45% 100%,20%" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                     <polyline points="0,75 33,65 66,45 100,20" fill="none" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                    </svg>
                    
                    <!-- Legend -->
@@ -815,10 +798,10 @@ onUnmounted(() => {
                       </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: auto;">
-                      <span style="font-size: 11px; color: var(--text-muted); font-family: monospace;">{{ n.path || 'Root' }}</span>
+                        <span style="font-size: 11px; color: var(--text-muted); font-family: monospace;">{{ n.path || 'Root' }}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
                 
                 <div v-show="topologyViewMode === 'graph'" class="panel glass-panel fade-in graph-panel" :class="{ 'fullscreen-mode': isFullScreen }">
                    <div class="graph-toolbar">
@@ -849,14 +832,14 @@ onUnmounted(() => {
                <h3 class="panel-title" style="margin-bottom: 24px; font-size: 18px; text-align: center;">Agile Continuous Lifecycle</h3>
                <div style="display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; padding: 20px;">
                    <!-- Setup -->
-                   <div style="text-align: center; width: 120px;">
+                   <div class="corp-step clickable-card" @click="openDetail({title: 'Discovery', content: 'Iniciando el proyecto y escaneo de contexto. Comando: /qdd init'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
                       <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(96, 165, 250, 0.1); border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">1</div>
                       <div style="font-weight: bold; font-size: 14px;">Discovery</div>
                       <code style="font-size: 11px; color: var(--text-muted);">/qdd init</code>
                    </div>
                    <div style="color: var(--text-muted);">→</div>
                    <!-- Learn -->
-                   <div style="text-align: center; width: 120px;">
+                   <div class="corp-step clickable-card" @click="openDetail({title: 'Intelligence', content: 'Aprendizaje profundo del repositorio y sincronización del motor cognitivo. Comando: /qdd learn'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
                       <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(167, 139, 250, 0.1); border: 2px solid #a78bfa; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">2</div>
                       <div style="font-weight: bold; font-size: 14px;">Intelligence</div>
                       <code style="font-size: 11px; color: var(--text-muted);">/qdd learn</code>
@@ -864,13 +847,13 @@ onUnmounted(() => {
                    <div style="color: var(--text-muted);">→</div>
                    <!-- Circular Loop -->
                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; display: flex; align-items: center; gap: 16px;">
-                      <div style="text-align: center; width: 120px;">
+                      <div class="corp-step clickable-card" @click="openDetail({title: 'Audit', content: 'Auditoría continua de calidad y validación de reglas. Comando: /qdd validate'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
                           <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); border: 2px solid #10b981; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">3</div>
                           <div style="font-weight: bold; font-size: 14px;">Audit</div>
                           <code style="font-size: 11px; color: var(--text-muted);">/qdd validate</code>
                       </div>
                       <div style="color: var(--text-muted);">↻</div>
-                      <div style="text-align: center; width: 120px;">
+                      <div class="corp-step clickable-card" @click="openDetail({title: 'Sprint', content: 'Generación de sprints e iteraciones incrementales automatizadas. Comando: /qdd sprint'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
                           <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); border: 2px solid #f59e0b; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">4</div>
                           <div style="font-weight: bold; font-size: 14px;">Sprint</div>
                           <code style="font-size: 11px; color: var(--text-muted);">/qdd sprint</code>
@@ -878,7 +861,7 @@ onUnmounted(() => {
                    </div>
                    <div style="color: var(--text-muted);">→</div>
                    <!-- Release -->
-                   <div style="text-align: center; width: 120px;">
+                   <div class="corp-step clickable-card" @click="openDetail({title: 'Release', content: 'Despliegue a producción y certificación de calidad. Comando: /qdd release'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
                       <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(236, 72, 153, 0.1); border: 2px solid #ec4899; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">5</div>
                       <div style="font-weight: bold; font-size: 14px;">Release</div>
                       <code style="font-size: 11px; color: var(--text-muted);">/qdd release</code>
@@ -918,7 +901,13 @@ onUnmounted(() => {
                          <div style="font-size: 12px; color: var(--text-muted);">Pendientes</div>
                        </div>
                     </div>
-                    <button class="btn btn-outline" style="width: 100%;" @click="openDetail({title: 'Matriz de Certificaciones', content: '### Certificaciones\n' + filteredCerts.map(c => '- **' + c.id + '** (' + c.status + '): ' + (c.raw?.description || '')).join('\n')}, 'Quality')">Ver Certificaciones</button>
+                    <div class="cert-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                       <div v-for="cert in filteredCerts" :key="cert.id" class="card glass-panel clickable-card" @click="openDetail({...cert, title: cert.id, type: 'Certification'}, 'Certification')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1);">
+                          <div style="font-size: 13px; font-weight: 500;">{{ cert.id }}</div>
+                          <div class="status-pill" :class="cert.status === 'PASS' ? 'resolved' : 'open'" style="font-size: 10px; padding: 2px 6px;">{{ cert.status }}</div>
+                       </div>
+                       <div v-if="filteredCerts.length === 0" style="color: var(--text-muted); font-size: 13px; text-align: center;">No hay certificaciones configuradas</div>
+                    </div>
                  </div>
                  
                  <!-- Findings Column -->
@@ -1058,6 +1047,22 @@ onUnmounted(() => {
               <pre class="detail-text" style="white-space: pre-wrap; word-break: break-word;">{{ activeDetail.content }}</pre>
             </div>
           </template>
+
+          <template v-if="activeDetail?.type === 'Certification' && activeDetail.history">
+            <h3 style="font-size: 14px; margin: 24px 0 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">Run History (Timeline)</h3>
+            <div class="prefect-board" style="display: flex; flex-direction: column; gap: 8px;">
+               <div v-for="(run, idx) in activeDetail.history" :key="idx" class="run-row glass-panel" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border-radius: 6px; border-left: 4px solid;" :style="{ borderLeftColor: run.status === 'PASS' ? 'var(--success)' : 'var(--danger)', background: 'rgba(0,0,0,0.2)' }">
+                  <div style="display: flex; flex-direction: column;">
+                     <span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">{{ run.run_id }}</span>
+                     <span style="font-size: 11px; color: var(--text-muted);">{{ new Date(run.timestamp).toLocaleString() }}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                     <span style="font-size: 12px; font-family: monospace; color: var(--text-muted);">{{ run.duration }}</span>
+                     <span class="status-pill" :class="run.status === 'PASS' ? 'resolved' : 'open'" style="font-size: 10px; padding: 2px 6px;">{{ run.status }}</span>
+                  </div>
+               </div>
+            </div>
+          </template>
         </div>
       </aside>
     </main>
@@ -1067,6 +1072,46 @@ onUnmounted(() => {
 <style>
 /* Premium SaaS Theme - Linear/Vercel inspired */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.btn {
+  background: var(--bg-surface, rgba(255,255,255,0.05));
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+}
+.btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-color);
+}
+.tool-btn {
+  background: rgba(0,0,0,0.4);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+.tool-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.3);
+}
 
 :root {
   --bg-dark: #09090b;
@@ -1540,9 +1585,13 @@ body {
 
 .grid-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1px));
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.grid-layout.cols-1 {
+  grid-template-columns: 1fr;
 }
 
 .grid-layout.cols-3 {
