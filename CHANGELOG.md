@@ -4,6 +4,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.3] - 2026-07-07
+
+### 🐛 Bug Fixes (Hotfix)
+- **NPM Publish Sync (Real)**: Se corrigió la versión del archivo `npm/package.json` para reflejar la versión `v1.7.3` (anteriormente estancado en 1.5.1), desbloqueando de forma definitiva la publicación en el registro de NPM.
+
 ## [v1.7.2] - 2026-07-07
 
 ### 🐛 Bug Fixes (Hotfix)
