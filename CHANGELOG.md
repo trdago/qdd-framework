@@ -4,6 +4,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.2] - 2026-07-07
+
+### 🐛 Bug Fixes (Hotfix)
+- **NPM Publish Sync**: Sincronización de las versiones en `package.json` y `cli/ui/package.json` con la versión del CLI `v1.7.2` para permitir la correcta ejecución del pipeline de publicación en NPM.
+
 ## [v1.7.1] - 2026-07-07
 
 ### 🐛 Bug Fixes (Hotfix)
