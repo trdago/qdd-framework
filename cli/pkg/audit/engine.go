@@ -64,6 +64,9 @@ func (e *EngineCoordinator) RunAll() []Violation {
 	// 4. Coverage
 	allViolations = append(allViolations, RunCoverageCheck(e.cwd)...)
 
+	// 5. Database Performance
+	allViolations = append(allViolations, CheckDatabasePerformance(e.cwd)...)
+
 	// 5. Traceability
 	if p.Traceability {
 		allViolations = append(allViolations, RunTraceabilityCheck(e.cwd)...)

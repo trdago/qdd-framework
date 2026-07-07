@@ -473,7 +473,7 @@ func buildState() QDDState {
 					status = fmt.Sprintf("%v", rawData["status"])
 				}
 
-				isResolved := (status == "RESOLVED" || status == "resolved")
+				isResolved := (strings.ToUpper(status) == "RESOLVED")
 				if !isResolved {
 					openFindings++
 				}

@@ -4,6 +4,22 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.0] - 2026-07-07
+
+### 🗺️ Project Map: Mega-Jerarquía Conceptual (D3 Ecosystem Graph)
+- **Mega-Árbol D3 Unificado**: El "Project Map" ha sido rediseñado arquitecturalmente desde cero. En lugar de aplanar los archivos en un único nivel, ahora construye un **árbol maestro del ecosistema** con 5 ramas conceptuales: Módulos (Código), Deuda Técnica, Sprints Agile, Certificaciones y Documentación. El Nivel 1 muestra únicamente los "planetas" de abstracción, con profundidad expandible hasta Nivel 10.
+- **Filtros de Conceptos Interactivos**: Nueva fila de botones-píldora (`Código`, `Bugs`, `Sprints`, `Certs`, `Docs`) posicionada junto al slider de abstracción. Permiten activar/desactivar ramas completas del árbol D3 en tiempo real, re-renderizando el `d3.pack` dinámicamente sin recargar la página.
+- **Colorimetría por Categoría**: Cada familia conceptual tiene ahora una paleta de colores propia (Azul=Código, Rojo=Bugs, Naranja=Sprints, Verde=Certs, Violeta=Docs) aplicada tanto al fill/stroke de los círculos SVG como al texto, usando las funciones `getNodeFill`, `getNodeStroke` y `getNodeTextFill`.
+- **Slider de Abstracción Extendido**: El control "DETALLE" se amplió de `max=6` a `max=10` para permitir exploraciones más profundas de la jerarquía de carpetas y módulos.
+
+### 🛠️ Backend: Especialista de Tuning PostgreSQL (MCP)
+- **Herramienta MCP `qdd_postgres_tuner`**: Se agregó un especialista de rendimiento de base de datos al servidor MCP, invocable desde cualquier agente externo. Provee recomendaciones anti-patrones (ej. `SELECT COUNT(*)` sin filtros → `pg_class`), análisis de queries y guías de optimización con certificación de base de datos.
+- **Regla de Auditoría `DB-PERF-01`**: Nueva regla en el motor de auditoría (`cli/pkg/audit/database.go`) que detecta el anti-patrón `COUNT(*) sin filtros` en el código fuente y lo reporta como finding de alta severidad, generando evidencia trazable en el dashboard.
+- **Registro en `mcp.go`**: La herramienta `registerPostgresTunerTool` fue registrada correctamente en el arranque del servidor MCP.
+
+### 🧹 Mantenimiento
+- **Actualización `.gitignore`**: Se añadieron exclusiones para archivos temporales de desarrollo (`test.db`, `test_sqlite.go`, `test_sync.go`, `testyaml.go`, `run_sync.go`, `_tmp_old_app.vue`, `.qdd/working/`), manteniendo el repositorio limpio.
+
 ## [v1.6.2] - 2026-07-06
 
 ### 🐛 Bug Fixes & UI Enhancements

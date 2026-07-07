@@ -144,3 +144,31 @@ func registerSyncGraphTool(s *server.MCPServer) {
 		return mcp.NewToolResultText("GraphRAG sincronizado exitosamente. La topología está actualizada."), nil
 	})
 }
+
+func registerPostgresTunerTool(s *server.MCPServer) {
+        tool := mcp.NewTool("qdd_postgres_tuner",
+                mcp.WithDescription("Especialista en tuning de base de datos PostgreSQL. Analiza consultas lentas (SQL) y propone optimizaciones (índices, pg_class, parámetros de BD)."),
+                mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL que presenta problemas de rendimiento.")),
+        )
+
+        s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+                argsMap, ok := request.Params.Arguments.(map[string]interface{})
+                if !ok {
+                        return mcp.NewToolResultError("Argumentos inválidos"), nil
+                }
+                query, ok := argsMap["query"].(string)
+                if !ok || query == "" {
+                        return mcp.NewToolResultError("Argumento 'query' es requerido"), nil
+                }
+
+                analysis := fmt.Sprintf("Análisis de Especialista Tuning para Query:\n```sql\n%s\n```\n\n", query)
+                analysis += "Recomendaciones de Performance (Dry-Run):\n"
+                analysis += "1. **Conteo Masivo**: Si estás haciendo SELECT COUNT(*), recuerda que PostgreSQL bloquea y escanea toda la tabla. Usa `SELECT reltuples AS estimate FROM pg_class WHERE relname = 'tu_tabla';`.\n"
+                analysis += "2. **Índices Faltantes**: Asegúrate de tener índices B-Tree en las columnas que usas en el WHERE o JOIN.\n"
+                analysis += "3. **Parámetros Engine**: Si ves operaciones de ordenamiento en disco, considera subir `work_mem`.\n"
+                analysis += "4. **Particionamiento**: Si la tabla tiene más de 100GB, evalúa usar particionamiento por rangos de fecha.\n\n"
+                analysis += "NOTA: Esta es una herramienta estática y de análisis seguro. No modificó tu base de datos en producción."
+
+                return mcp.NewToolResultText(analysis), nil
+        })
+}

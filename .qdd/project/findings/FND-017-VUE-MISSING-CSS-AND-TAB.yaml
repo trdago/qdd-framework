@@ -1,0 +1,15 @@
+id: FND-017-VUE-MISSING-CSS-AND-TAB
+type: bug
+title: "Pérdida accidental de clases CSS y pestaña del Lifecycle Map durante refactorización UI"
+description: "Al consolidar las pestañas de navegación en el Frontend de Vue (App.vue), se eliminaron por accidente los bloques HTML del mapa de ciclo de vida (corp-step) y las clases CSS de los botones (.btn, .tool-btn). Esto causó regresiones visuales severas (botones grises) y pérdida de funcionalidad, revelando la falta de un test automatizado que validara la renderización de estos componentes."
+impact: "HIGH - Regresión visual en todo el dashboard y pérdida de una vista crítica para el usuario (Ciclo de Mejora Continua)."
+status: RESOLVED
+feature: "UI Dashboard"
+author: "QDD System"
+created_at: "2026-07-06T20:32:00-04:00"
+parent: "CERT-PROJ-002-ZERO-DEFECTS"
+resolves: ""
+metadata:
+  environment: "frontend"
+  component: "App.vue"
+  test_added: "src/App.spec.js - garantiza que el Lifecycle Map exista y renderice los pasos"

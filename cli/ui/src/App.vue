@@ -1,9 +1,120 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import * as d3 from 'd3'
 import mermaid from 'mermaid'
 import MarkdownIt from 'markdown-it'
+import { Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
+
 const md = new MarkdownIt()
 mermaid.initialize({ startOnLoad: false, theme: 'dark' })
+
+const isSidebarCollapsed = ref(true)
+
+const chartData = ref({
+  labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Hoy'],
+  datasets: [
+    {
+      label: 'Sprints',
+      data: [20, 30, 50, 70],
+      borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245, 158, 11, 0.1)',
+      borderWidth: 2,
+      tension: 0.4,
+      fill: true
+    },
+    {
+      label: 'Certs',
+      data: [25, 35, 55, 80],
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      borderWidth: 2,
+      tension: 0.4,
+      fill: true
+    },
+    {
+      label: 'Bugs',
+      data: [50, 40, 60, 30],
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      borderWidth: 2,
+      tension: 0.4,
+      fill: true
+    }
+  ]
+})
+
+const chartOptions = ref({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        color: '#9ca3af',
+        usePointStyle: true,
+        boxWidth: 8
+      }
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+      backgroundColor: 'rgba(17, 24, 39, 0.8)',
+      titleColor: '#fff',
+      bodyColor: '#cbd5e1',
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderWidth: 1
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        color: 'rgba(255,255,255,0.05)',
+        drawBorder: false
+      },
+      ticks: {
+        color: '#9ca3af'
+      }
+    },
+    y: {
+      grid: {
+        color: 'rgba(255,255,255,0.05)',
+        drawBorder: false
+      },
+      ticks: {
+        color: '#9ca3af'
+      },
+      min: 0,
+      max: 100
+    }
+  },
+  interaction: {
+    mode: 'nearest',
+    axis: 'x',
+    intersect: false
+  }
+})
 
 const state = ref(null)
 const loading = ref(true)
@@ -15,6 +126,13 @@ const knowledgeGraphSvg = ref('')
 const topologyViewMode = ref('grid')
 const topologyGraphSvg = ref('')
 const topologySearchQuery = ref('')
+const topologyMaxDepth = ref(2) // Default abstraction level
+const activeConcepts = ref(['CodeRoot', 'BugRoot', 'SprintRoot', 'CertRoot', 'KnowRoot'])
+const toggleConcept = (concept) => {
+  const idx = activeConcepts.value.indexOf(concept)
+  if (idx > -1) activeConcepts.value.splice(idx, 1)
+  else activeConcepts.value.push(concept)
+}
 const graphZoom = ref(1)
 const graphPan = ref({ x: 0, y: 0 })
 const isFullScreen = ref(false)
@@ -303,22 +421,186 @@ const flattenedTopology = computed(() => {
   return nodes
 })
 
+const getNodeCategory = (node) => {
+  let curr = node;
+  while (curr.parent && curr.parent.depth > 0) {
+    curr = curr.parent;
+  }
+  return curr.data?.type || 'Default';
+}
+
+const getNodeFill = (node) => {
+  const cat = getNodeCategory(node);
+  const opacity = node.children ? 0.05 + (node.depth * 0.05) : 0.2;
+  
+  if (node.depth === 0) return `rgba(255, 255, 255, 0.02)`;
+
+  switch (cat) {
+    case 'CodeRoot': return `rgba(59, 130, 246, ${opacity})`;
+    case 'BugRoot': return `rgba(239, 68, 68, ${opacity})`;
+    case 'SprintRoot': return `rgba(245, 158, 11, ${opacity})`;
+    case 'CertRoot': return `rgba(16, 185, 129, ${opacity})`;
+    case 'KnowRoot': return `rgba(139, 92, 246, ${opacity})`;
+    default: return `rgba(156, 163, 175, ${opacity})`;
+  }
+}
+
+const getNodeStroke = (node) => {
+  const cat = getNodeCategory(node);
+  const opacity = node.children ? 0.4 : 0.6;
+  
+  if (node.depth === 0) return `rgba(255, 255, 255, 0.1)`;
+
+  switch (cat) {
+    case 'CodeRoot': return `rgba(59, 130, 246, ${opacity})`;
+    case 'BugRoot': return `rgba(239, 68, 68, ${opacity})`;
+    case 'SprintRoot': return `rgba(245, 158, 11, ${opacity})`;
+    case 'CertRoot': return `rgba(16, 185, 129, ${opacity})`;
+    case 'KnowRoot': return `rgba(139, 92, 246, ${opacity})`;
+    default: return `rgba(156, 163, 175, ${opacity})`;
+  }
+}
+
+const getNodeTextFill = (node) => {
+  if (node.children) return '#fff';
+  const cat = getNodeCategory(node);
+  switch (cat) {
+    case 'CodeRoot': return '#60a5fa';
+    case 'BugRoot': return '#f87171';
+    case 'SprintRoot': return '#fbbf24';
+    case 'CertRoot': return '#34d399';
+    case 'KnowRoot': return '#a78bfa';
+    default: return '#9ca3af';
+  }
+}
+
+const topologyD3Nodes = computed(() => {
+  const megaRoot = { name: 'Ecosistema QDD', children: [], data: { name: 'Ecosistema QDD', type: 'Root' } }
+
+  // 1. Módulos (Código)
+  if (state.value?.topology?.application) {
+    const rootData = JSON.parse(JSON.stringify(state.value.topology.application))
+    if (rootData.children && rootData.children.length > 0) {
+      const codeRoot = { name: 'Módulos (Código)', children: [], isDir: true, data: { name: 'Módulos (Código)', type: 'CodeRoot' } }
+      rootData.children.forEach(child => {
+        const parts = (child.path || child.name).split('/').filter(p => p)
+        let currentLevel = codeRoot
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i]
+          let existingPath = currentLevel.children.find(c => c.name === part && c.isDir)
+          if (!existingPath) {
+            existingPath = { name: part, children: [], isDir: true, data: { name: part, type: 'Folder' } }
+            currentLevel.children.push(existingPath)
+          }
+          currentLevel = existingPath
+        }
+        currentLevel.children.push({ ...child, name: parts[parts.length - 1], isDir: false, data: { ...child, name: parts[parts.length - 1], type: 'File' } })
+      })
+      if (activeConcepts.value.includes('CodeRoot')) megaRoot.children.push(codeRoot)
+    }
+  }
+
+  // 2. Bugs (Deuda Técnica)
+  if (state.value?.findings && state.value.findings.length > 0) {
+    const bugsRoot = { name: 'Deuda Técnica', children: [], isDir: true, data: { name: 'Deuda Técnica', type: 'BugRoot' } }
+    const pillars = {}
+    state.value.findings.forEach(f => {
+      if (!pillars[f.pillar]) pillars[f.pillar] = { name: f.pillar, children: [], isDir: true, data: { name: f.pillar, type: 'BugPillar' } }
+      pillars[f.pillar].children.push({ name: f.id, value: 1, isDir: false, data: { name: f.id, status: f.status, type: 'Bug' } })
+    })
+    bugsRoot.children = Object.values(pillars)
+    if (activeConcepts.value.includes('BugRoot')) megaRoot.children.push(bugsRoot)
+  }
+
+  // 3. Sprints
+  if (state.value?.sprints && state.value.sprints.length > 0) {
+    const sprintsRoot = { name: 'Sprints Agile', children: [], isDir: true, data: { name: 'Sprints Agile', type: 'SprintRoot' } }
+    const statusGroups = {}
+    state.value.sprints.forEach(s => {
+      const st = s.status || 'Planned'
+      if (!statusGroups[st]) statusGroups[st] = { name: st, children: [], isDir: true, data: { name: st, type: 'SprintStatus' } }
+      statusGroups[st].children.push({ name: s.id, value: 1, isDir: false, data: { name: s.id, type: 'Sprint' } })
+    })
+    sprintsRoot.children = Object.values(statusGroups)
+    if (activeConcepts.value.includes('SprintRoot')) megaRoot.children.push(sprintsRoot)
+  }
+
+  // 4. Certificaciones
+  if (state.value?.certifications && state.value.certifications.length > 0) {
+    const certsRoot = { name: 'Certificaciones', children: [], isDir: true, data: { name: 'Certificaciones', type: 'CertRoot' } }
+    const coreNode = { name: 'Core Rules', children: [], isDir: true, data: { name: 'Core Rules', type: 'CertGroup' } }
+    const projNode = { name: 'Project Rules', children: [], isDir: true, data: { name: 'Project Rules', type: 'CertGroup' } }
+    state.value.certifications.forEach(c => {
+      const target = c.is_core ? coreNode : projNode
+      target.children.push({ name: c.id, value: 1, isDir: false, data: { name: c.id, status: c.status, type: 'Cert' } })
+    })
+    if (coreNode.children.length > 0) certsRoot.children.push(coreNode)
+    if (projNode.children.length > 0) certsRoot.children.push(projNode)
+    if (certsRoot.children.length > 0 && activeConcepts.value.includes('CertRoot')) megaRoot.children.push(certsRoot)
+  }
+
+  // 5. Knowledge (Documentación)
+  if (state.value?.knowledge && state.value.knowledge.length > 0) {
+    const knowRoot = { name: 'Documentación', children: [], isDir: true, data: { name: 'Documentación', type: 'KnowRoot' } }
+    state.value.knowledge.forEach(k => {
+      knowRoot.children.push({ name: k.id, value: 1, isDir: false, data: { name: k.id, type: 'Knowledge' } })
+    })
+    if (activeConcepts.value.includes('KnowRoot')) megaRoot.children.push(knowRoot)
+  }
+
+  const assignValues = (node) => {
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(assignValues)
+    } else {
+      node.value = 1
+    }
+  }
+  assignValues(megaRoot)
+
+  const root = d3.hierarchy(megaRoot)
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value)
+
+  const pack = d3.pack()
+    .size([800, 600])
+    .padding(5)
+
+  pack(root)
+  return root.descendants().filter(n => n.depth <= topologyMaxDepth.value)
+})
+
+
+
 const topologyGraphDefinition = computed(() => {
   if (!state.value?.topology?.application) return ''
-  let mm = `mindmap\n  root((${state.value.topology.application.name}))\n`
+  let mm = `graph TD\n`
   
-  const traverseMindmap = (node, depth) => {
+  let nodeCounter = 0;
+
+  const traverseGraph = (node, parentId) => {
     if (!node.children || node.children.length === 0) return
     node.children.forEach(c => {
-      const indent = ' '.repeat((depth + 1) * 2 + 2)
+      nodeCounter++
+      const currentId = `N${nodeCounter}`
       let icon = c.certified ? '✅' : '❌'
-      let cleanName = c.name.replace(/[^\w\s-]/gi, '').substring(0, 30)
-      mm += `${indent}[${icon} ${cleanName}]\n`
-      traverseMindmap(c, depth + 1)
+      let cleanName = (c.name || 'unnamed').replace(/[^\w\s-]/gi, '').substring(0, 30) || 'unnamed'
+      
+      mm += `  ${currentId}["${icon} ${cleanName}"]\n`
+      if (parentId) {
+        mm += `  ${parentId} --> ${currentId}\n`
+      }
+      // Limit depth for performance
+      if (nodeCounter < 300) {
+        traverseGraph(c, currentId)
+      }
     })
   }
   
-  traverseMindmap(state.value.topology.application, 1)
+  const rootId = 'Root'
+  let rootName = (state.value.topology.application.name || 'App').replace(/[^\w\s-]/gi, '').substring(0,30) || 'App'
+  mm += `  ${rootId}["🏗️ ${rootName}"]\n`
+  traverseGraph(state.value.topology.application, rootId)
+  
   return mm
 })
 
@@ -496,28 +778,60 @@ onUnmounted(() => {
     <div class="bg-orb orb-2"></div>
     <div class="bg-orb orb-3"></div>
     
-    <nav class="sidebar" role="navigation" aria-label="Main Sidebar">
-      <div class="brand">
-        <div class="brand-logo"><span class="icon" style="color:var(--accent-color)">◬</span></div>
-        <div class="brand-text">
-          <h1>QDD Framework</h1>
-          <span class="version-badge">{{ state?.version || 'v1.1.0' }}</span>
+    <nav class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }" role="navigation" aria-label="Main Sidebar">
+      <div class="brand" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
+          <div class="brand-logo"><span class="icon" style="color:var(--accent-color)">◬</span></div>
+          <div class="brand-text" v-show="!isSidebarCollapsed">
+            <h1>QDD Framework</h1>
+            <span class="version-badge">{{ state?.version || 'v1.1.0' }}</span>
+          </div>
         </div>
+        <button class="hamburger-btn" @click="isSidebarCollapsed = !isSidebarCollapsed" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 4px;">☰</button>
       </div>
       <div class="nav-section" role="tablist" aria-label="Main Tabs">
-        <div class="nav-label">Governance</div>
-        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='overview'" :class="{active: activeTab==='overview'}" @click.prevent="activeTab='overview'"><span class="icon">◱</span> <span style="flex:1;">Overview</span><div v-if="syncingTabs['overview'] || state?.working_on === 'init'" class="sync-spinner" aria-hidden="true"></div></a>
-        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='cognitive'" :class="{active: activeTab==='cognitive'}" @click.prevent="activeTab='cognitive'"><span class="icon">🧠</span> <span style="flex:1;">Cognitive Core</span><div v-if="syncingTabs['intelligence'] || syncingTabs['knowledge'] || state?.working_on === 'learn' || state?.working_on === 'docs'" class="sync-spinner" aria-hidden="true"></div></a>
-        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='quality'" :class="{active: activeTab==='quality'}" @click.prevent="activeTab='quality'"><span class="icon">🛡️</span> <span style="flex:1;">Quality Gates</span><div v-if="syncingTabs['sprints'] || syncingTabs['findings'] || syncingTabs['certifications'] || state?.working_on === 'sprint' || state?.working_on === 'audit' || state?.working_on === 'certify'" class="sync-spinner" aria-hidden="true"></div></a>
-        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='map'" :class="{active: activeTab==='map'}" @click.prevent="activeTab='map'"><span class="icon">🗺️</span> <span style="flex:1;">Project Map</span><div v-if="syncingTabs['topology'] || syncingTabs['lifecycle'] || state?.working_on === 'map' || state?.working_on === 'release'" class="sync-spinner" aria-hidden="true"></div></a>
-        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='policies'" :class="{active: activeTab==='policies'}" @click.prevent="activeTab='policies'"><span class="icon">⚙️</span> <span style="flex:1;">Policy Control</span></a>
+        <div class="nav-label" v-show="!isSidebarCollapsed">Governance</div>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='overview'" :class="{active: activeTab==='overview'}" @click.prevent="activeTab='overview'">
+          <div class="icon-wrapper">
+            <span class="icon">◱</span>
+            <div v-if="syncingTabs['overview'] || state?.working_on === 'init'" class="sync-spinner" aria-hidden="true"></div>
+          </div>
+          <span class="nav-text" v-show="!isSidebarCollapsed">Overview</span>
+        </a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='cognitive'" :class="{active: activeTab==='cognitive'}" @click.prevent="activeTab='cognitive'">
+          <div class="icon-wrapper">
+            <span class="icon">🧠</span>
+            <div v-if="syncingTabs['intelligence'] || syncingTabs['knowledge'] || state?.working_on === 'learn' || state?.working_on === 'docs'" class="sync-spinner" aria-hidden="true"></div>
+          </div>
+          <span class="nav-text" v-show="!isSidebarCollapsed">Cognitive Core</span>
+        </a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='quality'" :class="{active: activeTab==='quality'}" @click.prevent="activeTab='quality'">
+          <div class="icon-wrapper">
+            <span class="icon">🛡️</span>
+            <div v-if="syncingTabs['sprints'] || syncingTabs['findings'] || syncingTabs['certifications'] || state?.working_on === 'sprint' || state?.working_on === 'audit' || state?.working_on === 'certify'" class="sync-spinner" aria-hidden="true"></div>
+          </div>
+          <span class="nav-text" v-show="!isSidebarCollapsed">Quality Gates</span>
+        </a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='map'" :class="{active: activeTab==='map'}" @click.prevent="activeTab='map'">
+          <div class="icon-wrapper">
+            <span class="icon">🗺️</span>
+            <div v-if="syncingTabs['topology'] || syncingTabs['lifecycle'] || state?.working_on === 'map' || state?.working_on === 'release'" class="sync-spinner" aria-hidden="true"></div>
+          </div>
+          <span class="nav-text" v-show="!isSidebarCollapsed">Project Map</span>
+        </a>
+        <a href="#" class="nav-item" role="tab" :aria-selected="activeTab==='policies'" :class="{active: activeTab==='policies'}" @click.prevent="activeTab='policies'">
+          <div class="icon-wrapper">
+            <span class="icon">⚙️</span>
+          </div>
+          <span class="nav-text" v-show="!isSidebarCollapsed">Policy Control</span>
+        </a>
       </div>
       
       <div class="sidebar-footer">
         <div class="status-indicator" aria-live="polite">
           <div v-if="connectionStatus === 'CONNECTED'" class="pulse-dot" aria-hidden="true"></div>
           <div v-if="connectionStatus === 'DISCONNECTED'" class="pulse-dot disconnected" aria-hidden="true"></div>
-          {{ connectionStatus === 'CONNECTED' ? 'Live Sync Active' : 'Desconectado (Reintentando...)' }}
+          <span v-show="!isSidebarCollapsed">{{ connectionStatus === 'CONNECTED' ? 'Live Sync Active' : 'Desconectado (Reintentando...)' }}</span>
         </div>
       </div>
     </nav>
@@ -629,44 +943,7 @@ onUnmounted(() => {
              <div class="panel glass-panel" style="display: flex; flex-direction: column;">
                 <h3 class="panel-title">Evolución de Uso QDD (30 Días)</h3>
                 <div class="chart-container" style="flex: 1; min-height: 220px; position: relative; margin-top: 16px;">
-                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width: 100%; height: 100%; overflow: visible; padding-bottom: 20px;">
-                     <!-- Grid lines -->
-                     <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" />
-                     <line x1="0" y1="40" x2="100" y2="40" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" />
-                     <line x1="0" y1="60" x2="100" y2="60" stroke="rgba(255,255,255,0.05)" stroke-width="0.5" />
-                     <line x1="0" y1="80" x2="100" y2="80" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
-                     
-                     <!-- X Axis Labels -->
-                     <text x="0" y="95" fill="var(--text-muted)" font-size="4">Sem 1</text>
-                     <text x="33" y="95" fill="var(--text-muted)" font-size="4">Sem 2</text>
-                     <text x="66" y="95" fill="var(--text-muted)" font-size="4">Sem 3</text>
-                     <text x="100" y="95" fill="var(--text-muted)" font-size="4" text-anchor="end">Hoy</text>
-
-                     <!-- Bugs (Deuda Técnica) Line - Red -->
-                     <polyline points="0,50 33,60 66,40 100,70" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                     
-                     <!-- Sprints Line - Orange -->
-                     <polyline points="0,80 33,70 66,50 100,30" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                     
-                     <!-- Certifications Line - Green -->
-                     <polyline points="0,75 33,65 66,45 100,20" fill="none" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                   </svg>
-                   
-                   <!-- Legend -->
-                   <div style="display: flex; justify-content: center; gap: 16px; position: absolute; bottom: -10px; width: 100%;">
-                     <div style="display: flex; align-items: center; gap: 4px;">
-                       <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span>
-                       <span style="font-size: 11px; color: var(--text-secondary);">Sprints</span>
-                     </div>
-                     <div style="display: flex; align-items: center; gap: 4px;">
-                       <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
-                       <span style="font-size: 11px; color: var(--text-secondary);">Certs</span>
-                     </div>
-                     <div style="display: flex; align-items: center; gap: 4px;">
-                       <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
-                       <span style="font-size: 11px; color: var(--text-secondary);">Bugs</span>
-                     </div>
-                   </div>
+                   <Line :data="chartData" :options="chartOptions" style="height: 100%; width: 100%;" />
                 </div>
              </div>
              
@@ -777,8 +1054,20 @@ onUnmounted(() => {
                 </div>
                 <div style="display: flex; gap: 16px; align-items: center;">
                     <div class="segmented-control" style="display: flex; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 4px; border: 1px solid var(--border-color);">
-                      <button @click="topologyViewMode = 'grid'" :class="{ 'btn-active': topologyViewMode === 'grid' }" style="background: transparent; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Grid (Dominios)</button>
-                      <button @click="topologyViewMode = 'graph'" :class="{ 'btn-active': topologyViewMode === 'graph' }" style="background: transparent; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Graph (Relaciones)</button>
+                      <button @click="topologyViewMode = 'grid'" :class="{ 'btn-active': topologyViewMode === 'grid' }" style="background: transparent; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Grid</button>
+                      <button @click="topologyViewMode = 'graph'" :class="{ 'btn-active': topologyViewMode === 'graph' }" style="background: transparent; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Graph</button>
+                      <button @click="topologyViewMode = 'lifecycle'" :class="{ 'btn-active': topologyViewMode === 'lifecycle' }" style="background: transparent; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Ciclo de vida</button>
+                    </div>
+                    <div v-show="topologyViewMode === 'graph'" class="segmented-control" style="display: flex; align-items: center; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 4px 12px; border: 1px solid var(--border-color); gap: 8px;">
+                      <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Detalle: Lvl {{ topologyMaxDepth }}</span>
+                      <input type="range" min="0" max="10" v-model.number="topologyMaxDepth" style="width: 100px; accent-color: var(--primary-color); cursor: pointer;" title="Nivel de Abstracción">
+                    </div>
+                    <div v-show="topologyViewMode === 'graph'" class="concept-filters" style="display: flex; gap: 6px; align-items: center;">
+                      <button @click="toggleConcept('CodeRoot')" :style="{ background: activeConcepts.includes('CodeRoot') ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255,255,255,0.05)', color: activeConcepts.includes('CodeRoot') ? '#60a5fa' : '#9ca3af', border: '1px solid rgba(59, 130, 246, 0.5)', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s' }">Código</button>
+                      <button @click="toggleConcept('BugRoot')" :style="{ background: activeConcepts.includes('BugRoot') ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.05)', color: activeConcepts.includes('BugRoot') ? '#f87171' : '#9ca3af', border: '1px solid rgba(239, 68, 68, 0.5)', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s' }">Bugs</button>
+                      <button @click="toggleConcept('SprintRoot')" :style="{ background: activeConcepts.includes('SprintRoot') ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255,255,255,0.05)', color: activeConcepts.includes('SprintRoot') ? '#fbbf24' : '#9ca3af', border: '1px solid rgba(245, 158, 11, 0.5)', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s' }">Sprints</button>
+                      <button @click="toggleConcept('CertRoot')" :style="{ background: activeConcepts.includes('CertRoot') ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255,255,255,0.05)', color: activeConcepts.includes('CertRoot') ? '#34d399' : '#9ca3af', border: '1px solid rgba(16, 185, 129, 0.5)', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s' }">Certs</button>
+                      <button @click="toggleConcept('KnowRoot')" :style="{ background: activeConcepts.includes('KnowRoot') ? 'rgba(139, 92, 246, 0.4)' : 'rgba(255,255,255,0.05)', color: activeConcepts.includes('KnowRoot') ? '#a78bfa' : '#9ca3af', border: '1px solid rgba(139, 92, 246, 0.5)', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer', transition: 'all 0.2s' }">Docs</button>
                     </div>
                     <input v-show="topologyViewMode === 'grid'" type="text" v-model="topologySearchQuery" placeholder="🔍 Buscar módulos..." style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: white; width: 250px; font-size: 13px;">
                 </div>
@@ -811,61 +1100,118 @@ onUnmounted(() => {
                      <button class="tool-btn" @click="toggleFullScreen" title="Pantalla Completa">⛶</button>
                    </div>
                    
-                   <div v-if="topologyGraphSvg" class="mermaid-viewport" 
+                   <div v-if="topologyD3Nodes.length > 0" class="mermaid-viewport"
                         @wheel="onGraphWheel"
                         @mousedown="onGraphMouseDown"
                         @mousemove="onGraphMouseMove"
                         @mouseup="onGraphMouseUp"
-                        @mouseleave="onGraphMouseLeave">
-                      <div class="mermaid-canvas" :style="{ transform: `translate(${graphPan.x}px, ${graphPan.y}px) scale(${graphZoom})` }" v-html="topologyGraphSvg"></div>
+                        @mouseleave="onGraphMouseLeave"
+                        style="overflow: hidden; background: transparent;">
+                      <svg viewBox="0 0 800 600" width="100%" height="100%" :style="{ transform: `translate(${graphPan.x}px, ${graphPan.y}px) scale(${graphZoom})`, transformOrigin: '0 0', transition: 'transform 0.1s ease-out' }">
+                        <g>
+                          <circle v-for="(node, i) in topologyD3Nodes" :key="'c-'+i"
+                            :cx="node.x" :cy="node.y" :r="node.r"
+                            class="d3-pack-node"
+                            :fill="getNodeFill(node)"
+                            :stroke="getNodeStroke(node)"
+                            stroke-width="1.5"
+                          ></circle>
+                          <text v-for="(node, i) in topologyD3Nodes" :key="'t-'+i"
+                            v-show="node.depth === topologyMaxDepth || !node.children"
+                            :x="node.x" :y="node.y"
+                            text-anchor="middle"
+                            alignment-baseline="middle"
+                            :font-size="node.children ? '14px' : '11px'"
+                            :fill="getNodeTextFill(node)"
+                            style="pointer-events: none; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8);"
+                          >
+                            <title>{{ node.data.name }}</title>
+                            {{ node.data.name?.substring(0, 20) || 'Node' }}
+                          </text>
+                        </g>
+                      </svg>
                    </div>
-                   <div v-if="!topologyGraphSvg" class="empty-state">Renderizando Topology Graph...</div>
+                   <div v-else class="empty-state">Renderizando D3 Topology Graph...</div>
                 </div>
-              </div>
-              <div v-if="!state?.topology" class="empty-state">
-                No topology map found. Run <code>qdd map</code> in the terminal to generate it.
               </div>
            </div>
 
            <!-- LIFECYCLE FLOW -->
-           <div class="panel glass-panel">
+           <div class="panel glass-panel mt-4" v-show="topologyViewMode === 'lifecycle'">
                <h3 class="panel-title" style="margin-bottom: 24px; font-size: 18px; text-align: center;">Agile Continuous Lifecycle</h3>
-               <div style="display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; padding: 20px;">
-                   <!-- Setup -->
-                   <div class="corp-step clickable-card" @click="openDetail({title: 'Discovery', content: 'Iniciando el proyecto y escaneo de contexto. Comando: /qdd init'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
-                      <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(96, 165, 250, 0.1); border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">1</div>
-                      <div style="font-weight: bold; font-size: 14px;">Discovery</div>
-                      <code style="font-size: 11px; color: var(--text-muted);">/qdd init</code>
+               <div class="lifecycle-radial">
+                   <!-- Círculos decorativos -->
+                   <div class="radial-bg-1"></div>
+                   <div class="radial-bg-2"></div>
+                   
+                   <div class="corp-step radial-step center-node" style="border: 2px solid var(--accent-color); padding: 20px;">
+                      <div style="font-size: 32px; margin-bottom: 4px;">⚙️</div>
+                      <div style="font-weight: bold; font-size: 16px;">QDD Framework</div>
+                      <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Orquestador AI</div>
                    </div>
-                   <div style="color: var(--text-muted);">→</div>
-                   <!-- Learn -->
-                   <div class="corp-step clickable-card" @click="openDetail({title: 'Intelligence', content: 'Aprendizaje profundo del repositorio y sincronización del motor cognitivo. Comando: /qdd learn'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
-                      <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(167, 139, 250, 0.1); border: 2px solid #a78bfa; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">2</div>
-                      <div style="font-weight: bold; font-size: 14px;">Intelligence</div>
-                      <code style="font-size: 11px; color: var(--text-muted);">/qdd learn</code>
+
+                   <!-- Nodos Perimetrales (10 comandos) -->
+                   <!-- 1. Init (-90deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(-90deg) translate(170px) rotate(90deg);" @click="openDetail({title: '/qdd init', content: 'Discovery y escaneo del proyecto.'}, 'Lifecycle')">
+                      <div class="step-num">1</div><div class="step-label">Init</div>
+                      <div class="badge-read">Lector</div>
                    </div>
-                   <div style="color: var(--text-muted);">→</div>
-                   <!-- Circular Loop -->
-                   <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; display: flex; align-items: center; gap: 16px;">
-                      <div class="corp-step clickable-card" @click="openDetail({title: 'Audit', content: 'Auditoría continua de calidad y validación de reglas. Comando: /qdd validate'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
-                          <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); border: 2px solid #10b981; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">3</div>
-                          <div style="font-weight: bold; font-size: 14px;">Audit</div>
-                          <code style="font-size: 11px; color: var(--text-muted);">/qdd validate</code>
-                      </div>
-                      <div style="color: var(--text-muted);">↻</div>
-                      <div class="corp-step clickable-card" @click="openDetail({title: 'Sprint', content: 'Generación de sprints e iteraciones incrementales automatizadas. Comando: /qdd sprint'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
-                          <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); border: 2px solid #f59e0b; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">4</div>
-                          <div style="font-weight: bold; font-size: 14px;">Sprint</div>
-                          <code style="font-size: 11px; color: var(--text-muted);">/qdd sprint</code>
-                      </div>
+                   <!-- 2. Learn (-54deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(-54deg) translate(170px) rotate(54deg);" @click="openDetail({title: '/qdd learn', content: 'Aprendizaje profundo.'}, 'Lifecycle')">
+                      <div class="step-num">2</div><div class="step-label">Learn</div>
+                      <div class="badge-read">Lector</div>
                    </div>
-                   <div style="color: var(--text-muted);">→</div>
-                   <!-- Release -->
-                   <div class="corp-step clickable-card" @click="openDetail({title: 'Release', content: 'Despliegue a producción y certificación de calidad. Comando: /qdd release'}, 'Lifecycle')" style="text-align: center; width: 120px; cursor: pointer; padding: 10px; border-radius: 8px;">
-                      <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(236, 72, 153, 0.1); border: 2px solid #ec4899; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px;">5</div>
-                      <div style="font-weight: bold; font-size: 14px;">Release</div>
-                      <code style="font-size: 11px; color: var(--text-muted);">/qdd release</code>
+                   <!-- 3. Map (-18deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(-18deg) translate(170px) rotate(18deg);" @click="openDetail({title: '/qdd map', content: 'Mapeo arquitectónico.'}, 'Lifecycle')">
+                      <div class="step-num">3</div><div class="step-label">Map</div>
+                      <div class="badge-read">Lector</div>
                    </div>
+                   <!-- 4. Validate (18deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(18deg) translate(170px) rotate(-18deg);" @click="openDetail({title: '/qdd validate', content: 'Auditoría estructural.'}, 'Lifecycle')">
+                      <div class="step-num">4</div><div class="step-label">Validate</div>
+                      <div class="badge-read">Lector</div>
+                   </div>
+                   <!-- 5. Certify (54deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(54deg) translate(170px) rotate(-54deg);" @click="openDetail({title: '/qdd certify', content: 'Certificación estricta.'}, 'Lifecycle')">
+                      <div class="step-num">5</div><div class="step-label">Certify</div>
+                      <div class="badge-read">Lector</div>
+                   </div>
+                   <!-- 6. UI (90deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(90deg) translate(170px) rotate(-90deg);" @click="openDetail({title: '/qdd ui', content: 'Generación frontend.'}, 'Lifecycle')">
+                      <div class="step-num muta">6</div><div class="step-label">UI</div>
+                      <div class="badge-muta">Mutación</div>
+                   </div>
+                   <!-- 7. API (126deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(126deg) translate(170px) rotate(-126deg);" @click="openDetail({title: '/qdd api', content: 'Generación backend.'}, 'Lifecycle')">
+                      <div class="step-num muta">7</div><div class="step-label">API</div>
+                      <div class="badge-muta">Mutación</div>
+                   </div>
+                   <!-- 8. DB (162deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(162deg) translate(170px) rotate(-162deg);" @click="openDetail({title: '/qdd db', content: 'Generación esquemas DB.'}, 'Lifecycle')">
+                      <div class="step-num muta">8</div><div class="step-label">DB</div>
+                      <div class="badge-muta">Mutación</div>
+                   </div>
+                   <!-- 9. Sprint (198deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(198deg) translate(170px) rotate(-198deg);" @click="openDetail({title: '/qdd sprint', content: 'Iteración incremental.'}, 'Lifecycle')">
+                      <div class="step-num muta">9</div><div class="step-label">Sprint</div>
+                      <div class="badge-muta">Mutación</div>
+                   </div>
+                   <!-- 10. Release (234deg) -->
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(234deg) translate(170px) rotate(-234deg);" @click="openDetail({title: '/qdd release', content: 'Despliegue a producción.'}, 'Lifecycle')">
+                      <div class="step-num muta">10</div><div class="step-label">Release</div>
+                      <div class="badge-muta">Mutación</div>
+                   </div>
+               </div>
+               
+               <div style="display: flex; justify-content: center; gap: 24px; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.05);">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                     <span style="width: 12px; height: 12px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; border-radius: 50%;"></span>
+                     <span style="font-size: 12px; color: var(--text-secondary);">Comandos Lectores (Auditoría/Mapeo)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                     <span style="width: 12px; height: 12px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; border-radius: 50%;"></span>
+                     <span style="font-size: 12px; color: var(--text-secondary);">Comandos de Mutación (Escriben Código)</span>
+                  </div>
                </div>
            </div>
         </section>
@@ -1300,14 +1646,49 @@ body {
 
 .sidebar {
   width: 260px;
-  background-color: var(--bg-dark);
+  background: var(--bg-panel);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  padding: 24px 16px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
   z-index: 10; 
   background: rgba(24, 24, 27, 0.7); 
   backdrop-filter: blur(16px); 
   -webkit-backdrop-filter: blur(16px);
+}
+
+.sidebar.collapsed {
+  width: 80px;
+  padding: 24px 12px;
+}
+
+.sidebar.collapsed .brand {
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sidebar.collapsed .hamburger-btn {
+  margin-top: 12px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar.collapsed .nav-item .icon {
+  margin: 0;
+  font-size: 20px;
+}
+
+.sidebar.collapsed .nav-text {
+  display: none;
+}
+
+.nav-text {
+  flex: 1;
 }
 
 .brand {
@@ -1379,18 +1760,32 @@ body {
   color: var(--accent-color);
 }
 
+.icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
 .nav-item .icon {
-  font-size: 14px;
+  font-size: 16px;
   opacity: 0.8;
+  z-index: 2;
 }
 
 .sync-spinner {
-  width: 14px;
-  height: 14px;
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 28px;
+  height: 28px;
   border: 2px solid rgba(16, 185, 129, 0.2);
   border-top-color: var(--success);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  z-index: 1;
 }
 
 .sidebar-footer {
@@ -2295,11 +2690,8 @@ body {
 }
 
 .corp-step {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin-top: -80px;
-  margin-left: -70px;
+  position: relative;
+  margin: 0;
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -2384,8 +2776,119 @@ body {
   }
 }
 
+.d3-pack-node {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.d3-pack-node:hover {
+  stroke: #fff !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
+}
+
 .glow-icon {
   filter: drop-shadow(0 0 8px currentColor);
+}
+
+.lifecycle-radial {
+  position: relative;
+  width: 440px;
+  height: 440px;
+  margin: 40px auto;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.radial-bg-1, .radial-bg-2 {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.radial-bg-1 { width: 320px; height: 320px; }
+.radial-bg-2 { width: 200px; height: 200px; }
+
+.radial-step {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -45px;
+  margin-left: -45px;
+  width: 90px;
+  text-align: center;
+  border-radius: 12px;
+  padding: 8px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.radial-step:hover {
+  transform: scale(1.1) !important;
+  z-index: 20;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.center-node {
+  margin-top: -60px;
+  margin-left: -60px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+}
+
+.step-num {
+  width: 32px; height: 32px;
+  margin: 0 auto 6px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.step-num.muta {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #f59e0b;
+}
+
+.step-label {
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.badge-read {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-radius: 12px;
+}
+
+.badge-muta {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border-radius: 12px;
 }
 
 </style>

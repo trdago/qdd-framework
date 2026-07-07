@@ -27,3 +27,15 @@ go.work.sum
 .vscode/
 *.swp
 .DS_Store
+
+# Temporary / scratch files
+test.db
+test_sqlite.go
+test_sync.go
+testyaml.go
+run_sync.go
+_tmp_old_app.vue
+cli/test.db
+cli/test_sqlite.go
+.qdd/working/
+qdd

@@ -47,6 +47,7 @@ var mcpCmd = &cobra.Command{
 		
 		registerQueryGraphTool(s)
 		registerSyncGraphTool(s)
+		registerPostgresTunerTool(s)
 		
 		// Start serving
 		return ss.Listen(context.Background(), os.Stdin, os.Stdout)

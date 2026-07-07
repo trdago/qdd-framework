@@ -2,6 +2,44 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import App from './App.vue'
 
+// Mock de ResizeObserver para Chart.js en jsdom
+class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver = ResizeObserver;
+
+// Mock de Canvas para Chart.js en jsdom
+HTMLCanvasElement.prototype.getContext = () => {
+  return {
+    fillRect: () => {},
+    clearRect: () => {},
+    getImageData: (x, y, w, h) => ({ data: new Array(w * h * 4) }),
+    putImageData: () => {},
+    createImageData: () => ([]),
+    setTransform: () => {},
+    drawImage: () => {},
+    save: () => {},
+    fillText: () => {},
+    restore: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    closePath: () => {},
+    stroke: () => {},
+    translate: () => {},
+    scale: () => {},
+    rotate: () => {},
+    arc: () => {},
+    fill: () => {},
+    measureText: () => ({ width: 0 }),
+    transform: () => {},
+    rect: () => {},
+    clip: () => {}
+  }
+};
+
 // Mock de EventSource para aislar la prueba del backend real
 class MockEventSource {
   constructor(url) {
@@ -92,15 +130,39 @@ describe('App.vue - Enterprise Dashboard', () => {
 
     // 2. Buscar y hacer click en el botón de vista Lifecycle Map (ya no existe, se muestra debajo por defecto)
     
-    // 3. Verificar que los 5 pasos del ciclo corporativo se rendericen
+    // 3. Verificar que los 11 pasos del ciclo corporativo (radial + central) se rendericen
     const steps = wrapper.findAll('.corp-step')
-    expect(steps.length).toBe(5)
+    expect(steps.length).toBe(11)
 
     // 4. Verificar contenido clave de los pasos
-    expect(steps[0].text()).toContain('Discovery')
-    expect(steps[1].text()).toContain('Intelligence')
-    expect(steps[2].text()).toContain('Audit')
-    expect(steps[3].text()).toContain('Sprint')
-    expect(steps[4].text()).toContain('Release')
+    expect(steps[0].text()).toContain('QDD Framework') // Center node
+    expect(steps[1].text()).toContain('Init')
+    expect(steps[2].text()).toContain('Learn')
+    expect(steps[3].text()).toContain('Map')
+    expect(steps[4].text()).toContain('Validate')
+    expect(steps[5].text()).toContain('Certify')
+    expect(steps[6].text()).toContain('UI')
+    expect(steps[7].text()).toContain('API')
+    expect(steps[8].text()).toContain('DB')
+    expect(steps[9].text()).toContain('Sprint')
+    expect(steps[10].text()).toContain('Release')
+  })
+
+  it('alterna el estado de colapso de la barra lateral al hacer clic en el menú hamburguesa', async () => {
+    const instance = wrapper.vm
+    
+    const sidebar = wrapper.find('nav.sidebar')
+    const hamburgerBtn = wrapper.find('.hamburger-btn')
+
+    // Por defecto inicia colapsado (según requerimiento)
+    expect(sidebar.classes()).toContain('collapsed')
+
+    // Click para expandir
+    await hamburgerBtn.trigger('click')
+    expect(sidebar.classes()).not.toContain('collapsed')
+
+    // Click para colapsar nuevamente
+    await hamburgerBtn.trigger('click')
+    expect(sidebar.classes()).toContain('collapsed')
   })
 })
