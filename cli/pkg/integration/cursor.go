@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,16 +28,35 @@ func (c *CursorAdapter) Sync(projectPath string) error {
 	}
 	
 	mcpPath := filepath.Join(cursorDir, "mcp.json")
-	if _, err := os.Stat(mcpPath); os.IsNotExist(err) {
-		mcpContent := `{
-  "mcpServers": {
-    "qdd": {
-      "command": "qdd",
-      "args": ["mcp-server"]
-    }
-  }
-}`
-		os.WriteFile(mcpPath, []byte(mcpContent), 0644)
+	qddCmd := resolveQDDPath()
+	
+	// Define the base structure
+	mcpData := map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"qdd": map[string]interface{}{
+				"command": qddCmd,
+				"args":    []string{"mcp-server"},
+			},
+		},
+	}
+
+	if _, err := os.Stat(mcpPath); err == nil {
+		// Try to read and merge if it already exists
+		existingData, readErr := os.ReadFile(mcpPath)
+		if readErr == nil {
+			var existing map[string]interface{}
+			if err := json.Unmarshal(existingData, &existing); err == nil {
+				if servers, ok := existing["mcpServers"].(map[string]interface{}); ok {
+					servers["qdd"] = mcpData["mcpServers"].(map[string]interface{})["qdd"]
+					mcpData = existing
+				}
+			}
+		}
+	}
+
+	finalJSON, err := json.MarshalIndent(mcpData, "", "  ")
+	if err == nil {
+		os.WriteFile(mcpPath, finalJSON, 0644)
 	}
 
 	return nil

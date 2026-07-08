@@ -4,6 +4,11 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.4] - 2026-07-07
+
+### 🐛 Bug Fixes
+- **AI Integrations (MCP)**: Se solucionó un error crítico donde `qdd init` configuraba el servidor MCP en `.cursor/mcp.json` usando el string estático `"qdd"`. Ahora la inicialización inyecta dinámicamente la ruta absoluta del binario (ej. `/home/user/.local/bin/qdd`) permitiendo a los IDEs como Cursor y Antigravity conectarse correctamente sin depender de configuraciones complejas de `$PATH`.
+
 ## [v1.7.3] - 2026-07-07
 
 ### 🐛 Bug Fixes (Hotfix)

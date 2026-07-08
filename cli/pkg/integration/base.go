@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -52,4 +53,20 @@ func SafeInjectIdempotent(filePath string) error {
 	}
 
 	return nil
+}
+
+// resolveQDDPath returns the absolute path of the qdd binary.
+// It prioritizes the current executable, but falls back to exec.LookPath if running via "go run".
+func resolveQDDPath() string {
+	exe, err := os.Executable()
+	if err == nil && !strings.Contains(exe, "/tmp/") && !strings.Contains(exe, "\\Temp\\") {
+		return exe
+	}
+
+	path, err := exec.LookPath("qdd")
+	if err == nil {
+		return path
+	}
+
+	return "qdd"
 }
