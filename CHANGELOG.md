@@ -4,6 +4,12 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.5] - 2026-07-07
+
+### ✨ Nuevas Características
+- **QDD Doctor (`qdd doctor`)**: Nuevo comando de diagnóstico introducido para asegurar mediante pruebas deterministas que el entorno del QDD Framework y sus integraciones estén completamente configurados y operativos. Genera automáticamente un reporte/checklist de evidencia en `.qdd/project/evidence/doctor/`.
+- **`qdd init` Autocorrectivo**: El comando de inicialización ha sido refactorizado para ejecutarse en un loop de hasta 3 iteraciones validando cada pasada contra el comando `qdd doctor`. Esto garantiza la correcta creación de toda la estructura de directorios, integraciones (`.cursor`, `.clauderc`) e inicialización de estados antes de entregar un éxito o de abortar, mejorando la resiliencia en todo el framework.
+
 ## [v1.7.4] - 2026-07-07
 
 ### 🐛 Bug Fixes

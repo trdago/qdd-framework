@@ -35,6 +35,27 @@ func runInit(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	maxRetries := 3
+	for i := 1; i <= maxRetries; i++ {
+		fmt.Printf("[+] Iteración %d de inicialización y chequeo...\n", i)
+		
+		success := runInitIteration(cwd)
+		if success {
+			fmt.Println("[!] QDD inicializado exitosamente y validado por QDD Doctor.")
+			fmt.Println("[!] Siguiente paso: ejecuta `qdd learn`")
+			return
+		}
+
+		if i < maxRetries {
+			fmt.Println("[-] QDD Doctor detectó anomalías. Reintentando y auto-corrigiendo...")
+		}
+	}
+
+	fmt.Println("[!] Error crítico: QDD no pudo asegurar el funcionamiento del framework tras varios intentos. Revisa la evidencia generada por QDD Doctor.")
+	os.Exit(1)
+}
+
+func runInitIteration(cwd string) bool {
 	fmt.Println("[+] Detectando entorno...")
 	languages := detectLanguages(cwd)
 	for _, lang := range languages {
@@ -46,10 +67,10 @@ func runInit(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println("[+] Creando estructura .qdd/")
-	err = createQDDStructure(cwd, languages)
+	err := createQDDStructure(cwd, languages)
 	if err != nil {
 		fmt.Printf("[!] Error creando estructura: %v\n", err)
-		return
+		return false
 	}
 
 	fmt.Println("[+] Sincronizando integraciones de Inteligencia Artificial (QDD Adapters)...")
@@ -58,7 +79,8 @@ func runInit(cmd *cobra.Command, args []string) {
 		fmt.Printf("[!] Advertencia: fallo al sincronizar adaptadores IA: %v\n", err)
 	}
 
-	fmt.Println("[!] QDD inicializado exitosamente. Siguiente paso: ejecuta `qdd learn`")
+	fmt.Println("[+] Ejecutando QDD Doctor para certificar funcionalidad...")
+	return RunDoctorCheck(cwd)
 }
 
 func fileExists(path string) bool {
