@@ -15,10 +15,32 @@ func RunEnterpriseCheck(cwd string) []Violation {
 	var violations []Violation
 	fset := token.NewFileSet()
 
-	// 1. Mandatory ADR Check (CERT-030)
+	checkADR(cwd, &violations)
+
+	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+		if isIgnoredEnterprisePath(path, d, err) {
+			return nil
+		}
+
+		node, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err == nil {
+			checkDomainIsolation(path, node, fset, &violations)
+		}
+
+		nodeFull, err := parser.ParseFile(fset, path, nil, 0)
+		if err == nil {
+			checkCyclomaticComplexity(path, nodeFull, fset, &violations)
+		}
+		return nil
+	})
+
+	return violations
+}
+
+func checkADR(cwd string, violations *[]Violation) {
 	adrPath := filepath.Join(cwd, "docs", "adr")
 	if info, err := os.Stat(adrPath); err != nil || !info.IsDir() {
-		violations = append(violations, Violation{
+		*violations = append(*violations, Violation{
 			Category:    "ARCHITECTURE",
 			RuleID:      "CERT-030-MANDATORY-ADR",
 			Description: "Enterprise-Grade: Faltan Architecture Decision Records. Debe existir el directorio docs/adr/.",
@@ -26,73 +48,92 @@ func RunEnterpriseCheck(cwd string) []Violation {
 			Line:        0,
 		})
 	}
+}
 
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".go") || strings.Contains(path, "node_modules") || strings.Contains(path, ".git") {
-			return nil
-		}
+func isIgnoredEnterprisePath(path string, d os.DirEntry, err error) bool {
+	if err != nil || d.IsDir() {
+		return true
+	}
+	if !strings.HasSuffix(d.Name(), ".go") {
+		return true
+	}
+	return isIgnoredEnterpriseDir(path)
+}
 
-		node, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err == nil {
-			// 3. Domain Isolation Check (CERT-032)
-			// Si el archivo pertenece al núcleo del dominio (e.g., internal/domain), no puede importar infra
-			if strings.Contains(path, "/domain/") || strings.Contains(path, "/core/") {
-				for _, imp := range node.Imports {
-					importPath := strings.Trim(imp.Path.Value, "\"")
-					// Regla: Prohibir imports de bases de datos, web frameworks o librerías que no sean stdlib o del propio proyecto de manera abstracta
-					if strings.Contains(importPath, "database/sql") || strings.Contains(importPath, "github.com/labstack/echo") || strings.Contains(importPath, "gorm.io") || strings.Contains(importPath, "net/http") {
-						pos := fset.Position(imp.Pos())
-						violations = append(violations, Violation{
-							Category:    "ARCHITECTURE",
-							RuleID:      "CERT-032-DOMAIN-ISOLATION",
-							Description: "Enterprise-Grade: Aislación del dominio violada. " + importPath + " no debe ser importado en la capa de dominio.",
-							File:        path,
-							Line:        pos.Line,
-						})
-					}
-				}
-			}
-		}
+func isIgnoredEnterpriseDir(path string) bool {
+	return strings.Contains(path, "node_modules") || strings.Contains(path, ".git")
+}
 
-		// Parse complete file for AST analysis
-		nodeFull, err := parser.ParseFile(fset, path, nil, 0)
-		if err != nil {
-			return nil
-		}
+func checkDomainIsolation(path string, node *ast.File, fset *token.FileSet, violations *[]Violation) {
+	if !isDomainOrCorePath(path) {
+		return
+	}
+	for _, imp := range node.Imports {
+		checkImportForDomainIsolation(path, imp, fset, violations)
+	}
+}
 
-		// 2. Cyclomatic Complexity Check (CERT-031)
-		ast.Inspect(nodeFull, func(n ast.Node) bool {
-			if fn, ok := n.(*ast.FuncDecl); ok {
-				complexity := 1 // Base complexity
-				
-				ast.Inspect(fn.Body, func(bn ast.Node) bool {
-					switch bn.(type) {
-					case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.CaseClause, *ast.CommClause:
-						complexity++
-					case *ast.BinaryExpr:
-						be := bn.(*ast.BinaryExpr)
-						if be.Op == token.LAND || be.Op == token.LOR {
-							complexity++
-						}
-					}
-					return true
-				})
+func isDomainOrCorePath(path string) bool {
+	return strings.Contains(path, "/domain/") || strings.Contains(path, "/core/")
+}
 
-				if complexity > 5 {
-					pos := fset.Position(fn.Pos())
-					violations = append(violations, Violation{
-						Category:    "CLEAN-CODE",
-						RuleID:      "CERT-031-CYCLOMATIC-LIMIT",
-						Description: fmt.Sprintf("Enterprise-Grade: Complejidad ciclomática extrema detectada (%d > 5) en función %s. Refactorice dividiendo la lógica.", complexity, fn.Name.Name),
-						File:        path,
-						Line:        pos.Line,
-					})
-				}
-			}
-			return true
-		})
-		return nil
+func checkImportForDomainIsolation(path string, imp *ast.ImportSpec, fset *token.FileSet, violations *[]Violation) {
+	importPath := strings.Trim(imp.Path.Value, "\"")
+	if isForbiddenDomainImport(importPath) {
+		pos := fset.Position(imp.Pos())
+		addDomainIsolationViolation(path, importPath, pos.Line, violations)
+	}
+}
+
+func isForbiddenDomainImport(importPath string) bool {
+	return strings.Contains(importPath, "database/sql") || 
+		strings.Contains(importPath, "github.com/labstack/echo") || 
+		strings.Contains(importPath, "gorm.io") || 
+		strings.Contains(importPath, "net/http")
+}
+
+func addDomainIsolationViolation(path, importPath string, line int, violations *[]Violation) {
+	*violations = append(*violations, Violation{
+		Category:    "ARCHITECTURE",
+		RuleID:      "CERT-032-DOMAIN-ISOLATION",
+		Description: "Enterprise-Grade: Aislación del dominio violada. " + importPath + " no debe ser importado en la capa de dominio.",
+		File:        path,
+		Line:        line,
 	})
+}
 
-	return violations
+func checkCyclomaticComplexity(path string, node *ast.File, fset *token.FileSet, violations *[]Violation) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			complexity := calculateComplexity(fn)
+			if complexity > 5 {
+				pos := fset.Position(fn.Pos())
+				*violations = append(*violations, Violation{
+					Category:    "CLEAN-CODE",
+					RuleID:      "CERT-031-CYCLOMATIC-LIMIT",
+					Description: fmt.Sprintf("Enterprise-Grade: Complejidad ciclomática extrema detectada (%d > 5) en función %s. Refactorice dividiendo la lógica.", complexity, fn.Name.Name),
+					File:        path,
+					Line:        pos.Line,
+				})
+			}
+		}
+		return true
+	})
+}
+
+func calculateComplexity(fn *ast.FuncDecl) int {
+	complexity := 1
+	ast.Inspect(fn.Body, func(bn ast.Node) bool {
+		switch bn.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.CaseClause, *ast.CommClause:
+			complexity++
+		case *ast.BinaryExpr:
+			be := bn.(*ast.BinaryExpr)
+			if be.Op == token.LAND || be.Op == token.LOR {
+				complexity++
+			}
+		}
+		return true
+	})
+	return complexity
 }

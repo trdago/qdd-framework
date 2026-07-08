@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import App from './App.vue'
 
+vi.mock('vue-chartjs', () => {
+  return {
+    Line: {
+      template: '<div>Mocked Chart</div>',
+      props: ['data', 'options']
+    }
+  }
+})
+
 // Mock de ResizeObserver para Chart.js en jsdom
 class ResizeObserver {
   observe() {}
@@ -164,5 +173,35 @@ describe('App.vue - Enterprise Dashboard', () => {
     // Click para colapsar nuevamente
     await hamburgerBtn.trigger('click')
     expect(sidebar.classes()).toContain('collapsed')
+  })
+
+  it('procesa datos de la historia y actualiza chartData dinámicamente sin hardcodear (Bug Regression Test)', async () => {
+    await loadData(wrapper)
+    
+    const instance = MockEventSource.instances[0]
+    const testDataWithHistory = {
+      score: 95,
+      grade: 'World-Class',
+      version: 'v0.1.1',
+      audit_status: 'PASS',
+      findings: [],
+      certifications: [],
+      sprints: [],
+      knowledge: [],
+      config: {},
+      telemetry: { uptime: '24h', memory_sys: '100 MB', goroutines: 42 },
+      topology: { application: { name: 'QDD', children: [] } },
+      historical_trends: [
+        { date: 'Día 10', score: 10 },
+        { date: 'Día 11', score: 99 }
+      ]
+    };
+    instance.onmessage({ data: JSON.stringify(testDataWithHistory) })
+    await wrapper.vm.$nextTick()
+
+    // El chartData ahora debería mapear 'Día 10' y 'Día 11' en lugar de los mocks
+    const currentChartData = wrapper.vm.chartData
+    expect(currentChartData.labels).toEqual(['Día 10', 'Día 11'])
+    expect(currentChartData.datasets[0].data).toEqual([10, 99])
   })
 })

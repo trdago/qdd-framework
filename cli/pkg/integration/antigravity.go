@@ -23,7 +23,14 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 		return fmt.Errorf("Antigravity adapter failed to sync %s: %w", rulesPath, err)
 	}
 
-	// Antigravity slash command workflow (/qdd)
+	if err := syncAntigravityWorkflows(projectPath); err != nil {
+		return err
+	}
+
+	return syncAntigravityMCP(projectPath)
+}
+
+func syncAntigravityWorkflows(projectPath string) error {
 	workflowsDir := filepath.Join(projectPath, ".agents", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create workflows directory: %w", err)
@@ -31,10 +38,21 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 
 	qddWorkflowPath := filepath.Join(workflowsDir, "qdd.md")
 	
-	// Ensure frontmatter exists
+	ensureWorkflowFrontmatter(qddWorkflowPath)
+
+	err := SafeInjectIdempotent(qddWorkflowPath)
+	if err != nil {
+		return fmt.Errorf("Antigravity adapter failed to sync %s: %w", qddWorkflowPath, err)
+	}
+
+	return nil
+}
+
+func ensureWorkflowFrontmatter(qddWorkflowPath string) {
 	frontmatter := "---\ndescription: QDD Framework native AI commands\n---\n\n"
 	if _, err := os.Stat(qddWorkflowPath); os.IsNotExist(err) {
 		os.WriteFile(qddWorkflowPath, []byte(frontmatter), 0644)
+		return
 	}
 	
 	if _, err := os.Stat(qddWorkflowPath); err == nil {
@@ -44,12 +62,9 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 			os.WriteFile(qddWorkflowPath, []byte(frontmatter+contentStr), 0644)
 		}
 	}
+}
 
-	err = SafeInjectIdempotent(qddWorkflowPath)
-	if err != nil {
-		return fmt.Errorf("Antigravity adapter failed to sync %s: %w", qddWorkflowPath, err)
-	}
-
+func syncAntigravityMCP(projectPath string) error {
 	cursorDir := filepath.Join(projectPath, ".cursor")
 	if err := os.MkdirAll(cursorDir, 0755); err != nil {
 		return err
@@ -58,7 +73,6 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 	mcpPath := filepath.Join(cursorDir, "mcp.json")
 	qddCmd := resolveQDDPath()
 	
-	// Define the base structure
 	mcpData := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
 			"qdd": map[string]interface{}{
@@ -68,19 +82,7 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 		},
 	}
 
-	if _, err := os.Stat(mcpPath); err == nil {
-		// Try to read and merge if it already exists
-		existingData, readErr := os.ReadFile(mcpPath)
-		if readErr == nil {
-			var existing map[string]interface{}
-			if err := json.Unmarshal(existingData, &existing); err == nil {
-				if servers, ok := existing["mcpServers"].(map[string]interface{}); ok {
-					servers["qdd"] = mcpData["mcpServers"].(map[string]interface{})["qdd"]
-					mcpData = existing
-				}
-			}
-		}
-	}
+	mcpData = mergeAntigravityMCPData(mcpPath, mcpData)
 
 	finalJSON, err := json.MarshalIndent(mcpData, "", "  ")
 	if err == nil {
@@ -88,4 +90,25 @@ func (a *AntigravityAdapter) Sync(projectPath string) error {
 	}
 
 	return nil
+}
+
+func mergeAntigravityMCPData(mcpPath string, mcpData map[string]interface{}) map[string]interface{} {
+	if _, err := os.Stat(mcpPath); err != nil {
+		return mcpData
+	}
+
+	existingData, readErr := os.ReadFile(mcpPath)
+	if readErr != nil {
+		return mcpData
+	}
+
+	var existing map[string]interface{}
+	if err := json.Unmarshal(existingData, &existing); err == nil {
+		if servers, ok := existing["mcpServers"].(map[string]interface{}); ok {
+			servers["qdd"] = mcpData["mcpServers"].(map[string]interface{})["qdd"]
+			return existing
+		}
+	}
+
+	return mcpData
 }

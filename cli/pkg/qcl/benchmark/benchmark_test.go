@@ -1,11 +1,13 @@
 package benchmark
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -21,6 +23,15 @@ func TestEvaluateContextFAANG(t *testing.T) {
 		t.Errorf("Expected score 0, got %d", score)
 	}
 
+	setupMockKnowledgeDB(t, tmpDir)
+
+	score = evaluateContext(tmpDir)
+	if score != 100 {
+		t.Errorf("Expected score 100 for <10%% orphans, got %d", score)
+	}
+}
+
+func setupMockKnowledgeDB(t *testing.T, tmpDir string) {
 	qddDir := filepath.Join(tmpDir, ".qdd")
 	os.MkdirAll(qddDir, 0755)
 	os.WriteFile(filepath.Join(qddDir, "config.yaml"), []byte("data"), 0644)
@@ -31,23 +42,16 @@ func TestEvaluateContextFAANG(t *testing.T) {
 		t.Fatalf("Failed to create mock db: %v", err)
 	}
 	defer db.Close()
-	
-	db.Exec("CREATE TABLE nodes (id TEXT PRIMARY KEY)")
-	db.Exec("CREATE TABLE edges (source_id TEXT, target_id TEXT)")
-	
-	// Crear 100 nodos.
+
+	db.ExecContext(context.Background(), "CREATE TABLE nodes (id TEXT PRIMARY KEY)")
+	db.ExecContext(context.Background(), "CREATE TABLE edges (source_id TEXT, target_id TEXT)")
+
 	for i := 0; i < 100; i++ {
-		db.Exec("INSERT INTO nodes (id) VALUES (?)", i)
-	}
-	
-	// Crear edges conectando 95 nodos (5% orfandad - Pasa Google-Grade)
-	for i := 0; i < 95; i++ {
-		db.Exec("INSERT INTO edges (source_id, target_id) VALUES (?, ?)", i, i+1)
+		db.ExecContext(context.Background(), "INSERT INTO nodes (id) VALUES (?)", i)
 	}
 
-	score = evaluateContext(tmpDir)
-	if score != 100 {
-		t.Errorf("Expected score 100 for <10%% orphans, got %d", score)
+	for i := 0; i < 95; i++ {
+		db.ExecContext(context.Background(), "INSERT INTO edges (source_id, target_id) VALUES (?, ?)", i, i+1)
 	}
 }
 
@@ -62,12 +66,12 @@ func TestEvaluateUnderstandingFAANG(t *testing.T) {
 	os.MkdirAll(qddDir, 0755)
 
 	understandingPath := filepath.Join(qddDir, "understanding.json")
-	
+
 	longSummary := "Este es un resumen muy largo de la arquitectura del proyecto que debería pasar la validación por ser superior a los cien caracteres sin problema alguno. Se extiende bastante para probar."
-	
+
 	// Test Anthropic Constitutional Alignment (Security, Scalability)
 	data := map[string]interface{}{
-		"summary": longSummary,
+		"summary":    longSummary,
 		"components": []string{"C1", "C2", "C3"},
 		"objectives": []string{"Validar Security y Performance"},
 		"guidelines": []string{"Seguir rule framework qdd"},
@@ -96,7 +100,7 @@ func TestEvaluateImprovementsFAANG(t *testing.T) {
 	f2 := "severity: Low\ndescription: Typo\nstatus: Resolved"
 	os.WriteFile(filepath.Join(findingsDir, "a.yaml"), []byte(f1), 0644)
 	os.WriteFile(filepath.Join(findingsDir, "b.yaml"), []byte(f2), 0644)
-	
+
 	metricsDir := filepath.Join(tmpDir, ".qdd", "project", "metrics")
 	os.MkdirAll(metricsDir, 0755)
 	os.WriteFile(filepath.Join(metricsDir, "metric1.json"), []byte("{}"), 0644)

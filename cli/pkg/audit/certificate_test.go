@@ -9,7 +9,14 @@ import (
 func TestGenerateCertificate(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// 1. First run, no history -> Stable
+	testGenerateCertificateStable(t, tempDir)
+	testGenerateCertificateWorsening(t, tempDir)
+	testGenerateCertificateImproving(t, tempDir)
+	testGenerateCertificateInvalidJSON(t, tempDir)
+	testGenerateCertificateNegativeScoreCap(t, tempDir)
+}
+
+func testGenerateCertificateStable(t *testing.T, tempDir string) {
 	cert1, err := GenerateCertificate(tempDir, []Violation{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -20,8 +27,9 @@ func TestGenerateCertificate(t *testing.T) {
 	if cert1.Tendency != TendencyStable {
 		t.Errorf("Expected tendency Stable, got %v", cert1.Tendency)
 	}
+}
 
-	// 2. Second run, worse score -> Worsening
+func testGenerateCertificateWorsening(t *testing.T, tempDir string) {
 	cert2, err := GenerateCertificate(tempDir, []Violation{{RuleID: "V1"}, {RuleID: "V2"}})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -32,8 +40,9 @@ func TestGenerateCertificate(t *testing.T) {
 	if cert2.Tendency != TendencyWorsening {
 		t.Errorf("Expected tendency Worsening, got %v", cert2.Tendency)
 	}
+}
 
-	// 3. Third run, better score -> Improving
+func testGenerateCertificateImproving(t *testing.T, tempDir string) {
 	cert3, err := GenerateCertificate(tempDir, []Violation{{RuleID: "V1"}})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -41,17 +50,20 @@ func TestGenerateCertificate(t *testing.T) {
 	if cert3.Tendency != TendencyImproving {
 		t.Errorf("Expected tendency Improving, got %v", cert3.Tendency)
 	}
+}
 
-	// 4. Corrupt history file -> Error parsing
+func testGenerateCertificateInvalidJSON(t *testing.T, tempDir string) {
 	historyPath := filepath.Join(tempDir, ".qdd", "project", "metrics", "certificate_history.json")
 	os.WriteFile(historyPath, []byte("invalid json"), 0644)
-	_, err = GenerateCertificate(tempDir, []Violation{})
+	_, err := GenerateCertificate(tempDir, []Violation{})
 	if err == nil {
 		t.Errorf("Expected error when parsing invalid json")
 	}
+}
 
-	// 5. Test negative score caps at 0
-	violations := make([]Violation, 60) // 60 * 2 = 120 reduction -> score < 0
+func testGenerateCertificateNegativeScoreCap(t *testing.T, tempDir string) {
+	violations := make([]Violation, 60)
+	historyPath := filepath.Join(tempDir, ".qdd", "project", "metrics", "certificate_history.json")
 	os.Remove(historyPath)
 	cert4, err := GenerateCertificate(tempDir, violations)
 	if err != nil {

@@ -13,45 +13,10 @@ import (
 // such as executing SELECT COUNT(*) without filters on large tables.
 func CheckDatabasePerformance(cwd string) []Violation {
 	var violations []Violation
-
-	// Regex to detect "SELECT COUNT(*)" or similar patterns without a WHERE clause
 	countRegex := regexp.MustCompile(`(?i)SELECT\s+COUNT\s*\(\s*\*\s*\)\s+FROM\s+[a-zA-Z0-9_]+(\s*;|\s*$)`)
 
 	err := filepath.WalkDir(cwd, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		// Skip vendor, .git, and .qdd directories
-		if d.IsDir() && (d.Name() == "vendor" || d.Name() == ".git" || d.Name() == ".qdd" || d.Name() == "node_modules") {
-			return filepath.SkipDir
-		}
-
-		// Only check Go files and SQL files
-		ext := filepath.Ext(path)
-		if !d.IsDir() && (ext == ".go" || ext == ".sql") {
-			content, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return nil
-			}
-
-			strContent := string(content)
-			lines := strings.Split(strContent, "\n")
-
-			for i, line := range lines {
-				if countRegex.MatchString(line) {
-					// We found a SELECT COUNT(*) without a WHERE clause
-					violations = append(violations, Violation{
-						Category:    "Database",
-						RuleID:      "DB-PERF-01",
-						Description: "Uso detectado de SELECT COUNT(*) sin filtros. Reemplazar por pg_class.",
-						File:        path,
-						Line:        i + 1,
-					})
-				}
-			}
-		}
-		return nil
+		return processDBPath(path, d, err, countRegex, &violations)
 	})
 
 	if err != nil {
@@ -59,4 +24,63 @@ func CheckDatabasePerformance(cwd string) []Violation {
 	}
 
 	return violations
+}
+
+func processDBPath(path string, d fs.DirEntry, err error, countRegex *regexp.Regexp, violations *[]Violation) error {
+	if isIgnoredDBPath(path, d, err) {
+		return skipIgnoredDBDir(d)
+	}
+
+	if isCheckableDBFile(path, d) {
+		checkDBFileContent(path, countRegex, violations)
+	}
+	return nil
+}
+
+func skipIgnoredDBDir(d fs.DirEntry) error {
+	if d != nil && d.IsDir() {
+		return filepath.SkipDir
+	}
+	return nil
+}
+
+func isIgnoredDBPath(path string, d fs.DirEntry, err error) bool {
+	if err != nil {
+		return true
+	}
+	return d.IsDir() && isIgnoredDBDirName(d.Name())
+}
+
+func isIgnoredDBDirName(name string) bool {
+	return name == "vendor" || name == ".git" || name == ".qdd" || name == "node_modules"
+}
+
+func isCheckableDBFile(path string, d fs.DirEntry) bool {
+	if d.IsDir() {
+		return false
+	}
+	ext := filepath.Ext(path)
+	return ext == ".go" || ext == ".sql"
+}
+
+func checkDBFileContent(path string, countRegex *regexp.Regexp, violations *[]Violation) {
+	content, readErr := os.ReadFile(path)
+	if readErr != nil {
+		return
+	}
+
+	strContent := string(content)
+	lines := strings.Split(strContent, "\n")
+
+	for i, line := range lines {
+		if countRegex.MatchString(line) {
+			*violations = append(*violations, Violation{
+				Category:    "Database",
+				RuleID:      "DB-PERF-01",
+				Description: "Uso detectado de SELECT COUNT(*) sin filtros. Reemplazar por pg_class.",
+				File:        path,
+				Line:        i + 1,
+			})
+		}
+	}
 }

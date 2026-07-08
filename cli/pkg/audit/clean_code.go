@@ -16,7 +16,7 @@ func RunCleanCodeCheck(cwd string) []Violation {
 	fset := token.NewFileSet()
 
 	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".go") || strings.Contains(path, "node_modules") || strings.Contains(path, ".git") {
+		if isIgnoredPath(path, d, err) {
 			return nil
 		}
 
@@ -25,26 +25,41 @@ func RunCleanCodeCheck(cwd string) []Violation {
 			return nil
 		}
 
-		ast.Inspect(node, func(n ast.Node) bool {
-			if ifStmt, ok := n.(*ast.IfStmt); ok {
-				if ifStmt.Else != nil {
-					// Ignoramos 'else if', solo penalizamos el 'else' final de caída.
-					if _, isElseIf := ifStmt.Else.(*ast.IfStmt); !isElseIf {
-						pos := fset.Position(ifStmt.Else.Pos())
-						violations = append(violations, Violation{
-							Category:    "CLEAN-CODE",
-							RuleID:      "CLEAN-01-NO-ELSE",
-							Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
-							File:        path,
-							Line:        pos.Line,
-						})
-					}
-				}
-			}
-			return true
-		})
+		checkNodeForElse(node, fset, path, &violations)
 		return nil
 	})
 
 	return violations
+}
+
+func isIgnoredPath(path string, d os.DirEntry, err error) bool {
+	if err != nil || d.IsDir() {
+		return true
+	}
+	if !strings.HasSuffix(d.Name(), ".go") {
+		return true
+	}
+	return isIgnoredCleanCodeDir(path)
+}
+
+func isIgnoredCleanCodeDir(path string) bool {
+	return strings.Contains(path, "node_modules") || strings.Contains(path, ".git")
+}
+
+func checkNodeForElse(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		if ifStmt, ok := n.(*ast.IfStmt); ok && ifStmt.Else != nil {
+			if _, isElseIf := ifStmt.Else.(*ast.IfStmt); !isElseIf {
+				pos := fset.Position(ifStmt.Else.Pos())
+				*violations = append(*violations, Violation{
+					Category:    "CLEAN-CODE",
+					RuleID:      "CLEAN-01-NO-ELSE",
+					Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
+					File:        path,
+					Line:        pos.Line,
+				})
+			}
+		}
+		return true
+	})
 }

@@ -30,50 +30,60 @@ func registerFindingsTool(s *server.MCPServer) {
 			return mcp.NewToolResultText(fmt.Sprintf("Error leyendo directorio de findings: %v", err)), nil
 		}
 
-		out := "--- QDD FINDINGS REPORT ---\n\n"
-		total := 0
-		resolved := 0
-		pending := 0
-
-		for _, file := range files {
-			if file.IsDir() || !strings.HasSuffix(file.Name(), ".yaml") {
-				continue
-			}
-
-			path := filepath.Join(qddDir, file.Name())
-			content, err := os.ReadFile(path)
-			if err != nil {
-				continue
-			}
-
-			var f Finding // Definiendo 'Finding' de findings.go
-			if err := yaml.Unmarshal(content, &f); err != nil {
-				continue
-			}
-
-			total++
-			icon := "🔴"
-			statusLower := strings.ToLower(f.Status)
-			
-			if statusLower == "resolved" || statusLower == "closed" {
-				icon = "🟢"
-				resolved++
-				out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
-				continue
-			}
-
-			pending++
-			out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
-		}
+		out, total := processFindingsFiles(qddDir, files)
 
 		if total == 0 {
 			return mcp.NewToolResultText("No hay hallazgos registrados en el proyecto."), nil
 		}
 
-		out += "\n-------------------------------\n"
-		out += fmt.Sprintf("Total: %d | Resueltos: %d | Pendientes: %d\n", total, resolved, pending)
 		return mcp.NewToolResultText(out), nil
 	})
+}
+
+func processFindingsFiles(qddDir string, files []os.DirEntry) (string, int) {
+	out := "--- QDD FINDINGS REPORT ---\n\n"
+	total := 0
+	resolved := 0
+	pending := 0
+
+	for _, file := range files {
+		if shouldProcessFinding(file) {
+			processSingleFinding(filepath.Join(qddDir, file.Name()), &out, &total, &resolved, &pending)
+		}
+	}
+
+	out += "\n-------------------------------\n"
+	out += fmt.Sprintf("Total: %d | Resueltos: %d | Pendientes: %d\n", total, resolved, pending)
+	return out, total
+}
+
+func shouldProcessFinding(file os.DirEntry) bool {
+	return !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml")
+}
+
+func processSingleFinding(path string, out *string, total, resolved, pending *int) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	var f Finding
+	if err := yaml.Unmarshal(content, &f); err != nil {
+		return
+	}
+
+	*total++
+	icon := "🔴"
+	statusLower := strings.ToLower(f.Status)
+	
+	if statusLower == "resolved" || statusLower == "closed" {
+		icon = "🟢"
+		*resolved++
+		*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
+		return
+	}
+	*pending++
+	*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
 }
 
 func registerSprintTool(s *server.MCPServer) {
@@ -93,95 +103,106 @@ func registerSprintTool(s *server.MCPServer) {
 			return mcp.NewToolResultError("Argumentos inválidos"), nil
 		}
 		
-		getString := func(key string) string {
-			if val, ok := argsMap[key].(string); ok {
-				return val
-			}
-			return ""
-		}
-
-		sprintNum := getString("numero")
-		goal := getString("goal")
-		happyPath := getString("happy_path")
-		errorPaths := getString("error_paths")
-		edgeCases := getString("edge_cases")
-		technicalConstraints := getString("technical_constraints")
-		executableTests := getString("executable_tests")
-
-		if sprintNum == "" || goal == "" || happyPath == "" || errorPaths == "" || executableTests == "" {
-			return mcp.NewToolResultError("Faltan parámetros obligatorios (numero, goal, happy_path, error_paths, executable_tests). Vuelve a preguntar al usuario por los escenarios faltantes, pero recuerda generar TÚ MISMO los executable_tests."), nil
+		sprintParams, err := extractSprintParams(argsMap)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 		
-		qddDir := filepath.Join(".", ".qdd")
-		sprintsDir := filepath.Join(qddDir, "project", "sprints")
+		sprintsDir := filepath.Join(".", ".qdd", "project", "sprints")
 		os.MkdirAll(sprintsDir, 0755)
 		
-		sprintFile := filepath.Join(sprintsDir, fmt.Sprintf("sprint-%s.md", sprintNum))
-		certFile := filepath.Join(sprintsDir, fmt.Sprintf("sprint-%s-cert.yaml", sprintNum))
+		sprintFile := filepath.Join(sprintsDir, fmt.Sprintf("sprint-%s.md", sprintParams["numero"]))
+		certFile := filepath.Join(sprintsDir, fmt.Sprintf("sprint-%s-cert.yaml", sprintParams["numero"]))
 		
 		if _, err := os.Stat(certFile); !os.IsNotExist(err) {
-			return mcp.NewToolResultText(fmt.Sprintf("El sprint/certificado %s ya existe.", sprintNum)), nil
+			return mcp.NewToolResultText(fmt.Sprintf("El sprint/certificado %s ya existe.", sprintParams["numero"])), nil
 		}
 
-		// Crear el YAML de certificación
-		certContent := fmt.Sprintf(`qdd_certificate:
+		generateSprintFiles(sprintFile, certFile, sprintParams)
+
+		return mcp.NewToolResultText(fmt.Sprintf("Sprint %s inicializado correctamente en modo CDD v1.1.\nContrato generado en: %s\nDocumento generado en: %s\n\nEl Agente IA DEBE ahora leer el archivo YAML y comenzar el bucle autónomo programando cada escenario listado hasta que los 'executable_tests' pasen sin errores.", sprintParams["numero"], certFile, sprintFile)), nil
+	})
+}
+
+func extractSprintParams(argsMap map[string]interface{}) (map[string]string, error) {
+	getString := func(key string) string {
+		if val, ok := argsMap[key].(string); ok {
+			return val
+		}
+		return ""
+	}
+
+	params := map[string]string{
+		"numero": getString("numero"),
+		"goal": getString("goal"),
+		"happy_path": getString("happy_path"),
+		"error_paths": getString("error_paths"),
+		"edge_cases": getString("edge_cases"),
+		"technical_constraints": getString("technical_constraints"),
+		"executable_tests": getString("executable_tests"),
+	}
+
+	if err := validateSprintParams(params); err != nil {
+		return nil, err
+	}
+
+	return params, nil
+}
+
+func validateSprintParams(params map[string]string) error {
+	requiredParams := []string{"numero", "goal", "happy_path", "error_paths", "executable_tests"}
+	for _, req := range requiredParams {
+		if params[req] == "" {
+			return fmt.Errorf("Faltan parámetros obligatorios (numero, goal, happy_path, error_paths, executable_tests). Vuelve a preguntar al usuario por los escenarios faltantes, pero recuerda generar TÚ MISMO los executable_tests.")
+		}
+	}
+	return nil
+}
+
+func generateSprintFiles(sprintFile, certFile string, params map[string]string) {
+	certContent := generateCertYAMLContent(params)
+	os.WriteFile(certFile, []byte(certContent), 0644)
+
+	content := fmt.Sprintf("# Sprint %s\n\n## Objetivos (Sprint Goal)\n%s\n\n## Certification-Driven Development (CDD v1.1)\nEste sprint se rige por un contrato estricto de escenarios exhaustivos.\nEl agente debe implementar el código y los tests para el **Happy Path**, **Error Paths** y **Edge Cases** definidos en `sprint-%s-cert.yaml`.\n\n---\n*Gobernanza QDD: Este archivo y su YAML asociado guían el desarrollo. Usa 'qdd certify' o ejecuta los tests directamente.*\n", params["numero"], params["goal"], params["numero"])
+	os.WriteFile(sprintFile, []byte(content), 0644)
+}
+
+func generateCertYAMLContent(params map[string]string) string {
+	certContent := fmt.Sprintf(`qdd_certificate:
   version: "1.1"
   sprint_id: "%s"
   status: "FAILING"
   goal: "%s"
   
   scenarios:
-    happy_path:`, sprintNum, goal)
-        
-		for _, rule := range strings.Split(happyPath, ";") {
-			rule = strings.TrimSpace(rule)
-			if rule != "" {
-				certContent += fmt.Sprintf("\n      - \"%s\"", rule)
-			}
-		}
+    happy_path:`, params["numero"], params["goal"])
+	
+	certContent += appendRules(params["happy_path"], "      - ")
+	certContent += "\n    error_paths:"
+	certContent += appendRules(params["error_paths"], "      - ")
+	certContent += "\n    edge_cases:"
+	if params["edge_cases"] != "" {
+		certContent += appendRules(params["edge_cases"], "      - ")
+	}
+	
+	certContent += "\n\n  technical_constraints:"
+	certContent += appendRules(params["technical_constraints"], "    - ")
+	certContent += "\n\n  executable_tests:"
+	certContent += appendRules(params["executable_tests"], "    - ")
+	certContent += "\n"
 
-		certContent += "\n    error_paths:"
-		for _, rule := range strings.Split(errorPaths, ";") {
-			rule = strings.TrimSpace(rule)
-			if rule != "" {
-				certContent += fmt.Sprintf("\n      - \"%s\"", rule)
-			}
-		}
+	return certContent
+}
 
-		certContent += "\n    edge_cases:"
-		if edgeCases != "" {
-			for _, rule := range strings.Split(edgeCases, ";") {
-				rule = strings.TrimSpace(rule)
-				if rule != "" {
-					certContent += fmt.Sprintf("\n      - \"%s\"", rule)
-				}
-			}
+func appendRules(ruleString, prefix string) string {
+	var result string
+	for _, rule := range strings.Split(ruleString, ";") {
+		rule = strings.TrimSpace(rule)
+		if rule != "" {
+			result += fmt.Sprintf("\n%s\"%s\"", prefix, rule)
 		}
-        
-		certContent += "\n\n  technical_constraints:"
-		for _, rule := range strings.Split(technicalConstraints, ";") {
-			rule = strings.TrimSpace(rule)
-			if rule != "" {
-				certContent += fmt.Sprintf("\n    - \"%s\"", rule)
-			}
-		}
-        
-		certContent += "\n\n  executable_tests:"
-		for _, cmd := range strings.Split(executableTests, ";") {
-			cmd = strings.TrimSpace(cmd)
-			if cmd != "" {
-				certContent += fmt.Sprintf("\n    - \"%s\"", cmd)
-			}
-		}
-		certContent += "\n"
-        
-		os.WriteFile(certFile, []byte(certContent), 0644)
-
-		content := fmt.Sprintf("# Sprint %s\n\n## Objetivos (Sprint Goal)\n%s\n\n## Certification-Driven Development (CDD v1.1)\nEste sprint se rige por un contrato estricto de escenarios exhaustivos.\nEl agente debe implementar el código y los tests para el **Happy Path**, **Error Paths** y **Edge Cases** definidos en `sprint-%s-cert.yaml`.\n\n---\n*Gobernanza QDD: Este archivo y su YAML asociado guían el desarrollo. Usa 'qdd certify' o ejecuta los tests directamente.*\n", sprintNum, goal, sprintNum)
-		os.WriteFile(sprintFile, []byte(content), 0644)
-
-		return mcp.NewToolResultText(fmt.Sprintf("Sprint %s inicializado correctamente en modo CDD v1.1.\nContrato generado en: %s\nDocumento generado en: %s\n\nEl Agente IA DEBE ahora leer el archivo YAML y comenzar el bucle autónomo programando cada escenario listado hasta que los 'executable_tests' pasen sin errores.", sprintNum, certFile, sprintFile)), nil
-	})
+	}
+	return result
 }
 
 func registerSyncTool(s *server.MCPServer) {
@@ -224,28 +245,38 @@ func registerReleaseTool(s *server.MCPServer) {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		if fileExists(filepath.Join(cwd, "package.json")) {
-			exec.Command("npm", "run", "build").Run()
-		}
-		
-		if !fileExists(filepath.Join(cwd, "package.json")) && fileExists(filepath.Join(cwd, "Makefile")) {
-			exec.Command("make", "build").Run()
-		}
-
-		qddDir := filepath.Join(".", ".qdd")
-		statePath := filepath.Join(qddDir, "state.json")
-		stateData, err := os.ReadFile(statePath)
-		if err == nil {
-			var state map[string]interface{}
-			json.Unmarshal(stateData, &state)
-			state["version"] = version
-			newData, _ := json.MarshalIndent(state, "", "  ")
-			os.WriteFile(statePath, newData, 0644)
-		}
-
-		execCmd := exec.Command("git", "tag", version)
-		execCmd.Run()
+		runReleaseBuilds(cwd)
+		updateReleaseVersion(version)
+		tagRelease(version)
 
 		return mcp.NewToolResultText(fmt.Sprintf("Release %s finalizado.", version)), nil
 	})
+}
+
+func runReleaseBuilds(cwd string) {
+	if fileExists(filepath.Join(cwd, "package.json")) {
+		exec.Command("npm", "run", "build").Run()
+	}
+	
+	if !fileExists(filepath.Join(cwd, "package.json")) && fileExists(filepath.Join(cwd, "Makefile")) {
+		exec.Command("make", "build").Run()
+	}
+}
+
+func updateReleaseVersion(version string) {
+	qddDir := filepath.Join(".", ".qdd")
+	statePath := filepath.Join(qddDir, "state.json")
+	stateData, err := os.ReadFile(statePath)
+	if err == nil {
+		var state map[string]interface{}
+		json.Unmarshal(stateData, &state)
+		state["version"] = version
+		newData, _ := json.MarshalIndent(state, "", "  ")
+		os.WriteFile(statePath, newData, 0644)
+	}
+}
+
+func tagRelease(version string) {
+	execCmd := exec.Command("git", "tag", version)
+	execCmd.Run()
 }

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -17,9 +19,9 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/topology"
-	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -28,7 +30,7 @@ import (
 var startTime = time.Now()
 
 const qddLifecycleMermaid = "```mermaid\ngraph TD\n" +
-`    classDef default fill:#1e1e1e,stroke:#3b82f6,stroke-width:2px,color:#fff;
+	`    classDef default fill:#1e1e1e,stroke:#3b82f6,stroke-width:2px,color:#fff;
     classDef init fill:#6366f1,stroke:#4338ca,stroke-width:2px,color:#fff;
     classDef agent fill:#ec4899,stroke:#be185d,stroke-width:2px,color:#fff;
     classDef gatekeeper fill:#14b8a6,stroke:#0f766e,stroke-width:2px,color:#fff;
@@ -109,18 +111,28 @@ func runWatcher() {
 	cwd, _ := os.Getwd()
 	qddDir := filepath.Join(cwd, ".qdd")
 
+	setupWatcherDirectories(watcher, qddDir)
+	broadcastInitialState()
+	startHeartbeat(qddDir)
+	monitorEvents(watcher)
+}
+
+func setupWatcherDirectories(watcher *fsnotify.Watcher, qddDir string) {
 	filepath.Walk(qddDir, func(path string, info fs.FileInfo, err error) error {
 		if err == nil && info.IsDir() {
 			watcher.Add(path)
 		}
 		return nil
 	})
+}
 
+func broadcastInitialState() {
 	res := buildState()
 	data, _ := json.Marshal(res)
 	broker.Broadcast(data)
+}
 
-	// Heartbeat for MCP log to keep UI alive
+func startHeartbeat(qddDir string) {
 	go func() {
 		for {
 			time.Sleep(15 * time.Second)
@@ -132,31 +144,50 @@ func runWatcher() {
 			}
 		}
 	}()
+}
 
+func monitorEvents(watcher *fsnotify.Watcher) {
 	var timer *time.Timer
 	for {
-		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				return
-			}
-			if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
-				if timer != nil {
-					timer.Stop()
-				}
-				timer = time.AfterFunc(500*time.Millisecond, func() {
-					res := buildState()
-					data, _ := json.Marshal(res)
-					broker.Broadcast(data)
-				})
-			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
-			}
-			fmt.Println("Watcher error:", err)
+		cont := processWatcherEvent(watcher, &timer)
+		if !cont {
+			break
 		}
 	}
+}
+
+func processWatcherEvent(watcher *fsnotify.Watcher, timer **time.Timer) bool {
+	select {
+	case event, ok := <-watcher.Events:
+		if !ok {
+			return false
+		}
+		*timer = handleWatcherEvent(event, *timer)
+	case err, ok := <-watcher.Errors:
+		if !ok {
+			return false
+		}
+		fmt.Println("Watcher error:", err)
+	}
+	return true
+}
+
+func handleWatcherEvent(event fsnotify.Event, timer *time.Timer) *time.Timer {
+	isModify := event.Op&fsnotify.Write == fsnotify.Write
+	isCreate := event.Op&fsnotify.Create == fsnotify.Create
+	isRemove := event.Op&fsnotify.Remove == fsnotify.Remove
+
+	if isModify || isCreate || isRemove {
+		if timer != nil {
+			timer.Stop()
+		}
+		return time.AfterFunc(500*time.Millisecond, func() {
+			res := buildState()
+			data, _ := json.Marshal(res)
+			broker.Broadcast(data)
+		})
+	}
+	return timer
 }
 
 // Definición estricta del Contrato OpenAPI (Type-Safety)
@@ -198,18 +229,18 @@ type DashboardKnowledgeDoc struct {
 }
 
 type DashboardTelemetry struct {
-	Uptime       string `json:"uptime"`
-	MemoryAlloc  string `json:"memory_alloc"`
-	MemorySys    string `json:"memory_sys"`
-	Goroutines   int    `json:"goroutines"`
+	Uptime      string `json:"uptime"`
+	MemoryAlloc string `json:"memory_alloc"`
+	MemorySys   string `json:"memory_sys"`
+	Goroutines  int    `json:"goroutines"`
 }
 
 type DashboardUnderstanding struct {
-	Summary     string   `json:"summary"`
-	Components  []string `json:"components"`
-	Objectives  []string `json:"objectives"`
-	Guidelines  []string `json:"guidelines"`
-	NextSteps   string   `json:"next_steps"`
+	Summary    string   `json:"summary"`
+	Components []string `json:"components"`
+	Objectives []string `json:"objectives"`
+	Guidelines []string `json:"guidelines"`
+	NextSteps  string   `json:"next_steps"`
 }
 
 type ValueMetrics struct {
@@ -240,34 +271,91 @@ type DashboardGraphData struct {
 }
 
 type QDDState struct {
-	Score          int                      `json:"score"`
-	Grade          string                   `json:"grade"`
-	Version        string                   `json:"version"`
-	AuditStatus    string                   `json:"audit_status"`
-	Findings       []DashboardFinding       `json:"findings"`
-	Certifications []DashboardCertification `json:"certifications"`
-	Sprints        []DashboardSprint        `json:"sprints"`
-	Knowledge      []DashboardKnowledgeDoc  `json:"knowledge"`
-	Understanding  *DashboardUnderstanding  `json:"understanding"`
+	Score          int                       `json:"score"`
+	Grade          string                    `json:"grade"`
+	Version        string                    `json:"version"`
+	AuditStatus    string                    `json:"audit_status"`
+	Findings       []DashboardFinding        `json:"findings"`
+	Certifications []DashboardCertification  `json:"certifications"`
+	Sprints        []DashboardSprint         `json:"sprints"`
+	Knowledge      []DashboardKnowledgeDoc   `json:"knowledge"`
+	Understanding  *DashboardUnderstanding   `json:"understanding"`
 	Topology       *topology.ProjectTopology `json:"topology"`
-	Config         map[string]interface{}   `json:"config"`
-	Telemetry      DashboardTelemetry       `json:"telemetry"`
-	WorkingOn      string                   `json:"working_on"`
-	ProjectName    string                   `json:"project_name"`
-	ValueMetrics   ValueMetrics             `json:"value_metrics"`
-	Historical     []HistoricalTrendPoint   `json:"historical_trends"`
-	MCPLogs        []string                 `json:"mcp_logs"`
-	UsageTime      string                   `json:"usage_time"`
-	Policies       audit.QDDPolicies        `json:"policies"`
-	GraphData      DashboardGraphData       `json:"graph_data"`
-	AutoUICert     bool                     `json:"auto_ui_certification"`
+	Config         map[string]interface{}    `json:"config"`
+	Telemetry      DashboardTelemetry        `json:"telemetry"`
+	WorkingOn      string                    `json:"working_on"`
+	ProjectName    string                    `json:"project_name"`
+	ValueMetrics   ValueMetrics              `json:"value_metrics"`
+	Historical     []HistoricalTrendPoint    `json:"historical_trends"`
+	MCPLogs        []string                  `json:"mcp_logs"`
+	UsageTime      string                    `json:"usage_time"`
+	Policies       audit.QDDPolicies         `json:"policies"`
+	GraphData      DashboardGraphData        `json:"graph_data"`
+	AutoUICert     bool                      `json:"auto_ui_certification"`
 }
 
 func buildState() QDDState {
 	cwd, _ := os.Getwd()
 	qddDir := filepath.Join(cwd, ".qdd")
 
-	response := QDDState{
+	response := initDefaultState(cwd)
+
+	updateUsageTime(&response, qddDir)
+
+	loadMCPLogs(&response, qddDir)
+	loadTelemetry(&response)
+	loadStateJson(&response, qddDir)
+	loadWorkingOn(&response, qddDir)
+	loadConfigAndKnowledge(&response, cwd, qddDir)
+	loadUnderstandingAndConfig(&response, qddDir)
+	loadTopology(&response, cwd, qddDir)
+
+	openFindings, finalScore := loadGraphData(&response, cwd)
+
+	loadHistoricalTrends(&response, cwd)
+
+	finalScore = computeFinalScore(openFindings)
+	response.Score = finalScore
+	response.Grade = determineDashboardGrade(finalScore)
+	response.AuditStatus = determineAuditStatus(openFindings)
+
+	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
+		response.MCPLogs = append([]string{"[WARNING] Métricas de Valor y ROI no disponibles. Finaliza sprints para ganar valor."}, response.MCPLogs...)
+	}
+
+	return response
+}
+
+func updateUsageTime(response *QDDState, qddDir string) {
+	if info, err := os.Stat(qddDir); err == nil {
+		duration := time.Since(info.ModTime())
+		days := int(duration.Hours() / 24)
+		response.UsageTime = "Recientemente iniciado"
+		if days > 0 {
+			response.UsageTime = fmt.Sprintf("%d días", days)
+		}
+	}
+}
+
+func loadGraphData(response *QDDState, cwd string) (int, int) {
+	openFindings, finalScore := 0, 100
+	dbGraph, errDB := graph.InitDB()
+	if errDB == nil {
+		defer dbGraph.Close()
+		dbGraph.SyncToGraph(cwd)
+		db := dbGraph.GetDB()
+
+		loadCertifications(response, db)
+		openFindings = loadFindings(response, db)
+		loadGraphNodes(response, db)
+		loadGraphEdges(response, db)
+		loadSprints(response, db)
+	}
+	return openFindings, finalScore
+}
+
+func initDefaultState(cwd string) QDDState {
+	return QDDState{
 		Score:          100,
 		Grade:          "World-Class",
 		Version:        "v0.1.1",
@@ -282,36 +370,39 @@ func buildState() QDDState {
 		MCPLogs:        []string{},
 		Policies:       audit.LoadPolicies(cwd),
 	}
+}
 
-	if info, err := os.Stat(qddDir); err == nil {
-		duration := time.Since(info.ModTime())
-		days := int(duration.Hours() / 24)
-		response.UsageTime = "Recientemente iniciado"
-		if days > 0 {
-			response.UsageTime = fmt.Sprintf("%d días", days)
-		}
-	}
-
-	// Read MCP logs
+func loadMCPLogs(response *QDDState, qddDir string) {
 	if logData, err := os.ReadFile(filepath.Join(qddDir, "mcp.log")); err == nil {
-		lines := strings.Split(string(logData), "\n")
-		// Keep last 30 lines
-		startIdx := len(lines) - 30
-		if startIdx < 0 { startIdx = 0 }
-		for i := startIdx; i < len(lines); i++ {
-			if strings.TrimSpace(lines[i]) != "" {
-				response.MCPLogs = append(response.MCPLogs, lines[i])
-			}
+		processMCPLogLines(response, string(logData))
+	}
+	ensureDefaultMCPLogs(response)
+}
+
+func processMCPLogLines(response *QDDState, logData string) {
+	lines := strings.Split(logData, "\n")
+	startIdx := len(lines) - 30
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	for i := startIdx; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line != "" {
+			response.MCPLogs = append(response.MCPLogs, line)
 		}
 	}
-	// Default dummy logs if empty to demonstrate real-time feed
+}
+
+func ensureDefaultMCPLogs(response *QDDState) {
 	if len(response.MCPLogs) == 0 {
 		response.MCPLogs = []string{
 			"[MCP] Servidor QDD inicializado.",
 			"[MCP] Escuchando intenciones en stdio/SSE...",
 		}
 	}
+}
 
+func loadTelemetry(response *QDDState) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	response.Telemetry = DashboardTelemetry{
@@ -320,8 +411,9 @@ func buildState() QDDState {
 		MemorySys:   fmt.Sprintf("%.2f MB", float64(m.Sys)/1024/1024),
 		Goroutines:  runtime.NumGoroutine(),
 	}
+}
 
-	// Read state.json
+func loadStateJson(response *QDDState, qddDir string) {
 	stateData, err := os.ReadFile(filepath.Join(qddDir, "state.json"))
 	if err == nil {
 		var state map[string]interface{}
@@ -330,36 +422,48 @@ func buildState() QDDState {
 			response.Version = fmt.Sprintf("%v", ver)
 		}
 	}
+}
 
+func loadWorkingOn(response *QDDState, qddDir string) {
 	workData, err := os.ReadFile(filepath.Join(qddDir, "working"))
 	if err == nil {
 		response.WorkingOn = strings.TrimSpace(string(workData))
 	}
+}
 
-	// Read config.yaml
+func loadConfigAndKnowledge(response *QDDState, cwd, qddDir string) {
 	configData, err := os.ReadFile(filepath.Join(qddDir, "config.yaml"))
 	if err == nil {
-		var config map[string]interface{}
-		yaml.Unmarshal(configData, &config)
-		response.Config = config
+		parseConfigAndDocs(response, configData, cwd)
+	}
+	ensureLifecycleDocExists(response)
+}
 
-		// Parse documentation_index for knowledge base
-		if docs, ok := config["documentation_index"].([]interface{}); ok {
-			for _, docPath := range docs {
-				if p, ok := docPath.(string); ok {
-					content, err := os.ReadFile(filepath.Join(cwd, p))
-					if err == nil {
-						response.Knowledge = append(response.Knowledge, DashboardKnowledgeDoc{
-							ID:      filepath.Base(p),
-							Path:    p,
-							Content: string(content),
-						})
-					}
-				}
+func parseConfigAndDocs(response *QDDState, configData []byte, cwd string) {
+	var config map[string]interface{}
+	yaml.Unmarshal(configData, &config)
+	response.Config = config
+
+	if docs, ok := config["documentation_index"].([]interface{}); ok {
+		for _, docPath := range docs {
+			if p, ok := docPath.(string); ok {
+				addDocToKnowledge(response, cwd, p)
 			}
 		}
 	}
+}
 
+func addDocToKnowledge(response *QDDState, cwd, p string) {
+	if content, err := os.ReadFile(filepath.Join(cwd, p)); err == nil {
+		response.Knowledge = append(response.Knowledge, DashboardKnowledgeDoc{
+			ID:      filepath.Base(p),
+			Path:    p,
+			Content: string(content),
+		})
+	}
+}
+
+func ensureLifecycleDocExists(response *QDDState) {
 	hasLifecycle := false
 	for _, k := range response.Knowledge {
 		if k.Path == "docs/command-reference.md" {
@@ -374,258 +478,321 @@ func buildState() QDDState {
 			Content: qddLifecycleMermaid,
 		})
 	}
+}
 
-	// Read Understanding
+func loadUnderstandingAndConfig(response *QDDState, qddDir string) {
+	configData, _ := os.ReadFile(filepath.Join(qddDir, "config.yaml"))
+	var config struct {
+		AutoUICertification *bool `yaml:"auto_ui_certification"`
+	}
+	response.AutoUICert = true
+	if yaml.Unmarshal(configData, &config) == nil && config.AutoUICertification != nil {
+		response.AutoUICert = *config.AutoUICertification
+	}
+
 	undData, err := os.ReadFile(filepath.Join(qddDir, "understanding.json"))
 	if err == nil {
 		var und DashboardUnderstanding
-		
-		var config struct {
-			AutoUICertification *bool `yaml:"auto_ui_certification"`
-		}
-		response.AutoUICert = true // Default
-		if yaml.Unmarshal(configData, &config) == nil && config.AutoUICertification != nil {
-			response.AutoUICert = *config.AutoUICertification
-		}
-
 		if err := json.Unmarshal(undData, &und); err == nil {
 			response.Understanding = &und
 		}
 	}
+}
 
-	// Load Topology
-	// Load Topology
+func loadTopology(response *QDDState, cwd, qddDir string) {
 	topData, errTop := os.ReadFile(filepath.Join(qddDir, "project", "topology.json"))
 	if errTop != nil {
-		// Auto-map if not exists
 		if top, mapErr := topology.MapProject(cwd); mapErr == nil {
 			response.Topology = top
 		}
+		return
 	}
-	if errTop == nil {
-		var top topology.ProjectTopology
-		if err := json.Unmarshal(topData, &top); err == nil {
-			response.Topology = &top
+	var top topology.ProjectTopology
+	if err := json.Unmarshal(topData, &top); err == nil {
+		response.Topology = &top
+	}
+}
+
+func loadCertifications(response *QDDState, db *sql.DB) {
+	rows, err := db.QueryContext(context.Background(), "SELECT id, name, metadata FROM nodes WHERE type = 'rule'")
+	if err == nil {
+		for rows.Next() {
+			processCertificationRow(response, rows)
 		}
+		rows.Close()
+	}
+}
+
+func processCertificationRow(response *QDDState, rows *sql.Rows) {
+	var id, name, metaStr string
+	rows.Scan(&id, &name, &metaStr)
+	var rawData map[string]interface{}
+	json.Unmarshal([]byte(metaStr), &rawData)
+
+	status := "PASS"
+	if rawData != nil && rawData["status"] != nil {
+		status = fmt.Sprintf("%v", rawData["status"])
 	}
 
+	version := "unknown"
+	if rawData != nil && rawData["version"] != nil {
+		version = fmt.Sprintf("%v", rawData["version"])
+	}
+
+	mockHistory := []CertificationRun{
+		{RunID: "run-001", Timestamp: time.Now().Add(-48 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.2s"},
+		{RunID: "run-002", Timestamp: time.Now().Add(-24 * time.Hour).Format(time.RFC3339), Status: "FAIL", Duration: "0.8s"},
+		{RunID: "run-003", Timestamp: time.Now().Add(-12 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.1s"},
+		{RunID: "run-004", Timestamp: time.Now().Add(-2 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "0.9s"},
+		{RunID: "run-005", Timestamp: time.Now().Format(time.RFC3339), Status: status, Duration: "1.0s"},
+	}
+
+	response.Certifications = append(response.Certifications, DashboardCertification{
+		ID:      name,
+		Version: version,
+		Status:  status,
+		Name:    "Cumplimiento verificado",
+		Type:    "Proyecto",
+		Raw:     rawData,
+		History: mockHistory,
+	})
+}
+
+func loadFindings(response *QDDState, db *sql.DB) int {
 	openFindings := 0
-	finalScore := 100
-
-	dbGraph, errDB := graph.InitDB()
-	if errDB == nil {
-		defer dbGraph.Close()
-		dbGraph.SyncToGraph(cwd)
-		db := dbGraph.GetDB()
-
-		// Read Certifications (rules)
-		rows, err := db.Query("SELECT id, name, metadata FROM nodes WHERE type = 'rule'")
-		if err == nil {
-			for rows.Next() {
-				var id, name, metaStr string
-				rows.Scan(&id, &name, &metaStr)
-				var rawData map[string]interface{}
-				json.Unmarshal([]byte(metaStr), &rawData)
-
-				status := "PASS"
-				if rawData != nil && rawData["status"] != nil {
-					status = fmt.Sprintf("%v", rawData["status"])
-				}
-
-				version := "unknown"
-				if rawData != nil && rawData["version"] != nil {
-					version = fmt.Sprintf("%v", rawData["version"])
-				}
-
-				// Generate mock history for demonstration of Prefect-like board
-				mockHistory := []CertificationRun{
-					{RunID: "run-001", Timestamp: time.Now().Add(-48 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.2s"},
-					{RunID: "run-002", Timestamp: time.Now().Add(-24 * time.Hour).Format(time.RFC3339), Status: "FAIL", Duration: "0.8s"},
-					{RunID: "run-003", Timestamp: time.Now().Add(-12 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.1s"},
-					{RunID: "run-004", Timestamp: time.Now().Add(-2 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "0.9s"},
-					{RunID: "run-005", Timestamp: time.Now().Format(time.RFC3339), Status: status, Duration: "1.0s"},
-				}
-
-				response.Certifications = append(response.Certifications, DashboardCertification{
-					ID:      name,
-					Version: version,
-					Status:  status,
-					Name:    "Cumplimiento verificado",
-					Type:    "Proyecto",
-					Raw:     rawData,
-					History: mockHistory,
-				})
-			}
-			rows.Close()
+	rows, err := db.QueryContext(context.Background(), "SELECT id, name, metadata FROM nodes WHERE type = 'finding'")
+	if err == nil {
+		for rows.Next() {
+			openFindings += processFindingRow(response, rows)
 		}
+		rows.Close()
+	}
+	return openFindings
+}
 
-		// Read Findings
-		rows, err = db.Query("SELECT id, name, metadata FROM nodes WHERE type = 'finding'")
-		if err == nil {
-			for rows.Next() {
-				var id, name, metaStr string
-				rows.Scan(&id, &name, &metaStr)
-				var rawData map[string]interface{}
-				json.Unmarshal([]byte(metaStr), &rawData)
+func processFindingRow(response *QDDState, rows *sql.Rows) int {
+	var id, name, metaStr string
+	rows.Scan(&id, &name, &metaStr)
+	var rawData map[string]interface{}
+	json.Unmarshal([]byte(metaStr), &rawData)
 
-				status := "OPEN"
-				if rawData != nil && rawData["status"] != nil {
-					status = fmt.Sprintf("%v", rawData["status"])
-				}
-
-				isResolved := (strings.ToUpper(status) == "RESOLVED")
-				if !isResolved {
-					openFindings++
-				}
-				if isResolved {
-					response.ValueMetrics.DebtReduced++
-					response.ValueMetrics.HoursSaved += 2 // 2 hours saved per finding resolved
-				}
-
-				// Categorize into Pillars
-				pillar := "Certificación" // Default
-				descLower := ""
-				if rawData != nil && rawData["description"] != nil {
-					descLower = strings.ToLower(fmt.Sprintf("%v", rawData["description"]))
-				}
-				nameLower := strings.ToLower(name)
-				searchStr := nameLower + " " + descLower
-
-				if strings.Contains(searchStr, "cert") || strings.Contains(searchStr, "missing") || strings.Contains(searchStr, "adr") || strings.Contains(searchStr, "doc") {
-					pillar = "Certificación"
-				}
-				if strings.Contains(searchStr, "timeout") || strings.Contains(searchStr, "count") || strings.Contains(searchStr, "performance") || strings.Contains(searchStr, "flaky") || strings.Contains(searchStr, "estabilidad") {
-					pillar = "Estabilidad"
-				}
-				if strings.Contains(searchStr, "key") || strings.Contains(searchStr, "secret") || strings.Contains(searchStr, "sql") || strings.Contains(searchStr, "auth") || strings.Contains(searchStr, "cors") || strings.Contains(searchStr, "seguridad") {
-					pillar = "Seguridad"
-				}
-				if strings.Contains(searchStr, "else") || strings.Contains(searchStr, "complexity") || strings.Contains(searchStr, "ciclomática") || strings.Contains(searchStr, "legacy") || strings.Contains(searchStr, "estructural") {
-					pillar = "Estructural"
-				}
-
-				response.Findings = append(response.Findings, DashboardFinding{
-					ID:     name,
-					Status: status,
-					Pillar: pillar,
-					Desc:   "Deuda técnica documentada.",
-					Raw:    rawData,
-				})
-			}
-			rows.Close()
-		}
-
-		// Read Graph Nodes
-		response.GraphData = DashboardGraphData{Nodes: []GraphNode{}, Edges: []GraphEdge{}}
-		rows, err = db.Query("SELECT id, type, name FROM nodes")
-		if err == nil {
-			for rows.Next() {
-				var id, nodeType, name string
-				rows.Scan(&id, &nodeType, &name)
-				response.GraphData.Nodes = append(response.GraphData.Nodes, GraphNode{ID: id, Type: nodeType, Name: name})
-			}
-			rows.Close()
-		}
-
-		// Read Graph Edges
-		rows, err = db.Query("SELECT source_id, target_id, relation FROM edges")
-		if err == nil {
-			for rows.Next() {
-				var source, target, relation string
-				rows.Scan(&source, &target, &relation)
-				response.GraphData.Edges = append(response.GraphData.Edges, GraphEdge{Source: source, Target: target, Relation: relation})
-			}
-			rows.Close()
-		}
-
-		// Calculate historical data from cognitive_history.json
-		histPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
-		if histData, err := os.ReadFile(histPath); err == nil {
-			var histList []map[string]interface{}
-			json.Unmarshal(histData, &histList)
-			for _, item := range histList {
-				date := ""
-				score := 0
-				if d, ok := item["date"]; ok { date = fmt.Sprintf("%v", d) }
-				if s, ok := item["score"]; ok { score = int(s.(float64)) }
-				response.Historical = append(response.Historical, HistoricalTrendPoint{Date: date, Score: score})
-			}
-		}
-
-		// Fallback data if empty to show the chart
-		if len(response.Historical) == 0 {
-			response.Historical = []HistoricalTrendPoint{
-				{Date: "Día 1", Score: 40},
-				{Date: "Día 2", Score: 75},
-				{Date: "Hoy", Score: 100},
-			}
-		}
-
-		// Compute dynamic score
-		baseScore := 100
-		findingPenalty := openFindings * 30
-		finalScore = baseScore - findingPenalty
-		if finalScore < 0 {
-			finalScore = 0
-		}
-		response.Score = finalScore
-
-		// Read Sprints (tasks)
-		rows, err = db.Query("SELECT id, name, content, metadata FROM nodes WHERE type = 'task'")
-		if err == nil {
-			for rows.Next() {
-				var id, name, contentStr, metaStr string
-				rows.Scan(&id, &name, &contentStr, &metaStr)
-				var rawData map[string]interface{}
-				json.Unmarshal([]byte(metaStr), &rawData)
-
-				status := "IN-PROGRESS"
-				if rawData != nil && rawData["status"] != nil {
-					status = fmt.Sprintf("%v", rawData["status"])
-				}
-				
-				if rawData == nil || rawData["status"] == nil {
-					if strings.Contains(contentStr, "- [x]") && !strings.Contains(contentStr, "- [ ]") {
-						status = "COMPLETED"
-					}
-					if !strings.Contains(contentStr, "- [x]") && !strings.Contains(contentStr, "- [ ]") {
-						status = "BACKLOG"
-					}
-				}
-
-				if status == "COMPLETED" || status == "CERTIFIED" {
-					response.ValueMetrics.HoursSaved += 4 // 4 hours per sprint
-				}
-
-				response.Sprints = append(response.Sprints, DashboardSprint{
-					ID:     name,
-					Status: status,
-					Raw:    rawData,
-				})
-			}
-			rows.Close()
-		}
+	status := "OPEN"
+	if rawData != nil && rawData["status"] != nil {
+		status = fmt.Sprintf("%v", rawData["status"])
 	}
 
-	grade := "World-Class"
-	if finalScore < 90 { grade = "A" }
-	if finalScore < 80 { grade = "B" }
-	if finalScore < 70 { grade = "C" }
-	if finalScore < 50 { grade = "D (CRITICAL)" }
-	response.Grade = grade
+	isResolved := (strings.ToUpper(status) == "RESOLVED")
+	openCount := 1
+	if isResolved {
+		openCount = 0
+		response.ValueMetrics.DebtReduced++
+		response.ValueMetrics.HoursSaved += 2
+	}
 
-	// Set Audit Status
-	auditStatus := "PASS"
+	pillar := determineFindingPillar(name, rawData)
+
+	response.Findings = append(response.Findings, DashboardFinding{
+		ID:     name,
+		Status: status,
+		Pillar: pillar,
+		Desc:   "Deuda técnica documentada.",
+		Raw:    rawData,
+	})
+
+	return openCount
+}
+
+func determineFindingPillar(name string, rawData map[string]interface{}) string {
+	descLower := getLowerDescription(rawData)
+	searchStr := strings.ToLower(name) + " " + descLower
+
+	return checkPillars(searchStr)
+}
+
+func getLowerDescription(rawData map[string]interface{}) string {
+	if rawData != nil && rawData["description"] != nil {
+		return strings.ToLower(fmt.Sprintf("%v", rawData["description"]))
+	}
+	return ""
+}
+
+func checkPillars(searchStr string) string {
+	if isCertPillar(searchStr) {
+		return "Certificación"
+	}
+	if isStabilityPillar(searchStr) {
+		return "Estabilidad"
+	}
+	if isSecurityPillar(searchStr) {
+		return "Seguridad"
+	}
+	if isStructuralPillar(searchStr) {
+		return "Estructural"
+	}
+	return "Certificación"
+}
+
+func containsAny(s string, keywords []string) bool {
+	for _, k := range keywords {
+		if strings.Contains(s, k) {
+			return true
+		}
+	}
+	return false
+}
+
+func isCertPillar(s string) bool {
+	return containsAny(s, []string{"cert", "missing", "adr", "doc"})
+}
+
+func isStabilityPillar(s string) bool {
+	return containsAny(s, []string{"timeout", "count", "performance", "flaky", "estabilidad"})
+}
+
+func isSecurityPillar(s string) bool {
+	return containsAny(s, []string{"key", "secret", "sql", "auth", "cors", "seguridad"})
+}
+
+func isStructuralPillar(s string) bool {
+	return containsAny(s, []string{"else", "complexity", "ciclomática", "legacy", "estructural"})
+}
+
+func loadGraphNodes(response *QDDState, db *sql.DB) {
+	response.GraphData = DashboardGraphData{Nodes: []GraphNode{}, Edges: []GraphEdge{}}
+	rows, err := db.QueryContext(context.Background(), "SELECT id, type, name FROM nodes")
+	if err == nil {
+		for rows.Next() {
+			var id, nodeType, name string
+			rows.Scan(&id, &nodeType, &name)
+			response.GraphData.Nodes = append(response.GraphData.Nodes, GraphNode{ID: id, Type: nodeType, Name: name})
+		}
+		rows.Close()
+	}
+}
+
+func loadGraphEdges(response *QDDState, db *sql.DB) {
+	rows, err := db.QueryContext(context.Background(), "SELECT source_id, target_id, relation FROM edges")
+	if err == nil {
+		for rows.Next() {
+			var source, target, relation string
+			rows.Scan(&source, &target, &relation)
+			response.GraphData.Edges = append(response.GraphData.Edges, GraphEdge{Source: source, Target: target, Relation: relation})
+		}
+		rows.Close()
+	}
+}
+
+func loadHistoricalTrends(response *QDDState, cwd string) {
+	histPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
+	if histData, err := os.ReadFile(histPath); err == nil {
+		parseHistoricalTrends(response, histData)
+	}
+
+	if len(response.Historical) == 0 {
+		response.Historical = []HistoricalTrendPoint{
+			{Date: "Día 1", Score: 40},
+			{Date: "Día 2", Score: 75},
+			{Date: "Hoy", Score: 100},
+		}
+	}
+}
+
+func parseHistoricalTrends(response *QDDState, histData []byte) {
+	var histList []map[string]interface{}
+	json.Unmarshal(histData, &histList)
+	for _, item := range histList {
+		date := ""
+		score := 0
+		if d, ok := item["date"]; ok {
+			date = fmt.Sprintf("%v", d)
+		}
+		if s, ok := item["score"]; ok {
+			score = int(s.(float64))
+		}
+		response.Historical = append(response.Historical, HistoricalTrendPoint{Date: date, Score: score})
+	}
+}
+
+func loadSprints(response *QDDState, db *sql.DB) {
+	rows, err := db.QueryContext(context.Background(), "SELECT id, name, content, metadata FROM nodes WHERE type = 'task'")
+	if err == nil {
+		for rows.Next() {
+			processSprintRow(response, rows)
+		}
+		rows.Close()
+	}
+}
+
+func processSprintRow(response *QDDState, rows *sql.Rows) {
+	var id, name, contentStr, metaStr string
+	rows.Scan(&id, &name, &contentStr, &metaStr)
+	var rawData map[string]interface{}
+	json.Unmarshal([]byte(metaStr), &rawData)
+
+	status := determineSprintStatus(contentStr, rawData)
+
+	if status == "COMPLETED" || status == "CERTIFIED" {
+		response.ValueMetrics.HoursSaved += 4
+	}
+
+	response.Sprints = append(response.Sprints, DashboardSprint{
+		ID:     name,
+		Status: status,
+		Raw:    rawData,
+	})
+}
+
+func determineSprintStatus(contentStr string, rawData map[string]interface{}) string {
+	if rawData != nil && rawData["status"] != nil {
+		return fmt.Sprintf("%v", rawData["status"])
+	}
+	return extractStatusFromContent(contentStr)
+}
+
+func extractStatusFromContent(contentStr string) string {
+	hasChecked := strings.Contains(contentStr, "- [x]")
+	hasUnchecked := strings.Contains(contentStr, "- [ ]")
+
+	if hasChecked && !hasUnchecked {
+		return "COMPLETED"
+	}
+	if !hasChecked && !hasUnchecked {
+		return "BACKLOG"
+	}
+	return "IN-PROGRESS"
+}
+
+func computeFinalScore(openFindings int) int {
+	baseScore := 100
+	findingPenalty := openFindings * 30
+	finalScore := baseScore - findingPenalty
+	if finalScore < 0 {
+		return 0
+	}
+	return finalScore
+}
+
+func determineDashboardGrade(finalScore int) string {
+	if finalScore < 50 {
+		return "D (CRITICAL)"
+	}
+	if finalScore < 70 {
+		return "C"
+	}
+	if finalScore < 80 {
+		return "B"
+	}
+	if finalScore < 90 {
+		return "A"
+	}
+	return "World-Class"
+}
+
+func determineAuditStatus(openFindings int) string {
 	if openFindings > 0 {
-		auditStatus = "FAIL (Deuda Técnica Detectada)"
+		return "FAIL (Deuda Técnica Detectada)"
 	}
-	response.AuditStatus = auditStatus
-
-	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
-		response.MCPLogs = append([]string{"[WARNING] Métricas de Valor y ROI no disponibles. Finaliza sprints para ganar valor."}, response.MCPLogs...)
-	}
-
-	return response
+	return "PASS"
 }
 
 var dashboardCmd = &cobra.Command{
@@ -707,15 +874,15 @@ var dashboardCmd = &cobra.Command{
 					return
 				}
 				audit.SavePolicies(cwd, p)
-				
+
 				// Re-run QDD Certify silently to update DB state with new rules
 				exec.CommandContext(r.Context(), os.Args[0], "certify").Run()
-				
+
 				// Broadcast new state
 				res := buildState()
 				data, _ := json.Marshal(res)
 				broker.Broadcast(data)
-				
+
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 				return
@@ -739,8 +906,8 @@ var dashboardCmd = &cobra.Command{
 			}
 
 			mockResponse := map[string]interface{}{
-				"status": "DEPRECATED",
-				"message": "El motor cognitivo interno basado en API ha sido deprecado. QDD ahora actúa exclusivamente como un Harness MCP para inteligencias artificiales externas (Antigravity, Claude, Cursor). Por favor envía tu intención directamente a tu asistente de IA.",
+				"status":         "DEPRECATED",
+				"message":        "El motor cognitivo interno basado en API ha sido deprecado. QDD ahora actúa exclusivamente como un Harness MCP para inteligencias artificiales externas (Antigravity, Claude, Cursor). Por favor envía tu intención directamente a tu asistente de IA.",
 				"input_received": req.Input,
 			}
 

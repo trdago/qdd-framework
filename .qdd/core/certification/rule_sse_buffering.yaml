@@ -1,0 +1,18 @@
+id: rule_sse_buffering
+title: Disable SSE Proxy Buffering
+description: |-
+  All endpoints implementing Server-Sent Events (SSE) with `text/event-stream` MUST
+  include the `X-Accel-Buffering: no` HTTP header. Failure to do so causes reverse
+  proxies (like NGINX) to buffer the stream indefinitely until memory limits are met,
+  breaking real-time capabilities in production environments.
+severity: CRITICAL
+category: Estabilidad
+level: core
+validation:
+  type: grep
+  condition: AND
+  rules:
+    - pattern: '"text/event-stream"'
+      message: "SSE endpoint detected without corresponding X-Accel-Buffering header"
+    - pattern: '"X-Accel-Buffering", "no"'
+      message: "Required X-Accel-Buffering: no header is missing"

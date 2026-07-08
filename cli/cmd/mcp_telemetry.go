@@ -25,78 +25,122 @@ func registerScoreTool(s *server.MCPServer) {
 		mcp.WithDescription("Calcula y devuelve el puntaje de calidad del proyecto basado en certificaciones y findings."),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		qddDir := filepath.Join(".", ".qdd")
-		certDirs := []string{
-			filepath.Join(qddDir, "core", "certification"),
-			filepath.Join(qddDir, "project", "certification"),
-		}
-		
-		totalCerts := 0
-		certifiedCerts := 0
-		for _, certDir := range certDirs {
-			entries, _ := os.ReadDir(certDir)
-			for _, entry := range entries {
-				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-					totalCerts++
-					content, _ := os.ReadFile(filepath.Join(certDir, entry.Name()))
-					var cert Certification
-					yaml.Unmarshal(content, &cert)
-					if cert.Status == "certified" {
-						certifiedCerts++
-					}
-				}
-			}
-		}
+		totalCerts, certifiedCerts := getCertificationStats()
+		openFindings, resolvedFindings := getFindingsStats()
 
-		findDir := filepath.Join(qddDir, "project", "findings")
-		findEntries, _ := os.ReadDir(findDir)
-		openFindings := 0
-		resolvedFindings := 0
-		for _, entry := range findEntries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-				content, _ := os.ReadFile(filepath.Join(findDir, entry.Name()))
-				var fnd Finding
-				yaml.Unmarshal(content, &fnd)
-				if fnd.Status == "open" {
-					openFindings++
-					continue
-				}
-				if fnd.Status == "resolved" {
-					resolvedFindings++
-				}
-			}
-		}
+		finalScore, grado := calculateProjectScore(totalCerts, certifiedCerts, openFindings)
 
-		baseScore := 100
-		pendingCerts := totalCerts - certifiedCerts
-		certPenalty := pendingCerts * 20
-		findingPenalty := openFindings * 30
-		finalScore := baseScore - certPenalty - findingPenalty
-		if finalScore < 0 {
-			finalScore = 0
-		}
-
-		grado := "F"
-		if finalScore >= 95 {
-			grado = "A+ (World-Class)"
-		}
-		if finalScore >= 80 && finalScore < 95 {
-			grado = "B (Bueno)"
-		}
-		if finalScore >= 60 && finalScore < 80 {
-			grado = "C (Requiere Atención)"
-		}
-		if finalScore >= 40 && finalScore < 60 {
-			grado = "D (Pobre)"
-		}
-
-		out := fmt.Sprintf("**Puntaje Global:** %d / 100 (Grado: %s)\n", finalScore, grado)
-		out += fmt.Sprintf("Certificaciones Cumplidas: %d/%d\n", certifiedCerts, totalCerts)
-		out += fmt.Sprintf("Findings Abiertos: %d\n", openFindings)
-		out += fmt.Sprintf("Findings Resueltos: %d\n", resolvedFindings)
-		
+		out := formatScoreOutput(finalScore, grado, certifiedCerts, totalCerts, openFindings, resolvedFindings)
 		return mcp.NewToolResultText(out), nil
 	})
+}
+
+func getCertificationStats() (int, int) {
+	qddDir := filepath.Join(".", ".qdd")
+	certDirs := []string{
+		filepath.Join(qddDir, "core", "certification"),
+		filepath.Join(qddDir, "project", "certification"),
+	}
+	
+	totalCerts := 0
+	certifiedCerts := 0
+	for _, certDir := range certDirs {
+		t, c := processCertDir(certDir)
+		totalCerts += t
+		certifiedCerts += c
+	}
+	return totalCerts, certifiedCerts
+}
+
+func processCertDir(certDir string) (int, int) {
+	total := 0
+	certified := 0
+	entries, _ := os.ReadDir(certDir)
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+			total++
+			if isCertCertified(filepath.Join(certDir, entry.Name())) {
+				certified++
+			}
+		}
+	}
+	return total, certified
+}
+
+func isCertCertified(path string) bool {
+	content, _ := os.ReadFile(path)
+	var cert Certification
+	yaml.Unmarshal(content, &cert)
+	return cert.Status == "certified"
+}
+
+func getFindingsStats() (int, int) {
+	findDir := filepath.Join(".", ".qdd", "project", "findings")
+	findEntries, _ := os.ReadDir(findDir)
+	openFindings := 0
+	resolvedFindings := 0
+	
+	for _, entry := range findEntries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
+			processFindingEntry(filepath.Join(findDir, entry.Name()), &openFindings, &resolvedFindings)
+		}
+	}
+	return openFindings, resolvedFindings
+}
+
+func processFindingEntry(path string, open, resolved *int) {
+	content, _ := os.ReadFile(path)
+	var fnd Finding
+	yaml.Unmarshal(content, &fnd)
+	
+	if fnd.Status == "open" {
+		*open++
+	}
+	if fnd.Status == "resolved" {
+		*resolved++
+	}
+}
+
+func calculateProjectScore(totalCerts, certifiedCerts, openFindings int) (int, string) {
+	finalScore := computeNumericScore(totalCerts, certifiedCerts, openFindings)
+	grado := determineGrade(finalScore)
+	return finalScore, grado
+}
+
+func computeNumericScore(totalCerts, certifiedCerts, openFindings int) int {
+	baseScore := 100
+	pendingCerts := totalCerts - certifiedCerts
+	certPenalty := pendingCerts * 20
+	findingPenalty := openFindings * 30
+	finalScore := baseScore - certPenalty - findingPenalty
+	if finalScore < 0 {
+		return 0
+	}
+	return finalScore
+}
+
+func determineGrade(score int) string {
+	if score >= 95 {
+		return "A+ (World-Class)"
+	}
+	if score >= 80 {
+		return "B (Bueno)"
+	}
+	if score >= 60 {
+		return "C (Requiere Atención)"
+	}
+	if score >= 40 {
+		return "D (Pobre)"
+	}
+	return "F"
+}
+
+func formatScoreOutput(finalScore int, grado string, certifiedCerts, totalCerts, openFindings, resolvedFindings int) string {
+	out := fmt.Sprintf("**Puntaje Global:** %d / 100 (Grado: %s)\n", finalScore, grado)
+	out += fmt.Sprintf("Certificaciones Cumplidas: %d/%d\n", certifiedCerts, totalCerts)
+	out += fmt.Sprintf("Findings Abiertos: %d\n", openFindings)
+	out += fmt.Sprintf("Findings Resueltos: %d\n", resolvedFindings)
+	return out
 }
 
 func registerStatusTool(s *server.MCPServer) {
@@ -133,102 +177,15 @@ type KnowledgeIndexEntry struct {
 
 func handleLearnTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	cwd, _ := os.Getwd()
-	docFolders := []string{"docs", "rfcs", "specification"}
-	var index []KnowledgeIndexEntry
-
-	for _, folder := range docFolders {
-		folderPath := filepath.Join(cwd, folder)
-		if _, err := os.Stat(folderPath); os.IsNotExist(err) {
-			continue
-		}
-		filepath.WalkDir(folderPath, func(path string, d os.DirEntry, err error) error {
-			if err == nil && !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
-				relPath, _ := filepath.Rel(cwd, path)
-				info, errInfo := d.Info()
-				if errInfo == nil {
-					index = append(index, KnowledgeIndexEntry{
-						Path:      relPath,
-						SizeBytes: info.Size(),
-						ModTime:   info.ModTime().Format("2006-01-02 15:04:05"),
-					})
-				}
-			}
-			return nil
-		})
-	}
+	index := buildKnowledgeIndex(cwd)
 
 	if len(index) == 0 {
 		return mcp.NewToolResultText("No se encontraron documentos de arquitectura en docs/, rfcs/ o specification/."), nil
 	}
 
-	// Persist the knowledge index for the IDE to read iteratively
-	indexData, _ := json.MarshalIndent(index, "", "  ")
-	indexPath := filepath.Join(cwd, ".qdd", "knowledge_index.json")
-	os.MkdirAll(filepath.Dir(indexPath), 0755)
-	os.WriteFile(indexPath, indexData, 0644)
+	persistKnowledgeIndex(cwd, index)
 
-	// Leer config.yaml para saber si Auto-UI Certification está activo (por defecto sí, a menos que sea explícitamente false)
-	autoUIEnabled := true
-	if configData, err := os.ReadFile(filepath.Join(cwd, ".qdd", "config.yaml")); err == nil {
-		var config struct {
-			AutoUICertification *bool `yaml:"auto_ui_certification"`
-		}
-		if yaml.Unmarshal(configData, &config) == nil && config.AutoUICertification != nil {
-			autoUIEnabled = *config.AutoUICertification
-		}
-	}
-
-	uiInstruction := ""
-	if autoUIEnabled {
-		// Descubrimiento Dinámico de Componentes UI (Auto-UI Certification)
-		var uiComponents []KnowledgeIndexEntry
-		uiExtensions := map[string]bool{".vue": true, ".tsx": true, ".jsx": true, ".svelte": true, ".ts": true, ".js": true}
-		
-		filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() && (strings.HasPrefix(d.Name(), ".") || d.Name() == "node_modules" || d.Name() == "vendor" || d.Name() == "dist") {
-				return filepath.SkipDir
-			}
-			if !d.IsDir() && uiExtensions[filepath.Ext(d.Name())] {
-				info, errInfo := d.Info()
-				if errInfo == nil && info.Size() > 0 {
-					relPath, _ := filepath.Rel(cwd, path)
-					uiComponents = append(uiComponents, KnowledgeIndexEntry{
-						Path:      relPath,
-						SizeBytes: info.Size(),
-						ModTime:   info.ModTime().Format("2006-01-02 15:04:05"),
-					})
-				}
-			}
-			return nil
-		})
-
-		// Ordenar por tamaño descendente y extraer los top 3
-		sort.Slice(uiComponents, func(i, j int) bool {
-			return uiComponents[i].SizeBytes > uiComponents[j].SizeBytes
-		})
-		
-		var topUIComponents []string
-		for i := 0; i < len(uiComponents) && i < 3; i++ {
-			topUIComponents = append(topUIComponents, uiComponents[i].Path)
-		}
-		
-		if len(topUIComponents) > 0 {
-			uiInstruction = fmt.Sprintf(`
-[AUTO-UI CERTIFICATION]
-Se han detectado componentes de UI en el proyecto. Debes leer los 3 componentes más grandes:
-%v
-
-Tu tarea es:
-1. Extraer el patrón de diseño (Tokens CSS, estructura, peso cognitivo).
-2. Generar el archivo YAML técnico estricto en ".qdd/certifications/ui-consistency.yml" que use este patrón (ej. exigir var(--bg-panel)). El método de evaluación será por Percentage Score (umbral 80%%).
-3. Generar el catálogo de prevención de duplicados en ".qdd/core-components.json" mapeando por intención analítica (ej. {"feedback_visual_carga": "LoadingSpinner.vue"}).
-4. Fusionar esto con la documentación existente y escribir ".qdd/knowledge/design_system.md".
-`, topUIComponents)
-		}
-	}
+	uiInstruction := buildUIInstruction(cwd)
 
 	instructions := fmt.Sprintf(`[INSTRUCCIÓN PARA LA IA DEL IDE] (MAP-REDUCE COGNITIVO)
 Como Arquitecto Principal del Proyecto, debes leer los documentos listados en .qdd/knowledge_index.json y generar el reporte de inteligencia (Intelligence Report).
@@ -248,6 +205,140 @@ Por favor genera un archivo JSON estrictamente válido en la ruta ".qdd/understa
 `, uiInstruction)
 
 	return mcp.NewToolResultText(instructions), nil
+}
+
+func buildKnowledgeIndex(cwd string) []KnowledgeIndexEntry {
+	docFolders := []string{"docs", "rfcs", "specification"}
+	var index []KnowledgeIndexEntry
+
+	for _, folder := range docFolders {
+		folderPath := filepath.Join(cwd, folder)
+		if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+			continue
+		}
+		
+		index = append(index, scanDocFolder(cwd, folderPath)...)
+	}
+	return index
+}
+
+func scanDocFolder(cwd, folderPath string) []KnowledgeIndexEntry {
+	var index []KnowledgeIndexEntry
+	filepath.WalkDir(folderPath, func(path string, d os.DirEntry, err error) error {
+		if err == nil && isMarkdownFile(d) {
+			if entry := createKnowledgeEntry(cwd, path, d); entry != nil {
+				index = append(index, *entry)
+			}
+		}
+		return nil
+	})
+	return index
+}
+
+func isMarkdownFile(d os.DirEntry) bool {
+	return !d.IsDir() && strings.HasSuffix(d.Name(), ".md")
+}
+
+func createKnowledgeEntry(cwd, path string, d os.DirEntry) *KnowledgeIndexEntry {
+	relPath, _ := filepath.Rel(cwd, path)
+	info, errInfo := d.Info()
+	if errInfo == nil {
+		return &KnowledgeIndexEntry{
+			Path:      relPath,
+			SizeBytes: info.Size(),
+			ModTime:   info.ModTime().Format("2006-01-02 15:04:05"),
+		}
+	}
+	return nil
+}
+
+func persistKnowledgeIndex(cwd string, index []KnowledgeIndexEntry) {
+	indexData, _ := json.MarshalIndent(index, "", "  ")
+	indexPath := filepath.Join(cwd, ".qdd", "knowledge_index.json")
+	os.MkdirAll(filepath.Dir(indexPath), 0755)
+	os.WriteFile(indexPath, indexData, 0644)
+}
+
+func isAutoUIEnabled(cwd string) bool {
+	if configData, err := os.ReadFile(filepath.Join(cwd, ".qdd", "config.yaml")); err == nil {
+		var config struct {
+			AutoUICertification *bool `yaml:"auto_ui_certification"`
+		}
+		if yaml.Unmarshal(configData, &config) == nil && config.AutoUICertification != nil {
+			return *config.AutoUICertification
+		}
+	}
+	return true // default yes
+}
+
+func buildUIInstruction(cwd string) string {
+	if !isAutoUIEnabled(cwd) {
+		return ""
+	}
+
+	uiComponents := discoverUIComponents(cwd)
+	
+	sort.Slice(uiComponents, func(i, j int) bool {
+		return uiComponents[i].SizeBytes > uiComponents[j].SizeBytes
+	})
+	
+	var topUIComponents []string
+	for i := 0; i < len(uiComponents) && i < 3; i++ {
+		topUIComponents = append(topUIComponents, uiComponents[i].Path)
+	}
+	
+	if len(topUIComponents) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf(`
+[AUTO-UI CERTIFICATION]
+Se han detectado componentes de UI en el proyecto. Debes leer los 3 componentes más grandes:
+%v
+
+Tu tarea es:
+1. Extraer el patrón de diseño (Tokens CSS, estructura, peso cognitivo).
+2. Generar el archivo YAML técnico estricto en ".qdd/certifications/ui-consistency.yml" que use este patrón (ej. exigir var(--bg-panel)). El método de evaluación será por Percentage Score (umbral 80%%).
+3. Generar el catálogo de prevención de duplicados en ".qdd/core-components.json" mapeando por intención analítica (ej. {"feedback_visual_carga": "LoadingSpinner.vue"}).
+4. Fusionar esto con la documentación existente y escribir ".qdd/knowledge/design_system.md".
+`, topUIComponents)
+}
+
+func discoverUIComponents(cwd string) []KnowledgeIndexEntry {
+	var uiComponents []KnowledgeIndexEntry
+	uiExtensions := map[string]bool{".vue": true, ".tsx": true, ".jsx": true, ".svelte": true, ".ts": true, ".js": true}
+	
+	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		return processUIComponentEntry(cwd, path, d, uiExtensions, &uiComponents)
+	})
+	return uiComponents
+}
+
+func processUIComponentEntry(cwd, path string, d os.DirEntry, uiExtensions map[string]bool, uiComponents *[]KnowledgeIndexEntry) error {
+	if shouldSkipUIDir(d) {
+		return filepath.SkipDir
+	}
+	if isUIComponentFile(d, uiExtensions) {
+		if entry := createKnowledgeEntry(cwd, path, d); entry != nil && entry.SizeBytes > 0 {
+			*uiComponents = append(*uiComponents, *entry)
+		}
+	}
+	return nil
+}
+
+func shouldSkipUIDir(d os.DirEntry) bool {
+	if !d.IsDir() {
+		return false
+	}
+	name := d.Name()
+	return strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "dist"
+}
+
+func isUIComponentFile(d os.DirEntry, uiExtensions map[string]bool) bool {
+	return !d.IsDir() && uiExtensions[filepath.Ext(d.Name())]
 }
 
 func registerGraphQueryTool(s *server.MCPServer) {

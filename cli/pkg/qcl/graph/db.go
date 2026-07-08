@@ -1,9 +1,11 @@
 package graph
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -62,7 +64,7 @@ func migrate(db *sql.DB) error {
 	);
 	`
 
-	_, err := db.Exec(schema)
+	_, err := db.ExecContext(context.Background(), schema)
 	return err
 }
 
@@ -78,7 +80,7 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 	defer tx.Rollback()
 
 	qddDir := filepath.Join(projectPath, ".qdd")
-	
+
 	dirsToSync := map[string]string{
 		"findings":      "finding",
 		"certification": "rule",
@@ -86,122 +88,164 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 	}
 
 	for dirName, nodeType := range dirsToSync {
-		paths := []string{
-			filepath.Join(qddDir, "project", dirName),
-			filepath.Join(qddDir, "core", dirName),
-		}
-
-		for _, p := range paths {
-			files, err := os.ReadDir(p)
-			if err != nil {
-				continue
-			}
-
-			for _, f := range files {
-				if f.IsDir() || (!strings.HasSuffix(f.Name(), ".yaml") && !strings.HasSuffix(f.Name(), ".md")) {
-					continue
-				}
-
-				filePath := filepath.Join(p, f.Name())
-				data, err := os.ReadFile(filePath)
-				if err != nil {
-					continue
-				}
-
-				var raw map[string]interface{}
-				yaml.Unmarshal(data, &raw)
-
-				metadataBytes, _ := json.Marshal(raw)
-				metadataStr := string(metadataBytes)
-
-				id := fmt.Sprintf("%s:%s", nodeType, f.Name())
-				name := f.Name()
-				if title, ok := raw["title"].(string); ok {
-					name = title
-				}
-				content := string(data)
-
-				query := `
-				INSERT INTO nodes (id, type, name, content, metadata) 
-				VALUES (?, ?, ?, ?, ?)
-				ON CONFLICT(id) DO UPDATE SET 
-					type=excluded.type, 
-					name=excluded.name, 
-					content=excluded.content, 
-					metadata=excluded.metadata;
-				`
-				_, err = tx.Exec(query, id, nodeType, name, content, metadataStr)
-				if err != nil {
-					fmt.Printf("Error upserting node %s: %v\n", id, err)
-				}
-
-				// Extract edges
-				tx.Exec("DELETE FROM edges WHERE source_id = ?", id)
-				
-				if parent, ok := raw["parent"].(string); ok && parent != "" {
-					targetID := fmt.Sprintf("rule:%s", parent)
-					if !strings.HasSuffix(parent, ".yaml") {
-						targetID = fmt.Sprintf("rule:%s.yaml", parent)
-					}
-					tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
-				}
-
-				if dependsOn, ok := raw["depends_on"]; ok {
-					var deps []string
-					if list, isList := dependsOn.([]interface{}); isList {
-						for _, item := range list {
-							deps = append(deps, fmt.Sprintf("%v", item))
-						}
-					}
-					if str, isStr := dependsOn.(string); isStr {
-						deps = append(deps, str)
-					}
-
-					for _, d := range deps {
-						targetID := fmt.Sprintf("rule:%s", d)
-						if !strings.HasSuffix(d, ".yaml") {
-							targetID = fmt.Sprintf("rule:%s.yaml", d)
-						}
-						tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "DEPENDS_ON")
-					}
-				}
-
-				// Map features (funcionalidad)
-				if feat, ok := raw["feature"].(string); ok && feat != "" {
-					featID := fmt.Sprintf("feature:%s", feat)
-					tx.Exec(query, featID, "feature", feat, "", "{}")
-					
-					var relation string
-					switch nodeType {
-					case "rule":
-						relation = "IMPLEMENTS"
-					case "finding":
-						relation = "AFFECTS"
-					case "task":
-						relation = "WORKS_ON"
-					default:
-						relation = "RELATED_TO"
-					}
-					tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, featID, relation)
-				}
-				
-				// Map bug/finding resolutions for tasks
-				if resolves, ok := raw["resolves"].(string); ok && resolves != "" {
-					findingID := fmt.Sprintf("finding:%s", resolves)
-					if !strings.HasSuffix(resolves, ".yaml") {
-						findingID = fmt.Sprintf("finding:%s.yaml", resolves)
-					}
-					tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, findingID, "RESOLVES")
-				}
-			}
-		}
+		syncGraphDir(qddDir, dirName, nodeType, tx)
 	}
-	
+
 	if err := g.syncCodebase(projectPath, tx); err != nil {
 		fmt.Printf("Error al mapear código fuente: %v\n", err)
 	}
-	
+
 	return tx.Commit()
+}
+
+func syncGraphDir(qddDir, dirName, nodeType string, tx *sql.Tx) {
+	paths := []string{
+		filepath.Join(qddDir, "project", dirName),
+		filepath.Join(qddDir, "core", dirName),
+	}
+
+	for _, p := range paths {
+		files, err := os.ReadDir(p)
+		if err != nil {
+			continue
+		}
+
+		for _, f := range files {
+			processGraphFile(p, f, nodeType, tx)
+		}
+	}
+}
+
+func processGraphFile(p string, f os.DirEntry, nodeType string, tx *sql.Tx) {
+	if !isValidGraphFile(f) {
+		return
+	}
+
+	filePath := filepath.Join(p, f.Name())
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return
+	}
+
+	var raw map[string]interface{}
+	yaml.Unmarshal(data, &raw)
+
+	id, name := extractGraphNodeInfo(f.Name(), nodeType, raw)
+	metadataBytes, _ := json.Marshal(raw)
+
+	query := `
+	INSERT INTO nodes (id, type, name, content, metadata) 
+	VALUES (?, ?, ?, ?, ?)
+	ON CONFLICT(id) DO UPDATE SET 
+		type=excluded.type, 
+		name=excluded.name, 
+		content=excluded.content, 
+		metadata=excluded.metadata;
+	`
+	_, err = tx.ExecContext(context.Background(), query, id, nodeType, name, string(data), string(metadataBytes))
+	if err != nil {
+		fmt.Printf("Error upserting node %s: %v\n", id, err)
+	}
+
+	tx.ExecContext(context.Background(), "DELETE FROM edges WHERE source_id = ?", id)
+
+	processGraphParent(raw, id, tx)
+	processGraphDeps(raw, id, tx)
+	processGraphFeature(raw, id, nodeType, tx, query)
+	processGraphResolves(raw, id, tx)
+}
+
+func isValidGraphFile(f os.DirEntry) bool {
+	if f.IsDir() {
+		return false
+	}
+	if !strings.HasSuffix(f.Name(), ".yaml") && !strings.HasSuffix(f.Name(), ".md") {
+		return false
+	}
+	return true
+}
+
+func extractGraphNodeInfo(fileName, nodeType string, raw map[string]interface{}) (string, string) {
+	id := fmt.Sprintf("%s:%s", nodeType, fileName)
+	name := fileName
+	if title, ok := raw["title"].(string); ok {
+		name = title
+	}
+	return id, name
+}
+
+func processGraphParent(raw map[string]interface{}, id string, tx *sql.Tx) {
+	if parent, ok := raw["parent"].(string); ok && parent != "" {
+		targetID := fmt.Sprintf("rule:%s", parent)
+		if !strings.HasSuffix(parent, ".yaml") {
+			targetID = fmt.Sprintf("rule:%s.yaml", parent)
+		}
+		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
+	}
+}
+
+func processGraphDeps(raw map[string]interface{}, id string, tx *sql.Tx) {
+	dependsOn, ok := raw["depends_on"]
+	if !ok {
+		return
+	}
+
+	var deps []string
+	if list, isList := dependsOn.([]interface{}); isList {
+		for _, item := range list {
+			deps = append(deps, fmt.Sprintf("%v", item))
+		}
+	}
+	if str, isStr := dependsOn.(string); isStr {
+		deps = append(deps, str)
+	}
+
+	insertGraphDeps(id, deps, tx)
+}
+
+func insertGraphDeps(id string, deps []string, tx *sql.Tx) {
+	for _, d := range deps {
+		targetID := fmt.Sprintf("rule:%s", d)
+		if !strings.HasSuffix(d, ".yaml") {
+			targetID = fmt.Sprintf("rule:%s.yaml", d)
+		}
+		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "DEPENDS_ON")
+	}
+}
+
+func processGraphFeature(raw map[string]interface{}, id, nodeType string, tx *sql.Tx, query string) {
+	feat, ok := raw["feature"].(string)
+	if !ok || feat == "" {
+		return
+	}
+
+	featID := fmt.Sprintf("feature:%s", feat)
+	tx.ExecContext(context.Background(), query, featID, "feature", feat, "", "{}")
+
+	relation := determineFeatureRelation(nodeType)
+	tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, featID, relation)
+}
+
+func determineFeatureRelation(nodeType string) string {
+	switch nodeType {
+	case "rule":
+		return "IMPLEMENTS"
+	case "finding":
+		return "AFFECTS"
+	case "task":
+		return "WORKS_ON"
+	}
+	return "RELATED_TO"
+}
+
+func processGraphResolves(raw map[string]interface{}, id string, tx *sql.Tx) {
+	if resolves, ok := raw["resolves"].(string); ok && resolves != "" {
+		findingID := fmt.Sprintf("finding:%s", resolves)
+		if !strings.HasSuffix(resolves, ".yaml") {
+			findingID = fmt.Sprintf("finding:%s.yaml", resolves)
+		}
+		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, findingID, "RESOLVES")
+	}
 }
 
 func (g *GraphDB) Close() error {
@@ -213,92 +257,112 @@ func (g *GraphDB) Close() error {
 
 func (g *GraphDB) syncCodebase(projectPath string, tx *sql.Tx) error {
 	fset := token.NewFileSet()
-	
-	err := filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		
-		if info.IsDir() {
-			if info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == ".qdd" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		
-		if !strings.HasSuffix(info.Name(), ".go") {
-			return nil
-		}
-		
-		relPath, err := filepath.Rel(projectPath, path)
-		if err != nil {
-			relPath = path
-		}
-		
-		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			return nil
-		}
-		
-		fileID := fmt.Sprintf("file:%s", relPath)
-		fileName := info.Name()
-		
-		isTest := strings.HasSuffix(fileName, "_test.go") || strings.HasSuffix(fileName, ".spec.ts")
-		if isTest {
-			fileID = fmt.Sprintf("test:%s", relPath)
-		}
-		
-		query := `
-		INSERT INTO nodes (id, type, name, content, metadata) 
-		VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT(id) DO UPDATE SET 
-			type=excluded.type, 
-			name=excluded.name, 
-			content=excluded.content, 
-			metadata=excluded.metadata;
-		`
-		_, err = tx.Exec(query, fileID, "file", fileName, "", "{}")
-		if isTest {
-			_, err = tx.Exec(query, fileID, "test", fileName, "", "{}")
-			
-			// Try to link test to the file it tests
-			baseFileName := strings.TrimSuffix(fileName, "_test.go") + ".go"
-			baseFileID := fmt.Sprintf("file:%s", filepath.Join(filepath.Dir(relPath), baseFileName))
-			tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, baseFileID, "TESTS")
-		}
 
-		if err != nil {
-			fmt.Printf("Error insertando file %s: %v\n", fileID, err)
-		}
-		
-		_, err = tx.Exec("DELETE FROM edges WHERE source_id = ?", fileID)
-		if err != nil {
-			fmt.Printf("Error borrando edges para %s: %v\n", fileID, err)
-		}
-		
-		for _, imp := range f.Imports {
-			pkgPath := strings.Trim(imp.Path.Value, "\"")
-			pkgID := fmt.Sprintf("package:%s", pkgPath)
-			
-			_, err = tx.Exec(query, pkgID, "package", pkgPath, "", "{}")
-			if err != nil {
-				fmt.Printf("Error insertando pkg %s: %v\n", pkgID, err)
-			}
-			
-			_, err = tx.Exec("INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, pkgID, "IMPORTS")
-			if err != nil {
-				fmt.Printf("Error insertando edge %s -> %s: %v\n", fileID, pkgID, err)
-			}
-		}
-		
-		return nil
+	err := filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
+		return walkCodebaseFile(projectPath, path, info, err, tx, fset)
 	})
-	
+
 	if err != nil {
 		return err
 	}
-	
-	// Sincronizar documentación
+
+	syncDocsFolder(projectPath, tx)
+	return nil
+}
+
+func walkCodebaseFile(projectPath, path string, info os.FileInfo, err error, tx *sql.Tx, fset *token.FileSet) error {
+	if err != nil {
+		return nil
+	}
+
+	if info.IsDir() {
+		return handleCodebaseDir(info)
+	}
+
+	if !strings.HasSuffix(info.Name(), ".go") {
+		return nil
+	}
+
+	return syncCodeFile(projectPath, path, info, tx, fset)
+}
+
+func handleCodebaseDir(info os.FileInfo) error {
+	name := info.Name()
+	if name == ".git" || name == "vendor" || name == "node_modules" || name == ".qdd" {
+		return filepath.SkipDir
+	}
+	return nil
+}
+
+func syncCodeFile(projectPath, path string, info os.FileInfo, tx *sql.Tx, fset *token.FileSet) error {
+	relPath, err := filepath.Rel(projectPath, path)
+	if err != nil {
+		relPath = path
+	}
+
+	f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+	if err != nil {
+		return nil
+	}
+
+	fileID, isTest := determineFileIDAndType(info.Name(), relPath)
+	insertCodeFileNode(tx, fileID, info.Name(), isTest, relPath)
+
+	tx.ExecContext(context.Background(), "DELETE FROM edges WHERE source_id = ?", fileID)
+
+	insertCodeFileImports(tx, f, fileID)
+
+	return nil
+}
+
+func determineFileIDAndType(fileName, relPath string) (string, bool) {
+	isTest := strings.HasSuffix(fileName, "_test.go") || strings.HasSuffix(fileName, ".spec.ts")
+	if isTest {
+		return fmt.Sprintf("test:%s", relPath), true
+	}
+	return fmt.Sprintf("file:%s", relPath), false
+}
+
+func insertCodeFileNode(tx *sql.Tx, fileID, fileName string, isTest bool, relPath string) {
+	query := `
+	INSERT INTO nodes (id, type, name, content, metadata) 
+	VALUES (?, ?, ?, ?, ?)
+	ON CONFLICT(id) DO UPDATE SET 
+		type=excluded.type, 
+		name=excluded.name, 
+		content=excluded.content, 
+		metadata=excluded.metadata;
+	`
+	tx.ExecContext(context.Background(), query, fileID, "file", fileName, "", "{}")
+	if isTest {
+		tx.ExecContext(context.Background(), query, fileID, "test", fileName, "", "{}")
+
+		baseFileName := strings.TrimSuffix(fileName, "_test.go") + ".go"
+		baseFileID := fmt.Sprintf("file:%s", filepath.Join(filepath.Dir(relPath), baseFileName))
+		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, baseFileID, "TESTS")
+	}
+}
+
+func insertCodeFileImports(tx *sql.Tx, f *ast.File, fileID string) {
+	query := `
+	INSERT INTO nodes (id, type, name, content, metadata) 
+	VALUES (?, ?, ?, ?, ?)
+	ON CONFLICT(id) DO UPDATE SET 
+		type=excluded.type, 
+		name=excluded.name, 
+		content=excluded.content, 
+		metadata=excluded.metadata;
+	`
+	for _, imp := range f.Imports {
+		pkgPath := strings.Trim(imp.Path.Value, "\"")
+		pkgID := fmt.Sprintf("package:%s", pkgPath)
+
+		tx.ExecContext(context.Background(), query, pkgID, "package", pkgPath, "", "{}")
+		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", fileID, pkgID, "IMPORTS")
+	}
+}
+
+func syncDocsFolder(projectPath string, tx *sql.Tx) {
 	docFolders := []string{"docs", "rfcs", "specification"}
 	for _, folder := range docFolders {
 		folderPath := filepath.Join(projectPath, folder)
@@ -306,7 +370,7 @@ func (g *GraphDB) syncCodebase(projectPath string, tx *sql.Tx) error {
 			if err == nil && !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
 				relPath, _ := filepath.Rel(projectPath, path)
 				docID := fmt.Sprintf("doc:%s", relPath)
-				
+
 				query := `
 				INSERT INTO nodes (id, type, name, content, metadata) 
 				VALUES (?, ?, ?, ?, ?)
@@ -314,11 +378,9 @@ func (g *GraphDB) syncCodebase(projectPath string, tx *sql.Tx) error {
 					name=excluded.name, 
 					content=excluded.content;
 				`
-				tx.Exec(query, docID, "doc", d.Name(), "", "{}")
+				tx.ExecContext(context.Background(), query, docID, "doc", d.Name(), "", "{}")
 			}
 			return nil
 		})
 	}
-	
-	return nil
 }

@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"os"
 	"testing"
 )
@@ -8,7 +9,6 @@ import (
 func TestInitDB(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Cambiamos el wd a temporal para que Getwd funcione en InitDB
 	origWd, _ := os.Getwd()
 	os.Chdir(tempDir)
 	defer os.Chdir(origWd)
@@ -23,7 +23,10 @@ func TestInitDB(t *testing.T) {
 		t.Fatalf("Expected non-nil sql.DB")
 	}
 
-	// Forzar ON CONFLICT update
+	testDBUpsertConflict(t, db)
+}
+
+func testDBUpsertConflict(t *testing.T, db *GraphDB) {
 	query := `
 		INSERT INTO nodes (id, type, name, content, metadata) 
 		VALUES (?, ?, ?, ?, ?)
@@ -31,20 +34,22 @@ func TestInitDB(t *testing.T) {
 			name=excluded.name, 
 			content=excluded.content;
 	`
-	_, err = db.GetDB().Exec(query, "node1", "doc", "First Name", "content1", "{}")
+	_, err := db.GetDB().ExecContext(context.Background(), query, "node1", "doc", "First Name", "content1", "{}")
 	if err != nil {
 		t.Fatalf("Initial insert failed: %v", err)
 	}
 
-	// Update on conflict
-	_, err = db.GetDB().Exec(query, "node1", "doc", "Second Name", "content2", "{}")
+	_, err = db.GetDB().ExecContext(context.Background(), query, "node1", "doc", "Second Name", "content2", "{}")
 	if err != nil {
 		t.Fatalf("Upsert on conflict failed: %v", err)
 	}
 
-	// Verify update
+	verifyDBUpsert(t, db)
+}
+
+func verifyDBUpsert(t *testing.T, db *GraphDB) {
 	var name string
-	err = db.GetDB().QueryRow("SELECT name FROM nodes WHERE id = ?", "node1").Scan(&name)
+	err := db.GetDB().QueryRowContext(context.Background(), "SELECT name FROM nodes WHERE id = ?", "node1").Scan(&name)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}

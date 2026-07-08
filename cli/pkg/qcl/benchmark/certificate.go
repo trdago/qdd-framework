@@ -39,13 +39,27 @@ func GenerateCognitiveCertificate(cwd string, scores CognitiveScores) (*Cognitiv
 	}
 
 	historyPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
-	
-	dir := filepath.Dir(historyPath)
-	err := os.MkdirAll(dir, 0755)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(historyPath), 0755); err != nil {
 		return nil, fmt.Errorf("error creando directorio de metricas: %v", err)
 	}
 
+	history, err := loadCognitiveHistory(historyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	cert.Tendency = calculateTendency(history, cert.Total)
+
+	history = append(history, *cert)
+	
+	if err := saveCognitiveHistory(historyPath, history); err != nil {
+		return nil, err
+	}
+
+	return cert, nil
+}
+
+func loadCognitiveHistory(historyPath string) ([]CognitiveCertificate, error) {
 	var history []CognitiveCertificate
 	
 	data, err := os.ReadFile(historyPath)
@@ -53,37 +67,41 @@ func GenerateCognitiveCertificate(cwd string, scores CognitiveScores) (*Cognitiv
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("error leyendo historial cognitivo: %v", err)
 		}
+		return history, nil
 	}
 
-	// Si no hay error (err == nil) significa que el archivo existía y pudimos leerlo
-	if err == nil {
-		parseErr := json.Unmarshal(data, &history)
-		if parseErr != nil {
-			return nil, fmt.Errorf("error parseando historial cognitivo: %v", parseErr)
-		}
+	if parseErr := json.Unmarshal(data, &history); parseErr != nil {
+		return nil, fmt.Errorf("error parseando historial cognitivo: %v", parseErr)
 	}
 
-	if len(history) > 0 {
-		lastCert := history[len(history)-1]
-		if cert.Total > lastCert.Total {
-			cert.Tendency = audit.TendencyImproving
-		}
-		if cert.Total < lastCert.Total {
-			cert.Tendency = audit.TendencyWorsening
-		}
-	}
+	return history, nil
+}
 
-	history = append(history, *cert)
+func calculateTendency(history []CognitiveCertificate, currentTotal int) audit.Tendency {
+	if len(history) == 0 {
+		return audit.TendencyStable
+	}
 	
+	lastCert := history[len(history)-1]
+	if currentTotal > lastCert.Total {
+		return audit.TendencyImproving
+	}
+	if currentTotal < lastCert.Total {
+		return audit.TendencyWorsening
+	}
+	
+	return audit.TendencyStable
+}
+
+func saveCognitiveHistory(historyPath string, history []CognitiveCertificate) error {
 	outData, err := json.MarshalIndent(history, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling historial cognitivo: %v", err)
+		return fmt.Errorf("error marshaling historial cognitivo: %v", err)
 	}
 
-	err = os.WriteFile(historyPath, outData, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("error escribiendo historial cognitivo: %v", err)
+	if err := os.WriteFile(historyPath, outData, 0644); err != nil {
+		return fmt.Errorf("error escribiendo historial cognitivo: %v", err)
 	}
-
-	return cert, nil
+	
+	return nil
 }

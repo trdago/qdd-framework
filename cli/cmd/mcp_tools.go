@@ -63,56 +63,14 @@ func registerQueryGraphTool(s *server.MCPServer) {
 	)
 
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		argsMap, ok := request.Params.Arguments.(map[string]interface{})
-		if !ok {
-			return mcp.NewToolResultError("Argumentos inválidos"), nil
-		}
-		query, ok := argsMap["query"].(string)
-		if !ok || query == "" {
-			return mcp.NewToolResultError("Argumento 'query' es requerido"), nil
-		}
-
-		cwd, _ := os.Getwd()
-		dbPath := filepath.Join(cwd, ".qdd", "knowledge.db")
-		
-		db, err := sql.Open("sqlite", dbPath)
+		query, err := extractQueryArg(request)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Error abriendo DB: %v", err)), nil
+			return mcp.NewToolResultError(err.Error()), nil
 		}
-		defer db.Close()
 
-		rows, err := db.Query(query)
+		results, err := executeGraphQuery(query)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Error ejecutando query: %v", err)), nil
-		}
-		defer rows.Close()
-
-		columns, _ := rows.Columns()
-		var results []map[string]interface{}
-
-		for rows.Next() {
-			values := make([]interface{}, len(columns))
-			valuePtrs := make([]interface{}, len(columns))
-			for i := range columns {
-				valuePtrs[i] = &values[i]
-			}
-			
-			if err := rows.Scan(valuePtrs...); err != nil {
-				continue
-			}
-			
-			rowMap := make(map[string]interface{})
-			for i, col := range columns {
-				val := values[i]
-				b, isBytes := val.([]byte)
-				if isBytes {
-					rowMap[col] = string(b)
-				}
-				if !isBytes {
-					rowMap[col] = val
-				}
-			}
-			results = append(results, rowMap)
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		jsonResult, err := json.MarshalIndent(results, "", "  ")
@@ -122,6 +80,72 @@ func registerQueryGraphTool(s *server.MCPServer) {
 
 		return mcp.NewToolResultText(string(jsonResult)), nil
 	})
+}
+
+func extractQueryArg(request mcp.CallToolRequest) (string, error) {
+	argsMap, ok := request.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("Argumentos inválidos")
+	}
+	query, ok := argsMap["query"].(string)
+	if !ok || query == "" {
+		return "", fmt.Errorf("Argumento 'query' es requerido")
+	}
+	return query, nil
+}
+
+func executeGraphQuery(query string) ([]map[string]interface{}, error) {
+	cwd, _ := os.Getwd()
+	dbPath := filepath.Join(cwd, ".qdd", "knowledge.db")
+	
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("Error abriendo DB: %v", err)
+	}
+	defer db.Close()
+
+	rows, err := db.QueryContext(context.Background(), query)
+	if err != nil {
+		return nil, fmt.Errorf("Error ejecutando query: %v", err)
+	}
+	defer rows.Close()
+
+	return scanGraphRows(rows)
+}
+
+func scanGraphRows(rows *sql.Rows) ([]map[string]interface{}, error) {
+	columns, _ := rows.Columns()
+	var results []map[string]interface{}
+
+	for rows.Next() {
+		if rowMap, err := scanSingleRow(rows, columns); err == nil {
+			results = append(results, rowMap)
+		}
+	}
+	return results, nil
+}
+
+func scanSingleRow(rows *sql.Rows, columns []string) (map[string]interface{}, error) {
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	for i := range columns {
+		valuePtrs[i] = &values[i]
+	}
+	
+	if err := rows.Scan(valuePtrs...); err != nil {
+		return nil, err
+	}
+	
+	rowMap := make(map[string]interface{})
+	for i, col := range columns {
+		val := values[i]
+		if b, isBytes := val.([]byte); isBytes {
+			rowMap[col] = string(b)
+			continue
+		}
+		rowMap[col] = val
+	}
+	return rowMap, nil
 }
 
 func registerSyncGraphTool(s *server.MCPServer) {

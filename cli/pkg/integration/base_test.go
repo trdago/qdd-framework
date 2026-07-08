@@ -17,8 +17,13 @@ func TestSafeInjectIdempotent(t *testing.T) {
 
 	testFile := filepath.Join(tempDir, ".cursorrules")
 
-	// 1. Inject into new file
-	err = SafeInjectIdempotent(testFile)
+	content1 := testInjectionNewFile(t, testFile)
+	testInjectionIdempotency(t, testFile, content1)
+	testInjectionWithUserContent(t, testFile, content1)
+}
+
+func testInjectionNewFile(t *testing.T, testFile string) []byte {
+	err := SafeInjectIdempotent(testFile)
 	if err != nil {
 		t.Fatalf("failed to inject into new file: %v", err)
 	}
@@ -27,33 +32,36 @@ func TestSafeInjectIdempotent(t *testing.T) {
 	if !strings.Contains(string(content1), markerBegin) {
 		t.Errorf("expected markerBegin in content")
 	}
+	return content1
+}
 
-	// 2. Inject again (Idempotency)
-	err = SafeInjectIdempotent(testFile)
+func testInjectionIdempotency(t *testing.T, testFile string, content1 []byte) {
+	err := SafeInjectIdempotent(testFile)
 	if err != nil {
 		t.Fatalf("failed second injection: %v", err)
 	}
 
 	content2, _ := ioutil.ReadFile(testFile)
-	// Size should be roughly the same, block should not be duplicated
 	if len(content1) != len(content2) {
 		t.Errorf("content size changed after second injection (expected %d, got %d)", len(content1), len(content2))
 	}
+}
 
-	// 3. Inject with existing user content
-	userContent := "User custom rule 1\n" + string(content2) + "\nUser custom rule 2"
+func testInjectionWithUserContent(t *testing.T, testFile string, content1 []byte) {
+	userContent := "User custom rule 1\n" + string(content1) + "\nUser custom rule 2"
 	ioutil.WriteFile(testFile, []byte(userContent), 0644)
 
-	err = SafeInjectIdempotent(testFile)
+	err := SafeInjectIdempotent(testFile)
 	if err != nil {
 		t.Fatalf("failed third injection: %v", err)
 	}
 
 	content3, _ := ioutil.ReadFile(testFile)
-	if !strings.Contains(string(content3), "User custom rule 1") || !strings.Contains(string(content3), "User custom rule 2") {
+	strContent := string(content3)
+	if !strings.Contains(strContent, "User custom rule 1") || !strings.Contains(strContent, "User custom rule 2") {
 		t.Errorf("injection destroyed user content")
 	}
-	if strings.Count(string(content3), markerBegin) != 1 {
-		t.Errorf("expected exactly one markerBegin in content, got %d", strings.Count(string(content3), markerBegin))
+	if strings.Count(strContent, markerBegin) != 1 {
+		t.Errorf("expected exactly one markerBegin in content, got %d", strings.Count(strContent, markerBegin))
 	}
 }

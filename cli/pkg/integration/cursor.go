@@ -30,29 +30,8 @@ func (c *CursorAdapter) Sync(projectPath string) error {
 	mcpPath := filepath.Join(cursorDir, "mcp.json")
 	qddCmd := resolveQDDPath()
 	
-	// Define the base structure
-	mcpData := map[string]interface{}{
-		"mcpServers": map[string]interface{}{
-			"qdd": map[string]interface{}{
-				"command": qddCmd,
-				"args":    []string{"mcp-server"},
-			},
-		},
-	}
-
-	if _, err := os.Stat(mcpPath); err == nil {
-		// Try to read and merge if it already exists
-		existingData, readErr := os.ReadFile(mcpPath)
-		if readErr == nil {
-			var existing map[string]interface{}
-			if err := json.Unmarshal(existingData, &existing); err == nil {
-				if servers, ok := existing["mcpServers"].(map[string]interface{}); ok {
-					servers["qdd"] = mcpData["mcpServers"].(map[string]interface{})["qdd"]
-					mcpData = existing
-				}
-			}
-		}
-	}
+	mcpData := buildInitialMCPData(qddCmd)
+	mcpData = mergeExistingMCPData(mcpPath, mcpData)
 
 	finalJSON, err := json.MarshalIndent(mcpData, "", "  ")
 	if err == nil {
@@ -60,4 +39,47 @@ func (c *CursorAdapter) Sync(projectPath string) error {
 	}
 
 	return nil
+}
+
+func buildInitialMCPData(qddCmd string) map[string]interface{} {
+	return map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"qdd": map[string]interface{}{
+				"command": qddCmd,
+				"args":    []string{"mcp-server"},
+			},
+		},
+	}
+}
+
+func mergeExistingMCPData(mcpPath string, mcpData map[string]interface{}) map[string]interface{} {
+	if _, err := os.Stat(mcpPath); err != nil {
+		return mcpData
+	}
+
+	existingData, readErr := os.ReadFile(mcpPath)
+	if readErr != nil {
+		return mcpData
+	}
+
+	var existing map[string]interface{}
+	if err := json.Unmarshal(existingData, &existing); err != nil {
+		return mcpData
+	}
+
+	return performDeepMerge(existing, mcpData)
+}
+
+func performDeepMerge(existing, mcpData map[string]interface{}) map[string]interface{} {
+	if _, ok := existing["mcpServers"]; !ok {
+		existing["mcpServers"] = map[string]interface{}{}
+	}
+
+	if servers, ok := existing["mcpServers"].(map[string]interface{}); ok {
+		qddServer := mcpData["mcpServers"].(map[string]interface{})["qdd"]
+		servers["qdd"] = qddServer
+		existing["mcpServers"] = servers
+	}
+	
+	return existing
 }

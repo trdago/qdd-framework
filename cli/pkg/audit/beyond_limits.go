@@ -15,7 +15,7 @@ func RunBeyondLimitsCheck(cwd string) []Violation {
 	fset := token.NewFileSet()
 
 	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".go") || strings.Contains(path, "node_modules") || strings.Contains(path, ".git") {
+		if shouldSkipBeyondLimitsPath(path, d, err) {
 			return nil
 		}
 
@@ -24,42 +24,67 @@ func RunBeyondLimitsCheck(cwd string) []Violation {
 			return nil
 		}
 
-		ast.Inspect(node, func(n ast.Node) bool {
-			// Buscar llamadas a funciones
-			if callExpr, ok := n.(*ast.CallExpr); ok {
-				if ident, ok := callExpr.Fun.(*ast.Ident); ok {
-					// NASA-Grade: Zero-Panic
-					if ident.Name == "panic" {
-						pos := fset.Position(ident.Pos())
-						violations = append(violations, Violation{
-							Category:    "RELIABILITY",
-							RuleID:      "CERT-020-ZERO-PANIC",
-							Description: "NASA-Grade: Uso de panic() está estrictamente prohibido. Maneje el error matemáticamente (Graceful Degradation).",
-							File:        path,
-							Line:        pos.Line,
-						})
-					}
-				}
-				
-				if selExpr, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
-					// Netflix-Grade: Chaos-Tolerance (Prohibir Query, QueryRow, Exec sin contexto)
-					method := selExpr.Sel.Name
-					if method == "Query" || method == "QueryRow" || method == "Exec" {
-						pos := fset.Position(selExpr.Pos())
-						violations = append(violations, Violation{
-							Category:    "SECURITY",
-							RuleID:      "CERT-021-CHAOS-TOLERANCE",
-							Description: "Netflix-Grade: " + method + " sin Context detectado. Vulnerable a saturación de red. Use " + method + "Context.",
-							File:        path,
-							Line:        pos.Line,
-						})
-					}
-				}
-			}
-			return true
-		})
+		checkBeyondLimitsNode(path, node, fset, &violations)
 		return nil
 	})
 
 	return violations
+}
+
+func shouldSkipBeyondLimitsPath(path string, d os.DirEntry, err error) bool {
+	if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+		return true
+	}
+	return strings.Contains(path, "node_modules") || strings.Contains(path, ".git")
+}
+
+func checkBeyondLimitsNode(path string, node *ast.File, fset *token.FileSet, violations *[]Violation) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		callExpr, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		
+		checkPanicUsage(path, callExpr, fset, violations)
+		checkContextlessDBQuery(path, callExpr, fset, violations)
+		
+		return true
+	})
+}
+
+func checkPanicUsage(path string, callExpr *ast.CallExpr, fset *token.FileSet, violations *[]Violation) {
+	ident, ok := callExpr.Fun.(*ast.Ident)
+	if !ok {
+		return
+	}
+	
+	if ident.Name == "panic" {
+		pos := fset.Position(ident.Pos())
+		*violations = append(*violations, Violation{
+			Category:    "RELIABILITY",
+			RuleID:      "CERT-020-ZERO-PANIC",
+			Description: "NASA-Grade: Uso de panic() está estrictamente prohibido. Maneje el error matemáticamente (Graceful Degradation).",
+			File:        path,
+			Line:        pos.Line,
+		})
+	}
+}
+
+func checkContextlessDBQuery(path string, callExpr *ast.CallExpr, fset *token.FileSet, violations *[]Violation) {
+	selExpr, ok := callExpr.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	
+	method := selExpr.Sel.Name
+	if method == "Query" || method == "QueryRow" || method == "Exec" {
+		pos := fset.Position(selExpr.Pos())
+		*violations = append(*violations, Violation{
+			Category:    "SECURITY",
+			RuleID:      "CERT-021-CHAOS-TOLERANCE",
+			Description: "Netflix-Grade: " + method + " sin Context detectado. Vulnerable a saturación de red. Use " + method + "Context.",
+			File:        path,
+			Line:        pos.Line,
+		})
+	}
 }

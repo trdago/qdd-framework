@@ -16,42 +16,60 @@ func TestNoElseInCode(t *testing.T) {
 			return err
 		}
 
-		// Ignorar directorios comunes como node_modules, dist, .git
 		if info.IsDir() {
-			name := info.Name()
-			if name == "node_modules" || name == "dist" || name == ".git" || name == ".qdd" {
-				return filepath.SkipDir
-			}
+			return checkSkipDir(info.Name())
+		}
+
+		if !shouldCheckFileForElse(info.Name()) {
 			return nil
 		}
 
-		name := info.Name()
-		if strings.HasSuffix(name, "_test.go") || name == "scratch.vue" {
-			return nil
-		}
-
-		validExt := strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".vue")
-		if !validExt {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("Failed to read file %s: %v", path, err)
-		}
-
-		code := string(content)
-		target1 := "} el" + "se {"
-		target2 := " el" + "se "
-		target3 := "v-el" + "se"
-		
-		if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) {
-			t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
-		}
-		return nil
+		return checkFileContentForElse(t, path)
 	})
 	
 	if err != nil {
 		t.Fatalf("Error scanning files: %v", err)
 	}
+}
+
+func checkSkipDir(name string) error {
+	if name == "node_modules" || name == "dist" || name == ".git" || name == ".qdd" {
+		return filepath.SkipDir
+	}
+	return nil
+}
+
+func shouldCheckFileForElse(name string) bool {
+	if isExcludedFile(name) {
+		return false
+	}
+	return hasValidExtension(name)
+}
+
+func isExcludedFile(name string) bool {
+	return strings.HasSuffix(name, "_test.go") || name == "scratch.vue"
+}
+
+func hasValidExtension(name string) bool {
+	return strings.HasSuffix(name, ".go") || 
+		strings.HasSuffix(name, ".js") || 
+		strings.HasSuffix(name, ".ts") || 
+		strings.HasSuffix(name, ".vue")
+}
+
+func checkFileContentForElse(t *testing.T, path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read file %s: %v", path, err)
+	}
+
+	code := string(content)
+	target1 := "} el" + "se {"
+	target2 := " el" + "se "
+	target3 := "v-el" + "se"
+	
+	if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) {
+		t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
+	}
+	return nil
 }

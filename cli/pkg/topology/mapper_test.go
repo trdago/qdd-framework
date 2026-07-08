@@ -13,17 +13,7 @@ func TestFND009MapProjectNoElse(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Crear archivo Go limpio
-	cleanCode := `package main
-	func handleLogin() {
-		// Clean code sin e l s e
-		return
-	}`
-	os.WriteFile(filepath.Join(tempDir, "clean.go"), []byte(cleanCode), 0644)
-
-	// Crear archivo Go con el keyword ofuscado (para forzar la deuda de cert)
-	dirtyCode := "package main\nfunc doSomething() {\n\tif true {\n\t\t// ok\n\t} el" + "se {\n\t\t// bad\n\t}\n}"
-	os.WriteFile(filepath.Join(tempDir, "dirty.go"), []byte(dirtyCode), 0644)
+	setupMapProjectTestFiles(tempDir)
 
 	top, err := MapProject(tempDir)
 	if err != nil {
@@ -34,30 +24,56 @@ func TestFND009MapProjectNoElse(t *testing.T) {
 		t.Fatalf("Topology is nil")
 	}
 
-	// Verificar score y certificaciones
 	if top.GlobalScore == 100 {
 		t.Errorf("Score debería ser menor a 100 porque dirty.go tiene else")
 	}
 
-	foundClean := false
-	foundDirty := false
-	for _, child := range top.Application.Children {
-		if child.Name == "clean.go" {
-			foundClean = true
-			if !child.Certified {
-				t.Errorf("clean.go debería estar certificado")
-			}
-		}
-		if child.Name == "dirty.go" {
-			foundDirty = true
-			if child.Certified {
-				t.Errorf("dirty.go no debería estar certificado (tiene else)")
-			}
-		}
-	}
+	verifyMapProjectNodes(t, top)
+}
+
+func setupMapProjectTestFiles(tempDir string) {
+	cleanCode := `package main
+	func handleLogin() {
+		// Clean code sin e l s e
+		return
+	}`
+	os.WriteFile(filepath.Join(tempDir, "clean.go"), []byte(cleanCode), 0644)
+
+	dirtyCode := "package main\nfunc doSomething() {\n\tif true {\n\t\t// ok\n\t} el" + "se {\n\t\t// bad\n\t}\n}"
+	os.WriteFile(filepath.Join(tempDir, "dirty.go"), []byte(dirtyCode), 0644)
+}
+
+func verifyMapProjectNodes(t *testing.T, top *ProjectTopology) {
+	foundClean, foundDirty := findTestNodes(top)
 
 	if !foundClean || !foundDirty {
 		t.Errorf("No se encontraron los archivos esperados en la topología")
+	}
+
+	for _, child := range top.Application.Children {
+		checkNodeCertification(t, child)
+	}
+}
+
+func findTestNodes(top *ProjectTopology) (bool, bool) {
+	foundClean, foundDirty := false, false
+	for _, child := range top.Application.Children {
+		if child.Name == "clean.go" {
+			foundClean = true
+		}
+		if child.Name == "dirty.go" {
+			foundDirty = true
+		}
+	}
+	return foundClean, foundDirty
+}
+
+func checkNodeCertification(t *testing.T, child *TopologyNode) {
+	if child.Name == "clean.go" && !child.Certified {
+		t.Errorf("clean.go debería estar certificado")
+	}
+	if child.Name == "dirty.go" && child.Certified {
+		t.Errorf("dirty.go no debería estar certificado (tiene else)")
 	}
 }
 

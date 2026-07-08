@@ -15,7 +15,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:     "qdd",
 	Short:   "QDD (Quality Driven Development) Framework CLI",
-	Version: "v1.7.6",
+	Version: "v1.8.0",
 	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando certificaciones de calidad obligatorias.
 garantizando certificaciones, evidencia y calidad desde el día uno.
 
@@ -81,75 +81,110 @@ func runQCL(input string) {
 	os.Exit(0)
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
-	if len(os.Args) > 1 && os.Args[1] == "run" {
-		// Native Pipelining: Execute each subsequent argument sequentially
-		for _, cmdStr := range os.Args[2:] {
-			fmt.Printf("\n🚀 [QDD PIPELINE] Ejecutando: qdd %s\n", cmdStr)
-			
-			// Creamos un nuevo rootCmd por cada iteración para limpiar estado
-			// o podemos usar os/exec para aislar la ejecución
-			
-			// Para evitar problemas de estado de Cobra, delegamos a un subproceso
-			execCmd := os.Args[0]
-			process, err := os.StartProcess(execCmd, []string{execCmd, cmdStr}, &os.ProcAttr{
-				Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-			})
-			if err != nil {
-				fmt.Printf("[🛑 ERROR PIPELINE] No se pudo iniciar el comando %s: %v\n", cmdStr, err)
-				os.Exit(1)
-			}
-			
-			state, err := process.Wait()
-			if err != nil || !state.Success() {
-				fmt.Printf("\n[🛑 ERROR PIPELINE] El comando '%s' falló. Abortando pipeline secuencial.\n", cmdStr)
-				os.Exit(1)
-			}
-		}
-		fmt.Printf("\n✅ [QDD PIPELINE] Todos los comandos ejecutados exitosamente.\n")
+	if isPipelineMode() {
+		executePipeline()
 		return
 	}
 
 	if err := rootCmd.Execute(); err != nil {
-		// Interceptamos "unknown command" para pasarlo al Cognitive Layer
-		if strings.HasPrefix(err.Error(), "unknown command") {
-			input := strings.Join(os.Args[1:], " ")
-			runQCL(input)
-			return
-		}
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		handleRootCmdError(err)
 	}
 }
 
+func isPipelineMode() bool {
+	return len(os.Args) > 1 && os.Args[1] == "run"
+}
+
+func executePipeline() {
+	for _, cmdStr := range os.Args[2:] {
+		fmt.Printf("\n🚀 [QDD PIPELINE] Ejecutando: qdd %s\n", cmdStr)
+		
+		if err := executePipelineCommand(cmdStr); err != nil {
+			fmt.Printf("\n[🛑 ERROR PIPELINE] El comando '%s' falló. Abortando pipeline secuencial.\n", cmdStr)
+			os.Exit(1)
+		}
+	}
+	fmt.Printf("\n✅ [QDD PIPELINE] Todos los comandos ejecutados exitosamente.\n")
+}
+
+func executePipelineCommand(cmdStr string) error {
+	execCmd := os.Args[0]
+	process, err := os.StartProcess(execCmd, []string{execCmd, cmdStr}, &os.ProcAttr{
+		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+	})
+	if err != nil {
+		fmt.Printf("[🛑 ERROR PIPELINE] No se pudo iniciar el comando %s: %v\n", cmdStr, err)
+		return err
+	}
+	
+	state, err := process.Wait()
+	if err != nil || !state.Success() {
+		return fmt.Errorf("command execution failed")
+	}
+	return nil
+}
+
+func handleRootCmdError(err error) {
+	if strings.HasPrefix(err.Error(), "unknown command") {
+		input := strings.Join(os.Args[1:], " ")
+		runQCL(input)
+		return
+	}
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
+}
+
 func validateProjectVersion(cliVersion string) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil
-	}
-	statePath := filepath.Join(cwd, ".qdd", "state.json")
-	if _, err := os.Stat(statePath); os.IsNotExist(err) {
-		return nil
-	}
-	data, err := os.ReadFile(statePath)
-	if err != nil {
-		return nil
-	}
-	var state map[string]interface{}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil
-	}
-	projVersion, ok := state["version"].(string)
-	if !ok || projVersion == "" {
+	state, err := loadProjectState()
+	if hasInvalidState(state, err) {
 		return nil
 	}
 
+	projVersion := extractProjectVersion(state)
+	if projVersion == "" {
+		return nil
+	}
+
+	return checkVersionAge(cliVersion, projVersion)
+}
+
+func hasInvalidState(state map[string]interface{}, err error) bool {
+	return err != nil || state == nil
+}
+
+func extractProjectVersion(state map[string]interface{}) string {
+	if projVersion, ok := state["version"].(string); ok {
+		return projVersion
+	}
+	return ""
+}
+
+func checkVersionAge(cliVersion, projVersion string) error {
 	if isOlder(cliVersion, projVersion) {
 		return fmt.Errorf("El proyecto requiere QDD %s, pero estás ejecutando %s. Revisa si un gestor como 'mise' o 'asdf' está interceptando el binario.", projVersion, cliVersion)
 	}
-
 	return nil
+}
+
+func loadProjectState() (map[string]interface{}, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	
+	statePath := filepath.Join(cwd, ".qdd", "state.json")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		return nil, err
+	}
+	
+	var state map[string]interface{}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, err
+	}
+	
+	return state, nil
 }
 
 func parseVersion(v string) (int, int, int) {

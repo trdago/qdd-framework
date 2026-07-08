@@ -1,6 +1,7 @@
 package benchmark
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"os"
@@ -23,54 +24,69 @@ func RunBenchmark(cwd string) CognitiveScores {
 
 func evaluateContext(cwd string) int {
 	score := 0
-	
+
 	configPath := filepath.Join(cwd, ".qdd", "config.yaml")
 	if _, err := os.Stat(configPath); err == nil {
 		score += 10
 	}
-	
-	knowledgePath := filepath.Join(cwd, ".qdd", "knowledge.db")
-	db, err := sql.Open("sqlite", knowledgePath)
+
+	db, err := openKnowledgeDB(cwd)
 	if err != nil {
 		return score
 	}
 	defer db.Close()
 
-	var totalNodes int
-	if err := db.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&totalNodes); err != nil || totalNodes == 0 {
+	totalNodes := getTotalNodes(db)
+	if totalNodes == 0 {
 		return score
 	}
-	
-	score += 45 // Puntuación base por tener nodos poblados
 
+	score += 45
+
+	return score + calculateOrphanScore(db, totalNodes)
+}
+
+func openKnowledgeDB(cwd string) (*sql.DB, error) {
+	knowledgePath := filepath.Join(cwd, ".qdd", "knowledge.db")
+	return sql.Open("sqlite", knowledgePath)
+}
+
+func getTotalNodes(db *sql.DB) int {
+	var totalNodes int
+	if err := db.QueryRowContext(context.Background(), "SELECT count(1) FROM nodes").Scan(&totalNodes); err != nil {
+		return 0
+	}
+	return totalNodes
+}
+
+func calculateOrphanScore(db *sql.DB, totalNodes int) int {
 	var orphanNodes int
 	query := `
-		SELECT COUNT(*) FROM nodes 
+		SELECT count(1) FROM nodes 
 		WHERE id NOT IN (SELECT source_id FROM edges) 
 		AND id NOT IN (SELECT target_id FROM edges)
 	`
-	if err := db.QueryRow(query).Scan(&orphanNodes); err == nil {
-		// Calcular porcentaje de orfandad (Google-Grade Graph Density)
-		orphanRate := (orphanNodes * 100) / totalNodes
-		
-		if orphanRate <= 10 {
-			score += 45 // Perfecto, menos del 10% de orfandad
-			return score
-		}
-		
-		if orphanRate <= 30 {
-			score += 20 // Regular
-			return score
-		}
+	if err := db.QueryRowContext(context.Background(), query).Scan(&orphanNodes); err != nil {
+		return 0
 	}
 
-	return score
+	orphanRate := (orphanNodes * 100) / totalNodes
+
+	if orphanRate <= 10 {
+		return 45
+	}
+
+	if orphanRate <= 30 {
+		return 20
+	}
+
+	return 0
 }
 
 func evaluateUnderstanding(cwd string) int {
 	score := 0
 	understandingPath := filepath.Join(cwd, ".qdd", "understanding.json")
-	
+
 	data, err := os.ReadFile(understandingPath)
 	if err != nil {
 		return score
@@ -87,135 +103,191 @@ func evaluateUnderstanding(cwd string) int {
 		return score
 	}
 
-	if len(understanding.Summary) > 100 {
+	score += evaluateUnderstandingBase(understanding.Summary, understanding.Components)
+	score += evaluateConstitutionalAlignment(understanding.Objectives)
+	score += evaluateGuidelinesAlignment(understanding.Guidelines)
+
+	return score
+}
+
+func evaluateUnderstandingBase(summary string, components []string) int {
+	score := 0
+	if len(summary) > 100 {
 		score += 20
 	}
-	if len(understanding.Components) >= 3 {
+	if len(components) >= 3 {
 		score += 20
 	}
+	return score
+}
 
-	// Anthropic-Grade: Constitutional Alignment
-	hasConstitutionalAlignment := false
-	for _, obj := range understanding.Objectives {
-		lowerObj := strings.ToLower(obj)
-		if strings.Contains(lowerObj, "security") || strings.Contains(lowerObj, "seguridad") ||
-			strings.Contains(lowerObj, "scalability") || strings.Contains(lowerObj, "escalabilidad") ||
-			strings.Contains(lowerObj, "performance") || strings.Contains(lowerObj, "rendimiento") {
-			hasConstitutionalAlignment = true
-			break
+func evaluateConstitutionalAlignment(objectives []string) int {
+	for _, obj := range objectives {
+		if isConstitutional(strings.ToLower(obj)) {
+			return 30
 		}
 	}
-	
-	if hasConstitutionalAlignment {
-		score += 30
+	return 0
+}
+
+func isConstitutional(lowerObj string) bool {
+	return isSecurityTerm(lowerObj) || isScalabilityTerm(lowerObj) || isPerformanceTerm(lowerObj)
+}
+
+func isSecurityTerm(lowerObj string) bool {
+	return strings.Contains(lowerObj, "security") || strings.Contains(lowerObj, "seguridad")
+}
+
+func isScalabilityTerm(lowerObj string) bool {
+	return strings.Contains(lowerObj, "scalability") || strings.Contains(lowerObj, "escalabilidad")
+}
+
+func isPerformanceTerm(lowerObj string) bool {
+	return strings.Contains(lowerObj, "performance") || strings.Contains(lowerObj, "rendimiento")
+}
+
+func evaluateGuidelinesAlignment(guidelines []string) int {
+	for _, g := range guidelines {
+		if checkGuidelineMatch(strings.ToLower(g)) {
+			return 30
+		}
+	}
+	return 0
+}
+
+func checkGuidelineMatch(lowerG string) bool {
+	return strings.Contains(lowerG, "rule") || strings.Contains(lowerG, "framework") || strings.Contains(lowerG, "qdd")
+}
+
+func evaluateImprovements(cwd string) int {
+	return evaluateFindings(cwd) + evaluateMetrics(cwd)
+}
+
+func evaluateFindings(cwd string) int {
+	findingsDir := filepath.Join(cwd, ".qdd", "project", "findings")
+	entries, err := os.ReadDir(findingsDir)
+	if err != nil {
+		return 0
 	}
 
-	if len(understanding.Guidelines) > 0 {
-		for _, g := range understanding.Guidelines {
-			lowerG := strings.ToLower(g)
-			if strings.Contains(lowerG, "rule") || strings.Contains(lowerG, "framework") || strings.Contains(lowerG, "qdd") {
-				score += 30
-				break
-			}
-		}
+	validFindings := 0
+	resolvedFindings := 0
+
+	for _, e := range entries {
+		processFindingEntry(findingsDir, e, &validFindings, &resolvedFindings)
+	}
+
+	return calculateFindingScore(validFindings, resolvedFindings)
+}
+
+func calculateFindingScore(validFindings, resolvedFindings int) int {
+	if validFindings == 0 {
+		return 0
+	}
+
+	score := 20
+	resolutionRate := (resolvedFindings * 100) / validFindings
+
+	if resolutionRate >= 50 {
+		return score + 30
+	}
+
+	if resolutionRate > 0 && resolutionRate < 50 {
+		return score + 15
 	}
 
 	return score
 }
 
-func evaluateImprovements(cwd string) int {
-	score := 0
-	
-	findingsDir := filepath.Join(cwd, ".qdd", "project", "findings")
-	entries, err := os.ReadDir(findingsDir)
-	
-	validFindings := 0
-	resolvedFindings := 0
-	
-	if err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
-				continue
-			}
-			data, err := os.ReadFile(filepath.Join(findingsDir, e.Name()))
-			if err != nil {
-				continue
-			}
-			
-			content := string(data)
-			if strings.Contains(content, "severity:") && strings.Contains(content, "description:") {
-				validFindings++
-				
-				// Meta-Grade: Incident Resolution check
-				if strings.Contains(strings.ToLower(content), "status: resolved") || strings.Contains(strings.ToLower(content), "status: closed") {
-					resolvedFindings++
-				}
-			}
-		}
+func processFindingEntry(findingsDir string, e os.DirEntry, validFindings, resolvedFindings *int) {
+	if !isValidFindingFile(e) {
+		return
 	}
 
-	// Meta-Grade Resolution Rate
-	if validFindings > 0 {
-		score += 20 // Por tener hallazgos válidos
-		
-		resolutionRate := (resolvedFindings * 100) / validFindings
-		if resolutionRate >= 50 {
-			score += 30 // Puntuación completa por alta tasa de resolución
-		}
-		if resolutionRate > 0 && resolutionRate < 50 {
-			score += 15
-		}
+	data, err := os.ReadFile(filepath.Join(findingsDir, e.Name()))
+	if err != nil {
+		return
 	}
 
+	analyzeFindingContent(string(data), validFindings, resolvedFindings)
+}
+
+func isValidFindingFile(e os.DirEntry) bool {
+	return !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml")
+}
+
+func analyzeFindingContent(content string, validFindings, resolvedFindings *int) {
+	if !strings.Contains(content, "severity:") || !strings.Contains(content, "description:") {
+		return
+	}
+
+	*validFindings++
+	lowerContent := strings.ToLower(content)
+
+	if strings.Contains(lowerContent, "status: resolved") || strings.Contains(lowerContent, "status: closed") {
+		*resolvedFindings++
+	}
+}
+
+func evaluateMetrics(cwd string) int {
 	metricsDir := filepath.Join(cwd, ".qdd", "project", "metrics")
 	metrics, err := os.ReadDir(metricsDir)
-	if err == nil {
-		validMetrics := 0
-		for _, e := range metrics {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
-				validMetrics++
-			}
-		}
-		
-		if validMetrics >= 2 {
-			score += 50
-			return score
-		}
-		if validMetrics == 1 {
-			score += 25
-			return score
-		}
+	if err != nil {
+		return 0
 	}
 
-	return score
+	validMetrics := countValidMetrics(metrics)
+
+	if validMetrics >= 2 {
+		return 50
+	}
+	if validMetrics == 1 {
+		return 25
+	}
+
+	return 0
+}
+
+func countValidMetrics(metrics []os.DirEntry) int {
+	valid := 0
+	for _, e := range metrics {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+			valid++
+		}
+	}
+	return valid
 }
 
 func evaluateCompliance(cwd string) int {
 	engine := audit.NewEngine(cwd)
 	violations := engine.RunAll()
 
-	score := 100 - (len(violations) * 10) // Penalización más estricta por violación
+	score := 100 - (len(violations) * 10)
 
-	// Exigencia estricta de certificaciones (reglas as-code) activas
 	certDir := filepath.Join(cwd, ".qdd", "core", "certification")
 	certRules, err := os.ReadDir(certDir)
 	if err != nil {
 		score -= 50
 	}
-	
-	validRules := 0
-	for _, f := range certRules {
-		if !f.IsDir() && strings.HasSuffix(f.Name(), ".yaml") {
-			validRules++
-		}
-	}
+
+	validRules := countValidCertRules(certRules)
 
 	if validRules < 5 {
-		score -= 50 // Severa penalización por no tener al menos 5 reglas (Beyond Limits)
+		score -= 50
 	}
 
 	if score < 0 {
 		return 0
 	}
 	return score
+}
+
+func countValidCertRules(certRules []os.DirEntry) int {
+	validRules := 0
+	for _, f := range certRules {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".yaml") {
+			validRules++
+		}
+	}
+	return validRules
 }

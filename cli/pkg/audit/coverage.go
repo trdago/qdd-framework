@@ -9,12 +9,25 @@ import (
 )
 
 func runTests(cwd string) error {
-	if _, err := os.Stat(filepath.Join(cwd, "package.json")); err == nil {
-		cmd := exec.Command("npm", "run", "test")
-		cmd.Dir = cwd
-		return cmd.Run()
+	if hasNpmTests(cwd) {
+		return runNpmTests(cwd)
 	}
 
+	return runGoTests(cwd)
+}
+
+func hasNpmTests(cwd string) bool {
+	_, err := os.Stat(filepath.Join(cwd, "package.json"))
+	return err == nil
+}
+
+func runNpmTests(cwd string) error {
+	cmd := exec.Command("npm", "run", "test")
+	cmd.Dir = cwd
+	return cmd.Run()
+}
+
+func runGoTests(cwd string) error {
 	cmd := exec.Command("go", "test", "./...")
 	cmd.Dir = cwd
 	if _, err := os.Stat(filepath.Join(cwd, "cli")); err == nil {
@@ -26,13 +39,24 @@ func runTests(cwd string) error {
 		return nil
 	}
 
+	return handleGoTestError(out, err)
+}
+
+func handleGoTestError(out []byte, err error) error {
 	output := string(out)
-	if strings.Contains(output, "no test files") || strings.Contains(output, "build failed") || strings.Contains(output, "cannot find main module") || strings.Contains(output, "no Go files in") {
+	if isIgnorableGoTestError(output) {
 		return nil
 	}
 
 	fmt.Println("TEST FAILURE LOG:\n", output)
 	return err
+}
+
+func isIgnorableGoTestError(output string) bool {
+	return strings.Contains(output, "no test files") || 
+		strings.Contains(output, "build failed") || 
+		strings.Contains(output, "cannot find main module") || 
+		strings.Contains(output, "no Go files in")
 }
 
 // RunCoverageCheck evalúa que todos los tests pasen (Anti-Regresión).

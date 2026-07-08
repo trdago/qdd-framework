@@ -1,6 +1,6 @@
 {
   "name": "qdd-framework",
-  "version": "1.7.6",
+  "version": "1.8.0",
   "description": "QDD Framework Root Tooling",
   "scripts": {
     "build:ui": "cd cli/ui && npm install && npm run build",

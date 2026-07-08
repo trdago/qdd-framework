@@ -18,41 +18,49 @@ const (
 // If the block doesn't exist, it appends it to the end.
 // If the file does not exist, it creates it.
 func SafeInjectIdempotent(filePath string) error {
-	var content string
-
-	if _, err := os.Stat(filePath); err == nil {
-		bytes, err := ioutil.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", filePath, err)
-		}
-		content = string(bytes)
-	}
-
-	// Remove old block if it exists
-	beginIdx := strings.Index(content, markerBegin)
-	endIdx := strings.Index(content, markerEnd)
-
-	if beginIdx != -1 && endIdx != -1 && endIdx > beginIdx {
-		// Cut out the old block
-		content = content[:beginIdx] + content[endIdx+len(markerEnd):]
-	}
-
-	// Ensure there is a newline before appending if content is not empty
-	content = strings.TrimSpace(content)
-	if content != "" {
-		content += "\n\n"
-	}
-
-	// Append the new protocol block
-	content += strings.TrimSpace(QDDCommandProtocol) + "\n"
-
-	// Write back to file
-	err := ioutil.WriteFile(filePath, []byte(content), 0644)
+	content, err := readExistingContent(filePath)
 	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	content = removeOldBlock(content)
+	content = appendNewBlock(content)
+
+	if err := ioutil.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", filePath, err)
 	}
 
 	return nil
+}
+
+func readExistingContent(filePath string) (string, error) {
+	if _, err := os.Stat(filePath); err == nil {
+		bytes, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			return "", err
+		}
+		return string(bytes), nil
+	}
+	return "", nil
+}
+
+func removeOldBlock(content string) string {
+	beginIdx := strings.Index(content, markerBegin)
+	endIdx := strings.Index(content, markerEnd)
+
+	if beginIdx != -1 && endIdx != -1 && endIdx > beginIdx {
+		return content[:beginIdx] + content[endIdx+len(markerEnd):]
+	}
+	return content
+}
+
+func appendNewBlock(content string) string {
+	content = strings.TrimSpace(content)
+	if content != "" {
+		content += "\n\n"
+	}
+	content += strings.TrimSpace(QDDCommandProtocol) + "\n"
+	return content
 }
 
 // resolveQDDPath returns the absolute path of the qdd binary.

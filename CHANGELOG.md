@@ -4,6 +4,36 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.0] - 2026-07-08
+
+### ✨ Nuevas Características
+
+#### 🌐 Cloud Wisdom (Doctor Auto-Update OTA)
+- **Módulo `pkg/qcl/wisdom`**: Nuevo cliente HTTP seguro que conecta a `qdd doctor` con un directorio remoto público en GitHub (`registry/`), permitiendo obtener estrategias de reparación y reglas de auditoría actualizadas **Over-The-Air** sin necesidad de recompilar el CLI.
+- **Caché Local TTL 24h**: Los manifiestos y recetas descargados se almacenan en `.qdd/cache/wisdom/` con un tiempo de vida de 24 horas, garantizando acceso rápido y reduciendo carga a la red en ejecuciones sucesivas.
+- **Graceful Degradation (Modo Offline)**: Si GitHub no responde, el cliente retrocede automáticamente a la caché local, y si no hay caché, falla de forma silenciosa y segura sin `panic()`. `qdd doctor` nunca se detiene por fallas de red.
+- **Timeout estricto de 2 segundos**: Toda petición HTTP tiene un límite de tiempo estricto para no bloquear la ejecución del CLI en entornos con conectividad limitada.
+- **Motor de Auditoría Dinámico**: El motor `audit/engine.go` ahora fusiona reglas locales (embebidas) con el manifiesto de reglas remotas. Nuevas reglas publicadas al repositorio son descubiertas automáticamente por todos los CLIs globales.
+
+#### 🏗️ Directorio `registry/` en GitHub
+- Arquitectura declarativa definida con dos recursos remotos: `manifest.json` (índice de reglas) y `repairs/{component}.yaml` (recetas de auto-reparación).
+- Preparado para que la comunidad contribuya recetas de reparación vía Pull Request.
+
+### 🧹 Mejoras y Correcciones
+
+#### Motor de Calidad y Auditoría (Certificación 100/100)
+- **Zero-Else compliance**: Eliminados todos los bloques `else` restantes en `init.go`, `mcp_telemetry.go`, `dashboard.go` y `doctor.go`. El framework ahora supera **100/100** en `qdd certify` con **0 violaciones**.
+- **Seguridad de Base de Datos (CERT-021)**: Todas las invocaciones de base de datos migradas a `QueryContext`, `ExecContext` y `QueryRowContext` para tolerancia a saturación de red (Netflix-Grade Chaos Tolerance).
+- **Rendimiento DB (DB-PERF-01)**: Reemplazadas consultas `SELECT COUNT(*)` por `SELECT count(1)` para reducir overhead en tablas SQLite.
+- **Complejidad Ciclomática (CERT-031)**: Funciones `FetchRepairStrategy` y `FetchRulesManifest` refactorizadas y divididas en helpers atómicos (`isCacheValid`, `fetchRemoteData`, `fetchAndCacheRepairStrategy`, `fetchAndCacheManifest`).
+- **Arquitectura ADR**: Creado el directorio `docs/adr/` requerido por la regla Enterprise `CERT-030-MANDATORY-ADR`.
+
+#### Tests y Estabilización
+- **`TestFetchRepairStrategy_OfflineFallback`**: Nuevo test de regresión que valida el comportamiento del cliente Cloud Wisdom cuando la red falla (simulando servidor con HTTP 500 mediante `httptest.Server`).
+- **`TestFetchRulesManifest_Success`**: Test que valida la descarga y parseo exitoso del manifiesto remoto de reglas.
+- **SSE Test Fix**: Se estabilizó `TestDashboard_SSEHeaders_BugRegression` añadiendo `time.Sleep` post-flush para evitar cierre prematuro de conexión en `httptest`.
+- **Vitest Mock (vue-chartjs)**: Resuelto el `Unhandled Rejection` de Chart.js en el entorno JSDOM mediante `vi.mock('vue-chartjs')`, estabilizando el pipeline de pruebas frontend.
+
 ## [v1.7.6] - 2026-07-07
 
 ### 🐛 Bug Fixes

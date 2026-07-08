@@ -17,22 +17,41 @@ type ConfigFile struct {
 }
 
 func CheckMinimumAlignment() error {
-	qddDir := filepath.Join(".", ".qdd")
-	if _, err := os.Stat(qddDir); os.IsNotExist(err) {
-		return errors.New("No existe la carpeta .qdd/. Alerta: Debes ejecutar `qdd init`")
+	configPath, err := checkQDDDir()
+	if err != nil {
+		return err
 	}
 
-	configPath := filepath.Join(qddDir, "config.yaml")
+	config, err := readConfigFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	return validateConfigAlignment(config)
+}
+
+func checkQDDDir() (string, error) {
+	qddDir := filepath.Join(".", ".qdd")
+	if _, err := os.Stat(qddDir); os.IsNotExist(err) {
+		return "", errors.New("No existe la carpeta .qdd/. Alerta: Debes ejecutar `qdd init`")
+	}
+	return filepath.Join(qddDir, "config.yaml"), nil
+}
+
+func readConfigFile(configPath string) (*ConfigFile, error) {
 	content, err := os.ReadFile(configPath)
 	if err != nil {
-		return errors.New("No se pudo leer .qdd/config.yaml")
+		return nil, errors.New("No se pudo leer .qdd/config.yaml")
 	}
 
 	var config ConfigFile
 	if err := yaml.Unmarshal(content, &config); err != nil {
-		return errors.New("El archivo .qdd/config.yaml tiene un formato inválido")
+		return nil, errors.New("El archivo .qdd/config.yaml tiene un formato inválido")
 	}
+	return &config, nil
+}
 
+func validateConfigAlignment(config *ConfigFile) error {
 	if len(config.Languages) == 0 {
 		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el lenguaje (languages) en config.yaml o ejecuta `qdd learn`")
 	}

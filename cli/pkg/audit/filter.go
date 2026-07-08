@@ -12,40 +12,41 @@ func FilterIgnoredViolations(violations []Violation) []Violation {
 	var filtered []Violation
 
 	for _, v := range violations {
-		if v.File == "" || v.Line <= 1 {
-			filtered = append(filtered, v)
-			continue
-		}
-
-		// Leer el archivo para buscar la línea anterior
-		file, err := os.Open(v.File)
-		if err != nil {
-			filtered = append(filtered, v)
-			continue
-		}
-
-		scanner := bufio.NewScanner(file)
-		currentLine := 1
-		ignored := false
-		for scanner.Scan() {
-			if currentLine >= v.Line-5 && currentLine < v.Line {
-				lineText := scanner.Text()
-				if strings.Contains(lineText, "// qdd:ignore "+v.RuleID) {
-					ignored = true
-					break
-				}
-			}
-			if currentLine >= v.Line {
-				break
-			}
-			currentLine++
-		}
-		file.Close()
-
-		if !ignored {
+		if shouldKeepViolation(v) {
 			filtered = append(filtered, v)
 		}
 	}
 
 	return filtered
+}
+
+func shouldKeepViolation(v Violation) bool {
+	if v.File == "" || v.Line <= 1 {
+		return true
+	}
+
+	file, err := os.Open(v.File)
+	if err != nil {
+		return true
+	}
+	defer file.Close()
+
+	return !hasIgnoreComment(file, v)
+}
+
+func hasIgnoreComment(file *os.File, v Violation) bool {
+	scanner := bufio.NewScanner(file)
+	currentLine := 1
+	for scanner.Scan() {
+		if currentLine >= v.Line {
+			break
+		}
+		if currentLine >= v.Line-5 {
+			if strings.Contains(scanner.Text(), "// qdd:ignore "+v.RuleID) {
+				return true
+			}
+		}
+		currentLine++
+	}
+	return false
 }

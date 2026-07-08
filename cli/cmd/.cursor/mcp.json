@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "qdd": {
+      "args": [
+        "mcp-server"
+      ],
+      "command": "/home/dpailahueque/Documents/proyectos/qdd/cli/cmd/qdd-test-bin"
+    }
+  }
+}

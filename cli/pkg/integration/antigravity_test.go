@@ -8,10 +8,19 @@ import (
 )
 
 func TestAntigravityFrontmatterContract(t *testing.T) {
-	// Create a temporary project directory
 	tempDir := t.TempDir()
+	qddWorkflowPath := setupDirtyWorkflowFile(t, tempDir)
 
-	// Simulate an existing workflow file without frontmatter (dirty state)
+	adapter := &AntigravityAdapter{}
+	err := adapter.Sync(tempDir)
+	if err != nil {
+		t.Fatalf("Sync failed: %v", err)
+	}
+
+	verifyFrontmatterContract(t, qddWorkflowPath)
+}
+
+func setupDirtyWorkflowFile(t *testing.T, tempDir string) string {
 	workflowsDir := filepath.Join(tempDir, ".agents", "workflows")
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
@@ -24,15 +33,10 @@ func TestAntigravityFrontmatterContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create dirty workflow file: %v", err)
 	}
+	return qddWorkflowPath
+}
 
-	// Run the Antigravity Sync
-	adapter := &AntigravityAdapter{}
-	err = adapter.Sync(tempDir)
-	if err != nil {
-		t.Fatalf("Sync failed: %v", err)
-	}
-
-	// Verify the contract: The file MUST contain the description frontmatter
+func verifyFrontmatterContract(t *testing.T, qddWorkflowPath string) {
 	finalContent, err := os.ReadFile(qddWorkflowPath)
 	if err != nil {
 		t.Fatalf("Failed to read final workflow file: %v", err)

@@ -1,7 +1,10 @@
 package audit
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 )
 
 // Violation define la estructura base para cualquier problema encontrado
@@ -37,53 +40,61 @@ func NewEngine(cwd string) *EngineCoordinator {
 // RunAll ejecuta todas las certificaciones universales y devuelve la lista de violaciones.
 func (e *EngineCoordinator) RunAll() []Violation {
 	var allViolations []Violation
-	
+
 	// Load Dynamic Policies
 	p := LoadPolicies(e.cwd)
 
-	// 1. OWASP
-	if p.OWASP {
-		allViolations = append(allViolations, RunOwaspCheck(e.cwd)...)
-	}
-	
-	// 2. Clean Code
-	if p.CleanCode {
-		ccViolations := RunCleanCodeCheck(e.cwd)
-		for _, v := range ccViolations {
-			// ZeroElse toggle overrides the NO-ELSE rule
-			if !p.ZeroElse && v.RuleID == "CLEAN-01-NO-ELSE" {
-				continue
-			}
-			allViolations = append(allViolations, v)
-		}
+	wClient := wisdom.NewClient(e.cwd)
+	manifest, _ := wClient.FetchRulesManifest(context.Background())
+	if manifest != nil && len(manifest.Rules) > 0 {
+		fmt.Printf("[+] Engine: %d reglas remotas dinámicas cargadas desde Cloud Wisdom (v%s)\n", len(manifest.Rules), manifest.Version)
 	}
 
-	// 3. Twelve Factor
-	allViolations = append(allViolations, RunTwelveFactorCheck(e.cwd)...)
-
-	// 4. Coverage
-	allViolations = append(allViolations, RunCoverageCheck(e.cwd)...)
-
-	// 5. Database Performance
-	allViolations = append(allViolations, CheckDatabasePerformance(e.cwd)...)
-
-	// 5. Traceability
-	if p.Traceability {
-		allViolations = append(allViolations, RunTraceabilityCheck(e.cwd)...)
-	}
-	
-	// 6. Beyond Limits (NASA/Netflix/DoD)
-	if p.BeyondLimits {
-		allViolations = append(allViolations, RunBeyondLimitsCheck(e.cwd)...)
-	}
-
-	// 7. Enterprise Scale (Monolith/Complexity)
-	if p.Enterprise {
-		allViolations = append(allViolations, RunEnterpriseCheck(e.cwd)...)
-	}
+	e.runCoreChecks(p, &allViolations)
+	e.runAdvancedChecks(p, &allViolations)
 
 	// Filtro de supresión Enterprise (Grandfathering)
 	allViolations = FilterIgnoredViolations(allViolations)
 
 	return allViolations
+}
+
+func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation) {
+	if p.OWASP {
+		*violations = append(*violations, RunOwaspCheck(e.cwd)...)
+	}
+
+	if p.CleanCode {
+		*violations = append(*violations, e.processCleanCodeViolations(p)...)
+	}
+
+	*violations = append(*violations, RunTwelveFactorCheck(e.cwd)...)
+	*violations = append(*violations, RunCoverageCheck(e.cwd)...)
+	*violations = append(*violations, CheckDatabasePerformance(e.cwd)...)
+}
+
+func (e *EngineCoordinator) runAdvancedChecks(p QDDPolicies, violations *[]Violation) {
+	if p.Traceability {
+		*violations = append(*violations, RunTraceabilityCheck(e.cwd)...)
+	}
+
+	if p.BeyondLimits {
+		*violations = append(*violations, RunBeyondLimitsCheck(e.cwd)...)
+	}
+
+	if p.Enterprise {
+		*violations = append(*violations, RunEnterpriseCheck(e.cwd)...)
+	}
+}
+
+func (e *EngineCoordinator) processCleanCodeViolations(p QDDPolicies) []Violation {
+	var results []Violation
+	ccViolations := RunCleanCodeCheck(e.cwd)
+	for _, v := range ccViolations {
+		if !p.ZeroElse && v.RuleID == "CLEAN-01-NO-ELSE" {
+			continue
+		}
+		results = append(results, v)
+	}
+	return results
 }

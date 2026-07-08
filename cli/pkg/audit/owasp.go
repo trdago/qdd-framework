@@ -15,8 +15,7 @@ func RunOwaspCheck(cwd string) []Violation {
 	fset := token.NewFileSet()
 
 	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-		// Analizamos solo archivos .go y saltamos carpetas comunes no relevantes
-		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".go") || strings.Contains(path, "node_modules") || strings.Contains(path, ".git") {
+		if isIgnoredOwaspPath(path, d, err) {
 			return nil
 		}
 		
@@ -25,73 +24,141 @@ func RunOwaspCheck(cwd string) []Violation {
 			return nil
 		}
 
-		ast.Inspect(node, func(n ast.Node) bool {
-			// OWASP-A03-INJECTION: Búsqueda de inyecciones SQL
-			if call, ok := n.(*ast.CallExpr); ok {
-				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-					funcName := sel.Sel.Name
-					// Buscamos métodos comunes de base de datos
-					if funcName == "Query" || funcName == "Exec" || funcName == "QueryRow" {
-						for _, arg := range call.Args {
-							// Caso 1: uso de fmt.Sprintf interno
-							if argCall, isCall := arg.(*ast.CallExpr); isCall {
-								if argSel, isSel := argCall.Fun.(*ast.SelectorExpr); isSel && argSel.Sel.Name == "Sprintf" {
-									pos := fset.Position(n.Pos())
-									violations = append(violations, Violation{
-										Category:    "OWASP",
-										RuleID:      "OWASP-A03-INJECTION",
-										Description: "Posible SQL Injection detectada. Uso de Sprintf dentro de una query no parametrizada.",
-										File:        path,
-										Line:        pos.Line,
-									})
-								}
-							}
-							// Caso 2: concatenación de strings con +
-							if _, isBin := arg.(*ast.BinaryExpr); isBin {
-								pos := fset.Position(n.Pos())
-								violations = append(violations, Violation{
-										Category:    "OWASP",
-									RuleID:      "OWASP-A03-INJECTION",
-									Description: "Posible SQL Injection detectada. Concatenación de strings insegura dentro de la query.",
-									File:        path,
-									Line:        pos.Line,
-								})
-							}
-						}
-					}
-				}
-			}
-
-			// OWASP-A02-CRYPTOGRAPHY: Secretos y contraseñas hardcodeados
-			if assign, ok := n.(*ast.AssignStmt); ok {
-				for i, lhs := range assign.Lhs {
-					if ident, isIdent := lhs.(*ast.Ident); isIdent {
-						name := strings.ToLower(ident.Name)
-						// Detectamos variables sospechosas de ser secretos
-						if strings.Contains(name, "password") || strings.Contains(name, "secret") || strings.Contains(name, "token") || strings.Contains(name, "api_key") {
-							if i < len(assign.Rhs) {
-								if lit, isLit := assign.Rhs[i].(*ast.BasicLit); isLit && lit.Kind == token.STRING {
-									// Ignoramos strings vacíos
-									if lit.Value != `""` && lit.Value != "``" {
-										pos := fset.Position(n.Pos())
-										violations = append(violations, Violation{
-											Category:    "OWASP",
-											RuleID:      "OWASP-A02-CRYPTOGRAPHY",
-											Description: "Dato sensible hardcodeado en texto plano detectado en la variable '" + ident.Name + "'.",
-											File:        path,
-											Line:        pos.Line,
-										})
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			return true
-		})
+		checkOwaspNode(path, node, fset, &violations)
 		return nil
 	})
 	
 	return violations
+}
+
+func isIgnoredOwaspPath(path string, d os.DirEntry, err error) bool {
+	if err != nil || d.IsDir() {
+		return true
+	}
+	if !strings.HasSuffix(d.Name(), ".go") {
+		return true
+	}
+	return isIgnoredOwaspDir(path)
+}
+
+func isIgnoredOwaspDir(path string) bool {
+	return strings.Contains(path, "node_modules") || strings.Contains(path, ".git")
+}
+
+func checkOwaspNode(path string, node *ast.File, fset *token.FileSet, violations *[]Violation) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		checkSqlInjection(path, n, fset, violations)
+		checkHardcodedSecrets(path, n, fset, violations)
+		return true
+	})
+}
+
+func checkSqlInjection(path string, n ast.Node, fset *token.FileSet, violations *[]Violation) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	
+	if !isTargetSqlFunc(call) {
+		return
+	}
+
+	for _, arg := range call.Args {
+		checkSqlArg(path, n, arg, fset, violations)
+	}
+}
+
+func isTargetSqlFunc(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	
+	funcName := sel.Sel.Name
+	return funcName == "Query" || funcName == "Exec" || funcName == "QueryRow"
+}
+
+func checkSqlArg(path string, n ast.Node, arg ast.Expr, fset *token.FileSet, violations *[]Violation) {
+	if isSprintfCall(arg) {
+		addInjectionViolation(path, n, fset, violations, "Posible SQL Injection detectada. Uso de Sprintf dentro de una query no parametrizada.")
+	}
+
+	if _, isBin := arg.(*ast.BinaryExpr); isBin {
+		addInjectionViolation(path, n, fset, violations, "Posible SQL Injection detectada. Concatenación de strings insegura dentro de la query.")
+	}
+}
+
+func addInjectionViolation(path string, n ast.Node, fset *token.FileSet, violations *[]Violation, description string) {
+	pos := fset.Position(n.Pos())
+	*violations = append(*violations, Violation{
+		Category:    "OWASP",
+		RuleID:      "OWASP-A03-INJECTION",
+		Description: description,
+		File:        path,
+		Line:        pos.Line,
+	})
+}
+
+func isSprintfCall(arg ast.Expr) bool {
+	argCall, isCall := arg.(*ast.CallExpr)
+	if !isCall {
+		return false
+	}
+	argSel, isSel := argCall.Fun.(*ast.SelectorExpr)
+	if !isSel {
+		return false
+	}
+	return argSel.Sel.Name == "Sprintf"
+}
+
+func checkHardcodedSecrets(path string, n ast.Node, fset *token.FileSet, violations *[]Violation) {
+	assign, ok := n.(*ast.AssignStmt)
+	if !ok {
+		return
+	}
+	for i, lhs := range assign.Lhs {
+		checkLhsForSecret(path, n, assign, i, lhs, fset, violations)
+	}
+}
+
+func checkLhsForSecret(path string, n ast.Node, assign *ast.AssignStmt, i int, lhs ast.Expr, fset *token.FileSet, violations *[]Violation) {
+	ident, isIdent := lhs.(*ast.Ident)
+	if !isIdent {
+		return
+	}
+	name := strings.ToLower(ident.Name)
+	if isSecretName(name) {
+		checkSecretAssignment(path, n, assign, i, ident.Name, fset, violations)
+	}
+}
+
+func isSecretName(name string) bool {
+	return strings.Contains(name, "password") || strings.Contains(name, "secret") || strings.Contains(name, "token") || strings.Contains(name, "api_key")
+}
+
+func checkSecretAssignment(path string, n ast.Node, assign *ast.AssignStmt, i int, varName string, fset *token.FileSet, violations *[]Violation) {
+	if i >= len(assign.Rhs) {
+		return
+	}
+	
+	if !isPlaintextStringLit(assign.Rhs[i]) {
+		return
+	}
+
+	pos := fset.Position(n.Pos())
+	*violations = append(*violations, Violation{
+		Category:    "OWASP",
+		RuleID:      "OWASP-A02-CRYPTOGRAPHY",
+		Description: "Dato sensible hardcodeado en texto plano detectado en la variable '" + varName + "'.",
+		File:        path,
+		Line:        pos.Line,
+	})
+}
+
+func isPlaintextStringLit(rhs ast.Expr) bool {
+	lit, isLit := rhs.(*ast.BasicLit)
+	if !isLit || lit.Kind != token.STRING {
+		return false
+	}
+	return lit.Value != `""` && lit.Value != "``"
 }

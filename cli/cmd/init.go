@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/qdd-framework/qdd/pkg/integration"
+	"github.com/qdd-framework/qdd/pkg/qcl/auth"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -34,28 +35,42 @@ func runInit(cmd *cobra.Command, args []string) {
 		fmt.Printf("[!] Error obteniendo directorio actual: %v\n", err)
 		return
 	}
+	executeInitLoop(cwd)
+}
 
-	maxRetries := 3
-	for i := 1; i <= maxRetries; i++ {
-		fmt.Printf("[+] Iteración %d de inicialización y chequeo...\n", i)
+func executeInitLoop(cwd string) {
+	iteration := 1
+	lastFailCount := -1
+
+	for {
+		fmt.Printf("[+] Iteración %d de inicialización y chequeo...\n", iteration)
 		
-		success := runInitIteration(cwd)
+		success, failCount := runInitIteration(cwd)
 		if success {
 			fmt.Println("[!] QDD inicializado exitosamente y validado por QDD Doctor.")
 			fmt.Println("[!] Siguiente paso: ejecuta `qdd learn`")
 			return
 		}
 
-		if i < maxRetries {
-			fmt.Println("[-] QDD Doctor detectó anomalías. Reintentando y auto-corrigiendo...")
-		}
-	}
+		checkStagnation(iteration, failCount, lastFailCount)
 
-	fmt.Println("[!] Error crítico: QDD no pudo asegurar el funcionamiento del framework tras varios intentos. Revisa la evidencia generada por QDD Doctor.")
-	os.Exit(1)
+		lastFailCount = failCount
+		iteration++
+		fmt.Println("[-] QDD Doctor detectó anomalías. Reintentando y auto-corrigiendo de forma segura...")
+	}
 }
 
-func runInitIteration(cwd string) bool {
+func checkStagnation(iteration, failCount, lastFailCount int) {
+	if lastFailCount == -1 {
+		return
+	}
+	if failCount >= lastFailCount {
+		fmt.Printf("[!] Error crítico: QDD Doctor no pudo reparar el entorno tras %d iteraciones (anomalías estancadas en %d). Revisa la evidencia generada por QDD Doctor.\n", iteration, failCount)
+		os.Exit(1)
+	}
+}
+
+func runInitIteration(cwd string) (bool, int) {
 	fmt.Println("[+] Detectando entorno...")
 	languages := detectLanguages(cwd)
 	for _, lang := range languages {
@@ -70,7 +85,7 @@ func runInitIteration(cwd string) bool {
 	err := createQDDStructure(cwd, languages)
 	if err != nil {
 		fmt.Printf("[!] Error creando estructura: %v\n", err)
-		return false
+		return false, 1 // Artificial error count to force retry or stagnation
 	}
 
 	fmt.Println("[+] Sincronizando integraciones de Inteligencia Artificial (QDD Adapters)...")
@@ -80,7 +95,7 @@ func runInitIteration(cwd string) bool {
 	}
 
 	fmt.Println("[+] Ejecutando QDD Doctor para certificar funcionalidad...")
-	return RunDoctorCheck(cwd)
+	return RunDoctorCheck(cwd, true)
 }
 
 func fileExists(path string) bool {
@@ -99,26 +114,41 @@ func detectLanguages(dir string) []string {
 			return nil
 		}
 		
-		// Evitamos escanear dependencias o configuraciones internas
-		if d.IsDir() && (d.Name() == ".git" || d.Name() == ".qdd" || d.Name() == "node_modules" || d.Name() == "vendor") {
+		if shouldSkipDirForLangDetection(d) {
 			return filepath.SkipDir
 		}
 
 		if !d.IsDir() {
-			if d.Name() == "go.mod" {
-				detectedMap["Go"] = true
-			}
-			if d.Name() == "package.json" {
-				detectedMap["Node"] = true
-			}
-			if d.Name() == "pom.xml" {
-				detectedMap["Java"] = true
-			}
+			checkLanguageFile(d.Name(), detectedMap)
 		}
 
 		return nil
 	})
 
+	return compileDetectedLanguages(detectedMap)
+}
+
+func shouldSkipDirForLangDetection(d os.DirEntry) bool {
+	if !d.IsDir() {
+		return false
+	}
+	name := d.Name()
+	return name == ".git" || name == ".qdd" || name == "node_modules" || name == "vendor"
+}
+
+func checkLanguageFile(name string, detectedMap map[string]bool) {
+	if name == "go.mod" {
+		detectedMap["Go"] = true
+	}
+	if name == "package.json" {
+		detectedMap["Node"] = true
+	}
+	if name == "pom.xml" {
+		detectedMap["Java"] = true
+	}
+}
+
+func compileDetectedLanguages(detectedMap map[string]bool) []string {
 	var detected []string
 	if detectedMap["Go"] {
 		detected = append(detected, "Go")
@@ -129,18 +159,32 @@ func detectLanguages(dir string) []string {
 	if detectedMap["Java"] {
 		detected = append(detected, "Java")
 	}
-
 	return detected
 }
 
 func createQDDStructure(baseDir string, languages []string) error {
 	qddDir := filepath.Join(baseDir, ".qdd")
 
-	err := os.MkdirAll(qddDir, 0755)
-	if err != nil {
+	if err := os.MkdirAll(qddDir, 0755); err != nil {
 		return err
 	}
 
+	if err := createQDDDirectories(qddDir); err != nil {
+		return err
+	}
+
+	if err := createConfigFile(qddDir, languages); err != nil {
+		return err
+	}
+
+	if err := createStateFile(qddDir); err != nil {
+		return err
+	}
+
+	return unpackCoreAssets(qddDir)
+}
+
+func createQDDDirectories(qddDir string) error {
 	dirsToCreate := []string{
 		"core/runtime",
 		"core/specification",
@@ -158,27 +202,10 @@ func createQDDStructure(baseDir string, languages []string) error {
 	}
 
 	for _, d := range dirsToCreate {
-		err := os.MkdirAll(filepath.Join(qddDir, d), 0755)
-		if err != nil {
+		if err := os.MkdirAll(filepath.Join(qddDir, d), 0755); err != nil {
 			return err
 		}
 	}
-
-	err = createConfigFile(qddDir, languages)
-	if err != nil {
-		return err
-	}
-
-	err = createStateFile(qddDir)
-	if err != nil {
-		return err
-	}
-
-	err = unpackCoreAssets(qddDir)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -194,24 +221,32 @@ func unpackCoreAssets(qddDir string) error {
 		if d.IsDir() {
 			return nil
 		}
-		
-		relPath := strings.TrimPrefix(path, basePath+"/")
-		destPath := filepath.Join(qddDir, "core", relPath)
-		
-		if fileExists(destPath) {
-			return nil
-		}
-		
-		content, err := coreAssets.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		
-		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-			return err
-		}
-		return os.WriteFile(destPath, content, 0644)
+		return extractSingleCoreAsset(qddDir, basePath, path)
 	})
+}
+
+func extractSingleCoreAsset(qddDir, basePath, path string) error {
+	relPath := strings.TrimPrefix(path, basePath+"/")
+	destPath := filepath.Join(qddDir, "core", relPath)
+	
+	if fileExists(destPath) {
+		return nil
+	}
+	
+	content, err := coreAssets.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return err
+	}
+	
+	if errGuard := auth.GuardCoreWriteAccess(destPath); errGuard != nil {
+		return errGuard
+	}
+	
+	return os.WriteFile(destPath, content, 0644)
 }
 
 
