@@ -633,7 +633,7 @@ var dashboardCmd = &cobra.Command{
 	Aliases: []string{"ui"},
 	Short:   "Inicia el Centro de Comando Web (Frontend embebido)",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("🚀 Iniciando QDD Dashboard en http://localhost:8080...")
+		fmt.Println("🚀 Preparando QDD Dashboard...")
 
 		go runWatcher()
 
@@ -663,6 +663,7 @@ var dashboardCmd = &cobra.Command{
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("X-Accel-Buffering", "no")
 
 			flusher, ok := w.(http.Flusher)
 			if !ok {
@@ -672,6 +673,12 @@ var dashboardCmd = &cobra.Command{
 
 			ch := broker.AddClient()
 			defer broker.RemoveClient(ch)
+
+			// Enviar estado inicial de inmediato para evitar que el UI se quede en mock si fsnotify falla (ej. Docker/WSL)
+			initialState := buildState()
+			initData, _ := json.Marshal(initialState)
+			fmt.Fprintf(w, "data: %s\n\n", string(initData))
+			flusher.Flush()
 
 			for {
 				select {

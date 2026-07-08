@@ -4,6 +4,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.6] - 2026-07-07
+
+### 🐛 Bug Fixes
+- **Dashboard Data Binding:** Se ha corregido un bug crítico donde el frontend del Dashboard renderizaba gráficas con datos iniciales (mock data) en lugar de refrescar con los valores provenientes de `cognitive_history.json`.
+- **SSE Connection Resilience:** Se ha mitigado un fallo en ambientes Docker/WSL y configuraciones de NGINX Proxy donde la conexión SSE se quedaba colgada sin enviar estado inicial. Se ha introducido envío manual pre-listener de `state` y la cabecera `X-Accel-Buffering: no` para prevenir congelamiento por buffering de proxies.
+- **Terminal output fix:** Se corrigió un mensaje estático que indicaba erróneamente que el servidor inicializaba en `localhost:8080`, lo que desorientaba a desarrolladores en despliegues remotos.
+
 ## [v1.7.5] - 2026-07-07
 
 ### ✨ Nuevas Características

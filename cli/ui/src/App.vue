@@ -32,37 +32,41 @@ mermaid.initialize({ startOnLoad: false, theme: 'dark' })
 
 const isSidebarCollapsed = ref(true)
 
-const chartData = ref({
-  labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Hoy'],
-  datasets: [
-    {
-      label: 'Sprints',
-      data: [20, 30, 50, 70],
-      borderColor: '#f59e0b',
-      backgroundColor: 'rgba(245, 158, 11, 0.1)',
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true
-    },
-    {
-      label: 'Certs',
-      data: [25, 35, 55, 80],
-      borderColor: '#10b981',
-      backgroundColor: 'rgba(16, 185, 129, 0.1)',
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true
-    },
-    {
-      label: 'Bugs',
-      data: [50, 40, 60, 30],
-      borderColor: '#ef4444',
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true
+const chartData = computed(() => {
+  if (!state.value?.historical_trends) {
+    return {
+      labels: ['Día 1', 'Día 2', 'Hoy'],
+      datasets: [
+        {
+          label: 'Score',
+          data: [40, 75, 100],
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true
+        }
+      ]
     }
-  ]
+  }
+
+  const labels = state.value.historical_trends.map(t => t.date)
+  const data = state.value.historical_trends.map(t => t.score)
+  
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Quality Score',
+        data: data,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      }
+    ]
+  }
 })
 
 const chartOptions = ref({
