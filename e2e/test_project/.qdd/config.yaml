@@ -1,0 +1,7 @@
+architecture: Serverless Cloud Functions
+governance:
+    certification_first: true
+    evidence_required_for_fixes: true
+languages:
+    - Node
+project: pasarela-firmas-api

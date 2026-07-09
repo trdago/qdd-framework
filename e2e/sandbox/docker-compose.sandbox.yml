@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  qdd-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    image: qdd-sandbox:latest
+    container_name: qdd-webtop-sandbox
+    security_opt:
+      - seccomp:unconfined # Necesario para algunas apps gráficas (ej. Chrome/Electron)
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - SUBFOLDER=/ # Opcional si se quiere servir detrás de un reverse proxy
+      - TITLE=QDD Framework Sandbox
+    volumes:
+      # Montar QDD CLI
+      - ../../cli:/source/qdd-cli:ro
+      # Montar proyecto Actas-Back-End como Read-Only (Para copiarlo al arrancar)
+      - /home/dpailahueque/Documents/proyectos/actas-back-end:/source/actas-back-end:ro
+      # Inyectar script de inicialización en s6-overlay
+      - ./setup.sh:/custom-cont-init.d/01-setup-qdd:ro
+      # Montar Antigravity IDE desde el Host
+      - /opt/Antigravity:/opt/Antigravity:ro
+      - /usr/bin/antigravity:/usr/bin/antigravity:ro
+      - /usr/bin/antigravity-ide:/usr/bin/antigravity-ide:ro
+      - /home/dpailahueque/.gemini:/home/abc/.gemini:ro
+    ports:
+      - 3000:3000 # HTTP (noVNC web browser)
+      - 3001:3001 # HTTPS
+    restart: unless-stopped

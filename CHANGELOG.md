@@ -4,6 +4,21 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.0] - 2026-07-09
+
+### ✨ Nuevas Características
+
+#### 🧪 Visual WebTop Sandbox (Entorno de Validación E2E)
+- **Aislamiento Dockerizado**: Nuevo entorno basado en Ubuntu XFCE (`e2e/sandbox/`) que permite pruebas End-to-End seguras sin contaminar el host local.
+- **Validación del Dashboard en Vivo**: Pruebas automáticas contra el dashboard en el puerto HTTP aislando el entorno e inyectando un proyecto de pruebas como `actas-back-end`.
+- **Integración de IDE**: Capacidades listas para inyectar binarios locales (como Antigravity y Cursor) de forma segura a través de `docker-compose.sandbox.yml`.
+
+#### ⚡ Deterministic Architecture Discovery
+- **`qdd init` Nativo y Zero-LLM**: Refactorización del flujo de inicialización que elimina la latencia y la incerteza de los LLMs. Ahora escanea directamente `go.mod`, `package.json` y otros manifiestos clave (usando parsers puros en Go) para detectar si un proyecto es de Go, Node, React, o Serverless Functions, asegurando determinismo 100%.
+- **Zero-Else**: Continuación de la filosofía de guard clauses. Flujos simplificados que abortan ante errores antes de generar árboles de decisión ambiguos.
+
+
+
 ## [v1.8.0] - 2026-07-08
 
 ### ✨ Nuevas Características

@@ -48,9 +48,9 @@ func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
 
 	checkCoreStructure(projectPath, &checks, &failedChecks)
 
-	missingIntegrations := checkAllIntegrations(projectPath, &checks, &failedChecks)
+	checkAllIntegrations(projectPath, &checks, &failedChecks)
 
-	if missingIntegrations && autoFix {
+	if len(failedChecks) > 0 && autoFix {
 		attemptAutoFix(projectPath, &checks, &failedChecks)
 	}
 
@@ -66,6 +66,12 @@ func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
 func checkCoreStructure(projectPath string, checks, failedChecks *[]string) {
 	qddDir := filepath.Join(projectPath, ".qdd")
 	checkDirExists(qddDir, ".qdd/", checks, failedChecks)
+	
+	dirs := GetQDDDirectories()
+	for _, d := range dirs {
+		checkDirExists(filepath.Join(qddDir, d), filepath.Join(".qdd", d), checks, failedChecks)
+	}
+
 	checkFileExists(filepath.Join(qddDir, "config.yaml"), "config.yaml", checks, failedChecks)
 	checkFileExists(filepath.Join(qddDir, "state.json"), "state.json", checks, failedChecks)
 }
@@ -88,6 +94,28 @@ func checkFileExists(path, name string, checks, failedChecks *[]string) {
 }
 
 func attemptAutoFix(projectPath string, checks, failedChecks *[]string) {
+	fmt.Println("[!] Doctor: Intentando reparar directorios del core y estructura del proyecto...")
+	qddDir := filepath.Join(projectPath, ".qdd")
+	if err := createQDDDirectories(qddDir); err != nil {
+		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al reconstruir directorios: %v", err))
+	} else {
+		*checks = append(*checks, "[OK] Directorios base reconstruidos exitosamente")
+	}
+
+	fmt.Println("[!] Doctor: Restaurando documentación, configuración y assets perdidos...")
+	meta := detectProjectMetadata(projectPath)
+	if err := createConfigFile(qddDir, meta); err != nil {
+		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar config.yaml: %v", err))
+	}
+	if err := createStateFile(qddDir); err != nil {
+		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar state.json: %v", err))
+	}
+	if err := unpackCoreAssets(qddDir); err != nil {
+		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar assets base: %v", err))
+	} else {
+		*checks = append(*checks, "[OK] Documentación, configuración y assets base restaurados exitosamente")
+	}
+
 	fmt.Println("[!] Doctor: Intentando reparar integraciones de IA faltantes...")
 	manager := integration.NewIntegrationManager()
 	if err := manager.SyncAll(projectPath); err != nil {
@@ -95,7 +123,7 @@ func attemptAutoFix(projectPath string, checks, failedChecks *[]string) {
 		return
 	}
 	*checks = append(*checks, "[OK] Integraciones reparadas exitosamente")
-	*failedChecks = filterRepairedIntegrations(*failedChecks)
+	*failedChecks = filterRepairedItems(*failedChecks)
 
 	fmt.Println("[+] Doctor: Consultando oráculo Cloud Wisdom para estrategias de reparación actualizadas...")
 	wClient := wisdom.NewClient(projectPath)
@@ -167,10 +195,14 @@ func checkAllIntegrations(projectPath string, checks, failedChecks *[]string) bo
 	return missingIntegrations
 }
 
-func filterRepairedIntegrations(failedChecks []string) []string {
+func filterRepairedItems(failedChecks []string) []string {
 	var remainingFailed []string
 	for _, f := range failedChecks {
-		if !strings.Contains(f, "Configuración MCP") && !strings.Contains(f, "Reglas de Claude") && !strings.Contains(f, "Reglas de Antigravity") {
+		if !strings.Contains(f, "Configuración MCP") && 
+		   !strings.Contains(f, "Reglas de Claude") && 
+		   !strings.Contains(f, "Reglas de Antigravity") &&
+		   !strings.Contains(f, "Directorio raíz") &&
+		   !strings.Contains(f, "Archivo") {
 			remainingFailed = append(remainingFailed, f)
 		}
 	}

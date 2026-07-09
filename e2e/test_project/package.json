@@ -1,0 +1,33 @@
+{
+    "name": "pasarela-firmas-api",
+    "version": "2.2.0",
+    "description": "",
+    "main": "handler.js",
+    "scripts": {
+        "build": "serverless package --package .build --stage prod",
+        "dev": "serverless offline --stage dev",
+        "deploy": "serverless deploy --stage prod",
+        "remove": "serverless remove --stage prod",
+        "deploy-qa": "serverless deploy --stage qa",
+        "remove-qa": "serverless remove --stage qa",
+        "generardocs": "node generaPDF.js"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "axios": "^0.21.4",
+        "indicative": "^7.4.4",
+        "jwt-decode": "^3.1.2",
+        "moment-timezone": "^0.5.43",
+        "pg": "^8.11.0",
+        "serverless": "^3.22.0",
+        "serverless-offline": "^8.8.1",
+        "serverless-plugin-include-dependencies": "^4.1.0",
+        "util-header": "file:./src/layer/nodejs/node_modules/util-header",
+        "rut.js": "^1.0.2"
+    },
+    "dependencies": {
+        "uuid": "^8.3.2",
+        "rut.js": "^1.0.2"
+    }
+}

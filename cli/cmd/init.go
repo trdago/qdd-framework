@@ -72,17 +72,20 @@ func checkStagnation(iteration, failCount, lastFailCount int) {
 
 func runInitIteration(cwd string) (bool, int) {
 	fmt.Println("[+] Detectando entorno...")
-	languages := detectLanguages(cwd)
-	for _, lang := range languages {
+	meta := detectProjectMetadata(cwd)
+	for _, lang := range meta.Languages {
 		fmt.Printf("[+] Detectado: Lenguaje %s\n", lang)
 	}
+	if meta.Architecture != "" {
+		fmt.Printf("[+] Detectada Arquitectura: %s\n", meta.Architecture)
+	}
 
-	if len(languages) == 0 {
+	if len(meta.Languages) == 0 {
 		fmt.Println("[-] No se detectó un lenguaje soportado automáticamente.")
 	}
 
 	fmt.Println("[+] Creando estructura .qdd/")
-	err := createQDDStructure(cwd, languages)
+	err := createQDDStructure(cwd, meta)
 	if err != nil {
 		fmt.Printf("[!] Error creando estructura: %v\n", err)
 		return false, 1 // Artificial error count to force retry or stagnation
@@ -106,63 +109,92 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-func detectLanguages(dir string) []string {
-	detectedMap := make(map[string]bool)
+type ProjectMetadata struct {
+	Name         string
+	Architecture string
+	Languages    []string
+}
 
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
+func detectProjectMetadata(dir string) ProjectMetadata {
+	meta := ProjectMetadata{
+		Name:         "auto-detected",
+		Architecture: "",
+		Languages:    []string{},
+	}
+
+	if fileExists(filepath.Join(dir, "package.json")) {
+		meta.Languages = append(meta.Languages, "Node")
+		data, err := os.ReadFile(filepath.Join(dir, "package.json"))
+		if err == nil {
+			var pkg map[string]interface{}
+			if json.Unmarshal(data, &pkg) == nil {
+				if name, ok := pkg["name"].(string); ok && name != "" {
+					meta.Name = name
+				}
+
+				deps := extractDependencies(pkg)
+				if deps["next"] || deps["react"] || deps["vue"] || deps["angular"] {
+					meta.Architecture = "Frontend Web App"
+				} else if deps["express"] || deps["nestjs"] || deps["fastify"] {
+					meta.Architecture = "Backend REST API"
+				} else if deps["serverless"] || deps["aws-sdk"] {
+					meta.Architecture = "Serverless Cloud Functions"
+				} else {
+					meta.Architecture = "Node.js Application"
+				}
+			}
 		}
-		
-		if shouldSkipDirForLangDetection(d) {
-			return filepath.SkipDir
+	}
+
+	if fileExists(filepath.Join(dir, "go.mod")) {
+		meta.Languages = append(meta.Languages, "Go")
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+		if err == nil {
+			lines := strings.Split(string(data), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "module ") {
+					meta.Name = strings.TrimSpace(strings.TrimPrefix(line, "module "))
+				}
+				if strings.Contains(line, "github.com/gin-gonic/gin") || strings.Contains(line, "github.com/gofiber/fiber") || strings.Contains(line, "github.com/labstack/echo") {
+					meta.Architecture = "Backend REST API (Go)"
+				}
+				if strings.Contains(line, "github.com/spf13/cobra") || strings.Contains(line, "github.com/urfave/cli") {
+					meta.Architecture = "CLI Application (Go)"
+				}
+			}
+			if meta.Architecture == "" {
+				meta.Architecture = "Go Application"
+			}
 		}
+	}
 
-		if !d.IsDir() {
-			checkLanguageFile(d.Name(), detectedMap)
+	if fileExists(filepath.Join(dir, "pom.xml")) || fileExists(filepath.Join(dir, "build.gradle")) {
+		meta.Languages = append(meta.Languages, "Java")
+		if meta.Architecture == "" {
+			meta.Architecture = "Java Application"
 		}
+	}
 
-		return nil
-	})
-
-	return compileDetectedLanguages(detectedMap)
+	return meta
 }
 
-func shouldSkipDirForLangDetection(d os.DirEntry) bool {
-	if !d.IsDir() {
-		return false
+func extractDependencies(pkg map[string]interface{}) map[string]bool {
+	deps := make(map[string]bool)
+	if d, ok := pkg["dependencies"].(map[string]interface{}); ok {
+		for k := range d {
+			deps[k] = true
+		}
 	}
-	name := d.Name()
-	return name == ".git" || name == ".qdd" || name == "node_modules" || name == "vendor"
+	if d, ok := pkg["devDependencies"].(map[string]interface{}); ok {
+		for k := range d {
+			deps[k] = true
+		}
+	}
+	return deps
 }
 
-func checkLanguageFile(name string, detectedMap map[string]bool) {
-	if name == "go.mod" {
-		detectedMap["Go"] = true
-	}
-	if name == "package.json" {
-		detectedMap["Node"] = true
-	}
-	if name == "pom.xml" {
-		detectedMap["Java"] = true
-	}
-}
-
-func compileDetectedLanguages(detectedMap map[string]bool) []string {
-	var detected []string
-	if detectedMap["Go"] {
-		detected = append(detected, "Go")
-	}
-	if detectedMap["Node"] {
-		detected = append(detected, "Node")
-	}
-	if detectedMap["Java"] {
-		detected = append(detected, "Java")
-	}
-	return detected
-}
-
-func createQDDStructure(baseDir string, languages []string) error {
+func createQDDStructure(baseDir string, meta ProjectMetadata) error {
 	qddDir := filepath.Join(baseDir, ".qdd")
 
 	if err := os.MkdirAll(qddDir, 0755); err != nil {
@@ -173,7 +205,7 @@ func createQDDStructure(baseDir string, languages []string) error {
 		return err
 	}
 
-	if err := createConfigFile(qddDir, languages); err != nil {
+	if err := createConfigFile(qddDir, meta); err != nil {
 		return err
 	}
 
@@ -184,8 +216,8 @@ func createQDDStructure(baseDir string, languages []string) error {
 	return unpackCoreAssets(qddDir)
 }
 
-func createQDDDirectories(qddDir string) error {
-	dirsToCreate := []string{
+func GetQDDDirectories() []string {
+	return []string{
 		"core/runtime",
 		"core/specification",
 		"core/templates",
@@ -200,6 +232,10 @@ func createQDDDirectories(qddDir string) error {
 		"project/adr",
 		"dashboard",
 	}
+}
+
+func createQDDDirectories(qddDir string) error {
+	dirsToCreate := GetQDDDirectories()
 
 	for _, d := range dirsToCreate {
 		if err := os.MkdirAll(filepath.Join(qddDir, d), 0755); err != nil {
@@ -250,7 +286,7 @@ func extractSingleCoreAsset(qddDir, basePath, path string) error {
 }
 
 
-func createConfigFile(qddDir string, languages []string) error {
+func createConfigFile(qddDir string, meta ProjectMetadata) error {
 	configPath := filepath.Join(qddDir, "config.yaml")
 
 	if fileExists(configPath) {
@@ -258,8 +294,9 @@ func createConfigFile(qddDir string, languages []string) error {
 	}
 
 	config := map[string]interface{}{
-		"project":   "auto-detected",
-		"languages": languages,
+		"project":      meta.Name,
+		"architecture": meta.Architecture,
+		"languages":    meta.Languages,
 		"governance": map[string]interface{}{
 			"certification_first":         true,
 			"evidence_required_for_fixes": true,

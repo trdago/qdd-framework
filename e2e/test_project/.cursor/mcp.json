@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "qdd": {
+      "args": [
+        "mcp-server"
+      ],
+      "command": "/usr/local/bin/qdd"
+    }
+  }
+}

@@ -40,8 +40,8 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 		workingPath := filepath.Join(cwd, ".qdd", "working")
 		os.WriteFile(workingPath, []byte(name), 0644)
 
-		// No exigimos contexto si apenas estamos inicializando o aprendiendo
-		if name == "init" || name == "learn" {
+		// No exigimos contexto si apenas estamos inicializando, aprendiendo o reparando
+		if name == "init" || name == "learn" || name == "doctor" {
 			return nil
 		}
 		
