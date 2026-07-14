@@ -15,7 +15,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:     "qdd",
 	Short:   "QDD (Quality Driven Development) Framework CLI",
-	Version: "v1.8.0",
+	Version: "v1.9.5",
 	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando certificaciones de calidad obligatorias.
 garantizando certificaciones, evidencia y calidad desde el día uno.
 
