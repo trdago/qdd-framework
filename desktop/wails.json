@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "qdd-desktop",
+  "outputfilename": "desktop",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "T3RRIBL3D4G0",
+    "email": "dpailahueque01@gmail.com"
+  }
+}

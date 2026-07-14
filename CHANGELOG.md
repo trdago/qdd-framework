@@ -4,6 +4,20 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.5] - 2026-07-14
+
+### ✨ Nuevas Características
+
+#### 📊 Dashboard QMI (QDD Maturity Index)
+- **Maturity Indicators**: Se rediseñó el dashboard principal para reemplazar el clásico "Quality Score" por el nuevo **QDD Maturity Index (QMI)**.
+- **Variables de Madurez (QMI Variables)**: Implementación de 4 nuevas tarjetas de estado en tiempo real (Certificaciones Activas, Bugs Abiertos, Sprints Completados, Deuda Reducida) conectadas dinámicamente con el motor de estado del backend.
+- **Chart.js Multi-Data**: Actualización de los gráficos de evolución histórica para rastrear simultáneamente 4 vectores de madurez a 30 días.
+
+#### 🖥️ QDD Desktop (Wails Native)
+- **App Nativa Multiplataforma**: Generación de entorno de escritorio usando **Wails v2** (`desktop/`), logrando una aplicación independiente que embebe la UI de Vue sin depender del navegador.
+- **IPC Bridge (Inter-Process Communication)**: Integración híbrida en `App.vue` (`window.go.main.App.Intent`) que permite ejecutar comandos CLI y leer flujos SSE (Server-Sent Events) en modo web y modo IPC indistintamente.
+- **Refactorización del Core de Estado**: Extracción de la lógica del servidor y broadcasting (antes en `cli/cmd/dashboard.go`) a un paquete compartido `cli/pkg/dashboard/`, habilitando la reutilización total del código tanto para el CLI Web como para la App Desktop.
+
 ## [v1.9.0] - 2026-07-09
 
 ### ✨ Nuevas Características

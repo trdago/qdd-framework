@@ -38,13 +38,40 @@ const chartData = computed(() => {
       labels: ['Día 1', 'Día 2', 'Hoy'],
       datasets: [
         {
-          label: 'Score',
+          label: 'Maturity Index (QMI)',
           data: [40, 75, 100],
           borderColor: '#10b981',
           backgroundColor: 'rgba(16, 185, 129, 0.1)',
           borderWidth: 2,
           tension: 0.4,
           fill: true
+        },
+        {
+          label: 'Certificaciones',
+          data: [10, 20, 27],
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.0)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: false
+        },
+        {
+          label: 'Bugs',
+          data: [15, 5, 0],
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239, 68, 68, 0.0)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: false
+        },
+        {
+          label: 'Sprints (Tasks)',
+          data: [1, 2, 4],
+          borderColor: '#8b5cf6',
+          backgroundColor: 'rgba(139, 92, 246, 0.0)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: false
         }
       ]
     }
@@ -57,13 +84,40 @@ const chartData = computed(() => {
     labels,
     datasets: [
       {
-        label: 'Quality Score',
+        label: 'Maturity Index (QMI)',
         data: data,
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         borderWidth: 2,
         tension: 0.4,
         fill: true
+      },
+      {
+        label: 'Certificaciones',
+        data: [10, 20, 27],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.0)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: false
+      },
+      {
+        label: 'Bugs',
+        data: [15, 5, 0],
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.0)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: false
+      },
+      {
+        label: 'Sprints (Tasks)',
+        data: [1, 2, 4],
+        borderColor: '#8b5cf6',
+        backgroundColor: 'rgba(139, 92, 246, 0.0)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: false
       }
     ]
   }
@@ -684,17 +738,18 @@ const executeOmni = async () => {
     qclLoading.value = true;
     
     try {
-        const res = await fetch('/api/intent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ input: intent })
-        });
-        
-        if (!res.ok) {
-            throw new Error(`Error ${res.status}: ${await res.text()}`);
+        let data;
+        if (window.go && window.go.main && window.go.main.App) {
+            data = await window.go.main.App.Intent(intent);
+        } else {
+            const res = await fetch('/api/intent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: intent })
+            });
+            if (!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
+            data = await res.json();
         }
-        
-        const data = await res.json();
         
         activeDetail.value = {
             id: 'QCL Intent Result',
@@ -715,13 +770,17 @@ const togglePolicy = async (key) => {
   state.value.policies = newPolicies
   
   try {
-    const res = await fetch('/api/policies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newPolicies)
-    })
-    if (!res.ok) {
-      alert("Error saving policies")
+    if (window.go && window.go.main && window.go.main.App) {
+      await window.go.main.App.SavePolicies(newPolicies)
+    } else {
+      const res = await fetch('/api/policies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPolicies)
+      })
+      if (!res.ok) {
+        alert("Error saving policies")
+      }
     }
   } catch (e) {
     alert("Error communicating with QDD Engine")
@@ -743,6 +802,24 @@ const closeDetail = () => {
 }
 
 const initRealTime = () => {
+  if (window.runtime) {
+    connectionStatus.value = 'CONNECTED'
+    window.runtime.EventsOn('state_update', (data) => {
+      state.value = data
+      loading.value = false
+      if (activeTab.value === 'lifecycle') {
+        renderLifecycle()
+      }
+    })
+    if (window.go && window.go.main && window.go.main.App) {
+      window.go.main.App.GetState().then(data => {
+        state.value = data
+        loading.value = false
+      })
+    }
+    return
+  }
+
   evtSource = new EventSource('/api/stream')
   
   evtSource.onopen = () => {
@@ -872,11 +949,11 @@ onUnmounted(() => {
         <section v-show="activeTab === 'overview'" aria-label="Overview Dashboard">
           <div class="grid-layout cols-4 mb-section">
             <div class="panel glass-panel score-panel fade-in stagger-1" role="region" aria-labelledby="score-title">
-              <h3 id="score-title" class="panel-title">Quality Score</h3>
+              <h3 id="score-title" class="panel-title">QDD Maturity Index (QMI)</h3>
               <div class="score-row">
                 <div class="score-container">
                   <div class="score-value">{{ state.score }}</div>
-                  <div class="score-grade" :class="'grade-' + state.grade.charAt(0).toLowerCase()">Grade {{ state.grade }}</div>
+                  <div class="score-grade" :class="'grade-' + state.grade.charAt(0).toLowerCase()">GRADE {{ state.grade.toUpperCase() }}</div>
                 </div>
                 <div class="qdd-ring-container">
                   <svg class="qdd-ring" viewBox="0 0 100 100">
@@ -888,23 +965,23 @@ onUnmounted(() => {
             </div>
 
             <div class="panel glass-panel fade-in stagger-2" role="region" style="grid-column: span 2;">
-              <h3 class="panel-title">ROI & Value Realization</h3>
+              <h3 class="panel-title">QMI Variables (Maturity Indicators)</h3>
               <div class="stats-cards" style="margin-top: 1rem;">
                 <div class="stat-card">
-                  <span class="stat-value"><span v-if="state.usage_time">{{ state.usage_time }}</span><span v-if="!state.usage_time">&nbsp;</span></span>
-                  <span class="stat-label">Tiempo de Uso QDD</span>
-                </div>
-                <div class="stat-card pass">
-                  <span class="stat-value"><span v-if="state.value_metrics?.hours_saved !== undefined">{{ state.value_metrics.hours_saved }} hrs</span><span v-if="state.value_metrics?.hours_saved === undefined">&nbsp;</span></span>
-                  <span class="stat-label">Horas Ahorradas (IA)</span>
+                  <span class="stat-value">{{ state.certifications ? state.certifications.length : 0 }}</span>
+                  <span class="stat-label">Certificaciones Activas</span>
                 </div>
                 <div class="stat-card">
-                  <span class="stat-value"><span v-if="state.value_metrics?.debt_reduced !== undefined">{{ state.value_metrics.debt_reduced }}</span><span v-if="state.value_metrics?.debt_reduced === undefined">&nbsp;</span></span>
-                  <span class="stat-label">Bugs Prevenidos</span>
+                  <span class="stat-value">{{ state.findings ? state.findings.filter(f => f.status === 'OPEN').length : 0 }}</span>
+                  <span class="stat-label">Bugs Abiertos</span>
                 </div>
-                <div class="stat-card" style="border-left: 2px solid #10b981;">
-                  <span class="stat-value" style="color: #10b981;"><span v-if="state.value_metrics?.hours_saved !== undefined">${{ (state.value_metrics.hours_saved * 50).toLocaleString() }}</span><span v-if="state.value_metrics?.hours_saved === undefined">&nbsp;</span></span>
-                  <span class="stat-label">ROI Estimado</span>
+                <div class="stat-card" style="border-left: 2px solid #3b82f6;">
+                  <span class="stat-value" style="color: #60a5fa;">{{ state.sprints ? state.sprints.filter(s => s.status === 'COMPLETED').length : 0 }}</span>
+                  <span class="stat-label">Sprints Completados</span>
+                </div>
+                <div class="stat-card" style="border-left: 2px solid #8b5cf6;">
+                  <span class="stat-value" style="color: #a78bfa;">{{ state.value_metrics?.debt_reduced || 0 }}</span>
+                  <span class="stat-label">Deuda Reducida</span>
                 </div>
               </div>
             </div>
