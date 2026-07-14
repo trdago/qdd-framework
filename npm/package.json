@@ -1,6 +1,6 @@
 {
-  "name": "qdd-framework-trdago",
-  "version": "1.9.2",
+  "name": "qdd-framework",
+  "version": "1.9.3",
   "description": "Quality-Driven Development Framework",
   "bin": {
     "qdd": "bin/qdd.js"
