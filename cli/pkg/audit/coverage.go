@@ -48,7 +48,7 @@ func handleGoTestError(out []byte, err error) error {
 		return nil
 	}
 
-	fmt.Println("TEST FAILURE LOG:\n", output)
+	fmt.Fprintln(os.Stderr, "TEST FAILURE LOG:\n", output)
 	return err
 }
 
@@ -64,7 +64,7 @@ func RunCoverageCheck(cwd string) []Violation {
 	var violations []Violation
 
 	if err := runTests(cwd); err != nil {
-		fmt.Println("DEBUG ERROR:", err)
+		fmt.Fprintln(os.Stderr, "DEBUG ERROR:", err)
 		violations = append(violations, Violation{
 			Category:    "COVERAGE",
 			RuleID:      "QA-01-ALL-TESTS-PASS",

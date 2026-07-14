@@ -29,7 +29,7 @@ func registerAuditTool(s *server.MCPServer) {
 			return mcp.NewToolResultText("Auditoría exitosa. El código cumple con las certificaciones."), nil
 		}
 
-		out := fmt.Sprintf("Se detectaron %d violaciones:\n", len(violations))
+		out := fmt.Sprintf("Se detectaron %d violaciones (CWD: %s):\n", len(violations), cwd)
 		for _, v := range violations {
 			out += fmt.Sprintf("- [%s] %s\n", v.Category, v.Format())
 		}
