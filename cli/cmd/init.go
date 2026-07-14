@@ -103,7 +103,7 @@ func runInitIteration(cwd string) (bool, int) {
 
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
+	if err != nil {
 		return false
 	}
 	return !info.IsDir()

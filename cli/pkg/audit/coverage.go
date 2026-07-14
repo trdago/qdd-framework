@@ -76,7 +76,7 @@ func RunCoverageCheck(cwd string) []Violation {
 	hasE2E := false
 	e2ePaths := []string{"e2e", "tests/e2e", "cypress", "playwright"}
 	for _, p := range e2ePaths {
-		if _, err := os.Stat(cwd + "/" + p); !os.IsNotExist(err) {
+		if _, err := os.Stat(cwd + "/" + p); err == nil {
 			hasE2E = true
 			break
 		}
