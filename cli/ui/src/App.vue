@@ -739,9 +739,15 @@ const executeOmni = async () => {
     
     try {
         let data;
+        let isDesktop = false;
         if (window.go && window.go.main && window.go.main.App) {
+            isDesktop = true;
+        }
+
+        if (isDesktop) {
             data = await window.go.main.App.Intent(intent);
-        } else {
+        }
+        if (!isDesktop) {
             const res = await fetch('/api/intent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -770,17 +776,21 @@ const togglePolicy = async (key) => {
   state.value.policies = newPolicies
   
   try {
+    let isDesktop = false;
     if (window.go && window.go.main && window.go.main.App) {
+      isDesktop = true;
+    }
+
+    if (isDesktop) {
       await window.go.main.App.SavePolicies(newPolicies)
-    } else {
+    }
+    if (!isDesktop) {
       const res = await fetch('/api/policies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPolicies)
       })
-      if (!res.ok) {
-        alert("Error saving policies")
-      }
+      if (!res.ok) throw new Error("Failed to save policies on backend")
     }
   } catch (e) {
     alert("Error communicating with QDD Engine")
