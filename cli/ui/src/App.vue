@@ -1159,52 +1159,52 @@ onUnmounted(() => {
 
                    <!-- Nodos Perimetrales (10 comandos) -->
                    <!-- 1. Init (-90deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(-90deg) translate(170px) rotate(90deg);" @click="openDetail({title: '/qdd init', content: 'Discovery y escaneo del proyecto.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(-90deg) translate(170px) rotate(90deg);" @click="openDetail({title: '/qdd init', content: 'Discovery y escaneo del proyecto.'}, 'Lifecycle')">
                       <div class="step-num">1</div><div class="step-label">Init</div>
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 2. Learn (-54deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(-54deg) translate(170px) rotate(54deg);" @click="openDetail({title: '/qdd learn', content: 'Aprendizaje profundo.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(-54deg) translate(170px) rotate(54deg);" @click="openDetail({title: '/qdd learn', content: 'Aprendizaje profundo.'}, 'Lifecycle')">
                       <div class="step-num">2</div><div class="step-label">Learn</div>
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 3. Map (-18deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(-18deg) translate(170px) rotate(18deg);" @click="openDetail({title: '/qdd map', content: 'Mapeo arquitectónico.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(-18deg) translate(170px) rotate(18deg);" @click="openDetail({title: '/qdd map', content: 'Mapeo arquitectónico.'}, 'Lifecycle')">
                       <div class="step-num">3</div><div class="step-label">Map</div>
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 4. Validate (18deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(18deg) translate(170px) rotate(-18deg);" @click="openDetail({title: '/qdd validate', content: 'Auditoría estructural.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(18deg) translate(170px) rotate(-18deg);" @click="openDetail({title: '/qdd validate', content: 'Auditoría estructural.'}, 'Lifecycle')">
                       <div class="step-num">4</div><div class="step-label">Validate</div>
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 5. Certify (54deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(54deg) translate(170px) rotate(-54deg);" @click="openDetail({title: '/qdd certify', content: 'Certificación estricta.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(54deg) translate(170px) rotate(-54deg);" @click="openDetail({title: '/qdd certify', content: 'Certificación estricta.'}, 'Lifecycle')">
                       <div class="step-num">5</div><div class="step-label">Certify</div>
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 6. UI (90deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(90deg) translate(170px) rotate(-90deg);" @click="openDetail({title: '/qdd ui', content: 'Generación frontend.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(90deg) translate(170px) rotate(-90deg);" @click="openDetail({title: '/qdd ui', content: 'Generación frontend.'}, 'Lifecycle')">
                       <div class="step-num muta">6</div><div class="step-label">UI</div>
                       <div class="badge-muta">Mutación</div>
                    </div>
                    <!-- 7. API (126deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(126deg) translate(170px) rotate(-126deg);" @click="openDetail({title: '/qdd api', content: 'Generación backend.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(126deg) translate(170px) rotate(-126deg);" @click="openDetail({title: '/qdd api', content: 'Generación backend.'}, 'Lifecycle')">
                       <div class="step-num muta">7</div><div class="step-label">API</div>
                       <div class="badge-muta">Mutación</div>
                    </div>
                    <!-- 8. DB (162deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(162deg) translate(170px) rotate(-162deg);" @click="openDetail({title: '/qdd db', content: 'Generación esquemas DB.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(162deg) translate(170px) rotate(-162deg);" @click="openDetail({title: '/qdd db', content: 'Generación esquemas DB.'}, 'Lifecycle')">
                       <div class="step-num muta">8</div><div class="step-label">DB</div>
                       <div class="badge-muta">Mutación</div>
                    </div>
                    <!-- 9. Sprint (198deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(198deg) translate(170px) rotate(-198deg);" @click="openDetail({title: '/qdd sprint', content: 'Iteración incremental.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(198deg) translate(170px) rotate(-198deg);" @click="openDetail({title: '/qdd sprint', content: 'Iteración incremental.'}, 'Lifecycle')">
                       <div class="step-num muta">9</div><div class="step-label">Sprint</div>
                       <div class="badge-muta">Mutación</div>
                    </div>
                    <!-- 10. Release (234deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(234deg) translate(170px) rotate(-234deg);" @click="openDetail({title: '/qdd release', content: 'Despliegue a producción.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" role="button" tabindex="0" style="transform: rotate(234deg) translate(170px) rotate(-234deg);" @click="openDetail({title: '/qdd release', content: 'Despliegue a producción.'}, 'Lifecycle')">
                       <div class="step-num muta">10</div><div class="step-label">Release</div>
                       <div class="badge-muta">Mutación</div>
                    </div>
@@ -1255,7 +1255,7 @@ onUnmounted(() => {
                        </div>
                     </div>
                     <div class="cert-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-                       <div v-for="cert in filteredCerts" :key="cert.id" class="card glass-panel clickable-card" @click="openDetail({...cert, title: cert.id, type: 'Certification'}, 'Certification')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1);">
+                       <div v-for="cert in filteredCerts" :key="cert.id" class="card glass-panel clickable-card" role="button" tabindex="0" @click="openDetail({...cert, title: cert.id, type: 'Certification'}, 'Certification')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1);">
                           <div style="font-size: 13px; font-weight: 500;">{{ cert.id }}</div>
                           <div class="status-pill" :class="cert.status === 'PASS' ? 'resolved' : 'open'" style="font-size: 10px; padding: 2px 6px;">{{ cert.status }}</div>
                        </div>
@@ -1360,7 +1360,7 @@ onUnmounted(() => {
       </div>
       
       <!-- Slide Over Panel -->
-      <div v-if="activeDetail" class="slide-over-backdrop" @click="closeDetail"></div>
+      <div v-if="activeDetail" class="slide-over-backdrop" role="button" tabindex="0" @click="closeDetail"></div>
       <aside class="slide-over" :class="{ 'is-open': activeDetail }" aria-label="Detail Panel">
         <div class="slide-over-header">
           <div class="slide-title-group">

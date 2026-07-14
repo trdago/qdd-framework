@@ -60,6 +60,10 @@ func (e *EngineCoordinator) RunAll() []Violation {
 }
 
 func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation) {
+	*violations = append(*violations, RunMetaSafeguardCheck(e.cwd)...)
+	*violations = append(*violations, RunWCAGCheck(e.cwd)...)
+	*violations = append(*violations, RunISO9241Check(e.cwd)...)
+
 	if p.OWASP {
 		*violations = append(*violations, RunOwaspCheck(e.cwd)...)
 	}

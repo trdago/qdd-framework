@@ -1,0 +1,24 @@
+id: ADR-002
+title: "Meta-Development Safeguard (QDD Inception)"
+date: "2026-07-10"
+status: accepted
+context: |
+  Debido a que QDD es un framework que se utiliza para desarrollar su propio código fuente (Inception),
+  existe el riesgo crítico de que las IA asistentes intenten inyectar "mejoras al framework" alterando directamente
+  las reglas universales (`.qdd/core/`) o asumiendo nuevos comportamientos lógicos sin haber implementado y 
+  compilado el código fuente real del motor (CLI/Go o UI/Vue).
+decision: |
+  Se adopta el principio de "Meta-Development Safeguard":
+  1. Se prohíbe terminantemente alterar el comportamiento percibido del framework QDD o sus archivos `.qdd/core/` 
+     sin antes modificar el código fuente subyacente en los directorios correspondientes (`cli/`, `cli/ui/`).
+  2. Todo cambio evolutivo al framework debe seguir el pipeline obligatorio:
+     `Modificar Código Fuente -> Compilar (make build/install) -> Cargar Nuevo Binario`.
+  3. Solo cuando el nuevo binario se esté ejecutando localmente, el cambio se considerará asimilado por el framework.
+  4. Esta regla se ha inyectado en `.antigravityrules`, `.cursorrules` y `.windsurfrules` para blindar a los LLMs.
+consequences:
+  positive:
+    - Previene alteraciones fantasmas o alucinaciones del modelo respecto a cómo funciona el framework.
+    - Asegura que toda regla universal esté respaldada por código binario funcional.
+    - Preserva la sanidad del repositorio diferenciando gobernanza local (`.qdd/project`) de evolución de producto.
+  negative:
+    - Agrega fricción al flujo de desarrollo evolutivo, exigiendo compilación constante.

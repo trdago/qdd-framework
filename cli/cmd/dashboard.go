@@ -111,19 +111,30 @@ func runWatcher() {
 	cwd, _ := os.Getwd()
 	qddDir := filepath.Join(cwd, ".qdd")
 
-	setupWatcherDirectories(watcher, qddDir)
+	setupWatcherDirectories(watcher, cwd, qddDir)
 	broadcastInitialState()
 	startHeartbeat(qddDir)
 	monitorEvents(watcher)
 }
 
-func setupWatcherDirectories(watcher *fsnotify.Watcher, qddDir string) {
+func setupWatcherDirectories(watcher *fsnotify.Watcher, cwd, qddDir string) {
 	filepath.Walk(qddDir, func(path string, info fs.FileInfo, err error) error {
 		if err == nil && info.IsDir() {
 			watcher.Add(path)
 		}
 		return nil
 	})
+	
+	// Monitorear ecosistema (NPM / Go)
+	pkgJson := filepath.Join(cwd, "package.json")
+	if _, err := os.Stat(pkgJson); err == nil {
+		watcher.Add(pkgJson)
+	}
+	
+	goMod := filepath.Join(cwd, "go.mod")
+	if _, err := os.Stat(goMod); err == nil {
+		watcher.Add(goMod)
+	}
 }
 
 func broadcastInitialState() {
@@ -436,7 +447,33 @@ func loadConfigAndKnowledge(response *QDDState, cwd, qddDir string) {
 	if err == nil {
 		parseConfigAndDocs(response, configData, cwd)
 	}
+	scanAndLoadDocsToKnowledge(response, cwd, "docs")
+	scanAndLoadDocsToKnowledge(response, cwd, "rfcs")
+	scanAndLoadDocsToKnowledge(response, cwd, "specification")
 	ensureLifecycleDocExists(response)
+}
+
+func scanAndLoadDocsToKnowledge(response *QDDState, cwd, folder string) {
+	folderPath := filepath.Join(cwd, folder)
+	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+		return
+	}
+	filepath.WalkDir(folderPath, func(path string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
+			relPath, _ := filepath.Rel(cwd, path)
+			alreadyExists := false
+			for _, k := range response.Knowledge {
+				if k.Path == relPath {
+					alreadyExists = true
+					break
+				}
+			}
+			if !alreadyExists {
+				addDocToKnowledge(response, cwd, relPath)
+			}
+		}
+		return nil
+	})
 }
 
 func parseConfigAndDocs(response *QDDState, configData []byte, cwd string) {
@@ -464,20 +501,14 @@ func addDocToKnowledge(response *QDDState, cwd, p string) {
 }
 
 func ensureLifecycleDocExists(response *QDDState) {
-	hasLifecycle := false
-	for _, k := range response.Knowledge {
-		if k.Path == "docs/command-reference.md" {
-			hasLifecycle = true
-			break
-		}
+	if len(response.Knowledge) > 0 {
+		return
 	}
-	if !hasLifecycle {
-		response.Knowledge = append(response.Knowledge, DashboardKnowledgeDoc{
-			ID:      "command-reference.md",
-			Path:    "docs/command-reference.md",
-			Content: qddLifecycleMermaid,
-		})
-	}
+	response.Knowledge = append(response.Knowledge, DashboardKnowledgeDoc{
+		ID:      "command-reference.md",
+		Path:    "docs/command-reference.md",
+		Content: qddLifecycleMermaid,
+	})
 }
 
 func loadUnderstandingAndConfig(response *QDDState, qddDir string) {

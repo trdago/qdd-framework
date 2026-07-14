@@ -201,6 +201,11 @@ func createQDDStructure(baseDir string, meta ProjectMetadata) error {
 		return err
 	}
 
+	// Crear carpeta de documentación requerida por QDD
+	if err := os.MkdirAll(filepath.Join(baseDir, "docs", "adr"), 0755); err != nil {
+		return err
+	}
+
 	if err := createQDDDirectories(qddDir); err != nil {
 		return err
 	}
