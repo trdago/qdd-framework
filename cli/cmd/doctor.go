@@ -96,9 +96,11 @@ func checkFileExists(path, name string, checks, failedChecks *[]string) {
 func attemptAutoFix(projectPath string, checks, failedChecks *[]string) {
 	fmt.Println("[!] Doctor: Intentando reparar directorios del core y estructura del proyecto...")
 	qddDir := filepath.Join(projectPath, ".qdd")
-	if err := createQDDDirectories(qddDir); err != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al reconstruir directorios: %v", err))
-	} else {
+	errDirs := createQDDDirectories(qddDir)
+	if errDirs != nil {
+		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al reconstruir directorios: %v", errDirs))
+	}
+	if errDirs == nil {
 		*checks = append(*checks, "[OK] Directorios base reconstruidos exitosamente")
 	}
 
@@ -110,9 +112,11 @@ func attemptAutoFix(projectPath string, checks, failedChecks *[]string) {
 	if err := createStateFile(qddDir); err != nil {
 		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar state.json: %v", err))
 	}
-	if err := unpackCoreAssets(qddDir); err != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar assets base: %v", err))
-	} else {
+	errAssets := unpackCoreAssets(qddDir)
+	if errAssets != nil {
+		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar assets base: %v", errAssets))
+	}
+	if errAssets == nil {
 		*checks = append(*checks, "[OK] Documentación, configuración y assets base restaurados exitosamente")
 	}
 

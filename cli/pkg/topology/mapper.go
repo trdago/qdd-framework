@@ -10,6 +10,10 @@ import (
 // MapProject scans the project directory and generates a native structural topology.
 // For the initial version, we perform static scanning searching for common patterns and annotations.
 func MapProject(cwd string) (*ProjectTopology, error) {
+	if _, err := os.Stat(cwd); err != nil {
+		return nil, err
+	}
+
 	rootNode := &TopologyNode{
 		ID:            "app-root",
 		Name:          filepath.Base(cwd),

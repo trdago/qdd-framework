@@ -133,14 +133,15 @@ func detectProjectMetadata(dir string) ProjectMetadata {
 				}
 
 				deps := extractDependencies(pkg)
+				meta.Architecture = "Node.js Application"
+				if deps["serverless"] || deps["aws-sdk"] {
+					meta.Architecture = "Serverless Cloud Functions"
+				}
+				if deps["express"] || deps["nestjs"] || deps["fastify"] {
+					meta.Architecture = "Backend REST API"
+				}
 				if deps["next"] || deps["react"] || deps["vue"] || deps["angular"] {
 					meta.Architecture = "Frontend Web App"
-				} else if deps["express"] || deps["nestjs"] || deps["fastify"] {
-					meta.Architecture = "Backend REST API"
-				} else if deps["serverless"] || deps["aws-sdk"] {
-					meta.Architecture = "Serverless Cloud Functions"
-				} else {
-					meta.Architecture = "Node.js Application"
 				}
 			}
 		}
@@ -336,4 +337,30 @@ func createStateFile(qddDir string) error {
 	}
 
 	return os.WriteFile(statePath, data, 0644)
+}
+
+func detectLanguages(dir string) []string {
+	var languages []string
+	hasGo := false
+	hasNode := false
+
+	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			if d.Name() == "go.mod" {
+				hasGo = true
+			}
+			if d.Name() == "package.json" {
+				hasNode = true
+			}
+		}
+		return nil
+	})
+
+	if hasGo {
+		languages = append(languages, "Go")
+	}
+	if hasNode {
+		languages = append(languages, "Node")
+	}
+	return languages
 }

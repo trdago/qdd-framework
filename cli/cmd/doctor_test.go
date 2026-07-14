@@ -31,6 +31,9 @@ func TestRunDoctorCheck_SucceedsWhenComplete(t *testing.T) {
 
 	qddDir := filepath.Join(tempDir, ".qdd")
 	_ = os.Mkdir(qddDir, 0755)
+	for _, d := range GetQDDDirectories() {
+		_ = os.MkdirAll(filepath.Join(qddDir, d), 0755)
+	}
 	
 	_ = os.WriteFile(filepath.Join(qddDir, "config.yaml"), []byte(""), 0644)
 	_ = os.WriteFile(filepath.Join(qddDir, "state.json"), []byte(""), 0644)

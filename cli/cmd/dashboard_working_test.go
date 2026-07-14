@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/qdd-framework/qdd/pkg/dashboard"
 	"github.com/spf13/cobra"
 )
 
@@ -60,7 +61,7 @@ func TestDashboardLifecycleInjection(t *testing.T) {
 
 	os.MkdirAll(".qdd", 0755)
 
-	state := buildState()
+	state := dashboard.BuildState()
 
 	found := false
 	for _, doc := range state.Knowledge {
@@ -88,7 +89,7 @@ func TestDashboardProjectName(t *testing.T) {
 
 	os.MkdirAll(".qdd", 0755)
 
-	state := buildState()
+	state := dashboard.BuildState()
 
 	expectedName := filepath.Base(tempDir)
 	if state.ProjectName != expectedName {
