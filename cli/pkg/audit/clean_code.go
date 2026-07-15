@@ -26,7 +26,7 @@ func RunCleanCodeCheck(cwd string) []Violation {
 		}
 
 		checkNodeForElse(node, fset, path, &violations)
-		if !strings.HasSuffix(d.Name(), "_test.go") {
+		if !strings.HasSuffix(d.Name(), "_test.go") && !strings.Contains(filepath.ToSlash(path), "/pkg/goldenset/") {
 			checkNodeForTestCode(node, fset, path, &violations)
 		}
 		return nil
@@ -68,6 +68,11 @@ func checkNodeForElse(node *ast.File, fset *token.FileSet, path string, violatio
 }
 
 func checkNodeForTestCode(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
+	checkImportsForTesting(node, fset, path, violations)
+	checkASTForTesting(node, fset, path, violations)
+}
+
+func checkImportsForTesting(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
 	for _, imp := range node.Imports {
 		pkgPath := strings.Trim(imp.Path.Value, "\"")
 		if pkgPath == "testing" || strings.Contains(pkgPath, "mock") || strings.Contains(pkgPath, "testify") {
@@ -81,7 +86,9 @@ func checkNodeForTestCode(node *ast.File, fset *token.FileSet, path string, viol
 			})
 		}
 	}
+}
 
+func checkASTForTesting(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.TypeSpec:

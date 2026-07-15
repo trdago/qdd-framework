@@ -322,5 +322,35 @@
     "score": 100,
     "total_violations": 0,
     "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-07-14T21:53:22-04:00",
+    "score": 76,
+    "total_violations": 12,
+    "tendency": "Empeorando"
+  },
+  {
+    "timestamp": "2026-07-14T21:56:44-04:00",
+    "score": 86,
+    "total_violations": 7,
+    "tendency": "Mejorando"
+  },
+  {
+    "timestamp": "2026-07-14T21:58:23-04:00",
+    "score": 90,
+    "total_violations": 5,
+    "tendency": "Mejorando"
+  },
+  {
+    "timestamp": "2026-07-14T21:59:30-04:00",
+    "score": 98,
+    "total_violations": 1,
+    "tendency": "Mejorando"
+  },
+  {
+    "timestamp": "2026-07-14T21:59:56-04:00",
+    "score": 100,
+    "total_violations": 0,
+    "tendency": "Mejorando"
   }
 ]

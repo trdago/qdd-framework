@@ -179,24 +179,27 @@ func extractGraphNodeInfo(fileName, nodeType string, raw map[string]interface{})
 }
 
 func processGraphParent(raw map[string]interface{}, id, relPath, nodeType string, tx *sql.Tx) {
-	parent := ""
-	if p, ok := raw["parent"].(string); ok && p != "" {
-		parent = p
-	}
+	parent := resolveParent(raw, relPath)
 	if parent == "" {
-		dir := filepath.ToSlash(filepath.Dir(relPath))
-		if dir != "." && dir != "" {
-			parent = dir + ".yaml"
-		}
+		return
 	}
 
-	if parent != "" {
-		targetID := fmt.Sprintf("%s:%s", nodeType, parent)
-		if !strings.HasSuffix(parent, ".yaml") && !strings.HasSuffix(parent, ".md") {
-			targetID = fmt.Sprintf("%s:%s.yaml", nodeType, parent)
-		}
-		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
+	targetID := fmt.Sprintf("%s:%s", nodeType, parent)
+	if !strings.HasSuffix(parent, ".yaml") && !strings.HasSuffix(parent, ".md") {
+		targetID = fmt.Sprintf("%s:%s.yaml", nodeType, parent)
 	}
+	tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
+}
+
+func resolveParent(raw map[string]interface{}, relPath string) string {
+	if p, ok := raw["parent"].(string); ok && p != "" {
+		return p
+	}
+	dir := filepath.ToSlash(filepath.Dir(relPath))
+	if dir != "." && dir != "" {
+		return dir + ".yaml"
+	}
+	return ""
 }
 
 func processGraphDeps(raw map[string]interface{}, id string, tx *sql.Tx) {

@@ -155,17 +155,21 @@ func printChecklist(c *Checklist) {
 	for _, g := range c.Groups {
 		fmt.Printf("\n[%s]\n", g.Name)
 		for _, item := range g.Items {
-			if !item.Success {
-				fmt.Printf("  ❌ %s (%s)\n", item.Name, item.Error)
-				continue
-			}
-			extra := ""
-			if item.Error != "" && item.Error != "Embebido correctamente" && item.Error != "Conectado" {
-				extra = fmt.Sprintf(" (%s)", item.Error)
-			}
-			fmt.Printf("  ✅ %s%s\n", item.Name, extra)
+			printChecklistItem(item)
 		}
 	}
+}
+
+func printChecklistItem(item *CheckItem) {
+	if !item.Success {
+		fmt.Printf("  ❌ %s (%s)\n", item.Name, item.Error)
+		return
+	}
+	extra := ""
+	if item.Error != "" && item.Error != "Embebido correctamente" && item.Error != "Conectado" {
+		extra = fmt.Sprintf(" (%s)", item.Error)
+	}
+	fmt.Printf("  ✅ %s%s\n", item.Name, extra)
 }
 
 func generateReport(projectPath string, c *Checklist) {
@@ -180,22 +184,7 @@ func generateReport(projectPath string, c *Checklist) {
 	content += fmt.Sprintf("Date: %s\n\n", time.Now().Format(time.RFC3339))
 
 	for _, g := range c.Groups {
-		content += fmt.Sprintf("## %s\n\n", g.Name)
-		content += "| Validación | Estado | Detalle |\n"
-		content += "|---|---|---|\n"
-		for _, item := range g.Items {
-			status := "✅ OK"
-			detail := "-"
-			if !item.Success {
-				status = "❌ FAIL"
-				detail = item.Error
-			}
-			if item.Success && item.Error != "" {
-				detail = item.Error
-			}
-			content += fmt.Sprintf("| %s | %s | %s |\n", item.Name, status, detail)
-		}
-		content += "\n"
+		content += generateGroupReport(g)
 	}
 
 	stateStr := "HEALTHY"
@@ -205,6 +194,26 @@ func generateReport(projectPath string, c *Checklist) {
 	content += fmt.Sprintf("\n**Estado Global:** %s\n", stateStr)
 
 	_ = os.WriteFile(reportPath, []byte(content), 0644)
+}
+
+func generateGroupReport(g *CheckGroup) string {
+	content := fmt.Sprintf("## %s\n\n", g.Name)
+	content += "| Validación | Estado | Detalle |\n"
+	content += "|---|---|---|\n"
+	for _, item := range g.Items {
+		status := "✅ OK"
+		detail := "-"
+		if !item.Success {
+			status = "❌ FAIL"
+			detail = item.Error
+		}
+		if item.Success && item.Error != "" {
+			detail = item.Error
+		}
+		content += fmt.Sprintf("| %s | %s | %s |\n", item.Name, status, detail)
+	}
+	content += "\n"
+	return content
 }
 
 func runAutoFix(projectPath string) {
@@ -235,15 +244,19 @@ func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
 	generateReport(projectPath, checklist)
 
 	if checklist.HasFailures() {
-		failures := 0
-		for _, g := range checklist.Groups {
-			for _, item := range g.Items {
-				if !item.Success {
-					failures++
-				}
-			}
-		}
-		return false, failures
+		return false, countFailures(checklist)
 	}
 	return true, 0
+}
+
+func countFailures(checklist *Checklist) int {
+	failures := 0
+	for _, g := range checklist.Groups {
+		for _, item := range g.Items {
+			if !item.Success {
+				failures++
+			}
+		}
+	}
+	return failures
 }

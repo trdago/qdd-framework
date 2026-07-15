@@ -26,19 +26,26 @@ func TestPipelineExecution(t *testing.T) {
 	os.WriteFile(".qdd/state.json", []byte(`{"status":"initialized","version":"v1.6.0"}`), 0644)
 	defer os.RemoveAll(".qdd")
 
-	// Test 1: valid commands -> success
-	cmd1 := exec.Command("./" + binName, "run", "init") // init does not require full context
+	testValidCommand(t, binName)
+	testInvalidCommand(t, binName)
+	testIntermediateFail(t, binName)
+}
+
+func testValidCommand(t *testing.T, binName string) {
+	cmd1 := exec.Command("./" + binName, "run", "init")
 	if err := cmd1.Run(); err != nil {
 		t.Errorf("Expected pipeline to succeed with valid command, got %v", err)
 	}
+}
 
-	// Test 2: invalid command -> fail
+func testInvalidCommand(t *testing.T, binName string) {
 	cmd2 := exec.Command("./" + binName, "run", "fakecommand")
 	if err := cmd2.Run(); err == nil {
 		t.Errorf("Expected pipeline to fail with invalid command")
 	}
+}
 
-	// Test 3: intermediate fail -> fails pipeline
+func testIntermediateFail(t *testing.T, binName string) {
 	cmd3 := exec.Command("./" + binName, "run", "init", "fakecommand", "init")
 	if err := cmd3.Run(); err == nil {
 		t.Errorf("Expected pipeline to abort and fail on intermediate invalid command")

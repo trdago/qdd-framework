@@ -36,50 +36,59 @@ func RunSuite[In any, Out any](t *testing.T, feature string, handler func(In) (O
 	}
 
 	for _, f := range files {
-		if f.IsDir() || !strings.HasSuffix(f.Name(), ".json") {
-			continue
-		}
+		processTestCaseFile(t, dir, f, handler)
+	}
+}
 
-		path := filepath.Join(dir, f.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Errorf("Error leyendo archivo de goldenset %s: %v", f.Name(), err)
-			continue
-		}
+func processTestCaseFile[In any, Out any](t *testing.T, dir string, f os.DirEntry, handler func(In) (Out, error)) {
+	if f.IsDir() || !strings.HasSuffix(f.Name(), ".json") {
+		return
+	}
 
-		var tc TestCase[In, Out]
-		if err := json.Unmarshal(data, &tc); err != nil {
-			t.Errorf("Error parseando JSON de %s: %v", f.Name(), err)
-			continue
-		}
+	path := filepath.Join(dir, f.Name())
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Errorf("Error leyendo archivo de goldenset %s: %v", f.Name(), err)
+		return
+	}
 
-		t.Run(tc.Name, func(t *testing.T) {
-			out, err := handler(tc.Input)
-			
-			if tc.ExpectedError != "" {
-				if err == nil {
-					t.Fatalf("Se esperaba error '%s' pero la ejecución fue exitosa", tc.ExpectedError)
-					return
-				}
-				if !strings.Contains(err.Error(), tc.ExpectedError) {
-					t.Fatalf("El error obtenido '%v' no coincide con el esperado '%s'", err, tc.ExpectedError)
-				}
-				return
-			}
-			
-			if err != nil {
-				t.Fatalf("Error inesperado en la funcionalidad: %v", err)
-				return
-			}
+	var tc TestCase[In, Out]
+	if err := json.Unmarshal(data, &tc); err != nil {
+		t.Errorf("Error parseando JSON de %s: %v", f.Name(), err)
+		return
+	}
 
-			// Comparación determinista (JSON match)
-			outJSON, _ := json.Marshal(out)
-			expectedJSON, _ := json.Marshal(tc.ExpectedOutput)
-			
-			if string(outJSON) != string(expectedJSON) {
-				t.Errorf("\n=== Mismatch ===\nEsperado: %s\nObtenido: %s\n", expectedJSON, outJSON)
-			}
-		})
+	t.Run(tc.Name, func(t *testing.T) {
+		evaluateTestCase(t, tc, handler)
+	})
+}
+
+func evaluateTestCase[In any, Out any](t *testing.T, tc TestCase[In, Out], handler func(In) (Out, error)) {
+	out, err := handler(tc.Input)
+	
+	if tc.ExpectedError != "" {
+		evaluateExpectedError(t, tc.ExpectedError, err)
+		return
+	}
+	
+	if err != nil {
+		t.Fatalf("Error inesperado en la funcionalidad: %v", err)
+	}
+
+	outJSON, _ := json.Marshal(out)
+	expectedJSON, _ := json.Marshal(tc.ExpectedOutput)
+	
+	if string(outJSON) != string(expectedJSON) {
+		t.Errorf("\n=== Mismatch ===\nEsperado: %s\nObtenido: %s\n", expectedJSON, outJSON)
+	}
+}
+
+func evaluateExpectedError(t *testing.T, expected string, err error) {
+	if err == nil {
+		t.Fatalf("Se esperaba error '%s' pero la ejecución fue exitosa", expected)
+	}
+	if !strings.Contains(err.Error(), expected) {
+		t.Fatalf("El error obtenido '%v' no coincide con el esperado '%s'", err, expected)
 	}
 }
 

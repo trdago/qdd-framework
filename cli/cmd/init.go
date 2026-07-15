@@ -73,20 +73,10 @@ func checkStagnation(iteration, failCount, lastFailCount int) {
 func runInitIteration(cwd string) (bool, int) {
 	fmt.Println("[+] Detectando entorno...")
 	meta := detectProjectMetadata(cwd)
-	for _, lang := range meta.Languages {
-		fmt.Printf("[+] Detectado: Lenguaje %s\n", lang)
-	}
-	if meta.Architecture != "" {
-		fmt.Printf("[+] Detectada Arquitectura: %s\n", meta.Architecture)
-	}
-
-	if len(meta.Languages) == 0 {
-		fmt.Println("[-] No se detectó un lenguaje soportado automáticamente.")
-	}
+	printMetadata(meta)
 
 	fmt.Println("[+] Creando estructura .qdd/")
-	err := createQDDStructure(cwd, meta)
-	if err != nil {
+	if err := createQDDStructure(cwd, meta); err != nil {
 		fmt.Printf("[!] Error creando estructura: %v\n", err)
 		return false, 1 // Artificial error count to force retry or stagnation
 	}
@@ -99,6 +89,18 @@ func runInitIteration(cwd string) (bool, int) {
 
 	fmt.Println("[+] Ejecutando QDD Doctor para certificar funcionalidad...")
 	return RunDoctorCheck(cwd, true)
+}
+
+func printMetadata(meta ProjectMetadata) {
+	for _, lang := range meta.Languages {
+		fmt.Printf("[+] Detectado: Lenguaje %s\n", lang)
+	}
+	if meta.Architecture != "" {
+		fmt.Printf("[+] Detectada Arquitectura: %s\n", meta.Architecture)
+	}
+	if len(meta.Languages) == 0 {
+		fmt.Println("[-] No se detectó un lenguaje soportado automáticamente.")
+	}
 }
 
 func fileExists(path string) bool {
@@ -122,62 +124,109 @@ func detectProjectMetadata(dir string) ProjectMetadata {
 		Languages:    []string{},
 	}
 
-	if fileExists(filepath.Join(dir, "package.json")) {
-		meta.Languages = append(meta.Languages, "Node")
-		data, err := os.ReadFile(filepath.Join(dir, "package.json"))
-		if err == nil {
-			var pkg map[string]interface{}
-			if json.Unmarshal(data, &pkg) == nil {
-				if name, ok := pkg["name"].(string); ok && name != "" {
-					meta.Name = name
-				}
-
-				deps := extractDependencies(pkg)
-				meta.Architecture = "Node.js Application"
-				if deps["serverless"] || deps["aws-sdk"] {
-					meta.Architecture = "Serverless Cloud Functions"
-				}
-				if deps["express"] || deps["nestjs"] || deps["fastify"] {
-					meta.Architecture = "Backend REST API"
-				}
-				if deps["next"] || deps["react"] || deps["vue"] || deps["angular"] {
-					meta.Architecture = "Frontend Web App"
-				}
-			}
-		}
-	}
-
-	if fileExists(filepath.Join(dir, "go.mod")) {
-		meta.Languages = append(meta.Languages, "Go")
-		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-		if err == nil {
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if strings.HasPrefix(line, "module ") {
-					meta.Name = strings.TrimSpace(strings.TrimPrefix(line, "module "))
-				}
-				if strings.Contains(line, "github.com/gin-gonic/gin") || strings.Contains(line, "github.com/gofiber/fiber") || strings.Contains(line, "github.com/labstack/echo") {
-					meta.Architecture = "Backend REST API (Go)"
-				}
-				if strings.Contains(line, "github.com/spf13/cobra") || strings.Contains(line, "github.com/urfave/cli") {
-					meta.Architecture = "CLI Application (Go)"
-				}
-			}
-			if meta.Architecture == "" {
-				meta.Architecture = "Go Application"
-			}
-		}
-	}
-
-	if fileExists(filepath.Join(dir, "pom.xml")) || fileExists(filepath.Join(dir, "build.gradle")) {
-		meta.Languages = append(meta.Languages, "Java")
-		if meta.Architecture == "" {
-			meta.Architecture = "Java Application"
-		}
-	}
+	detectNodeJS(dir, &meta)
+	detectGo(dir, &meta)
+	detectJava(dir, &meta)
 
 	return meta
+}
+
+func detectNodeJS(dir string, meta *ProjectMetadata) {
+	if !fileExists(filepath.Join(dir, "package.json")) {
+		return
+	}
+	meta.Languages = append(meta.Languages, "Node")
+	data, err := os.ReadFile(filepath.Join(dir, "package.json"))
+	if err != nil {
+		return
+	}
+	var pkg map[string]interface{}
+	if json.Unmarshal(data, &pkg) != nil {
+		return
+	}
+	extractNodeJSName(pkg, meta)
+	deps := extractDependencies(pkg)
+	assignNodeJSArchitecture(deps, meta)
+}
+
+func extractNodeJSName(pkg map[string]interface{}, meta *ProjectMetadata) {
+	if name, ok := pkg["name"].(string); ok && name != "" {
+		meta.Name = name
+	}
+}
+
+func assignNodeJSArchitecture(deps map[string]bool, meta *ProjectMetadata) {
+	meta.Architecture = "Node.js Application"
+	if hasServerless(deps) {
+		meta.Architecture = "Serverless Cloud Functions"
+	}
+	if hasRestDeps(deps) {
+		meta.Architecture = "Backend REST API"
+	}
+	if hasWebDeps(deps) {
+		meta.Architecture = "Frontend Web App"
+	}
+}
+
+func hasServerless(deps map[string]bool) bool {
+	return deps["serverless"] || deps["aws-sdk"]
+}
+
+func hasRestDeps(deps map[string]bool) bool {
+	return deps["express"] || deps["nestjs"] || deps["fastify"]
+}
+
+func hasWebDeps(deps map[string]bool) bool {
+	return deps["next"] || deps["react"] || deps["vue"] || deps["angular"]
+}
+
+func detectGo(dir string, meta *ProjectMetadata) {
+	if !fileExists(filepath.Join(dir, "go.mod")) {
+		return
+	}
+	meta.Languages = append(meta.Languages, "Go")
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		processGoModLine(line, meta)
+	}
+	if meta.Architecture == "" {
+		meta.Architecture = "Go Application"
+	}
+}
+
+func processGoModLine(line string, meta *ProjectMetadata) {
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "module ") {
+		meta.Name = strings.TrimSpace(strings.TrimPrefix(line, "module "))
+	}
+	if isGoRest(line) {
+		meta.Architecture = "Backend REST API (Go)"
+	}
+	if isGoCLI(line) {
+		meta.Architecture = "CLI Application (Go)"
+	}
+}
+
+func isGoRest(line string) bool {
+	return strings.Contains(line, "gin-gonic/gin") || strings.Contains(line, "gofiber/fiber") || strings.Contains(line, "labstack/echo")
+}
+
+func isGoCLI(line string) bool {
+	return strings.Contains(line, "spf13/cobra") || strings.Contains(line, "urfave/cli")
+}
+
+func detectJava(dir string, meta *ProjectMetadata) {
+	if !fileExists(filepath.Join(dir, "pom.xml")) && !fileExists(filepath.Join(dir, "build.gradle")) {
+		return
+	}
+	meta.Languages = append(meta.Languages, "Java")
+	if meta.Architecture == "" {
+		meta.Architecture = "Java Application"
+	}
 }
 
 func extractDependencies(pkg map[string]interface{}) map[string]bool {
@@ -342,20 +391,7 @@ func createStateFile(qddDir string) error {
 
 func detectLanguages(dir string) []string {
 	var languages []string
-	hasGo := false
-	hasNode := false
-
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			if d.Name() == "go.mod" {
-				hasGo = true
-			}
-			if d.Name() == "package.json" {
-				hasNode = true
-			}
-		}
-		return nil
-	})
+	hasGo, hasNode := scanForLanguages(dir)
 
 	if hasGo {
 		languages = append(languages, "Go")
@@ -364,4 +400,22 @@ func detectLanguages(dir string) []string {
 		languages = append(languages, "Node")
 	}
 	return languages
+}
+
+func scanForLanguages(dir string) (bool, bool) {
+	hasGo := false
+	hasNode := false
+	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if d.Name() == "go.mod" {
+			hasGo = true
+		}
+		if d.Name() == "package.json" {
+			hasNode = true
+		}
+		return nil
+	})
+	return hasGo, hasNode
 }
