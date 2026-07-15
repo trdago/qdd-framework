@@ -8,8 +8,12 @@
     "install:cli": "cd cli && go install",
     "build": "npm run build:ui && npm run build:cli",
     "install:all": "npm run build && npm run install:cli",
-    "test": "make test"
+    "test": "make test",
+    "prepare": "husky"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
 }

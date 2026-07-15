@@ -12,10 +12,12 @@ import (
 	"github.com/qdd-framework/qdd/pkg/qcl"
 )
 
+var Version = "dev" // Se inyecta dinámicamente en build-time con -ldflags
+
 var rootCmd = &cobra.Command{
 	Use:     "qdd",
 	Short:   "QDD (Quality Driven Development) Framework CLI",
-	Version: "v1.9.7",
+	Version: Version,
 	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando certificaciones de calidad obligatorias.
 garantizando certificaciones, evidencia y calidad desde el día uno.
 
@@ -161,6 +163,9 @@ func extractProjectVersion(state map[string]interface{}) string {
 }
 
 func checkVersionAge(cliVersion, projVersion string) error {
+	if cliVersion == "dev" {
+		return nil
+	}
 	if isOlder(cliVersion, projVersion) {
 		return fmt.Errorf("El proyecto requiere QDD %s, pero estás ejecutando %s. Revisa si un gestor como 'mise' o 'asdf' está interceptando el binario.", projVersion, cliVersion)
 	}

@@ -8,7 +8,7 @@ build-ui:
 
 build-cli:
 	@echo "==> Compilando Backend Go (CLI)..."
-	cd cli && go build -o ../qdd main.go
+	cd cli && go build -ldflags="-X 'github.com/qdd-framework/qdd/cmd.Version=v$$(cat ../package.json | grep version | head -1 | awk -F: '{ print $$2 }' | sed 's/[\", ]//g')'" -o ../qdd main.go
 
 build: build-ui build-cli
 	@echo "==> Binario 'qdd' generado en la raíz del proyecto."
