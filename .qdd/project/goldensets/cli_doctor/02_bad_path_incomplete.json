@@ -1,0 +1,16 @@
+{
+  "name": "02_bad_path_incomplete_env",
+  "type": "bad_path",
+  "input": {
+    "dirs_to_create": [
+      ".qdd"
+    ],
+    "files_to_create": [],
+    "auto_fix": false
+  },
+  "expected_output": {
+    "success": false,
+    "failures": 7
+  },
+  "expected_error": ""
+}

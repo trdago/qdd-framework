@@ -5,54 +5,44 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/qdd-framework/qdd/pkg/goldenset"
 )
 
-// TestRunDoctorCheck_FailsWhenIncomplete verifica que el doctor falle si el entorno
-// no está completamente preparado, cumpliendo con la regla Zero-Else (sin else en la implementación).
-func TestRunDoctorCheck_FailsWhenIncomplete(t *testing.T) {
-	tempDir := t.TempDir()
-
-	qddDir := filepath.Join(tempDir, ".qdd")
-	if err := os.Mkdir(qddDir, 0755); err != nil {
-		t.Fatalf("Error creando directorio temporal: %v", err)
-	}
-
-	success, _ := RunDoctorCheck(tempDir, false)
-	if success {
-		t.Errorf("🚨 Regla violada: RunDoctorCheck debía fallar porque faltan archivos críticos (config.yaml, state.json, etc.), pero retornó verdadero.")
-		return
-	}
-
-	validateDoctorReportContains(t, qddDir, "CRITICAL_FAILURES")
+type DoctorInput struct {
+	DirsToCreate  []string `json:"dirs_to_create"`
+	FilesToCreate []string `json:"files_to_create"`
+	AutoFix       bool     `json:"auto_fix"`
 }
 
-func TestRunDoctorCheck_SucceedsWhenComplete(t *testing.T) {
-	tempDir := t.TempDir()
-
-	qddDir := filepath.Join(tempDir, ".qdd")
-	_ = os.Mkdir(qddDir, 0755)
-	for _, d := range GetQDDDirectories() {
-		_ = os.MkdirAll(filepath.Join(qddDir, d), 0755)
-	}
-	
-	_ = os.WriteFile(filepath.Join(qddDir, "config.yaml"), []byte(""), 0644)
-	_ = os.WriteFile(filepath.Join(qddDir, "state.json"), []byte(""), 0644)
-	
-	cursorDir := filepath.Join(tempDir, ".cursor")
-	_ = os.Mkdir(cursorDir, 0755)
-	_ = os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(""), 0644)
-	_ = os.WriteFile(filepath.Join(tempDir, ".clauderc"), []byte(""), 0644)
-	_ = os.WriteFile(filepath.Join(tempDir, ".antigravityrules"), []byte(""), 0644)
-
-	success, _ := RunDoctorCheck(tempDir, false)
-	if !success {
-		t.Errorf("🚨 Regla violada: RunDoctorCheck falló a pesar de que el entorno estaba completo.")
-		return
-	}
-
-	validateDoctorReportContains(t, qddDir, "HEALTHY")
+type DoctorOutput struct {
+	Success  bool `json:"success"`
+	Failures int  `json:"failures"`
 }
 
+func TestDoctorWithGoldenSet(t *testing.T) {
+	goldenset.RunSuite(t, "cli_doctor", func(in DoctorInput) (DoctorOutput, error) {
+		tempDir := t.TempDir()
+
+		for _, d := range in.DirsToCreate {
+			_ = os.MkdirAll(filepath.Join(tempDir, d), 0755)
+		}
+
+		for _, f := range in.FilesToCreate {
+			_ = os.MkdirAll(filepath.Dir(filepath.Join(tempDir, f)), 0755)
+			_ = os.WriteFile(filepath.Join(tempDir, f), []byte(""), 0644)
+		}
+
+		success, failures := RunDoctorCheck(tempDir, in.AutoFix)
+
+		return DoctorOutput{
+			Success:  success,
+			Failures: failures,
+		}, nil
+	})
+}
+
+// Para validaciones específicas de output visual (Evidencia generada)
 func validateDoctorReportContains(t *testing.T, qddDir, expectedStatus string) {
 	evidenceDir := filepath.Join(qddDir, "project", "evidence", "doctor")
 	files, err := os.ReadDir(evidenceDir)

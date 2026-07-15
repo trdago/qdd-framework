@@ -1,0 +1,36 @@
+{
+  "name": "01_happy_path_complete_env",
+  "type": "happy_path",
+  "input": {
+    "dirs_to_create": [
+      ".qdd/core/runtime",
+      ".qdd/core/specification",
+      ".qdd/core/templates",
+      ".qdd/core/plugins",
+      ".qdd/core/certification",
+      ".qdd/core/wisdom",
+      ".qdd/project/findings",
+      ".qdd/project/sprints",
+      ".qdd/project/certification",
+      ".qdd/project/evidence",
+      ".qdd/project/metrics",
+      ".qdd/project/adr",
+      ".qdd/project/goldensets",
+      ".qdd/dashboard",
+      ".cursor"
+    ],
+    "files_to_create": [
+      ".qdd/config.yaml",
+      ".qdd/state.json",
+      ".cursor/mcp.json",
+      ".clauderc",
+      ".antigravityrules"
+    ],
+    "auto_fix": false
+  },
+  "expected_output": {
+    "success": true,
+    "failures": 0
+  },
+  "expected_error": ""
+}

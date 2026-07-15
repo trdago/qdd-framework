@@ -1,0 +1,16 @@
+{
+  "name": "03_edge_case_autofix",
+  "type": "edge_case",
+  "input": {
+    "dirs_to_create": [
+      ".qdd"
+    ],
+    "files_to_create": [],
+    "auto_fix": true
+  },
+  "expected_output": {
+    "success": true,
+    "failures": 0
+  },
+  "expected_error": ""
+}
