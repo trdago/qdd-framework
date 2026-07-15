@@ -352,5 +352,11 @@
     "score": 100,
     "total_violations": 0,
     "tendency": "Mejorando"
+  },
+  {
+    "timestamp": "2026-07-14T23:14:53-04:00",
+    "score": 100,
+    "total_violations": 0,
+    "tendency": "Estable"
   }
 ]

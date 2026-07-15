@@ -247,9 +247,10 @@ type HistoricalTrendPoint struct {
 }
 
 type GraphNode struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-	Name string `json:"name"`
+	ID      string                 `json:"id"`
+	Type    string                 `json:"type"`
+	Name    string                 `json:"name"`
+	Content string                 `json:"content"`
 }
 
 type GraphEdge struct {
@@ -652,12 +653,12 @@ func isStructuralPillar(s string) bool {
 
 func loadGraphNodes(response *QDDState, db *sql.DB) {
 	response.GraphData = DashboardGraphData{Nodes: []GraphNode{}, Edges: []GraphEdge{}}
-	rows, err := db.QueryContext(context.Background(), "SELECT id, type, name FROM nodes")
+	rows, err := db.QueryContext(context.Background(), "SELECT id, type, name, content FROM nodes")
 	if err == nil {
 		for rows.Next() {
-			var id, nodeType, name string
-			rows.Scan(&id, &nodeType, &name)
-			response.GraphData.Nodes = append(response.GraphData.Nodes, GraphNode{ID: id, Type: nodeType, Name: name})
+			var id, nodeType, name, content sql.NullString
+			rows.Scan(&id, &nodeType, &name, &content)
+			response.GraphData.Nodes = append(response.GraphData.Nodes, GraphNode{ID: id.String, Type: nodeType.String, Name: name.String, Content: content.String})
 		}
 		rows.Close()
 	}

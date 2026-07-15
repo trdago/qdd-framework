@@ -4,6 +4,7 @@ import * as d3 from 'd3'
 import mermaid from 'mermaid'
 import MarkdownIt from 'markdown-it'
 import { Line } from 'vue-chartjs'
+import TreeItem from './components/TreeItem.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -178,7 +179,69 @@ const state = ref(null)
 const loading = ref(true)
 const activeDetail = ref(null)
 const activeTab = ref('overview')
-// View Modes & Graph State
+const explorerSelectedNode = ref(null)
+const explorerFileContent = ref('')
+const explorerSaving = ref(false)
+
+const saveExplorerFile = async () => {
+  if (!explorerSelectedNode.value) return
+  explorerSaving.value = true
+  try {
+    const typeToDir = {
+      "task": "sprints",
+      "finding": "findings",
+      "rule": "certification",
+      "goldenset": "goldensets",
+      "feature": "features"
+    }
+    const dir = typeToDir[explorerSelectedNode.value.type] || explorerSelectedNode.value.type
+    const relativePath = `.qdd/project/${dir}/${explorerSelectedNode.value.id}`
+
+    const res = await fetch('/api/file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: relativePath,
+        content: explorerFileContent.value
+      })
+    })
+    if (!res.ok) {
+      throw new Error("Failed to save")
+    }
+  } catch (err) {
+    console.error(err)
+  } finally {
+    explorerSaving.value = false
+  }
+}
+
+const selectExplorerNode = (node) => {
+  explorerSelectedNode.value = node
+  explorerFileContent.value = node.content || ''
+}
+
+const fractalTree = computed(() => {
+  const tree = {}
+  if (!state.value?.graph_data?.nodes) return tree
+  state.value.graph_data.nodes.forEach(node => {
+    const pathParts = (node.type + '/' + node.id).split('/')
+    let current = tree
+    for (let i = 0; i < pathParts.length; i++) {
+      const part = pathParts[i]
+      if (i === pathParts.length - 1) {
+        current[part] = { _node: node }
+        continue
+      }
+      if (!current[part]) current[part] = {}
+      current = current[part]
+    }
+  })
+  return tree
+})
+
+watch(activeTab, (newTab) => {
+  // View Modes & Graph State
+})
 const knowledgeViewMode = ref('grid')
 const knowledgeGraphSvg = ref('')
 const topologyViewMode = ref('grid')
@@ -1442,6 +1505,43 @@ onUnmounted(() => {
                 ⚠️ OWASP Scanner Desactivado. El código no está siendo validado por brechas de seguridad.
               </div>
             </div>
+        </section>
+
+        <!-- FRACTAL EXPLORER SECTION -->
+        <section v-show="activeTab === 'explorer'" class="fade-in" role="region" aria-labelledby="explorer-title">
+          <header class="section-header">
+            <h2 id="explorer-title">Fractal Explorer</h2>
+            <p>Navegación inmersiva a través de Sprints, Bugs, Certificaciones, Goldensets y Funcionalidades.</p>
+          </header>
+
+          <div class="explorer-layout">
+            <div class="explorer-sidebar glass-panel">
+              <h3>Directorio QDD</h3>
+              <div class="tree-root">
+                <div v-for="(node, key) in fractalTree" :key="key">
+                  <TreeItem :name="key" :model="node" :activeNodeId="explorerSelectedNode?.id" @select="selectExplorerNode" />
+                </div>
+              </div>
+            </div>
+            
+            <div class="explorer-main glass-panel">
+              <div v-if="explorerSelectedNode" class="explorer-editor">
+                <div class="editor-header">
+                  <h3>{{ explorerSelectedNode.name || explorerSelectedNode.id }} <span class="badge">{{ explorerSelectedNode.type }}</span></h3>
+                  <button class="btn btn-primary" @click="saveExplorerFile" :disabled="explorerSaving">
+                    {{ explorerSaving ? 'Guardando...' : 'Guardar Cambios' }}
+                  </button>
+                </div>
+                <div class="editor-body">
+                  <textarea v-model="explorerFileContent" class="code-editor" spellcheck="false" placeholder="Contenido del archivo..."></textarea>
+                </div>
+              </div>
+              <div v-if="!explorerSelectedNode" class="explorer-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="empty-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                <p>Selecciona un archivo en el explorador para visualizar y editar su contenido.</p>
+              </div>
+            </div>
+          </div>
         </section>
 
       </div>
@@ -2985,5 +3085,98 @@ body {
   border-radius: 12px;
 }
 
+.explorer-layout {
+  display: flex;
+  height: calc(100vh - 200px);
+  gap: 20px;
+  margin-top: 20px;
+}
+.explorer-sidebar {
+  width: 300px;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+.explorer-sidebar h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 14px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.tree-root {
+  flex-grow: 1;
+}
+.explorer-main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.explorer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+}
+.explorer-empty .empty-icon {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+.explorer-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+.editor-header h3 {
+  margin: 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.editor-header .badge {
+  font-size: 12px;
+  background: var(--surface-light);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.editor-body {
+  flex-grow: 1;
+  padding: 16px;
+  overflow: hidden;
+}
+.code-editor {
+  width: 100%;
+  height: 100%;
+  background: var(--surface-darker);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+  font-size: 14px;
+  padding: 16px;
+  resize: none;
+  line-height: 1.5;
+  outline: none;
+}
+.code-editor:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
 </style>
 

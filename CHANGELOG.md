@@ -4,6 +4,25 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.12] - 2026-07-15
+
+### ✨ Nuevas Características
+
+#### 🌌 Fractal Explorer (Dashboard Inmersivo)
+- **Nueva Pestaña "Fractal Explorer"**: El dashboard ahora incluye un explorador inmersivo que refleja fielmente la estructura jerárquica del sistema de archivos de QDD (Sprints, Bugs/Findings, Certificaciones, Goldensets y Funcionalidades).
+- **Árbol de Directorios Recursivo**: Nuevo componente Vue `TreeItem.vue` que renderiza recursivamente la jerarquía de carpetas `.qdd/project/` con animaciones de despliegue fluidas.
+- **Editor Integrado con Persistencia**: Panel derecho con editor de texto completo (monospaced) que permite visualizar y editar cualquier archivo del ecosistema QDD directamente desde el navegador.
+- **Guardado en Tiempo Real**: Botón "Guardar Cambios" que persiste modificaciones en disco vía nuevo endpoint `POST /api/file`. El File Watcher (`fsnotify`) detecta el cambio y re-indexa automáticamente en el motor GraphRAG.
+- **Cero Mocks / Zero Else**: Cumplimiento total con la filosofía QDD — sin `else` en el código Vue y sin mocks en ninguna capa.
+
+#### 📊 GraphRAG Extendido
+- **Indexación de `goldensets` y `features`**: El motor GraphRAG ahora indexa también las carpetas de goldensets (caminos feliz, malo, casos borde) y funcionalidades anidadas. El `id` de cada nodo preserva la ruta jerárquica completa para que el frontend construya el árbol correctamente.
+- **Content en Nodos**: El campo `content` (texto del archivo) ahora se incluye en cada `GraphNode` expuesto por el estado del dashboard, eliminando la necesidad de una segunda llamada para leer el contenido del archivo al seleccionarlo.
+
+### 🔒 Certificado QDD
+- `qdd audit`: 0 violaciones
+- `qdd certify`: Score 100/100
+
 ## [v1.9.5] - 2026-07-14
 
 ### ✨ Nuevas Características

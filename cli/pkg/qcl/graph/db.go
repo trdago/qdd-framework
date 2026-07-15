@@ -85,6 +85,8 @@ func (g *GraphDB) SyncToGraph(projectPath string) error {
 		"findings":      "finding",
 		"certification": "rule",
 		"sprints":       "task",
+		"goldensets":    "goldenset",
+		"features":      "feature",
 	}
 
 	for dirName, nodeType := range dirsToSync {
