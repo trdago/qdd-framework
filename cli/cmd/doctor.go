@@ -3,22 +3,49 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
+	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
 )
 
 var autoFix bool
 
+type CheckItem struct {
+	Name    string
+	Success bool
+	Error   string
+}
+
+type CheckGroup struct {
+	Name  string
+	Items []*CheckItem
+}
+
+type Checklist struct {
+	Groups []*CheckGroup
+}
+
+func (c *Checklist) HasFailures() bool {
+	for _, g := range c.Groups {
+		for _, item := range g.Items {
+			if !item.Success {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
-	Short: "Verifica que el entorno QDD esté completamente funcional",
-	Long:  `Ejecuta pruebas deterministas para asegurar que la estructura y las integraciones del framework QDD están operando correctamente, dejando evidencia auditable.`,
+	Short: "Verifica que el entorno QDD esté completamente funcional (Checklist Determinista)",
+	Long:  `Ejecuta pruebas deterministas para asegurar que la estructura y las integraciones del framework QDD están operando correctamente, evaluando de forma rígida cada aspecto del framework.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -26,13 +53,25 @@ var doctorCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		success, _ := RunDoctorCheck(cwd, autoFix)
-		if !success {
-			fmt.Println("[-] QDD Doctor detectó anomalías. Ejecuta `qdd doctor --fix` para intentar corregirlas automáticamente.")
+		if autoFix {
+			fmt.Println("[!] Doctor: Ejecutando auto-reparación inicial...")
+			runAutoFix(cwd)
+			fmt.Println()
+		}
+
+		checklist := runDeterministicChecks(cwd)
+		printChecklist(checklist)
+		generateReport(cwd, checklist)
+
+		if checklist.HasFailures() {
+			fmt.Println("\n[-] QDD Doctor detectó anomalías estructurales.")
+			if !autoFix {
+				fmt.Println("    Ejecuta `qdd doctor --fix` para intentar repararlas automáticamente.")
+			}
 			os.Exit(1)
 		}
 
-		fmt.Println("[+] QDD Doctor: Todo el entorno se encuentra 100% operativo.")
+		fmt.Println("\n[+] QDD Doctor: Todo el entorno se encuentra 100% operativo y sincronizado.")
 	},
 }
 
@@ -41,105 +80,95 @@ func init() {
 	rootCmd.AddCommand(doctorCmd)
 }
 
-// RunDoctorCheck ejecuta las pruebas deterministas del framework y deja un reporte.
-func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
-	checks := []string{}
-	failedChecks := []string{}
+func runDeterministicChecks(projectPath string) *Checklist {
+	list := &Checklist{}
 
-	checkCoreStructure(projectPath, &checks, &failedChecks)
-
-	checkAllIntegrations(projectPath, &checks, &failedChecks)
-
-	if len(failedChecks) > 0 && autoFix {
-		attemptAutoFix(projectPath, &checks, &failedChecks)
-	}
-
-	generateDoctorReport(projectPath, checks, failedChecks)
-
-	if len(failedChecks) > 0 {
-		return false, len(failedChecks)
-	}
-
-	return true, 0
-}
-
-func checkCoreStructure(projectPath string, checks, failedChecks *[]string) {
+	// Grupo 1: Estructura de Archivos
+	g1 := &CheckGroup{Name: "1. Estructura de Archivos y Carpetas Base"}
 	qddDir := filepath.Join(projectPath, ".qdd")
-	checkDirExists(qddDir, ".qdd/", checks, failedChecks)
 	
-	dirs := GetQDDDirectories()
-	for _, d := range dirs {
-		checkDirExists(filepath.Join(qddDir, d), filepath.Join(".qdd", d), checks, failedChecks)
-	}
+	g1.Items = append(g1.Items, checkDir(qddDir, "Directorio raíz .qdd/"))
+	g1.Items = append(g1.Items, checkDir(filepath.Join(qddDir, "core"), "Directorio base .qdd/core/"))
+	g1.Items = append(g1.Items, checkDir(filepath.Join(qddDir, "project"), "Directorio de proyecto .qdd/project/"))
+	g1.Items = append(g1.Items, checkFile(filepath.Join(qddDir, "config.yaml"), "Configuración base config.yaml"))
+	g1.Items = append(g1.Items, checkFile(filepath.Join(qddDir, "state.json"), "Estado de proyecto state.json"))
+	list.Groups = append(list.Groups, g1)
 
-	checkFileExists(filepath.Join(qddDir, "config.yaml"), "config.yaml", checks, failedChecks)
-	checkFileExists(filepath.Join(qddDir, "state.json"), "state.json", checks, failedChecks)
-}
-
-func checkDirExists(path, name string, checks, failedChecks *[]string) {
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) || !info.IsDir() {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Directorio raíz %s no encontrado", name))
-		return
-	}
-	*checks = append(*checks, fmt.Sprintf("[OK] Directorio raíz %s verificado", name))
-}
-
-func checkFileExists(path, name string, checks, failedChecks *[]string) {
-	if !fileExists(path) {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Archivo %s no encontrado", name))
-		return
-	}
-	*checks = append(*checks, fmt.Sprintf("[OK] Archivo %s verificado", name))
-}
-
-func attemptAutoFix(projectPath string, checks, failedChecks *[]string) {
-	fmt.Println("[!] Doctor: Intentando reparar directorios del core y estructura del proyecto...")
-	qddDir := filepath.Join(projectPath, ".qdd")
-	errDirs := createQDDDirectories(qddDir)
-	if errDirs != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al reconstruir directorios: %v", errDirs))
-	}
-	if errDirs == nil {
-		*checks = append(*checks, "[OK] Directorios base reconstruidos exitosamente")
-	}
-
-	fmt.Println("[!] Doctor: Restaurando documentación, configuración y assets perdidos...")
-	meta := detectProjectMetadata(projectPath)
-	if err := createConfigFile(qddDir, meta); err != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar config.yaml: %v", err))
-	}
-	if err := createStateFile(qddDir); err != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar state.json: %v", err))
-	}
-	errAssets := unpackCoreAssets(qddDir)
-	if errAssets != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al restaurar assets base: %v", errAssets))
-	}
-	if errAssets == nil {
-		*checks = append(*checks, "[OK] Documentación, configuración y assets base restaurados exitosamente")
-	}
-
-	fmt.Println("[!] Doctor: Intentando reparar integraciones de IA faltantes...")
-	manager := integration.NewIntegrationManager()
-	if err := manager.SyncAll(projectPath); err != nil {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] Error al auto-reparar integraciones: %v", err))
-		return
-	}
-	*checks = append(*checks, "[OK] Integraciones reparadas exitosamente")
-	*failedChecks = filterRepairedItems(*failedChecks)
-
-	fmt.Println("[+] Doctor: Consultando oráculo Cloud Wisdom para estrategias de reparación actualizadas...")
+	// Grupo 2: Infraestructura IA y MCP
+	g2 := &CheckGroup{Name: "2. Infraestructura de IA y MCP"}
+	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".cursor", "mcp.json"), "Integración Cursor (.cursor/mcp.json)"))
+	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
+	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
+	
+	wisdomCheck := &CheckItem{Name: "Conexión a Cloud Wisdom (Oráculo AI)", Success: true, Error: "Offline (Graceful Degradation)"}
 	wClient := wisdom.NewClient(projectPath)
 	manifest, err := wClient.FetchRulesManifest(context.Background())
 	if err == nil && manifest != nil {
-		*checks = append(*checks, fmt.Sprintf("[OK] Cloud Wisdom conectado (Manifiesto v%s)", manifest.Version))
-		return
+		wisdomCheck.Error = "Conectado"
 	}
-	*checks = append(*checks, "[OK] Cloud Wisdom operando en modo Offline (Graceful Degradation)")
+	g2.Items = append(g2.Items, wisdomCheck)
+	list.Groups = append(list.Groups, g2)
+
+	// Grupo 3: Dashboard y Telemetría
+	g3 := &CheckGroup{Name: "3. Dashboard y Entorno Nativo"}
+	dashCheck := &CheckItem{Name: "Assets estáticos del Dashboard (Vue) embebidos", Success: false, Error: "No se encontró el subdirectorio 'dist' en el binario"}
+	distFs, err := fs.Sub(ui.StaticFiles, "dist")
+	
+	if err == nil {
+		dashCheck.Error = "index.html ausente en la compilación embebida"
+		_, errHtml := fs.Stat(distFs, "index.html")
+		if errHtml == nil {
+			dashCheck.Success = true
+			dashCheck.Error = "Embebido correctamente"
+		}
+	}
+	
+	g3.Items = append(g3.Items, dashCheck)
+	list.Groups = append(list.Groups, g3)
+
+	return list
 }
 
-func generateDoctorReport(projectPath string, checks, failedChecks []string) {
+func checkDir(path, name string) *CheckItem {
+	info, err := os.Stat(path)
+	item := &CheckItem{Name: name, Success: false, Error: "Directorio ausente o inválido"}
+	if os.IsNotExist(err) || !info.IsDir() {
+		return item
+	}
+	item.Success = true
+	item.Error = ""
+	return item
+}
+
+func checkFile(path, name string) *CheckItem {
+	item := &CheckItem{Name: name, Success: false, Error: "Archivo no encontrado"}
+	if !fileExists(path) {
+		return item
+	}
+	item.Success = true
+	item.Error = ""
+	return item
+}
+
+func printChecklist(c *Checklist) {
+	fmt.Println("=== QDD Framework Doctor: Deterministic Health Check ===")
+	for _, g := range c.Groups {
+		fmt.Printf("\n[%s]\n", g.Name)
+		for _, item := range g.Items {
+			if !item.Success {
+				fmt.Printf("  ❌ %s (%s)\n", item.Name, item.Error)
+				continue
+			}
+			extra := ""
+			if item.Error != "" && item.Error != "Embebido correctamente" && item.Error != "Conectado" {
+				extra = fmt.Sprintf(" (%s)", item.Error)
+			}
+			fmt.Printf("  ✅ %s%s\n", item.Name, extra)
+		}
+	}
+}
+
+func generateReport(projectPath string, c *Checklist) {
 	qddDir := filepath.Join(projectPath, ".qdd")
 	evidenceDir := filepath.Join(qddDir, "project", "evidence", "doctor")
 	_ = os.MkdirAll(evidenceDir, 0755)
@@ -147,68 +176,74 @@ func generateDoctorReport(projectPath string, checks, failedChecks []string) {
 	timestamp := time.Now().Format("2006-01-02_15-04-05")
 	reportPath := filepath.Join(evidenceDir, fmt.Sprintf("report_%s.md", timestamp))
 
-	reportContent := buildReportContent(checks, failedChecks)
-	_ = os.WriteFile(reportPath, []byte(reportContent), 0644)
-}
+	content := "# QDD Doctor Report\n\n"
+	content += fmt.Sprintf("Date: %s\n\n", time.Now().Format(time.RFC3339))
 
-func buildReportContent(checks, failedChecks []string) string {
-	reportContent := "# QDD Doctor Report\n\n"
-	reportContent += fmt.Sprintf("Date: %s\n\n", time.Now().Format(time.RFC3339))
-
-	reportContent += "## Checks Completados\n"
-	for _, c := range checks {
-		reportContent += fmt.Sprintf("- %s\n", c)
-	}
-
-	if len(failedChecks) > 0 {
-		reportContent += "\n## Anomalías Detectadas\n"
-		for _, f := range failedChecks {
-			reportContent += fmt.Sprintf("- %s\n", f)
+	for _, g := range c.Groups {
+		content += fmt.Sprintf("## %s\n\n", g.Name)
+		content += "| Validación | Estado | Detalle |\n"
+		content += "|---|---|---|\n"
+		for _, item := range g.Items {
+			status := "✅ OK"
+			detail := "-"
+			if !item.Success {
+				status = "❌ FAIL"
+				detail = item.Error
+			}
+			if item.Success && item.Error != "" {
+				detail = item.Error
+			}
+			content += fmt.Sprintf("| %s | %s | %s |\n", item.Name, status, detail)
 		}
+		content += "\n"
 	}
 
 	stateStr := "HEALTHY"
-	if len(failedChecks) > 0 {
+	if c.HasFailures() {
 		stateStr = "CRITICAL_FAILURES"
 	}
-	reportContent += fmt.Sprintf("\n**Estado Global:** %s\n", stateStr)
+	content += fmt.Sprintf("\n**Estado Global:** %s\n", stateStr)
 
-	return reportContent
+	_ = os.WriteFile(reportPath, []byte(content), 0644)
 }
 
-func checkIntegrationFile(name, path string, checks, failedChecks *[]string, missingIntegrations *bool) {
-	if !fileExists(path) {
-		*failedChecks = append(*failedChecks, fmt.Sprintf("[Fallo] %s no encontrada", name))
-		*missingIntegrations = true
-		return
+func runAutoFix(projectPath string) {
+	qddDir := filepath.Join(projectPath, ".qdd")
+	
+	fmt.Println("  [~] Reconstruyendo directorios base...")
+	_ = createQDDDirectories(qddDir)
+	
+	fmt.Println("  [~] Restaurando configuración y estado...")
+	meta := detectProjectMetadata(projectPath)
+	_ = createConfigFile(qddDir, meta)
+	_ = createStateFile(qddDir)
+	
+	fmt.Println("  [~] Desempaquetando assets nativos...")
+	_ = unpackCoreAssets(qddDir)
+
+	fmt.Println("  [~] Sincronizando perfiles de IA...")
+	manager := integration.NewIntegrationManager()
+	_ = manager.SyncAll(projectPath)
+}
+
+// RunDoctorCheck ejecuta las pruebas deterministas del framework y deja un reporte.
+func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
+	if autoFix {
+		runAutoFix(projectPath)
 	}
-	*checks = append(*checks, fmt.Sprintf("[OK] %s verificada", name))
-}
+	checklist := runDeterministicChecks(projectPath)
+	generateReport(projectPath, checklist)
 
-func checkAllIntegrations(projectPath string, checks, failedChecks *[]string) bool {
-	missingIntegrations := false
-
-	cursorMCP := filepath.Join(projectPath, ".cursor", "mcp.json")
-	claudeRC := filepath.Join(projectPath, ".clauderc")
-	antigravityRules := filepath.Join(projectPath, ".antigravityrules")
-
-	checkIntegrationFile("Configuración MCP (.cursor/mcp.json)", cursorMCP, checks, failedChecks, &missingIntegrations)
-	checkIntegrationFile("Reglas de Claude (.clauderc)", claudeRC, checks, failedChecks, &missingIntegrations)
-	checkIntegrationFile("Reglas de Antigravity (.antigravityrules)", antigravityRules, checks, failedChecks, &missingIntegrations)
-
-	return missingIntegrations
-}
-
-func filterRepairedItems(failedChecks []string) []string {
-	var remainingFailed []string
-	for _, f := range failedChecks {
-		if !strings.Contains(f, "Configuración MCP") && 
-		   !strings.Contains(f, "Reglas de Claude") && 
-		   !strings.Contains(f, "Reglas de Antigravity") &&
-		   !strings.Contains(f, "Directorio raíz") &&
-		   !strings.Contains(f, "Archivo") {
-			remainingFailed = append(remainingFailed, f)
+	if checklist.HasFailures() {
+		failures := 0
+		for _, g := range checklist.Groups {
+			for _, item := range g.Items {
+				if !item.Success {
+					failures++
+				}
+			}
 		}
+		return false, failures
 	}
-	return remainingFailed
+	return true, 0
 }
