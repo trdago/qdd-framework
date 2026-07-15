@@ -104,25 +104,29 @@ func syncGraphDir(qddDir, dirName, nodeType string, tx *sql.Tx) {
 		filepath.Join(qddDir, "core", dirName),
 	}
 
-	for _, p := range paths {
-		files, err := os.ReadDir(p)
-		if err != nil {
-			continue
-		}
-
-		for _, f := range files {
-			processGraphFile(p, f, nodeType, tx)
-		}
+	for _, basePath := range paths {
+		filepath.WalkDir(basePath, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			processGraphFile(basePath, path, d, nodeType, tx)
+			return nil
+		})
 	}
 }
 
-func processGraphFile(p string, f os.DirEntry, nodeType string, tx *sql.Tx) {
-	if !isValidGraphFile(f) {
+func processGraphFile(basePath, path string, d os.DirEntry, nodeType string, tx *sql.Tx) {
+	if !isValidGraphFile(d) {
 		return
 	}
 
-	filePath := filepath.Join(p, f.Name())
-	data, err := os.ReadFile(filePath)
+	relPath, err := filepath.Rel(basePath, path)
+	if err != nil {
+		relPath = d.Name()
+	}
+	relPath = filepath.ToSlash(relPath)
+
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}
@@ -130,7 +134,7 @@ func processGraphFile(p string, f os.DirEntry, nodeType string, tx *sql.Tx) {
 	var raw map[string]interface{}
 	yaml.Unmarshal(data, &raw)
 
-	id, name := extractGraphNodeInfo(f.Name(), nodeType, raw)
+	id, name := extractGraphNodeInfo(relPath, nodeType, raw)
 	metadataBytes, _ := json.Marshal(raw)
 
 	query := `
@@ -149,7 +153,7 @@ func processGraphFile(p string, f os.DirEntry, nodeType string, tx *sql.Tx) {
 
 	tx.ExecContext(context.Background(), "DELETE FROM edges WHERE source_id = ?", id)
 
-	processGraphParent(raw, id, tx)
+	processGraphParent(raw, id, relPath, nodeType, tx)
 	processGraphDeps(raw, id, tx)
 	processGraphFeature(raw, id, nodeType, tx, query)
 	processGraphResolves(raw, id, tx)
@@ -174,11 +178,22 @@ func extractGraphNodeInfo(fileName, nodeType string, raw map[string]interface{})
 	return id, name
 }
 
-func processGraphParent(raw map[string]interface{}, id string, tx *sql.Tx) {
-	if parent, ok := raw["parent"].(string); ok && parent != "" {
-		targetID := fmt.Sprintf("rule:%s", parent)
-		if !strings.HasSuffix(parent, ".yaml") {
-			targetID = fmt.Sprintf("rule:%s.yaml", parent)
+func processGraphParent(raw map[string]interface{}, id, relPath, nodeType string, tx *sql.Tx) {
+	parent := ""
+	if p, ok := raw["parent"].(string); ok && p != "" {
+		parent = p
+	}
+	if parent == "" {
+		dir := filepath.ToSlash(filepath.Dir(relPath))
+		if dir != "." && dir != "" {
+			parent = dir + ".yaml"
+		}
+	}
+
+	if parent != "" {
+		targetID := fmt.Sprintf("%s:%s", nodeType, parent)
+		if !strings.HasSuffix(parent, ".yaml") && !strings.HasSuffix(parent, ".md") {
+			targetID = fmt.Sprintf("%s:%s.yaml", nodeType, parent)
 		}
 		tx.ExecContext(context.Background(), "INSERT OR IGNORE INTO edges (source_id, target_id, relation) VALUES (?, ?, ?)", id, targetID, "CHILD_OF")
 	}
