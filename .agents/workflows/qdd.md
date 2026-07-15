@@ -16,9 +16,12 @@ El ciclo de desarrollo en QDD es determinista y consta de 5 Fases estandarizadas
   El Agente documenta y formaliza qué se va a hacer (ej. actualizando o creando un documento de Sprint en `.qdd/project/sprints/`). Todo código debe tener trazabilidad.
   *Criterio de salida:* Sprint documentado.
 
-- **Fase 3: TDD Determinista (Tests)**
-  El Agente escribe EXCLUSIVAMENTE los tests unitarios. Estos tests deben fallar intencionalmente (`Red`) y evaluar escenarios deterministas y de borde, mapeados directamente a la meta del Sprint.
-  *Criterio de salida:* Test unitario escrito (y comprobado que falla).
+- **Fase 3: TDD Determinista (Golden Sets)**
+  El Agente escribe EXCLUSIVAMENTE los tests unitarios bajo la arquitectura **Data-Driven (Golden Set)**. 
+  - *Nueva Funcionalidad:* El agente crea la carpeta en `.qdd/project/goldensets/<feature>/` y genera los JSON `happy_path`, `bad_path` y `edge_case`.
+  - *Bugs:* El agente **genera un nuevo archivo JSON** (ej. `bug_<descripcion>.json`) en el goldenset para asegurar que la regresión quede atrapada en la base de datos de pruebas.
+  - Luego, implementa/asegura que exista un runner en el código (`goldenset.RunSuite`) que lea e itere sobre esta carpeta (El test debe fallar inicialmente, `Red`).
+  *Criterio de salida:* Archivos de Golden Set creados/actualizados y test unitario comprobado que falla.
 
 - **Fase 4: Construcción Certificada (Code)**
   El Agente escribe la funcionalidad de producción, adhiriendo estrictamente a la Regla QDD: **"Cero Else" y Retornos Tempranos**, además de las certificaciones (Clean Code, OWASP, etc.).

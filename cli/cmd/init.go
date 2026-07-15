@@ -231,6 +231,7 @@ func GetQDDDirectories() []string {
 		"project/evidence",
 		"project/metrics",
 		"project/adr",
+		"project/goldensets",
 		"dashboard",
 	}
 }
