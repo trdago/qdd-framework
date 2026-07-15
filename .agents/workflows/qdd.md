@@ -62,8 +62,9 @@ El usuario invocará comandos (o intenciones auto-asociadas) que insertarán al 
 
 ## REGLAS GLOBALES INQUEBRANTABLES (QDD PHILOSOPHY)
 1. **Zero-Else & Guard Clauses:** Nunca uses la sentencia `else`. Usa `return` o `continue` tempranos para manejar flujos alternativos o de error.
-2. **UI Predictiva:** Al requerir decisión del usuario, usa modales interactivos (`ask_question`), opciones estructuradas o comandos sugeridos antes que pedir input libre.
-3. **Casos de Borde Obligatorios:** Todos los tests en Fase 3 deben evaluar timeouts, nulls y límites lógicos, no solo el "camino feliz". TODO bug genera un test.
-4. **Paralelismo Contextual:** Si el agente lanza Sub-agentes (paralelismo), debe reportar al usuario qué rama o funcionalidad se está interviniendo.
-5. **Pipelining (Cadenas):** Si recibes múltiples comandos (`/qdd bug sprint release`), se ejecutan iterativamente, pasando por la máquina de estados en el orden lógico.
-6. **Auto-Asociación:** Si el usuario pide algo sin usar el comando `/qdd` (ej: "corrige la tabla"), el Agente DEBE auto-clasificar la intención en el comando más cercano (ej. `/qdd bug` o `/qdd sprint`) y verbalizarlo ("Asignando esta tarea a `/qdd bug`, iniciando en Fase 3...").
+2. **Zero-Mocks (Real Infrastructure):** Nunca hacemos mocks de dependencias. Si se requiere probar lógica de persistencia, el Agente debe levantar una base de datos SQLite real. Las pruebas deben ser deterministas contra infraestructuras reales.
+3. **UI Predictiva:** Al requerir decisión del usuario, usa modales interactivos (`ask_question`), opciones estructuradas o comandos sugeridos antes que pedir input libre.
+4. **Casos de Borde Obligatorios:** Todos los tests en Fase 3 deben evaluar timeouts, nulls y límites lógicos, no solo el "camino feliz". TODO bug genera un test.
+5. **Paralelismo Contextual:** Si el agente lanza Sub-agentes (paralelismo), debe reportar al usuario qué rama o funcionalidad se está interviniendo.
+6. **Pipelining (Cadenas):** Si recibes múltiples comandos (`/qdd bug sprint release`), se ejecutan iterativamente, pasando por la máquina de estados en el orden lógico.
+7. **Auto-Asociación:** Si el usuario pide algo sin usar el comando `/qdd` (ej: "corrige la tabla"), el Agente DEBE auto-clasificar la intención en el comando más cercano (ej. `/qdd bug` o `/qdd sprint`) y verbalizarlo ("Asignando esta tarea a `/qdd bug`, iniciando en Fase 3...").

@@ -26,6 +26,9 @@ func RunCleanCodeCheck(cwd string) []Violation {
 		}
 
 		checkNodeForElse(node, fset, path, &violations)
+		if !strings.HasSuffix(d.Name(), "_test.go") {
+			checkNodeForTestCode(node, fset, path, &violations)
+		}
 		return nil
 	})
 
@@ -55,6 +58,50 @@ func checkNodeForElse(node *ast.File, fset *token.FileSet, path string, violatio
 					Category:    "CLEAN-CODE",
 					RuleID:      "CLEAN-01-NO-ELSE",
 					Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
+					File:        path,
+					Line:        pos.Line,
+				})
+			}
+		}
+		return true
+	})
+}
+
+func checkNodeForTestCode(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
+	for _, imp := range node.Imports {
+		pkgPath := strings.Trim(imp.Path.Value, "\"")
+		if pkgPath == "testing" || strings.Contains(pkgPath, "mock") || strings.Contains(pkgPath, "testify") {
+			pos := fset.Position(imp.Pos())
+			*violations = append(*violations, Violation{
+				Category:    "CLEAN-CODE",
+				RuleID:      "CLEAN-02-NO-TEST-IN-PROD",
+				Description: "Zero-Mocks: Importación de paquete de testing (" + pkgPath + ") detectada en código de producción.",
+				File:        path,
+				Line:        pos.Line,
+			})
+		}
+	}
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.TypeSpec:
+			if strings.Contains(x.Name.Name, "Mock") {
+				pos := fset.Position(x.Pos())
+				*violations = append(*violations, Violation{
+					Category:    "CLEAN-CODE",
+					RuleID:      "CLEAN-02-NO-TEST-IN-PROD",
+					Description: "Zero-Mocks: Estructura/Tipo con palabra 'Mock' detectada en código de producción (" + x.Name.Name + ").",
+					File:        path,
+					Line:        pos.Line,
+				})
+			}
+		case *ast.FuncDecl:
+			if strings.Contains(x.Name.Name, "Mock") {
+				pos := fset.Position(x.Pos())
+				*violations = append(*violations, Violation{
+					Category:    "CLEAN-CODE",
+					RuleID:      "CLEAN-02-NO-TEST-IN-PROD",
+					Description: "Zero-Mocks: Función con palabra 'Mock' detectada en código de producción (" + x.Name.Name + ").",
 					File:        path,
 					Line:        pos.Line,
 				})
