@@ -22,6 +22,7 @@ Al ejecutar `qdd init`, la CLI realizará un escaneo pasivo del repositorio:
 - **Arquitectura:** Detección de `Dockerfile`, directorios `cmd/`, `src/`, `app/`, etc.
 - **Bases de Datos:** Detección de ORMs (Prisma, Gorm) o archivos de migración.
 - **Proveedores Cloud:** Detección de `serverless.yml`, `.aws/`, `terraform/`, etc.
+- **Raíz de Código:** Detección de la convención de código ya existente (`src/`, `cmd/`+`pkg/` en Go, `app/`, etc.). Si no existe una convención clara, `qdd init` DEBE proponerla explícitamente en Modo Consultivo (ej. `src/`) antes de generar nada. El código de aplicación nunca debe terminar dentro de `.qdd/` — ver CERT-033-PROJECT-STRUCTURE-SEPARATION.
 
 ### 3.2. Generación del Estado Inicial
 Una vez que el entorno es detectado, la CLI creará el directorio `.qdd/` en la raíz del proyecto.
