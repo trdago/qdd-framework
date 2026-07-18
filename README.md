@@ -140,6 +140,10 @@ El framework soporta y obliga comportamientos avanzados tanto para humanos como 
    ```bash
    qdd run validate certify dashboard
    ```
+5. **Supervisión Resiliente y Auto-Reparación (`qdd run --keep-alive`):** QDD puede mantener vivo un proceso externo (un servicio, un binario), reiniciándolo en cada salida limpia. Ante un error real, registra un Finding + evidencia y delega el diagnóstico y la reparación a un agente de IA local disponible (Claude, Antigravity o Cursor), de forma desatendida, reintentando hasta 3 veces antes de detenerse para revisión humana:
+   ```bash
+   qdd run --keep-alive ./mi-servicio --puerto 8080
+   ```
 
 ---
 

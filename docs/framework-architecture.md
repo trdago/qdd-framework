@@ -82,6 +82,8 @@ QDD trata el conocimiento como el activo más valioso. Los artefactos son los "d
 - **ADRs (`.qdd/project/adr/`)**: Architecture Decision Records. Congelan en el tiempo el "por qué" se tomó una decisión (ej. "Por qué usamos gRPC en lugar de REST").
 - **Sprints (`.qdd/project/sprints/`)**: Archivos Markdown que orquestan el trabajo iterativo, definiendo el alcance, los criterios de aceptación y las certificaciones requeridas para el ciclo.
 
+> **Regla de oro (CERT-033):** `.qdd/project/` nunca contiene código de aplicación — solo el conocimiento que QDD acumula *sobre* ese código. El código real del proyecto vive siempre en la raíz del repo, en una carpeta de código explícita (`src/`, o la convención idiomática ya existente como `cmd/`+`pkg/` en Go). `qdd init` debe detectar esa convención o proponerla en Modo Consultivo — nunca improvisar.
+
 ## Plugins (Extensibilidad)
 
 La arquitectura de **Plugins** permite a QDD integrarse nativamente con cualquier lenguaje o framework, sin alterar el binario principal.

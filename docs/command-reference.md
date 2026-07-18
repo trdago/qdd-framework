@@ -60,6 +60,7 @@ Estos comandos puedes ejecutarlos sin miedo. Su único trabajo es leer tu reposi
 | `qdd review` | Revisa los cambios actuales de código frente a las guías estandarizadas de QDD. **Seguro.** |
 | `qdd certify` | Revisa la carpeta `.qdd/core/certification/` y emite un veredicto de calidad del proyecto. **Seguro.** |
 | `qdd dashboard` | Inicia el Centro de Comando Web. Despliega el Intelligence Report, métricas, Sprints y Certificaciones. **Seguro.** |
+| `qdd evolution` | Estudia findings abiertos, certificaciones pendientes, violaciones de auditoría e historial de score para recomendar la única siguiente mejora accionable. No crea ni certifica nada por sí solo (Modo Consultivo). También disponible como tool MCP `qdd_evolution`. **Seguro.** |
 
 ### ⚡ Comandos de Mutación (Estructurales)
 Estos comandos modifican el repositorio agregando carpetas o archivos de gobernanza:
@@ -70,6 +71,8 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd sprint <n>` | Crea la plantilla de trabajo para una nueva iteración modificando `.qdd/project/sprints/`. |
 | `qdd release <version>` | Genera un Git Tag oficial y actualiza la versión del framework en `state.json`. |
 | `qdd sync` / `qdd sync-ai` | Sincroniza las reglas nativas y el Manifiesto con los asistentes de IA (Cursor, Claude Code, Antigravity) configurando los perfiles de manera idempotente. |
+| `qdd run --keep-alive <cmd>` | Supervisa un proceso externo (un binario, un servicio) manteniéndolo siempre vivo: lo reinicia en cada salida limpia. Ante un error real, registra un Finding + evidencia y luego invoca a un agente de IA local (Claude, Antigravity o Cursor — el primero disponible) para diagnosticar y aplicar el fix real de forma desatendida (`--dangerously-skip-permissions`), reintentando hasta 3 veces antes de detenerse para revisión humana. Ver ADR-004 (supersede ADR-003). |
+| `qdd bug` | Registra manualmente un error como Finding permanente con evidencia asociada (mismo mecanismo que usa `qdd run --keep-alive` internamente). |
 | `qdd ui` | Genera o audita componentes de UI frontend basándose en estándares SaaS premium de QDD. |
 | `qdd api` | Audita o genera endpoints de backend siguiendo estándares REST/GraphQL de QDD. |
 | `qdd db` | Audita o genera esquemas y consultas de bases de datos. |
