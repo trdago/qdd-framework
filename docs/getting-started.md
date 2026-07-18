@@ -9,18 +9,17 @@ qdd init
 ```
 
 ## Paso 2: Aprendizaje y Contexto (Intelligence Report)
-QDD no opera a ciegas. Utiliza el comando `learn` para que el framework escanee tu arquitectura, lenguajes y documentación existente. Este proceso invoca al Motor Cognitivo para asimilar el negocio y generar el **Intelligence Report**, el cual se utilizará como la memoria central del proyecto.
-```bash
-qdd learn
+QDD no opera a ciegas. `qdd_learn` es una *tool* MCP (no un comando de terminal): conecta tu IDE con IA (Claude Code, Cursor, Antigravity) por MCP y pídele que la ejecute para que escanee tu arquitectura, lenguajes y documentación existente, y genere/refine el **Intelligence Report** en `.qdd/understanding.json` — la memoria central del proyecto, que se actualiza incrementalmente en cada corrida.
+```text
+Pídele a tu IDE: "ejecuta qdd_learn" (o equivalente en tu asistente)
 ```
 
 ## Paso 3: Análisis y Calidad Inicial
-Mide el estado actual de tu deuda técnica ejecutando los comandos de **Auditoría (Read-Only)**.
+Mide el estado actual de tu deuda técnica. `dashboard`, `audit` y `evolution` son comandos reales de terminal; `status` y `score` son *tools* MCP (pídeselas a tu IA).
 ```bash
-qdd dashboard # Inicia el Centro de Comando Web para visualizar el Intelligence Report y métricas
-qdd status  # Ve el panel de control de certificaciones y bugs en la terminal
-qdd score   # Obtén tu calificación matemática (A, B, C, D)
-qdd audit   # Ejecuta el Linter de reglas estructurales
+qdd dashboard   # Inicia el Centro de Comando Web para visualizar el Intelligence Report y métricas
+qdd audit       # Ejecuta el Linter de reglas estructurales
+qdd evolution   # Recomienda la siguiente mejora estudiando findings, certs e historial
 ```
 
 ## Paso 4: Programación Guiada con MCP
@@ -35,7 +34,7 @@ Si tu IDE intenta desarrollar una característica que requiere seguridad, QDD (a
 ```
 
 ## Paso 5: Versionado y Calidad Evolutiva
-Una vez completado tu ciclo iterativo (Sprint) sin haber roto certificaciones o contratos públicos, empaqueta una versión segura.
-```bash
-qdd release v1.0.0
+Una vez completado tu ciclo iterativo (Sprint) sin haber roto certificaciones o contratos públicos, empaqueta una versión segura. `release` también es una *tool* MCP (`qdd_release`): compila, actualiza `state.json` y crea un Git Tag local — no hace push ni publica por sí sola.
+```text
+Pídele a tu IDE: "ejecuta qdd_release con la versión v1.0.0"
 ```

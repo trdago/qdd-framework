@@ -138,7 +138,7 @@ El framework soporta y obliga comportamientos avanzados tanto para humanos como 
 3. **Zero-Else Enforcement Nativo:** El framework predica con el ejemplo; no utiliza la cláusula `else` ni `v-else` internamente, apoyándose 100% en *Guard Clauses* y retornos tempranos para bajar la complejidad cognitiva.
 4. **Command Pipelining (`qdd run`):** QDD soporta encadenamiento secuencial nativo de comandos. Puedes ejecutar múltiples fases interdependientes como una tubería, aislando estado:
    ```bash
-   qdd run validate certify dashboard
+   qdd run audit certify
    ```
 5. **Supervisión Resiliente y Auto-Reparación (`qdd run --keep-alive`):** QDD puede mantener vivo un proceso externo (un servicio, un binario), reiniciándolo en cada salida limpia. Ante un error real, registra un Finding + evidencia y delega el diagnóstico y la reparación a un agente de IA local disponible (Claude, Antigravity o Cursor), de forma desatendida, reintentando hasta 3 veces antes de detenerse para revisión humana:
    ```bash

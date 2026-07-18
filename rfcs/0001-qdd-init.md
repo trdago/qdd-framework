@@ -53,7 +53,7 @@ $ qdd init
 [+] Inicializando directorio .qdd/
 [+] Descargando QDD Specification v0.1...
 [+] Configurando plugins: [go, terraform, aws]
-[!] QDD inicializado exitosamente. Siguiente paso: ejecuta `qdd learn`
+[!] QDD inicializado exitosamente. Siguiente paso: conecta tu IDE con IA vía MCP y pídele que ejecute la tool `qdd_learn`
 ```
 
 ## 4. Drawbacks

@@ -1,6 +1,6 @@
 # RFC 0002 — QDD Cognitive Layer (QCL)
 
-**Status:** Draft
+**Status:** Superseded — el motor cognitivo interno descrito aquí (Intent/Context/Risk Analyzer, Strategy Planner) nunca se implementó. El proyecto pivoteó a un modelo de Agentic Harness vía MCP: en vez de que QDD interprete la intención y construya un Execution Plan internamente, expone *tools* MCP (`qdd_audit`, `qdd_certify`, `qdd_learn`, etc.) que un IDE con IA externa (Claude Code, Cursor, Antigravity) invoca directamente. Ver `runQCL()` en `cli/cmd/root.go` y docs/command-reference.md. Este documento se conserva como registro histórico de la decisión de diseño descartada.
 **Author:** QDD Community
 **Created:** 2026-07-01
 
