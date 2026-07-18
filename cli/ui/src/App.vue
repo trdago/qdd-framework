@@ -1011,8 +1011,8 @@ onUnmounted(() => {
             </button>
         </div>
         <div class="header-actions">
-          <div class="audit-badge" :class="state?.audit_status.startsWith('PASS') ? 'pass' : 'fail'">
-            <span class="indicator-dot"></span> {{ state?.audit_status }}
+          <div class="audit-badge" :class="state?.quality_status.startsWith('PASS') ? 'pass' : 'fail'">
+            <span class="indicator-dot"></span> {{ state?.quality_status }}
           </div>
         </div>
       </header>

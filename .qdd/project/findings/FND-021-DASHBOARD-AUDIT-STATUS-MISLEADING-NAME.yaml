@@ -3,7 +3,7 @@ type: gap
 title: "El campo 'audit_status' del dashboard no refleja qdd audit, sino el conteo de findings abiertos"
 description: "Validación end-to-end real (sin mocks) de `qdd dashboard`: arrancó correctamente, sirvió la UI (HTTP 200), y tanto /api/state como /api/stream devolvieron datos reales. Se detectó una inconsistencia de nombres: BuildState() en cli/pkg/dashboard/state.go calcula 'audit_status'/'score' exclusivamente a partir de openFindings (computeFinalScore = 100 - openFindings*30, determineAuditStatus = FAIL si openFindings>0), sin relación alguna con audit.NewEngine(cwd).RunAll() (las violaciones estáticas reales que sí usa `qdd audit`/`qdd evolution`). En esta validación, qdd audit reportó 0 violaciones mientras el dashboard mostraba 'audit_status: FAIL (Deuda Técnica Detectada)' y score 70, porque había 1 finding abierto (FND-019) — el cálculo en sí es correcto, pero el nombre del campo sugiere que refleja el resultado de `qdd audit`, cuando en realidad refleja el estado de los Findings."
 impact: "LOW - No es un bug funcional (el dashboard no miente sobre nada, el score SÍ corresponde a los findings abiertos), pero el nombre 'audit_status' induce a error: alguien podría ver 'FAIL' y asumir que qdd audit está fallando, generando confusión de diagnóstico."
-status: OPEN
+status: RESOLVED
 feature: "Dashboard - /api/state"
 author: "QDD System"
 created_at: "2026-07-17T00:00:00-04:00"
@@ -12,5 +12,6 @@ resolves: ""
 metadata:
   environment: "cli/dashboard"
   component: "cli/pkg/dashboard/state.go (determineAuditStatus, computeFinalScore)"
-  suggested_fix: "Renombrar el campo JSON 'audit_status' a algo como 'findings_status' o 'quality_status', y/o incorporar también las violaciones reales de audit.NewEngine(cwd).RunAll() al cálculo del score, ya que hoy dos comandos del mismo framework (qdd audit vs qdd dashboard) pueden reportar salud muy distinta sobre el mismo proyecto en el mismo instante. Cambiar el nombre del campo requiere actualizar el consumidor en cli/ui/src (contrato entre backend y frontend) — no se hizo en esta pasada para no romper la UI sin verificarla en el navegador."
-  test_pending: true
+  fix: "Se renombró el campo JSON 'audit_status' a 'quality_status' (y el struct field Go AuditStatus -> QualityStatus, determineAuditStatus -> determineQualityStatus) en cli/pkg/dashboard/state.go. Se actualizó el único consumidor real (cli/ui/src/App.vue línea del badge de header) y su fixture de test (App.spec.js). Verificado en vivo: qdd dashboard real devuelve 'quality_status' en /api/state, y los 6 tests de Vitest del frontend siguen pasando. No se fusionó con las violaciones de qdd audit en esta pasada — quedan como dos señales independientes, deliberadamente, para no acoplar dos comandos del framework que hoy tienen dueños/semánticas distintas sin una decisión de producto explícita sobre unificarlos."
+  test_pending: false
+  test_added: "cli/pkg/dashboard/state_test.go TestDetermineQualityStatus (ya existía, renombrado) + cli/ui/src/App.spec.js (fixtures actualizados, 6/6 tests Vitest en verde)"

@@ -2,10 +2,11 @@ package dashboard
 
 import "testing"
 
-// FND-021: the dashboard's score/audit_status are computed purely from open
-// findings, unrelated to `qdd audit`'s static violations — these tests pin
-// down that exact (currently undocumented-in-tests) behavior so a future
-// change can't silently alter the formula without a test noticing.
+// FND-021 (resolved): the dashboard's score/quality_status are computed
+// purely from open findings, unrelated to `qdd audit`'s static violations —
+// the field was renamed from audit_status to quality_status so its name
+// matches what it actually measures. These tests pin down the formula so a
+// future change can't silently alter it without a test noticing.
 func TestComputeFinalScore(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -51,12 +52,12 @@ func TestDetermineDashboardGrade(t *testing.T) {
 	}
 }
 
-func TestDetermineAuditStatus(t *testing.T) {
-	if got := determineAuditStatus(0); got != "PASS" {
-		t.Errorf("determineAuditStatus(0) = %q, want PASS", got)
+func TestDetermineQualityStatus(t *testing.T) {
+	if got := determineQualityStatus(0); got != "PASS" {
+		t.Errorf("determineQualityStatus(0) = %q, want PASS", got)
 	}
-	if got := determineAuditStatus(1); got != "FAIL (Deuda Técnica Detectada)" {
-		t.Errorf("determineAuditStatus(1) = %q, want FAIL", got)
+	if got := determineQualityStatus(1); got != "FAIL (Deuda Técnica Detectada)" {
+		t.Errorf("determineQualityStatus(1) = %q, want FAIL", got)
 	}
 }
 

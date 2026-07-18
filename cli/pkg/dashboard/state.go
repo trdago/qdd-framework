@@ -31,14 +31,14 @@ const qddLifecycleMermaid = "```mermaid\ngraph TD\n" +
     classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
 
     A[qdd init<br/>Crea Entorno y Wisdom Registry]:::init
-    B[qdd sprint<br/>Define Requerimientos]:::default
+    B[qdd_sprint MCP<br/>Define Requerimientos]:::default
     C[qdd 'prompt'<br/>Delegación a IA]:::agent
     D{Gatekeeper<br/>Pre-Flight Check}:::gatekeeper
-    E[qdd learn<br/>Absorber Arquitectura e Intelligence Report]:::default
+    E[qdd_learn MCP<br/>Absorber Arquitectura e Intelligence Report]:::default
     F[Modo Consultivo<br/>Propuesta de Estándares]:::agent
     G[qdd audit<br/>Inspección Técnica]:::warning
     H[qdd certify<br/>Sello de Gobernanza]:::success
-    I[qdd release<br/>Git Tag / Deploy]:::success
+    I[qdd_release MCP<br/>Git Tag]:::success
 
     A --> B
     B --> C
@@ -268,7 +268,7 @@ type QDDState struct {
 	Score          int                       `json:"score"`
 	Grade          string                    `json:"grade"`
 	Version        string                    `json:"version"`
-	AuditStatus    string                    `json:"audit_status"`
+	QualityStatus  string                    `json:"quality_status"`
 	Findings       []DashboardFinding        `json:"findings"`
 	Certifications []DashboardCertification  `json:"certifications"`
 	Sprints        []DashboardSprint         `json:"sprints"`
@@ -311,7 +311,7 @@ func BuildState() QDDState {
 	finalScore = computeFinalScore(openFindings)
 	response.Score = finalScore
 	response.Grade = determineDashboardGrade(finalScore)
-	response.AuditStatus = determineAuditStatus(openFindings)
+	response.QualityStatus = determineQualityStatus(openFindings)
 
 	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
 		response.MCPLogs = append([]string{"[WARNING] Métricas de Valor y ROI no disponibles. Finaliza sprints para ganar valor."}, response.MCPLogs...)
@@ -353,7 +353,7 @@ func initDefaultState(cwd string) QDDState {
 		Score:          100,
 		Grade:          "World-Class",
 		Version:        "v0.1.1",
-		AuditStatus:    "PASS",
+		QualityStatus:  "PASS",
 		ProjectName:    filepath.Base(cwd),
 		Findings:       []DashboardFinding{},
 		Certifications: []DashboardCertification{},
@@ -782,7 +782,9 @@ func determineDashboardGrade(finalScore int) string {
 	return "World-Class"
 }
 
-func determineAuditStatus(openFindings int) string {
+// determineQualityStatus reflects open-findings count, not qdd audit's
+// static violations (see FND-021) — the two are independent signals.
+func determineQualityStatus(openFindings int) string {
 	if openFindings > 0 {
 		return "FAIL (Deuda Técnica Detectada)"
 	}
