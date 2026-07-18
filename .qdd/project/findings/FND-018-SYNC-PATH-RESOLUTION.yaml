@@ -1,0 +1,18 @@
+id: FND-018-SYNC-PATH-RESOLUTION
+type: bug
+title: "qdd init/doctor/sync resolvían la raíz del proyecto con os.Getwd() crudo, sin buscar hacia arriba"
+description: "IntegrationManager.SyncAll(projectPath) se invocaba desde cli/cmd/init.go, cli/cmd/doctor.go y cli/cmd/mcp_agile.go (tool MCP qdd_sync) pasando directamente os.Getwd(), sin resolver la raíz real del proyecto/git. Al ejecutar estos comandos desde subdirectorios del propio monorepo (cli/, cli/cmd/, cli/ui/), se generaron copias duplicadas y parciales de .cursorrules, .clauderc, .antigravityrules, .claude/, .cursor/, .agents/ (y en un caso un .qdd/ anidado en cli/ui/) en lugar de operar sobre la raíz real del repositorio."
+impact: "MEDIUM - No afecta la lógica de auditoría/certificación, pero genera artefactos duplicados y confusos que pueden hacer que un agente (o humano) no sepa cuál copia de las reglas de gobernanza es la real, y ensucia el repositorio con archivos generados por accidente."
+status: RESOLVED
+feature: "CLI - Integraciones IA (qdd init / qdd doctor / qdd_sync)"
+author: "QDD System"
+created_at: "2026-07-17T00:00:00-04:00"
+parent: "CERT-033-PROJECT-STRUCTURE-SEPARATION"
+resolves: ""
+metadata:
+  environment: "cli"
+  component: "cli/pkg/integration/detector.go"
+  root_cause: "os.Getwd() sin búsqueda ascendente de la raíz del proyecto (.git/.qdd)"
+  fix: "Se agregó integration.FindProjectRoot(startPath): primero camina hacia arriba buscando el .qdd EXISTENTE más cercano (respeta sandboxes/proyectos anidados intencionales, como el .qdd dummy que cli/cmd/pipeline_test.go crea localmente para aislar sus subprocesos); solo si no encuentra ninguno cae a buscar el .git más cercano (para que un primer `qdd init` desde un subdirectorio apunte a la raíz real). Se usa en cli/cmd/init.go, cli/cmd/doctor.go y cli/cmd/mcp_agile.go antes de invocar SyncAll/createQDDStructure."
+  regression_caught_during_fix: "La primera versión del fix (buscar solo .git, ignorando .qdd) rompió el aislamiento de cli/cmd/pipeline_test.go: al correr `go test ./cmd/...`, el binario de prueba heredaba cwd=cli/cmd/, encontraba el .git real del repo subiendo el árbol, y terminaba ejecutando `qdd init`/sync DE VERDAD sobre el .qdd, .cursor/mcp.json y .qdd/state.json reales del framework en lugar de sobre el sandbox local del test. Se detectó por `git status` mostrando esos archivos modificados tras correr los tests, y se corrigió priorizando el .qdd más cercano antes que el .git."
+  test_added: "cli/pkg/integration/detector_test.go - TestFindProjectRoot_WalksUpToGitRoot, TestFindProjectRoot_PrefersNearestExistingQDDOverOuterGit (cubre la regresión detectada) y TestFindProjectRoot_FallsBackWhenNoGitFound"

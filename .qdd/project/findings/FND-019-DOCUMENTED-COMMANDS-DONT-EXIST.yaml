@@ -1,0 +1,36 @@
+id: FND-019-DOCUMENTED-COMMANDS-DONT-EXIST
+type: gap
+title: "Comandos documentados como CLI (README, getting-started, command-reference) no existen como subcomandos reales"
+description: |
+  Auditoría de superficie de comandos (`qdd learn` y análogos) tras ejecución de `qdd learn` real,
+  que reveló que cae al handler genérico de intención en lenguaje natural (deprecado) en vez de ejecutar
+  algo útil. Se catalogó toda la documentación pública contra los subcomandos cobra realmente registrados
+  (`rootCmd.AddCommand`) y las tools MCP realmente registradas (`mcp.NewTool`).
+
+  Resultado — tres categorías reales:
+  1. Existen como subcomando CLI real: audit, benchmark, certify, dashboard, doctor, init, mcp-server.
+  2. Existen ÚNICAMENTE como tool MCP (fallan si se tipean directo en terminal, caen al mensaje de
+     "motor cognitivo deprecado"): learn (qdd_learn), sprint (qdd_sprint), sync (qdd_sync),
+     release (qdd_release), score (qdd_score), status (qdd_status).
+  3. NO existen en ninguna forma (ni CLI ni MCP tool), pese a estar documentados con tabla y
+     descripción en docs/command-reference.md y docs/getting-started.md: validate, review, ui, api,
+     db, docs, sync-ai.
+
+  Esto afecta: README.md, docs/getting-started.md, docs/command-reference.md, rfcs/0001-qdd-init.md,
+  cli/pkg/dashboard/state.go (diagrama del lifecycle embebido en el dashboard), y dos puntos donde el
+  propio runtime le decía activamente al usuario que ejecutara un comando roto:
+  cli/pkg/qcl/gatekeeper.go (mensajes de error del Gatekeeper) y cli/cmd/init.go (mensaje de "siguiente
+  paso" impreso al terminar `qdd init`).
+impact: "HIGH - El onboarding oficial (qdd init -> getting-started.md) le indica al usuario ejecutar `qdd learn` como paso obligatorio; al hacerlo, no pasa nada útil (solo un aviso de motor deprecado), lo cual rompe la confianza en el framework justo en el primer contacto. El Gatekeeper también instruía a los usuarios a 'arreglar' un contexto insuficiente ejecutando un comando inexistente, dejándolos sin salida real."
+status: PARTIALLY_RESOLVED
+feature: "CLI - Superficie de comandos / Onboarding"
+author: "QDD System"
+created_at: "2026-07-17T00:00:00-04:00"
+parent: ""
+resolves: ""
+metadata:
+  environment: "cli"
+  fixed_now:
+    - "cli/pkg/qcl/gatekeeper.go: los 2 mensajes de error ya no apuntan a `qdd learn` (CLI inexistente); ahora indican pedirle a un asistente de IA conectado por MCP que use la tool qdd_learn."
+    - "cli/cmd/init.go: el mensaje de 'Siguiente paso' tras un init exitoso ya no sugiere `qdd learn`; ahora indica el flujo real vía MCP."
+  pending_decision: "Falta decidir la dirección de fondo para el resto de la documentación (README.md, docs/getting-started.md, docs/command-reference.md, rfcs/0001-qdd-init.md, cli/pkg/dashboard/state.go): (a) reescribir todos esos documentos para reflejar que learn/sprint/sync/release/score/status solo se invocan pidiéndoselo a un IDE con IA vía MCP, nunca tipeando el comando en terminal, o (b) implementar subcomandos CLI reales para los que tenga sentido tenerlos standalone. Los comandos validate/review/ui/api/db/docs/sync-ai no existen en ninguna forma y deben removerse de la documentación o implementarse — decisión de producto pendiente, no tomada unilateralmente en esta pasada."

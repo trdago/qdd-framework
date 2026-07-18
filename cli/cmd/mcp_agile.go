@@ -214,6 +214,7 @@ func registerSyncTool(s *server.MCPServer) {
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error obteniendo directorio actual: %v", err)), nil
 		}
+		cwd = integration.FindProjectRoot(cwd)
 
 		manager := integration.NewIntegrationManager()
 		err = manager.SyncAll(cwd)

@@ -53,11 +53,11 @@ func readConfigFile(configPath string) (*ConfigFile, error) {
 
 func validateConfigAlignment(config *ConfigFile) error {
 	if len(config.Languages) == 0 {
-		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el lenguaje (languages) en config.yaml o ejecuta `qdd learn`")
+		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el lenguaje (languages) en config.yaml, o pide a tu asistente de IA conectado por MCP que ejecute la tool `qdd_learn`")
 	}
 
 	if config.Architecture == "" {
-		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el patrón arquitectónico (architecture) en config.yaml o ejecuta `qdd learn`")
+		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el patrón arquitectónico (architecture) en config.yaml, o pide a tu asistente de IA conectado por MCP que ejecute la tool `qdd_learn`")
 	}
 
 	return nil

@@ -20,11 +20,20 @@ func TestPipelineExecution(t *testing.T) {
 	if err := buildCmd.Run(); err != nil {
 		t.Skipf("Skipping test because go build failed: %v", err)
 	}
+	defer os.Remove(binName)
 
 	// Create dummy context so Gatekeeper doesn't block rootCmd execution
 	os.MkdirAll(".qdd", 0755)
 	os.WriteFile(".qdd/state.json", []byte(`{"status":"initialized","version":"v1.6.0"}`), 0644)
 	defer os.RemoveAll(".qdd")
+
+	// "qdd run init" also syncs AI-adapter dotfiles into this sandbox (this
+	// directory is resolved as its own project root because of the .qdd
+	// created above) — clean those up too so the test doesn't leave stray
+	// .cursorrules/.claude/etc behind in the real cli/cmd/ source tree.
+	for _, artifact := range []string{".cursorrules", ".clauderc", ".antigravityrules", ".claude", ".cursor", ".agents"} {
+		defer os.RemoveAll(artifact)
+	}
 
 	testValidCommand(t, binName)
 	testInvalidCommand(t, binName)

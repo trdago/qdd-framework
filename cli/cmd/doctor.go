@@ -52,6 +52,7 @@ var doctorCmd = &cobra.Command{
 			fmt.Printf("[!] Error obteniendo directorio actual: %v\n", err)
 			os.Exit(1)
 		}
+		cwd = integration.FindProjectRoot(cwd)
 
 		if autoFix {
 			fmt.Println("[!] Doctor: Ejecutando auto-reparación inicial...")

@@ -35,6 +35,7 @@ func runInit(cmd *cobra.Command, args []string) {
 		fmt.Printf("[!] Error obteniendo directorio actual: %v\n", err)
 		return
 	}
+	cwd = integration.FindProjectRoot(cwd)
 	executeInitLoop(cwd)
 }
 
@@ -48,7 +49,7 @@ func executeInitLoop(cwd string) {
 		success, failCount := runInitIteration(cwd)
 		if success {
 			fmt.Println("[!] QDD inicializado exitosamente y validado por QDD Doctor.")
-			fmt.Println("[!] Siguiente paso: ejecuta `qdd learn`")
+			fmt.Println("[!] Siguiente paso: conecta tu IDE con IA (Cursor/Claude Code/Antigravity) vía MCP y pídele que ejecute la tool `qdd_learn` para asimilar la arquitectura.")
 			return
 		}
 
