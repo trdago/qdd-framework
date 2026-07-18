@@ -1,0 +1,64 @@
+id: ADR-004
+title: "qdd run --keep-alive: auto-reparación real vía agentes de IA locales (supersede ADR-003)"
+date: "2026-07-17"
+status: accepted
+context: |
+  El usuario pidió expandir `qdd run` para que, además de mantener vivo un proceso, tenga "acceso al
+  agente" con suficiente inteligencia para lograr sus objetivos — extrapolando a Claude y otros agentes
+  soportados la integración que ya usa con Antigravity (agentapi + polling de transcript.jsonl). Se aclaró
+  explícitamente que esto reemplaza ADR-003 (reporta-y-pausa): ahora, ante un crash, QDD debe invocar al
+  agente para que aplique el fix real y luego reanude la ejecución.
+
+  Antes de implementarlo se verificó en vivo un punto crítico: `claude -p` en modo no interactivo se niega
+  a escribir archivos sin aprobación humana ("El permiso de escritura aún no está habilitado"). Aplicar un
+  fix desatendido requiere `--dangerously-skip-permissions`, que además de habilitar escritura de archivos
+  habilita ejecución arbitraria de shell — sin ninguna guarda. Se presentó esto explícitamente al usuario
+  (acotado a solo Edit/Write vs. sin restricciones vs. hybrido con aprobación humana) y eligió sin
+  restricciones, aceptando el riesgo a cambio de máxima capacidad de auto-reparación.
+decision: |
+  Se implementó un nuevo paquete agnóstico `cli/pkg/cognitive` que le da a QDD (no a un IDE externo — es
+  la dirección inversa del flujo MCP normal) la capacidad de delegarle una pregunta puntual a un agente
+  de IA local disponible:
+  - `Backend` es la interfaz común (Name/Available/Ask). `Ask()` prueba cada backend disponible en orden
+    y devuelve la primera respuesta — de solo lectura, sin acceso a herramientas, para juicios puntuales
+    (ej. "¿esto es un falso positivo?").
+  - `ClaudeBackend` (verificado en vivo): usa `claude -p "<prompt>"` para Ask(), y un método separado
+    `AttemptRepair()` que agrega `--dangerously-skip-permissions` — deliberadamente en una interfaz
+    aparte (`RepairCapable`) para que nadie obtenga acceso de escritura autónomo por accidente a través
+    del Ask() genérico.
+  - `AntigravityBackend` (implementado fielmente según la spec del usuario: agentapi + polling de
+    transcript.jsonl bajo ~/.gemini/antigravity/), pero SOLO implementa Ask() de solo lectura — no se
+    verificó ningún flag equivalente a --dangerously-skip-permissions para agentapi en este entorno, así
+    que no se le atribuyó capacidad de reparación no verificada.
+  - `CursorBackend`: best-effort, no verificado (no se encontró ningún CLI de Cursor en esta máquina).
+    Solo Ask(), sin RepairCapable.
+  - `qdd run --keep-alive` (cli/cmd/run_supervisor.go) ahora, ante un crash: (1) sigue generando el
+    Finding con pkg/bugreport como evidencia permanente, (2) invoca `cognitive.AttemptRepair()` con un
+    prompt que pide diagnosticar, aplicar el fix, agregar un test si es razonable, correr pruebas, y
+    responder con un veredicto estructurado `{"fixed", "summary", "test_added"}`, (3) si fixed=true,
+    marca el Finding como RESOLVED (pkg/bugreport.MarkResolved) y reintenta el comando original, (4) si
+    fixed=false o no hay backend con capacidad de reparación disponible, detiene la supervisión para
+    revisión humana.
+  - Límite de `maxAutoRepairAttempts = 3`: si el ciclo crash→reparar→reintentar se repite 3 veces sin
+    lograr una ejecución limpia, se detiene definitivamente en vez de loopear indefinidamente quemando
+    llamadas al agente sobre un bug que no se está resolviendo. Esta cota es una medida de ingeniería
+    prudente que no reduce el nivel de permisos elegido por el usuario, solo acota las iteraciones.
+consequences:
+  positive:
+    - Auto-reparación real y verificada en vivo (no solo un diseño teórico): se confirmó que
+      --dangerously-skip-permissions es necesario y funciona para que Claude Code escriba archivos sin
+      supervisión humana.
+    - Diseño agnóstico real: agregar un cuarto agente solo requiere implementar Backend (y opcionalmente
+      RepairCapable) sin tocar el resto del sistema.
+    - El Finding sigue siendo la fuente de verdad permanente incluso cuando el fix es automático — nunca
+      se pierde el rastro de qué pasó y por qué, cumpliendo 'Aprendizaje Perpetuo'.
+  negative:
+    - Riesgo de seguridad real y aceptado explícitamente por el usuario: durante el ciclo de reparación,
+      el agente tiene acceso sin restricciones (edición de archivos + shell arbitrario) al repositorio.
+      Un fix incorrecto, o una acción destructiva del agente, no tiene ninguna guarda más allá del límite
+      de 3 intentos.
+    - Antigravity y Cursor no tienen capacidad de reparación verificada todavía — si son los únicos
+      backends disponibles en un entorno dado, `qdd run --keep-alive` caerá siempre a "revisión humana"
+      tras un crash, igual que en ADR-003, hasta que se verifique un mecanismo equivalente para ellos.
+    - El veredicto de "fixed: true" depende de que el agente sea honesto/correcto sobre su propio trabajo;
+      no hay una verificación independiente más allá de reintentar la ejecución original.

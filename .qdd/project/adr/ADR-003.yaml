@@ -1,0 +1,54 @@
+id: ADR-003
+title: "qdd run --keep-alive: supervisión de procesos con reporte-y-pausa (sin auto-reparación de IA)"
+date: "2026-07-17"
+status: superseded_by_ADR-004
+context: |
+  El usuario pidió que `qdd run` pudiera mantener vivo un proceso/binario externo en loop, y que al
+  detectar un error lo detuviera, capturara el problema, lo "reparara con qdd bug" (dejando el error
+  y su mejora reportados con un test), y luego retomara el comando original — resiliencia en la ejecución.
+
+  Se aclaró explícitamente con el usuario un punto crítico: QDD ya deprecó su motor cognitivo interno
+  (ADR previo / runQCL en cli/cmd/root.go) — el binario nunca llama a un LLM por sí mismo, siempre opera
+  como servidor MCP para que un IDE con IA externa lo invoque. Ante la pregunta explícita de si "reparar"
+  debía significar que QDD llamara a una IA propia para arreglar el código automáticamente, o si debía
+  reportar el problema y pausar la supervisión hasta que un humano o una IA externa (vía MCP) resolviera
+  el finding, el usuario eligió la segunda opción.
+decision: |
+  Se implementó `qdd run --keep-alive <comando> [args...]` (cli/cmd/run_supervisor.go, sobre el nuevo
+  paquete cli/pkg/supervisor) y el comando `qdd bug` (cli/cmd/bug.go, sobre el nuevo paquete
+  cli/pkg/bugreport):
+  - El supervisor reinicia el proceso automáticamente en cada salida limpia (exit code 0), manteniéndolo
+    "siempre vivo". Ante una salida con error (exit code != 0), detiene la supervisión de inmediato — NUNCA
+    reintenta ciegamente en loop sobre el mismo error.
+  - En ese momento llama a pkg/bugreport.File(), que escribe un Finding real con status OPEN (siguiendo el
+    schema ya usado por el resto del proyecto) más su evidencia completa (comando, exit code, tail de
+    stdout/stderr) en .qdd/project/evidence/bugs/, y termina el proceso con código de salida distinto de
+    cero indicando al usuario cómo reanudar una vez resuelto.
+  - bugreport.File() NO genera un test de regresión sintético ni intenta parchear el código del proceso
+    supervisado: no tiene forma de saber su lenguaje o framework. En su lugar marca metadata.test_pending=true
+    y deja una nota explícita de que quien resuelva el finding (humano o IA vía MCP) debe agregar el test
+    antes de marcarlo RESOLVED — cumpliendo el principio 'Auto-TDD ante Bugs' del manifiesto sin fingir
+    automatizarlo donde no es posible hacerlo de forma confiable.
+  - `qdd bug` también existe como comando standalone (no solo invocado internamente por el supervisor),
+    para reportar errores a mano; se agregó a la lista de comandos exentos del Gatekeeper en root.go junto
+    a init/learn/doctor, porque un proceso supervisado puede fallar incluso en un proyecto sin `qdd init`
+    completo y ese fallo igual debe poder registrarse.
+  - `qdd run` sigue soportando su modo previo (pipeline de subcomandos QDD, ej. `qdd run audit certify`)
+    sin cambios: el modo supervisor se activa solo con el flag explícito `--keep-alive` como segundo
+    argumento, para no romper compatibilidad ni ambigüedad entre "encadenar subcomandos de QDD" y
+    "supervisar un binario externo arbitrario".
+consequences:
+  positive:
+    - Resiliencia real sin fingir inteligencia que el binario no tiene: cada Finding generado por un crash
+      queda inmediatamente visible para `qdd evolution` como la siguiente prioridad a resolver.
+    - No revierte la decisión arquitectónica de "sin motor cognitivo interno" — mantiene coherencia con
+      runQCL y el resto del framework.
+    - Reutiliza el schema real de Findings (ya usado por el resto del proyecto) en vez de inventar uno nuevo.
+  negative:
+    - No hay auto-reparación real: un proceso que falla requiere intervención humana o de un IDE con IA
+      antes de poder reanudarse. Si en el futuro se decide agregar reparación autónoma, es un proyecto
+      arquitectónicamente mayor (requeriría reintroducir integración directa con un proveedor de IA, con
+      su propio control de costos y límites de seguridad) y debe tratarse como una decisión aparte.
+    - La detección de "error" es binaria (exit code == 0 vs != 0); no distingue crashes transitorios
+      (ej. un timeout de red recuperable) de errores reales de código — queda para una iteración futura
+      si se necesita esa granularidad.

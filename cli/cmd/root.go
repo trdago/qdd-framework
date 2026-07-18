@@ -42,8 +42,10 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 		workingPath := filepath.Join(cwd, ".qdd", "working")
 		os.WriteFile(workingPath, []byte(name), 0644)
 
-		// No exigimos contexto si apenas estamos inicializando, aprendiendo o reparando
-		if name == "init" || name == "learn" || name == "doctor" {
+		// No exigimos contexto si apenas estamos inicializando, aprendiendo, reparando,
+		// o reportando un error (bug): un proceso supervisado puede fallar incluso en un
+		// proyecto que todavía no completó `qdd init`, y ese fallo igual debe poder registrarse.
+		if name == "init" || name == "learn" || name == "doctor" || name == "bug" {
 			return nil
 		}
 		
@@ -84,6 +86,11 @@ func runQCL(input string) {
 }
 
 func Execute() {
+	if isSupervisorMode() {
+		executeSupervisor(os.Args[3:])
+		return
+	}
+
 	if isPipelineMode() {
 		executePipeline()
 		return
@@ -96,6 +103,10 @@ func Execute() {
 
 func isPipelineMode() bool {
 	return len(os.Args) > 1 && os.Args[1] == "run"
+}
+
+func isSupervisorMode() bool {
+	return isPipelineMode() && len(os.Args) > 2 && os.Args[2] == "--keep-alive"
 }
 
 func executePipeline() {
