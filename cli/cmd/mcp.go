@@ -38,6 +38,7 @@ var mcpCmd = &cobra.Command{
 		registerScoreTool(s)
 		registerStatusTool(s)
 		registerLearnTool(s)
+		registerEvolutionTool(s)
 		registerMapTool(s)
 		
 		registerFindingsTool(s)

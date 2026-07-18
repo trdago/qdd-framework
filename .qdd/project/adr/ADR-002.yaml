@@ -1,0 +1,40 @@
+id: ADR-002
+title: "qdd evolution: motor de recomendación determinista sobre el conocimiento acumulado del proyecto"
+date: "2026-07-17"
+status: accepted
+context: |
+  El usuario pidió que QDD pudiera usar sus propias herramientas para determinar cuál debería ser la
+  siguiente mejora, revisando la coherencia del proyecto a lo largo de su evolución (findings, certificaciones,
+  auditoría, historial de score) y detectando brechas/incoherencias — sin que eso implique que el propio
+  comando cree o adopte certificaciones sin supervisión humana (Modo Consultivo).
+decision: |
+  Se implementó `qdd evolution` (CLI, Fast Path) y la tool MCP equivalente `qdd_evolution`, en el nuevo
+  paquete cli/pkg/evolution. Es 100% de solo lectura y determinista (no invoca IA): agrega cuatro señales
+  ya existentes en el ecosistema QDD —
+    1. Violaciones activas de `qdd audit` (audit.NewEngine(cwd).RunAll()).
+    2. Findings abiertos en .qdd/project/findings/ (status distinto de RESOLVED/CLOSED), ordenados por
+       impacto (CRITICAL > HIGH > MEDIUM > resto).
+    3. Certificaciones de proyecto con status "pending" en .qdd/project/certification/.
+    4. Tendencia y score más reciente de .qdd/project/metrics/certificate_history.json.
+  Con esas señales aplica una cascada de prioridad fija y determinista (Empeorando > violaciones activas >
+  finding abierto de mayor impacto > certificación pendiente > sugerencia genérica de adoptar un nuevo
+  estándar) y emite una única recomendación accionable, además de guardar evidencia en
+  .qdd/project/evidence/evolution/.
+  Se descartó deliberadamente cualquier lógica de "certificaciones core no adoptadas por el proyecto"
+  (un CoreCert vs ProjectCert diff): la documentación menciona un mecanismo `isCore`/`MISSING-PROJECT-CERT`
+  para esto, pero no existe implementación real en el motor de auditoría — inventar esa lógica ahora
+  habría sido una suposición sin respaldo en el schema real de las certificaciones.
+consequences:
+  positive:
+    - Reutiliza el motor de auditoría y el esquema de findings/certificaciones existente sin duplicar lógica.
+    - Es determinista y auditable: la misma entrada produce siempre la misma recomendación, sin coste de IA.
+    - Nunca crea ni certifica nada por sí solo — respeta el principio de Modo Consultivo.
+    - Dogfooding real: al construirlo, `qdd audit` detectó violaciones reales de CERT-031 (complejidad
+      ciclomática) en el propio código de evolution.go, validando que el motor de auditoría funciona
+      correctamente; se refactorizó hasta llegar a 0 violaciones.
+  negative:
+    - No cruza certificaciones core disponibles contra las adoptadas por el proyecto (ver FND-019 y la
+      ausencia de un mecanismo isCore real) — queda como extensión futura si se decide implementar esa
+      lógica en el motor de auditoría primero.
+    - La priorización es una heurística fija (no configurable); si un proyecto quisiera otro orden de
+      señales, hoy requeriría cambiar el código de recommend() en cli/pkg/evolution/evolution.go.
