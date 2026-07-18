@@ -1324,9 +1324,9 @@ onUnmounted(() => {
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 4. Validate (18deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(18deg) translate(170px) rotate(-18deg);" @click="openDetail({title: '/qdd validate', content: 'Auditoría estructural.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(18deg) translate(170px) rotate(-18deg);" @click="openDetail({title: '/qdd validate', content: 'Roadmap: aún no implementado como comando real. Hoy la auditoría estructural la cubre `qdd audit`.'}, 'Lifecycle')">
                       <div class="step-num">4</div><div class="step-label">Validate</div>
-                      <div class="badge-read">Lector</div>
+                      <div class="badge-roadmap">Roadmap</div>
                    </div>
                    <!-- 5. Certify (54deg) -->
                    <div class="corp-step radial-step clickable-card" style="transform: rotate(54deg) translate(170px) rotate(-54deg);" @click="openDetail({title: '/qdd certify', content: 'Certificación estricta.'}, 'Lifecycle')">
@@ -1334,19 +1334,19 @@ onUnmounted(() => {
                       <div class="badge-read">Lector</div>
                    </div>
                    <!-- 6. UI (90deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(90deg) translate(170px) rotate(-90deg);" @click="openDetail({title: '/qdd ui', content: 'Generación frontend.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(90deg) translate(170px) rotate(-90deg);" @click="openDetail({title: '/qdd ui', content: 'Roadmap: aún no implementado como comando real. Hoy la generación de UI se delega en lenguaje natural a tu IDE con IA conectado por MCP.'}, 'Lifecycle')">
                       <div class="step-num muta">6</div><div class="step-label">UI</div>
-                      <div class="badge-muta">Mutación</div>
+                      <div class="badge-roadmap">Roadmap</div>
                    </div>
                    <!-- 7. API (126deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(126deg) translate(170px) rotate(-126deg);" @click="openDetail({title: '/qdd api', content: 'Generación backend.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(126deg) translate(170px) rotate(-126deg);" @click="openDetail({title: '/qdd api', content: 'Roadmap: aún no implementado como comando real. Hoy la generación de API se delega en lenguaje natural a tu IDE con IA conectado por MCP.'}, 'Lifecycle')">
                       <div class="step-num muta">7</div><div class="step-label">API</div>
-                      <div class="badge-muta">Mutación</div>
+                      <div class="badge-roadmap">Roadmap</div>
                    </div>
                    <!-- 8. DB (162deg) -->
-                   <div class="corp-step radial-step clickable-card" style="transform: rotate(162deg) translate(170px) rotate(-162deg);" @click="openDetail({title: '/qdd db', content: 'Generación esquemas DB.'}, 'Lifecycle')">
+                   <div class="corp-step radial-step clickable-card" style="transform: rotate(162deg) translate(170px) rotate(-162deg);" @click="openDetail({title: '/qdd db', content: 'Roadmap: aún no implementado como comando real. Hoy la generación de esquemas se delega en lenguaje natural a tu IDE con IA conectado por MCP.'}, 'Lifecycle')">
                       <div class="step-num muta">8</div><div class="step-label">DB</div>
-                      <div class="badge-muta">Mutación</div>
+                      <div class="badge-roadmap">Roadmap</div>
                    </div>
                    <!-- 9. Sprint (198deg) -->
                    <div class="corp-step radial-step clickable-card" style="transform: rotate(198deg) translate(170px) rotate(-198deg);" @click="openDetail({title: '/qdd sprint', content: 'Iteración incremental.'}, 'Lifecycle')">
@@ -1368,6 +1368,10 @@ onUnmounted(() => {
                   <div style="display: flex; align-items: center; gap: 8px;">
                      <span style="width: 12px; height: 12px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; border-radius: 50%;"></span>
                      <span style="font-size: 12px; color: var(--text-secondary);">Comandos de Mutación (Escriben Código)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                     <span style="width: 12px; height: 12px; background: rgba(156, 163, 175, 0.2); border: 1px solid #9ca3af; border-radius: 50%;"></span>
+                     <span style="font-size: 12px; color: var(--text-secondary);">Roadmap (aún no implementado)</span>
                   </div>
                </div>
            </div>
@@ -3082,6 +3086,14 @@ body {
   padding: 2px 6px;
   background: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
+  border-radius: 12px;
+}
+
+.badge-roadmap {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
   border-radius: 12px;
 }
 
