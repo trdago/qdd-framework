@@ -1,0 +1,19 @@
+id: FND-022-CI-BROKEN-BY-CORE-ASSETS-UNTRACKING
+type: bug
+title: "Untrackear cli/cmd/core_assets/ rompió el workflow de CI 'Code Quality & Audit'"
+description: "Al limpiar artefactos generados del repo (commit 34ff265), se dejó de trackear cli/cmd/core_assets/ (embebido en el binario vía //go:embed all:core_assets/core) asumiendo que se regenera antes de cada build. Se verificó localmente con `npm run build:cli`, que sí hace `rm -rf cli/cmd/core_assets && cp -r .qdd/core/* ...` antes de compilar. Pero no se verificó el otro punto de entrada de build: el Makefile, que es lo que usa .github/workflows/quality.yml vía `make build`. El target `build-cli` del Makefile nunca regeneraba core_assets — antes funcionaba solo porque la carpeta estaba commiteada en git. Al monitorear el deploy con `gh run list`/`gh run view` tras el push, se encontró el run fallido con el error real: 'pattern all:core_assets/core: no matching files found'."
+impact: "HIGH - CI quedó roto en main (workflow 'Code Quality & Audit' en rojo) inmediatamente después del push, bloqueando cualquier validación automática de PRs/commits futuros hasta que se detectara."
+status: RESOLVED
+feature: "CI/CD - Makefile / GitHub Actions"
+author: "QDD System"
+created_at: "2026-07-18T00:00:00-04:00"
+parent: ""
+resolves: ""
+metadata:
+  environment: "ci"
+  component: "Makefile (build-cli, test targets)"
+  root_cause: "Dos entry points de build (package.json build:cli vs Makefile build-cli) habían divergido silenciosamente: solo uno regeneraba el asset embebido. Untrackear el artefacto expuso la divergencia que antes quedaba oculta porque el artefacto persistía commiteado."
+  fix: "Se agregó el target `core-assets` al Makefile (mismos pasos que el script npm) y se lo declaró como prerequisito de `build-cli` y de `test` (los tests de Go también compilan el paquete cmd, que tiene el go:embed). Verificado localmente reproduciendo exactamente los 3 pasos de CI (make build, make test, make audit) desde un estado limpio (rm -rf cli/cmd/core_assets) antes de pushear el fix."
+  detection_method: "Monitoreo activo de GitHub Actions con `gh run list` / `gh run view --log-failed` inmediatamente después del push, a pedido explícito del usuario ('tienes que monitorear el despliegue con gh') — sin ese paso el fallo habría pasado desapercibido."
+  test_added: "Verificación manual reproduciendo el pipeline de CI localmente (no hay test automatizado de 'el Makefile funciona sin core_assets pre-existente' — sería un test de infraestructura, no de código Go/Vue; test_pending refleja eso."
+  test_pending: true
