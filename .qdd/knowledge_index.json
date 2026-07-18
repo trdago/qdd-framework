@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/command-reference.md",
+    "size_bytes": 6498,
+    "mod_time": "2026-07-17 21:16:32"
+  },
+  {
+    "path": "docs/framework-architecture.md",
+    "size_bytes": 7215,
+    "mod_time": "2026-07-17 17:19:32"
+  },
+  {
+    "path": "docs/getting-started.md",
+    "size_bytes": 2434,
+    "mod_time": "2026-07-06 18:05:57"
+  },
+  {
+    "path": "rfcs/0001-qdd-init.md",
+    "size_bytes": 3897,
+    "mod_time": "2026-07-17 17:19:23"
+  },
+  {
+    "path": "rfcs/0002-qdd-cognitive-layer.md",
+    "size_bytes": 3188,
+    "mod_time": "2026-07-01 21:33:22"
+  },
+  {
+    "path": "specification/qdd-spec.md",
+    "size_bytes": 491,
+    "mod_time": "2026-07-01 21:13:26"
+  }
+]
