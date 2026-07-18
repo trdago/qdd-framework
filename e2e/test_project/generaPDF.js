@@ -1,1 +1,0 @@
-const generarPDFS = require('./src/funcionesLocales/generarPDFS.service')
