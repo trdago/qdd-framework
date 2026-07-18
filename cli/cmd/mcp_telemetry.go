@@ -8,15 +8,55 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/evolution"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/qcl/harness"
 	"github.com/qdd-framework/qdd/pkg/topology"
 	"gopkg.in/yaml.v3"
 )
+
+func registerEvolutionTool(s *server.MCPServer) {
+	tool := mcp.NewTool("qdd_evolution",
+		mcp.WithDescription("Estudia findings, certificaciones, violaciones de auditoría e historial de score para recomendar la siguiente mejora del proyecto. Solo lectura: nunca crea certificaciones por sí sola, propone en Modo Consultivo."),
+	)
+	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error obteniendo directorio actual: %v", err)), nil
+		}
+		cwd = integration.FindProjectRoot(cwd)
+
+		violations := audit.NewEngine(cwd).RunAll()
+		report, err := evolution.Analyze(cwd, len(violations))
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error analizando la evolución: %v", err)), nil
+		}
+
+		return mcp.NewToolResultText(formatEvolutionOutput(report)), nil
+	})
+}
+
+func formatEvolutionOutput(r *evolution.Report) string {
+	out := "--- QDD EVOLUTION REPORT ---\n\n"
+	out += fmt.Sprintf("Score: %d/100 (Tendencia: %s)\n", r.Score, r.Tendency)
+	out += fmt.Sprintf("Violaciones de auditoría activas: %d\n", r.Violations)
+	out += fmt.Sprintf("Findings abiertos: %d\n", len(r.OpenFindings))
+	for _, f := range r.OpenFindings {
+		out += fmt.Sprintf("  - %s: %s\n", f.ID, f.Title)
+	}
+	out += fmt.Sprintf("Certificaciones de proyecto pendientes: %d\n", len(r.PendingCerts))
+	for _, c := range r.PendingCerts {
+		out += fmt.Sprintf("  - %s: %s\n", c.ID, c.Title)
+	}
+	out += fmt.Sprintf("\nPRIORIDAD: %s\n%s\n", r.Priority, r.Recommendation)
+	return out
+}
 
 func registerScoreTool(s *server.MCPServer) {
 	registerGraphQueryTool(s)
@@ -177,6 +217,7 @@ type KnowledgeIndexEntry struct {
 
 func handleLearnTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	cwd, _ := os.Getwd()
+	cwd = integration.FindProjectRoot(cwd)
 	index := buildKnowledgeIndex(cwd)
 
 	if len(index) == 0 {
@@ -186,25 +227,51 @@ func handleLearnTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 	persistKnowledgeIndex(cwd, index)
 
 	uiInstruction := buildUIInstruction(cwd)
+	priorUnderstanding, hadPrior := loadExistingUnderstanding(cwd)
 
 	instructions := fmt.Sprintf(`[INSTRUCCIÓN PARA LA IA DEL IDE] (MAP-REDUCE COGNITIVO)
-Como Arquitecto Principal del Proyecto, debes leer los documentos listados en .qdd/knowledge_index.json y generar el reporte de inteligencia (Intelligence Report).
+Como Arquitecto Principal del Proyecto, debes leer los documentos listados en .qdd/knowledge_index.json y generar/actualizar el reporte de inteligencia (Intelligence Report).
+
+%s
+
 Por favor genera un archivo JSON estrictamente válido en la ruta ".qdd/understanding.json" con la siguiente estructura exacta:
 {
   "summary": "Resumen ejecutivo del proyecto",
   "components": ["Componente 1", "Componente 2"],
   "objectives": ["Objetivo 1", "Objetivo 2"],
   "guidelines": ["Regla 1", "Regla 2"],
-  "next_steps": "Siguientes pasos recomendados"
+  "gaps_detected": ["Incoherencia o función no alineada encontrada en esta pasada (documentación vs código, objetivo vs implementación real), si la hay"],
+  "next_steps": "Siguientes pasos recomendados",
+  "last_reviewed": "%s"
 }
 
-1. NO intentes leer todos los documentos de golpe.
-2. Usa tus herramientas nativas para leer los archivos uno por uno según el índice.
-3. Al finalizar, genera el archivo .qdd/understanding.json.
+1. NO intentes leer todos los documentos de golpe. Usa tus herramientas nativas para leer los archivos uno por uno según el índice de .qdd/knowledge_index.json.
+2. Consulta también ".qdd/project/topology.json" (o ejecuta la tool qdd_map si no existe todavía) y usa qdd_query_graph sobre .qdd/knowledge.db para cruzar la arquitectura documentada contra la estructura real del código.
+3. Revisa activamente incoherencias: documentación que describe algo que el código no hace (o viceversa), y funciones/componentes que no estén alineados con los "objectives" ya declarados. Vuélcalas en "gaps_detected". Si alguna tiene impacto real, sugiere registrarla como Finding en .qdd/project/findings/ en vez de solo mencionarla.
+4. Al finalizar, escribe ".qdd/understanding.json".
 %s
-`, uiInstruction)
+`, learnModeInstruction(hadPrior, priorUnderstanding), time.Now().Format(time.RFC3339), uiInstruction)
 
 	return mcp.NewToolResultText(instructions), nil
+}
+
+// learnModeInstruction tells the calling AI whether this is a first pass or a
+// re-run: re-running qdd_learn must build on the existing understanding.json
+// instead of blindly overwriting it from scratch each time.
+func learnModeInstruction(hadPrior bool, priorUnderstanding string) string {
+	if !hadPrior {
+		return "Es la primera vez que se ejecuta este análisis para el proyecto: parte de cero."
+	}
+	return "Ya existe un entendimiento previo del proyecto en .qdd/understanding.json:\n" + priorUnderstanding +
+		"\nNo lo descartes: úsalo como punto de partida, verifica si sigue vigente contra el estado actual del código y la documentación, y REFÍNALO agregando detalles nuevos o corrigiendo lo que haya cambiado — no lo reescribas desde cero sin revisarlo primero."
+}
+
+func loadExistingUnderstanding(cwd string) (string, bool) {
+	data, err := os.ReadFile(filepath.Join(cwd, ".qdd", "understanding.json"))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
 }
 
 func buildKnowledgeIndex(cwd string) []KnowledgeIndexEntry {

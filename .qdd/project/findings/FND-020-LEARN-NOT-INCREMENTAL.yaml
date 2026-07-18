@@ -1,0 +1,16 @@
+id: FND-020-LEARN-NOT-INCREMENTAL
+type: gap
+title: "qdd_learn (MAP-REDUCE cognitivo) no era incremental: cada re-ejecución partía de cero"
+description: "handleLearnTool (cli/cmd/mcp_telemetry.go) generaba las instrucciones de aprendizaje sin verificar si ya existía un .qdd/understanding.json previo. Al pedirle a la IA que 're-aprenda' el proyecto, no había forma de que construyera sobre el conocimiento ya acumulado ni de que cruzara la documentación contra la estructura real del código (topología/grafo de conocimiento), ni instrucción explícita de buscar incoherencias entre lo documentado y lo implementado."
+impact: "MEDIUM - Cada corrida de qdd_learn era equivalente a empezar de cero, perdiendo la oportunidad de detectar drift entre el entendimiento anterior y el estado actual del proyecto, y de acumular conocimiento incrementalmente como exige el principio 'Aprendizaje Perpetuo' del manifiesto."
+status: RESOLVED
+feature: "MCP - qdd_learn / qdd_evolution"
+author: "QDD System"
+created_at: "2026-07-17T00:00:00-04:00"
+parent: ""
+resolves: ""
+metadata:
+  environment: "cli/mcp"
+  component: "cli/cmd/mcp_telemetry.go"
+  fix: "handleLearnTool ahora llama a loadExistingUnderstanding(cwd) antes de construir las instrucciones. Si ya existe .qdd/understanding.json, se lo incluye textualmente en el prompt y se le pide a la IA que lo REFINE (no que lo reescriba desde cero). Se agregaron pasos explícitos para: (1) consultar .qdd/project/topology.json / qdd_map y qdd_query_graph sobre .qdd/knowledge.db para cruzar documentación vs código real, y (2) volcar cualquier incoherencia detectada en un nuevo campo 'gaps_detected' del schema de understanding.json, sugiriendo registrar como Finding si tiene impacto real. También se aplicó integration.FindProjectRoot al cwd de la tool, consistente con FND-018."
+  test_added: "cli/cmd/mcp_telemetry_test.go - TestHandleLearnTool_FirstRun_HasNoPriorUnderstanding, TestHandleLearnTool_ReRun_RefinesExistingUnderstanding, TestLoadExistingUnderstanding_MissingFile, TestLearnModeInstruction_FirstRunVsReRun"
