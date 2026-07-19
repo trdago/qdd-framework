@@ -4,6 +4,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.13] - 2026-07-19
+
+### ✨ Nuevas Características
+
+#### 🤖 AI-Guided Pull Requests (`/qdd pr`)
+- **Flujo de Contribuciones Estandarizado**: Se introdujo el comando `/qdd pull request` (o `/qdd pr`) en el motor cognitivo (`qdd.md`). Este flujo permite a los Agentes de IA leer un "Certificado de Contribución" provisto por el usuario, comprender los archivos adjuntos y asimilarlos en el proyecto original evaluando y validando las políticas estrictas de QDD (Zero-Else, Golden Sets).
+- **Plantilla de Aportes (`QDD_PR_CERTIFICATE.md`)**: Añadido el formato base en `.qdd/QDD_PR_CERTIFICATE.md` para que cualquier contribuyente (sea humano o Agente) estandarice su propuesta, prometa cumplir las políticas arquitectónicas y la dirija al Core del framework.
+
 ## [v1.9.12] - 2026-07-15
 
 ### ✨ Nuevas Características

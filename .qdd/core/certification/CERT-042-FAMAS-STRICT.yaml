@@ -1,0 +1,18 @@
+tags:
+    - core
+active: true
+id: CERT-042-FAMAS-STRICT
+name: Famas Strict Rules (No Silent Failures & No Prod Mocks)
+description: |
+    Prohíbe terminantemente la implementación de fallos silenciosos (errores ignorados) en el código.
+    Adicionalmente, prohíbe el uso de mocks en el flujo de ejecución principal del código; los mocks solo son permitidos en los tests (y deben ser limitados, prefiriendo infraestructura real).
+severity: CRITICAL
+rules:
+    - id: ban_silent_failures
+      description: "Los fallos silenciosos (tragar errores sin loguear, manejar o retornar) están prohibidos. Famas debe siempre manejar los errores explícitamente."
+      level: ERROR
+      type: BEHAVIORAL
+    - id: ban_prod_mocks
+      description: "Prohibido inyectar o generar mocks en código de ejecución principal. Mocks sólo están permitidos en tests, y aún así, priorizar golden sets con infra real."
+      level: ERROR
+      type: ARCHITECTURAL
