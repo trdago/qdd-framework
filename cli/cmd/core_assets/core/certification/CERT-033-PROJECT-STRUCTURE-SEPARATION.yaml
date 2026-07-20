@@ -1,0 +1,16 @@
+tags:
+    - core
+active: true
+version: "1.0"
+id: "CERT-033-PROJECT-STRUCTURE-SEPARATION"
+name: "Separación entre Código de Producto y Gobernanza QDD"
+description: "El código fuente real del proyecto (la aplicación que se está construyendo) nunca debe residir dentro de .qdd/. La carpeta .qdd/project/ es exclusivamente para el conocimiento que el framework acumula SOBRE el código (certificaciones, findings, ADRs, evidencia, métricas, sprints) — nunca el código en sí, que vive en la raíz del proyecto."
+category: "Architecture"
+severity: "CRITICAL"
+rules:
+    - type: "dir-not-exist"
+      target: ".qdd/project/src"
+      message: "Jamás debe crearse una carpeta de código fuente (src, lib, app, etc.) dentro de .qdd/project/. Si el motor cognitivo detecta esta intención, debe abortar y proponer la ubicación correcta en la raíz del proyecto."
+    - type: "source-root-declared"
+      target: "src/ (o convención idiomática del lenguaje detectado, ej. cmd/+pkg/ en Go)"
+      message: "Todo proyecto gobernado por QDD debe tener una raíz de código explícita fuera de .qdd/. Si `qdd init` no detecta una convención existente, debe proponerla en Modo Consultivo antes de generar código, nunca asumirla en silencio."

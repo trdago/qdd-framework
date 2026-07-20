@@ -1,0 +1,13 @@
+tags:
+    - core
+active: true
+version: "1.0"
+id: "CERT-023-COGNITIVE-BOUNDS"
+name: "Cognitive Determinism & LLM Hallucination Bounds"
+description: "Obliga a que toda interacción con IA LLM posea Circuit Breakers y validación estructurada."
+category: "AI"
+severity: "HIGH"
+rules:
+    - type: "regex"
+      pattern: "TODO: Add AI constraints"
+      message: "Cognitive-Grade: Debe implementar JSON-schema y validadores matemáticos para restringir al LLM."
