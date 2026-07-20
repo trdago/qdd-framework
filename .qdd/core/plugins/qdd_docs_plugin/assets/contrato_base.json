@@ -1,0 +1,55 @@
+{
+    "titulo": "",
+    "subtitulo": "",
+    "fecha": "",
+    "tipo_documento": "",
+    "institucion": "",
+    "integrantes": [
+        {
+            "nombre_completo": "",
+            "rol": ""
+        }
+    ],
+    "resumen_ejecutivo": {
+        "parrafos": [],
+        "ideas_clave": []
+    },
+    "contenido": [
+        {
+            "titulo": "",
+            "tipo_seccion": "normal",
+            "parrafos": [],
+            "listas": [
+                {
+                    "tipo": "vinetas",
+                    "titulo": "",
+                    "items": [
+                        {
+                            "texto": "",
+                            "subitems": []
+                        }
+                    ]
+                }
+            ],
+            "tablas": [
+                {
+                    "titulo": "",
+                    "columnas": [],
+                    "filas": []
+                }
+            ],
+            "bloques_destacados": [
+                {
+                    "tipo": "nota",
+                    "titulo": "",
+                    "contenido": ""
+                }
+            ],
+            "subsecciones": []
+        }
+    ],
+    "conclusiones": {
+        "parrafos": [],
+        "aprendizajes": []
+    }
+}
