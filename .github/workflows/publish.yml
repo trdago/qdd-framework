@@ -64,6 +64,9 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Prepare Core Assets
+        run: make core-assets
+
       - name: Build Binary
         working-directory: ./cli
         env:
