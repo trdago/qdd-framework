@@ -20,3 +20,4 @@ Plugin: `qdd_docs_plugin`
 - [x] Early Returns implementados.
 - [x] Golden Sets (tests unitarios) adjuntos y operativos.
 - [x] Funciona de forma aislada sin modificar el core base.
+- .qdd/core/plugins/qdd_docs_plugin/assets/Formato_Agnostico_QDD.docx
