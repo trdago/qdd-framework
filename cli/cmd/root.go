@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,7 +13,18 @@ import (
 	"github.com/qdd-framework/qdd/pkg/qcl"
 )
 
-var Version = "dev" // Se inyecta dinámicamente en build-time con -ldflags
+//go:embed version.txt
+var embeddedVersion string
+
+var Version = "dev" // Se inyecta dinámicamente en build-time con -ldflags o embed
+
+func init() {
+	v := strings.TrimSpace(embeddedVersion)
+	if v != "" {
+		Version = v
+		rootCmd.Version = v
+	}
+}
 
 var rootCmd = &cobra.Command{
 	Use:     "qdd",
