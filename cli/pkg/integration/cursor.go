@@ -30,7 +30,7 @@ func (c *CursorAdapter) Sync(projectPath string) error {
 	mcpPath := filepath.Join(cursorDir, "mcp.json")
 	qddCmd := resolveQDDPath()
 	
-	mcpData := buildInitialMCPData(qddCmd)
+	mcpData := buildInitialMCPData(qddCmd, projectPath)
 	mcpData = mergeExistingMCPData(mcpPath, mcpData)
 
 	finalJSON, err := json.MarshalIndent(mcpData, "", "  ")
@@ -41,15 +41,58 @@ func (c *CursorAdapter) Sync(projectPath string) error {
 	return nil
 }
 
-func buildInitialMCPData(qddCmd string) map[string]interface{} {
+func buildInitialMCPData(qddCmd, projectPath string) map[string]interface{} {
+	serverData := map[string]interface{}{
+		"command": qddCmd,
+		"args":    []string{"mcp-server"},
+	}
+
+	envVars := make(map[string]string)
+	
+	if _, err := os.Stat(filepath.Join(projectPath, "venv", "bin")); err == nil {
+		appendToPath(envVars, filepath.Join(projectPath, "venv", "bin"))
+	}
+	if _, err := os.Stat(filepath.Join(projectPath, ".venv", "bin")); err == nil {
+		appendToPath(envVars, filepath.Join(projectPath, ".venv", "bin"))
+	}
+	if _, err := os.Stat(filepath.Join(projectPath, "myenv", "bin")); err == nil {
+		appendToPath(envVars, filepath.Join(projectPath, "myenv", "bin"))
+	}
+
+	if _, err := os.Stat(filepath.Join(projectPath, "node_modules", ".bin")); err == nil {
+		appendToPath(envVars, filepath.Join(projectPath, "node_modules", ".bin"))
+	}
+
+	home, _ := os.UserHomeDir()
+	if home != "" {
+		pyenvShims := filepath.Join(home, ".pyenv", "shims")
+		if _, err := os.Stat(pyenvShims); err == nil {
+			appendToPath(envVars, pyenvShims)
+		}
+		
+		nvmPath := filepath.Join(home, ".nvm", "versions", "node")
+		if entries, err := os.ReadDir(nvmPath); err == nil && len(entries) > 0 {
+			appendToPath(envVars, filepath.Join(nvmPath, entries[0].Name(), "bin"))
+		}
+	}
+
+	if len(envVars) > 0 {
+		serverData["env"] = envVars
+	}
+
 	return map[string]interface{}{
 		"mcpServers": map[string]interface{}{
-			"qdd": map[string]interface{}{
-				"command": qddCmd,
-				"args":    []string{"mcp-server"},
-			},
+			"qdd": serverData,
 		},
 	}
+}
+
+func appendToPath(envVars map[string]string, newPath string) {
+	current := envVars["PATH"]
+	if current == "" {
+		current = os.Getenv("PATH")
+	}
+	envVars["PATH"] = newPath + string(os.PathListSeparator) + current
 }
 
 func mergeExistingMCPData(mcpPath string, mcpData map[string]interface{}) map[string]interface{} {

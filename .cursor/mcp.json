@@ -4,7 +4,7 @@
       "args": [
         "mcp-server"
       ],
-      "command": "/home/dpailahueque/Documents/proyectos/qdd/qdd"
+      "command": "/home/dpailahueque/.local/share/mise/installs/node/26.2.0/lib/node_modules/qdd-framework/bin/qdd"
     }
   }
 }

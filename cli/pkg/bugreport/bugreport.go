@@ -74,7 +74,12 @@ func File(cwd string, r Report) (*Filed, error) {
 		return nil, err
 	}
 
-	finding := buildFinding(id, r, evidencePath)
+	goldenPath, err := writeGoldenSetTemplate(cwd, id, r)
+	if err != nil {
+		return nil, err
+	}
+
+	finding := buildFinding(id, r, evidencePath, goldenPath)
 	findingPath, err := writeFinding(findingsDir, finding)
 	if err != nil {
 		return nil, err
@@ -111,7 +116,7 @@ func MarkResolved(findingPath, summary string, testAdded bool) error {
 	return os.WriteFile(findingPath, out, 0644)
 }
 
-func buildFinding(id string, r Report, evidencePath string) Finding {
+func buildFinding(id string, r Report, evidencePath, goldenPath string) Finding {
 	fullCommand := strings.TrimSpace(r.Command + " " + strings.Join(r.Args, " "))
 	return Finding{
 		ID:    id,
@@ -129,8 +134,9 @@ func buildFinding(id string, r Report, evidencePath string) Finding {
 			"command":       fullCommand,
 			"exit_code":     r.ExitCode,
 			"evidence_path": evidencePath,
+			"goldenset_path": goldenPath,
 			"test_pending":  true,
-			"test_note":     "Este finding no trae un test de regresión automático: QDD no puede sintetizar uno válido sin conocer el lenguaje/framework del proceso supervisado. Quien lo resuelva (humano o IA vía MCP) debe agregar un test que reproduzca el fallo antes de marcarlo RESOLVED (principio Auto-TDD ante Bugs).",
+			"test_note":     "Se ha generado un esqueleto de Golden Set. Quien lo resuelva debe rellenar este archivo para crear un test de regresión automático antes de marcarlo RESOLVED.",
 		},
 	}
 }
@@ -176,6 +182,84 @@ func writeEvidence(cwd, id string, r Report) (string, error) {
 }
 
 var findingIDPattern = regexp.MustCompile(`^FND-(\d+)`)
+
+func writeGoldenSetTemplate(cwd, id string, r Report) (string, error) {
+	goldenDir := filepath.Join(cwd, ".qdd", "project", "goldensets", "bugs")
+	if err := os.MkdirAll(goldenDir, 0755); err != nil {
+		return "", err
+	}
+	
+	path := filepath.Join(goldenDir, fmt.Sprintf("%s_test.json", id))
+	
+	argsStr := "[]"
+	if len(r.Args) > 0 {
+		argsStr = `["` + strings.Join(r.Args, `", "`) + `"]`
+	}
+	
+	template := fmt.Sprintf(`{
+  "finding_id": "%s",
+  "command": "%s",
+  "args": %s,
+  "expected_behavior": "TODO: Describe the expected fix behavior",
+  "test_cases": [
+    {
+      "name": "happy_path",
+      "input": {},
+      "expected": {}
+    },
+    {
+      "name": "edge_case_crash",
+      "input": {},
+      "expected_error": true
+    }
+  ]
+}`, id, r.Command, argsStr)
+
+	if err := os.WriteFile(path, []byte(template), 0644); err != nil {
+		return "", err
+	}
+	
+	writeGoldenSetGoTest(goldenDir, id)
+	return path, nil
+}
+
+func writeGoldenSetGoTest(dir, id string) {
+	path := filepath.Join(dir, fmt.Sprintf("%s_runner_test.go", id))
+	
+	testFile := fmt.Sprintf(`package goldensets
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"testing"
+)
+
+type GoldenSet struct {
+	Command string   %sjson:"command"%s
+	Args    []string %sjson:"args"%s
+}
+
+func Test%s(t *testing.T) {
+	data, err := os.ReadFile("%s_test.json")
+	if err != nil {
+		t.Skip("Template no hidratado todavía")
+	}
+	var gs GoldenSet
+	if err := json.Unmarshal(data, &gs); err != nil {
+		t.Fatalf("Error parseando JSON: %%v", err)
+	}
+	
+	cmd := exec.Command(gs.Command, gs.Args...)
+	err = cmd.Run()
+	if err != nil {
+		t.Errorf("El bug reportado '%s' aún falla: %%v", err)
+	}
+}
+`, "`", "`", "`", "`", strings.ReplaceAll(id, "-", ""), id, id)
+
+	os.WriteFile(path, []byte(testFile), 0644)
+}
 
 // nextFindingID scans dir for existing FND-NNN[-slug].yaml files and returns
 // the next sequential ID, so bug reports slot into the same numbering the

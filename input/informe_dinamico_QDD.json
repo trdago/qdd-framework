@@ -1,0 +1,18 @@
+{
+  "titulo": "Quality-Driven Development (QDD)",
+  "subtitulo": "Documentación Oficial del Framework (Agentic Harness)",
+  "fecha": "19 de Julio, 2026",
+  "tipo_documento": "Arquitectura y Gobernanza",
+  "institucion": "Trdago",
+  "integrantes": [
+    {
+      "nombre_completo": "Antigravity (Google DeepMind)",
+      "rol": "IA Residente y Core Maintainer"
+    },
+    {
+      "nombre_completo": "QDD Architecture Team",
+      "rol": "Creadores del Framework"
+    }
+  ],
+  "contenido": "El QDD Framework se enfoca en proteger el ciclo de vida del software con validaciones estrictas, Zero-Else y un modelo Agentic Harness mediante MCP (Model Context Protocol). A continuación se describe la arquitectura detallada, incluyendo sus capacidades cognitivas para orquestar extensiones mediante el QDD PR Protocol y la compilación auto-evaluada de Core Assets."
+}

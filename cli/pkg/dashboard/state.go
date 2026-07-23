@@ -312,6 +312,8 @@ func BuildState() QDDState {
 	response.Score = finalScore
 	response.Grade = determineDashboardGrade(finalScore)
 	response.QualityStatus = determineQualityStatus(openFindings)
+	
+	recordHistoricalTrend(cwd, finalScore)
 
 	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
 		response.MCPLogs = append([]string{"[WARNING] Métricas de Valor y ROI no disponibles. Finaliza sprints para ganar valor."}, response.MCPLogs...)
@@ -689,6 +691,46 @@ func loadHistoricalTrends(response *QDDState, cwd string) {
 			{Date: "Hoy", Score: 100},
 		}
 	}
+}
+
+func recordHistoricalTrend(cwd string, score int) {
+	histPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
+	var histList []map[string]interface{}
+	
+	if histData, err := os.ReadFile(histPath); err == nil {
+		json.Unmarshal(histData, &histList)
+	}
+
+	today := time.Now().Format("2006-01-02")
+	if len(histList) > 0 {
+		lastEntry := histList[len(histList)-1]
+		if lastEntry["date"] == today {
+			// Update today's score
+			lastEntry["score"] = score
+			histList[len(histList)-1] = lastEntry
+			data, _ := json.MarshalIndent(histList, "", "  ")
+			atomicWriteFile(histPath, data)
+			return
+		}
+	}
+
+	// Append new day
+	histList = append(histList, map[string]interface{}{
+		"date": today,
+		"score": score,
+	})
+	
+	data, _ := json.MarshalIndent(histList, "", "  ")
+	atomicWriteFile(histPath, data)
+}
+
+func atomicWriteFile(path string, data []byte) error {
+	tmpPath := path + ".tmp"
+	err := os.WriteFile(tmpPath, data, 0644)
+	if err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 func parseHistoricalTrends(response *QDDState, histData []byte) {

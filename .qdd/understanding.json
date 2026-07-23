@@ -1,36 +1,35 @@
 {
-  "summary": "Quality-Driven Development (QDD) es una Plataforma de Ingeniería de Software basada en Mejora Continua. Gobernando el ciclo de vida bajo estrictos estándares 'Production-First', reemplaza prompts manuales por un Framework (Wisdom Registry) que asegura calidad, validaciones automáticas, certificaciones como 'Rules-as-Code' y conocimiento persistido desde el día cero. El motor cognitivo interno original (QCL, descrito en RFC 0002) fue deprecado en favor de un modelo Agentic Harness: QDD opera como Servidor MCP consumido por IDEs con IA externa (Claude Code, Cursor, Antigravity), excepto en `qdd run --keep-alive`, donde la dirección se invierte deliberadamente (QDD llama al agente) para auto-reparación de procesos supervisados.",
+  "summary": "Quality-Driven Development (QDD) es una Plataforma de Ingeniería de Software basada en Mejora Continua. Gobernando el ciclo de vida bajo estrictos estándares 'Production-First', reemplaza prompts manuales por un Framework (Wisdom Registry) que asegura calidad, validaciones automáticas, certificaciones como 'Rules-as-Code' y conocimiento persistido desde el día cero. El motor cognitivo interno original (QCL, descrito en RFC 0002) fue deprecado en favor de un modelo Agentic Harness: QDD opera como Servidor MCP consumido por IDEs con IA externa (Claude Code, Cursor, Antigravity).",
   "components": [
-    "Wisdom Registry (.qdd/core/wisdom/ - Manifiesto y principios base, incluye ahora CERT-033 sobre separación código/gobernanza)",
-    "Engine & CLI Fast Path determinista: audit, certify, doctor, init, dashboard, benchmark, evolution (recomienda la siguiente mejora estudiando findings/certs/violaciones/historial), bug (reporta errores como Finding permanente)",
-    "MCP Server (mcp-server): expone qdd_audit, qdd_certify, qdd_learn, qdd_sync, qdd_sprint, qdd_release, qdd_score, qdd_status, qdd_findings, qdd_evolution, qdd_query_graph, qdd_map, entre otras — el mecanismo real por el que un IDE con IA delega en QDD",
-    "pkg/cognitive: capa NUEVA y agnóstica (dirección inversa al MCP normal) que permite a QDD pedirle una respuesta puntual a un agente de IA local (Claude verificado en vivo vía `claude -p`; Antigravity verificado por spec vía agentapi+transcript.jsonl; Cursor best-effort/no verificado). Ask() es de solo lectura; AttemptRepair() (solo Claude) usa --dangerously-skip-permissions para reparación autónoma real",
-    "qdd run: dos modos — pipeline de subcomandos QDD (`qdd run audit certify`, sin cambios) y supervisor de procesos externos (`qdd run --keep-alive <cmd>`: mantiene vivo, y ante un crash real invoca pkg/cognitive para diagnosticar+reparar+testear, máx. 3 intentos antes de pedir revisión humana — ver ADR-004, supersede ADR-003)",
-    "Gobernanza y Certificaciones (Archivos YAML — nota: core usa schema id/tags/name/category/severity/rules[type,target,message], project usa schema distinto id/version/title/status/rules[id,description,method,target] — inconsistencia de schema no unificada aún)",
-    "Artifacts (Findings, ADRs y Sprints persistidos para memoria estructural; 21 Findings y 4 ADRs acumulados a la fecha)",
-    "AI Adapters & Plugins (cli/pkg/integration: Cursor/Claude/Antigravity — capa de sincronización de reglas nativas hacia el IDE, usa FindProjectRoot desde FND-018 para resolver la raíz real del proyecto)"
+    "Wisdom Registry (.qdd/core/wisdom/ - Manifiesto y principios base, incluye ahora CERT-033 sobre separación código/gobernanza y el nuevo PLUGIN_PROTOCOL.md para extensibilidad)",
+    "Engine & CLI Fast Path determinista: audit, certify, doctor, init, dashboard, benchmark, evolution, bug, y pull request (para integrar plugins de manera orquestada por IA)",
+    "MCP Server (mcp-server): expone herramientas del framework delegando a IDEs externos el procesamiento de intenciones cognitivas",
+    "pkg/cognitive: capa que invoca a agentes externos de IA locales para auto-reparación o consultas (utilizado en el modo supervisor)",
+    "qdd run: pipeline secuencial o supervisor resiliente (`qdd run --keep-alive`) que diagnostica, testea y repara procesos en runtime",
+    "Gobernanza y Certificaciones (Archivos YAML en core vs project)",
+    "Artifacts (Findings, ADRs y Sprints persistidos para memoria estructural)",
+    "AI Adapters & Plugins (cli/pkg/integration: Sincronización hacia el IDE y sistema de plugins nativos gobernados por QDD_PR_CERTIFICATE.md)"
   ],
   "objectives": [
-    "Preservar, incrementar y gobernar el conocimiento del proyecto durante todo su ciclo de vida — el código no es la fuente de verdad, el conocimiento acumulado sí.",
+    "Preservar, incrementar y gobernar el conocimiento del proyecto durante todo su ciclo de vida.",
     "Proteger el conocimiento del sistema asegurando que no dependa de la memoria de desarrolladores ni de un LLM aislado.",
     "Validar estricta y automáticamente la calidad del proyecto mediante certificaciones antes de generar código.",
-    "Sincronizar estándares estructurales (Protocolo QCP) directamente en el cerebro de los asistentes IA (IDE local).",
-    "Evolucionar la propia herramienta usando sus propias capacidades (dogfooding real): qdd evolution, qdd audit y qdd run --keep-alive se validaron esta sesión ejecutándose sobre el propio repo de QDD."
+    "Sincronizar estándares estructurales (Protocolo QCP) directamente en el cerebro de los asistentes IA.",
+    "Crear un ecosistema extensible de plugins donde el código no pertenezca al core, pero respete el 'Zero-Else' garantizado por el flujo '/qdd pull request'."
   ],
   "guidelines": [
     "Zero-Else Rule: Utilizar 'early returns' (cláusulas de guarda) y evitar completamente bloques 'else' en todo el proyecto.",
-    "Cyclomatic Limit (CERT-031): máximo 5 de complejidad por función, incluyendo funciones de test — verificado repetidamente esta sesión (qdd audit detectó y forzó refactors reales en código nuevo).",
-    "Production-First & Quality-First: Todo bug se vuelve un Finding y ningún Release se lanza con penalizaciones en el QDD Score.",
-    "Rules-as-Code: Los estándares son artefactos de certificación YAML validados estrictamente por la CLI o en modo consultivo.",
-    "Separación Código/Gobernanza (CERT-033, principio #14): el código de aplicación nunca vive dentro de .qdd/; .qdd/project/ es solo conocimiento sobre el código.",
-    "Auto-TDD ante Bugs: todo bug reparado debe generar un test de regresión — bugreport.File() marca explícitamente test_pending:true cuando no puede garantizarlo (ej. proceso externo supervisado de lenguaje desconocido)."
+    "Cyclomatic Limit (CERT-031): máximo 5 de complejidad por función.",
+    "Production-First & Quality-First: Todo bug se vuelve un Finding.",
+    "Rules-as-Code: Los estándares son artefactos de certificación YAML.",
+    "Separación Código/Gobernanza (CERT-033, principio #14): el código de aplicación nunca vive dentro de .qdd/.",
+    "Inyección Nativa de Versiones: A partir de v1.9.16, la versión se inyecta nativamente usando '//go:embed version.txt' para evitar fallos de orquestación en GitHub Actions (ausencia de LDFLAGS)."
   ],
   "gaps_detected": [
-    "RFC 0002 (QDD Cognitive Layer) describe un pipeline completo de Intent/Context/Risk Analyzer + Strategy Planner + Execution Plan Builder con 'Status: Draft', pero nunca se implementó: root.go's runQCL() confirma explícitamente que el motor cognitivo interno fue deprecado en favor de MCP. El RFC nunca se actualizó para reflejar que fue abandonado/reemplazado — debería marcarse como Superseded o Rejected, no Draft.",
-    "specification/qdd-spec.md lista un 'Command Language' (QDD AUDIT, FEATURE, FIX, SPRINT, CERTIFY, RELEASE, WORLD-CLASS) donde FEATURE, FIX y WORLD-CLASS no existen en ninguna forma (ni CLI ni MCP tool) — extiende el mismo patrón ya documentado en FND-019 (comandos documentados que no existen).",
-    "Ver FND-019 (comandos documentados sin implementación real) y FND-021 (el campo 'audit_status' del dashboard refleja findings abiertos, no las violaciones reales de qdd audit — dos comandos del framework pueden reportar salud distinta del mismo proyecto en el mismo instante).",
-    "Los schemas YAML de certificación difieren entre .qdd/core/ (tags/name/category/severity) y .qdd/project/ (title/status/related_finding) — no hay un schema único documentado, cada uno se parsea con structs Go distintos."
+    "RFC 0002 (QDD Cognitive Layer) describe un pipeline completo que fue deprecado en favor de MCP pero sigue marcado como 'Draft' en lugar de 'Superseded' o 'Rejected'.",
+    "specification/qdd-spec.md lista comandos (FEATURE, FIX, WORLD-CLASS) que no existen en ninguna forma (ni CLI ni MCP tool).",
+    "Los schemas YAML de certificación difieren entre .qdd/core/ y .qdd/project/ — no hay un schema único unificado."
   ],
-  "next_steps": "Decidir la dirección de fondo para RFC 0002 y specification/qdd-spec.md (marcarlos como superseded vs. implementarlos) — mismo tipo de decisión de producto que quedó pendiente para FND-019. Resolver FND-021 (renombrar o unificar audit_status del dashboard) verificando primero el consumidor en cli/ui/src. Verificar si Antigravity/Cursor tienen un equivalente real a --dangerously-skip-permissions para que qdd run --keep-alive pueda auto-reparar con esos backends, no solo con Claude.",
-  "last_reviewed": "2026-07-17T21:30:00-04:00"
+  "next_steps": "Alinear RFC 0002 y specification/qdd-spec.md a la realidad del Agentic Harness. Unificar schemas de YAML de certificaciones. Promover el desarrollo del primer plugin oficial bajo el nuevo PLUGIN_PROTOCOL.md.",
+  "last_reviewed": "2026-07-19T23:35:00-04:00"
 }

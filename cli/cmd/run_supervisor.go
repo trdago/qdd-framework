@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -95,14 +96,23 @@ func handleSupervisedCrash(ctx context.Context, cwd string, originalArgs []strin
 }
 
 func attemptAutoRepair(ctx context.Context, cwd string, originalArgs []string, report *supervisor.CrashReport, filed *bugreport.Filed) bool {
-	prompt := buildRepairPrompt(report, filed.FindingPath)
+	sandboxDir := cwd
+	tempDir, err := os.MkdirTemp("", "qdd-sandbox-*")
+	if err == nil {
+		sandboxDir = tempDir
+		// Clon agnóstico: copia todo menos el historial git y módulos pesados
+		exec.Command("rsync", "-a", "--exclude=.git", "--exclude=node_modules", cwd+"/", sandboxDir+"/").Run()
+		defer os.RemoveAll(sandboxDir)
+	}
 
-	resp, backend, err := cognitive.AttemptRepair(ctx, cwd, prompt)
+	prompt := buildRepairPrompt(report, filed.FindingPath, sandboxDir)
+
+	resp, backend, err := cognitive.AttemptRepair(ctx, sandboxDir, prompt)
 	if err != nil {
 		fmt.Printf("[!] No se pudo invocar un agente con capacidad de reparación: %v\n", err)
 		return false
 	}
-	fmt.Printf("[QDD SUPERVISOR] Agente (%s) respondió.\n", backend)
+	fmt.Printf("[QDD SUPERVISOR] Agente (%s) respondió en Sandbox.\n", backend)
 
 	verdict, ok := parseRepairVerdict(resp)
 	if !ok {
@@ -115,6 +125,12 @@ func attemptAutoRepair(ctx context.Context, cwd string, originalArgs []string, r
 		return false
 	}
 
+	if sandboxDir != cwd {
+		fmt.Println("[QDD SUPERVISOR] Aplicando solución exitosa del Sandbox al código principal...")
+		// Sincronización exacta: --delete asegura que si la IA borró un archivo, también se borre en destino
+		exec.Command("rsync", "-a", "--delete", "--exclude=.git", "--exclude=node_modules", sandboxDir+"/", cwd+"/").Run()
+	}
+
 	if err := bugreport.MarkResolved(filed.FindingPath, verdict.Summary, verdict.TestAdded); err != nil {
 		fmt.Printf("[!] Fix aplicado pero no se pudo actualizar el finding: %v\n", err)
 	}
@@ -122,7 +138,7 @@ func attemptAutoRepair(ctx context.Context, cwd string, originalArgs []string, r
 	return true
 }
 
-func buildRepairPrompt(report *supervisor.CrashReport, findingPath string) string {
+func buildRepairPrompt(report *supervisor.CrashReport, findingPath string, sandboxDir string) string {
 	return fmt.Sprintf(`Eres parte de un ciclo de auto-reparación de QDD (qdd run --keep-alive). Un proceso supervisado falló:
 
 Comando: %s %s
@@ -130,16 +146,16 @@ Exit code: %d
 Salida capturada (tail):
 %s
 
-Ya se registró como Finding en %s. Tu tarea, operando sobre la raíz del proyecto en el directorio actual:
+Ya se registró como Finding en %s. Tu tarea operará en un entorno SANDBOX aislado (%s):
 1. Encuentra la causa raíz en el código fuente.
-2. Aplica el fix directamente (tienes permiso para editar archivos).
+2. Aplica el fix directamente en el SANDBOX (tienes permiso para editar archivos allí).
 3. Si es razonable, agrega o actualiza un test que reproduzca este fallo (principio Auto-TDD ante Bugs).
-4. Corre las pruebas relevantes si existen para confirmar que el fix no rompe nada más.
+4. Corre las pruebas relevantes dentro del sandbox para confirmar que el fix no rompe nada más.
 
 Al finalizar, responde ÚNICAMENTE con este bloque (nada más antes o después):
 [VERDICT_START]
 {"fixed": true/false, "summary": "qué cambiaste y por qué", "test_added": true/false}
-[VERDICT_END]`, report.Command, strings.Join(report.Args, " "), report.ExitCode, report.Output, findingPath)
+[VERDICT_END]`, report.Command, strings.Join(report.Args, " "), report.ExitCode, report.Output, findingPath, sandboxDir)
 }
 
 type repairVerdict struct {

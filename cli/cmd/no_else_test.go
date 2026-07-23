@@ -33,7 +33,7 @@ func TestNoElseInCode(t *testing.T) {
 }
 
 func checkSkipDir(name string) error {
-	if name == "node_modules" || name == "dist" || name == ".git" || name == ".qdd" {
+	if name == "node_modules" || name == "dist" || name == ".git" || name == ".qdd" || name == "venv" || name == ".venv" || name == "myenv" {
 		return filepath.SkipDir
 	}
 	return nil

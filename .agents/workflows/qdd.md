@@ -88,7 +88,6 @@ El usuario invocará comandos (o intenciones auto-asociadas) que insertarán al 
 /qdd db       - Audit or generate database schemas and queries.
 /qdd release  - Prepare a new release following SemVer and QDD CD/CI standards.
 /qdd docs     - Regenerate QDD documentation based on the current project state.
-/qdd pr       - Ingest an external contribution (plugin, feature, fix) from a provided link or certificate file, validating it against QDD standards.
 
 # Instructions for AI:
 # Never overwrite this block. It is managed by the QDD framework.

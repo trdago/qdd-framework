@@ -3,7 +3,12 @@ package topology
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"go/ast"
+	"go/parser"
+	"go/token"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,9 +36,10 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 	var availableCerts []CertYAML
 	loadAvailableCerts(cwd, &availableCerts)
 
-	// Recorrer el código fuente para mapear módulos
+	tagsCfg := loadDynamicTagsConfig(cwd)
+
 	err := filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-		return processMapPath(cwd, path, d, err, rootNode, availableCerts)
+		return processMapPath(cwd, path, d, err, rootNode, availableCerts, tagsCfg)
 	})
 
 	if err != nil {
@@ -51,6 +57,33 @@ func MapProject(cwd string) (*ProjectTopology, error) {
 	}
 
 	return topology, nil
+}
+
+type TagsConfig struct {
+	Extensions map[string][]string `yaml:"extensions"`
+	Paths      map[string][]string `yaml:"paths"`
+}
+
+func loadDynamicTagsConfig(cwd string) TagsConfig {
+	path := filepath.Join(cwd, ".qdd", "tags.yaml")
+	var cfg TagsConfig
+	if data, err := os.ReadFile(path); err == nil {
+		yaml.Unmarshal(data, &cfg)
+	}
+	
+	if len(cfg.Extensions) == 0 && len(cfg.Paths) == 0 {
+		cfg.Extensions = map[string][]string{
+			".vue": {"frontend", "vue"},
+			".css": {"frontend"},
+			".html": {"frontend"},
+			".go": {"backend", "go"},
+		}
+		cfg.Paths = map[string][]string{
+			"ui/": {"ui"},
+			"pkg/": {"core"},
+		}
+	}
+	return cfg
 }
 
 type CertYAML struct {
@@ -109,7 +142,7 @@ func parseAndAppendCert(data []byte, isCore bool, availableCerts *[]CertYAML) {
 	*availableCerts = append(*availableCerts, cy)
 }
 
-func processMapPath(cwd string, path string, d os.DirEntry, err error, rootNode *TopologyNode, availableCerts []CertYAML) error {
+func processMapPath(cwd string, path string, d os.DirEntry, err error, rootNode *TopologyNode, availableCerts []CertYAML, tagsCfg TagsConfig) error {
 	if err != nil {
 		return handleMapPathError(cwd, path, err)
 	}
@@ -118,7 +151,7 @@ func processMapPath(cwd string, path string, d os.DirEntry, err error, rootNode 
 		return handleMapDir(d)
 	}
 
-	processMapFile(cwd, path, d, rootNode, availableCerts)
+	processMapFile(cwd, path, d, rootNode, availableCerts, tagsCfg)
 	return nil
 }
 
@@ -140,7 +173,7 @@ func isIgnoredMapDir(name string) bool {
 	return name == ".git" || name == ".qdd" || name == "node_modules" || name == "vendor" || name == "dist"
 }
 
-func processMapFile(cwd, path string, d os.DirEntry, rootNode *TopologyNode, availableCerts []CertYAML) {
+func processMapFile(cwd, path string, d os.DirEntry, rootNode *TopologyNode, availableCerts []CertYAML, tagsCfg TagsConfig) {
 	if !isValidModuleExt(filepath.Ext(d.Name())) {
 		return
 	}
@@ -151,11 +184,11 @@ func processMapFile(cwd, path string, d os.DirEntry, rootNode *TopologyNode, ava
 	}
 
 	relPath, _ := filepath.Rel(cwd, path)
-	fileTags := determineFileTags(filepath.Ext(d.Name()), relPath)
+	fileTags := determineFileTags(filepath.Ext(d.Name()), relPath, tagsCfg)
 	
 	moduleNode := createModuleNode(d.Name(), relPath, fileTags)
 	applyRequiredCerts(moduleNode, availableCerts, fileTags)
-	evaluateCertification(moduleNode, code, rootNode)
+	evaluateCertification(moduleNode, code, rootNode, filepath.Ext(d.Name()))
 	addEndpoints(moduleNode, code, relPath)
 
 	rootNode.Children = append(rootNode.Children, moduleNode)
@@ -182,36 +215,28 @@ func isModuleCode(code string) bool {
 	return strings.Contains(code, "func ") || strings.Contains(code, "function ") || strings.Contains(code, "class ") || strings.Contains(code, "<template>")
 }
 
-func determineFileTags(ext, relPath string) []string {
+func determineFileTags(ext, relPath string, tagsCfg TagsConfig) []string {
 	var fileTags []string
-	fileTags = appendFrontendTags(fileTags, ext)
-	fileTags = appendBackendTags(fileTags, ext)
-	fileTags = appendPathTags(fileTags, relPath)
+	
+	if tags, ok := tagsCfg.Extensions[ext]; ok {
+		fileTags = append(fileTags, tags...)
+	}
+
+	for p, tags := range tagsCfg.Paths {
+		matched, _ := filepath.Match(p, relPath)
+		if matched {
+			fileTags = append(fileTags, tags...)
+			continue
+		}
+		
+		// Fallback estricto para directorios si no usaron glob (ej: "ui/")
+		cleanP := filepath.Clean(p) + string(os.PathSeparator)
+		if strings.HasPrefix(relPath, cleanP) {
+			fileTags = append(fileTags, tags...)
+		}
+	}
+	
 	return fileTags
-}
-
-func appendFrontendTags(tags []string, ext string) []string {
-	if ext == ".vue" || ext == ".css" || ext == ".html" {
-		return append(tags, "frontend", "vue")
-	}
-	return tags
-}
-
-func appendBackendTags(tags []string, ext string) []string {
-	if ext == ".go" {
-		return append(tags, "backend", "go")
-	}
-	return tags
-}
-
-func appendPathTags(tags []string, relPath string) []string {
-	if strings.Contains(relPath, "ui/") {
-		tags = append(tags, "ui")
-	}
-	if strings.Contains(relPath, "pkg/") {
-		tags = append(tags, "core")
-	}
-	return tags
 }
 
 func createModuleNode(name, relPath string, tags []string) *TopologyNode {
@@ -274,17 +299,49 @@ func checkCertTagMatch(ct string, fileTags []string) bool {
 	return false
 }
 
-func evaluateCertification(moduleNode *TopologyNode, code string, rootNode *TopologyNode) {
-	moduleNode.Certified = checkCertificationStatus(code)
+func evaluateCertification(moduleNode *TopologyNode, code string, rootNode *TopologyNode, ext string) {
+	moduleNode.Certified = checkCertificationStatus(code, ext)
 	if !moduleNode.Certified {
 		markModuleUncertified(moduleNode, rootNode)
 	}
 }
 
-func checkCertificationStatus(code string) bool {
-	hasElse := strings.Contains(code, " el"+"se ") || strings.Contains(code, "}el"+"se{") || strings.Contains(code, "} el"+"se {")
-	hasCertAnnotation := strings.Contains(code, "@qdd:certify") || strings.Contains(code, "@certified")
-	return !hasElse || hasCertAnnotation
+func checkCertificationStatus(code string, ext string) bool {
+	if ext == ".go" {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "", code, 0)
+		if err == nil {
+			hasElse := false
+			ast.Inspect(f, func(n ast.Node) bool {
+				if ifStmt, ok := n.(*ast.IfStmt); ok {
+					if ifStmt.Else != nil {
+						hasElse = true
+						return false
+					}
+				}
+				return true
+			})
+			return !hasElse
+		}
+	}
+	
+	// Fallback para JS/TS/Vue/Dart etc usando Regex
+	cleanCode := stripCommentsAndStrings(code)
+	matched, _ := regexp.MatchString(`(?m)(?:^|[\s{}])else(?:[\s{]|$)`, cleanCode)
+	return !matched
+}
+
+func stripCommentsAndStrings(code string) string {
+	reStr := regexp.MustCompile(`"(.*?)"|'(.*?)'`)
+	code = reStr.ReplaceAllString(code, "")
+	reTpl := regexp.MustCompile("(?s)`(.*?)`")
+	code = reTpl.ReplaceAllString(code, "")
+	reMulti := regexp.MustCompile(`(?s)/\*.*?\*/`)
+	code = reMulti.ReplaceAllString(code, "")
+	reSingle := regexp.MustCompile(`//.*`)
+	code = reSingle.ReplaceAllString(code, "")
+	reHTML := regexp.MustCompile(`(?s)<!--.*?-->`)
+	return reHTML.ReplaceAllString(code, "")
 }
 
 func markModuleUncertified(moduleNode *TopologyNode, rootNode *TopologyNode) {

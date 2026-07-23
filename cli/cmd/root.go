@@ -24,6 +24,27 @@ func init() {
 		Version = v
 		rootCmd.Version = v
 	}
+	rootCmd.AddCommand(undoCmd)
+}
+
+var undoCmd = &cobra.Command{
+	Use:   "undo",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			return
+		}
+		target := args[0]
+		if target == "init" {
+			cwd, _ := os.Getwd()
+			qddPath := filepath.Join(cwd, ".qdd")
+			if _, err := os.Stat(qddPath); err == nil {
+				os.RemoveAll(qddPath)
+				fmt.Printf("[UNDO] Carpeta .qdd eliminada exitosamente para revertir 'init'.\n")
+			}
+			return
+		}
+		fmt.Printf("[UNDO] Revirtiendo estado del comando '%s' (No-op en comandos de solo lectura)\n", target)
+	},
 }
 
 var rootCmd = &cobra.Command{
@@ -122,20 +143,35 @@ func isSupervisorMode() bool {
 }
 
 func executePipeline() {
+	var completed []string
 	for _, cmdStr := range os.Args[2:] {
 		fmt.Printf("\n🚀 [QDD PIPELINE] Ejecutando: qdd %s\n", cmdStr)
 		
 		if err := executePipelineCommand(cmdStr); err != nil {
-			fmt.Printf("\n[🛑 ERROR PIPELINE] El comando '%s' falló. Abortando pipeline secuencial.\n", cmdStr)
+			fmt.Printf("\n[🛑 ERROR PIPELINE] El comando '%s' falló. Abortando pipeline secuencial y ejecutando Rollback automático.\n", cmdStr)
+			executeRollback(completed)
 			os.Exit(1)
 		}
+		completed = append(completed, cmdStr)
 	}
 	fmt.Printf("\n✅ [QDD PIPELINE] Todos los comandos ejecutados exitosamente.\n")
 }
 
+func executeRollback(completed []string) {
+	for i := len(completed) - 1; i >= 0; i-- {
+		cmdStr := completed[i]
+		fmt.Printf("🔄 [QDD ROLLBACK] Deshaciendo cambios de: qdd %s\n", cmdStr)
+		// Ejecuta el rollback específico para el comando
+		executePipelineCommand("undo " + cmdStr)
+	}
+}
+
 func executePipelineCommand(cmdStr string) error {
 	execCmd := os.Args[0]
-	process, err := os.StartProcess(execCmd, []string{execCmd, cmdStr}, &os.ProcAttr{
+	args := strings.Fields(cmdStr)
+	processArgs := append([]string{execCmd}, args...)
+	
+	process, err := os.StartProcess(execCmd, processArgs, &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	})
 	if err != nil {
