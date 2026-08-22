@@ -1,0 +1,9 @@
+id: FND-029-DOC-DOWNLOADER-SQS-EVENT-DRIVEN
+type: IMPROVEMENT
+title: 'Arquitectura Event-Driven para Descarga de Documentos con AWS SQS Long-Polling'
+status: RESOLVED
+severity: HIGH
+impact: 'HIGH - Eliminación del sondeo periódico (polling cada 60s) en el worker local doc_downloader mediante el consumo reactivo e instantáneo con AWS SQS Long-Polling (WaitTimeSeconds: 20).'
+created_at: '2026-08-22T12:35:00-04:00'
+description: 'Se implementó el adaptador SQSQueueProducer y la interfaz domain.QueueProducer en el backend para emitir eventos DOC_DOWNLOAD_REQUESTED al detectar carencias documentales en DocGate. El worker local doc_downloader pasó a utilizar SQS Long-Polling para recibir las tareas en milisegundos (< 50ms) y eliminarlas de la cola al completarse, manteniendo retrocompatibilidad transparente con HTTP polling.'
+resolution: 'Implementado en Go, probado con tests unitarios en internal/adapters/queue/sqs_producer_test.go, internal/usecases/doc_gate_test.go y doc_downloader/main_test.go, y documentado en la certificación CERT-022-EVENT-DRIVEN-MESSAGING.'

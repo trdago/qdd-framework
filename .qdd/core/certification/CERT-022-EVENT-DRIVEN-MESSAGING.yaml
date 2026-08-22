@@ -1,0 +1,14 @@
+tags:
+    - core
+    - architecture
+active: true
+version: "1.0"
+id: "CERT-022-EVENT-DRIVEN-MESSAGING"
+name: "Event-Driven & Reactive Worker Architecture"
+description: "Prohíbe el sondeo continuo (polling ciego repetitivo por HTTP) en workers de fondo. Exige el uso de arquitecturas orientadas a eventos (AWS SQS Long-Polling, WebSockets, PubSub) para reaccionar inmediatamente a eventos con costo cero de CPU/red en reposo."
+category: "Architecture"
+severity: "HIGH"
+rules:
+    - type: "pattern-ban"
+      target: "for { ... getNext() ... sleep(60s) }"
+      message: "Event-Driven Architecture: Evite polling ciego continuo. Use SQS Long-Polling (WaitTimeSeconds: 20) o PubSub reactivo."
