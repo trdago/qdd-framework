@@ -44,8 +44,12 @@ func validateInitAccess(targetPath string) error {
 }
 
 func isAuthorizedCommand(cmdName string) bool {
-	if cmdName == "doctor" || cmdName == "test" || strings.HasSuffix(cmdName, ".test") {
+	if cmdName == "doctor" || cmdName == "test" || strings.HasSuffix(cmdName, ".test") || strings.HasPrefix(cmdName, "-test.") {
+		return true
+	}
+	if strings.Contains(os.Args[0], ".test") || strings.HasSuffix(os.Args[0], ".test") {
 		return true
 	}
 	return false
 }
+

@@ -1,0 +1,23 @@
+tags:
+    - frontend
+    - vue
+    - ui
+    - ux
+    - mobile-first
+    - ergonomics
+active: true
+id: CERT-014
+version: "1.0.0"
+title: "Estándar de Diseño UI/UX Mobile-First & Ergonomía Táctil"
+status: certified
+level: strict
+description: "Directrices obligatorias de diseño UI/UX para interfaces públicas y privadas de cara a usuarios móviles, garantizando áreas de toque óptimas, adaptación tipográfica sin desbordes y máxima legibilidad bajo la premisa de diseño ergonómico y la filosofía 'Lo que no se mide no se mejora'."
+criteria:
+    - "[TOUCH-TARGETS] Botones de acción principal deben tener un alto mínimo de 44px a 48px y un área táctil accesible para interacción con una sola mano / pulgar."
+    - "[ADAPTIVE-LABELS] Textos de botones largos (> 20 caracteres) deben contar con variantes compactas para pantallas móviles (< 600px) mediante clases responsivas (ej: 'Ver Reporte IA' en móvil vs 'Ver Reporte de Análisis Profundo IA' en escritorio)."
+    - "[NO-OVERFLOW] Ningún componente ni contenedor puede generar scroll horizontal involuntario (overflow-x: hidden), usando font-size con clamp o tamaños escalonados responsivos."
+    - "[CHIP-WRAPPING] Chips de métricas, estados y fechas deben permitir quiebre de línea o dimensiones de texto adaptativas para evitar truncamientos abruptos (...)."
+    - "[ZERO-ELSE] Todas las directivas de renderizado condicional en templates Vue deben implementar guardas explícitas sin v-else."
+evidence:
+    timestamp: "2026-08-22T12:15:00-04:00"
+    test_result: "Aplicado y validado en PublicValidationPortal.vue y RecommendedCRM.vue con etiquetas adaptativas para dispositivos móviles."
