@@ -1,0 +1,25 @@
+# AICPA SOC 2 - AI Processing Integrity & Grounding Controls
+control_id: "SOC2-CC7.1-AI-INTEGRITY"
+standard: "AICPA Trust Services Criteria (Processing Integrity)"
+system_scope: "Generative AI & Decision Systems"
+effective_date: "2026-08-16"
+
+controls:
+  anti_hallucination:
+    enforce_grounding: true
+    grounding_sources:
+      - "Knowledge Base (.qdd/knowledge.db)"
+      - "Topology Map (.qdd/project/topology.json)"
+    on_missing_data: "EXPLICIT_UNKNOWN_RESPONSE" # Do not infer or invent data
+
+  output_validation:
+    strict_json_schema: true
+    reject_unparsed_outputs: true
+    strip_markdown_fences: true
+
+  confidentiality_protection:
+    mask_pii: true
+    secret_patterns_blocked:
+      - "(?i)(api[_-]?key|secret|token|password|bearer)\\s*[:=]\\s*['\"][^'\"]+['\"]"
+      - "(?i)ghp_[a-zA-Z0-9]{36}"
+      - "(?i)eyJ[a-zA-Z0-9_-]{10,}\\.[a-zA-Z0-9_-]{10,}"

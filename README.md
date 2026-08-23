@@ -35,6 +35,7 @@ QDD resuelve este problema operando bajo el **Manifiesto QDD** y el principio fu
 
 ## 🧠 Filosofía y Principios Fundamentales
 
+- **"Lo que no se mide no se mejora":** QDD rechaza las mejoras subjetivas. Todo avance debe ser medible, comparable y demostrable mediante métricas matemáticas (Score de Calidad 0-100, reducción de deuda técnica, horas ahorradas, cobertura de pruebas y certificaciones formales).
 - **Production-First:** QDD no genera ejemplos desechables. Toda solución se diseña pensando en su operación a largo plazo y debe poder desplegarse en producción con calidad profesional.
 - **El conocimiento es el activo principal:** El código no es la fuente de verdad, la fuente de verdad es el conocimiento acumulado (Certificaciones, ADRs, Findings).
 - **Modo Consultivo y Certificación:** QDD actúa como un Arquitecto Principal. Nunca escribirá código deficiente ciegamente. Si detecta la oportunidad de implementar un estándar (ej. OpenAPI, OWASP, Clean Architecture), detendrá la ejecución, entrará en Modo Consultivo, explicará los beneficios y pedirá autorización.
@@ -144,9 +145,14 @@ El framework soporta y obliga comportamientos avanzados tanto para humanos como 
    ```bash
    qdd run --keep-alive ./mi-servicio --puerto 8080
    ```
+6. **Equipo Resolutor Multi-Agente (`/qdd resolve`):** Orquesta un equipo FAANG de 5 agentes especializados (Orquestador, Analista Integral, Implementador Senior, QA Zero-Mock y DevOps/SRE) con emisión de certificado de resolución firmado.
+7. **Gobernanza y Certificaciones de Inteligencia Artificial:** Cumplimiento auditable de **ISO/IEC 42001 (AIMS)**, **ISO/IEC 29119-11 (AI Testing)**, **AICPA SOC 2 (Processing Integrity & Anti-Hallucination)** e **ISO/IEC 23894:2023 (AI Risk Management)** con Golden Sets deterministas.
+8. **Sistema Unificado de Reportes (`qdd report`):** Genera reportes ejecutivos consolidados multi-formato (`text`, `md`, `json`) integrables en terminal y pipelines de CI/CD.
+9. **Detección de Motores Locales & Ejecución en Dashboard:** Detección automática de **Antigravity** (Google AI), **Ollama**, **LM Studio**, **LocalAI/vLLM** y **Claude Code** para ejecutar intenciones y prompts en tiempo real directamente desde el Centro de Comando Web con streaming SSE.
 
 ---
 
 ## 🤝 Contribuyendo y RFCs
 
 QDD es un estándar abierto enfocado en gobernar el desarrollo de software seguro y auditable. Lee `CONTRIBUTING.md` para más información.
+

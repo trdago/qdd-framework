@@ -1,0 +1,15 @@
+{
+  "name": "soc2_output_schema_and_grounding_validation",
+  "type": "happy_path",
+  "input": {
+    "model_output_json": "{\"status\":\"success\",\"risk_level\":\"low\",\"verified\":true}",
+    "expected_schema_fields": "status;risk_level;verified",
+    "ground_truth_context": "Verified architecture nodes from knowledge.db"
+  },
+  "expected_output": {
+    "valid_json": true,
+    "fields_count": 3,
+    "certified": true
+  },
+  "expected_error": ""
+}

@@ -1,0 +1,24 @@
+tags:
+    - ai
+    - risk
+    - security
+active: true
+id: CERT-053-ISO-23894-AI-RISK
+version: "1.0.0"
+title: "ISO/IEC 23894:2023: Gestión de Riesgos en Inteligencia Artificial"
+status: certified
+related_feature: "AI Risk Identification & Mitigation"
+description: >
+    Norma técnica que certifica la correcta identificación, evaluación y tratamiento de peligros 
+    específicos de los modelos de IA, tales como alucinaciones descontroladas, sesgos algorítmicos, 
+    ataques de inyección de prompts (Prompt Injection / Jailbreak) y fuga de información sensible.
+rules:
+    - id: ISO23894-RISK-01-PROMPT-INJECTION-DEFENSE
+      description: "Los inputs de usuario que se inyectan en prompts deben ser sanitizados y aislados para prevenir secuestro de instrucciones del sistema."
+      method: "Static Code Analysis (Prompt Sanitization Check)"
+    - id: ISO23894-RISK-02-BIAS-ASSESSMENT
+      description: "Los modelos y prompts de toma de decisión deben contar con evaluación de sesgos y criterios de equidad documentados."
+      method: "Risk Matrix Document (.qdd/project/adr/ or findings/)"
+    - id: ISO23894-RISK-03-COGNITIVE-BOUNDS-LIMIT
+      description: "Las cadenas de razonamiento y llamadas recursivas a agentes deben tener límites máximos de ejecución y timeouts para evitar bucles infinitos."
+      method: "Cognitive Limits Check (CERT-023-COGNITIVE-BOUNDS)"

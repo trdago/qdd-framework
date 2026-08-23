@@ -53,3 +53,26 @@ func verifyFrontmatterContract(t *testing.T, qddWorkflowPath string) {
 
 	t.Log("Éxito: El contrato del frontmatter se ha cumplido. El bug está sellado.")
 }
+
+func TestAntigravityEquipoResolutorContract(t *testing.T) {
+	tempDir := t.TempDir()
+	adapter := &AntigravityAdapter{}
+	err := adapter.Sync(tempDir)
+	if err != nil {
+		t.Fatalf("Sync failed: %v", err)
+	}
+
+	resolutorPath := filepath.Join(tempDir, ".agents", "workflows", "equipo_resolutor.md")
+	data, err := os.ReadFile(resolutorPath)
+	if err != nil {
+		t.Fatalf("equipo_resolutor.md was not created: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "EQUIPO RESOLUTOR") {
+		t.Fatalf("equipo_resolutor.md does not contain expected title")
+	}
+	if !strings.Contains(content, "/qdd resolve") {
+		t.Fatalf("equipo_resolutor.md does not contain /qdd resolve")
+	}
+}

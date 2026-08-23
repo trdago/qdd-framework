@@ -1,0 +1,17 @@
+{
+  "name": "ai_risk_assessment_grounded_system",
+  "type": "happy_path",
+  "input": {
+    "model_target": "gpt-4o",
+    "prompt_text": "You are a code auditor. Extract dependencies using the verified knowledge graph.",
+    "has_grounding": true,
+    "has_human_oversight": true
+  },
+  "expected_output": {
+    "status": "PASSED",
+    "risk_score": 100,
+    "passed_checks_count": 3,
+    "warnings_count": 0
+  },
+  "expected_error": ""
+}

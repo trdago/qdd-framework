@@ -1,0 +1,9 @@
+id: FND-025-SQL-TYPE-MISMATCH-PUBLIC-TOKEN-DECISION
+type: BUG
+title: 'Fallo al aplicar decisión pública por discrepancia de tipos SQL (text = uuid)'
+status: RESOLVED
+severity: CRITICAL
+impact: 'CRITICAL - Al intentar aprobar o descartar una licitación desde el enlace público de validación, PostgreSQL arrojaba el error "operator does not exist: text = uuid (SQLSTATE 42883)" debido a una cláusula WHERE id = $4 OR id::text = $4 incompatible.'
+created_at: '2026-08-22T11:42:00-04:00'
+description: 'Se corrigió la consulta SQL de actualización en ApplyPublicTokenDecision en recommended_repo.go a WHERE id::text = $4 OR tender_id = $4, garantizando coincidencia de tipos estricta y evitando conversiones implícitas inválidas en PostgreSQL.'
+resolution: 'Consulta SQL actualizada, verificada y desplegada a producción vía CI/CD.'

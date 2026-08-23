@@ -24,7 +24,8 @@
       ".qdd/state.json",
       ".cursor/mcp.json",
       ".clauderc",
-      ".antigravityrules"
+      ".antigravityrules",
+      ".qdd/project/metrics/cognitive_history.json"
     ],
     "auto_fix": false
   },

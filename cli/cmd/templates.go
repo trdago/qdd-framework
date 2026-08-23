@@ -13,6 +13,7 @@ A partir de este momento, estás obligado a cumplir las siguientes reglas:
 3. **No uses 'else':** Por regla global de este proyecto, evita usar 'else' en el código. Utiliza 'early returns' (retornos tempranos).
 4. **Salida más rápida primero:** Valida los errores al inicio de las funciones y haz return inmediatamente.
 5. **Aprobaciones (Backward Compatibility):** Si tu plan implica cambiar la firma de una función pública, un endpoint, o un contrato de API, debes detenerte y pedir permiso explícito al usuario antes de proceder.
+6. **Lo que no se mide no se mejora:** Toda decisión y mejora de calidad debe ser cuantificable, medible y demostrable mediante pruebas, métricas de gobernanza o certificaciones formales.
 
 ## Estructura QDD
 

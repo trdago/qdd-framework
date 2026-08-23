@@ -1,0 +1,24 @@
+tags:
+    - ai
+    - security
+    - compliance
+active: true
+id: CERT-052-SOC2-AI-PROCESSING-INTEGRITY
+version: "1.0.0"
+title: "AICPA SOC 2: Criterios de Confianza en IA e Integridad del Procesamiento"
+status: certified
+related_feature: "SOC 2 Processing Integrity & Anti-Hallucination"
+description: >
+    Auditoría técnica orientada a servicios B2B SaaS. Exige controles que impidan que el sistema entregue 
+    información inventada (alucinaciones) a los usuarios, obligando a validar esquemas de salida, 
+    fuentes verificables (Grounding) y protección estricta contra fuga de secretos o datos PII.
+rules:
+    - id: SOC2-AI-01-ANTI-HALLUCINATION-GROUNDING
+      description: "Toda respuesta generativa orientada al usuario debe basarse en fuentes de datos verificables (Knowledge Base/GraphRAG) o indicar falta de información."
+      method: "Provenance & Grounding Check"
+    - id: SOC2-AI-02-STRICT-OUTPUT-SCHEMA
+      description: "Las salidas de inferencia estructuradas deben parsearse y validarse contra esquemas JSON/YAML estrictos antes de procesarse."
+      method: "Schema Validation Guardrails"
+    - id: SOC2-AI-03-CONFIDENTIALITY-PII-FILTER
+      description: "Prohibido enviar claves, credenciales o datos PII no anonimizados a proveedores de inferencia de terceros."
+      method: "Data Sanitization / Static Secret Scanner"

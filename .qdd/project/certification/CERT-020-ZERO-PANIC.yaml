@@ -1,0 +1,9 @@
+id: CERT-020-ZERO-PANIC
+version: "1.0.0"
+title: "Zero-Panic & Mathematical Verification (NASA-Grade)"
+status: certified
+rules:
+  - id: RUL-ZERO-PANIC-01
+    description: "Prohibición total de panic() en código de producción. Todo error debe degradarse matemáticamente."
+    method: "AST Inspection & Top-Level Recovery"
+    target: "cli/cmd/zero_panic_test.go"

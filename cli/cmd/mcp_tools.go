@@ -20,7 +20,7 @@ func registerAuditTool(s *server.MCPServer) {
 		mcp.WithDescription("Ejecuta la auditoría estricta de QDD en el proyecto y devuelve las violaciones."),
 	)
 
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		engine := audit.NewEngine(cwd)
 		violations := engine.RunAll()
@@ -43,7 +43,7 @@ func registerCertifyTool(s *server.MCPServer) {
 		mcp.WithDescription("Certifica que el código cumple con los estándares listos para release."),
 	)
 
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		engine := audit.NewEngine(cwd)
 		violations := engine.RunAll()
@@ -62,7 +62,7 @@ func registerQueryGraphTool(s *server.MCPServer) {
 		mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL a ejecutar (SELECT ... FROM nodes/edges).")),
 	)
 
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		query, err := extractQueryArg(request)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
@@ -153,7 +153,7 @@ func registerSyncGraphTool(s *server.MCPServer) {
 		mcp.WithDescription("Fuerza la sincronización y actualización del motor GraphRAG (Knowledge.db)."),
 	)
 
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		gdb, err := graph.InitDB()
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error inicializando DB: %v", err)), nil
@@ -175,7 +175,7 @@ func registerPostgresTunerTool(s *server.MCPServer) {
                 mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL que presenta problemas de rendimiento.")),
         )
 
-        s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+        RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
                 argsMap, ok := request.Params.Arguments.(map[string]interface{})
                 if !ok {
                         return mcp.NewToolResultError("Argumentos inválidos"), nil

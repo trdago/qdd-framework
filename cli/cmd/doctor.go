@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -54,13 +55,14 @@ var doctorCmd = &cobra.Command{
 		}
 		cwd = integration.FindProjectRoot(cwd)
 
-		if autoFix {
-			fmt.Println("[!] Doctor: Ejecutando auto-reparación inicial...")
-			runAutoFix(cwd)
+		checklist := runDeterministicChecks(cwd)
+		if autoFix && checklist.HasFailures() {
+			fmt.Println("[!] Doctor: Detectadas anomalías, ejecutando reparaciones selectivas...")
+			runSelectiveFixes(cwd, checklist)
 			fmt.Println()
+			checklist = runDeterministicChecks(cwd) // Re-evaluar post-reparación
 		}
 
-		checklist := runDeterministicChecks(cwd)
 		printChecklist(checklist)
 		generateReport(cwd, checklist)
 
@@ -83,19 +85,24 @@ func init() {
 
 func runDeterministicChecks(projectPath string) *Checklist {
 	list := &Checklist{}
+	list.Groups = append(list.Groups, buildGroup1Checks(projectPath))
+	list.Groups = append(list.Groups, buildGroup2Checks(projectPath))
+	list.Groups = append(list.Groups, buildGroup3Checks(projectPath))
+	return list
+}
 
-	// Grupo 1: Estructura de Archivos
+func buildGroup1Checks(projectPath string) *CheckGroup {
 	g1 := &CheckGroup{Name: "1. Estructura de Archivos y Carpetas Base"}
 	qddDir := filepath.Join(projectPath, ".qdd")
-	
 	g1.Items = append(g1.Items, checkDir(qddDir, "Directorio raíz .qdd/"))
 	g1.Items = append(g1.Items, checkDir(filepath.Join(qddDir, "core"), "Directorio base .qdd/core/"))
 	g1.Items = append(g1.Items, checkDir(filepath.Join(qddDir, "project"), "Directorio de proyecto .qdd/project/"))
 	g1.Items = append(g1.Items, checkFile(filepath.Join(qddDir, "config.yaml"), "Configuración base config.yaml"))
 	g1.Items = append(g1.Items, checkFile(filepath.Join(qddDir, "state.json"), "Estado de proyecto state.json"))
-	list.Groups = append(list.Groups, g1)
+	return g1
+}
 
-	// Grupo 2: Infraestructura IA y MCP
+func buildGroup2Checks(projectPath string) *CheckGroup {
 	g2 := &CheckGroup{Name: "2. Infraestructura de IA y MCP"}
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".cursor", "mcp.json"), "Integración Cursor (.cursor/mcp.json)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
@@ -108,10 +115,17 @@ func runDeterministicChecks(projectPath string) *Checklist {
 		wisdomCheck.Error = "Conectado"
 	}
 	g2.Items = append(g2.Items, wisdomCheck)
-	list.Groups = append(list.Groups, g2)
+	return g2
+}
 
-	// Grupo 3: Dashboard y Telemetría
+func buildGroup3Checks(projectPath string) *CheckGroup {
 	g3 := &CheckGroup{Name: "3. Dashboard y Entorno Nativo"}
+	g3.Items = append(g3.Items, buildDashboardCheck())
+	g3.Items = append(g3.Items, buildHistoryCheck(projectPath))
+	return g3
+}
+
+func buildDashboardCheck() *CheckItem {
 	dashCheck := &CheckItem{Name: "Assets estáticos del Dashboard (Vue) embebidos", Success: false, Error: "No se encontró el subdirectorio 'dist' en el binario"}
 	distFs, err := fs.Sub(ui.StaticFiles, "dist")
 	
@@ -123,11 +137,25 @@ func runDeterministicChecks(projectPath string) *Checklist {
 			dashCheck.Error = "Embebido correctamente"
 		}
 	}
-	
-	g3.Items = append(g3.Items, dashCheck)
-	list.Groups = append(list.Groups, g3)
+	return dashCheck
+}
 
-	return list
+func buildHistoryCheck(projectPath string) *CheckItem {
+	historyCheck := &CheckItem{Name: "Contrato de Historial (cognitive_history.json)", Success: false, Error: "Archivo ausente"}
+	historyPath := filepath.Join(projectPath, ".qdd", "project", "metrics", "cognitive_history.json")
+	if fileExists(historyPath) {
+		historyCheck.Error = "Archivo ausente o inválido"
+		content, err := os.ReadFile(historyPath)
+		if err == nil {
+			var arr []interface{}
+			historyCheck.Error = "Corrupción de JSON: no es un array válido"
+			if err := json.Unmarshal(content, &arr); err == nil {
+				historyCheck.Success = true
+				historyCheck.Error = "Esquema JSON válido"
+			}
+		}
+	}
+	return historyCheck
 }
 
 func checkDir(path, name string) *CheckItem {
@@ -217,31 +245,82 @@ func generateGroupReport(g *CheckGroup) string {
 	return content
 }
 
-func runAutoFix(projectPath string) {
+func runSelectiveFixes(projectPath string, checklist *Checklist) {
 	qddDir := filepath.Join(projectPath, ".qdd")
 	
+	for _, g := range checklist.Groups {
+		for _, item := range g.Items {
+			if !item.Success {
+				dispatchRepairCommand(item.Name, projectPath, qddDir)
+			}
+		}
+	}
+}
+
+func dispatchRepairCommand(itemName, projectPath, qddDir string) {
+	repairRegistry := map[string]func(string, string){
+		"Directorio raíz .qdd/": repairDirs,
+		"Directorio base .qdd/core/": repairDirs,
+		"Directorio de proyecto .qdd/project/": repairDirs,
+		"Configuración base config.yaml": repairConfig,
+		"Estado de proyecto state.json": repairState,
+		"Integración Cursor (.cursor/mcp.json)": repairMCP,
+		"Integración Claude (.clauderc)": repairMCP,
+		"Integración Antigravity (.antigravityrules)": repairMCP,
+		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
+		"Contrato de Historial (cognitive_history.json)": repairHistory,
+	}
+	
+	if handler, ok := repairRegistry[itemName]; ok {
+		handler(projectPath, qddDir)
+	}
+}
+
+func repairDirs(projectPath, qddDir string) {
 	fmt.Println("  [~] Reconstruyendo directorios base...")
 	_ = createQDDDirectories(qddDir)
-	
-	fmt.Println("  [~] Restaurando configuración y estado...")
+}
+
+func repairConfig(projectPath, qddDir string) {
+	fmt.Println("  [~] Restaurando configuración base...")
 	meta := detectProjectMetadata(projectPath)
 	_ = createConfigFile(qddDir, meta)
-	_ = createStateFile(qddDir)
-	
-	fmt.Println("  [~] Desempaquetando assets nativos...")
-	_ = unpackCoreAssets(qddDir)
+}
 
-	fmt.Println("  [~] Sincronizando perfiles de IA...")
+func repairState(projectPath, qddDir string) {
+	fmt.Println("  [~] Restaurando estado de proyecto...")
+	_ = createStateFile(qddDir)
+}
+
+func repairMCP(projectPath, qddDir string) {
+	fmt.Println("  [~] Sincronizando perfiles de IA (MCP)...")
 	manager := integration.NewIntegrationManager()
 	_ = manager.SyncAll(projectPath)
 }
 
+func repairAssets(projectPath, qddDir string) {
+	fmt.Println("  [~] Desempaquetando assets nativos...")
+	_ = unpackCoreAssets(qddDir)
+}
+
+func repairHistory(projectPath, qddDir string) {
+	fmt.Println("  [~] Reparando contratos JSON del Dashboard...")
+	repairDashboardContracts(projectPath)
+}
+
+func repairDashboardContracts(projectPath string) {
+	historyPath := filepath.Join(projectPath, ".qdd", "project", "metrics", "cognitive_history.json")
+	_ = os.MkdirAll(filepath.Dir(historyPath), 0755)
+	_ = os.WriteFile(historyPath, []byte("[]"), 0644)
+}
+
 // RunDoctorCheck ejecuta las pruebas deterministas del framework y deja un reporte.
 func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
-	if autoFix {
-		runAutoFix(projectPath)
-	}
 	checklist := runDeterministicChecks(projectPath)
+	if autoFix && checklist.HasFailures() {
+		runSelectiveFixes(projectPath, checklist)
+		checklist = runDeterministicChecks(projectPath)
+	}
 	generateReport(projectPath, checklist)
 
 	if checklist.HasFailures() {

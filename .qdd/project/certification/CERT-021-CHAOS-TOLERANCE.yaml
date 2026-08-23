@@ -1,0 +1,9 @@
+id: CERT-021-CHAOS-TOLERANCE
+version: "1.0.0"
+title: "Chaos Engineering Resilience (Netflix-Grade)"
+status: certified
+rules:
+  - id: RUL-CHAOS-TOLERANCE-01
+    description: "Toda llamada externa a APIs, BDs y LLMs debe incluir context.WithTimeout para resistir bloqueos de red."
+    method: "AST Inspection & Timeout Verification"
+    target: "cli/cmd/chaos_tolerance_test.go"

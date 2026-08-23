@@ -85,6 +85,10 @@ func (e *EngineCoordinator) runAdvancedChecks(p QDDPolicies, violations *[]Viola
 	if p.Enterprise {
 		*violations = append(*violations, RunEnterpriseCheck(e.cwd)...)
 	}
+
+	if p.AIGovernance {
+		*violations = append(*violations, RunAIGovernanceCheck(e.cwd)...)
+	}
 }
 
 func (e *EngineCoordinator) processCleanCodeViolations(p QDDPolicies) []Violation {

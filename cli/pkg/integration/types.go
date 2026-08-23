@@ -23,6 +23,10 @@ const QDDCommandProtocol = `
 /qdd api      - Audit or generate backend API endpoints following QDD REST/GraphQL standards.
 /qdd db       - Audit or generate database schemas and queries.
 /qdd release  - Prepare a new release following SemVer and QDD CD/CI standards.
+/qdd resolve  - Orchestrate an enterprise-level multi-agent resolver team (Analyst, Implementer, QA, DevOps) to fix complex issues.
+/qdd goal     - Execute an autonomous, long-running resolution mission until complete verification is achieved.
+/qdd report   - Generate a comprehensive executive report across audit, certifications, AI governance, findings, and evolution.
+/qdd evolution- Consult the framework on the next recommended technical improvement.
 /qdd docs     - Regenerate QDD documentation based on the current project state.
 
 # Instructions for AI:

@@ -73,6 +73,21 @@ Siempre existe una siguiente mejora posible.
 
 ---
 
+# Medición Cuantificable
+> *"Lo que no se mide no se mejora."*
+
+No creemos en mejoras subjetivas ni asunciones sin métricas.
+Toda mejora debe ser medible, comparable, demostrable y cuantificable.
+Cada ciclo de desarrollo debe generar métricas observables:
+* Score Matemático de Calidad (0 a 100).
+* Deuda técnica reducida y horas ahorradas (ROI).
+* Cobertura de pruebas y Golden Sets verificados.
+* Índice de Certeza, Fiabilidad e Integridad de Procesamiento en IA.
+* Evidencias formales de certificación.
+Si no puedes medir el impacto de un cambio, primero construye la métrica antes de modificar el sistema.
+
+---
+
 # Calidad Primero
 Nunca priorices velocidad sobre calidad sin informarlo.
 Si una decisión disminuye la calidad debes:

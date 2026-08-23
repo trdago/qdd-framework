@@ -1,35 +1,40 @@
 {
-  "summary": "Quality-Driven Development (QDD) es una Plataforma de Ingeniería de Software basada en Mejora Continua. Gobernando el ciclo de vida bajo estrictos estándares 'Production-First', reemplaza prompts manuales por un Framework (Wisdom Registry) que asegura calidad, validaciones automáticas, certificaciones como 'Rules-as-Code' y conocimiento persistido desde el día cero. El motor cognitivo interno original (QCL, descrito en RFC 0002) fue deprecado en favor de un modelo Agentic Harness: QDD opera como Servidor MCP consumido por IDEs con IA externa (Claude Code, Cursor, Antigravity).",
+  "summary": "Quality-Driven Development (QDD) es una Plataforma de Ingeniería de Software de Clase Mundial basada en Mejora Continua y Gobernanza de Código desde el Día Cero. Asegura la calidad eliminando prompts manuales mediante un Framework (Wisdom Registry), certificaciones 'Rules-as-Code', auditoría técnica automatizada (9 pilares de calidad), equipo resolutor multi-agente nivel FAANG (/qdd resolve), soporte completo para estándares internacionales de Inteligencia Artificial (ISO 42001, ISO 29119-11, SOC 2, ISO 23894), detección de APIs locales de LLM (Antigravity, Ollama, LM Studio) y un sistema unificado de reportes y dashboard en tiempo real.",
   "components": [
-    "Wisdom Registry (.qdd/core/wisdom/ - Manifiesto y principios base, incluye ahora CERT-033 sobre separación código/gobernanza y el nuevo PLUGIN_PROTOCOL.md para extensibilidad)",
-    "Engine & CLI Fast Path determinista: audit, certify, doctor, init, dashboard, benchmark, evolution, bug, y pull request (para integrar plugins de manera orquestada por IA)",
-    "MCP Server (mcp-server): expone herramientas del framework delegando a IDEs externos el procesamiento de intenciones cognitivas",
-    "pkg/cognitive: capa que invoca a agentes externos de IA locales para auto-reparación o consultas (utilizado en el modo supervisor)",
-    "qdd run: pipeline secuencial o supervisor resiliente (`qdd run --keep-alive`) que diagnostica, testea y repara procesos en runtime",
-    "Gobernanza y Certificaciones (Archivos YAML en core vs project)",
-    "Artifacts (Findings, ADRs y Sprints persistidos para memoria estructural)",
-    "AI Adapters & Plugins (cli/pkg/integration: Sincronización hacia el IDE y sistema de plugins nativos gobernados por QDD_PR_CERTIFICATE.md)"
+    "Wisdom Registry (.qdd/core/wisdom/ - Manifiesto y principios base, CERT-033 sobre separación código/gobernanza y PLUGIN_PROTOCOL.md)",
+    "Engine & Fast Path CLI determinista: audit, certify, doctor, init, dashboard, benchmark, evolution, bug, report, y pull request",
+    "Gobernanza de Inteligencia Artificial (ISO/IEC 42001 AIMS, ISO/IEC 29119-11 Testing, AICPA SOC 2 Processing Integrity, ISO/IEC 23894 AI Risk)",
+    "Equipo Resolutor Multi-Agente (/qdd resolve & .agents/workflows/equipo_resolutor.md: Orquestador, Analista Integral, Implementador, QA Zero-Mock y DevOps)",
+    "MCP Server de Alto Rendimiento (mcp-server): Expone 18 herramientas especializadas para agentes de IA (Antigravity, Claude Code, Cursor)",
+    "Motor Cognitivo Local & Ejecución Directa (pkg/cognitive: Detección de Antigravity, Ollama, LM Studio y Claude para ejecución en vivo desde el Dashboard)",
+    "Dashboard Web Reactivo (Vue 3 + SSE Realtime Stream en /api/stream, /api/state y /api/agent/execute)",
+    "Sistema Unificado de Reportes (qdd report: Consolidación multi-formato Text / MD / JSON con auditoría, certificaciones y telemetría)",
+    "qdd run: Pipeline secuencial y supervisor resiliente con auto-reparación ('qdd run --keep-alive')",
+    "Artifacts de Memoria Estructural (Findings, ADRs, Golden Sets deterministas y Certificados de Resolución)"
   ],
   "objectives": [
     "Preservar, incrementar y gobernar el conocimiento del proyecto durante todo su ciclo de vida.",
-    "Proteger el conocimiento del sistema asegurando que no dependa de la memoria de desarrolladores ni de un LLM aislado.",
-    "Validar estricta y automáticamente la calidad del proyecto mediante certificaciones antes de generar código.",
-    "Sincronizar estándares estructurales (Protocolo QCP) directamente en el cerebro de los asistentes IA.",
-    "Crear un ecosistema extensible de plugins donde el código no pertenezca al core, pero respete el 'Zero-Else' garantizado por el flujo '/qdd pull request'."
+    "Proteger el sistema asegurando que no dependa de la memoria de desarrolladores ni de un LLM aislado.",
+    "Garantizar la calidad y seguridad del software mediante certificaciones estrictas e inmutables antes de generar código.",
+    "Sincronizar estándares estructurales (Protocolo QCP) directamente en el cerebro de los asistentes de IA.",
+    "Garantizar cero alucinaciones y estricta integridad en componentes de IA mediante Golden Sets deterministas y Ground Truth.",
+    "Proveer un equipo multi-agente FAANG autónomo para resolución de incidentes complejos sin romper código existente.",
+    "Permitir la ejecución fluida de intenciones desde el Dashboard conectándose a motores locales como Antigravity y Ollama."
   ],
   "guidelines": [
-    "Zero-Else Rule: Utilizar 'early returns' (cláusulas de guarda) y evitar completamente bloques 'else' en todo el proyecto.",
-    "Cyclomatic Limit (CERT-031): máximo 5 de complejidad por función.",
-    "Production-First & Quality-First: Todo bug se vuelve un Finding.",
-    "Rules-as-Code: Los estándares son artefactos de certificación YAML.",
-    "Separación Código/Gobernanza (CERT-033, principio #14): el código de aplicación nunca vive dentro de .qdd/.",
-    "Inyección Nativa de Versiones: A partir de v1.9.16, la versión se inyecta nativamente usando '//go:embed version.txt' para evitar fallos de orquestación en GitHub Actions (ausencia de LDFLAGS)."
+    "Zero-Else Rule (Regla Global #1): Prohibido terminantemente el uso de 'else'. Utilizar siempre 'early returns' (cláusulas de guarda).",
+    "Early Return Guard (Regla Global #2): La salida más rápida siempre primero dentro de toda función.",
+    "Aprendizaje Perpetuo (Regla Global #3): Todo bug o fallo encontrado se documenta como Finding y requiere un test unitario de regresión obligatorio.",
+    "Medición Cuantificable (Principio #10): 'Lo que no se mide no se mejora'. Toda optimización o decisión de calidad debe estar respaldada por métricas objetivas (Score 0-100, ROI, horas ahorradas, deuda técnica reducida y evidencias deterministas).",
+    "Cyclomatic Limit (CERT-031): Complejidad ciclomática máxima de 5 por función.",
+    "Separación Código/Gobernanza (CERT-033): El código de aplicación nunca reside dentro de .qdd/.",
+    "Inyección Nativa de Versiones: Inyección mediante '//go:embed version.txt' y LDFLAGS en CI/CD.",
+    "Human-in-the-Loop: Acciones críticas de agentes de IA requieren supervisión y confirmación explícita."
   ],
   "gaps_detected": [
-    "RFC 0002 (QDD Cognitive Layer) describe un pipeline completo que fue deprecado en favor de MCP pero sigue marcado como 'Draft' en lugar de 'Superseded' o 'Rejected'.",
-    "specification/qdd-spec.md lista comandos (FEATURE, FIX, WORLD-CLASS) que no existen en ninguna forma (ni CLI ni MCP tool).",
-    "Los schemas YAML de certificación difieren entre .qdd/core/ y .qdd/project/ — no hay un schema único unificado."
+    "RFC 0002 (QDD Cognitive Layer) describe el diseño original pre-MCP; se mantiene como contexto histórico superado por el Agentic Harness y pkg/cognitive.",
+    "specification/qdd-spec.md contiene nomenclatura antigua de comandos sustituidos por el protocolo QCP actual (/qdd validate, /qdd certify, /qdd resolve, /qdd report, /qdd evolution)."
   ],
-  "next_steps": "Alinear RFC 0002 y specification/qdd-spec.md a la realidad del Agentic Harness. Unificar schemas de YAML de certificaciones. Promover el desarrollo del primer plugin oficial bajo el nuevo PLUGIN_PROTOCOL.md.",
-  "last_reviewed": "2026-07-19T23:35:00-04:00"
+  "next_steps": "Publicar la versión v1.9.18 del QDD Framework en NPM y GitHub Releases con el nuevo protocolo QCP, Equipo Resolutor, estándares de IA (ISO 42001, 29119-11, SOC 2, 23894), comando 'qdd report' y soporte para Antigravity / Ollama en Dashboard.",
+  "last_reviewed": "2026-08-16T22:43:05-04:00"
 }

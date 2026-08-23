@@ -8,12 +8,13 @@ import (
 )
 
 type QDDPolicies struct {
-	OWASP        bool `yaml:"owasp" json:"owasp"`
-	CleanCode    bool `yaml:"clean_code" json:"clean_code"`
-	ZeroElse     bool `yaml:"zero_else" json:"zero_else"`
-	BeyondLimits bool `yaml:"beyond_limits" json:"beyond_limits"`
+	OWASP          bool `yaml:"owasp" json:"owasp"`
+	CleanCode      bool `yaml:"clean_code" json:"clean_code"`
+	ZeroElse       bool `yaml:"zero_else" json:"zero_else"`
+	BeyondLimits   bool `yaml:"beyond_limits" json:"beyond_limits"`
 	Traceability   bool `yaml:"traceability" json:"traceability"`
 	Enterprise     bool `yaml:"enterprise" json:"enterprise"`
+	AIGovernance   bool `yaml:"ai_governance" json:"ai_governance"`
 	AllowExecution bool `yaml:"allow_execution" json:"allow_execution"`
 }
 
@@ -26,6 +27,7 @@ func DefaultPolicies() QDDPolicies {
 		BeyondLimits:   true,
 		Traceability:   true,
 		Enterprise:     true,
+		AIGovernance:   true,
 		AllowExecution: true,
 	}
 }

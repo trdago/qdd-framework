@@ -64,7 +64,8 @@ echo -e "\n--- [TEST 4] Estrategia y Planificación (Sprints) ---"
 echo "Generando pruebas automatizadas" | $QDD_BINARY sprint 1 > sprint_log.txt || true
 if [ -d ".qdd/sprints" ]; then
     echo "[✔] Subsistema de Sprints operativo."
-else
+fi
+if [ ! -d ".qdd/sprints" ]; then
     echo "[!] Nota: No se pudo verificar la creación total del Sprint sin interacción humana real, pero no hubo panic."
 fi
 
@@ -74,7 +75,8 @@ $QDD_BINARY status > status_log.txt
 $QDD_BINARY audit > audit_log.txt || true
 if grep -q "violaciones" audit_log.txt; then
     echo "[!] La auditoría detectó violaciones en el código externo. ¡El scanner funciona!"
-else
+fi
+if ! grep -q "violaciones" audit_log.txt; then
     echo "[✔] Auditoría completada sin fallos sistémicos."
 fi
 
@@ -85,7 +87,8 @@ DASH_PID=$!
 sleep 2 # Esperamos que levante
 if curl -s http://localhost:8080/ | grep -q "id=\"app\""; then
     echo "[✔] El servidor Dashboard (UI) levantó exitosamente en puerto 8080."
-else
+fi
+if ! curl -s http://localhost:8080/ | grep -q "id=\"app\""; then
     echo "🚨 ERROR: El Dashboard no respondió correctamente."
     kill $DASH_PID
     exit 1
@@ -98,7 +101,8 @@ echo -e "\n--- [TEST 7] Certificación Final (Fast Path) ---"
 $QDD_BINARY certify > certify_log.txt
 if grep -q "Certificado" certify_log.txt; then
     echo "[✔] Proyecto validado bajo las directrices del framework."
-else
+fi
+if ! grep -q "Certificado" certify_log.txt; then
     echo "[!] El motor de certificación encontró advertencias reales (comportamiento esperado en proyectos legacy)."
 fi
 

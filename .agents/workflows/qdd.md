@@ -43,6 +43,9 @@ El usuario invocará comandos (o intenciones auto-asociadas) que insertarán al 
 - **/qdd pull request** (o **/qdd pr**) (Asimilación de Aportes Externos)
   - *Entrada:* Fase 1 (Lectura del Certificado `.qdd/QDD_PR_CERTIFICATE.md` o enlace/archivo adjunto provisto por el usuario).
   - *Flujo:* F1 (Entender aporte y contexto del proyecto) -> F3 (Adaptar/Crear tests para el aporte) -> F4 (Integrar el código propuesto) -> F5 (Validar reglas QDD como Zero-Else).
+- **/qdd resolve** (Equipo Resolutor FAANG)
+  - *Entrada:* Fase 1.
+  - *Flujo:* Orquestador lanza Analista Integral (F1-F2) -> Implementador (F3-F4) -> QA (F5) -> DevOps (F5+ Despliegue). Aborda problemas complejos con un escuadrón multi-agente de nivel empresarial garantizando 100% estabilidad.
 - **/qdd bug** (Resolución de Bugs / Errores)
   - *Entrada:* Fase 3.
   - *Flujo:* F3 (Escribir test que reproduzca el bug) -> F4 (Fix) -> F5 (Validar).
@@ -68,7 +71,7 @@ El usuario invocará comandos (o intenciones auto-asociadas) que insertarán al 
 2. **Zero-Mocks (Real Infrastructure):** Nunca hacemos mocks de dependencias. Si se requiere probar lógica de persistencia, el Agente debe levantar una base de datos SQLite real. Las pruebas deben ser deterministas contra infraestructuras reales.
 3. **UI Predictiva:** Al requerir decisión del usuario, usa modales interactivos (`ask_question`), opciones estructuradas o comandos sugeridos antes que pedir input libre.
 4. **Casos de Borde Obligatorios:** Todos los tests en Fase 3 deben evaluar timeouts, nulls y límites lógicos, no solo el "camino feliz". TODO bug genera un test.
-5. **Paralelismo Contextual:** Si el agente lanza Sub-agentes (paralelismo), debe reportar al usuario qué rama o funcionalidad se está interviniendo.
+5. **Paralelismo Contextual y Orquestación FAANG:** Si el agente lanza Sub-agentes (paralelismo) o invoca el Equipo Resolutor, el Orquestador DEBE garantizar el pase estricto del testigo de la Fase 1 a la 5 entre agentes (Analista, Implementador, QA, DevOps) reportando el estado en vivo al usuario.
 6. **Pipelining (Cadenas):** Si recibes múltiples comandos (`/qdd bug sprint release`), se ejecutan iterativamente, pasando por la máquina de estados en el orden lógico.
 7. **Auto-Asociación:** Si el usuario pide algo sin usar el comando `/qdd` (ej: "corrige la tabla"), el Agente DEBE auto-clasificar la intención en el comando más cercano (ej. `/qdd bug` o `/qdd sprint`) y verbalizarlo ("Asignando esta tarea a `/qdd bug`, iniciando en Fase 3...").
 8. **No Fallos Silenciosos y Mocks en Tests Únicamente:** El Agente (Famas) tiene prohibido escribir fallos silenciosos; todo error debe manejarse explícitamente. Asimismo, no puede generar mocks para el flujo de ejecución del código, estos solo son permitidos en tests.
@@ -87,6 +90,7 @@ El usuario invocará comandos (o intenciones auto-asociadas) que insertarán al 
 /qdd api      - Audit or generate backend API endpoints following QDD REST/GraphQL standards.
 /qdd db       - Audit or generate database schemas and queries.
 /qdd release  - Prepare a new release following SemVer and QDD CD/CI standards.
+/qdd resolve  - Orchestrate an enterprise-level multi-agent resolver team (Analyst, Implementer, QA, DevOps) to fix complex issues.
 /qdd docs     - Regenerate QDD documentation based on the current project state.
 
 # Instructions for AI:

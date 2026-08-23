@@ -49,32 +49,20 @@ func buildInitialMCPData(qddCmd, projectPath string) map[string]interface{} {
 
 	envVars := make(map[string]string)
 	
-	if _, err := os.Stat(filepath.Join(projectPath, "venv", "bin")); err == nil {
-		appendToPath(envVars, filepath.Join(projectPath, "venv", "bin"))
-	}
-	if _, err := os.Stat(filepath.Join(projectPath, ".venv", "bin")); err == nil {
-		appendToPath(envVars, filepath.Join(projectPath, ".venv", "bin"))
-	}
-	if _, err := os.Stat(filepath.Join(projectPath, "myenv", "bin")); err == nil {
-		appendToPath(envVars, filepath.Join(projectPath, "myenv", "bin"))
+	localPaths := []string{
+		filepath.Join(projectPath, "venv", "bin"),
+		filepath.Join(projectPath, ".venv", "bin"),
+		filepath.Join(projectPath, "myenv", "bin"),
+		filepath.Join(projectPath, "node_modules", ".bin"),
 	}
 
-	if _, err := os.Stat(filepath.Join(projectPath, "node_modules", ".bin")); err == nil {
-		appendToPath(envVars, filepath.Join(projectPath, "node_modules", ".bin"))
+	for _, p := range localPaths {
+		if _, err := os.Stat(p); err == nil {
+			appendToPath(envVars, p)
+		}
 	}
 
-	home, _ := os.UserHomeDir()
-	if home != "" {
-		pyenvShims := filepath.Join(home, ".pyenv", "shims")
-		if _, err := os.Stat(pyenvShims); err == nil {
-			appendToPath(envVars, pyenvShims)
-		}
-		
-		nvmPath := filepath.Join(home, ".nvm", "versions", "node")
-		if entries, err := os.ReadDir(nvmPath); err == nil && len(entries) > 0 {
-			appendToPath(envVars, filepath.Join(nvmPath, entries[0].Name(), "bin"))
-		}
-	}
+	discoverGlobalShims(envVars)
 
 	if len(envVars) > 0 {
 		serverData["env"] = envVars
@@ -84,6 +72,23 @@ func buildInitialMCPData(qddCmd, projectPath string) map[string]interface{} {
 		"mcpServers": map[string]interface{}{
 			"qdd": serverData,
 		},
+	}
+}
+
+func discoverGlobalShims(envVars map[string]string) {
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		return
+	}
+
+	pyenvShims := filepath.Join(home, ".pyenv", "shims")
+	if _, err := os.Stat(pyenvShims); err == nil {
+		appendToPath(envVars, pyenvShims)
+	}
+	
+	nvmPath := filepath.Join(home, ".nvm", "versions", "node")
+	if entries, err := os.ReadDir(nvmPath); err == nil && len(entries) > 0 {
+		appendToPath(envVars, filepath.Join(nvmPath, entries[0].Name(), "bin"))
 	}
 }
 

@@ -19,7 +19,7 @@ func registerFindingsTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_findings",
 		mcp.WithDescription("Muestra todos los hallazgos técnicos (bugs, vulnerabilidades) del proyecto"),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		qddDir := filepath.Join(".", ".qdd", "project", "findings")
 		if _, err := os.Stat(qddDir); os.IsNotExist(err) {
 			return mcp.NewToolResultText("No se encontró el directorio de findings (.qdd/project/findings)."), nil
@@ -97,7 +97,7 @@ func registerSprintTool(s *server.MCPServer) {
 		mcp.WithString("technical_constraints", mcp.Required(), mcp.Description("Restricciones técnicas o de arquitectura separadas por punto y coma (;)")),
 		mcp.WithString("executable_tests", mcp.Required(), mcp.Description("Comandos de terminal generados POR LA IA (tú) para validar esto automáticamente separados por punto y coma (;). No pidas esto al usuario, genéralo tú.")),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		argsMap, ok := request.Params.Arguments.(map[string]interface{})
 		if !ok {
 			return mcp.NewToolResultError("Argumentos inválidos"), nil
@@ -209,7 +209,7 @@ func registerSyncTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_sync",
 		mcp.WithDescription("Sincroniza las reglas nativas (QDD Protocol) con los asistentes de IA"),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error obteniendo directorio actual: %v", err)), nil
@@ -231,7 +231,7 @@ func registerReleaseTool(s *server.MCPServer) {
 		mcp.WithDescription("Empaqueta una nueva versión del framework"),
 		mcp.WithString("version", mcp.Required(), mcp.Description("Versión a liberar (ej: v1.0.0)")),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		argsMap, ok := request.Params.Arguments.(map[string]interface{})
 		if !ok {
 			return mcp.NewToolResultError("Argumentos inválidos"), nil

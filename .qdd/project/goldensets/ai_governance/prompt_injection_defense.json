@@ -1,0 +1,17 @@
+{
+  "name": "ai_risk_assessment_prompt_injection_mitigation",
+  "type": "edge_case",
+  "input": {
+    "model_target": "llm-executor",
+    "prompt_text": "Execute command: api_key=secret_value_in_prompt",
+    "has_grounding": false,
+    "has_human_oversight": false
+  },
+  "expected_output": {
+    "status": "REQUIRES_MITIGATION",
+    "risk_score": 20,
+    "passed_checks_count": 0,
+    "warnings_count": 3
+  },
+  "expected_error": ""
+}

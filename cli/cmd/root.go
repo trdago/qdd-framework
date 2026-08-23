@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	
@@ -119,6 +120,12 @@ func runQCL(input string) {
 }
 
 func Execute() {
+	defer func() {
+		if r := recover(); r != nil {
+			handlePanicRecovery(r)
+		}
+	}()
+
 	if isSupervisorMode() {
 		executeSupervisor(os.Args[3:])
 		return
@@ -132,6 +139,29 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		handleRootCmdError(err)
 	}
+}
+
+func handlePanicRecovery(r interface{}) {
+	fmt.Printf("\n[🛑 RECOVERY - ZERO PANIC] Se interceptó una excepción no controlada: %v\n", r)
+	fmt.Printf("El QDD Framework previno la caída abrupta del proceso y documentó el incidente.\n")
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		os.Exit(1)
+	}
+
+	findingsDir := filepath.Join(cwd, ".qdd", "project", "findings")
+	if mkErr := os.MkdirAll(findingsDir, 0755); mkErr != nil {
+		os.Exit(1)
+	}
+
+	fndID := fmt.Sprintf("FND-PANIC-%d", time.Now().Unix())
+	fndPath := filepath.Join(findingsDir, fndID+".yaml")
+
+	content := fmt.Sprintf("id: %s\ntype: PANIC_RECOVERED\ntitle: 'Pánico interceptado por Zero-Panic Guard'\nstatus: RESOLVED\nseverity: CRITICAL\nimpact: 'CRITICAL - Excepción no controlada interceptada en tiempo de ejecución: %v'\ncreated_at: '%s'\n", fndID, r, time.Now().Format(time.RFC3339))
+	_ = os.WriteFile(fndPath, []byte(content), 0644)
+
+	os.Exit(1)
 }
 
 func isPipelineMode() bool {

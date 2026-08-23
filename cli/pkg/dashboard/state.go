@@ -15,6 +15,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/topology"
 	"gopkg.in/yaml.v3"
@@ -285,6 +286,7 @@ type QDDState struct {
 	UsageTime      string                    `json:"usage_time"`
 	Policies       audit.QDDPolicies         `json:"policies"`
 	GraphData      DashboardGraphData        `json:"graph_data"`
+	LocalLLM       cognitive.LocalLLMInfo    `json:"local_llm"`
 	AutoUICert     bool                      `json:"auto_ui_certification"`
 }
 
@@ -312,11 +314,12 @@ func BuildState() QDDState {
 	response.Score = finalScore
 	response.Grade = determineDashboardGrade(finalScore)
 	response.QualityStatus = determineQualityStatus(openFindings)
+	response.LocalLLM = cognitive.DetectLocalLLM()
 	
 	recordHistoricalTrend(cwd, finalScore)
 
 	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
-		response.MCPLogs = append([]string{"[WARNING] Métricas de Valor y ROI no disponibles. Finaliza sprints para ganar valor."}, response.MCPLogs...)
+		response.MCPLogs = append([]string{"[FILOSOFÍA QDD] 'Lo que no se mide no se mejora'. Finaliza sprints y certificaciones para generar métricas de valor cuantificables."}, response.MCPLogs...)
 	}
 
 	return response

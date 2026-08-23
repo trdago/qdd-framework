@@ -57,6 +57,7 @@ Estos comandos puedes ejecutarlos sin miedo directo en la terminal. Su único tr
 | `qdd audit` | Ejecuta un Linter estático asegurando las reglas del framework (ej. Cero uso de `else`). **Seguro.** |
 | `qdd certify` | Revisa la carpeta `.qdd/core/certification/` y emite un veredicto de calidad del proyecto. **Seguro.** |
 | `qdd doctor` | Verifica que el entorno QDD esté completamente funcional (checklist determinista). **Seguro.** |
+| `qdd report` | Genera el reporte integral y consolidado de auditoría, certificaciones, findings y telemetría en formato Text, Markdown o JSON. **Seguro.** |
 | `qdd dashboard` | Inicia el Centro de Comando Web. Despliega el Intelligence Report, métricas, Sprints y Certificaciones. **Seguro.** |
 | `qdd evolution` | Estudia findings abiertos, certificaciones pendientes, violaciones de auditoría e historial de score para recomendar la única siguiente mejora accionable. No crea ni certifica nada por sí solo (Modo Consultivo). **Seguro.** |
 | `qdd benchmark` | Evalúa la calidad de respuesta (Cognitive Quality) del framework. **Seguro.** |
@@ -87,6 +88,13 @@ Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP �
 | `qdd_map` | Genera el mapa topológico de certificación del proyecto (`.qdd/project/topology.json`). |
 | `qdd_query_graph` | Ejecuta SQL de solo lectura sobre el grafo de conocimiento (`.qdd/knowledge.db`). |
 | `qdd_harness_generate` | Genera el system prompt combinado (Agentic Harness) para el IDE conectado. |
+| `qdd_report` | Genera el reporte integral de gobernanza y auditoría en formato Text, Markdown o JSON. |
+| `qdd_resolve_diagnose` | Diagnóstico forense integral de incidentes para el Equipo Resolutor FAANG. |
+| `qdd_resolve_certify` | Valida y emite el certificado de resolución firmado tras solucionar un incidente. |
+| `qdd_ai_risk_assess` | Evalúa riesgos de modelos y mitigaciones bajo ISO/IEC 23894 e ISO/IEC 42001. |
+| `qdd_ai_test_integrity` | Ejecuta y valida Golden Sets deterministas bajo ISO/IEC 29119-11 y SOC 2. |
+| `qdd_local_llm_status` | Sondea y reporta el estado de APIs locales de LLM (Antigravity, Ollama, LM Studio, Claude). |
+| `qdd_local_llm_exec` | Ejecuta instrucciones bajo gobernanza en el motor cognitivo local activo. |
 
 ### 🚧 Documentados pero no implementados (roadmap, no lo intentes en la CLI ni por MCP)
 Estos aparecían en versiones previas de esta misma página describiendo funcionalidad que nunca se construyó — no existen en ninguna forma hoy: `qdd validate`, `qdd review`, `qdd ui`, `qdd api`, `qdd db`, `qdd docs`, `qdd sync-ai`. Si tu caso de uso necesita alguno, es una propuesta de feature nueva, no un comando que puedas invocar ya.

@@ -1,0 +1,33 @@
+# QDD Finding Standard Template (QCS v1.1)
+id: "FIND-001"
+type: "bug" # bug | vulnerability | code_smell | architecture_gap
+title: "Título descriptivo del hallazgo técnico"
+status: "open" # open | in_progress | resolved | closed
+severity: "high" # critical | high | medium | low
+discovered_at: "2026-08-16T00:00:00Z"
+discovered_by: "QDD Audit Engine"
+
+context:
+  module: "core/auth"
+  files_affected:
+    - "pkg/auth/token.go"
+  description: >
+    Descripción detallada del comportamiento anómalo o brecha detectada.
+
+reproduction:
+  steps:
+    - "1. Invocar el handler con un token expirado"
+    - "2. Observar que no retorna error temprano"
+  expected: "HTTP 401 Unauthorized"
+  actual: "HTTP 500 Internal Server Error"
+
+impact_analysis:
+  blast_radius: "high"
+  zero_else_violated: false
+  zero_mocks_violated: false
+
+resolution:
+  golden_set: ".qdd/project/goldensets/auth/expired_token.json"
+  fixed_in_sprint: "sprint-1"
+  resolved_at: ""
+  verified_by_qa: false

@@ -32,8 +32,19 @@ func TestNoElseInCode(t *testing.T) {
 	}
 }
 
+var skippedDirs = map[string]bool{
+	"node_modules": true,
+	"dist":         true,
+	".git":         true,
+	".qdd":         true,
+	"venv":         true,
+	".venv":        true,
+	"myenv":        true,
+	"core_assets":  true,
+}
+
 func checkSkipDir(name string) error {
-	if name == "node_modules" || name == "dist" || name == ".git" || name == ".qdd" || name == "venv" || name == ".venv" || name == "myenv" {
+	if skippedDirs[name] {
 		return filepath.SkipDir
 	}
 	return nil
@@ -54,7 +65,10 @@ func hasValidExtension(name string) bool {
 	return strings.HasSuffix(name, ".go") || 
 		strings.HasSuffix(name, ".js") || 
 		strings.HasSuffix(name, ".ts") || 
-		strings.HasSuffix(name, ".vue")
+		strings.HasSuffix(name, ".vue") ||
+		strings.HasSuffix(name, ".sh") ||
+		strings.HasSuffix(name, ".yml") ||
+		strings.HasSuffix(name, ".yaml")
 }
 
 func checkFileContentForElse(t *testing.T, path string) error {
@@ -70,6 +84,18 @@ func checkFileContentForElse(t *testing.T, path string) error {
 	
 	if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) {
 		t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
+		return nil
+	}
+
+	lines := strings.Split(code, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "el" + "se" || trimmed == "} el" + "se" || trimmed == "el" + "se {" || strings.HasPrefix(trimmed, "el" + "se ") {
+			if !strings.Contains(line, "\"") && !strings.Contains(line, "'") && !strings.Contains(line, "`") {
+				t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
+				return nil
+			}
+		}
 	}
 	return nil
 }

@@ -1,0 +1,9 @@
+id: FND-024-PUBLIC-VALIDATION-PORTAL-BASE-URL
+type: BUG
+title: 'Fallo de conexión en Portal de Validación Pública por URL relativa'
+status: RESOLVED
+severity: HIGH
+impact: 'HIGH - Los enlaces mágicos de validación pública generados para clientes (https://tenderbot.cl/validar/...) mostraban "Enlace no válido o expirado: Error de conexión" debido a que fetch usaba rutas relativas /api/public/validation sin resolver VITE_API_URL.'
+created_at: '2026-08-22T10:46:00-04:00'
+description: 'Se implementó getApiBaseUrl() en PublicValidationPortal.vue para resolver correctamente la URL base del backend desde import.meta.env.VITE_API_URL en ambientes de producción.'
+resolution: 'PublicValidationPortal.vue actualizado con resolución dinámica de API Base URL y validación Zero-Else.'

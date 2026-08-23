@@ -96,38 +96,52 @@ func handleSupervisedCrash(ctx context.Context, cwd string, originalArgs []strin
 }
 
 func attemptAutoRepair(ctx context.Context, cwd string, originalArgs []string, report *supervisor.CrashReport, filed *bugreport.Filed) bool {
-	sandboxDir := cwd
-	tempDir, err := os.MkdirTemp("", "qdd-sandbox-*")
-	if err == nil {
-		sandboxDir = tempDir
-		// Clon agnóstico: copia todo menos el historial git y módulos pesados
-		exec.Command("rsync", "-a", "--exclude=.git", "--exclude=node_modules", cwd+"/", sandboxDir+"/").Run()
-		defer os.RemoveAll(sandboxDir)
-	}
+	sandboxDir, cleanup := setupSandbox(cwd)
+	defer cleanup()
 
 	prompt := buildRepairPrompt(report, filed.FindingPath, sandboxDir)
+	verdict, success := executeRepairAgent(ctx, sandboxDir, prompt)
+	if !success {
+		return false
+	}
 
+	applySandboxFix(sandboxDir, cwd, originalArgs, verdict, filed)
+	return true
+}
+
+func setupSandbox(cwd string) (string, func()) {
+	tempDir, err := os.MkdirTemp("", "qdd-sandbox-*")
+	if err == nil {
+		exec.Command("rsync", "-a", "--exclude=.git", "--exclude=node_modules", cwd+"/", tempDir+"/").Run()
+		return tempDir, func() { os.RemoveAll(tempDir) }
+	}
+	return cwd, func() {}
+}
+
+func executeRepairAgent(ctx context.Context, sandboxDir, prompt string) (repairVerdict, bool) {
 	resp, backend, err := cognitive.AttemptRepair(ctx, sandboxDir, prompt)
 	if err != nil {
 		fmt.Printf("[!] No se pudo invocar un agente con capacidad de reparación: %v\n", err)
-		return false
+		return repairVerdict{}, false
 	}
 	fmt.Printf("[QDD SUPERVISOR] Agente (%s) respondió en Sandbox.\n", backend)
 
 	verdict, ok := parseRepairVerdict(resp)
 	if !ok {
 		fmt.Println("[!] El agente no devolvió un veredicto estructurado válido. Deteniendo para revisión humana.")
-		return false
+		return repairVerdict{}, false
 	}
 
 	fmt.Printf("[QDD SUPERVISOR] Veredicto: fixed=%v — %s\n", verdict.Fixed, verdict.Summary)
 	if !verdict.Fixed {
-		return false
+		return repairVerdict{}, false
 	}
+	return verdict, true
+}
 
+func applySandboxFix(sandboxDir, cwd string, originalArgs []string, verdict repairVerdict, filed *bugreport.Filed) {
 	if sandboxDir != cwd {
 		fmt.Println("[QDD SUPERVISOR] Aplicando solución exitosa del Sandbox al código principal...")
-		// Sincronización exacta: --delete asegura que si la IA borró un archivo, también se borre en destino
 		exec.Command("rsync", "-a", "--delete", "--exclude=.git", "--exclude=node_modules", sandboxDir+"/", cwd+"/").Run()
 	}
 
@@ -135,7 +149,6 @@ func attemptAutoRepair(ctx context.Context, cwd string, originalArgs []string, r
 		fmt.Printf("[!] Fix aplicado pero no se pudo actualizar el finding: %v\n", err)
 	}
 	fmt.Printf("[QDD SUPERVISOR] Fix aplicado. Reanudando: %s\n", strings.Join(originalArgs, " "))
-	return true
 }
 
 func buildRepairPrompt(report *supervisor.CrashReport, findingPath string, sandboxDir string) string {

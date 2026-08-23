@@ -1,0 +1,9 @@
+id: FND-026-CRM-MANUAL-TENDER-INJECTION
+type: FEATURE
+title: 'Inyección manual de procesos y licitaciones al CRM para administradores'
+status: RESOLVED
+severity: MEDIUM
+impact: 'MEDIUM - Los administradores del sistema y de empresa no contaban con un flujo directo e interactivo en el CRM para inyectar licitaciones detectadas manualmente o solicitadas por clientes.'
+created_at: '2026-08-22T12:03:00-04:00'
+description: 'Se implementó el modal y botón "Agregar Manual" en RecommendedCRM.vue y se enriqueció el endpoint POST /api/crm/recommended/inject para permitir inyección completa de licitaciones con validaciones y broadcast en tiempo real.'
+resolution: 'Implementado y desplegado a producción en frontend y backend.'

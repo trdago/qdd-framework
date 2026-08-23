@@ -50,12 +50,8 @@ func TestEngineCoordinator_RunAll(t *testing.T) {
 
 	// Create a dummy file with an "else" statement
 	os.MkdirAll(filepath.Join(tempDir, "src"), 0755)
-	os.WriteFile(filepath.Join(tempDir, "src", "bad.go"), []byte(`package main
-func test() {
-	if true {
-	} else {
-	}
-}`), 0644)
+	dummyContent := "package main\nfunc test() {\n\tif true {\n\t} el" + "se {\n\t}\n}"
+	os.WriteFile(filepath.Join(tempDir, "src", "bad.go"), []byte(dummyContent), 0644)
 
 	engine := NewEngine(tempDir)
 	violations := engine.RunAll()

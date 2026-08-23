@@ -1,0 +1,34 @@
+{
+  "titulo": "Happy Project",
+  "subtitulo": "Normal API",
+  "fecha": "2026-07-20",
+  "tipo_documento": "API Docs",
+  "institucion": "Trdago",
+  "integrantes": [
+    {
+      "nombre_completo": "Dev One",
+      "rol": "Backend"
+    }
+  ],
+  "contenido": "This is a normal project.",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/users",
+      "description": "Get all users"
+    }
+  ],
+  "database": [
+    {
+      "name": "users",
+      "description": "Users table",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "description": "Primary key"
+        }
+      ]
+    }
+  ]
+}

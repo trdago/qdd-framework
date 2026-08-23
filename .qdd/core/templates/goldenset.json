@@ -1,0 +1,14 @@
+{
+  "name": "valid_user_authentication_happy_path",
+  "type": "happy_path",
+  "input": {
+    "username": "developer@qdd.io",
+    "credentials": "secure_secret_token"
+  },
+  "expected_output": {
+    "status": "authenticated",
+    "token_type": "Bearer",
+    "expires_in_seconds": 3600
+  },
+  "expected_error": ""
+}

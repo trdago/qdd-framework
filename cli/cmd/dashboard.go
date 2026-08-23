@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/dashboard"
 	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
@@ -36,22 +37,22 @@ var dashboardCmd = &cobra.Command{
 			return
 		}
 		fileServer := http.FileServer(http.FS(distFs))
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.Header().Set("Pragma", "no-cache")
 			w.Header().Set("Expires", "0")
 			fileServer.ServeHTTP(w, r)
-		})
+		}))
 
 		// Endpoint de API REST (Legacy/Fallback)
-		http.HandleFunc("/api/state", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/api/state", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
 			response := dashboard.BuildState()
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
-		})
+		}))
 
 		// Endpoint SSE (Server-Sent Events) para Real-Time con Contrato Estricto
-		http.HandleFunc("/api/stream", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/api/stream", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
@@ -81,9 +82,9 @@ var dashboardCmd = &cobra.Command{
 					flusher.Flush()
 				}
 			}
-		})
+		}))
 
-		http.HandleFunc("/api/policies", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/api/policies", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet {
 				cwd, _ := os.Getwd()
 				p := audit.LoadPolicies(cwd)
@@ -113,13 +114,13 @@ var dashboardCmd = &cobra.Command{
 				return
 			}
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		})
+		}))
 
 		type IntentRequest struct {
 			Input string `json:"input"`
 		}
 
-		http.HandleFunc("/api/intent", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/api/intent", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
@@ -130,22 +131,52 @@ var dashboardCmd = &cobra.Command{
 				return
 			}
 
-			mockResponse := map[string]interface{}{
-				"status":         "DEPRECATED",
-				"message":        "El motor cognitivo interno basado en API ha sido deprecado. QDD ahora actúa exclusivamente como un Harness MCP para inteligencias artificiales externas (Antigravity, Claude, Cursor). Por favor envía tu intención directamente a tu asistente de IA.",
-				"input_received": req.Input,
+			cwd, _ := os.Getwd()
+			execResult, err := cognitive.ExecuteLocalIntent(r.Context(), cwd, req.Input)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(execResult)
+				return
 			}
 
+			// Broadcast updated state to all connected SSE clients
+			res := dashboard.BuildState()
+			data, _ := json.Marshal(res)
+			dashboard.Broker.Broadcast(data)
+
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(mockResponse)
-		})
+			json.NewEncoder(w).Encode(execResult)
+		}))
+
+		http.HandleFunc("/api/agent/execute", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			var req IntentRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			cwd, _ := os.Getwd()
+			execResult, _ := cognitive.ExecuteLocalIntent(r.Context(), cwd, req.Input)
+
+			res := dashboard.BuildState()
+			data, _ := json.Marshal(res)
+			dashboard.Broker.Broadcast(data)
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(execResult)
+		}))
 
 		type FileRequest struct {
 			Path    string `json:"path"`
 			Content string `json:"content"`
 		}
 
-		http.HandleFunc("/api/file", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/api/file", safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
@@ -156,19 +187,6 @@ var dashboardCmd = &cobra.Command{
 				return
 			}
 			cwd, _ := os.Getwd()
-			// Resolve the path, making sure it targets .qdd directory
-			// In db.go, nodes ID are stored as relative paths inside .qdd/project or .qdd/core.
-			// However, sometimes it is relative to project/. Let's assume the ID starts with finding/, rule/, etc.
-			// The UI will pass the exact node ID which is like "sprints/login/input_user.md"
-			// Wait, in db.go: relPath = filepath.Rel(basePath, path) where basePath is `.qdd/project/sprints`.
-			// Wait! If basePath is `.qdd/project/sprints`, the relPath is just `login/input_user.md`.
-			// So the UI node ID is just `login/input_user.md`.
-			// But wait, if it's just `login/input_user.md`, how do we know if it belongs to sprints, findings or goldensets?
-			// The UI node object has `Type` (e.g., "task" for sprint, "finding" for finding, "goldenset" for goldenset).
-			// We can pass the full path from the UI or have the backend construct it.
-			// Let's have the frontend pass the absolute or relative path to the project root.
-			// For security, just ensure it doesn't escape the current working directory.
-			
 			targetPath := filepath.Join(cwd, req.Path)
 			if !strings.HasPrefix(filepath.Clean(targetPath), filepath.Clean(cwd)) {
 				http.Error(w, "Invalid path", http.StatusForbidden)
@@ -187,7 +205,7 @@ var dashboardCmd = &cobra.Command{
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		})
+		}))
 
 		port := 8099
 		var listener net.Listener
@@ -236,4 +254,21 @@ func openBrowser(url string) error {
 
 func init() {
 	rootCmd.AddCommand(dashboardCmd)
+}
+
+func safeHTTPHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				fmt.Printf("[🛑 DASHBOARD RECOVERY - ZERO PANIC] Pánico interceptado en endpoint %s: %v\n", r.URL.Path, rec)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"error":  fmt.Sprintf("Zero-Panic Guard: Error interno recuperado: %v", rec),
+					"status": "PANIC_RECOVERED",
+				})
+			}
+		}()
+		next(w, r)
+	}
 }

@@ -1,0 +1,24 @@
+tags:
+    - ai
+    - governance
+    - project
+active: true
+id: CERT-050-ISO-42001-AIMS
+version: "1.0.0"
+title: "ISO/IEC 42001: Sistema de Gestión de Inteligencia Artificial (AIMS)"
+status: certified
+related_feature: "AI Lifecycle & Governance"
+description: >
+    Valida que el sistema de software implementa un marco integral y documentado para gestionar 
+    los riesgos de IA a lo largo de todo su ciclo de vida, garantizando trazabilidad, roles de supervisión 
+    humana y control de cambios en modelos y prompts.
+rules:
+    - id: ISO42001-GOV-01-LIFECYCLE-POLICY
+      description: "Debe existir una política documentada de gobernanza de IA y registro de roles responsables."
+      method: "Document Review / Config Validation (.qdd/config.yaml)"
+    - id: ISO42001-GOV-02-MODEL-INVENTORY
+      description: "Todos los modelos, endpoints de inferencia y versiones de prompts deben estar inventariados y trazables."
+      method: "Static Code Analysis / Architecture Topology"
+    - id: ISO42001-GOV-03-HUMAN-OVERSIGHT
+      description: "Las acciones críticas ejecutadas por agentes de IA deben contar con supervisión humana o mecanismo de veto (Human-in-the-loop)."
+      method: "Behavioral & Workflow Audit"

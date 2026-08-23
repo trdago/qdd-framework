@@ -30,7 +30,11 @@ func TestDoctorWithGoldenSet(t *testing.T) {
 
 		for _, f := range in.FilesToCreate {
 			_ = os.MkdirAll(filepath.Dir(filepath.Join(tempDir, f)), 0755)
-			_ = os.WriteFile(filepath.Join(tempDir, f), []byte(""), 0644)
+			content := []byte("")
+			if strings.HasSuffix(f, ".json") {
+				content = []byte("[]")
+			}
+			_ = os.WriteFile(filepath.Join(tempDir, f), content, 0644)
 		}
 
 		success, failures := RunDoctorCheck(tempDir, in.AutoFix)
@@ -54,5 +58,28 @@ func validateDoctorReportContains(t *testing.T, qddDir, expectedStatus string) {
 	reportContent, _ := os.ReadFile(filepath.Join(evidenceDir, files[0].Name()))
 	if !strings.Contains(string(reportContent), expectedStatus) {
 		t.Errorf("El reporte no marcó '%s'. Contenido:\n%s", expectedStatus, reportContent)
+	}
+}
+
+func TestSelectiveFixDashboardContracts(t *testing.T) {
+	tempDir := t.TempDir()
+	
+	historyPath := filepath.Join(tempDir, ".qdd", "project", "metrics", "cognitive_history.json")
+	_ = os.MkdirAll(filepath.Dir(historyPath), 0755)
+	_ = os.WriteFile(historyPath, []byte("corrupted_no_json"), 0644)
+	
+	success, _ := RunDoctorCheck(tempDir, false)
+	if success {
+		t.Errorf("Expected failure for corrupted dashboard contract")
+	}
+	
+	RunDoctorCheck(tempDir, true)
+	
+	content, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("Failed to read repaired history: %v", err)
+	}
+	if string(content) != "[]" {
+		t.Errorf("Expected repaired JSON to be '[]', got '%s'", string(content))
 	}
 }

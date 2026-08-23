@@ -10,7 +10,7 @@
   },
   "expected_output": {
     "success": false,
-    "failures": 7
+    "failures": 8
   },
   "expected_error": ""
 }

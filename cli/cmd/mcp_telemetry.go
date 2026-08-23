@@ -13,6 +13,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/evolution"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
@@ -25,7 +26,7 @@ func registerEvolutionTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_evolution",
 		mcp.WithDescription("Estudia findings, certificaciones, violaciones de auditoría e historial de score para recomendar la siguiente mejora del proyecto. Solo lectura: nunca crea certificaciones por sí sola, propone en Modo Consultivo."),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error obteniendo directorio actual: %v", err)), nil
@@ -64,7 +65,7 @@ func registerScoreTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_score",
 		mcp.WithDescription("Calcula y devuelve el puntaje de calidad del proyecto basado en certificaciones y findings."),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		totalCerts, certifiedCerts := getCertificationStats()
 		openFindings, resolvedFindings := getFindingsStats()
 
@@ -187,7 +188,7 @@ func registerStatusTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_status",
 		mcp.WithDescription("Muestra el estado de gobernanza del proyecto."),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		qddDir := filepath.Join(".", ".qdd")
 		statePath := filepath.Join(qddDir, "state.json")
 		stateData, err := os.ReadFile(statePath)
@@ -206,7 +207,7 @@ func registerLearnTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_learn",
 		mcp.WithDescription("Aprende la arquitectura y documentación del proyecto (Fast Path)"),
 	)
-	s.AddTool(tool, handleLearnTool)
+	RegisterToolWithTelemetry(s, tool, handleLearnTool)
 }
 
 type KnowledgeIndexEntry struct {
@@ -413,7 +414,7 @@ func registerGraphQueryTool(s *server.MCPServer) {
 		mcp.WithDescription("Consultar el Grafo de Conocimiento (Knowledge Graph) mediante consultas SQLite (Pure-Go) embebidas."),
 		mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL a ejecutar sobre las tablas 'nodes' y 'edges'.")),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args, ok := request.Params.Arguments.(map[string]interface{})
 		if !ok {
 			return nil, fmt.Errorf("invalid arguments format")
@@ -437,7 +438,7 @@ func registerHarnessTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_harness_generate",
 		mcp.WithDescription("Genera el QDD Agentic Harness (System Prompt) combinando Claude, Antigravity, Cursor y Hermes."),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		p := audit.LoadPolicies(cwd)
 		prompt := harness.GenerateSystemPrompt(p.AllowExecution)
@@ -449,7 +450,7 @@ func registerMapTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_map",
 		mcp.WithDescription("Genera el mapa topológico de certificación del proyecto."),
 	)
-	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		projTopology, err := topology.MapProject(cwd)
 		if err != nil {
@@ -465,3 +466,69 @@ func registerMapTool(s *server.MCPServer) {
 		return mcp.NewToolResultText(fmt.Sprintf("Topología generada. Score Global: %d%%", projTopology.GlobalScore)), nil
 	})
 }
+
+func registerReportTool(s *server.MCPServer) {
+	tool := mcp.NewTool("qdd_report",
+		mcp.WithDescription("Genera el reporte integral y consolidado de gobernanza, auditoría, certificaciones, findings y evolución."),
+		mcp.WithString("format", mcp.Description("Formato del reporte: text, md, json (default: md)")),
+	)
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error obteniendo directorio: %v", err)), nil
+		}
+		cwd = integration.FindProjectRoot(cwd)
+
+		argsMap, ok := request.Params.Arguments.(map[string]interface{})
+		format := "md"
+		if ok && argsMap["format"] != nil {
+			if f, isStr := argsMap["format"].(string); isStr && f != "" {
+				format = f
+			}
+		}
+
+		report := GenerateComprehensiveReport(cwd)
+		out := formatReportOutput(report, format)
+		return mcp.NewToolResultText(out), nil
+	})
+}
+
+func registerLocalLLMTools(s *server.MCPServer) {
+	statusTool := mcp.NewTool("qdd_local_llm_status",
+		mcp.WithDescription("Detecta y reporta el estado de APIs locales de LLM activas (Antigravity, Ollama, LM Studio, Claude)."),
+	)
+	RegisterToolWithTelemetry(s, statusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		info := cognitive.DetectLocalLLM()
+		data, _ := json.MarshalIndent(info, "", "  ")
+		return mcp.NewToolResultText(string(data)), nil
+	})
+
+	execTool := mcp.NewTool("qdd_local_llm_exec",
+		mcp.WithDescription("Ejecuta una instrucción en el motor LLM local descubierto bajo las directivas de gobernanza QDD."),
+		mcp.WithString("prompt", mcp.Required(), mcp.Description("Instrucción o tarea a ejecutar")),
+	)
+	RegisterToolWithTelemetry(s, execTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		argsMap, ok := request.Params.Arguments.(map[string]interface{})
+		if !ok {
+			return mcp.NewToolResultError("Argumentos inválidos"), nil
+		}
+		prompt, _ := argsMap["prompt"].(string)
+		if prompt == "" {
+			return mcp.NewToolResultError("El prompt es requerido"), nil
+		}
+
+		cwd, _ := os.Getwd()
+		cwd = integration.FindProjectRoot(cwd)
+		res, err := cognitive.ExecuteLocalIntent(ctx, cwd, prompt)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Error ejecutando con LLM local: %v", err)), nil
+		}
+
+		out := fmt.Sprintf("=== EJECUCIÓN COGNITIVA LOCAL (%s - %s) ===\n", res.Provider, res.Model)
+		out += fmt.Sprintf("Tiempo: %dms | Estado: %s\n\n", res.ExecutionTimeMs, res.Status)
+		out += fmt.Sprintf("Salida:\n%s\n", res.Output)
+		return mcp.NewToolResultText(out), nil
+	})
+}
+
+

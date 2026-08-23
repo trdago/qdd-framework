@@ -1,0 +1,6 @@
+id: FND-028
+title: "Uso de 'else' en scripts y Github Actions"
+status: RESOLVED
+description: "Se detectaron múltiples bloques 'else' en scripts/test-real-world.sh y en .github/workflows/publish.yml, lo que viola la regla global CLEAN-01-NO-ELSE."
+impact: "El motor debe predicar con el ejemplo. El uso de else en scripts puede escalar y aumentar la complejidad ciclomática del despliegue y testing."
+action_taken: "Se refactorizaron los bloques 'else' utilizando sentencias 'if' separadas o condicionales booleanas. Además, se fortaleció la prueba unitaria no_else_test.go para atrapar estos casos en .sh y .yml."

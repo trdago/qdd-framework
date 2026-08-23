@@ -1,0 +1,41 @@
+# ISO/IEC 23894:2023 - AI Risk Assessment Matrix Template
+id: "AIRISK-001"
+system_name: "AI Decision & Reasoning Engine"
+version: "1.0.0"
+assessed_at: "2026-08-16T00:00:00Z"
+assessed_by: "Security & AI Governance Team"
+
+risk_categories:
+  - category: "Hallucination & Accuracy"
+    risk_description: "El modelo genera información plausible pero fácticamente incorrecta para el usuario."
+    inherent_risk_level: "HIGH" # CRITICAL | HIGH | MEDIUM | LOW
+    mitigation_controls:
+      - "Validación obligatoria contra Knowledge Graph (.qdd/knowledge.db)"
+      - "Golden Sets con Ground Truth estricto (ISO 29119-11)"
+    residual_risk_level: "LOW"
+    status: "MITIGATED"
+
+  - category: "Prompt Injection & Jailbreaks"
+    risk_description: "Entrada del usuario manipula las directivas de sistema del agente para eludir reglas QDD."
+    inherent_risk_level: "CRITICAL"
+    mitigation_controls:
+      - "Sanitización y delimitación estricta de variables de usuario con etiquetas XML"
+      - "Prohibición de ejecución directa sin confirmación (Human-in-the-loop)"
+    residual_risk_level: "LOW"
+    status: "MITIGATED"
+
+  - category: "Algorithmic Bias & Fairness"
+    risk_description: "Disparidad en respuestas o filtrado basada en variables sensibles."
+    inherent_risk_level: "MEDIUM"
+    mitigation_controls:
+      - "Evaluación de equidad en dataset de calibración"
+    residual_risk_level: "LOW"
+    status: "MITIGATED"
+
+  - category: "Confidentiality & Data Leakage"
+    risk_description: "Inclusión inadvertida de credenciales, secretos o PII en payloads de inferencia."
+    inherent_risk_level: "CRITICAL"
+    mitigation_controls:
+      - "Escaneo estático pre-vuelo de tokens y strings sensibles"
+    residual_risk_level: "LOW"
+    status: "MITIGATED"

@@ -1,0 +1,24 @@
+tags:
+    - ai
+    - testing
+    - quality
+active: true
+id: CERT-051-ISO-29119-11-AI-TESTING
+version: "1.0.0"
+title: "ISO/IEC 29119-11: Pruebas de Software para Sistemas Basados en IA"
+status: certified
+related_feature: "AI Engineering & Testing"
+description: >
+    Certifica que los métodos, arquitecturas y pruebas automatizadas son rigurosos para validar 
+    la precisión, determinismo, resistencia a perturbaciones (metamorfismo) y ausencia de regresiones 
+    en las respuestas de los componentes de IA.
+rules:
+    - id: ISO29119-TEST-01-GOLDEN-SETS
+      description: "Toda funcionalidad o prompt crítico de IA debe contar con un Golden Set determinista que valide Ground Truth y casos de error."
+      method: "Golden Set Runner (.qdd/project/goldensets/)"
+    - id: ISO29119-TEST-02-PERTURBATION-TESTING
+      description: "Las pruebas de IA deben evaluar la estabilidad y consistencia de las respuestas ante variaciones menores de entrada (metamorfismo)."
+      method: "Automated Perturbation Test Suite"
+    - id: ISO29119-TEST-03-ERROR-HANDLING-ROBUSTNESS
+      description: "Las llamadas a modelos o APIs de IA deben manejar explícitamente timeouts, fallos de red y límites de tokens sin fallos silenciosos."
+      method: "Static Code Analysis / Zero-Panic Rule"
