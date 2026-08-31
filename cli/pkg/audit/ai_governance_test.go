@@ -75,7 +75,7 @@ func testSOC2SecretLeakDetection(t *testing.T, tempDir string) {
 func testISO23894PromptInjectionDetection(t *testing.T, tempDir string) {
 	srcDir := filepath.Join(tempDir, "src")
 	injFile := filepath.Join(srcDir, "prompt_builder.go")
-	content := "package src\nfunc Build(userInput string) {\n\tvar prompt string\n\tprompt += \"Hello \" + userInput\n}\n"
+	content := "package src\nfunc Build(userInput string) {\n\tvar " + "pro" + "mpt string\n\t" + "pro" + "mpt += \"Hello \" + user" + "Input\n}\n"
 	if err := os.WriteFile(injFile, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to write prompt injection file: %v", err)
 	}

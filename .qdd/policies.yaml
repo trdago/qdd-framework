@@ -1,0 +1,8 @@
+owasp: true
+clean_code: true
+zero_else: true
+beyond_limits: true
+traceability: true
+enterprise: false
+ai_governance: true
+allow_execution: true

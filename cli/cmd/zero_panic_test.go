@@ -12,6 +12,7 @@ import (
 
 func TestZeroPanicHTTPMiddleware(t *testing.T) {
 	panickingHandler := safeHTTPHandler(func(w http.ResponseWriter, r *http.Request) {
+		// qdd:ignore CERT-020-ZERO-PANIC
 		panic("Simulated critical panic inside HTTP handler")
 	})
 
@@ -35,6 +36,7 @@ func TestZeroPanicMCPToolIsolation(t *testing.T) {
 
 	panickingTool := mcp.NewTool("test_panic", mcp.WithDescription("Tool that panics"))
 	RegisterToolWithTelemetry(s, panickingTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// qdd:ignore CERT-020-ZERO-PANIC
 		panic("Simulated tool panic")
 	})
 
