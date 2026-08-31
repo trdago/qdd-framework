@@ -1,0 +1,17 @@
+{
+  "name": "qdd-antigravity-tools",
+  "description": "Bridge and autonomous toolkit to connect independent scripts to Antigravity using SDK, MCP, reactive Ping-Pong handshake, and step-by-step master prompt",
+  "version": "1.0.0",
+  "author": "QDD Community",
+  "license": "MIT",
+  "keywords": [
+    "qdd",
+    "antigravity",
+    "ping-pong",
+    "sdk",
+    "mcp",
+    "reactive-handshake",
+    "autonomous-agents",
+    "tools-bridge"
+  ]
+}
