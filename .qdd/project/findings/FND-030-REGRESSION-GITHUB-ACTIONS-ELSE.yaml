@@ -1,0 +1,6 @@
+id: FND-030
+title: "Regresión de uso de 'else' en Github Actions"
+status: RESOLVED
+description: "Se detectó un bloque 'else' en .github/workflows/publish.yml durante el escaneo automático del motor QDD. Esto viola la política de Cero-Else (CLEAN-01-NO-ELSE)."
+impact: "Infracción de una de las directivas principales de QDD. Podría llevar a que se normalice el uso de if-else en la canalización de CI/CD."
+action_taken: "Se refactorizó el bloque 'else' dentro del archivo .github/workflows/publish.yml por dos bloques 'if' secuenciales independientes. El test existente 'TestNoElseInCode' (en no_else_test.go) ya estaba configurado para atrapar esto y ha pasado exitosamente tras el arreglo."

@@ -4,6 +4,19 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.20] - 2026-08-31
+
+### ✨ Nuevas Características
+
+#### 🎭 Integración de QDD Human Certifier en el Core
+- **Motor DAG de Certificación de Comportamiento Humano**: Integración oficial del plugin `qdd-human-certifier` como activo del núcleo de QDD (`.qdd/core/plugins/qdd-human-certifier/`).
+- **Comando CLI Nativo (`qdd certify human [target]`)**: Permite ejecutar de forma autónoma suites de pruebas de comportamiento humano, usabilidad y accesibilidad (WCAG 2.2) directamente desde la terminal.
+- **Herramienta MCP `qdd_certify_human`**: Expuesta en el servidor MCP para que agentes de IA (Antigravity, Cursor, Claude Code) puedan certificar interfaces web en viewports Desktop (1440x900) y Mobile (390x844) con resolución topológica de dependencias.
+- **Protocolo Zero-Else & Zero-Flakiness**: Código 100% libre de sentencias `else`, con esperas reactivas del DOM y protección de datos mediante `DataBackupGuard`.
+
+### 🐛 Bug Fixes
+- **CI/CD Publish Pipeline (FND-029 / FND-030)**: Corrección de sentencia `else` en `.github/workflows/publish.yml` aplicando salida temprana con `exit 0`.
+
 ## [v1.9.13] - 2026-07-19
 
 ### ✨ Nuevas Características

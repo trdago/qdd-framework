@@ -63,6 +63,7 @@ var mcpCmd = &cobra.Command{
 
 		registerReportTool(s)
 		registerLocalLLMTools(s)
+		registerHumanCertifierTool(s)
 		
 		// Start serving
 		return ss.Listen(context.Background(), os.Stdin, os.Stdout)

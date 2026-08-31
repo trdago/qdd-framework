@@ -36,6 +36,7 @@ var skippedDirs = map[string]bool{
 	"node_modules": true,
 	"dist":         true,
 	".git":         true,
+	".github":      true,
 	".qdd":         true,
 	"venv":         true,
 	".venv":        true,

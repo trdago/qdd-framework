@@ -1,0 +1,5 @@
+title: "Uso de 'else' en publish.yml"
+description: "Se detectó un bloque 'else' en el archivo .github/workflows/publish.yml, lo que viola la regla global CLEAN-01-NO-ELSE."
+impact: "El motor debe predicar con el ejemplo usando siempre salidas tempranas, incluso en shell scripts y pipelines de CI."
+action_taken: "Se refactorizó el bloque 'else' utilizando 'exit 0' como salida temprana dentro del pipeline. La prueba no_else_test.go ya cubre archivos .yml."
+test_result: "Refactorizado aplicando salida temprana."

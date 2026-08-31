@@ -120,6 +120,7 @@ El flujo es estrictamente secuencial a través de las fases de la Máquina de Es
 **Misión:** Garantía de no regresión y cumplimiento estricto del framework (Dueño de Fase 5 - Auditoría).
 **Responsabilidades FAANG:**
 - **Auditoría de Mocks:** Confirmar la regla QDD "Zero-Mocks en Prod". Ningún mock puede colarse en el flujo de ejecución de producción.
+- **Certificación de Comportamiento Humano:** Ejecutar la suite DAG de flujos humanos, usabilidad y accesibilidad (` + "`qdd certify human`" + ` o herramienta MCP ` + "`qdd_certify_human`" + `) en interfaces web.
 - **Casos de Borde:** Validar si el Implementador pensó en los límites lógicos (timeouts, nulos, desconexiones).
 - **Control de Daños:** Comprobar mediante diffs que no se eliminó o modificó lógica adyacente vital sin querer.
 - **Salida:** Firma del certificado de validación. Veto y retorno al Implementador si hay dudas.

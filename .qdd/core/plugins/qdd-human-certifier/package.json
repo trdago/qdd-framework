@@ -1,0 +1,26 @@
+{
+  "name": "@trdago/qdd-plugin-human-certifier",
+  "version": "1.0.0",
+  "description": "Autonomous Composable Human Behavior & Usability Graph QA Engine for QDD",
+  "type": "module",
+  "main": "runtime/index.mjs",
+  "bin": {
+    "qdd-human-certifier": "./runtime/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test runtime/test/*.test.mjs",
+    "certify": "node runtime/index.mjs all"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "keywords": [
+    "qdd",
+    "testing",
+    "qa",
+    "human-behavior",
+    "usability"
+  ],
+  "author": "QDD Community",
+  "license": "MIT"
+}
