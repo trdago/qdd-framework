@@ -1,0 +1,6 @@
+id: FND-031
+title: "Eliminación de 'else' en archivo publish.yml"
+status: RESOLVED
+description: "Se detectó la cláusula 'else' en el script de Bash dentro de .github/workflows/publish.yml violando la regla cero-else."
+impact: "Violación de regla estricta global de QDD."
+action_taken: "Se refactorizó el script para usar un early exit ('exit 0') dentro del bloque 'if', evitando así el uso de 'else'. El test unitario correspondiente ya existe y asegura que no haya regresiones."
