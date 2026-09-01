@@ -52,16 +52,14 @@ func isIgnoredCleanCodeDir(path string) bool {
 func checkNodeForElse(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
 	ast.Inspect(node, func(n ast.Node) bool {
 		if ifStmt, ok := n.(*ast.IfStmt); ok && ifStmt.Else != nil {
-			if _, isElseIf := ifStmt.Else.(*ast.IfStmt); !isElseIf {
-				pos := fset.Position(ifStmt.Else.Pos())
-				*violations = append(*violations, Violation{
-					Category:    "CLEAN-CODE",
-					RuleID:      "CLEAN-01-NO-ELSE",
-					Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
-					File:        path,
-					Line:        pos.Line,
-				})
-			}
+			pos := fset.Position(ifStmt.Else.Pos())
+			*violations = append(*violations, Violation{
+				Category:    "CLEAN-CODE",
+				RuleID:      "CLEAN-01-NO-ELSE",
+				Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
+				File:        path,
+				Line:        pos.Line,
+			})
 		}
 		return true
 	})

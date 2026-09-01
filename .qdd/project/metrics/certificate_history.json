@@ -394,5 +394,11 @@
     "score": 100,
     "total_violations": 0,
     "tendency": "Estable"
+  },
+  {
+    "timestamp": "2026-08-31T22:18:50-04:00",
+    "score": 100,
+    "total_violations": 0,
+    "tendency": "Estable"
   }
 ]

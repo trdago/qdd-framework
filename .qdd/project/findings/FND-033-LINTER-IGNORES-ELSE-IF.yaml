@@ -1,0 +1,4 @@
+title: "Bug en motor de auditoría: Linter de Clean Code ignoraba sentencias 'else if'"
+description: "Se detectó que el motor de auditoría interno (RunCleanCodeCheck en cli/pkg/audit/clean_code.go) excluía explícitamente las sentencias 'else if' mediante la validación '!isElseIf'. Esto permitía el uso de 'else if' sin generar la violación CLEAN-01-NO-ELSE, rompiendo la regla de Cero-Else."
+impact: "Permitía a los desarrolladores introducir 'else if' en el código fuente burlando la regla global de Cero-Else y aumentando la complejidad ciclomática."
+action_taken: "Se eliminó la condición '!isElseIf' en clean_code.go para que toda rama 'Else != nil' en el AST de Go sea detectada como violación. Además, se añadió un test unitario en clean_code_test.go validando que 'else if' genere correctamente la violación de la directiva CLEAN-01-NO-ELSE."

@@ -15,6 +15,7 @@ type QDDPolicies struct {
 	Traceability   bool `yaml:"traceability" json:"traceability"`
 	Enterprise     bool `yaml:"enterprise" json:"enterprise"`
 	AIGovernance   bool `yaml:"ai_governance" json:"ai_governance"`
+	DataUniqueness bool `yaml:"data_uniqueness" json:"data_uniqueness"`
 	AllowExecution bool `yaml:"allow_execution" json:"allow_execution"`
 }
 
@@ -28,6 +29,7 @@ func DefaultPolicies() QDDPolicies {
 		Traceability:   true,
 		Enterprise:     true,
 		AIGovernance:   true,
+		DataUniqueness: true,
 		AllowExecution: true,
 	}
 }

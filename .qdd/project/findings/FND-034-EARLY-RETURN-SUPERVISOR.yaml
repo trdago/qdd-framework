@@ -1,0 +1,4 @@
+title: "Bug en early return: run_supervisor.go usaba 'if err == nil'"
+description: "Se detectó que en setupSandbox() de cli/cmd/run_supervisor.go se estaba utilizando un bloque 'if err == nil' para la lógica de éxito en lugar de aplicar un 'early return' cuando ocurría un error."
+impact: "Rompe la regla global número 2: 'la salida más rápido primero dentro de una función y return'. Envuelve la lógica principal dentro del bloque de control, aumentando la complejidad cognitiva de manera innecesaria."
+action_taken: "Se refactorizó la función setupSandbox para usar 'if err != nil' y retornar temprano, moviendo la lógica de éxito al nivel principal de la función."

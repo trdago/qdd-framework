@@ -71,6 +71,9 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	*violations = append(*violations, RunTwelveFactorCheck(e.cwd)...)
 	*violations = append(*violations, RunCoverageCheck(e.cwd)...)
 	*violations = append(*violations, CheckDatabasePerformance(e.cwd)...)
+	if p.DataUniqueness {
+		*violations = append(*violations, CheckDataUniqueness(e.cwd)...)
+	}
 }
 
 func (e *EngineCoordinator) runAdvancedChecks(p QDDPolicies, violations *[]Violation) {

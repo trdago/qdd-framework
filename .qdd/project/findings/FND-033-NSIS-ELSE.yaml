@@ -1,0 +1,11 @@
+id: FND-033
+type: architecture-violation
+title: "Uso de 'else' en archivos NSIS de Wails"
+status: resolved
+severity: high
+description: |
+  Se detectó el uso de instrucciones '!else' y '${else}' en los archivos autogenerados de NSIS
+  (project.nsi y wails_tools.nsh) usados para construir el instalador de Windows.
+  Esto viola la política de Cero-Else (CLEAN-01-NO-ELSE), la cual se aplica a todos los lenguajes sin excepción.
+resolution_required: "Refactorizar el código NSIS eliminando '!else' y '${else}', y actualizar la prueba unitaria no_else_test.go para cubrir archivos .nsi y .nsh."
+related_certification: CERT-005-CLEAN-CODE

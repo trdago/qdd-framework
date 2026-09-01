@@ -1,0 +1,4 @@
+title: "Regresión del uso de 'else' en publish.yml y no_else_test.go ignorando .github"
+description: "Se detectó nuevamente una cláusula 'else' en .github/workflows/publish.yml. Esto sucedió porque el directorio .github estaba excluido explícitamente en el test no_else_test.go."
+impact: "Inconsistencia con la regla CLEAN-01-NO-ELSE en los pipelines de CI/CD."
+action_taken: "Se eliminó el 'else' del archivo .github/workflows/publish.yml usando sentencias 'if' separadas. Además, se actualizó no_else_test.go para dejar de excluir el directorio .github, asegurando que los archivos .yml de CI/CD sean escaneados."

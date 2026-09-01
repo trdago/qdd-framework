@@ -111,11 +111,11 @@ func attemptAutoRepair(ctx context.Context, cwd string, originalArgs []string, r
 
 func setupSandbox(cwd string) (string, func()) {
 	tempDir, err := os.MkdirTemp("", "qdd-sandbox-*")
-	if err == nil {
-		exec.Command("rsync", "-a", "--exclude=.git", "--exclude=node_modules", cwd+"/", tempDir+"/").Run()
-		return tempDir, func() { os.RemoveAll(tempDir) }
+	if err != nil {
+		return cwd, func() {}
 	}
-	return cwd, func() {}
+	exec.Command("rsync", "-a", "--exclude=.git", "--exclude=node_modules", cwd+"/", tempDir+"/").Run()
+	return tempDir, func() { os.RemoveAll(tempDir) }
 }
 
 func executeRepairAgent(ctx context.Context, sandboxDir, prompt string) (repairVerdict, bool) {

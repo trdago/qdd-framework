@@ -41,17 +41,24 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
     !define SUPPORTS_ARM64
 !endif
 
+!ifndef SUPPORTS_AMD64
+    !ifndef SUPPORTS_ARM64
+        !error "Wails: Undefined ARCH, please provide at least one of ARG_WAILS_AMD64_BINARY or ARG_WAILS_ARM64_BINARY"
+    !endif
+!endif
+
 !ifdef SUPPORTS_AMD64
     !ifdef SUPPORTS_ARM64
         !define ARCH "amd64_arm64"
-    !else
+    !endif
+    !ifndef SUPPORTS_ARM64
         !define ARCH "amd64"
     !endif
-!else
+!endif
+
+!ifndef SUPPORTS_AMD64
     !ifdef SUPPORTS_ARM64
         !define ARCH "arm64"
-    !else
-        !error "Wails: Undefined ARCH, please provide at least one of ARG_WAILS_AMD64_BINARY or ARG_WAILS_ARM64_BINARY"
     !endif
 !endif
 
@@ -63,6 +70,16 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
     !ifndef WAILS_ARCHITECTURE_NOT_SUPPORTED
         !define WAILS_ARCHITECTURE_NOT_SUPPORTED "This product can't be installed on the current Windows architecture. Supports: ${ARCH}"
     !endif
+
+    ${IfNot} ${AtLeastWin10}
+        IfSilent silentWin notSilentWin
+        silentWin:
+            SetErrorLevel 64
+            Abort
+        notSilentWin:
+            MessageBox MB_OK "${WAILS_WIN10_REQUIRED}"
+            Quit
+    ${EndIf}
 
     ${If} ${AtLeastWin10}
         !ifdef SUPPORTS_AMD64
@@ -83,14 +100,6 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
             Abort
         notSilentArch:
             MessageBox MB_OK "${WAILS_ARCHITECTURE_NOT_SUPPORTED}"
-            Quit
-    ${else}
-        IfSilent silentWin notSilentWin
-        silentWin:
-            SetErrorLevel 64
-            Abort
-        notSilentWin:
-            MessageBox MB_OK "${WAILS_WIN10_REQUIRED}"
             Quit
     ${EndIf}
 
@@ -115,6 +124,14 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
     SetRegView 64
+    !ifndef WAILS_INSTALL_SCOPE
+        WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
+        WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${INFO_PRODUCTNAME}"
+        WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${INFO_PRODUCTVERSION}"
+        WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+        WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
+        WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
+    !endif
     !ifdef WAILS_INSTALL_SCOPE
       !if "${WAILS_INSTALL_SCOPE}" == "user"
         WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
@@ -123,7 +140,8 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
         WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE}"
         WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
         WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
-      !else
+      !endif
+      !if "${WAILS_INSTALL_SCOPE}" != "user"
         WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${INFO_PRODUCTNAME}"
         WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${INFO_PRODUCTVERSION}"
@@ -131,26 +149,21 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
         WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
         WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
       !endif
-    !else
-        WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
-        WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${INFO_PRODUCTNAME}"
-        WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${INFO_PRODUCTVERSION}"
-        WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE}"
-        WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
-        WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
     !endif
 
     ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
     IntFmt $0 "0x%08X" $0
 
+    !ifndef WAILS_INSTALL_SCOPE
+        WriteRegDWORD HKLM "${UNINST_KEY}" "EstimatedSize" "$0"
+    !endif
     !ifdef WAILS_INSTALL_SCOPE
       !if "${WAILS_INSTALL_SCOPE}" == "user"
         WriteRegDWORD HKCU "${UNINST_KEY}" "EstimatedSize" "$0"
-      !else
+      !endif
+      !if "${WAILS_INSTALL_SCOPE}" != "user"
         WriteRegDWORD HKLM "${UNINST_KEY}" "EstimatedSize" "$0"
       !endif
-    !else
-        WriteRegDWORD HKLM "${UNINST_KEY}" "EstimatedSize" "$0"
     !endif
 !macroend
 
@@ -159,21 +172,24 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
 
     SetRegView 64
 
+    !ifndef WAILS_INSTALL_SCOPE
+        DeleteRegKey HKLM "${UNINST_KEY}"
+    !endif
     !ifdef WAILS_INSTALL_SCOPE
       !if "${WAILS_INSTALL_SCOPE}" == "user"
         DeleteRegKey HKCU "${UNINST_KEY}"
-      !else
+      !endif
+      !if "${WAILS_INSTALL_SCOPE}" != "user"
         DeleteRegKey HKLM "${UNINST_KEY}"
       !endif
-    !else
-        DeleteRegKey HKLM "${UNINST_KEY}"
     !endif
 !macroend
 
 !macro wails.setShellContext
     ${If} ${REQUEST_EXECUTION_LEVEL} == "admin"
         SetShellVarContext all
-    ${else}
+    ${EndIf}
+    ${IfNot} ${REQUEST_EXECUTION_LEVEL} == "admin"
         SetShellVarContext current
     ${EndIf}
 !macroend

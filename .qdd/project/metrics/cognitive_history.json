@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "timestamp": "2026-08-31T22:20:18-04:00",
+    "scores": {
+      "context_score": 75,
+      "understanding_score": 100,
+      "improvement_score": 100,
+      "compliance_score": 100
+    },
+    "total": 93,
+    "tendency": "Estable"
+  }
+]

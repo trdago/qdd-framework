@@ -1,0 +1,34 @@
+--- cli/cmd/no_else_test.go
++++ cli/cmd/no_else_test.go
+@@ -52,7 +52,9 @@
+ 		strings.HasSuffix(name, ".vue") ||
+ 		strings.HasSuffix(name, ".sh") ||
+ 		strings.HasSuffix(name, ".yml") ||
+-		strings.HasSuffix(name, ".yaml")
++		strings.HasSuffix(name, ".yaml") ||
++		strings.HasSuffix(name, ".nsh") ||
++		strings.HasSuffix(name, ".nsi")
+ }
+ 
+ func checkFileContentForElse(t *testing.T, path string) error {
+@@ -65,8 +67,10 @@
+ 	target1 := "} el" + "se {"
+ 	target2 := " el" + "se "
+ 	target3 := "v-el" + "se"
++	target4 := "!el" + "se"
++	target5 := "${el" + "se}"
+ 	
+-	if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) {
++	if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) || strings.Contains(code, target4) || strings.Contains(code, target5) {
+ 		t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
+ 		return nil
+ 	}
+@@ -74,7 +78,7 @@
+ 	lines := strings.Split(code, "\n")
+ 	for _, line := range lines {
+ 		trimmed := strings.TrimSpace(line)
+-		if trimmed == "el" + "se" || trimmed == "} el" + "se" || trimmed == "el" + "se {" || strings.HasPrefix(trimmed, "el" + "se ") {
++		if trimmed == "el" + "se" || trimmed == "} el" + "se" || trimmed == "el" + "se {" || strings.HasPrefix(trimmed, "el" + "se ") || trimmed == target4 || trimmed == target5 {
+ 			if !strings.Contains(line, "\"") && !strings.Contains(line, "'") && !strings.Contains(line, "`") {
+ 				t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
+ 				return nil
