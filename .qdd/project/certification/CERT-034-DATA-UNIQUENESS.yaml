@@ -1,0 +1,17 @@
+tags:
+    - database
+    - architecture
+    - core
+    - project
+active: true
+status: "PASSED"
+version: "1.0"
+id: "CERT-034-DATA-UNIQUENESS"
+name: "Principio de Unicidad del Dato (Single Source of Truth - SSOT)"
+description: "El modelo de datos y la persistencia deben tender por defecto a la unicidad del dato (SSOT). Queda prohibida la duplicación redundante de entidades o atributos en múltiples tablas o colecciones de la base de datos sin normalización, a menos que exista una justificación arquitectónica formal documentada en docs/adr/ (ej. CQRS, Vistas Materializadas, Snapshots Históricos Inmutables)."
+category: "Database"
+severity: "CRITICAL"
+rules:
+    - type: "data-uniqueness-ssot"
+      target: "schema/models/ddl/entities"
+      message: "QDD Core: Violación del principio de Unicidad del Dato. Evite duplicar datos en múltiples ubicaciones; utilice claves foráneas (FK), relaciones normalizadas o identificadores canónicos. Cualquier desnormalización intencional debe estar formalmente respaldada por un ADR en docs/adr/."

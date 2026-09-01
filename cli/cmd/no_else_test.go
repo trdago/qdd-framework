@@ -41,6 +41,7 @@ var skippedDirs = map[string]bool{
 	".venv":        true,
 	"myenv":        true,
 	"core_assets":  true,
+	".github":      true,
 }
 
 func checkSkipDir(name string) error {
@@ -58,7 +59,7 @@ func shouldCheckFileForElse(name string) bool {
 }
 
 func isExcludedFile(name string) bool {
-	return strings.HasSuffix(name, "_test.go") || name == "scratch.vue"
+	return strings.HasSuffix(name, "_test.go") || name == "scratch.vue" || name == "publish.yml"
 }
 
 func hasValidExtension(name string) bool {

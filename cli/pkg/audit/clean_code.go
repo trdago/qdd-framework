@@ -51,15 +51,36 @@ func isIgnoredCleanCodeDir(path string) bool {
 
 func checkNodeForElse(node *ast.File, fset *token.FileSet, path string, violations *[]Violation) {
 	ast.Inspect(node, func(n ast.Node) bool {
-		if ifStmt, ok := n.(*ast.IfStmt); ok && ifStmt.Else != nil {
-			pos := fset.Position(ifStmt.Else.Pos())
-			*violations = append(*violations, Violation{
-				Category:    "CLEAN-CODE",
-				RuleID:      "CLEAN-01-NO-ELSE",
-				Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
-				File:        path,
-				Line:        pos.Line,
-			})
+		if ifStmt, ok := n.(*ast.IfStmt); ok {
+			// Rule 1: No else
+			if ifStmt.Else != nil {
+				pos := fset.Position(ifStmt.Else.Pos())
+				*violations = append(*violations, Violation{
+					Category:    "CLEAN-CODE",
+					RuleID:      "CLEAN-01-NO-ELSE",
+					Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
+					File:        path,
+					Line:        pos.Line,
+				})
+			}
+			
+			// Rule 2: Early return (err == nil)
+			if binExpr, isBin := ifStmt.Cond.(*ast.BinaryExpr); isBin {
+				if binExpr.Op == token.EQL { // ==
+					if ident, isIdent := binExpr.Y.(*ast.Ident); isIdent && ident.Name == "nil" {
+						if xIdent, isXIdent := binExpr.X.(*ast.Ident); isXIdent && xIdent.Name == "err" {
+							pos := fset.Position(ifStmt.Pos())
+							*violations = append(*violations, Violation{
+								Category:    "CLEAN-CODE",
+								RuleID:      "CLEAN-03-EARLY-RETURN",
+								Description: "Se detectó 'if err == nil'. Usa 'if err != nil' y retorna temprano.",
+								File:        path,
+								Line:        pos.Line,
+							})
+						}
+					}
+				}
+			}
 		}
 		return true
 	})

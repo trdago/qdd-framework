@@ -1,0 +1,17 @@
+tags:
+    - clean-code
+    - quality
+    - core
+    - project
+active: true
+status: "PASSED"
+version: "1.0"
+id: "CERT-040-EARLY-RETURN"
+name: "Zero-Else & Early Return Universal Standard"
+description: "Estándar inquebrantable de Clean Code: cero sentencias else o else-if en todo el código base. Estructuración con guard clauses y salida más rápida primero con return."
+category: "CleanCode"
+severity: "CRITICAL"
+rules:
+    - type: "ast-no-else"
+      target: "all"
+      message: "QDD Clean Code: Uso de 'else' o 'else if' detectado. Refactorice utilizando salidas tempranas (Early Returns) y cláusulas de guarda."

@@ -21,17 +21,19 @@ func doClean() {
 }`
 	dirtyCode := "package main\nfunc doDirty() {\n\tif true {\n\t\t// ok\n\t} el" + "se {\n\t\t// bad\n\t}\n}"
 	dirtyElseIfCode := "package main\nfunc doDirtyElseIf() {\n\tif true {\n\t\t// ok\n\t} el" + "se if false {\n\t\t// bad\n\t}\n}"
+	dirtyEarlyReturnCode := "package main\nfunc doBadReturn() {\n\tvar err error\n\tif err == nil {\n\t\t// bad\n\t}\n}"
 	mockCode := "package main\nimport \"testing\"\n\ntype MyMock struct{}\n"
 	
 	os.WriteFile(filepath.Join(tempDir, "clean.go"), []byte(cleanCode), 0644)
 	os.WriteFile(filepath.Join(tempDir, "dirty.go"), []byte(dirtyCode), 0644)
 	os.WriteFile(filepath.Join(tempDir, "dirty_elseif.go"), []byte(dirtyElseIfCode), 0644)
+	os.WriteFile(filepath.Join(tempDir, "dirty_early.go"), []byte(dirtyEarlyReturnCode), 0644)
 	os.WriteFile(filepath.Join(tempDir, "mock.go"), []byte(mockCode), 0644)
 
 	violations := RunCleanCodeCheck(tempDir)
 	
-	if len(violations) != 4 {
-		t.Fatalf("Expected 4 violations, got %d", len(violations))
+	if len(violations) != 5 {
+		t.Fatalf("Expected 5 violations, got %d", len(violations))
 	}
 	
 	verifyCleanCodeViolations(t, violations)
@@ -39,12 +41,16 @@ func doClean() {
 
 func verifyCleanCodeViolations(t *testing.T, violations []Violation) {
 	foundNoElse := 0
+	foundEarlyReturn := false
 	foundTestImport := false
 	foundMockStruct := false
 
 	for _, v := range violations {
 		if v.RuleID == "CLEAN-01-NO-ELSE" {
 			foundNoElse++
+		}
+		if v.RuleID == "CLEAN-03-EARLY-RETURN" {
+			foundEarlyReturn = true
 		}
 		if isTestImportViolation(v) {
 			foundTestImport = true
@@ -54,7 +60,7 @@ func verifyCleanCodeViolations(t *testing.T, violations []Violation) {
 		}
 	}
 
-	assertViolationsFound(t, foundNoElse, foundTestImport, foundMockStruct)
+	assertViolationsFound(t, foundNoElse, foundEarlyReturn, foundTestImport, foundMockStruct)
 }
 
 func isTestImportViolation(v Violation) bool {
@@ -65,9 +71,12 @@ func isMockStructViolation(v Violation) bool {
 	return v.RuleID == "CLEAN-02-NO-TEST-IN-PROD" && filepath.Base(v.File) == "mock.go" && v.Line == 4
 }
 
-func assertViolationsFound(t *testing.T, foundNoElse int, foundTestImport, foundMockStruct bool) {
+func assertViolationsFound(t *testing.T, foundNoElse int, foundEarlyReturn, foundTestImport, foundMockStruct bool) {
 	if foundNoElse != 2 {
 		t.Errorf("Expected 2 rule ID CLEAN-01-NO-ELSE (for else and else if), found %d", foundNoElse)
+	}
+	if !foundEarlyReturn {
+		t.Errorf("Expected CLEAN-03-EARLY-RETURN not found")
 	}
 	if !foundTestImport {
 		t.Errorf("Expected CLEAN-02-NO-TEST-IN-PROD for testing import not found")

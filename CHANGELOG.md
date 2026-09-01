@@ -4,6 +4,26 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.21] - 2026-08-31
+
+### ✨ Nuevas Características
+
+#### 🗄️ Principio Core de Unicidad del Dato (Single Source of Truth - SSOT)
+- **Regla `CERT-034-DATA-UNIQUENESS`**: Incorporación al core y políticas de auditoría del principio inquebrantable de Unicidad del Dato. Se prohíbe la duplicación redundante de entidades o campos en la base de datos sin normalización, a menos que exista justificación explícita documentada en `docs/adr/`.
+- **Motor de Auditoría de Unicidad (`data_uniqueness.go`)**: Inspección automatizada de esquemas DDL, migraciones SQL y modelos para prevenir antipatrones de duplicación desnormalizada.
+- **Soporte de Excepciones Justificadas mediante ADR**: Detección inteligente de decisiones de arquitectura formalizadas (CQRS, vistas materializadas, snapshots inmutables).
+
+#### 🎭 Conocimiento por Defecto y Arquitectura de `qdd-human-certifier`
+- **Stack Playwright con Golang por Defecto**: Adopción nativa de `playwright-go` como estándar principal de certificación e interacción humana.
+- **Gestión Aislada de Evidencias (1 Carpeta por Ejecución)**: Creación automática de directorios inmutables `.qdd/evidence/run_...` con screenshots desktop/mobile, trazas, logs de red y snapshots de BD.
+- **LLM-as-the-Final-Judge**: El LLM que invoca la certificación actúa como la autoridad exclusiva que evalúa las evidencias y dictamina `PASS` o `FAIL`.
+- **Auditoría Profunda de Base de Datos**: Validación obligatoria de persistencia real e inspección de tablas de errores silenciosos.
+- **Trazabilidad Continua de la Misma Entidad (Single-Entity Lineage)**: Generación de token único de trazabilidad para seguimiento ininterrumpido en flujos E2E.
+
+#### 🧬 Evolución del Framework y Auto-Certificación
+- **Adopción de Certificaciones de Proyecto**: `CERT-030-MANDATORY-ADR`, `CERT-032-DOMAIN-ISOLATION`, `CERT-033-PROJECT-STRUCTURE-SEPARATION`, `CERT-034-DATA-UNIQUENESS` y `CERT-040-EARLY-RETURN`.
+- **Score de Calidad Certificado**: 100/100 con 0 violaciones activas y tendencia Estable.
+
 ## [v1.9.20] - 2026-08-31
 
 ### ✨ Nuevas Características

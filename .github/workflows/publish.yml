@@ -73,8 +73,7 @@ jobs:
           go build -o qdd${{ matrix.os == 'windows' && '.exe' || '' }} .
           if [ "${{ matrix.ext }}" = "zip" ]; then
             zip qdd_${{ matrix.os }}_${{ matrix.arch }}.zip qdd.exe
-          fi
-          if [ "${{ matrix.ext }}" != "zip" ]; then
+          else
             tar -czvf qdd_${{ matrix.os }}_${{ matrix.arch }}.tar.gz qdd
           fi
 
