@@ -1,0 +1,5 @@
+title: "Segunda regresión del uso de 'else' en publish.yml"
+description: "Se detectó nuevamente una cláusula 'else' en .github/workflows/publish.yml. Esto sucedió porque publish.yml y el directorio .github estaban excluidos en el test no_else_test.go."
+impact: "Infracción de la regla Cero-Else (CLEAN-01). Permite que scripts de CI/CD ignoren las políticas de gobernanza."
+action_taken: "Se eliminó el 'else' de publish.yml usando 'exit 0' (early return). Se removió el directorio .github y el archivo publish.yml de las exclusiones del test no_else_test.go para asegurar que no vuelva a suceder."
+date: "2026-08-31"
