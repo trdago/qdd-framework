@@ -4,6 +4,26 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.22] - 2026-10-20
+
+### 🐛 Correcciones
+
+- **Instalador npm (`EISDIR`, issue #4)**: `npm install -g qdd-framework` abortaba en el `postinstall` cuando existía `node_modules/qdd` (la carpeta del paquete ajeno `qdd`), porque la detección del binario local de desarrollo usaba `existsSync` sobre `../qdd`. Ahora el modo desarrollo solo se activa fuera de `node_modules` y exige que la ruta sea un archivo; si no lo es, se avisa en el log y se continúa con la descarga desde GitHub Releases.
+- **Lanzador `bin/qdd.js`**: si el binario nativo falta o no se puede ejecutar, informa el error y sale con código 1 (antes salía con 0 sin mensaje).
+- **Gate de calidad**: se retira la regla AST `CLEAN-03-EARLY-RETURN` (`if err == nil`) del auditor de Clean Code, que dejaba en rojo `make audit` sobre el propio framework; `publish.yml` vuelve a estar libre de `else` y deja de estar excluido del test Zero-Else (FND-035).
+- **Tests**: `pipeline_test.go` limpia también `AGENTS.md`, `.agentrules` y `.opencode/` generados por el nuevo adaptador OpenCode.
+
+### ✨ Nuevas Características
+
+- **Adaptador OpenCode / agentes genéricos**: `qdd init` sincroniza `AGENTS.md`, `.agentrules` y `.opencode/qdd.md`.
+- **Agentic Harness**: el prompt del sistema incorpora el modo objetivo para tareas largas (checklist atómico, `implementation_plan.md`, `walkthrough.md`) y la regla de unicidad del dato (CERT-034).
+- **Plugin `qdd-antigravity-tools`**: incorporado al core; backend `agentapi` local, ejecución autónoma de herramientas, extracción de veredictos JSON y runtime en Go.
+
+### 🧪 Calidad
+
+- Pruebas automáticas del instalador npm (`npm/test/install.test.js`), ejecutadas por `make test` y por el pipeline de publicación.
+- El paquete npm publica solo `bin/qdd.js`, `install.js` y `README.md`.
+
 ## [v1.9.21] - 2026-08-31
 
 ### ✨ Nuevas Características
