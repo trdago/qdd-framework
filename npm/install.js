@@ -19,96 +19,131 @@ const archMap = {
   arm64: 'arm64'
 };
 
-const os = platformMap[process.platform];
-const arch = archMap[process.arch];
-
-if (!os || !arch) {
-  console.error(`[QDD] Plataforma no soportada: ${process.platform} ${process.arch}`);
-  process.exit(1);
+// 1. Detección de binario local para desarrollo (solo desde el repo, nunca dentro de node_modules)
+// En una instalación de npm, `..` es la carpeta node_modules: `../qdd` puede ser la carpeta de otro
+// paquete llamado `qdd` (p. ej. bengl/qdd), y copiar una carpeta falla con EISDIR y aborta la instalación.
+function esArchivo(ruta) {
+  try {
+    return fs.statSync(ruta).isFile();
+  } catch (_) {
+    return false;
+  }
 }
 
-const ext = os === 'windows' ? 'zip' : 'tar.gz';
-const binaryExt = os === 'windows' ? '.exe' : '';
-const binaryName = `qdd${binaryExt}`;
-const binDir = path.join(__dirname, 'bin');
-
-if (!fs.existsSync(binDir)) {
-  fs.mkdirSync(binDir, { recursive: true });
+function estaDentroDeNodeModules(dir) {
+  return path.resolve(dir).split(path.sep).includes('node_modules');
 }
 
-// 1. Detección de binario local para desarrollo
-const localBinRoot = path.join(__dirname, '..', binaryName);
-const localBinCli = path.join(__dirname, '..', 'cli', binaryName);
-
-if (fs.existsSync(localBinRoot)) {
-  console.log(`[QDD] Binario local detectado en ${localBinRoot}. Usando copia local para desarrollo...`);
-  fs.copyFileSync(localBinRoot, path.join(binDir, binaryName));
-  fs.chmodSync(path.join(binDir, binaryName), 0o755);
-  console.log('[QDD] ¡Instalación completada desde binario local!');
-  process.exit(0);
+function resolverBinarioLocal(pkgDir, nombreBinario, log = console.log) {
+  if (estaDentroDeNodeModules(pkgDir)) {
+    return null;
+  }
+  const candidatos = [
+    path.join(pkgDir, '..', nombreBinario),
+    path.join(pkgDir, '..', 'cli', nombreBinario)
+  ];
+  for (const candidato of candidatos) {
+    if (esArchivo(candidato)) {
+      return candidato;
+    }
+    if (fs.existsSync(candidato)) {
+      log(`[QDD] Se ignora ${candidato}: existe pero no es un archivo binario.`);
+    }
+  }
+  return null;
 }
 
-if (fs.existsSync(localBinCli)) {
-  console.log(`[QDD] Binario local detectado en ${localBinCli}. Usando copia local para desarrollo...`);
-  fs.copyFileSync(localBinCli, path.join(binDir, binaryName));
-  fs.chmodSync(path.join(binDir, binaryName), 0o755);
-  console.log('[QDD] ¡Instalación completada desde binario local!');
-  process.exit(0);
+function main() {
+  const os = platformMap[process.platform];
+  const arch = archMap[process.arch];
+
+  if (!os || !arch) {
+    console.error(`[QDD] Plataforma no soportada: ${process.platform} ${process.arch}`);
+    process.exit(1);
+  }
+
+  const ext = os === 'windows' ? 'zip' : 'tar.gz';
+  const binaryExt = os === 'windows' ? '.exe' : '';
+  const binaryName = `qdd${binaryExt}`;
+  const binDir = path.join(__dirname, 'bin');
+
+  if (!fs.existsSync(binDir)) {
+    fs.mkdirSync(binDir, { recursive: true });
+  }
+
+  const binarioLocal = resolverBinarioLocal(__dirname, binaryName);
+  if (binarioLocal) {
+    console.log(`[QDD] Binario local detectado en ${binarioLocal}. Usando copia local para desarrollo...`);
+    fs.copyFileSync(binarioLocal, path.join(binDir, binaryName));
+    fs.chmodSync(path.join(binDir, binaryName), 0o755);
+    console.log('[QDD] ¡Instalación completada desde binario local!');
+    process.exit(0);
+  }
+
+  descargarDesdeRelease({ os, arch, ext, binaryName, binDir });
 }
 
 // 2. Descarga desde GitHub Releases
-const url = `https://github.com/${REPO}/releases/download/${VERSION}/qdd_${os}_${arch}.${ext}`;
-const downloadDest = path.join(__dirname, `qdd-download.${ext}`);
+function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
+  const url = `https://github.com/${REPO}/releases/download/${VERSION}/qdd_${os}_${arch}.${ext}`;
+  const downloadDest = path.join(__dirname, `qdd-download.${ext}`);
 
-console.log(`[QDD] Descargando binario nativo para ${os}-${arch}...`);
-console.log(`[QDD] URL: ${url}`);
+  console.log(`[QDD] Descargando binario nativo para ${os}-${arch}...`);
+  console.log(`[QDD] URL: ${url}`);
 
-downloadBinary(url);
+  downloadBinary(url);
 
-function downloadBinary(targetUrl) {
-  const file = fs.createWriteStream(downloadDest);
-  https.get(targetUrl, (response) => {
-    if (response.statusCode === 301 || response.statusCode === 302) {
-      if (response.headers.location) {
-        return downloadBinary(response.headers.location);
+  function downloadBinary(targetUrl) {
+    const file = fs.createWriteStream(downloadDest);
+    https.get(targetUrl, (response) => {
+      if (response.statusCode === 301 || response.statusCode === 302) {
+        if (response.headers.location) {
+          return downloadBinary(response.headers.location);
+        }
       }
-    }
 
-    if (response.statusCode !== 200) {
-      console.error(`[QDD] Error: GitHub Release devolvió HTTP ${response.statusCode} para ${targetUrl}`);
-      console.error('[QDD] Si estás instalando desde una versión no publicada aún, compila localmente con "make build"');
-      process.exit(0); // Permitir que la instalación de npm continúe sin romper builds de CI
-    }
+      if (response.statusCode !== 200) {
+        console.error(`[QDD] Error: GitHub Release devolvió HTTP ${response.statusCode} para ${targetUrl}`);
+        console.error('[QDD] Si estás instalando desde una versión no publicada aún, compila localmente con "make build"');
+        process.exit(0); // Permitir que la instalación de npm continúe sin romper builds de CI
+      }
 
-    response.pipe(file);
-    file.on('finish', () => {
-      file.close(extractBinary);
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close(extractBinary);
+      });
+    }).on('error', (err) => {
+      console.error('[QDD] Error de red descargando el binario:', err.message);
+      process.exit(0);
     });
-  }).on('error', (err) => {
-    console.error('[QDD] Error de red descargando el binario:', err.message);
-    process.exit(0);
-  });
+  }
+
+  function extractBinary() {
+    console.log('[QDD] Extrayendo...');
+    try {
+      if (os === 'windows') {
+        execSync(`tar -xf "${downloadDest}" -C "${__dirname}"`);
+      }
+      if (os !== 'windows') {
+        execSync(`tar -xzf "${downloadDest}" -C "${__dirname}"`);
+      }
+      const extractedBin = path.join(__dirname, binaryName);
+      if (fs.existsSync(extractedBin)) {
+        fs.renameSync(extractedBin, path.join(binDir, binaryName));
+        fs.chmodSync(path.join(binDir, binaryName), 0o755);
+      }
+      if (fs.existsSync(downloadDest)) {
+        fs.unlinkSync(downloadDest);
+      }
+      console.log('[QDD] ¡Instalación nativa completada exitosamente!');
+    } catch (err) {
+      console.error('[QDD] Error al extraer el binario:', err.message);
+    }
+  }
 }
 
-function extractBinary() {
-  console.log('[QDD] Extrayendo...');
-  try {
-    if (os === 'windows') {
-      execSync(`tar -xf "${downloadDest}" -C "${__dirname}"`);
-    }
-    if (os !== 'windows') {
-      execSync(`tar -xzf "${downloadDest}" -C "${__dirname}"`);
-    }
-    const extractedBin = path.join(__dirname, binaryName);
-    if (fs.existsSync(extractedBin)) {
-      fs.renameSync(extractedBin, path.join(binDir, binaryName));
-      fs.chmodSync(path.join(binDir, binaryName), 0o755);
-    }
-    if (fs.existsSync(downloadDest)) {
-      fs.unlinkSync(downloadDest);
-    }
-    console.log('[QDD] ¡Instalación nativa completada exitosamente!');
-  } catch (err) {
-    console.error('[QDD] Error al extraer el binario:', err.message);
-  }
+module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal };
+
+if (require.main === module) {
+  main();
 }

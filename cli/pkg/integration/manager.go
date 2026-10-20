@@ -17,6 +17,7 @@ func NewIntegrationManager() *IntegrationManager {
 			&CursorAdapter{},
 			&ClaudeAdapter{},
 			&AntigravityAdapter{},
+			&OpenCodeAdapter{},
 		},
 	}
 }

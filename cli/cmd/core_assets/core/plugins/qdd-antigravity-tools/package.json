@@ -1,0 +1,20 @@
+{
+  "name": "@trdago/qdd-plugin-antigravity-tools",
+  "version": "1.0.0",
+  "description": "Bridge and autonomous toolkit to connect independent scripts to Antigravity via SDK, MCP and Ping-Pong handshake",
+  "type": "module",
+  "main": "runtime/node/index.mjs",
+  "scripts": {
+    "test": "node --test runtime/tests/*.test.mjs",
+    "test:python": "python3 -m unittest discover -s runtime/tests -p '*_test.py'"
+  },
+  "keywords": [
+    "qdd",
+    "antigravity",
+    "ping-pong",
+    "mcp",
+    "agentic-loop"
+  ],
+  "author": "QDD Community",
+  "license": "MIT"
+}

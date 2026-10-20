@@ -31,7 +31,7 @@ func TestPipelineExecution(t *testing.T) {
 	// directory is resolved as its own project root because of the .qdd
 	// created above) — clean those up too so the test doesn't leave stray
 	// .cursorrules/.claude/etc behind in the real cli/cmd/ source tree.
-	for _, artifact := range []string{".cursorrules", ".clauderc", ".antigravityrules", ".claude", ".cursor", ".agents"} {
+	for _, artifact := range []string{".cursorrules", ".clauderc", ".antigravityrules", ".claude", ".cursor", ".agents", "AGENTS.md", ".agentrules", ".opencode"} {
 		defer os.RemoveAll(artifact)
 	}
 
