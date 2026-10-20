@@ -39,6 +39,8 @@ test: core-assets
 	cd cli && go test ./...
 	@echo "==> Ejecutando pruebas de componentes Frontend (Vitest)..."
 	cd cli/ui && npm run test
+	@echo "==> Ejecutando pruebas del instalador npm..."
+	cd npm && npm test
 
 audit: install
 	@echo "==> Ejecutando auditoría de reglas QDD..."

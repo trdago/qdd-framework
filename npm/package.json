@@ -1,14 +1,19 @@
 {
   "name": "qdd-framework",
-  "version": "1.9.21",
+  "version": "1.9.22",
   "description": "Quality-Driven Development Framework",
   "bin": {
     "qdd": "bin/qdd.js"
   },
+  "files": [
+    "bin/qdd.js",
+    "install.js",
+    "README.md"
+  ],
   "scripts": {
     "postinstall": "node install.js",
     "lint": "echo 'No linting required for wrapper' && exit 0",
-    "test": "echo 'No tests required for wrapper' && exit 0",
+    "test": "node --test",
     "build": "echo 'No build required for wrapper' && exit 0"
   },
   "repository": {

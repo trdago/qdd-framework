@@ -11,4 +11,10 @@ const result = spawnSync(binaryPath, process.argv.slice(2), {
   stdio: 'inherit'
 });
 
-process.exit(result.status || 0);
+if (result.error) {
+  console.error(`[QDD] No se pudo ejecutar el binario nativo ${binaryPath}: ${result.error.message}`);
+  console.error('[QDD] Reinstala el paquete con: npm install -g qdd-framework');
+  process.exit(1);
+}
+
+process.exit(result.status === null ? 1 : result.status);

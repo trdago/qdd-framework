@@ -13,6 +13,8 @@
 npm install -g qdd-framework
 ```
 
+> **Conflicto con el paquete `qdd` de npm:** existe un paquete ajeno llamado `qdd` (no pertenece a QDD Framework) que también instala un comando `qdd`. Si lo tienes instalado globalmente, desinstálalo antes (`npm uninstall -g qdd`) para que `qdd` apunte a QDD Framework. Desde v1.9.22 su presencia ya no rompe la instalación (antes fallaba con `EISDIR`).
+
 ---
 
 ## ⚡ Comandos Principales
