@@ -37,10 +37,20 @@ if (!fs.existsSync(binDir)) {
 }
 
 // 1. Detección de binario local para desarrollo
+// Solo cuenta si la ruta es un ARCHIVO: en una instalación global, `../qdd` puede ser la carpeta de otro
+// paquete de npm llamado `qdd`, y copiar una carpeta falla con EISDIR y aborta la instalación.
+function esArchivo(ruta) {
+  try {
+    return fs.statSync(ruta).isFile();
+  } catch (_) {
+    return false;
+  }
+}
+
 const localBinRoot = path.join(__dirname, '..', binaryName);
 const localBinCli = path.join(__dirname, '..', 'cli', binaryName);
 
-if (fs.existsSync(localBinRoot)) {
+if (esArchivo(localBinRoot)) {
   console.log(`[QDD] Binario local detectado en ${localBinRoot}. Usando copia local para desarrollo...`);
   fs.copyFileSync(localBinRoot, path.join(binDir, binaryName));
   fs.chmodSync(path.join(binDir, binaryName), 0o755);
@@ -48,7 +58,7 @@ if (fs.existsSync(localBinRoot)) {
   process.exit(0);
 }
 
-if (fs.existsSync(localBinCli)) {
+if (esArchivo(localBinCli)) {
   console.log(`[QDD] Binario local detectado en ${localBinCli}. Usando copia local para desarrollo...`);
   fs.copyFileSync(localBinCli, path.join(binDir, binaryName));
   fs.chmodSync(path.join(binDir, binaryName), 0o755);
