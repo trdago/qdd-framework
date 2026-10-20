@@ -5,6 +5,46 @@
 
 import { EventEmitter } from 'node:events';
 
+export function extractJsonBlock(rawText) {
+  if (!rawText || typeof rawText !== 'string') {
+    return {};
+  }
+  const text = rawText.trim();
+  if (!text) {
+    return {};
+  }
+
+  if (text.includes('[VERDICT_START]') && text.includes('[VERDICT_END]')) {
+    const startIdx = text.indexOf('[VERDICT_START]') + '[VERDICT_START]'.length;
+    const endIdx = text.indexOf('[VERDICT_END]');
+    const extracted = text.substring(startIdx, endIdx).trim();
+    try {
+      return JSON.parse(extracted);
+    } catch {
+      return { raw: extracted };
+    }
+  }
+
+  if (text.includes('```json')) {
+    const startIdx = text.indexOf('```json') + 7;
+    const endIdx = text.indexOf('```', startIdx);
+    if (endIdx !== -1) {
+      const extracted = text.substring(startIdx, endIdx).trim();
+      try {
+        return JSON.parse(extracted);
+      } catch {
+        return { raw: extracted };
+      }
+    }
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
 export class AntigravityPingPongBridge extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -20,6 +60,19 @@ export class AntigravityPingPongBridge extends EventEmitter {
     this.tools.set(name, { name, description, schema, handler });
   }
 
+  async executeTool(name, args = {}) {
+    const tool = this.tools.get(name);
+    if (!tool) {
+      return { status: 'ERROR', error: `Tool '${name}' not found` };
+    }
+    try {
+      const result = await tool.handler(args);
+      return { status: 'SUCCESS', result };
+    } catch (err) {
+      return { status: 'ERROR', error: err.message };
+    }
+  }
+
   async ping(prompt, session = {}) {
     this.turnCounter++;
     const startTime = Date.now();
@@ -30,7 +83,6 @@ export class AntigravityPingPongBridge extends EventEmitter {
     this.emit('ping_started', { sessionId, turnId: this.turnCounter, prompt });
 
     try {
-      // Simulated or MCP-connected stream
       const chunks = [
         `[Antigravity Node Bridge Active]\n`,
         `Received prompt: "${prompt}"\n`,

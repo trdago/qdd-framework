@@ -47,3 +47,7 @@ cli/test_sqlite.go
 .qdd/working
 qdd
 qdd-bin
+
+# Python bytecode
+__pycache__/
+*.pyc
