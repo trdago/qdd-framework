@@ -74,6 +74,7 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	if p.DeployGateEnabled() {
 		*violations = append(*violations, RunDeployGateCheck(e.cwd)...)
 	}
+	*violations = append(*violations, RunModuleHeartCheck(e.cwd, p.ModuleHeart)...)
 	*violations = append(*violations, CheckDatabasePerformance(e.cwd)...)
 	if p.DataUniqueness {
 		*violations = append(*violations, CheckDataUniqueness(e.cwd)...)

@@ -4,7 +4,7 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.9.23] - 2026-10-21
 
 ### 🛡️ Gate veraz: no se despliega sin pasar las pruebas
 
@@ -13,6 +13,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Raíz del proyecto**: la búsqueda no cruza la raíz git; un `.qdd` en la carpeta del workspace ya no captura a los repos hermanos. El auditor salta worktrees, repos anidados y carpetas ignoradas por git (FND-038).
 - **MCP robusto**: el motor de auditoría ya no escribe en stdout (canal JSON-RPC del servidor MCP).
 - **Publicación de QDD**: `publish.yml` depende de un job de pruebas + `qdd audit` (FND-039).
+
+### 🫀 Fichas de módulo: el corazón del proyecto para cualquier IA
+
+- **Fichas estándar en `.qdd/project/modules/<id>.yaml`**: objetivo operativo (problema, usuarios, criterio de éxito, caso real), objetivo tecnológico (arquitectura, decisiones, invariantes), cómo se prueba (comandos, goldensets), ADRs, findings y fuentes. Plantilla en `.qdd/core/templates/module.yaml`.
+- **MCP `qdd_project_context`**: primera llamada de toda tarea. Devuelve el propósito del proyecto, la forma de trabajo obligatoria, cómo se prueba, la ficha completa de los módulos que se van a tocar (con aviso si está en borrador o desfasada respecto del código), el mapa de módulos y las zonas de código sin ficha.
+- **MCP `qdd_module_save`**: una IA propone o actualiza una ficha; se valida contra el esquema y siempre queda en borrador.
+- **CLI `qdd modules`**: lista fichas, estado, desfase y zonas sin ficha; `qdd modules approve <id>` (aprobación humana, registra el commit revisado); `qdd modules context [rutas]` (el mismo contexto sin MCP).
+- **Auditoría**: `HEART-01-INVALID-RECORD` siempre; `HEART-02-STALE-RECORD` (código cambiado tras la aprobación) y `HEART-03-ZONE-WITHOUT-RECORD` con la política opt-in `module_heart: true`.
+- **Reglas inyectadas** (`AGENTS.md`, `.cursorrules`, etc.): antes de cambiar código, la IA debe pedir `qdd_project_context` y seguir su forma de trabajo.
+
+### 📦 Distribución por GitHub, sin depender del registro de npm
+
+- Cada release adjunta el instalador empaquetado (`qdd-framework-X.Y.Z.tgz`). Se instala con `npm install -g https://github.com/trdago/qdd-framework/releases/download/vX.Y.Z/qdd-framework-X.Y.Z.tgz`, que descarga el binario nativo de la misma release.
 
 ## [v1.9.22] - 2026-10-20
 
