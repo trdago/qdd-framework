@@ -37,6 +37,8 @@ var mcpCmd = &cobra.Command{
 		// Create the stdio server
 		ss := server.NewStdioServer(s)
 		
+		registerProjectContextTool(s)
+		registerModuleSaveTool(s)
 		registerAuditTool(s)
 		registerCertifyTool(s)
 		

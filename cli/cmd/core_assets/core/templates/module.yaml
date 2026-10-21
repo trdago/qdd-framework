@@ -1,0 +1,28 @@
+# Ficha de módulo QDD: el "corazón" del módulo, para que cualquier IA lo
+# desarrolle sin perder su intención. Va en .qdd/project/modules/<id>.yaml.
+# Una IA la propone con la tool MCP qdd_module_save (queda en borrador);
+# un humano la aprueba con: qdd modules approve <id>
+id: validador-ofertas            # minúsculas, números, '-' o '_'
+nombre: Validador de ofertas
+estado: borrador                 # borrador | aprobado (lo pone 'qdd modules approve')
+rutas:                           # carpetas o archivos del módulo, relativas a la raíz
+  - internal/validador
+objetivo_operativo:
+  problema: Qué problema de negocio u operación resuelve y para quién.
+  usuarios: Quién lo usa o depende de él.
+  criterio_de_exito: Cómo se sabe que cumple (medible, p. ej. "≥95% de coincidencia con el oro").
+  caso_real: El caso concreto que motivó el módulo o su última decisión importante.
+objetivo_tecnologico:
+  arquitectura: Cómo está construido y por qué (componentes, datos, integraciones).
+  decisiones:                    # decisiones vigentes; enlaza el ADR si existe
+    - "Reglas deterministas antes que LLM (ADR-006)"
+  invariantes:                   # lo que ningún cambio puede romper
+    - "Si la oferta no lo dice, el resultado es NO_CUMPLE"
+pruebas:
+  comandos:                      # comando exacto para verificar este módulo
+    - go test ./internal/validador/...
+  goldensets:                    # oro / casos de aceptación
+    - .qdd/project/goldensets/validador/oro_v1.json
+adrs: [docs/adr/006-validador.md]
+findings: [FND-140]
+fuentes: [docs/modules/MOD-16.md]  # de dónde salió esta ficha

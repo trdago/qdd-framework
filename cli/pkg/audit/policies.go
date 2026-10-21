@@ -20,6 +20,8 @@ type QDDPolicies struct {
 	// DeployGate es un puntero para que los policies.yaml anteriores (sin la
 	// clave) la tengan ACTIVA: no desplegar sin pruebas es la regla base.
 	DeployGate *bool `yaml:"deploy_gate,omitempty" json:"deploy_gate,omitempty"`
+	// ModuleHeart exige ficha vigente para cada zona de código (opt-in).
+	ModuleHeart bool `yaml:"module_heart,omitempty" json:"module_heart,omitempty"`
 }
 
 // DeployGateEnabled indica si se auditan los pipelines de despliegue.

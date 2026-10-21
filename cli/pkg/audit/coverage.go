@@ -177,3 +177,13 @@ func pathExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
+
+// TestCommandLabels devuelve los comandos de prueba que usaría el gate, para
+// mostrarlos a una IA (p. ej. en qdd_project_context) sin ejecutarlos.
+func TestCommandLabels(cwd string) []string {
+	var labels []string
+	for _, tc := range resolveTestCommands(cwd) {
+		labels = append(labels, tc.Label)
+	}
+	return labels
+}
