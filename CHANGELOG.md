@@ -4,6 +4,16 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🛡️ Gate veraz: no se despliega sin pasar las pruebas
+
+- **Nuevas reglas `CI-01-UNGATED-DEPLOY` y `CI-02-DEPLOY-IGNORES-FAILURES`**: `qdd audit`, `qdd certify` y el MCP revisan los pipelines (GitHub Actions con `needs:` transitivos, Azure, GitLab, Bitbucket) y marcan todo despliegue que no dependa de pruebas o que despliegue aunque fallen (`succeededOrFailed`, `|| true`). Política `deploy_gate`, activa por defecto.
+- **`QA-01` ya no aprueba sin pruebas**: comandos declarables en `.qdd/config.yaml` (`test_commands`), detección de todos los stacks (npm, Go, Flutter, pytest), `QA-00-NO-TEST-COMMAND` cuando no hay cómo probar, y los errores de compilación cuentan como fallo (FND-037).
+- **Raíz del proyecto**: la búsqueda no cruza la raíz git; un `.qdd` en la carpeta del workspace ya no captura a los repos hermanos. El auditor salta worktrees, repos anidados y carpetas ignoradas por git (FND-038).
+- **MCP robusto**: el motor de auditoría ya no escribe en stdout (canal JSON-RPC del servidor MCP).
+- **Publicación de QDD**: `publish.yml` depende de un job de pruebas + `qdd audit` (FND-039).
+
 ## [v1.9.22] - 2026-10-20
 
 ### 🐛 Correcciones

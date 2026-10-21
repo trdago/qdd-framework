@@ -15,7 +15,7 @@ func RunCleanCodeCheck(cwd string) []Violation {
 	var violations []Violation
 	fset := token.NewFileSet()
 
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+	walkProject(cwd, func(path string, d os.DirEntry, err error) error {
 		if isIgnoredPath(path, d, err) {
 			return nil
 		}

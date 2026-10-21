@@ -1,0 +1,5 @@
+title: "Despliegues a producción sin pruebas (incluido el propio QDD)"
+description: "QDD no auditaba los pipelines. notificador (8 workflows), reserva_cancha (backend), gdatos (4 pipelines, con succeededOrFailed), front-pasarela y actas despliegan sin pruebas; QDD publicó v1.9.19-v1.9.21 con 'Code Quality & Audit' en rojo. Además el motor escribía logs en stdout, que es el canal JSON-RPC del servidor MCP."
+impact: "Viola 'no se despliega sin pasar las pruebas'; riesgo de respuestas MCP corruptas."
+action_taken: "Reglas CI-01-UNGATED-DEPLOY y CI-02-DEPLOY-IGNORES-FAILURES (política deploy_gate, activa por defecto). publish.yml de QDD depende de un job de tests + audit. Logs del motor a stderr. Tests en deploy_gate_test.go y coverage_test.go."
+date: "2026-10-21"

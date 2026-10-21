@@ -19,12 +19,12 @@ func CheckDataUniqueness(cwd string) []Violation {
 	redundantFieldRegex := regexp.MustCompile(`(?i)(customer_email|user_email|customer_phone|user_phone|customer_address|user_address)\s+(VARCHAR|TEXT|CHAR|VARCHAR2)`)
 	hasForeignKeyRegex := regexp.MustCompile(`(?i)(FOREIGN\s+KEY|REFERENCES\s+[a-zA-Z0-9_]+)`)
 
-	err := filepath.WalkDir(cwd, func(path string, d fs.DirEntry, err error) error {
+	err := walkProject(cwd, func(path string, d fs.DirEntry, err error) error {
 		return processDataUniquenessPath(path, d, err, redundantFieldRegex, hasForeignKeyRegex, adrs, &violations)
 	})
 
 	if err != nil {
-		fmt.Printf("Error auditando Unicidad del Dato en %v: %v\n", cwd, err)
+		fmt.Fprintf(os.Stderr, "Error auditando Unicidad del Dato en %v: %v\n", cwd, err)
 	}
 
 	return violations

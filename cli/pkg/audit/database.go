@@ -15,12 +15,12 @@ func CheckDatabasePerformance(cwd string) []Violation {
 	var violations []Violation
 	countRegex := regexp.MustCompile(`(?i)SELECT\s+COUNT\s*\(\s*\*\s*\)\s+FROM\s+[a-zA-Z0-9_]+(\s*;|\s*$)`)
 
-	err := filepath.WalkDir(cwd, func(path string, d fs.DirEntry, err error) error {
+	err := walkProject(cwd, func(path string, d fs.DirEntry, err error) error {
 		return processDBPath(path, d, err, countRegex, &violations)
 	})
 
 	if err != nil {
-		fmt.Printf("Error walking the path %v: %v\n", cwd, err)
+		fmt.Fprintf(os.Stderr, "Error walking the path %v: %v\n", cwd, err)
 	}
 
 	return violations

@@ -1,0 +1,5 @@
+title: "FindProjectRoot cruzaba la raíz git hacia un .qdd del workspace"
+description: "FindProjectRoot buscaba cualquier .qdd hacia arriba antes de mirar .git. Un .qdd accidental en ~/Documents/proyectos capturaba init/doctor/bug/report/MCP de los repos hermanos sin .qdd propio. El auditor además escaneaba worktrees de agentes ignorados por git y daba falsos bloqueos."
+impact: "Findings y reportes de otros repos escritos en la carpeta padre; gate saltado por falsos positivos."
+action_taken: "La búsqueda se detiene en el primer .qdd o .git (directorio o archivo de worktree). El auditor salta repos anidados, worktrees y carpetas ignoradas por git. Tests en detector_test.go y walk_test.go."
+date: "2026-10-21"

@@ -5,7 +5,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -14,7 +13,7 @@ func RunOwaspCheck(cwd string) []Violation {
 	var violations []Violation
 	fset := token.NewFileSet()
 
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+	walkProject(cwd, func(path string, d os.DirEntry, err error) error {
 		if isIgnoredOwaspPath(path, d, err) {
 			return nil
 		}
