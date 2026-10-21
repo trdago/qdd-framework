@@ -23,6 +23,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Auditoría**: `HEART-01-INVALID-RECORD` siempre; `HEART-02-STALE-RECORD` (código cambiado tras la aprobación) y `HEART-03-ZONE-WITHOUT-RECORD` con la política opt-in `module_heart: true`.
 - **Reglas inyectadas** (`AGENTS.md`, `.cursorrules`, etc.): antes de cambiar código, la IA debe pedir `qdd_project_context` y seguir su forma de trabajo.
 
+### 📦 Distribución por GitHub, sin depender del registro de npm
+
+- Cada release adjunta el instalador empaquetado (`qdd-framework-X.Y.Z.tgz`). Se instala con `npm install -g https://github.com/trdago/qdd-framework/releases/download/vX.Y.Z/qdd-framework-X.Y.Z.tgz`, que descarga el binario nativo de la misma release.
+
 ## [v1.9.22] - 2026-10-20
 
 ### 🐛 Correcciones
