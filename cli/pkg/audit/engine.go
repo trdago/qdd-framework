@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 )
@@ -47,7 +48,7 @@ func (e *EngineCoordinator) RunAll() []Violation {
 	wClient := wisdom.NewClient(e.cwd)
 	manifest, _ := wClient.FetchRulesManifest(context.Background())
 	if manifest != nil && len(manifest.Rules) > 0 {
-		fmt.Printf("[+] Engine: %d reglas remotas dinámicas cargadas desde Cloud Wisdom (v%s)\n", len(manifest.Rules), manifest.Version)
+		fmt.Fprintf(os.Stderr, "[+] Engine: %d reglas remotas dinámicas cargadas desde Cloud Wisdom (v%s)\n", len(manifest.Rules), manifest.Version)
 	}
 
 	e.runCoreChecks(p, &allViolations)
@@ -70,6 +71,9 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 
 	*violations = append(*violations, RunTwelveFactorCheck(e.cwd)...)
 	*violations = append(*violations, RunCoverageCheck(e.cwd)...)
+	if p.DeployGateEnabled() {
+		*violations = append(*violations, RunDeployGateCheck(e.cwd)...)
+	}
 	*violations = append(*violations, CheckDatabasePerformance(e.cwd)...)
 	if p.DataUniqueness {
 		*violations = append(*violations, CheckDataUniqueness(e.cwd)...)

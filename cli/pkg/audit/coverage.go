@@ -1,75 +1,155 @@
 package audit
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-func runTests(cwd string) error {
-	if hasNpmTests(cwd) {
-		return runNpmTests(cwd)
+// testCommand es un comando de pruebas que QDD ejecuta como parte del gate.
+type testCommand struct {
+	Label string // lo que se muestra al usuario, p. ej. "go test ./..."
+	Dir   string // carpeta donde se ejecuta
+	Args  []string
+}
+
+type qddTestConfig struct {
+	TestCommands []string `yaml:"test_commands"`
+}
+
+// resolveTestCommands decide qué pruebas corre el gate. Si el proyecto declara
+// test_commands en .qdd/config.yaml, esos mandan (es la forma de soportar
+// cualquier stack). Si no, se detectan TODOS los stacks presentes: un proyecto
+// con package.json y go.mod corre ambas suites, no solo una.
+func resolveTestCommands(cwd string) []testCommand {
+	declared := declaredTestCommands(cwd)
+	if len(declared) > 0 {
+		return declared
 	}
-
-	return runGoTests(cwd)
+	return detectTestCommands(cwd)
 }
 
-func hasNpmTests(cwd string) bool {
-	_, err := os.Stat(filepath.Join(cwd, "package.json"))
-	return err == nil
-}
-
-func runNpmTests(cwd string) error {
-	cmd := exec.Command("npm", "run", "test")
-	cmd.Dir = cwd
-	return cmd.Run()
-}
-
-func runGoTests(cwd string) error {
-	cmd := exec.Command("go", "test", "./...")
-	cmd.Dir = cwd
-	if _, err := os.Stat(filepath.Join(cwd, "cli")); err == nil {
-		cmd.Dir = filepath.Join(cwd, "cli")
+func declaredTestCommands(cwd string) []testCommand {
+	data, err := os.ReadFile(filepath.Join(cwd, ".qdd", "config.yaml"))
+	if err != nil {
+		return nil
 	}
+	var cfg qddTestConfig
+	if yaml.Unmarshal(data, &cfg) != nil {
+		return nil
+	}
+	var cmds []testCommand
+	for _, c := range cfg.TestCommands {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}})
+	}
+	return cmds
+}
 
+func detectTestCommands(cwd string) []testCommand {
+	var cmds []testCommand
+	if hasNpmTestScript(cwd) {
+		cmds = append(cmds, testCommand{Label: "npm run test", Dir: cwd, Args: []string{"npm", "run", "test"}})
+	}
+	if goDir, ok := goModuleDir(cwd); ok {
+		cmds = append(cmds, testCommand{Label: "go test ./...", Dir: goDir, Args: []string{"go", "test", "./..."}})
+	}
+	if fileExists(filepath.Join(cwd, "pubspec.yaml")) && pathExists(filepath.Join(cwd, "test")) {
+		cmds = append(cmds, testCommand{Label: "flutter test", Dir: cwd, Args: []string{"flutter", "test"}})
+	}
+	if hasPythonTests(cwd) {
+		cmds = append(cmds, testCommand{Label: "python -m pytest", Dir: cwd, Args: []string{"python", "-m", "pytest", "-q"}})
+	}
+	return cmds
+}
+
+// hasNpmTestScript ignora el script por defecto de `npm init`, que siempre falla.
+func hasNpmTestScript(cwd string) bool {
+	data, err := os.ReadFile(filepath.Join(cwd, "package.json"))
+	if err != nil {
+		return false
+	}
+	var pkg struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if json.Unmarshal(data, &pkg) != nil {
+		return false
+	}
+	script := strings.TrimSpace(pkg.Scripts["test"])
+	return script != "" && !strings.Contains(script, "no test specified")
+}
+
+// goModuleDir soporta go.mod en la raíz o en cli/ (layout del propio QDD).
+func goModuleDir(cwd string) (string, bool) {
+	for _, dir := range []string{cwd, filepath.Join(cwd, "cli")} {
+		if fileExists(filepath.Join(dir, "go.mod")) {
+			return dir, true
+		}
+	}
+	return "", false
+}
+
+func hasPythonTests(cwd string) bool {
+	hasConfig := fileExists(filepath.Join(cwd, "pytest.ini")) || fileExists(filepath.Join(cwd, "pyproject.toml")) || fileExists(filepath.Join(cwd, "setup.cfg"))
+	return hasConfig && pathExists(filepath.Join(cwd, "tests"))
+}
+
+// runTestCommand ejecuta un comando de pruebas. Un fallo de compilación es un
+// fallo de pruebas: antes se trataba como "ignorable" y el gate aprobaba.
+func runTestCommand(tc testCommand) error {
+	cmd := exec.Command(tc.Args[0], tc.Args[1:]...)
+	cmd.Dir = tc.Dir
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil
 	}
-
-	return handleGoTestError(out, err)
-}
-
-func handleGoTestError(out []byte, err error) error {
-	output := string(out)
-	if isIgnorableGoTestError(output) {
-		return nil
-	}
-
-	fmt.Fprintln(os.Stderr, "TEST FAILURE LOG:\n", output)
+	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, tailLines(string(out), 60))
 	return err
 }
 
-func isIgnorableGoTestError(output string) bool {
-	return strings.Contains(output, "no test files") || 
-		strings.Contains(output, "build failed") || 
-		strings.Contains(output, "cannot find main module") || 
-		strings.Contains(output, "no Go files in")
+func tailLines(s string, n int) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) <= n {
+		return strings.Join(lines, "\n")
+	}
+	return strings.Join(lines[len(lines)-n:], "\n")
 }
 
-// RunCoverageCheck evalúa que todos los tests pasen (Anti-Regresión).
+// RunCoverageCheck evalúa que las pruebas del proyecto se ejecuten y pasen
+// (Anti-Regresión). Si no hay forma de correr pruebas, el gate NO aprueba en
+// silencio: lo informa como violación.
 func RunCoverageCheck(cwd string) []Violation {
 	var violations []Violation
 
-	if err := runTests(cwd); err != nil {
-		fmt.Fprintln(os.Stderr, "DEBUG ERROR:", err)
+	cmds := resolveTestCommands(cwd)
+	if len(cmds) == 0 {
 		violations = append(violations, Violation{
 			Category:    "COVERAGE",
-			RuleID:      "QA-01-ALL-TESTS-PASS",
-			Description: "Fallo en la suite de pruebas unitarias. Se detectaron regresiones en el código.",
+			RuleID:      "QA-00-NO-TEST-COMMAND",
+			Description: "No se detectó cómo ejecutar las pruebas del proyecto, así que el gate no puede verificar nada. Declara los comandos en .qdd/config.yaml (test_commands: [\"...\"]).",
 		})
+	}
+
+	for _, tc := range cmds {
+		fmt.Fprintf(os.Stderr, "[QA] Ejecutando pruebas: %s (en %s)\n", tc.Label, tc.Dir)
+		if err := runTestCommand(tc); err != nil {
+			fmt.Fprintf(os.Stderr, "[QA] FALLÓ: %s\n", tc.Label)
+			violations = append(violations, Violation{
+				Category:    "COVERAGE",
+				RuleID:      "QA-01-ALL-TESTS-PASS",
+				Description: fmt.Sprintf("Falló la suite de pruebas '%s': %v", tc.Label, err),
+			})
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "[QA] OK: %s\n", tc.Label)
 	}
 
 	// QA-02-E2E-TESTS: Exigir entorno de pruebas End-to-End
@@ -91,4 +171,9 @@ func RunCoverageCheck(cwd string) []Violation {
 	}
 
 	return violations
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

@@ -17,6 +17,14 @@ type QDDPolicies struct {
 	AIGovernance   bool `yaml:"ai_governance" json:"ai_governance"`
 	DataUniqueness bool `yaml:"data_uniqueness" json:"data_uniqueness"`
 	AllowExecution bool `yaml:"allow_execution" json:"allow_execution"`
+	// DeployGate es un puntero para que los policies.yaml anteriores (sin la
+	// clave) la tengan ACTIVA: no desplegar sin pruebas es la regla base.
+	DeployGate *bool `yaml:"deploy_gate,omitempty" json:"deploy_gate,omitempty"`
+}
+
+// DeployGateEnabled indica si se auditan los pipelines de despliegue.
+func (p QDDPolicies) DeployGateEnabled() bool {
+	return p.DeployGate == nil || *p.DeployGate
 }
 
 // DefaultPolicies returns the default strict QDD configuration

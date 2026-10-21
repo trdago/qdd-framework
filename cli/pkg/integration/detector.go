@@ -8,26 +8,28 @@ import (
 // FindProjectRoot walks upward from startPath looking for the canonical
 // project root, so callers resolving from os.Getwd() operate on the real
 // project root instead of whatever subdirectory the command happened to be
-// invoked from. It prefers the nearest existing QDD project (a directory
-// where IsQDDProject is already true) so intentionally-scoped nested
-// projects (e.g. an isolated .qdd sandbox created for testing) are respected
-// rather than overridden. Only when no .qdd is found anywhere upward does it
-// fall back to the nearest .git directory, so a first-time `qdd init` run
-// from a subdirectory still targets the real repo root. Falls back to
-// startPath if neither is found (standalone/new project, or filesystem root).
+// invoked from. The walk stops at the first directory that is either a QDD
+// project (nearest .qdd wins, so intentionally nested projects are respected)
+// or a git root (.git directory, or .git file for worktrees/submodules). It
+// never crosses a repository boundary: a stray .qdd in a folder ABOVE the repo
+// (e.g. a workspace folder holding many repos) must not hijack every sibling
+// repo's commands. Falls back to startPath if neither is found.
 func FindProjectRoot(startPath string) string {
-	if root, found := walkUpFor(startPath, IsQDDProject); found {
-		return root
-	}
-	if root, found := walkUpFor(startPath, isGitRoot); found {
+	if root, found := walkUpFor(startPath, isProjectBoundary); found {
 		return root
 	}
 	return startPath
 }
 
+func isProjectBoundary(dir string) bool {
+	return IsQDDProject(dir) || isGitRoot(dir)
+}
+
+// isGitRoot accepts a .git directory (regular clone) or a .git file
+// (git worktree or submodule).
 func isGitRoot(dir string) bool {
-	info, err := os.Stat(filepath.Join(dir, ".git"))
-	return err == nil && info.IsDir()
+	_, err := os.Stat(filepath.Join(dir, ".git"))
+	return err == nil
 }
 
 func walkUpFor(startPath string, matches func(string) bool) (string, bool) {

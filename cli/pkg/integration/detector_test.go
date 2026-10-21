@@ -96,3 +96,45 @@ func TestFindProjectRoot_FallsBackWhenNoGitFound(t *testing.T) {
 		t.Errorf("FindProjectRoot(%q) = %q, want %q (fallback to startPath)", standaloneDir, got, standaloneDir)
 	}
 }
+
+// Regression: a stray .qdd in a workspace folder ABOVE a repo (e.g.
+// ~/proyectos/.qdd created by an accidental init) must not capture the
+// commands of every sibling repo that has no .qdd of its own.
+func TestFindProjectRoot_DoesNotCrossGitRootToOuterQDD(t *testing.T) {
+	workspace := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspace, ".qdd"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	repo := filepath.Join(workspace, "sibling-repo")
+	nested := filepath.Join(repo, "internal", "pkg")
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := FindProjectRoot(nested)
+	if got != repo {
+		t.Errorf("FindProjectRoot(%q) = %q, want repo root %q (outer workspace .qdd must be ignored)", nested, got, repo)
+	}
+}
+
+// Worktrees have a .git FILE instead of a directory; they are repo roots too.
+func TestFindProjectRoot_TreatsGitFileAsRepoRoot(t *testing.T) {
+	workspace := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspace, ".qdd"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	worktree := filepath.Join(workspace, "wt")
+	if err := os.MkdirAll(worktree, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: /elsewhere\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := FindProjectRoot(worktree); got != worktree {
+		t.Errorf("FindProjectRoot(%q) = %q, want %q", worktree, got, worktree)
+	}
+}

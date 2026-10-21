@@ -17,7 +17,7 @@ func RunEnterpriseCheck(cwd string) []Violation {
 
 	checkADR(cwd, &violations)
 
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+	walkProject(cwd, func(path string, d os.DirEntry, err error) error {
 		if isIgnoredEnterprisePath(path, d, err) {
 			return nil
 		}

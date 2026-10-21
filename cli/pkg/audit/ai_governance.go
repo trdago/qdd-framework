@@ -35,7 +35,7 @@ func detectAIComponents(cwd string) bool {
 	hasAI := false
 	aiKeywords := []string{"openai", "anthropic", "gemini", "langchain", "ollama", "llm", "claude", "gpt-4", "evaluator"}
 
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+	walkProject(cwd, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			if d != nil && isIgnoredDir(d.Name()) {
 				return filepath.SkipDir
@@ -113,7 +113,7 @@ func checkISO29119Testing(cwd string, violations *[]Violation) {
 }
 
 func checkSOC2ProcessingIntegrity(cwd string, violations *[]Violation) {
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+	walkProject(cwd, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			if d != nil && isIgnoredDir(d.Name()) {
 				return filepath.SkipDir
@@ -158,7 +158,7 @@ func checkSOC2ProcessingIntegrity(cwd string, violations *[]Violation) {
 }
 
 func checkISO23894RiskMitigation(cwd string, violations *[]Violation) {
-	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+	walkProject(cwd, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			if d != nil && isIgnoredDir(d.Name()) {
 				return filepath.SkipDir

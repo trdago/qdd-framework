@@ -1,0 +1,5 @@
+title: "QA-01 aprobaba sin ejecutar ninguna prueba"
+description: "runTests solo conocía npm o go. En proyectos sin package.json ni go.mod en la raíz (Flutter, firmware) corría 'go test', recibía 'cannot find main module' y lo trataba como ignorable; 'build failed' también se ignoraba. Con package.json y go.mod a la vez solo corría npm."
+impact: "Gate en verde sin pruebas en servel_votacion_app, esp32 y similares; en gdatos se saltaban las pruebas de Go."
+action_taken: "Comandos declarables en .qdd/config.yaml (test_commands), detección de todos los stacks presentes (npm, go, flutter, pytest), QA-00-NO-TEST-COMMAND cuando no hay cómo probar, y un fallo de compilación cuenta como fallo. Tests en cli/pkg/audit/coverage_test.go."
+date: "2026-10-21"

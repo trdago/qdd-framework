@@ -92,12 +92,16 @@ func evaluateExpectedError(t *testing.T, expected string, err error) {
 	}
 }
 
-// findProjectRoot escala recursivamente hasta encontrar el directorio .qdd
+// findProjectRoot escala hasta el directorio .qdd más cercano sin cruzar la
+// raíz del repositorio git (un .qdd por encima del repo no le pertenece).
 func findProjectRoot(startPath string) string {
 	current := startPath
 	for {
 		if _, err := os.Stat(filepath.Join(current, ".qdd")); err == nil {
 			return current
+		}
+		if _, err := os.Stat(filepath.Join(current, ".git")); err == nil {
+			return startPath
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
