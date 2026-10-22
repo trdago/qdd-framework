@@ -226,15 +226,16 @@ jobs:
           echo "Generando el build para producción..."
           npm run build || (echo "::error::El proceso de build falló" && exit 1)
 
+      # Trusted Publishing (OIDC) requiere npm >= 11.5.1; el npm que trae
+      # el Node LTS del runner puede ser anterior.
+      - name: Ensure npm supports Trusted Publishing
+        run: npm install -g npm@^11.5.1
+
       - name: Publish to NPM
         working-directory: ./npm
-        # Se ejecutará solo si TODAS las etapas anteriores fueron exitosas
+        # Se ejecutará solo si TODAS las etapas anteriores fueron exitosas.
+        # Autenticación vía Trusted Publishing (OIDC): sin NPM_TOKEN, nada que
+        # caduque. npm genera la provenance automáticamente (repo público).
         run: |
-          echo "Publicando paquete en NPM con Provenance..."
-          
-          # Eliminamos --provenance porque NPM solo lo soporta en repositorios PÚBLICOS.
+          echo "Publicando paquete en NPM vía Trusted Publishing..."
           npm publish --access public || (echo "::error::Fallo al publicar el paquete en NPM" && exit 1)
-        env:
-          # Utiliza el token OIDC si está configurado para la organización, 
-          # o el secreto NPM_TOKEN si OIDC no está enlazado todavía.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.24] - 2026-10-22
+
+### 🔐 Publicación en npm sin tokens (Trusted Publishing)
+
+- **`publish.yml` publica vía OIDC**: se elimina `NPM_TOKEN`; GitHub Actions se autentica ante npm con un token de corta duración emitido por ejecución, vinculado a `trdago/qdd-framework` y `publish.yml`. Ya no hay credenciales que caduquen ni secretos que filtrar.
+- **npm ≥ 11.5.1 en el runner**: requisito de Trusted Publishing, garantizado con un paso explícito.
+- **Provenance automática**: cada versión en npm queda firmada y enlazada al commit y al run que la produjo.
+- **v1.9.22 y v1.9.23 llegan a npm**: no se publicaron porque el token había caducado (`E404` en `npm publish`); sus cambios se distribuyen en esta versión.
+
 ## [v1.9.23] - 2026-10-21
 
 ### 🛡️ Gate veraz: no se despliega sin pasar las pruebas
