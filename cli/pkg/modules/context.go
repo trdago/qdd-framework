@@ -16,6 +16,17 @@ var workingMethod = []string{
 	"Cero 'else' y salida temprana (cláusulas de guarda) en todas las funciones.",
 	"Todo bug se documenta como finding en .qdd/project/findings/ con su prueba de regresión.",
 	"No se commitea ni se despliega sin pasar el gate (qdd_audit): pruebas del proyecto + reglas QDD.",
+	"Si un módulo tiene un estándar de la organización (blueprint), se construye aplicándolo con qdd_blueprint_apply: sus preguntas las responde el humano (nunca tú) y sus invariantes no se discuten.",
+}
+
+// Estandar resume un blueprint importado al proyecto (lo calcula el paquete
+// blueprints, que depende de este).
+type Estandar struct {
+	ID      string
+	Nombre  string
+	Version string
+	Rutas   []string // rutas sugeridas por el blueprint
+	Modulos []string // fichas generadas con él
 }
 
 // ContextInput reúne lo que el contexto necesita y que se calcula fuera del
@@ -24,6 +35,7 @@ type ContextInput struct {
 	Root         string
 	Paths        []string // rutas que la IA va a tocar (opcional)
 	TestCommands []string
+	Estandares   []Estandar
 }
 
 // BuildContext arma la abstracción del proyecto para una IA: propósito, forma
@@ -41,13 +53,14 @@ func BuildContext(in ContextInput) string {
 	}
 	b.WriteString("\n## Cómo se prueba el proyecto\n")
 	writeList(&b, in.TestCommands, "No hay comandos de prueba detectables: decláralos en .qdd/config.yaml (test_commands) antes de cambiar código.")
+	writeEstandares(&b, in.Estandares)
 
 	for _, err := range loadErrs {
 		fmt.Fprintf(&b, "\n⚠️ Ficha ilegible: %v\n", err)
 	}
 
 	if len(in.Paths) > 0 {
-		writeRelevant(&b, in.Root, mods, in.Paths)
+		writeRelevant(&b, in.Root, mods, in.Estandares, in.Paths)
 	}
 	writeIndex(&b, in.Root, mods)
 	writeUncovered(&b, in.Root, mods)
@@ -73,12 +86,53 @@ func writePurpose(b *strings.Builder, root string) {
 	b.WriteString("\n")
 }
 
-func writeRelevant(b *strings.Builder, root string, mods []Module, paths []string) {
+func writeEstandares(b *strings.Builder, estandares []Estandar) {
+	if len(estandares) == 0 {
+		return
+	}
+	b.WriteString("\n## Estándares de la organización (blueprints)\nEstos módulos tienen un estándar: no los diseñes desde cero.\n")
+	for _, e := range estandares {
+		fmt.Fprintf(b, "- **%s** (`%s@%s`): ", e.Nombre, e.ID, e.Version)
+		if len(e.Modulos) > 0 {
+			fmt.Fprintf(b, "aplicado en %s.\n", strings.Join(quoted(e.Modulos), ", "))
+			continue
+		}
+		fmt.Fprintf(b, "sin aplicar. Si vas a construir este módulo, llama primero a qdd_blueprint_apply (blueprint=%s) y hazle al humano las preguntas que devuelva.\n", e.ID)
+	}
+}
+
+func quoted(items []string) []string {
+	out := make([]string, 0, len(items))
+	for _, it := range items {
+		out = append(out, "`"+it+"`")
+	}
+	return out
+}
+
+// estandarPara devuelve el blueprint sin aplicar cuyas rutas sugeridas
+// contienen la ruta: ahí la ficha se genera aplicándolo, no a mano.
+func estandarPara(estandares []Estandar, rel string) (Estandar, bool) {
+	for _, e := range estandares {
+		if len(e.Modulos) > 0 {
+			continue
+		}
+		if (Module{Rutas: e.Rutas}).covers(rel) {
+			return e, true
+		}
+	}
+	return Estandar{}, false
+}
+
+func writeRelevant(b *strings.Builder, root string, mods []Module, estandares []Estandar, paths []string) {
 	b.WriteString("\n## Módulos que vas a tocar\n")
 	seen := map[string]bool{}
 	for _, p := range paths {
 		rel := relativeTo(root, p)
 		covering := Covering(mods, rel)
+		if e, ok := estandarPara(estandares, rel); ok && len(covering) == 0 {
+			fmt.Fprintf(b, "\n⚠️ `%s` corresponde al estándar **%s** (`%s`), que aún no se aplica. No propongas una ficha a mano: llama a qdd_blueprint_apply (blueprint=%s) y hazle al humano sus preguntas.\n", rel, e.Nombre, e.ID, e.ID)
+			continue
+		}
 		if len(covering) == 0 {
 			fmt.Fprintf(b, "\n⚠️ `%s` no pertenece a ningún módulo con ficha. Antes de cambiarlo, propón su ficha con qdd_module_save y pide al humano que la apruebe.\n", rel)
 			continue

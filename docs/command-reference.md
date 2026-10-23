@@ -72,7 +72,7 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd run <cmd1> <cmd2>...` | Ejecuta subcomandos de QDD en secuencia como una tubería (ej. `qdd run audit certify`), abortando si alguno falla. |
 | `qdd run --keep-alive <cmd>` | Supervisa un proceso externo (un binario, un servicio) manteniéndolo siempre vivo: lo reinicia en cada salida limpia. Ante un error real, registra un Finding + evidencia y luego invoca a un agente de IA local (Claude, Antigravity o Cursor — el primero disponible) para diagnosticar y aplicar el fix real de forma desatendida (`--dangerously-skip-permissions`), reintentando hasta 3 veces antes de detenerse para revisión humana. Ver ADR-004 (supersede ADR-003). |
 | `qdd bug` | Registra manualmente un error como Finding permanente con evidencia asociada (mismo mecanismo que usa `qdd run --keep-alive` internamente). |
-| `qdd blueprint add <origen> [--ref vX.Y.Z]` | Importa un blueprint desde una carpeta o un repositorio git, privado si quieres (`git@host:org/repo.git//subcarpeta`), usando tus credenciales git. Lo copia a `.qdd/blueprints/<id>/` y fija origen, commit y huella en `.qdd/blueprints.lock.yaml`. |
+| `qdd blueprint add [origen] [id…] [--paquete p \| --todos] [--ref vX.Y.Z]` | Importa blueprints del repositorio de tu organización, privado si quieres, usando tus credenciales git. La primera vez indicas el repositorio y QDD lo registra en `.qdd/config.yaml`; después basta con los ids. Sin argumentos lista lo disponible. Copia a `.qdd/blueprints/<id>/` y fija origen, commit y huella en `.qdd/blueprints.lock.yaml`. |
 | `qdd blueprint apply <id> [--ruta …] [--respuesta p=v …] [--prueba …]` | Pregunta las decisiones de diseño del blueprint (o las toma de `--respuesta`) y genera la ficha del módulo en **borrador**, sus escenarios de conformidad, el registro de decisiones y, si la carpeta no existe, un esqueleto `README.md`. Al volver a aplicarlo reutiliza las respuestas y conserva lo que el proyecto agregó a la ficha. |
 
 ### 🤖 Solo vía MCP — pedile a tu IDE con IA que las invoque
@@ -80,6 +80,7 @@ Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP �
 
 | Tool MCP | Descripción |
 |---------|-------------|
+| `qdd_blueprint_add` | Importa blueprints del repositorio registrado de la organización cuando el humano lo pide ("agrega auth y auditoría"). Sin registro, la IA debe preguntar la URL. |
 | `qdd_blueprint_list` | Muestra los blueprints importados con su vocabulario, preguntas e invariantes, para que la IA construya el módulo según el estándar de la organización. |
 | `qdd_blueprint_apply` | Igual que `qdd blueprint apply`. Si faltan decisiones, devuelve las preguntas sin escribir nada: la IA debe hacérselas al humano, no responderlas. |
 | `qdd_learn` | Explora el código base para asimilar arquitecturas e invoca a la IA para redactar/refinar el **Intelligence Report** (`.qdd/understanding.json`) — incremental desde FND-020. |

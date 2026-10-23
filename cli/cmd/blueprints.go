@@ -29,19 +29,21 @@ se importa a cada proyecto; el core de QDD solo trae el mecanismo.
 }
 
 var blueprintAddCmd = &cobra.Command{
-	Use:   "add <origen> [blueprint...]",
-	Short: "Importa blueprints desde una carpeta o un repositorio git (uno, varios, un --paquete o --todos)",
-	Long: `Importa blueprints con un solo clon. El origen es una carpeta local o un
-repositorio git (privado si quieres; se usan tus credenciales git).
+	Use:   "add [origen] [blueprint...]",
+	Short: "Importa blueprints del repositorio de tu organización (uno, varios, un --paquete o --todos)",
+	Long: `Importa blueprints con un solo clon. La primera vez indica el repositorio de
+tu organización (privado si quieres; se usan tus credenciales git): QDD lo
+guarda en .qdd/config.yaml y desde ahí basta con nombrar los blueprints.
 
-  qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.2.0 auth auditoria
-  qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.2.0 --paquete saas
-  qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.2.0 --todos
-  qdd blueprint add git@github.com:org/qdd-blueprints.git//auth --ref v1.2.0
+  qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.2.0 auth
+  qdd blueprint add auditoria notificaciones      # usa el repositorio registrado
+  qdd blueprint add --paquete base
+  qdd blueprint add --todos --ref v1.3.0           # actualiza todo a otra versión
+  qdd blueprint add                                # lista lo disponible
 
 Si alguno es inválido no se importa ninguno. Los paquetes y las carpetas se
 declaran en catalogo.yaml en la raíz del repositorio.`,
-	Args: cobra.MinimumNArgs(1),
+	Args: cobra.ArbitraryArgs,
 	Run:  runBlueprintAdd,
 }
 
@@ -88,16 +90,30 @@ func init() {
 }
 
 func runBlueprintAdd(cmd *cobra.Command, args []string) {
-	entries, problems := blueprints.Add(blueprints.AddInput{
-		Root: modulesRoot(), Origen: args[0], Ref: blueprintRef,
-		Blueprints: args[1:], Paquete: blueprintPaquete, Todos: blueprintTodos,
+	origen, ids := splitAddArgs(args)
+	res, problems := blueprints.AddManaged(blueprints.AddInput{
+		Root: modulesRoot(), Origen: origen, Ref: blueprintRef,
+		Blueprints: ids, Paquete: blueprintPaquete, Todos: blueprintTodos,
 	})
-	if len(problems) > 0 {
+	if len(problems) > 0 && len(res.Entries) == 0 {
 		fmt.Printf("[!] No se importó nada:\n  - %s\n", strings.Join(problems, "\n  - "))
 		os.Exit(1)
 	}
+	printAddResult(res, problems)
+}
+
+// splitAddArgs separa el origen (si el primer argumento lo es) de los ids:
+// 'qdd blueprint add auth auditoria' usa el repositorio registrado.
+func splitAddArgs(args []string) (string, []string) {
+	if len(args) > 0 && blueprints.EsOrigen(args[0]) {
+		return args[0], args[1:]
+	}
+	return "", args
+}
+
+func printAddResult(res blueprints.AddResult, warnings []string) {
 	var ids []string
-	for _, e := range entries {
+	for _, e := range res.Entries {
 		fmt.Printf("[+] Blueprint '%s@%s' importado en %s/%s", e.ID, e.Version, blueprints.Dir, e.ID)
 		if e.Commit != "" {
 			fmt.Printf(" (commit %.12s)", e.Commit)
@@ -105,17 +121,30 @@ func runBlueprintAdd(cmd *cobra.Command, args []string) {
 		fmt.Println(".")
 		ids = append(ids, e.ID)
 	}
+	if res.Guardado {
+		fmt.Printf("[+] Repositorio de la organización registrado en .qdd/config.yaml: %s", res.Registro.Origen)
+		if res.Registro.Ref != "" {
+			fmt.Printf(" (%s)", res.Registro.Ref)
+		}
+		fmt.Println(". Desde ahora basta con: qdd blueprint add <id>...")
+	}
+	for _, w := range warnings {
+		fmt.Printf("[!] %s\n", w)
+	}
 	fmt.Printf("    Siguiente paso: qdd blueprint apply %s\n", strings.Join(ids, " "))
 }
 
 func runBlueprintList(cmd *cobra.Command, args []string) {
 	root := modulesRoot()
+	if reg, _ := blueprints.LoadRegistro(root); reg.Origen != "" {
+		fmt.Printf("Repositorio de la organización: %s %s\n\n", reg.Origen, reg.Ref)
+	}
 	bps, errs := blueprints.List(root)
 	for _, err := range errs {
 		fmt.Printf("[!] Blueprint ilegible: %v\n", err)
 	}
 	if len(bps) == 0 {
-		fmt.Println("Sin blueprints importados. Usa: qdd blueprint add <carpeta | repo//subcarpeta> [--ref vX.Y.Z]")
+		fmt.Println("Sin blueprints importados. Usa: qdd blueprint add [repositorio] <id>... (o --paquete / --todos)")
 		return
 	}
 	lock, _ := blueprints.LoadLock(root)

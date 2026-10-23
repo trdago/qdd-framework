@@ -9,7 +9,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### 🧬 Blueprints: los estándares de módulo de tu organización (RFC 0003)
 
 - **Blueprints:** un blueprint es el esqueleto conceptual de un módulo (vocabulario, preguntas de diseño, decisiones, invariantes y escenarios de conformidad). Vive en el repositorio de tu organización, privado si quieres. El core solo trae el mecanismo. Plantilla en `.qdd/core/templates/blueprint.yaml`.
-- **`qdd blueprint add`:** importa uno, varios, un `--paquete` (declarado en `catalogo.yaml`) o `--todos`, con un solo clon y tus credenciales git. Si alguno es inválido, no importa ninguno. Copia a `.qdd/blueprints/<id>/` y fija origen, commit y huella en `.qdd/blueprints.lock.yaml`.
+- **`qdd blueprint add` / MCP `qdd_blueprint_add`:**
+  - Importa uno, varios, un `--paquete` (declarado en `catalogo.yaml`) o `--todos`, con un solo clon y tus credenciales git. Si alguno es inválido, no importa ninguno.
+  - Copia a `.qdd/blueprints/<id>/` y fija origen, commit y huella en `.qdd/blueprints.lock.yaml`.
+  - **QDD recuerda el repositorio de la organización** en `.qdd/config.yaml`. Después basta con `qdd blueprint add auditoria`, o con decirle a la IA "agrega auth y auditoría".
+- **La IA usa los blueprints sola:** `qdd_project_context` muestra los estándares de la organización y avisa cuando una ruta corresponde a un blueprint sin aplicar. Las reglas sincronizadas (`CLAUDE.md`, `.cursorrules`…) le exigen aplicarlos y hacerle sus preguntas al humano.
 - **`qdd blueprint apply` / MCP `qdd_blueprint_apply`:**
   - Pregunta las decisiones de diseño. Sin respuestas no escribe nada, y la IA debe preguntarle al humano.
   - Genera la ficha del módulo en borrador, sus escenarios de conformidad, el registro de decisiones y un esqueleto `README.md` en las carpetas nuevas.

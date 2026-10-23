@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 	"github.com/spf13/cobra"
@@ -99,5 +100,6 @@ func runModulesContext(cmd *cobra.Command, args []string) {
 		Root:         root,
 		Paths:        args,
 		TestCommands: audit.TestCommandLabels(root),
+		Estandares:   blueprints.Estandares(root),
 	}))
 }

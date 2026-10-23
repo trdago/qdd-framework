@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
 // Problema es una falla de integridad o vigencia de los blueprints del proyecto.
@@ -71,6 +73,24 @@ func checkApplication(root string, a Aplicacion, versiones map[string]string) []
 		return nil
 	}
 	return []Problema{{"BP-03-OUTDATED", rel, fmt.Sprintf("El módulo '%s' se generó con %s@%s, pero el importado es %s@%s. Vuelve a aplicarlo: qdd blueprint apply %s --modulo %s", a.Modulo, a.Blueprint, a.Version, a.Blueprint, version, a.Blueprint, a.Modulo)}}
+}
+
+// Estandares resume los blueprints importados y las fichas generadas con
+// cada uno, para el contexto que recibe una IA.
+func Estandares(root string) []modules.Estandar {
+	bps, _ := List(root)
+	apps, _ := LoadApplications(root)
+	var out []modules.Estandar
+	for _, b := range bps {
+		e := modules.Estandar{ID: b.ID, Nombre: b.Nombre, Version: b.Version, Rutas: b.Ficha.Rutas}
+		for _, a := range apps {
+			if a.Blueprint == b.ID {
+				e.Modulos = append(e.Modulos, a.Modulo)
+			}
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 func relTo(root, p string) string {

@@ -269,9 +269,13 @@ func sortedKeys[V any](m map[string]V) []string {
 // una función de limpieza (para el clon temporal), aunque falle.
 func fetch(origen, ref string) (string, string, LockEntry, func(), error) {
 	noop := func() {}
+	if strings.HasPrefix(origen, "~/") {
+		home, _ := os.UserHomeDir()
+		origen = filepath.Join(home, origen[2:])
+	}
 	if info, err := os.Stat(origen); err == nil && info.IsDir() {
 		abs, _ := filepath.Abs(origen)
-		return abs, "", LockEntry{Origen: origen, Commit: gitHead(abs)}, noop, nil
+		return abs, "", LockEntry{Origen: abs, Commit: gitHead(abs)}, noop, nil
 	}
 	repo, subdir := splitSource(origen)
 	if subdir != "" && !isInside(subdir) {

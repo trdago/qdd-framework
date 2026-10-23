@@ -51,15 +51,23 @@ La plantilla con todos los campos está en `.qdd/core/templates/blueprint.yaml`.
 - los escenarios no se repiten dentro de su grupo ni pisan los de la base;
 - las referencias deben quedar dentro de la carpeta del blueprint.
 
-### 3.2 Importar: `qdd blueprint add`
+### 3.2 Importar: `qdd blueprint add` / MCP `qdd_blueprint_add`
 
 ```bash
-qdd blueprint add <repo> --ref v1.2.0 auth auditoria   # varios, un solo clon
-qdd blueprint add <repo> --ref v1.2.0 --paquete base
-qdd blueprint add <repo> --ref v1.2.0 --todos
-qdd blueprint add <repo>//auth --ref v1.2.0            # una subcarpeta
-qdd blueprint add ../carpeta-local auth
+qdd blueprint add <repo> --ref v1.2.0 auth   # la primera vez: QDD registra el repositorio
+qdd blueprint add auditoria notificaciones   # después, solo los nombres
+qdd blueprint add --paquete base
+qdd blueprint add --todos --ref v1.3.0       # actualizar todo (y el ref registrado)
+qdd blueprint add                            # listar lo disponible
+qdd blueprint add <repo>//auth --ref v1.2.0  # una subcarpeta puntual
 ```
+
+**QDD administra el registro.** Cuando se importa por primera vez desde un repositorio con varios blueprints, guarda la clave `blueprints: {origen, ref}` en `.qdd/config.yaml`. Edita esa clave conservando el resto del archivo, comentarios incluidos.
+
+- Desde entonces, un argumento que no parece origen es un id. Un origen contiene `/`, `:` o `\`, o empieza con `.` o `~`.
+- Pedir otro `--ref` del mismo repositorio actualiza el ref registrado.
+- Importar algo puntual de otro repositorio no reemplaza el registro.
+- Por MCP, el humano dice "agrega auth y auditoría" y la IA llama a `qdd_blueprint_add`. Si no hay registro, la tool le exige a la IA preguntarle la URL al humano, nunca inventarla.
 
 - Se clona con `git` y las credenciales del usuario. **La protección es el control de acceso al repositorio**: quien no tiene acceso no puede importar.
 - `protocol.ext.allow=never` y `--` evitan la inyección de transportes y de opciones.
@@ -94,10 +102,20 @@ qdd blueprint apply auth auditoria --respuesta auth.identificador=rut
 
 Sin blueprints, no reporta nada. Las reglas `HEART-*` siguen vigilando el desfase entre la ficha y el código.
 
-### 3.5 Contexto para la IA
+### 3.5 Que la IA entienda el concepto
 
-- `qdd_project_context` muestra el `blueprint` de cada ficha.
-- `qdd_blueprint_list` entrega el vocabulario, las preguntas y las invariantes, para construir el módulo según el estándar de la organización.
+Una IA conoce los blueprints por tres vías, sin que nadie se lo pida:
+
+1. **Reglas de los adaptadores** (`qdd_sync`: `CLAUDE.md`, `.cursorrules`, …):
+   - un pedido como "agrega el blueprint X" se resuelve con `qdd_blueprint_add`;
+   - antes de construir un módulo que un blueprint define, la IA llama a `qdd_blueprint_apply` y le hace al humano sus preguntas;
+   - las invariantes no se negocian: un cambio va al repositorio de la organización.
+2. **`qdd_project_context`**, la primera llamada de toda tarea:
+   - suma la regla 6 de la forma de trabajo;
+   - agrega la sección *"Estándares de la organización"*, con cada blueprint aplicado o sin aplicar;
+   - si la IA va a tocar una ruta sin ficha que coincide con las rutas sugeridas de un blueprint sin aplicar, le pide aplicarlo en vez de proponer una ficha a mano;
+   - muestra el `blueprint` de cada ficha.
+3. **`qdd_blueprint_list`**, que entrega el vocabulario, las preguntas y las invariantes.
 
 ## 4. Drawbacks y límites
 
@@ -108,6 +126,6 @@ Sin blueprints, no reporta nada. Las reglas `HEART-*` siguen vigilando el desfas
 
 - Verificación de firma de los tags (cosign o minisign) antes de importar.
 - Lista de orígenes permitidos en `.qdd/config.yaml`, para que un proyecto solo acepte blueprints del repositorio de su organización.
-- `qdd blueprint update`: reimportar todo lo del lockfile a un nuevo `--ref`.
+- Un registro a nivel de usuario (`~/.config/qdd`), para que un proyecto nuevo conozca el repositorio de la organización desde `qdd init`.
 - Dependencias entre blueprints, por ejemplo `auditoria` requiere `auth`.
 - Trazabilidad entre escenarios y pruebas: que el gate exija una prueba que cite cada id de escenario.

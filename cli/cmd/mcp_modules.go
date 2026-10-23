@@ -9,6 +9,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
@@ -27,6 +28,7 @@ func handleProjectContextTool(ctx context.Context, request mcp.CallToolRequest) 
 		Root:         root,
 		Paths:        splitPaths(stringArg(request, "paths")),
 		TestCommands: audit.TestCommandLabels(root),
+		Estandares:   blueprints.Estandares(root),
 	})
 	return mcp.NewToolResultText(text), nil
 }

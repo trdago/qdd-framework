@@ -112,6 +112,42 @@ func TestParseRespuestas_RejectsMalformed(t *testing.T) {
 	}
 }
 
+func TestBlueprintAddTool_AsksForRepositoryThenUsesRegistry(t *testing.T) {
+	root := chdirToTempRepo(t)
+	repo := filepath.Join(t.TempDir(), "org")
+	if err := os.MkdirAll(filepath.Join(repo, "auth"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "auth", blueprints.ManifestName), []byte(cmdTestBlueprint), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, _ := handleBlueprintAddTool(context.Background(), toolRequest(map[string]interface{}{"blueprints": "auth"}))
+	if !res.IsError || !strings.Contains(resultText(t, res), "todavía no hay repositorio") {
+		t.Fatalf("sin registro debe pedir el repositorio: %q", resultText(t, res))
+	}
+	res, _ = handleBlueprintAddTool(context.Background(), toolRequest(map[string]interface{}{"blueprints": "auth", "origen": repo}))
+	if res.IsError || !strings.Contains(resultText(t, res), "registrado en .qdd/config.yaml") {
+		t.Fatalf("con origen debe importar y registrar: %q", resultText(t, res))
+	}
+	res, _ = handleBlueprintAddTool(context.Background(), toolRequest(map[string]interface{}{"todos": true}))
+	if res.IsError || !strings.Contains(resultText(t, res), "Importado auth@1.0.0") {
+		t.Fatalf("después basta con el registro: %q", resultText(t, res))
+	}
+	if reg, _ := blueprints.LoadRegistro(root); reg.Origen != repo {
+		t.Fatalf("registro = %+v", reg)
+	}
+}
+
+func TestSplitAddArgs(t *testing.T) {
+	if origen, ids := splitAddArgs([]string{"auth", "auditoria"}); origen != "" || len(ids) != 2 {
+		t.Fatal("solo ids: usa el registro")
+	}
+	if origen, ids := splitAddArgs([]string{"git@github.com:acme/bp.git", "auth"}); origen == "" || len(ids) != 1 {
+		t.Fatal("el primer argumento con ':' o '/' es el origen")
+	}
+}
+
 func TestRespuestasDe_PrefixSeparatesBlueprints(t *testing.T) {
 	r := map[string]string{"auth.identificador": "rut", "auditoria.retencion": "5a", "canal": "correo"}
 	auth := respuestasDe("auth", r, true)
