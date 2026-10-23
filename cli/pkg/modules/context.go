@@ -110,6 +110,7 @@ func writeModule(b *strings.Builder, root string, m Module) {
 		b.WriteString("⚠️ " + warning + "\n")
 	}
 	fmt.Fprintf(b, "- Rutas: %s\n", strings.Join(m.Rutas, ", "))
+	writeField(b, "Blueprint", m.Blueprint)
 	b.WriteString("- **Objetivo operativo**\n")
 	fmt.Fprintf(b, "  - Problema: %s\n", m.ObjetivoOperativo.Problema)
 	writeField(b, "Usuarios", m.ObjetivoOperativo.Usuarios)

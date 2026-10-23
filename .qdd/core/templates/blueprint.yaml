@@ -1,0 +1,63 @@
+# Blueprint QDD: el esqueleto conceptual de un módulo que tu organización
+# reutiliza en todos sus proyectos. Va en <repo-de-tu-organizacion>/<id>/blueprint.yaml
+# (un solo repositorio, privado si quieres, puede tener todos los blueprints;
+# ver catalogo.yaml en RFC 0003).
+#
+#   qdd blueprint add <repo> --ref v1.0.0 <id>   # importa (valida y fija huella)
+#   qdd blueprint apply <id>                     # pregunta y genera la ficha en borrador
+#   qdd modules approve <id>                     # un humano aprueba
+id: notificaciones                 # minúsculas, números, '-' o '_'
+nombre: Notificaciones
+version: 1.0.0                     # semver: patch redacción, minor opciones, major invariantes
+organizacion: Tu organización
+licencia: Propietaria — uso interno
+descripcion: Cómo se avisa a las personas de lo que pasa en el producto.
+
+vocabulario:                       # palabras que toda la organización usa igual
+  - termino: canal
+    definicion: Medio de entrega (correo, WhatsApp, push).
+
+preguntas:                         # decisiones que el blueprint NO puede tomar por el proyecto
+  - id: canales
+    pregunta: ¿Por qué canales se notifica?
+    ayuda: De qué depende la decisión.
+    por_defecto: correo            # sugerencia; nunca se aplica sin preguntar
+    opciones:                      # al menos dos; si no hay alternativa, es una invariante
+      - valor: correo
+        descripcion: Solo correo.
+        depende_de: ["Proveedor transaccional con SPF/DKIM/DMARC"]
+        invariantes: ["Todo correo trae enlace para dejar de recibirlo"]
+      - valor: whatsapp
+        descripcion: WhatsApp.
+        depende_de: ["Teléfono verificado", "Plantillas aprobadas"]
+        decisiones: ["WhatsApp vía la API oficial"]
+        conformidad:
+          - id: NOT-W01
+            titulo: Sin teléfono verificado no hay WhatsApp
+            cuando: se notifica a un usuario sin teléfono verificado
+            entonces: se usa el canal de respaldo y no se envía WhatsApp
+  - id: proveedor
+    pregunta: ¿Qué proveedor de WhatsApp?
+    si: {canales: whatsapp}        # solo se pregunta si se eligió whatsapp ({{canales}} se reemplaza en los textos)
+    opciones:
+      - valor: meta
+      - valor: otro
+
+ficha:                             # base de la ficha de módulo que se genera
+  nombre: Notificaciones
+  rutas: [internal/notificaciones] # sugerida; el proyecto puede cambiarla con --ruta
+  objetivo_operativo:
+    problema: Qué problema resuelve el módulo.
+    criterio_de_exito: Cómo se sabe que cumple (medible).
+  objetivo_tecnologico:
+    arquitectura: Cómo se construye y por qué.
+    decisiones: ["Envío asíncrono con reintentos"]
+    invariantes: ["Ninguna notificación incluye secretos ni datos sensibles completos"]
+
+conformidad:                       # escenarios que TODA implementación debe pasar
+  - id: NOT-C01
+    titulo: Idempotencia
+    cuando: el mismo evento se procesa dos veces
+    entonces: la persona recibe una sola notificación
+
+referencias: []                    # rutas dentro del blueprint: implementaciones de referencia por stack

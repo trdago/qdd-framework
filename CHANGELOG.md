@@ -4,6 +4,20 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🧬 Blueprints: los estándares de módulo de tu organización (RFC 0003)
+
+- **Blueprints:** un blueprint es el esqueleto conceptual de un módulo (vocabulario, preguntas de diseño, decisiones, invariantes y escenarios de conformidad). Vive en el repositorio de tu organización, privado si quieres. El core solo trae el mecanismo. Plantilla en `.qdd/core/templates/blueprint.yaml`.
+- **`qdd blueprint add`:** importa uno, varios, un `--paquete` (declarado en `catalogo.yaml`) o `--todos`, con un solo clon y tus credenciales git. Si alguno es inválido, no importa ninguno. Copia a `.qdd/blueprints/<id>/` y fija origen, commit y huella en `.qdd/blueprints.lock.yaml`.
+- **`qdd blueprint apply` / MCP `qdd_blueprint_apply`:**
+  - Pregunta las decisiones de diseño. Sin respuestas no escribe nada, y la IA debe preguntarle al humano.
+  - Genera la ficha del módulo en borrador, sus escenarios de conformidad, el registro de decisiones y un esqueleto `README.md` en las carpetas nuevas.
+  - Al volver a aplicarlo, conserva lo que el proyecto agregó.
+- **`qdd blueprint list | show`** y MCP **`qdd_blueprint_list`**.
+- **Gate:** nuevas reglas `BP-01-INVALID`, `BP-02-ALTERED` (la copia se editó a mano), `BP-03-OUTDATED` (el módulo se generó con otra versión) y `BP-04-MISSING`.
+- **Fichas:** nuevo campo `blueprint` (p. ej. `auth@1.0.0`), visible en `qdd_project_context`.
+
 ## [v1.9.24] - 2026-10-22
 
 ### 🔐 Publicación en npm sin tokens (Trusted Publishing)
