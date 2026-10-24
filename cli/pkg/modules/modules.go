@@ -49,6 +49,7 @@ type Module struct {
 	Nombre              string              `yaml:"nombre"`
 	Estado              string              `yaml:"estado"`
 	Rutas               []string            `yaml:"rutas"`
+	Blueprint           string              `yaml:"blueprint,omitempty"` // p. ej. "auth@1.2.0", si se generó desde un blueprint
 	ObjetivoOperativo   ObjetivoOperativo   `yaml:"objetivo_operativo"`
 	ObjetivoTecnologico ObjetivoTecnologico `yaml:"objetivo_tecnologico"`
 	Pruebas             Pruebas             `yaml:"pruebas"`
@@ -156,7 +157,7 @@ func Save(root string, m Module) (string, []string) {
 
 // Approve marca la ficha como aprobada y revisada en el commit actual.
 func Approve(root, id string) (Module, []string) {
-	m, ok := find(root, id)
+	m, ok := Find(root, id)
 	if !ok {
 		return Module{}, []string{fmt.Sprintf("no existe la ficha '%s' en %s", id, Dir)}
 	}
@@ -172,7 +173,8 @@ func Approve(root, id string) (Module, []string) {
 	return m, nil
 }
 
-func find(root, id string) (Module, bool) {
+// Find busca una ficha por id.
+func Find(root, id string) (Module, bool) {
 	mods, _ := Load(root)
 	for _, m := range mods {
 		if m.ID == id {

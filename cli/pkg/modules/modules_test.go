@@ -168,3 +168,26 @@ func TestBuildContext_ShowsHeartOfTouchedModuleAndWarnsUncovered(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildContext_StandardsGuideTheAI(t *testing.T) {
+	root := gitRepo(t)
+	ctx := BuildContext(ContextInput{
+		Root:  root,
+		Paths: []string{"internal/auth/login.go", "internal/crm/c.go"},
+		Estandares: []Estandar{
+			{ID: "auth", Nombre: "Usuarios y acceso", Version: "1.0.0", Rutas: []string{"internal/auth"}},
+			{ID: "auditoria", Nombre: "Auditoría", Version: "1.0.0", Modulos: []string{"auditoria"}},
+		},
+	})
+	for _, want := range []string{
+		"Estándares de la organización",
+		"**Usuarios y acceso** (`auth@1.0.0`): sin aplicar",
+		"**Auditoría** (`auditoria@1.0.0`): aplicado en `auditoria`",
+		"`internal/auth/login.go` corresponde al estándar **Usuarios y acceso**",
+		"`internal/crm/c.go` no pertenece a ningún módulo con ficha",
+	} {
+		if !strings.Contains(ctx, want) {
+			t.Errorf("el contexto no contiene %q:\n%s", want, ctx)
+		}
+	}
+}
