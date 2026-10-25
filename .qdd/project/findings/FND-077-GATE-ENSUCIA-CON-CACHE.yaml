@@ -1,0 +1,5 @@
+title: "Correr qdd audit ensuciaba el proyecto con caché de Python"
+description: "Al ejecutar pytest como parte del gate, Python escribía __pycache__/ en las carpetas de código (app/, tests/) y pytest creaba .pytest_cache/ en la raíz. En un proyecto sin esas entradas en su .gitignore, cada auditoría dejaba archivos nuevos en git status. Lo detectó el paso 21 del recorrido de primera vez."
+impact: "La herramienta que exige orden dejaba basura en cada ejecución."
+action_taken: "Todos los comandos de prueba (detectados o declarados en test_commands) corren con PYTHONPYCACHEPREFIX hacia ./tmp/pycache (o la carpeta temporal del sistema si el proyecto no tiene la ./tmp de QDD) y PYTEST_ADDOPTS='-p no:cacheprovider', respetando el PYTEST_ADDOPTS que ya tuviera el usuario. Tests en cli/pkg/audit/coverage_primera_vez_test.go."
+date: "2026-10-24"

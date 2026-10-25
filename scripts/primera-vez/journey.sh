@@ -122,8 +122,17 @@ dashboard_coherente() {
 	[ -n "$auditado" ] && [ "$auditado" = "$mostrado" ]
 }
 
+tmp_ignorada() {
+	# FND-075: init deja ./tmp para lo temporal y git no la ve.
+	[ -f tmp/.gitignore ] || { echo "no existe ./tmp"; return 1; }
+	echo 'echo hola' > tmp/probar.sh
+	git rev-parse --is-inside-work-tree > /dev/null 2>&1 || { echo "sin git: ./tmp lista"; return 0; }
+	git status --porcelain --untracked-files=all
+	! git status --porcelain --untracked-files=all | grep -qE "(^| )tmp/|__pycache__|\.pyc$"
+}
+
 MEDICION="$(cd "$(dirname "$0")" && pwd)"
-export -f mcp_session mcp_raw dashboard_probe run_por_nombre actualizacion dashboard_coherente
+export -f mcp_session mcp_raw dashboard_probe run_por_nombre actualizacion dashboard_coherente tmp_ignorada
 export QDD MEDICION
 
 for p in $(ls "$B"); do
@@ -150,6 +159,7 @@ for p in $(ls "$B"); do
 	fi
 	step "$p" 19-actualizacion-desde-escala-anterior bash -c actualizacion
 	step "$p" 20-dashboard-igual-que-audit bash -c dashboard_coherente
+	step "$p" 21-tmp-ignorada-por-git bash -c tmp_ignorada
 	(cd "$B/$p" && git status --short 2>/dev/null) > "$OUT/$p/99-archivos-creados.txt"
 done
 column -t -s $'\t' "$SUMMARY"

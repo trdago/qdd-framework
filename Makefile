@@ -14,6 +14,7 @@ core-assets:
 	rm -rf cli/cmd/core_assets
 	mkdir -p cli/cmd/core_assets/core
 	cp -r .qdd/core/* cli/cmd/core_assets/core/
+	find cli/cmd/core_assets -name __pycache__ -type d -prune -exec rm -rf {} +
 	find cli/cmd/core_assets -type d -empty -exec touch {}/.keep \;
 
 build-cli: core-assets

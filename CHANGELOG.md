@@ -25,6 +25,22 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **`qdd blueprint apply` sin terminal** marca cada pregunta condicional con `(solo si …)`, igual que la tool MCP. Antes parecía obligatoria aunque no aplicara.
 - **`qdd blueprint add` sin nombres** ya no dice "el repositorio tiene varios blueprints" cuando hay uno solo, ni sugiere volver a indicar el repositorio registrado.
 
+### 🧹 Lo temporal va en `./tmp` (FND-075 a FND-077)
+
+- **`qdd init` crea `./tmp`** para lo temporal y casuístico: scripts de un solo uso, pruebas manuales, descargas, logs y salidas.
+  - Trae su propio `.gitignore`, que la ignora entera, así que no se toca el `.gitignore` del proyecto.
+  - Si el proyecto ya versiona archivos en `tmp/`, QDD no se la apropia y avisa.
+- **Las IA lo saben:** las reglas sincronizadas (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`…) y el método de trabajo de `qdd_project_context` indican usar `./tmp` y no dejar nada temporal en la raíz ni en las carpetas de código.
+- **QDD ya no copia caché de Python a los proyectos:**
+  - Se quitaron del repositorio los `__pycache__/*.pyc` que estaban versionados.
+  - El empaquetado los descarta.
+  - `qdd init` borra los que dejaron versiones anteriores dentro de `.qdd/core`.
+- **`qdd audit` ya no ensucia el proyecto:**
+  - Las pruebas corren con la caché de Python en `./tmp/pycache`.
+  - pytest no crea `.pytest_cache/`.
+  - Antes, cada auditoría de un proyecto Python dejaba `__pycache__/` en las carpetas de código.
+- **El recorrido de primera vez lo verifica** (paso 21): `./tmp` existe, git no la ve y no aparece ningún `.pyc`, ni siquiera después de correr las pruebas.
+
 ## [v2.6.0] - 2026-10-30
 
 ### ▶ Comandos para la persona, con un clic desde el panel (RFC 0006 §3.9, `consola-claude-code` v5.0.0)
