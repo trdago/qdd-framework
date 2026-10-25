@@ -25,16 +25,7 @@ func registerAuditTool(s *server.MCPServer) {
 		engine := audit.NewEngine(cwd)
 		violations := engine.RunAll()
 
-		if len(violations) == 0 {
-			return mcp.NewToolResultText("Auditoría exitosa. El código cumple con las certificaciones."), nil
-		}
-
-		out := fmt.Sprintf("Se detectaron %d violaciones (CWD: %s):\n", len(violations), cwd)
-		for _, v := range violations {
-			out += fmt.Sprintf("- [%s] %s\n", v.Category, v.Format())
-		}
-		
-		return mcp.NewToolResultText(out), nil
+		return mcp.NewToolResultText(formatAuditResult(violations)), nil
 	})
 }
 
@@ -48,8 +39,8 @@ func registerCertifyTool(s *server.MCPServer) {
 		engine := audit.NewEngine(cwd)
 		violations := engine.RunAll()
 		
-		if len(violations) == 0 {
-			return mcp.NewToolResultText("CERTIFICADO! Listo para release."), nil
+		if len(audit.Bloqueantes(violations)) == 0 {
+			return mcp.NewToolResultText("CERTIFICADO! Listo para release.\n" + formatRecomendaciones(audit.Recomendaciones(violations))), nil
 		}
 		
 		return mcp.NewToolResultText("RECHAZADO! Existen violaciones de auditoría."), nil

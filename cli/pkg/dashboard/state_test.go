@@ -1,31 +1,49 @@
 package dashboard
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
-// FND-021 (resolved): the dashboard's score/quality_status are computed
-// purely from open findings, unrelated to `qdd audit`'s static violations —
-// the field was renamed from audit_status to quality_status so its name
-// matches what it actually measures. These tests pin down the formula so a
-// future change can't silently alter it without a test noticing.
-func TestComputeFinalScore(t *testing.T) {
-	cases := []struct {
-		name         string
-		openFindings int
-		want         int
-	}{
-		{"no open findings scores perfectly", 0, 100},
-		{"one open finding costs 30 points", 1, 70},
-		{"three open findings costs 90 points", 3, 10},
-		{"score never goes below zero", 10, 0},
+func escribirHistorial(t *testing.T, dir, contenido string) {
+	t.Helper()
+	path := filepath.Join(dir, ".qdd", "project", "metrics", "certificate_history.json")
+	os.MkdirAll(filepath.Dir(path), 0755)
+	if err := os.WriteFile(path, []byte(contenido), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// FND-051 (reemplaza la decisión de FND-021): el dashboard mostraba 100
+// "World-Class" con pruebas que fallaban, porque su puntaje solo contaba
+// findings abiertos. Ahora muestra el puntaje único de la última certificación.
+func TestPuntajeDelDashboard(t *testing.T) {
+	dir := t.TempDir()
+
+	score, grade, medido := puntajeDelDashboard(dir)
+	if medido || score != 0 || grade != gradoSinMedir {
+		t.Errorf("sin certificar: %d %q %v; want 0, %q, false (nunca un 100 inventado)", score, grade, medido, gradoSinMedir)
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := computeFinalScore(c.openFindings)
-			if got != c.want {
-				t.Errorf("computeFinalScore(%d) = %d, want %d", c.openFindings, got, c.want)
-			}
-		})
+	escribirHistorial(t, dir, `[{"score":100,"tendency":"Estable"}]`)
+	if _, _, medido := puntajeDelDashboard(dir); medido {
+		t.Error("un puntaje de la escala anterior no se muestra como actual")
+	}
+
+	escribirHistorial(t, dir, `[{"score":84,"escala":2,"tendency":"Estable"}]`)
+	score, grade, medido = puntajeDelDashboard(dir)
+	if !medido || score != 84 || grade != "A" {
+		t.Errorf("certificado: %d %q %v; want 84, A, true", score, grade, medido)
+	}
+}
+
+// FND-051: sin historial el gráfico mostraba una evolución inventada (40 → 75 → 100).
+func TestLoadHistoricalTrends_NoInventaDatos(t *testing.T) {
+	var s QDDState
+	loadHistoricalTrends(&s, t.TempDir())
+	if len(s.Historical) != 0 {
+		t.Errorf("historial inventado: %v", s.Historical)
 	}
 }
 

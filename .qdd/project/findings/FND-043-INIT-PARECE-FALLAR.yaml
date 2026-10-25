@@ -1,0 +1,5 @@
+title: "El primer init se leía como un fallo"
+description: "El éxito se anunciaba con '[!]', el primer init siempre mostraba 'Reparando contratos JSON del Dashboard' (la estructura no creaba cognitive_history.json), 'Iteración 1 de inicialización y chequeo' y mensajes en inglés ('[QDD] Successfully synchronized ...')."
+impact: "Un init correcto parecía haber necesitado reparaciones."
+action_taken: "init crea cognitive_history.json; el éxito se marca con [✓] y termina con los siguientes pasos concretos; la iteración solo se menciona si hubo que reintentar; mensajes en español. Test en cli/cmd/init_primera_vez_test.go."
+date: "2026-10-24"

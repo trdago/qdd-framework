@@ -204,4 +204,26 @@ describe('App.vue - Enterprise Dashboard', () => {
     expect(currentChartData.labels).toEqual(['Día 10', 'Día 11'])
     expect(currentChartData.datasets[0].data).toEqual([10, 99])
   })
+
+  // FND-051: sin certificación el dashboard mostraba 100 "World-Class" y un
+  // gráfico con series inventadas.
+  it('no inventa puntaje ni series cuando el proyecto aún no se mide', async () => {
+    const instance = MockEventSource.instances[0]
+    instance.onmessage({ data: JSON.stringify({
+      score: 0,
+      grade: 'Sin medir',
+      quality_status: 'PASS',
+      findings: [], certifications: [], sprints: [], knowledge: [], config: {},
+      telemetry: { uptime: '1s', memory_sys: '1 MB', goroutines: 1 },
+      topology: { application: { name: 'QDD', children: [] } },
+      historical_trends: []
+    }) })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.score-value').text()).toBe('—')
+    expect(wrapper.html()).toContain('MIDIENDO')
+    const chart = wrapper.vm.chartData
+    expect(chart.datasets.length).toBe(1)
+    expect(chart.datasets[0].data).toEqual([])
+  })
 })

@@ -37,7 +37,7 @@ func runEvolution(cmd *cobra.Command, args []string) {
 
 	violations := audit.NewEngine(cwd).RunAll()
 
-	report, err := evolution.Analyze(cwd, len(violations))
+	report, err := evolution.Analyze(cwd, medicionDe(violations))
 	if err != nil {
 		fmt.Printf("[!] Error analizando la evolución del proyecto: %v\n", err)
 		os.Exit(1)
@@ -47,9 +47,19 @@ func runEvolution(cmd *cobra.Command, args []string) {
 	saveEvolutionEvidence(cwd, report)
 }
 
+// medicionDe resume la auditoría actual para evolution (FND-041: un solo puntaje).
+func medicionDe(violations []audit.Violation) evolution.Medicion {
+	return evolution.Medicion{
+		Score:           audit.Score(violations),
+		Bloqueantes:     len(audit.Bloqueantes(violations)),
+		Recomendaciones: len(audit.Recomendaciones(violations)),
+	}
+}
+
 func printEvolutionReport(r *evolution.Report) {
 	fmt.Printf("\n[Score actual] %d/100 (Tendencia: %s)\n", r.Score, r.Tendency)
-	fmt.Printf("[Violaciones de auditoría activas] %d\n", r.Violations)
+	fmt.Printf("[Problemas que bloquean el gate] %d\n", r.Violations)
+	fmt.Printf("[Recomendaciones (no bloquean)] %d\n", r.Recomendaciones)
 	fmt.Printf("[Findings abiertos] %d\n", len(r.OpenFindings))
 	for _, f := range r.OpenFindings {
 		fmt.Printf("    - %s: %s\n", f.ID, f.Title)

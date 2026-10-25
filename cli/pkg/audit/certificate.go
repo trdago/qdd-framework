@@ -17,17 +17,36 @@ const (
 	TendencyStable    Tendency = "Estable"
 )
 
+// EscalaActual identifica la fórmula de Score. Escala 1 (sin campo en el
+// historial) restaba 2 por violación; la 2 resta 10 por problema que bloquea y
+// 2 por recomendación. La tendencia solo compara puntajes de la misma escala.
+const EscalaActual = 2
+
 // Certificate represents a snapshot of the framework's quality
 type Certificate struct {
 	Timestamp      string     `json:"timestamp"`
 	Score          int        `json:"score"`
 	TotalViolations int        `json:"total_violations"`
 	Tendency       Tendency   `json:"tendency"`
+	Escala         int        `json:"escala,omitempty"`
+	// EscalaNueva indica que es la primera certificación con EscalaActual.
+	EscalaNueva bool `json:"-"`
+}
+
+// UltimoPuntaje devuelve el puntaje de la última certificación, si se calculó
+// con la escala actual. Es la fuente del dashboard (FND-051).
+func UltimoPuntaje(cwd string) (int, bool) {
+	history, err := readCertHistory(filepath.Join(cwd, ".qdd", "project", "metrics", "certificate_history.json"))
+	if err != nil || len(history) == 0 {
+		return 0, false
+	}
+	last := history[len(history)-1]
+	return last.Score, last.Escala == EscalaActual
 }
 
 // GenerateCertificate creates a certificate based on violations and saves it to history.
 func GenerateCertificate(cwd string, violations []Violation) (*Certificate, error) {
-	score := calculateScore(len(violations))
+	score := Score(violations)
 	cert := createInitialCert(score, len(violations))
 
 	historyPath := filepath.Join(cwd, ".qdd", "project", "metrics", "certificate_history.json")
@@ -50,20 +69,13 @@ func GenerateCertificate(cwd string, violations []Violation) (*Certificate, erro
 	return cert, nil
 }
 
-func calculateScore(violationsCount int) int {
-	score := 100 - (violationsCount * 2)
-	if score < 0 {
-		return 0
-	}
-	return score
-}
-
 func createInitialCert(score, violationsCount int) *Certificate {
 	return &Certificate{
 		Timestamp:      time.Now().Format(time.RFC3339),
 		Score:          score,
 		TotalViolations: violationsCount,
 		Tendency:       TendencyStable,
+		Escala:         EscalaActual,
 	}
 }
 
@@ -97,6 +109,11 @@ func updateCertTendency(cert *Certificate, history []Certificate) {
 	}
 	
 	lastCert := history[len(history)-1]
+	// Comparar con un puntaje de otra escala inventaba mejoras o caídas (FND-050).
+	if lastCert.Escala != cert.Escala {
+		cert.EscalaNueva = true
+		return
+	}
 	if cert.Score > lastCert.Score {
 		cert.Tendency = TendencyImproving
 	}

@@ -12,7 +12,7 @@ import (
 
 var certifyCmd = &cobra.Command{
 	Use:   "certify",
-	Short: "Evalúa la calidad del framework y emite un certificado histórico",
+	Short: "Audita el proyecto y emite su certificado de calidad (guarda el historial)",
 	Long: `Ejecuta el motor de auditoría completo y calcula un Score de Calidad.
 Compara el score actual con el historial para determinar si la calidad está mejorando o empeorando.`,
 	Run: runCertify,
@@ -44,12 +44,7 @@ func runCertify(cmd *cobra.Command, args []string) {
 	fmt.Println("[+] Ejecutando motor de auditoría...")
 	violations := engine.RunAll()
 
-	fmt.Printf("[+] Se encontraron %d violaciones.\n", len(violations))
-	
-	// Print a summary of the violations
-	for _, v := range violations {
-		fmt.Printf("    - [%s] %s\n", v.Category, v.Format())
-	}
+	fmt.Print(formatAuditResult(violations))
 
 	fmt.Println("[+] Generando certificado histórico...")
 	cert, err := audit.GenerateCertificate(cwd, violations)
@@ -66,7 +61,10 @@ func runCertify(cmd *cobra.Command, args []string) {
 	fmt.Printf(" Score:        %d/100\n", cert.Score)
 	
 	printTendency(cert.Tendency)
-	
+	if cert.EscalaNueva {
+		fmt.Println(" Nota:         QDD cambió su escala de puntaje; la tendencia se mide desde esta certificación.")
+	}
+
 	fmt.Printf("=========================================\n\n")
 
 	// Suggestion: if worsening, exit with a non-zero code to block CI?

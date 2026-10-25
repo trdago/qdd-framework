@@ -31,10 +31,10 @@ func (m *IntegrationManager) SyncAll(projectPath string) error {
 	for _, adapter := range m.adapters {
 		err := adapter.Sync(projectPath)
 		if err != nil {
-			fmt.Printf("[QDD] Error syncing %s adapter: %v\n", adapter.Name(), err)
+			fmt.Printf("[!] No se pudo configurar %s: %v\n", adapter.Name(), err)
 			continue // Proceed with others even if one fails
 		}
-		fmt.Printf("[QDD] Successfully synchronized %s integration.\n", adapter.Name())
+		fmt.Printf("    [✓] %s\n", adapter.Name())
 	}
 
 	return nil

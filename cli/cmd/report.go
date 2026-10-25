@@ -76,7 +76,7 @@ func GenerateComprehensiveReport(cwd string) ComprehensiveReport {
 	engine := audit.NewEngine(cwd)
 	violations := engine.RunAll()
 
-	evoReport, _ := evolution.Analyze(cwd, len(violations))
+	evoReport, _ := evolution.Analyze(cwd, medicionDe(violations))
 
 	score, grade, tendency := getScoreMetadata(cwd, evoReport)
 

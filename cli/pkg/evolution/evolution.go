@@ -76,6 +76,7 @@ type Report struct {
 	Score            int
 	Tendency         string
 	Violations       int
+	Recomendaciones  int
 	OpenFindings     []Finding
 	PendingCerts     []ProjectCert
 	AvailableCoreCerts []CoreCert
@@ -83,11 +84,20 @@ type Report struct {
 	Recommendation   string
 }
 
+// Medicion es el resultado de la auditoría actual (audit.Score, audit.Bloqueantes
+// y audit.Recomendaciones). La entrega quien llama, para que este paquete no
+// dependa del motor de auditoría.
+type Medicion struct {
+	Score           int
+	Bloqueantes     int
+	Recomendaciones int
+}
+
 // Analyze studies findings, certifications, audit violations and score
 // history under cwd and produces a single ranked recommendation for the
-// next improvement. violationsCount comes from the caller (audit.RunAll),
-// keeping this package independent of the audit engine's internals.
-func Analyze(cwd string, violationsCount int) (*Report, error) {
+// next improvement. The score is always the current one; the history only
+// provides the tendency.
+func Analyze(cwd string, m Medicion) (*Report, error) {
 	findings, err := loadFindings(filepath.Join(cwd, ".qdd", "project", "findings"))
 	if err != nil {
 		return nil, err
@@ -103,12 +113,13 @@ func Analyze(cwd string, violationsCount int) (*Report, error) {
 		return nil, err
 	}
 
-	score, tendency := latestScoreAndTendency(filepath.Join(cwd, ".qdd", "project", "metrics", "certificate_history.json"))
+	tendency := latestTendency(filepath.Join(cwd, ".qdd", "project", "metrics", "certificate_history.json"))
 
 	report := &Report{
-		Score:              score,
+		Score:              m.Score,
 		Tendency:           tendency,
-		Violations:         violationsCount,
+		Violations:         m.Bloqueantes,
+		Recomendaciones:    m.Recomendaciones,
 		OpenFindings:       openFindingsSortedByPriority(findings),
 		PendingCerts:       pendingCerts(projectCerts),
 		AvailableCoreCerts: coreCerts,
@@ -131,6 +142,9 @@ func recommend(r *Report) (priority, recommendation string) {
 	if len(r.PendingCerts) > 0 {
 		top := r.PendingCerts[0]
 		return "MEDIUM", "Hay una certificación de proyecto pendiente de validar: " + top.ID + " - " + top.Title + ". Ciérrala antes de abrir un nuevo estándar."
+	}
+	if r.Recomendaciones > 0 {
+		return "MEDIUM", "El código pasa el gate. Siguiente paso de madurez: atiende a tu ritmo las recomendaciones de `qdd audit` (no bloquean)."
 	}
 	return "LOW", "No se detectaron brechas, findings abiertos ni violaciones. El proyecto está estable: en Modo Consultivo, evalúa si conviene adoptar un estándar de la industria aún no cubierto por las certificaciones actuales del proyecto."
 }
@@ -221,17 +235,18 @@ func pendingCerts(certs []ProjectCert) []ProjectCert {
 	return pending
 }
 
-func latestScoreAndTendency(historyPath string) (score int, tendency string) {
+const sinHistorial = "Sin historial aún (se crea con `qdd certify`)"
+
+func latestTendency(historyPath string) string {
 	data, err := os.ReadFile(historyPath)
 	if err != nil {
-		return 0, "Sin historial"
+		return sinHistorial
 	}
 
 	var history []certHistoryEntry
 	if err := json.Unmarshal(data, &history); err != nil || len(history) == 0 {
-		return 0, "Sin historial"
+		return sinHistorial
 	}
 
-	last := history[len(history)-1]
-	return last.Score, last.Tendency
+	return history[len(history)-1].Tendency
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/auth"
 	"github.com/spf13/cobra"
@@ -19,11 +20,26 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Inicializa el entorno QDD en el proyecto actual",
 	Long: `Escanea el directorio actual para detectar el ecosistema (lenguaje, framework)
-y configura el directorio .qdd con el runtime y la especificación apropiada.`,
+y configura el directorio .qdd con el runtime y la especificación apropiada.
+
+Reconoce Node, Go, Java/Kotlin, Python, Dart/Flutter, Rust, PHP, Ruby y .NET,
+también dentro de subcarpetas (monorepos). En un proyecto sin código todavía,
+declara el stack:
+
+  qdd init --lenguaje Go --arquitectura "API REST"
+
+Es seguro repetirlo: no pisa lo que ya configuraste.`,
 	Run: runInit,
 }
 
+var (
+	initLenguajes    []string
+	initArquitectura string
+)
+
 func init() {
+	initCmd.Flags().StringSliceVar(&initLenguajes, "lenguaje", nil, "Lenguaje(s) del proyecto, si no se detectan (p. ej. Go o Python,Node)")
+	initCmd.Flags().StringVar(&initArquitectura, "arquitectura", "", "Tipo de proyecto, si no se detecta (p. ej. \"API REST\")")
 	rootCmd.AddCommand(initCmd)
 }
 
@@ -36,7 +52,20 @@ func runInit(cmd *cobra.Command, args []string) {
 		return
 	}
 	cwd = integration.FindProjectRoot(cwd)
+	ensureAdopcion(cwd, !fileExists(filepath.Join(cwd, ".qdd", "config.yaml")))
 	executeInitLoop(cwd)
+}
+
+// ensureAdopcion deja a los proyectos nuevos en adopción gradual (FND-040): las
+// reglas de madurez se informan sin bloquear. Un proyecto que ya existía, o que
+// ya declaró sus políticas, queda como estaba.
+func ensureAdopcion(cwd string, nuevo bool) {
+	if !nuevo || fileExists(filepath.Join(cwd, ".qdd", "policies.yaml")) {
+		return
+	}
+	p := audit.DefaultPolicies()
+	p.Adopcion = audit.AdopcionGradual
+	_ = audit.SavePolicies(cwd, p)
 }
 
 func executeInitLoop(cwd string) {
@@ -44,12 +73,9 @@ func executeInitLoop(cwd string) {
 	lastFailCount := -1
 
 	for {
-		fmt.Printf("[+] Iteración %d de inicialización y chequeo...\n", iteration)
-		
 		success, failCount := runInitIteration(cwd)
 		if success {
-			fmt.Println("[!] QDD inicializado exitosamente y validado por QDD Doctor.")
-			fmt.Println("[!] Siguiente paso: conecta tu IDE con IA (Cursor/Claude Code/Antigravity) vía MCP y pídele que ejecute la tool `qdd_learn` para asimilar la arquitectura.")
+			printInitSummary(cwd)
 			return
 		}
 
@@ -57,8 +83,35 @@ func executeInitLoop(cwd string) {
 
 		lastFailCount = failCount
 		iteration++
-		fmt.Println("[-] QDD Doctor detectó anomalías. Reintentando y auto-corrigiendo de forma segura...")
+		fmt.Printf("[~] QDD Doctor corrigió %d detalle(s); verificando de nuevo (intento %d)...\n", failCount, iteration)
 	}
+}
+
+func printInitSummary(cwd string) {
+	meta := readDeclaredMetadata(cwd)
+	fmt.Println("\n[✓] QDD quedó listo y QDD Doctor lo verificó.")
+	if len(meta.Languages) == 0 {
+		fmt.Println("\n[i] Aún no hay código, así que QDD no sabe qué stack usarás. Decláralo para habilitar audit y certify:")
+		fmt.Println("      qdd init --lenguaje Go --arquitectura \"API REST\"")
+		fmt.Println("    (o abre tu IA en esta carpeta y pídele que ejecute qdd_learn)")
+		return
+	}
+	fmt.Printf("    Proyecto: %s · %s\n", strings.Join(meta.Languages, ", "), meta.Architecture)
+	fmt.Println("\nSiguientes pasos:")
+	fmt.Println("  1. qdd audit   → revisa el proyecto (lo que es recomendación no bloquea)")
+	fmt.Println("  2. Abre tu IA (Claude Code, Cursor, Antigravity, OpenCode) en esta carpeta: ya quedó conectada a QDD.")
+	fmt.Println("     Pídele: \"ejecuta qdd_learn\" para que aprenda la arquitectura.")
+}
+
+// readDeclaredMetadata lee lenguaje y arquitectura tal como quedaron en config.yaml.
+func readDeclaredMetadata(cwd string) ProjectMetadata {
+	var cfg struct {
+		Architecture string   `yaml:"architecture"`
+		Languages    []string `yaml:"languages"`
+	}
+	data, _ := os.ReadFile(filepath.Join(cwd, ".qdd", "config.yaml"))
+	_ = yaml.Unmarshal(data, &cfg)
+	return ProjectMetadata{Architecture: cfg.Architecture, Languages: cfg.Languages}
 }
 
 func checkStagnation(iteration, failCount, lastFailCount int) {
@@ -73,22 +126,23 @@ func checkStagnation(iteration, failCount, lastFailCount int) {
 
 func runInitIteration(cwd string) (bool, int) {
 	fmt.Println("[+] Detectando entorno...")
-	meta := detectProjectMetadata(cwd)
+	meta := aplicarDeclaracion(detectProjectMetadata(cwd), initLenguajes, initArquitectura)
 	printMetadata(meta)
 
 	fmt.Println("[+] Creando estructura .qdd/")
 	if err := createQDDStructure(cwd, meta); err != nil {
-		fmt.Printf("[!] Error creando estructura: %v\n", err)
+		fmt.Printf("[✗] Error creando estructura: %v\n", err)
 		return false, 1 // Artificial error count to force retry or stagnation
 	}
+	declararStack(cwd, meta)
 
-	fmt.Println("[+] Sincronizando integraciones de Inteligencia Artificial (QDD Adapters)...")
+	fmt.Println("[+] Conectando asistentes de IA:")
 	manager := integration.NewIntegrationManager()
 	if err := manager.SyncAll(cwd); err != nil {
-		fmt.Printf("[!] Advertencia: fallo al sincronizar adaptadores IA: %v\n", err)
+		fmt.Printf("[!] No se pudieron configurar los asistentes de IA: %v\n", err)
 	}
 
-	fmt.Println("[+] Ejecutando QDD Doctor para certificar funcionalidad...")
+	fmt.Println("[+] Verificando la instalación con QDD Doctor...")
 	return RunDoctorCheck(cwd, true)
 }
 
@@ -100,7 +154,18 @@ func printMetadata(meta ProjectMetadata) {
 		fmt.Printf("[+] Detectada Arquitectura: %s\n", meta.Architecture)
 	}
 	if len(meta.Languages) == 0 {
-		fmt.Println("[-] No se detectó un lenguaje soportado automáticamente.")
+		fmt.Println("[i] No encontré archivos de proyecto (go.mod, package.json, requirements.txt, pubspec.yaml...).")
+	}
+}
+
+// declararStack escribe en config.yaml lo pasado por --lenguaje/--arquitectura,
+// aunque ya hubiera valores: es una declaración explícita del usuario.
+func declararStack(cwd string, meta ProjectMetadata) {
+	if len(initLenguajes) == 0 && strings.TrimSpace(initArquitectura) == "" {
+		return
+	}
+	if err := completarConfig(filepath.Join(cwd, ".qdd", "config.yaml"), meta, true); err != nil {
+		fmt.Printf("[✗] No se pudo guardar el stack declarado: %v\n", err)
 	}
 }
 
@@ -118,18 +183,18 @@ type ProjectMetadata struct {
 	Languages    []string
 }
 
+// detectProjectMetadata reconoce el stack en la raíz y, si no hay nada ahí, en
+// las subcarpetas (monorepos: backend/, frontend/, apps/*...).
 func detectProjectMetadata(dir string) ProjectMetadata {
-	meta := ProjectMetadata{
-		Name:         "auto-detected",
-		Architecture: "",
-		Languages:    []string{},
+	meta := detectarEn(dir)
+	if len(meta.Languages) > 0 {
+		return meta
 	}
-
-	detectNodeJS(dir, &meta)
-	detectGo(dir, &meta)
-	detectJava(dir, &meta)
-
-	return meta
+	subs := detectarSubproyectos(dir, 1)
+	if len(subs) == 0 {
+		return meta
+	}
+	return metadataDeMonorepo(dir, subs)
 }
 
 func detectNodeJS(dir string, meta *ProjectMetadata) {
@@ -221,13 +286,11 @@ func isGoCLI(line string) bool {
 }
 
 func detectJava(dir string, meta *ProjectMetadata) {
-	if !fileExists(filepath.Join(dir, "pom.xml")) && !fileExists(filepath.Join(dir, "build.gradle")) {
+	if !fileExists(filepath.Join(dir, "pom.xml")) && !fileExists(filepath.Join(dir, "build.gradle")) && !fileExists(filepath.Join(dir, "build.gradle.kts")) {
 		return
 	}
 	meta.Languages = append(meta.Languages, "Java")
-	if meta.Architecture == "" {
-		meta.Architecture = "Java Application"
-	}
+	setArchitecture(meta, "Java Application")
 }
 
 func extractDependencies(pkg map[string]interface{}) map[string]bool {
@@ -264,7 +327,21 @@ func createQDDStructure(baseDir string, meta ProjectMetadata) error {
 		return err
 	}
 
+	if err := createCognitiveHistory(baseDir); err != nil {
+		return err
+	}
+
 	return unpackCoreAssets(qddDir)
+}
+
+// createCognitiveHistory deja el contrato que espera el dashboard; sin él, el
+// primer init mostraba una "reparación" de QDD Doctor (FND-043).
+func createCognitiveHistory(baseDir string) error {
+	historyPath := filepath.Join(baseDir, ".qdd", "project", "metrics", "cognitive_history.json")
+	if fileExists(historyPath) {
+		return nil
+	}
+	return os.WriteFile(historyPath, []byte("[]"), 0644)
 }
 
 func GetQDDDirectories() []string {
@@ -342,7 +419,7 @@ func createConfigFile(qddDir string, meta ProjectMetadata) error {
 	configPath := filepath.Join(qddDir, "config.yaml")
 
 	if fileExists(configPath) {
-		return nil
+		return completarConfig(configPath, meta, false)
 	}
 
 	config := map[string]interface{}{

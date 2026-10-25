@@ -33,96 +33,27 @@ mermaid.initialize({ startOnLoad: false, theme: 'dark' })
 
 const isSidebarCollapsed = ref(true)
 
+// Solo datos reales: el puntaje QDD de cada día (FND-051). Antes el gráfico
+// mostraba series inventadas (40 → 75 → 100, certificaciones, bugs y sprints).
 const chartData = computed(() => {
-  if (!state.value?.historical_trends) {
-    return {
-      labels: ['Día 1', 'Día 2', 'Hoy'],
-      datasets: [
-        {
-          label: 'Maturity Index (QMI)',
-          data: [40, 75, 100],
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          borderWidth: 2,
-          tension: 0.4,
-          fill: true
-        },
-        {
-          label: 'Certificaciones',
-          data: [10, 20, 27],
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.0)',
-          borderWidth: 2,
-          tension: 0.4,
-          fill: false
-        },
-        {
-          label: 'Bugs',
-          data: [15, 5, 0],
-          borderColor: '#ef4444',
-          backgroundColor: 'rgba(239, 68, 68, 0.0)',
-          borderWidth: 2,
-          tension: 0.4,
-          fill: false
-        },
-        {
-          label: 'Sprints (Tasks)',
-          data: [1, 2, 4],
-          borderColor: '#8b5cf6',
-          backgroundColor: 'rgba(139, 92, 246, 0.0)',
-          borderWidth: 2,
-          tension: 0.4,
-          fill: false
-        }
-      ]
-    }
-  }
-
-  const labels = state.value.historical_trends.map(t => t.date)
-  const data = state.value.historical_trends.map(t => t.score)
-  
+  const trends = state.value?.historical_trends || []
   return {
-    labels,
+    labels: trends.map(t => t.date),
     datasets: [
       {
-        label: 'Maturity Index (QMI)',
-        data: data,
+        label: 'Puntaje QDD',
+        data: trends.map(t => t.score),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         borderWidth: 2,
         tension: 0.4,
         fill: true
-      },
-      {
-        label: 'Certificaciones',
-        data: [10, 20, 27],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.0)',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
-      },
-      {
-        label: 'Bugs',
-        data: [15, 5, 0],
-        borderColor: '#ef4444',
-        backgroundColor: 'rgba(239, 68, 68, 0.0)',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
-      },
-      {
-        label: 'Sprints (Tasks)',
-        data: [1, 2, 4],
-        borderColor: '#8b5cf6',
-        backgroundColor: 'rgba(139, 92, 246, 0.0)',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false
       }
     ]
   }
 })
+
+const sinMedir = computed(() => state.value?.grade === 'Sin medir')
 
 const chartOptions = ref({
   responsive: true,
@@ -1025,8 +956,9 @@ onUnmounted(() => {
               <h3 id="score-title" class="panel-title">QDD Maturity Index (QMI)</h3>
               <div class="score-row">
                 <div class="score-container">
-                  <div class="score-value">{{ state.score }}</div>
-                  <div class="score-grade" :class="'grade-' + state.grade.charAt(0).toLowerCase()">GRADE {{ state.grade.toUpperCase() }}</div>
+                  <div class="score-value">{{ sinMedir ? '—' : state.score }}</div>
+                  <div v-if="!sinMedir" class="score-grade" :class="'grade-' + state.grade.charAt(0).toLowerCase()">GRADE {{ state.grade.toUpperCase() }}</div>
+                  <div v-if="sinMedir" class="score-grade">MIDIENDO… (qdd certify)</div>
                 </div>
                 <div class="qdd-ring-container">
                   <svg class="qdd-ring" viewBox="0 0 100 100">

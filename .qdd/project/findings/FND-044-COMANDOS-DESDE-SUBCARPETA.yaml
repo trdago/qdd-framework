@@ -1,0 +1,5 @@
+title: "Ningún comando funcionaba desde una subcarpeta"
+description: "qdd audit o qdd modules desde src/ o internal/ respondían '[🛑 GATEKEEPER] No existe la carpeta .qdd/': el gatekeeper y la mayoría de los comandos usaban el directorio actual en vez de la raíz del proyecto."
+impact: "Falló en 6 de 6 proyectos medidos; así trabaja la gente (y las terminales integradas de los editores)."
+action_taken: "Antes de cada comando (salvo init) QDD se ubica en la raíz del proyecto con integration.FindProjectRoot, que se detiene en el primer .qdd o .git (FND-038). Mensaje del gatekeeper más claro cuando de verdad no hay proyecto. Tests en cli/cmd/root_raiz_test.go."
+date: "2026-10-24"

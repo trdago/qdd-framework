@@ -1,0 +1,5 @@
+title: "Al actualizar QDD, los proyectos existentes aparecían 'Empeorando' sin cambiar nada"
+description: "La fórmula del puntaje cambió (FND-041: de −2 por violación a −10 por problema que bloquea y −2 por recomendación), pero la tendencia comparaba el nuevo puntaje con el último del historial, calculado con la fórmula anterior. Un proyecto certificado con 94 en v1.10.0 pasaba a 70 'EMPEORANDO' y qdd evolution respondía CRITICAL: 'Antes de sumar cualquier función nueva, investiga qué regresó'."
+impact: "Todos los proyectos existentes recibían una alarma falsa al actualizar; las IA obedecen a qdd_evolution y habrían dejado el trabajo pedido para buscar una regresión inexistente."
+action_taken: "El historial registra la escala de cada puntaje (escala: 2). La tendencia solo compara puntajes de la misma escala; la primera certificación con la escala nueva queda Estable y certify lo explica. Tests en cli/pkg/audit/escala_test.go; reproducido con v1.10.0 en scripts/primera-vez (paso 19)."
+date: "2026-10-24"

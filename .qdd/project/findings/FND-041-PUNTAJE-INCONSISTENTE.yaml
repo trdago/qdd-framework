@@ -1,0 +1,5 @@
+title: "Cada comando daba un puntaje distinto para el mismo proyecto"
+description: "Para el mismo proyecto recién iniciado: qdd certify 94/100, qdd evolution y qdd report 0/100 ('Sin historial'), MCP qdd_score 0/100 F (contaba el catálogo core de 24 certificaciones disponibles como pendientes, -20 cada una)."
+impact: "Una IA o una persona veía 'F' en su primer día y no podía confiar en ninguna cifra."
+action_taken: "audit.Score es la única fórmula (−10 por problema que bloquea, −2 por recomendación) y la usan audit, certify, evolution, report y MCP qdd_score. Evolution usa el puntaje actual; el historial solo da la tendencia. qdd_score cuenta solo las certificaciones del proyecto. Tests en cli/pkg/audit/adopcion_test.go y cli/pkg/evolution/evolution_test.go."
+date: "2026-10-24"

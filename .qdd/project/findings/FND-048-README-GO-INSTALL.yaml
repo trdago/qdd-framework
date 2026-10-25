@@ -1,0 +1,5 @@
+title: "La instalación con Go del README no funcionaba"
+description: "El README indicaba 'go install github.com/trdago/qdd-framework/cli@latest', pero el módulo se declara como github.com/qdd-framework/qdd: Go rechaza la instalación. Tampoco mencionaba los binarios que cada release ya publica."
+impact: "Quien no usa Node no tenía una forma documentada que funcionara."
+action_taken: "README con tres opciones verificadas (npm, binario de Releases, make install desde el código) y los primeros pasos. Test en cli/cmd/readme_test.go que impide volver a documentar el go install roto."
+date: "2026-10-24"
