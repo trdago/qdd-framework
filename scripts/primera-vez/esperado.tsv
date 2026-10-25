@@ -1,0 +1,15 @@
+# Pasos que DEBEN terminar con código distinto de cero, y por qué.
+# Todo lo demás debe terminar en 0. proyecto<TAB>paso<TAB>motivo
+vacio	05-audit	sin código: el gatekeeper pide declarar el stack con qdd init --lenguaje
+vacio	06-evolution	ídem
+vacio	07-report	ídem
+vacio	08-modules	ídem
+vacio	09-modules-context	ídem
+vacio	10-blueprint-list	ídem
+vacio	11-certify	ídem
+vue-front	05-audit	no tiene pruebas (sin script "test"): QA-00 bloquea
+vue-front	14-audit-desde-subcarpeta	ídem
+flutter-app	05-audit	no tiene archivos *_test.dart: QA-00 bloquea
+flutter-app	14-audit-desde-subcarpeta	ídem
+py-api	05-audit	clon recién hecho sin dependencias instaladas, salvo que la máquina tenga fastapi
+py-api	14-audit-desde-subcarpeta	ídem

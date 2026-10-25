@@ -33,7 +33,7 @@ func CheckMinimumAlignment() error {
 func checkQDDDir() (string, error) {
 	qddDir := filepath.Join(".", ".qdd")
 	if _, err := os.Stat(qddDir); os.IsNotExist(err) {
-		return "", errors.New("No existe la carpeta .qdd/. Alerta: Debes ejecutar `qdd init`")
+		return "", errors.New("Este proyecto aún no usa QDD (no hay carpeta .qdd/ aquí ni en las carpetas superiores). Ejecuta `qdd init` en la raíz del proyecto")
 	}
 	return filepath.Join(qddDir, "config.yaml"), nil
 }
@@ -53,11 +53,11 @@ func readConfigFile(configPath string) (*ConfigFile, error) {
 
 func validateConfigAlignment(config *ConfigFile) error {
 	if len(config.Languages) == 0 {
-		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el lenguaje (languages) en config.yaml, o pide a tu asistente de IA conectado por MCP que ejecute la tool `qdd_learn`")
+		return errors.New("QDD aún no sabe en qué lenguaje está el proyecto (no encontró go.mod, package.json, requirements.txt, pubspec.yaml...). Decláralo con:\n    qdd init --lenguaje Go --arquitectura \"API REST\"\n  o pide a tu IA que ejecute qdd_learn")
 	}
 
 	if config.Architecture == "" {
-		return errors.New("Contexto insuficiente. QDD se niega a operar a ciegas. Por favor declara el patrón arquitectónico (architecture) en config.yaml, o pide a tu asistente de IA conectado por MCP que ejecute la tool `qdd_learn`")
+		return errors.New("QDD aún no sabe qué tipo de proyecto es. Decláralo con:\n    qdd init --arquitectura \"API REST\"\n  o pide a tu IA que ejecute qdd_learn")
 	}
 
 	return nil

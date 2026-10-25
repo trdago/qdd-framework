@@ -1,0 +1,5 @@
+title: "La primera auditoría de un proyecto sano fallaba"
+description: "En un proyecto Go recién creado, con sus pruebas pasando, `qdd audit` terminaba en '[!] Fallo de auditoría' (exit 1) por QA-02-E2E-TESTS, TRC-01-CONVENTIONAL-COMMITS y CERT-030-MANDATORY-ADR; sin git también por 12F-01-CODEBASE. Son prácticas de madurez, no defectos del código."
+impact: "La primera impresión de QDD era 'tu proyecto está roto' en 3 de 3 proyectos sanos medidos; empuja a desactivar el gate."
+action_taken: "Política 'adopcion: gradual' (la escribe qdd init en proyectos nuevos): esas reglas se informan como recomendaciones, restan 2 puntos y no bloquean. Pruebas que fallan, sin pruebas, OWASP, despliegues sin pruebas y código sucio siguen bloqueando. Proyectos existentes quedan estrictos. Tests en cli/pkg/audit/adopcion_test.go y cli/cmd/init_primera_vez_test.go."
+date: "2026-10-24"

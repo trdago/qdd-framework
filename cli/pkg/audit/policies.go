@@ -22,6 +22,9 @@ type QDDPolicies struct {
 	DeployGate *bool `yaml:"deploy_gate,omitempty" json:"deploy_gate,omitempty"`
 	// ModuleHeart exige ficha vigente para cada zona de código (opt-in).
 	ModuleHeart bool `yaml:"module_heart,omitempty" json:"module_heart,omitempty"`
+	// Adopcion "gradual" convierte las reglas de madurez en recomendaciones.
+	// Vacío (proyectos anteriores) = estricto.
+	Adopcion string `yaml:"adopcion,omitempty" json:"adopcion,omitempty"`
 }
 
 // DeployGateEnabled indica si se auditan los pipelines de despliegue.

@@ -34,7 +34,7 @@ func registerEvolutionTool(s *server.MCPServer) {
 		cwd = integration.FindProjectRoot(cwd)
 
 		violations := audit.NewEngine(cwd).RunAll()
-		report, err := evolution.Analyze(cwd, len(violations))
+		report, err := evolution.Analyze(cwd, medicionDe(violations))
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error analizando la evolución: %v", err)), nil
 		}
@@ -46,7 +46,8 @@ func registerEvolutionTool(s *server.MCPServer) {
 func formatEvolutionOutput(r *evolution.Report) string {
 	out := "--- QDD EVOLUTION REPORT ---\n\n"
 	out += fmt.Sprintf("Score: %d/100 (Tendencia: %s)\n", r.Score, r.Tendency)
-	out += fmt.Sprintf("Violaciones de auditoría activas: %d\n", r.Violations)
+	out += fmt.Sprintf("Problemas que bloquean el gate: %d\n", r.Violations)
+	out += fmt.Sprintf("Recomendaciones (no bloquean): %d\n", r.Recomendaciones)
 	out += fmt.Sprintf("Findings abiertos: %d\n", len(r.OpenFindings))
 	for _, f := range r.OpenFindings {
 		out += fmt.Sprintf("  - %s: %s\n", f.ID, f.Title)
@@ -63,23 +64,26 @@ func registerScoreTool(s *server.MCPServer) {
 	registerGraphQueryTool(s)
 	registerHarnessTool(s)
 	tool := mcp.NewTool("qdd_score",
-		mcp.WithDescription("Calcula y devuelve el puntaje de calidad del proyecto basado en certificaciones y findings."),
+		mcp.WithDescription("Calcula el puntaje de calidad del proyecto (el mismo de qdd audit, certify, evolution y report) y resume certificaciones y findings."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		cwd, _ := os.Getwd()
+		violations := audit.NewEngine(integration.FindProjectRoot(cwd)).RunAll()
 		totalCerts, certifiedCerts := getCertificationStats()
 		openFindings, resolvedFindings := getFindingsStats()
 
-		finalScore, grado := calculateProjectScore(totalCerts, certifiedCerts, openFindings)
-
-		out := formatScoreOutput(finalScore, grado, certifiedCerts, totalCerts, openFindings, resolvedFindings)
+		finalScore := audit.Score(violations)
+		out := formatScoreOutput(finalScore, determineGrade(finalScore), certifiedCerts, totalCerts, openFindings, resolvedFindings)
+		out += fmt.Sprintf("Problemas que bloquean el gate: %d\nRecomendaciones (no bloquean): %d\n", len(audit.Bloqueantes(violations)), len(audit.Recomendaciones(violations)))
 		return mcp.NewToolResultText(out), nil
 	})
 }
 
 func getCertificationStats() (int, int) {
 	qddDir := filepath.Join(".", ".qdd")
+	// Solo las del proyecto: el catálogo core son estándares disponibles para
+	// adoptar, no deudas (contarlas daba 0/100 F a todo proyecto nuevo, FND-041).
 	certDirs := []string{
-		filepath.Join(qddDir, "core", "certification"),
 		filepath.Join(qddDir, "project", "certification"),
 	}
 	
@@ -142,24 +146,6 @@ func processFindingEntry(path string, open, resolved *int) {
 	}
 }
 
-func calculateProjectScore(totalCerts, certifiedCerts, openFindings int) (int, string) {
-	finalScore := computeNumericScore(totalCerts, certifiedCerts, openFindings)
-	grado := determineGrade(finalScore)
-	return finalScore, grado
-}
-
-func computeNumericScore(totalCerts, certifiedCerts, openFindings int) int {
-	baseScore := 100
-	pendingCerts := totalCerts - certifiedCerts
-	certPenalty := pendingCerts * 20
-	findingPenalty := openFindings * 30
-	finalScore := baseScore - certPenalty - findingPenalty
-	if finalScore < 0 {
-		return 0
-	}
-	return finalScore
-}
-
 func determineGrade(score int) string {
 	if score >= 95 {
 		return "A+ (World-Class)"
@@ -178,7 +164,7 @@ func determineGrade(score int) string {
 
 func formatScoreOutput(finalScore int, grado string, certifiedCerts, totalCerts, openFindings, resolvedFindings int) string {
 	out := fmt.Sprintf("**Puntaje Global:** %d / 100 (Grado: %s)\n", finalScore, grado)
-	out += fmt.Sprintf("Certificaciones Cumplidas: %d/%d\n", certifiedCerts, totalCerts)
+	out += fmt.Sprintf("Certificaciones del proyecto cumplidas: %d/%d\n", certifiedCerts, totalCerts)
 	out += fmt.Sprintf("Findings Abiertos: %d\n", openFindings)
 	out += fmt.Sprintf("Findings Resueltos: %d\n", resolvedFindings)
 	return out

@@ -1,4 +1,4 @@
-.PHONY: all build-ui build-cli build install run test audit core-assets
+.PHONY: all build-ui build-cli build install run test audit core-assets primera-vez
 
 all: build
 
@@ -41,6 +41,11 @@ test: core-assets
 	cd cli/ui && npm run test
 	@echo "==> Ejecutando pruebas del instalador npm..."
 	cd npm && npm test
+
+# Recorrido de una persona nueva en 7 tipos de proyecto (FND-040 a FND-049).
+primera-vez: build-cli
+	@echo "==> Recorrido 'primera vez' (init, audit, MCP, dashboard, subcarpetas, qdd run)..."
+	bash scripts/primera-vez/run.sh ./qdd
 
 audit: install
 	@echo "==> Ejecutando auditoría de reglas QDD..."

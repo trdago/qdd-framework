@@ -107,15 +107,31 @@ graph TD
 
 ## Instalación
 
-### Opción 1: NPM (Recomendado para Web Devs)
+### Opción 1: NPM (recomendada)
 ```bash
 npm install -g qdd-framework
 ```
 
-### Opción 2: Compilación Manual (Go)
+### Opción 2: Binario (sin Node)
+Descarga el de tu sistema desde [Releases](https://github.com/trdago/qdd-framework/releases/latest) (Linux, macOS y Windows; amd64 y arm64), descomprímelo y deja `qdd` en tu `PATH`:
 ```bash
-go install github.com/trdago/qdd-framework/cli@latest
+curl -fsSL https://github.com/trdago/qdd-framework/releases/latest/download/qdd_linux_amd64.tar.gz | tar -xz
+sudo mv qdd /usr/local/bin/
 ```
+
+### Opción 3: Desde el código (Go 1.24+ y Node para el dashboard)
+```bash
+git clone https://github.com/trdago/qdd-framework && cd qdd-framework
+make install
+```
+
+### Primeros pasos
+```bash
+cd mi-proyecto
+qdd init      # detecta el stack (también monorepos) y conecta tu IA
+qdd audit     # revisa el proyecto; funciona desde cualquier subcarpeta
+```
+En un proyecto nuevo, QDD parte en **adopción gradual**: las prácticas de madurez (E2E, ADR, Conventional Commits) aparecen como recomendaciones y no bloquean; las pruebas que fallan, OWASP o desplegar sin pruebas sí bloquean. Para exigirlo todo desde el día uno: `adopcion: estricta` en `.qdd/policies.yaml`.
 
 ---
 

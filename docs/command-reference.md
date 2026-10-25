@@ -54,8 +54,8 @@ Estos comandos puedes ejecutarlos sin miedo directo en la terminal. Su único tr
 
 | Comando | Descripción |
 |---------|-------------|
-| `qdd audit` | Ejecuta un Linter estático asegurando las reglas del framework (ej. Cero uso de `else`). **Seguro.** |
-| `qdd certify` | Revisa la carpeta `.qdd/core/certification/` y emite un veredicto de calidad del proyecto. **Seguro.** |
+| `qdd audit` | Revisa el proyecto contra las reglas del framework (pruebas, OWASP, Cero `else`, despliegues…). Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. **Seguro.** |
+| `qdd certify` | Audita el proyecto, calcula el puntaje y lo guarda en el historial para medir la tendencia. **Seguro.** |
 | `qdd doctor` | Verifica que el entorno QDD esté completamente funcional (checklist determinista). **Seguro.** |
 | `qdd report` | Genera el reporte integral y consolidado de auditoría, certificaciones, findings y telemetría en formato Text, Markdown o JSON. **Seguro.** |
 | `qdd dashboard` | Inicia el Centro de Comando Web. Despliega el Intelligence Report, métricas, Sprints y Certificaciones. **Seguro.** |
@@ -68,8 +68,8 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 
 | Comando | Descripción |
 |---------|-------------|
-| `qdd init` | Inicializa el entorno creando el directorio `.qdd/`, `config.yaml`, y lo más importante, el **Wisdom Registry** (`manifesto.md`). |
-| `qdd run <cmd1> <cmd2>...` | Ejecuta subcomandos de QDD en secuencia como una tubería (ej. `qdd run audit certify`), abortando si alguno falla. |
+| `qdd init [--lenguaje L] [--arquitectura A]` | Inicializa el entorno creando el directorio `.qdd/`, `config.yaml`, y lo más importante, el **Wisdom Registry** (`manifesto.md`). Detecta Node, Go, Java/Kotlin, Python, Dart/Flutter, Rust, PHP, Ruby y .NET, también en subcarpetas (monorepo). En un proyecto sin código, declara el stack con las flags. Deja los proyectos nuevos en adopción gradual (`adopcion: gradual` en `policies.yaml`). Es seguro repetirlo: completa lo vacío y no pisa lo declarado. |
+| `qdd run <cmd1> <cmd2>...` | Ejecuta subcomandos de QDD en secuencia como una tubería (ej. `qdd run audit certify`), abortando y revirtiendo (`qdd undo`) si alguno falla. |
 | `qdd run --keep-alive <cmd>` | Supervisa un proceso externo (un binario, un servicio) manteniéndolo siempre vivo: lo reinicia en cada salida limpia. Ante un error real, registra un Finding + evidencia y luego invoca a un agente de IA local (Claude, Antigravity o Cursor — el primero disponible) para diagnosticar y aplicar el fix real de forma desatendida (`--dangerously-skip-permissions`), reintentando hasta 3 veces antes de detenerse para revisión humana. Ver ADR-004 (supersede ADR-003). |
 | `qdd bug` | Registra manualmente un error como Finding permanente con evidencia asociada (mismo mecanismo que usa `qdd run --keep-alive` internamente). |
 | `qdd blueprint add [origen] [id…] [--paquete p \| --todos] [--ref vX.Y.Z]` | Importa blueprints del repositorio de tu organización, privado si quieres, usando tus credenciales git. La primera vez indicas el repositorio y QDD lo registra en `.qdd/config.yaml`; después basta con los ids. Sin argumentos lista lo disponible. Copia a `.qdd/blueprints/<id>/` y fija origen, commit y huella en `.qdd/blueprints.lock.yaml`. |

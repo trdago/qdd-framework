@@ -16,6 +16,8 @@ type Violation struct {
 	Description string
 	File        string
 	Line        int
+	// Recomendacion indica que se informa sin bloquear el gate (adopción gradual).
+	Recomendacion bool
 }
 
 // Format muestra la violación de forma legible.
@@ -56,6 +58,7 @@ func (e *EngineCoordinator) RunAll() []Violation {
 
 	// Filtro de supresión Enterprise (Grandfathering)
 	allViolations = FilterIgnoredViolations(allViolations)
+	marcarRecomendaciones(p, allViolations)
 
 	return allViolations
 }

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	
+
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl"
 )
 
@@ -29,7 +31,8 @@ func init() {
 }
 
 var undoCmd = &cobra.Command{
-	Use:   "undo",
+	Use:   "undo <comando>",
+	Short: "Revierte el efecto de un comando (p. ej. 'qdd undo init'); lo usa el rollback de 'qdd run'",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			return
@@ -52,15 +55,21 @@ var rootCmd = &cobra.Command{
 	Use:     "qdd",
 	Short:   "QDD (Quality Driven Development) Framework CLI",
 	Version: Version,
-	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando certificaciones de calidad obligatorias.
-garantizando certificaciones, evidencia y calidad desde el día uno.
+	Long: `QDD es un CLI para gobernar, generar y evaluar arquitecturas de software aplicando
+certificaciones de calidad, con evidencia y calidad desde el día uno.
 
-Puedes ejecutar comandos específicos (como 'qdd init') o expresar una intención en lenguaje natural.
-Ejemplo: qdd "Necesito agregar autenticación"`,
+Para empezar, en la carpeta de tu proyecto:
+  qdd init     configura QDD y conecta tu IA (Claude Code, Cursor, Antigravity, OpenCode)
+  qdd audit    revisa el proyecto (funciona desde cualquier subcarpeta)
+
+Para encadenar comandos con rollback automático si uno falla:
+  qdd run "init" "audit"`,
 	Args: cobra.ArbitraryArgs,
 	// Disable default error printing so we can intercept it gracefully
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		enterProjectRoot(cmd.Name())
+
 		// Detectar version mismatch
 		if err := validateProjectVersion(cmd.Root().Version); err != nil {
 			fmt.Printf("[🛑 ERROR DE ENTORNO] %v\n", err)
@@ -109,6 +118,24 @@ Ejemplo: qdd "Necesito agregar autenticación"`,
 		input := strings.Join(args, " ")
 		runQCL(input)
 	},
+}
+
+// enterProjectRoot hace que cada comando opere sobre la raíz del proyecto
+// aunque se invoque desde una subcarpeta (FND-044). init decide su propia raíz,
+// y si no hay un proyecto QDD hacia arriba el directorio no cambia.
+func enterProjectRoot(name string) {
+	if name == "init" {
+		return
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	root := integration.FindProjectRoot(cwd)
+	if root == cwd || !integration.IsQDDProject(root) {
+		return
+	}
+	_ = os.Chdir(root)
 }
 
 func runQCL(input string) {
@@ -196,10 +223,23 @@ func executeRollback(completed []string) {
 	}
 }
 
+// selfExecutable devuelve la ruta absoluta del binario en ejecución:
+// os.StartProcess no busca en el PATH, así que con os.Args[0] = "qdd" (la forma
+// normal de invocarlo) `qdd run` nunca lograba iniciar un comando (FND-046).
+func selfExecutable() string {
+	if exe, err := os.Executable(); err == nil {
+		return exe
+	}
+	if p, err := exec.LookPath(os.Args[0]); err == nil {
+		return p
+	}
+	return os.Args[0]
+}
+
 func executePipelineCommand(cmdStr string) error {
-	execCmd := os.Args[0]
+	execCmd := selfExecutable()
 	args := strings.Fields(cmdStr)
-	processArgs := append([]string{execCmd}, args...)
+	processArgs := append([]string{os.Args[0]}, args...)
 	
 	process, err := os.StartProcess(execCmd, processArgs, &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},

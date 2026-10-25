@@ -306,17 +306,19 @@ func BuildState() QDDState {
 	loadUnderstandingAndConfig(&response, qddDir)
 	loadTopology(&response, cwd, qddDir)
 
-	openFindings, finalScore := loadGraphData(&response, cwd)
+	openFindings, _ := loadGraphData(&response, cwd)
 
 	loadHistoricalTrends(&response, cwd)
 
-	finalScore = computeFinalScore(openFindings)
-	response.Score = finalScore
-	response.Grade = determineDashboardGrade(finalScore)
+	score, grade, medido := puntajeDelDashboard(cwd)
+	response.Score = score
+	response.Grade = grade
 	response.QualityStatus = determineQualityStatus(openFindings)
 	response.LocalLLM = cognitive.DetectLocalLLM()
-	
-	recordHistoricalTrend(cwd, finalScore)
+
+	if medido {
+		recordHistoricalTrend(cwd, score)
+	}
 
 	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
 		response.MCPLogs = append([]string{"[FILOSOFÍA QDD] 'Lo que no se mide no se mejora'. Finaliza sprints y certificaciones para generar métricas de valor cuantificables."}, response.MCPLogs...)
@@ -355,8 +357,8 @@ func loadGraphData(response *QDDState, cwd string) (int, int) {
 
 func initDefaultState(cwd string) QDDState {
 	return QDDState{
-		Score:          100,
-		Grade:          "World-Class",
+		Score:          0,
+		Grade:          gradoSinMedir,
 		Version:        "v0.1.1",
 		QualityStatus:  "PASS",
 		ProjectName:    filepath.Base(cwd),
@@ -686,13 +688,10 @@ func loadHistoricalTrends(response *QDDState, cwd string) {
 	if histData, err := os.ReadFile(histPath); err == nil {
 		parseHistoricalTrends(response, histData)
 	}
-
-	if len(response.Historical) == 0 {
-		response.Historical = []HistoricalTrendPoint{
-			{Date: "Día 1", Score: 40},
-			{Date: "Día 2", Score: 75},
-			{Date: "Hoy", Score: 100},
-		}
+	// Sin historial el gráfico queda vacío: antes mostraba una evolución
+	// inventada (40 → 75 → 100) a quien recién empezaba (FND-051).
+	if response.Historical == nil {
+		response.Historical = []HistoricalTrendPoint{}
 	}
 }
 
@@ -801,14 +800,20 @@ func extractStatusFromContent(contentStr string) string {
 	return "IN-PROGRESS"
 }
 
-func computeFinalScore(openFindings int) int {
-	baseScore := 100
-	findingPenalty := openFindings * 30
-	finalScore := baseScore - findingPenalty
-	if finalScore < 0 {
-		return 0
+// gradoSinMedir se muestra mientras el proyecto no tiene una certificación con
+// la escala actual: el dashboard nunca inventa un puntaje.
+const gradoSinMedir = "Sin medir"
+
+// puntajeDelDashboard muestra el puntaje único de QDD (audit.Score) tal como
+// quedó en la última certificación (FND-051). Antes contaba solo findings
+// abiertos y mostraba 100 "World-Class" con pruebas que fallaban. No corre la
+// auditoría: el dashboard se refresca seguido y eso ejecutaría las pruebas.
+func puntajeDelDashboard(cwd string) (int, string, bool) {
+	score, medido := audit.UltimoPuntaje(cwd)
+	if !medido {
+		return 0, gradoSinMedir, false
 	}
-	return finalScore
+	return score, determineDashboardGrade(score), true
 }
 
 func determineDashboardGrade(finalScore int) string {

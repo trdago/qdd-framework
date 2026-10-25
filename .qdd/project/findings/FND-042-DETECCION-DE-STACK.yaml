@@ -1,0 +1,5 @@
+title: "init solo reconocía Node, Go y Java"
+description: "En Python, Flutter/Dart, monorepos (backend/ + frontend/) y proyectos vacíos, init dejaba 'languages: []' y el gatekeeper bloqueaba audit, evolution, report, modules, blueprint y certify justo después de un init 'exitoso'."
+impact: "QDD no funcionaba en 4 de 7 tipos de proyecto medidos."
+action_taken: "Detección de Python, Dart/Flutter, Rust, PHP, Ruby, .NET y Kotlin, y de subproyectos en subcarpetas (monorepo). Flags qdd init --lenguaje/--arquitectura para proyectos sin código; repetir init completa config.yaml sin pisar lo declarado ni los comentarios. Mensajes del gatekeeper con el comando exacto a ejecutar. Tests en cli/cmd/init_primera_vez_test.go."
+date: "2026-10-24"

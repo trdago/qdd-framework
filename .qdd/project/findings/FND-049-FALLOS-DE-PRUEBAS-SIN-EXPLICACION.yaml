@@ -1,0 +1,5 @@
+title: "Fallos de pruebas sin explicación en la primera auditoría"
+description: "Una app Flutter recién creada (test/ vacía) recibía QA-01 porque se corría 'flutter test' sin archivos *_test.dart. QA-00 decía 'no se detectó cómo ejecutar las pruebas' sin decir qué faltaba en el stack. En un clon recién hecho, pytest fallaba por 'No module named fastapi' y QA-01 solo decía 'exit status 2'."
+impact: "La persona no sabía si el problema era su código, su entorno o QDD."
+action_taken: "flutter test solo corre si hay *_test.dart en test/. QA-00 explica qué falta según el stack (script \"test\" en package.json, *_test.dart, tests/test_*.py). QA-01 avisa cuando la salida delata dependencias sin instalar. Tests en cli/pkg/audit/coverage_primera_vez_test.go."
+date: "2026-10-24"

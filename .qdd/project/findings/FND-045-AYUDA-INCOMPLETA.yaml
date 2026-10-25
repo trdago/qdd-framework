@@ -1,0 +1,5 @@
+title: "qdd --help tenía la primera frase cortada y comandos sin descripción"
+description: "La descripción empezaba con '...obligatorias.\\ngarantizando certificaciones...', 'undo' no tenía descripción, audit decía 'Inspección Técnica (Fase G)' y certify 'calidad del framework'. 'qdd run' no aparecía en ningún lado de la ayuda."
+impact: "Lo primero que lee alguien nuevo no le dice cómo empezar."
+action_taken: "Ayuda reescrita con los primeros pasos (init, audit) y qdd run; descripciones de undo, audit y certify. Test que exige descripción en todo comando visible en cli/cmd/root_raiz_test.go."
+date: "2026-10-24"

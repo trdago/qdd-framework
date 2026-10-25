@@ -4,6 +4,30 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.11.0] - 2026-10-24
+
+### 🚀 Funciona a la primera (FND-040 a FND-051)
+
+Medimos el recorrido de alguien nuevo (init, doctor, audit, evolution, report, modules, blueprints, certify, MCP, dashboard, subcarpetas y `qdd run`) en 7 tipos de proyecto. Esto es lo que fallaba y cómo quedó:
+
+- **Más stacks:** `qdd init` reconoce Python, Dart/Flutter, Rust, PHP, Ruby, .NET y Kotlin, además de Node, Go y Java. También encuentra el código en subcarpetas (monorepos). En un proyecto sin código: `qdd init --lenguaje Go --arquitectura "API REST"`. Antes, en 4 de 7 tipos de proyecto, todo quedaba bloqueado justo después de init.
+- **Desde cualquier subcarpeta:** todos los comandos se ubican en la raíz del proyecto.
+- **Adopción gradual:** en un proyecto nuevo, E2E, ADR, Conventional Commits y repositorio git son **recomendaciones**. Se muestran, restan 2 puntos y no bloquean. Lo que sigue bloqueando: pruebas que fallan, no tener pruebas, OWASP, desplegar sin pruebas y código sucio. Los proyectos existentes siguen en modo estricto. Para exigirlo todo: `adopcion: estricta` en `.qdd/policies.yaml`.
+- **Un solo puntaje:** audit, certify, evolution, report, MCP `qdd_score` y el dashboard usan la misma fórmula (−10 por problema que bloquea, −2 por recomendación). Antes el mismo proyecto daba 94, 0 o 0 F según el comando, y el dashboard mostraba 100 "World-Class" aunque las pruebas fallaran. `qdd_score` ya no cuenta el catálogo core como certificaciones pendientes.
+- **Actualizar no inventa caídas:** el historial guarda con qué escala se calculó cada puntaje, y la tendencia solo compara puntajes de la misma escala. Antes, al actualizar, un proyecto certificado con 94 pasaba a 70 "EMPEORANDO", y `qdd evolution` pedía detener el trabajo.
+- **Dashboard sin datos inventados:**
+  - Muestra el puntaje de la última certificación. Si no hay ninguna, mide una vez al abrirse y mientras tanto muestra "—".
+  - El gráfico ya no trae series fijas: 40 → 75 → 100, certificaciones, bugs y sprints.
+- **Pruebas que ahora se encuentran:** pytest por `requirements*.txt` o `tests/test_*.py` (usa `.venv` o `python3`), y suites dentro de subcarpetas de primer nivel.
+- **Fallos de pruebas que se explican:**
+  - `flutter test` solo corre si existen archivos `*_test.dart`.
+  - "Sin pruebas" dice qué falta según el stack.
+  - Si la suite falla por dependencias sin instalar, se indica qué instalar.
+- **`make primera-vez`:** corre en 7 tipos de proyecto el recorrido de una persona que usa QDD por primera vez. En esta versión, la proporción de pasos sin fallo pasó de 54 % a 88 %; lo que queda son bloqueos legítimos, cada uno con su instrucción.
+- **`qdd run` funciona invocado como `qdd`:** antes fallaba con `fork/exec qdd: no such file or directory` si no se usaba la ruta absoluta.
+- **Un init que se lee como éxito:** `[✓]`, siguientes pasos concretos, sin "reparaciones" en un init limpio y todo en español.
+- **Ayuda y README:** `qdd --help` muestra cómo empezar. El README corrige el `go install`, que no funcionaba, y documenta los binarios de cada release.
+
 ## [v1.10.0] - 2026-10-23
 
 ### 🧬 Blueprints: los estándares de módulo de tu organización (RFC 0003)

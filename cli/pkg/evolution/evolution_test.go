@@ -33,7 +33,7 @@ func writeFile(t *testing.T, path, content string) {
 func TestAnalyze_NoSignals_RecommendsLowPriority(t *testing.T) {
 	cwd := setupProject(t)
 
-	report, err := Analyze(cwd, 0)
+	report, err := Analyze(cwd, Medicion{Score: 100})
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestAnalyze_WorseningTendency_IsTopPriority(t *testing.T) {
 	writeFile(t, filepath.Join(cwd, ".qdd", "project", "metrics", "certificate_history.json"),
 		`[{"timestamp":"2026-01-01T00:00:00Z","score":40,"total_violations":10,"tendency":"Empeorando"}]`)
 
-	report, err := Analyze(cwd, 0)
+	report, err := Analyze(cwd, Medicion{Score: 100})
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestAnalyze_ActiveViolations_OutrankFindingsAndCerts(t *testing.T) {
 	writeFile(t, filepath.Join(cwd, ".qdd", "project", "findings", "FND-001.yaml"),
 		"id: FND-001\ntitle: Some open bug\nstatus: OPEN\nimpact: HIGH\n")
 
-	report, err := Analyze(cwd, 3)
+	report, err := Analyze(cwd, Medicion{Score: 70, Bloqueantes: 3})
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestAnalyze_OpenFindings_SortedByImpactDescending(t *testing.T) {
 	writeFile(t, filepath.Join(cwd, ".qdd", "project", "findings", "FND-003.yaml"),
 		"id: FND-003\ntitle: Already resolved\nstatus: RESOLVED\nimpact: HIGH\n")
 
-	report, err := Analyze(cwd, 0)
+	report, err := Analyze(cwd, Medicion{Score: 100})
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestAnalyze_PendingCert_RecommendedWhenNoOtherSignal(t *testing.T) {
 	writeFile(t, filepath.Join(cwd, ".qdd", "project", "certification", "CERT-050.yaml"),
 		"id: CERT-050\ntitle: New standard being adopted\nstatus: pending\n")
 
-	report, err := Analyze(cwd, 0)
+	report, err := Analyze(cwd, Medicion{Score: 100})
 	if err != nil {
 		t.Fatalf("Analyze failed: %v", err)
 	}
@@ -128,11 +128,28 @@ func TestAnalyze_PendingCert_RecommendedWhenNoOtherSignal(t *testing.T) {
 func TestAnalyze_MissingDirectories_DoNotError(t *testing.T) {
 	cwd := t.TempDir() // no .qdd structure at all
 
-	report, err := Analyze(cwd, 0)
+	report, err := Analyze(cwd, Medicion{Score: 100})
 	if err != nil {
 		t.Fatalf("Analyze should tolerate a project with no .qdd yet, got error: %v", err)
 	}
 	if report.Priority != "LOW" {
 		t.Errorf("Priority = %q, want LOW as a safe default", report.Priority)
+	}
+}
+
+// FND-041: sin historial el puntaje era 0/100 (F) aunque el proyecto estuviera
+// sano; ahora es el puntaje actual de la auditoría.
+func TestAnalyze_SinHistorial_UsaPuntajeActual(t *testing.T) {
+	cwd := setupProject(t)
+
+	report, err := Analyze(cwd, Medicion{Score: 94, Recomendaciones: 3})
+	if err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+	if report.Score != 94 {
+		t.Errorf("Score = %d, want 94 (el de la auditoría actual)", report.Score)
+	}
+	if report.Priority != "MEDIUM" {
+		t.Errorf("Priority = %q, want MEDIUM: solo quedan recomendaciones", report.Priority)
 	}
 }

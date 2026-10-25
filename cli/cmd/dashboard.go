@@ -29,6 +29,10 @@ var dashboardCmd = &cobra.Command{
 		fmt.Println("🚀 Preparando QDD Dashboard...")
 
 		go dashboard.RunWatcher()
+		cwdInicial, _ := os.Getwd()
+		go medirSiFalta(cwdInicial, func() {
+			_ = exec.Command(selfExecutable(), "certify").Run()
+		})
 
 		// Servir archivos estáticos embebidos (deshabilitando caché para evitar que el navegador guarde versiones antiguas de la UI)
 		distFs, err := fs.Sub(ui.StaticFiles, "dist")
@@ -102,7 +106,7 @@ var dashboardCmd = &cobra.Command{
 				audit.SavePolicies(cwd, p)
 
 				// Re-run QDD Certify silently to update DB state with new rules
-				exec.CommandContext(r.Context(), os.Args[0], "certify").Run()
+				exec.CommandContext(r.Context(), selfExecutable(), "certify").Run()
 
 				// Broadcast new state
 				res := dashboard.BuildState()
@@ -254,6 +258,19 @@ func openBrowser(url string) error {
 
 func init() {
 	rootCmd.AddCommand(dashboardCmd)
+}
+
+// medirSiFalta certifica una vez al abrir el dashboard si el proyecto aún no
+// tiene un puntaje con la escala actual, para mostrar un número real y no
+// "Sin medir" (FND-051). Al terminar avisa a los navegadores conectados.
+func medirSiFalta(cwd string, certificar func()) bool {
+	if _, medido := audit.UltimoPuntaje(cwd); medido {
+		return false
+	}
+	certificar()
+	data, _ := json.Marshal(dashboard.BuildState())
+	dashboard.Broker.Broadcast(data)
+	return true
 }
 
 func safeHTTPHandler(next http.HandlerFunc) http.HandlerFunc {
