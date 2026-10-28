@@ -1,6 +1,6 @@
 # RFC 0004: Blueprints centrales — QDD administra su ciclo de vida
 
-**Status:** Implemented (v2.0.0)
+**Status:** Implemented (v2.0.0; doctor en v2.1.0)
 **Created:** 2026-10-28
 **Reemplaza:** la fase 3 del [RFC 0003](0003-blueprints.md) en lo que toca a registro, almacenamiento y evolución.
 
@@ -91,6 +91,22 @@ QDD hace lo siguiente:
 5. La IA recibe la instrucción de commitear la eliminación de `.qdd/blueprints/`, el lockfile y `state.json`.
 
 Sin `.qdd/blueprints/`, la migración no hace nada. Por eso ocurre una sola vez.
+
+### 3.7 `qdd doctor` (v2.1.0)
+
+**Principio:** toda funcionalidad de QDD es determinista y `qdd doctor` sabe diagnosticarla y repararla. Si doctor no puede definir cómo debería comportarse para repararla, la funcionalidad quedó ambigua y se completa.
+
+Aplicar ese principio a los blueprints encontró dos bugs (FND-054): re-aplicar movía el módulo a las rutas sugeridas, y la ficha citaba la copia legada.
+
+El grupo **"4. Blueprints de la organización"** tiene cinco diagnósticos. Sin red, el acceso no falla si la carpeta central ya tiene todo; un proyecto sin blueprints no usa la red, porque `qdd init` corre `doctor --fix`.
+
+| Diagnóstico | `qdd doctor --fix` |
+|---|---|
+| Sin copias dentro del proyecto | Migra. Las copias editadas o fuera del lockfile no las borra: indica `contribute` y `propose`. |
+| Íntegros en la carpeta central | Reconstruye desde el commit del lockfile. Si el lockfile está ilegible, lo restaura del último commit; si fue editado a mano, lo rehace desde la versión publicada que fija. |
+| Acceso al repositorio | Explica qué credencial falta (llave SSH, deploy key o token). |
+| Al día con la organización | Sincroniza el espejo. **No actualiza**: actualizar cambia invariantes que el código debe acatar, así que dice el comando exacto. |
+| Módulos con la versión importada | Si el blueprint ya no está importado, lo importa del registro. Re-aplica con las respuestas registradas y la ficha vuelve a borrador para el humano. Si hay preguntas nuevas, dice cuáles y con qué comando responderlas. |
 
 ## 4. Drawbacks
 

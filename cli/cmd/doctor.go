@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 	"github.com/qdd-framework/qdd/ui"
@@ -88,7 +89,41 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	list.Groups = append(list.Groups, buildGroup1Checks(projectPath))
 	list.Groups = append(list.Groups, buildGroup2Checks(projectPath))
 	list.Groups = append(list.Groups, buildGroup3Checks(projectPath))
+	list.Groups = append(list.Groups, buildBlueprintChecks(projectPath))
 	return list
+}
+
+// grupoBlueprints nombra el grupo de doctor que revisa los blueprints de la
+// organización (RFC 0004).
+const grupoBlueprints = "4. Blueprints de la organización"
+
+func buildBlueprintChecks(projectPath string) *CheckGroup {
+	g := &CheckGroup{Name: grupoBlueprints}
+	for _, d := range blueprints.Diagnosticar(projectPath) {
+		g.Items = append(g.Items, &CheckItem{Name: d.Nombre, Success: d.OK, Error: d.Detalle})
+	}
+	return g
+}
+
+// repairBlueprints repara los blueprints una sola vez por ejecución, aunque
+// fallen varios de sus diagnósticos.
+func repairBlueprints(projectPath string, g *CheckGroup) {
+	if !groupHasFailures(g) {
+		return
+	}
+	fmt.Println("  [~] Reparando los blueprints de la organización...")
+	for _, accion := range blueprints.Reparar(projectPath) {
+		fmt.Printf("      %s\n", accion)
+	}
+}
+
+func groupHasFailures(g *CheckGroup) bool {
+	for _, item := range g.Items {
+		if !item.Success {
+			return true
+		}
+	}
+	return false
 }
 
 func buildGroup1Checks(projectPath string) *CheckGroup {
@@ -249,6 +284,10 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 	qddDir := filepath.Join(projectPath, ".qdd")
 	
 	for _, g := range checklist.Groups {
+		if g.Name == grupoBlueprints {
+			repairBlueprints(projectPath, g)
+			continue
+		}
 		for _, item := range g.Items {
 			if !item.Success {
 				dispatchRepairCommand(item.Name, projectPath, qddDir)
