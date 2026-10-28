@@ -66,6 +66,11 @@ func DescribePregunta(p Pregunta) string {
 	return s.String()
 }
 
+// Condicion describe de qué respuestas depende la pregunta ("" si siempre aplica).
+func (p Pregunta) Condicion() string {
+	return describeSi(p)
+}
+
 func describeSi(p Pregunta) string {
 	ids := make([]string, 0, len(p.Si))
 	for id := range p.Si {

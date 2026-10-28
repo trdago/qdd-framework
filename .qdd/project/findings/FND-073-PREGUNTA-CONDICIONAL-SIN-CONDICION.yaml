@@ -1,0 +1,6 @@
+id: "FND-073"
+title: "qdd blueprint apply listaba una pregunta condicional como si fuera obligatoria"
+description: "Sin terminal (o en CI), 'qdd blueprint apply' sin respuestas listaba todas las preguntas pendientes con el mismo formato. Una pregunta con 'si' (por ejemplo, proveedor solo si canales = whatsapp) aparecía como obligatoria, sin decir de qué respuesta dependía. La tool MCP qdd_blueprint_apply sí lo indicaba ('Solo si …'); la CLI no."
+impact: "Quien completaba las respuestas a mano podía creer que debía decidir algo que no aplicaba a su proyecto."
+action_taken: "La CLI agrega '(solo si <condición>)' a cada pregunta condicional, con el mismo texto que usa la tool MCP (Pregunta.Condicion). Test en cli/cmd/blueprints_test.go (TestPendingProblems_ConditionalQuestionSaysWhenItApplies)."
+date: "2026-10-27"

@@ -331,6 +331,17 @@ func TestAdd_RepositoryWithoutSelectionOffersWhatItHas(t *testing.T) {
 	}
 }
 
+// FND-074: con un solo blueprint, pedir 'qdd blueprint add' sin nombres decía
+// que el repositorio tenía "varios blueprints".
+func TestAdd_WithoutSelectionDoesNotClaimSeveralWhenThereIsOne(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, filepath.Join(repo, "auth", ManifestName), authBlueprint)
+	_, problems := Add(AddInput{Root: t.TempDir(), Origen: repo})
+	if hasProblem(problems, "varios") || !hasProblem(problems, "Blueprints: auth.") {
+		t.Fatalf("debe pedir elegir y ofrecer auth, sin hablar de varios: %v", problems)
+	}
+}
+
 func TestAdd_AllOrNothing(t *testing.T) {
 	repo := orgRepo(t, map[string]string{"auditoria/" + ManifestName: "id: auditoria\nnombre: X\nversion: 1.0.0\n"})
 	root := t.TempDir()

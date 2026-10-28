@@ -175,7 +175,7 @@ func idsPedidos(in AddInput, cat Catalogo, disponibles map[string]string) ([]str
 	}
 	pedidos = dedupe(pedidos)
 	if len(pedidos) == 0 {
-		return nil, []string{"el repositorio tiene varios blueprints: elige cuáles (qdd blueprint add <repo> auth auditoria), un --paquete o --todos. " + oferta(cat, disponibles)}
+		return nil, []string{"no pediste ningún blueprint: elige cuáles (qdd blueprint add <id>...), un --paquete o --todos. " + oferta(cat, disponibles)}
 	}
 	var problems []string
 	for _, id := range pedidos {

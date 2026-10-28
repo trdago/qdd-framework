@@ -328,7 +328,11 @@ func applyAsking(in blueprints.ApplyInput, reader *bufio.Reader, out io.Writer, 
 func pendingProblems(pendientes []blueprints.Pregunta) []string {
 	var out []string
 	for _, p := range pendientes {
-		out = append(out, fmt.Sprintf("falta --respuesta %s=<%s>: %s", p.ID, strings.Join(p.Valores(), "|"), p.Pregunta))
+		linea := fmt.Sprintf("falta --respuesta %s=<%s>: %s", p.ID, strings.Join(p.Valores(), "|"), p.Pregunta)
+		if cond := p.Condicion(); cond != "" {
+			linea += " (solo si " + cond + ")"
+		}
+		out = append(out, linea)
 	}
 	return out
 }

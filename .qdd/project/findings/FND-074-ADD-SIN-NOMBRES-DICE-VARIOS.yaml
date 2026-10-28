@@ -1,0 +1,6 @@
+id: "FND-074"
+title: "qdd blueprint add sin nombres decía 'varios blueprints' aunque hubiera uno"
+description: "Con un repositorio registrado, 'qdd blueprint add' sin ids ni --paquete/--todos respondía 'el repositorio tiene varios blueprints: elige cuáles (qdd blueprint add <repo> auth auditoria)' aunque el repositorio tuviera un solo blueprint, y sugería volver a indicar el repositorio, que ya estaba registrado."
+impact: "Mensaje contradictorio con lo que se listaba justo al lado; ejemplos que no aplicaban."
+action_taken: "El mensaje dice 'no pediste ningún blueprint: elige cuáles (qdd blueprint add <id>...), un --paquete o --todos' y sigue ofreciendo lo disponible. Lo comparten la CLI y la tool MCP qdd_blueprint_add. Test en cli/pkg/blueprints/blueprints_test.go (TestAdd_WithoutSelectionDoesNotClaimSeveralWhenThereIsOne)."
+date: "2026-10-27"
