@@ -2,7 +2,6 @@ package blueprints
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -68,12 +67,24 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
+// sourceBlueprint publica un blueprint suelto: un repositorio git cuya raíz es
+// el blueprint, con la versión v1.0.0 etiquetada.
 func sourceBlueprint(t *testing.T, content string) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "auth")
 	writeFile(t, filepath.Join(dir, ManifestName), content)
 	writeFile(t, filepath.Join(dir, "referencias", "go", "README.md"), "referencia\n")
+	publicarTodo(t, dir)
 	return dir
+}
+
+// publicarTodo commitea todo el repositorio y lo etiqueta v1.0.0.
+func publicarTodo(t *testing.T, repo string) {
+	t.Helper()
+	gitIn(t, repo, "init", "-q")
+	gitIn(t, repo, "add", ".")
+	gitIn(t, repo, "commit", "-q", "-m", "v1")
+	gitIn(t, repo, "tag", "v1.0.0")
 }
 
 func importedProject(t *testing.T) string {
@@ -179,21 +190,53 @@ func TestResolver_RejectsInvalidAndUnknownAnswers(t *testing.T) {
 	}
 }
 
-func TestAdd_VendorsAndLocksBlueprint(t *testing.T) {
+func TestAdd_LocksVersionCommitAndFingerprint(t *testing.T) {
 	root := importedProject(t)
 	lock, err := LoadLock(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	entry, ok := lock.Entry("auth")
-	if !ok || entry.Version != "1.0.0" || len(entry.SHA256) != 64 {
-		t.Fatalf("el lockfile debe fijar versión y huella: %+v", lock)
+	if !ok || entry.Version != "1.0.0" || entry.Ref != "v1.0.0" || len(entry.Commit) != 40 || len(entry.SHA256) != 64 {
+		t.Fatalf("el lockfile debe fijar versión, tag, commit y huella: %+v", lock)
 	}
-	if _, err := os.Stat(filepath.Join(root, Dir, "auth", "referencias", "go", "README.md")); err != nil {
-		t.Fatal("las implementaciones de referencia deben viajar con el blueprint")
+}
+
+func TestAdd_OnlyPublishedVersions(t *testing.T) {
+	repo := orgRepo(t, nil)
+	for _, ref := range []string{"main", "HEAD~0"} {
+		_, problems := Add(AddInput{Root: t.TempDir(), Origen: repo, Ref: ref, Blueprints: []string{"auth"}})
+		if !hasProblem(problems, "versión publicada (tag vX.Y.Z)") {
+			t.Errorf("--ref %s no es una versión publicada y debe rechazarse: %v", ref, problems)
+		}
 	}
-	if problems := Check(root); len(problems) != 0 {
-		t.Fatalf("un blueprint recién importado está íntegro: %v", problems)
+	loose := t.TempDir()
+	writeFile(t, filepath.Join(loose, ManifestName), authBlueprint)
+	if _, problems := Add(AddInput{Root: t.TempDir(), Origen: loose}); !hasProblem(problems, "no es un repositorio git") {
+		t.Fatalf("una carpeta suelta no es un origen: %v", problems)
+	}
+	sinTags := t.TempDir()
+	writeFile(t, filepath.Join(sinTags, "auth", ManifestName), authBlueprint)
+	gitIn(t, sinTags, "init", "-q")
+	gitIn(t, sinTags, "add", ".")
+	gitIn(t, sinTags, "commit", "-q", "-m", "x")
+	if _, problems := Add(AddInput{Root: t.TempDir(), Origen: sinTags, Blueprints: []string{"auth"}}); !hasProblem(problems, "no tiene versiones publicadas") {
+		t.Fatalf("un repositorio sin tags no tiene versiones que importar: %v", problems)
+	}
+}
+
+func TestAdd_WithoutRefTakesTheLatestPublishedVersion(t *testing.T) {
+	repo := orgRepo(t, nil)
+	publicar(t, repo, "1.1.0", "v1.1.0")
+	writeFile(t, filepath.Join(repo, "auth", ManifestName), strings.Replace(authBlueprint, "version: 1.0.0", "version: 9.9.9", 1))
+	gitIn(t, repo, "commit", "-q", "-am", "sin publicar")
+
+	entries, problems := Add(AddInput{Root: t.TempDir(), Origen: repo, Blueprints: []string{"auth"}})
+	if len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if entries[0].Version != "1.1.0" || entries[0].Ref != "v1.1.0" {
+		t.Fatalf("sin --ref se importa la última versión publicada, nunca lo no etiquetado: %+v", entries[0])
 	}
 }
 
@@ -209,19 +252,7 @@ func TestAdd_RejectsInvalidBlueprintWithoutTouchingProject(t *testing.T) {
 }
 
 func TestAdd_FromGitRepositorySubfolder(t *testing.T) {
-	repo := filepath.Dir(sourceBlueprint(t, authBlueprint))
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main"}, args...)...)
-		cmd.Dir = repo
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v %s", args, err, out)
-		}
-	}
-	git("init", "-q")
-	git("add", ".")
-	git("commit", "-q", "-m", "auth")
-	git("tag", "v1.0.0")
-
+	repo := orgRepo(t, nil)
 	root := t.TempDir()
 	entries, problems := Add(AddInput{Root: root, Origen: "file://" + repo + "//auth", Ref: "v1.0.0"})
 	if len(problems) > 0 {
@@ -232,7 +263,8 @@ func TestAdd_FromGitRepositorySubfolder(t *testing.T) {
 	}
 }
 
-// orgRepo arma un repositorio de organización con varios blueprints y un catálogo.
+// orgRepo publica (v1.0.0) un repositorio de organización con varios
+// blueprints y un catálogo.
 func orgRepo(t *testing.T, extra map[string]string) string {
 	t.Helper()
 	repo := t.TempDir()
@@ -244,6 +276,7 @@ func orgRepo(t *testing.T, extra map[string]string) string {
 	for rel, content := range extra {
 		writeFile(t, filepath.Join(repo, rel), content)
 	}
+	publicarTodo(t, repo)
 	return repo
 }
 
@@ -321,17 +354,6 @@ func TestSplitSource(t *testing.T) {
 		if repo != want[0] || sub != want[1] {
 			t.Errorf("splitSource(%q) = %q, %q; se esperaba %q", in, repo, sub, want)
 		}
-	}
-}
-
-func TestCheck_DetectsHandEditedCopy(t *testing.T) {
-	root := importedProject(t)
-	manifest := filepath.Join(root, Dir, "auth", ManifestName)
-	data, _ := os.ReadFile(manifest)
-	writeFile(t, manifest, strings.Replace(string(data), "nunca por nombre de rol", "o por rol", 1))
-
-	if !hasRule(Check(root), "BP-02-ALTERED") {
-		t.Fatal("una copia editada a mano debe detectarse")
 	}
 }
 

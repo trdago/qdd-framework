@@ -1,6 +1,7 @@
 package blueprints
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -15,28 +16,34 @@ type Problema struct {
 	Descripcion string
 }
 
-// Check revisa los blueprints importados y sus aplicaciones:
-//   - BP-01-INVALID: un blueprint importado o su registro no se puede leer o no es válido.
-//   - BP-02-ALTERED: la copia del proyecto no coincide con la huella del lockfile
-//     (alguien la editó a mano o no pasó por 'qdd blueprint add').
+// Check revisa los blueprints del lockfile y sus aplicaciones:
+//   - BP-01-INVALID: un blueprint, el lockfile o un registro de aplicación no se
+//     puede leer, no es válido o no se pudo obtener de su repositorio.
+//   - BP-02-ALTERED: lo publicado en el repositorio no coincide con la huella o
+//     la versión del lockfile (alguien lo editó a mano).
 //   - BP-03-OUTDATED: el módulo se generó con una versión del blueprint distinta
 //     de la importada; hay que volver a aplicarlo.
 //   - BP-04-MISSING: un módulo se generó desde un blueprint que ya no está importado.
+//   - BP-05-LEGACY: queda una copia del esquema anterior dentro del proyecto.
+//   - BP-06-BEHIND: la organización publicó una versión más nueva del blueprint.
 func Check(root string) []Problema {
 	var out []Problema
 	lock, err := LoadLock(root)
 	if err != nil {
 		out = append(out, Problema{"BP-01-INVALID", LockFile, err.Error()})
 	}
-	bps, errs := List(root)
-	for _, err := range errs {
-		out = append(out, Problema{"BP-01-INVALID", Dir, err.Error()})
-	}
 	versiones := map[string]string{}
-	for _, b := range bps {
-		versiones[b.ID] = b.Version
-		out = append(out, checkBlueprint(root, b, lock)...)
+	for _, e := range lock.Blueprints {
+		b, err := load(e)
+		if err != nil {
+			out = append(out, problemaDeCarga(e, err))
+			continue
+		}
+		versiones[e.ID] = b.Version
+		out = append(out, checkBlueprint(b, e)...)
+		out = append(out, checkVigencia(e)...)
 	}
+	out = append(out, checkLegado(root, lock)...)
 	apps, errs := LoadApplications(root)
 	for _, err := range errs {
 		out = append(out, Problema{"BP-01-INVALID", ApplicationsDir, err.Error()})
@@ -47,20 +54,39 @@ func Check(root string) []Problema {
 	return out
 }
 
-func checkBlueprint(root string, b Blueprint, lock Lock) []Problema {
-	rel := relTo(root, filepath.Join(b.Dir, ManifestName))
+func problemaDeCarga(e LockEntry, err error) Problema {
+	if errors.Is(err, errHuella) {
+		return Problema{"BP-02-ALTERED", LockFile, fmt.Sprintf("El blueprint '%s' del lockfile no coincide con lo publicado en %s (commit %.12s): el lockfile se editó a mano. Lo administra QDD; vuelve a importarlo: qdd blueprint add %s --ref %s", e.ID, e.Origen, e.Commit, e.ID, firstNonEmpty(e.Ref, "<versión>"))}
+	}
+	return Problema{"BP-01-INVALID", LockFile, fmt.Sprintf("No se pudo obtener el blueprint '%s' desde %s: %v. En el CI, el job necesita acceso de solo lectura a ese repositorio (deploy key o token).", e.ID, e.Origen, err)}
+}
+
+func checkBlueprint(b Blueprint, e LockEntry) []Problema {
 	if problems := b.Validate(); len(problems) > 0 {
-		return []Problema{{"BP-01-INVALID", rel, "Blueprint inválido: " + strings.Join(problems, "; ")}}
+		return []Problema{{"BP-01-INVALID", LockFile, fmt.Sprintf("Blueprint '%s' inválido: %s", e.ID, strings.Join(problems, "; "))}}
 	}
-	entry, ok := lock.Entry(b.ID)
-	if !ok {
-		return []Problema{{"BP-02-ALTERED", rel, fmt.Sprintf("El blueprint '%s' no figura en %s: impórtalo con 'qdd blueprint add <origen>' en vez de copiarlo a mano.", b.ID, LockFile)}}
-	}
-	sum, err := HashDir(b.Dir)
-	if err != nil || sum != entry.SHA256 || entry.Version != b.Version {
-		return []Problema{{"BP-02-ALTERED", rel, fmt.Sprintf("La copia del blueprint '%s' no coincide con la que se importó desde %s. Los cambios se hacen en el repositorio del blueprint y se traen con 'qdd blueprint add'.", b.ID, entry.Origen)}}
+	if b.ID != e.ID || b.Version != e.Version {
+		return []Problema{{"BP-02-ALTERED", LockFile, fmt.Sprintf("El lockfile dice %s@%s, pero lo publicado es %s: el lockfile se editó a mano. Vuelve a importarlo: qdd blueprint add %s", e.ID, e.Version, b.Ref(), e.ID)}}
 	}
 	return nil
+}
+
+// checkVigencia compara con la última versión que el espejo central conoce
+// (sin red: el espejo se actualiza al importar y con 'qdd blueprint sync').
+func checkVigencia(e LockEntry) []Problema {
+	mirror, err := mirrorPath(e.Origen)
+	if err != nil || !exists(mirror) {
+		return nil
+	}
+	tags, err := versionTags(mirror)
+	if err != nil || len(tags) == 0 || tags[0] == e.Ref {
+		return nil
+	}
+	disponible := versionEn(mirror, tags[0], e.Subdir)
+	if disponible == "" || compararVersion(disponible, e.Version) <= 0 {
+		return nil
+	}
+	return []Problema{{"BP-06-BEHIND", LockFile, fmt.Sprintf("La organización publicó %s@%s (%s) y el proyecto usa %s. Actualízalo: qdd blueprint add %s (y vuelve a aplicarlo a sus módulos con qdd blueprint apply).", e.ID, disponible, tags[0], e.Version, e.ID)}}
 }
 
 func checkApplication(root string, a Aplicacion, versiones map[string]string) []Problema {

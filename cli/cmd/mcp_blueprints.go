@@ -17,7 +17,7 @@ func registerBlueprintTools(s *server.MCPServer) {
 		mcp.WithString("paquete", mcp.Description("Paquete del catalogo.yaml del repositorio (alternativa a 'blueprints').")),
 		mcp.WithBoolean("todos", mcp.Description("Importa todos los blueprints del repositorio.")),
 		mcp.WithString("origen", mcp.Description("Repositorio de la organización, SOLO si el humano lo indicó y no hay uno registrado.")),
-		mcp.WithString("ref", mcp.Description("Tag o versión (p. ej. v1.2.0); por defecto, la registrada.")),
+		mcp.WithString("ref", mcp.Description("Versión publicada (tag vX.Y.Z); por defecto, la última. Úsala solo si el humano pidió una versión.")),
 	)
 	RegisterToolWithTelemetry(s, add, handleBlueprintAddTool)
 
@@ -36,6 +36,65 @@ func registerBlueprintTools(s *server.MCPServer) {
 		mcp.WithString("pruebas", mcp.Description("Comandos que prueban el módulo, uno por línea.")),
 	)
 	RegisterToolWithTelemetry(s, apply, handleBlueprintApplyTool)
+
+	sync := mcp.NewTool("qdd_blueprint_sync",
+		mcp.WithDescription("Trae lo que la organización publicó en su repositorio de blueprints y dice qué blueprints del proyecto tienen una versión más nueva. Úsala cuando el gate reporte BP-06-BEHIND o el humano pregunte si hay estándares nuevos; luego actualiza con qdd_blueprint_add y vuelve a aplicar con qdd_blueprint_apply."),
+	)
+	RegisterToolWithTelemetry(s, sync, handleBlueprintSyncTool)
+
+	contribute := mcp.NewTool("qdd_blueprint_contribute",
+		mcp.WithDescription("Prepara un cambio a un blueprint de la organización (o uno nuevo) en la carpeta central de QDD, nunca dentro del proyecto: devuelve la carpeta a editar, en la rama aporte/<id>. Úsala cuando el humano quiera mejorar un estándar o cuando una migración (BP-05-LEGACY) pida llevar cambios al repositorio de la organización."),
+		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint a cambiar o crear.")),
+	)
+	RegisterToolWithTelemetry(s, contribute, handleBlueprintContributeTool)
+
+	propose := mcp.NewTool("qdd_blueprint_propose",
+		mcp.WithDescription("Publica el aporte preparado con qdd_blueprint_contribute como pull request al repositorio de la organización: QDD valida el blueprint, calcula el cambio semver y fija la versión (no la elijas tú), commitea, publica la rama y abre el PR. Publica fuera del proyecto: úsala SOLO con la confirmación explícita del humano."),
+		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint.")),
+		mcp.WithString("mensaje", mcp.Required(), mcp.Description("Qué cambia y por qué (va al commit y al PR).")),
+	)
+	RegisterToolWithTelemetry(s, propose, handleBlueprintProposeTool)
+}
+
+func handleBlueprintSyncTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	res, err := blueprints.Sincronizar(projectRootForMCP())
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if len(res.Novedades) == 0 {
+		return mcp.NewToolResultText(fmt.Sprintf("%s sincronizado (última versión %s). Los blueprints del proyecto están al día.", res.Origen, res.Ref)), nil
+	}
+	var s strings.Builder
+	var ids []string
+	fmt.Fprintf(&s, "%s publicó %s. Versiones nuevas:\n", res.Origen, res.Ref)
+	for _, n := range res.Novedades {
+		fmt.Fprintf(&s, "- %s: %s → %s\n", n.ID, n.Actual, n.Disponible)
+		ids = append(ids, n.ID)
+	}
+	fmt.Fprintf(&s, "Actualiza con qdd_blueprint_add (blueprints=%s) y vuelve a aplicar cada uno con qdd_blueprint_apply; si aparecen preguntas nuevas, házselas al humano.", strings.Join(ids, ", "))
+	return mcp.NewToolResultText(s.String()), nil
+}
+
+func handleBlueprintContributeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	id := strings.TrimSpace(stringArg(request, "blueprint"))
+	ap, err := blueprints.Aportar(projectRootForMCP(), id)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("Aporte listo en la rama %s de %s.\nEdita el blueprint en: %s\nNo cambies 'version:' (la fija QDD). Cuando termines, muéstrale el cambio al humano y, con su confirmación, llama a qdd_blueprint_propose (blueprint=%s).", ap.Rama, ap.Repo, ap.Carpeta, id)), nil
+}
+
+func handleBlueprintProposeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	id := strings.TrimSpace(stringArg(request, "blueprint"))
+	p, err := blueprints.Proponer(projectRootForMCP(), id, stringArg(request, "mensaje"))
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	msg := fmt.Sprintf("%s v%s (cambio %s) publicado en la rama %s.\n- %s\n", id, p.Version, p.Cambio, p.Rama, strings.Join(p.Razones, "\n- "))
+	if p.Aviso != "" {
+		return mcp.NewToolResultText(msg + "⚠️ " + p.Aviso), nil
+	}
+	return mcp.NewToolResultText(msg + "Pull request: " + p.PR + "\nTras el merge, un mantenedor publica la versión con 'qdd blueprint release'."), nil
 }
 
 func handleBlueprintAddTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -57,7 +116,7 @@ func handleBlueprintAddTool(ctx context.Context, request mcp.CallToolRequest) (*
 		ids = append(ids, e.ID)
 	}
 	if res.Guardado {
-		fmt.Fprintf(&s, "Repositorio de la organización registrado en .qdd/config.yaml: %s %s\n", res.Registro.Origen, res.Registro.Ref)
+		fmt.Fprintf(&s, "Repositorio de la organización registrado en .qdd/config.yaml y en el registro central de QDD: %s\n", res.Registro.Origen)
 	}
 	for _, p := range problems {
 		fmt.Fprintf(&s, "⚠️ %s\n", p)
@@ -90,7 +149,7 @@ func handleBlueprintListTool(ctx context.Context, request mcp.CallToolRequest) (
 		fmt.Fprintf(&s, "⚠️ Blueprint ilegible: %v\n", err)
 	}
 	if reg, _ := blueprints.LoadRegistro(root); reg.Origen != "" {
-		fmt.Fprintf(&s, "Repositorio de la organización: %s %s (importa más con qdd_blueprint_add).\n\n", reg.Origen, reg.Ref)
+		fmt.Fprintf(&s, "Repositorio de la organización: %s (importa más con qdd_blueprint_add).\n\n", reg.Origen)
 	}
 	if len(bps) == 0 {
 		s.WriteString("No hay blueprints importados. Se importan con qdd_blueprint_add (o 'qdd blueprint add' en la terminal).\n")

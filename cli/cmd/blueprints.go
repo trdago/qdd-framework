@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -18,33 +19,72 @@ var blueprintCmd = &cobra.Command{
 	Short: "Blueprints: arquetipos de módulo que tu organización mantiene en su propio repositorio",
 	Long: `Un blueprint es el esqueleto conceptual de un módulo (p. ej. usuarios, roles y
 permisos): vocabulario, preguntas de diseño, decisiones, invariantes y escenarios
-de conformidad. Vive en el repositorio de tu organización (privado si quieres) y
-se importa a cada proyecto; el core de QDD solo trae el mecanismo.
+de conformidad. Vive en el repositorio de tu organización (privado si quieres).
 
-  qdd blueprint add git@github.com:org/qdd-blueprints.git//auth --ref v1.0.0
-  qdd blueprint show auth
+QDD administra todo su ciclo de vida (RFC 0004):
+  - El repositorio se clona una vez por máquina en la carpeta central de QDD
+    (~/.local/share/qdd/blueprints); el proyecto solo versiona su lockfile.
+  - Los proyectos de la misma organización (mismo dueño en su remote git) ven
+    sus blueprints sin configurar nada.
+  - Solo se importan versiones publicadas (tags vX.Y.Z); la versión de cada
+    cambio la calcula QDD, nunca una persona.
+
+  qdd blueprint add git@github.com:org/qdd-blueprints.git auth   # la primera vez
+  qdd blueprint add auditoria                 # después, basta con nombrarlos
   qdd blueprint apply auth --ruta internal/auth
-  qdd modules approve auth`,
+  qdd blueprint sync                          # trae lo publicado y dice qué actualizar
+  qdd blueprint contribute auth               # prepara un aporte en la carpeta central
+  qdd blueprint propose auth -m "…"           # QDD versiona, publica la rama y abre el PR
+  qdd blueprint release                       # tras el merge, etiqueta la nueva versión`,
 	Run: runBlueprintList,
 }
 
 var blueprintAddCmd = &cobra.Command{
 	Use:   "add [origen] [blueprint...]",
 	Short: "Importa blueprints del repositorio de tu organización (uno, varios, un --paquete o --todos)",
-	Long: `Importa blueprints con un solo clon. La primera vez indica el repositorio de
-tu organización (privado si quieres; se usan tus credenciales git): QDD lo
-guarda en .qdd/config.yaml y desde ahí basta con nombrar los blueprints.
+	Long: `Importa blueprints de una versión publicada del repositorio de tu organización.
+La primera vez indica el repositorio (privado si quieres; se usan tus
+credenciales git): QDD lo recuerda en .qdd/config.yaml y en el registro central,
+para este y los demás proyectos de la organización.
 
-  qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.2.0 auth
+  qdd blueprint add git@github.com:org/qdd-blueprints.git auth
   qdd blueprint add auditoria notificaciones      # usa el repositorio registrado
   qdd blueprint add --paquete base
-  qdd blueprint add --todos --ref v1.3.0           # actualiza todo a otra versión
-  qdd blueprint add                                # lista lo disponible
+  qdd blueprint add --todos                        # todo, en su última versión
 
-Si alguno es inválido no se importa ninguno. Los paquetes y las carpetas se
-declaran en catalogo.yaml en la raíz del repositorio.`,
+Sin --ref se importa la última versión publicada (tag vX.Y.Z). Si alguno es
+inválido no se importa ninguno. Los paquetes y las carpetas se declaran en
+catalogo.yaml en la raíz del repositorio.`,
 	Args: cobra.ArbitraryArgs,
 	Run:  runBlueprintAdd,
+}
+
+var blueprintSyncCmd = &cobra.Command{
+	Use:   "sync",
+	Short: "Trae lo publicado por la organización y dice qué blueprints actualizar",
+	Args:  cobra.NoArgs,
+	Run:   runBlueprintSync,
+}
+
+var blueprintContributeCmd = &cobra.Command{
+	Use:   "contribute <id>",
+	Short: "Prepara un aporte a un blueprint (nuevo o existente) en la carpeta central de QDD",
+	Args:  cobra.ExactArgs(1),
+	Run:   runBlueprintContribute,
+}
+
+var blueprintProposeCmd = &cobra.Command{
+	Use:   "propose <id> -m <descripción>",
+	Short: "Valida el aporte, fija su versión semver, publica la rama y abre el pull request",
+	Args:  cobra.ExactArgs(1),
+	Run:   runBlueprintPropose,
+}
+
+var blueprintReleaseCmd = &cobra.Command{
+	Use:   "release",
+	Short: "Publica (etiqueta vX.Y.Z) lo integrado en el repositorio de la organización",
+	Args:  cobra.NoArgs,
+	Run:   runBlueprintRelease,
 }
 
 var blueprintListCmd = &cobra.Command{
@@ -71,6 +111,7 @@ var (
 	blueprintPaquete    string
 	blueprintTodos      bool
 	blueprintRef        string
+	blueprintMensaje    string
 	blueprintModulo     string
 	blueprintRutas      []string
 	blueprintRespuestas []string
@@ -78,14 +119,16 @@ var (
 )
 
 func init() {
-	blueprintAddCmd.Flags().StringVar(&blueprintRef, "ref", "", "tag, rama o commit del repositorio (recomendado: un tag de versión)")
+	blueprintAddCmd.Flags().StringVar(&blueprintRef, "ref", "", "versión publicada (tag vX.Y.Z); por defecto, la última")
+	blueprintProposeCmd.Flags().StringVarP(&blueprintMensaje, "mensaje", "m", "", "qué cambia y por qué (va al commit y al pull request)")
 	blueprintAddCmd.Flags().StringVar(&blueprintPaquete, "paquete", "", "importa un paquete declarado en el catalogo.yaml del repositorio")
 	blueprintAddCmd.Flags().BoolVar(&blueprintTodos, "todos", false, "importa todos los blueprints del repositorio")
 	blueprintApplyCmd.Flags().StringVar(&blueprintModulo, "modulo", "", "id de la ficha a generar (por defecto, el id del blueprint)")
 	blueprintApplyCmd.Flags().StringArrayVar(&blueprintRutas, "ruta", nil, "carpeta del módulo en el proyecto (repetible)")
 	blueprintApplyCmd.Flags().StringArrayVar(&blueprintRespuestas, "respuesta", nil, "respuesta a una pregunta, como pregunta=valor (repetible)")
 	blueprintApplyCmd.Flags().StringArrayVar(&blueprintPruebas, "prueba", nil, "comando que prueba el módulo (repetible)")
-	blueprintCmd.AddCommand(blueprintAddCmd, blueprintListCmd, blueprintShowCmd, blueprintApplyCmd)
+	blueprintCmd.AddCommand(blueprintAddCmd, blueprintListCmd, blueprintShowCmd, blueprintApplyCmd,
+		blueprintSyncCmd, blueprintContributeCmd, blueprintProposeCmd, blueprintReleaseCmd)
 	rootCmd.AddCommand(blueprintCmd)
 }
 
@@ -114,19 +157,11 @@ func splitAddArgs(args []string) (string, []string) {
 func printAddResult(res blueprints.AddResult, warnings []string) {
 	var ids []string
 	for _, e := range res.Entries {
-		fmt.Printf("[+] Blueprint '%s@%s' importado en %s/%s", e.ID, e.Version, blueprints.Dir, e.ID)
-		if e.Commit != "" {
-			fmt.Printf(" (commit %.12s)", e.Commit)
-		}
-		fmt.Println(".")
+		fmt.Printf("[+] Blueprint '%s@%s' importado desde %s (commit %.12s).\n", e.ID, e.Version, e.Ref, e.Commit)
 		ids = append(ids, e.ID)
 	}
 	if res.Guardado {
-		fmt.Printf("[+] Repositorio de la organización registrado en .qdd/config.yaml: %s", res.Registro.Origen)
-		if res.Registro.Ref != "" {
-			fmt.Printf(" (%s)", res.Registro.Ref)
-		}
-		fmt.Println(". Desde ahora basta con: qdd blueprint add <id>...")
+		fmt.Printf("[+] Repositorio de la organización registrado en .qdd/config.yaml y en el registro central: %s. Desde ahora basta con: qdd blueprint add <id>...\n", res.Registro.Origen)
 	}
 	for _, w := range warnings {
 		fmt.Printf("[!] %s\n", w)
@@ -137,7 +172,10 @@ func printAddResult(res blueprints.AddResult, warnings []string) {
 func runBlueprintList(cmd *cobra.Command, args []string) {
 	root := modulesRoot()
 	if reg, _ := blueprints.LoadRegistro(root); reg.Origen != "" {
-		fmt.Printf("Repositorio de la organización: %s %s\n\n", reg.Origen, reg.Ref)
+		fmt.Printf("Repositorio de la organización: %s%s\n", reg.Origen, origenDelRegistro(reg))
+	}
+	if home, err := blueprints.Home(); err == nil {
+		fmt.Printf("Carpeta central de QDD: %s\n\n", filepath.Join(home, "blueprints"))
 	}
 	bps, errs := blueprints.List(root)
 	for _, err := range errs {
@@ -149,11 +187,8 @@ func runBlueprintList(cmd *cobra.Command, args []string) {
 	}
 	lock, _ := blueprints.LoadLock(root)
 	for _, b := range bps {
-		origen := "sin lockfile"
-		if e, ok := lock.Entry(b.ID); ok {
-			origen = e.Origen
-		}
-		fmt.Printf("- %-24s %-10s %s\n", b.ID, b.Version, origen)
+		e, _ := lock.Entry(b.ID)
+		fmt.Printf("- %-24s %-10s %s %s\n", b.ID, b.Version, e.Ref, e.Origen)
 	}
 	apps, _ := blueprints.LoadApplications(root)
 	if len(apps) > 0 {
@@ -360,4 +395,136 @@ func relPathOrSelf(root, p string) string {
 		return p
 	}
 	return filepath.ToSlash(rel)
+}
+
+func runBlueprintSync(cmd *cobra.Command, args []string) {
+	s, err := blueprints.Sincronizar(modulesRoot())
+	if err != nil {
+		fmt.Printf("[!] %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[+] %s sincronizado: última versión publicada %s.\n", s.Origen, s.Ref)
+	if len(s.Novedades) == 0 {
+		fmt.Println("    Los blueprints del proyecto están al día.")
+		return
+	}
+	var ids []string
+	for _, n := range s.Novedades {
+		fmt.Printf("[!] %s: %s → %s\n", n.ID, n.Actual, n.Disponible)
+		ids = append(ids, n.ID)
+	}
+	fmt.Printf("    Actualiza: qdd blueprint add %s (después, qdd blueprint apply para los módulos que los usan).\n", strings.Join(ids, " "))
+}
+
+func runBlueprintContribute(cmd *cobra.Command, args []string) {
+	ap, err := blueprints.Aportar(modulesRoot(), args[0])
+	if err != nil {
+		fmt.Printf("[!] %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[+] Aporte listo en la rama %s de %s.\n", ap.Rama, ap.Repo)
+	fmt.Printf("    Edita el blueprint aquí: %s\n", ap.Carpeta)
+	fmt.Printf("    Después: qdd blueprint propose %s -m \"qué cambia y por qué\" (QDD fija la versión y abre el PR).\n", args[0])
+}
+
+func runBlueprintPropose(cmd *cobra.Command, args []string) {
+	p, err := blueprints.Proponer(modulesRoot(), args[0], blueprintMensaje)
+	if err != nil {
+		fmt.Printf("[!] %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[+] %s v%s (cambio %s) publicado en la rama %s (commit %.12s).\n", args[0], p.Version, p.Cambio, p.Rama, p.Commit)
+	for _, r := range p.Razones {
+		fmt.Printf("    - %s\n", r)
+	}
+	if p.Aviso != "" {
+		fmt.Printf("[!] %s\n", p.Aviso)
+		return
+	}
+	fmt.Printf("[+] Pull request: %s\n    Tras el merge: qdd blueprint release\n", p.PR)
+}
+
+func runBlueprintRelease(cmd *cobra.Command, args []string) {
+	pub, err := blueprints.Publicar(modulesRoot())
+	if err != nil {
+		fmt.Printf("[!] %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[+] Publicada la versión %s (cambio %s).\n", pub.Tag, pub.Cambio)
+	for _, c := range pub.Cambios {
+		fmt.Printf("    - %s: %s → %s\n", c.ID, c.Actual, c.Disponible)
+	}
+	fmt.Println("    Cada proyecto la recibe con: qdd blueprint sync")
+}
+
+// migrationNotice migra, una sola vez, los blueprints del esquema anterior
+// (copias en .qdd/blueprints/) a la carpeta central y devuelve qué pasó y qué
+// queda por hacer, escrito para que una IA lo termine. Vacío si no hubo nada.
+func migrationNotice(root string) string {
+	m, err := blueprints.Migrar(root)
+	if err != nil {
+		return fmt.Sprintf("⚠️ QDD no pudo migrar los blueprints de este proyecto a la carpeta central: %v\n", err)
+	}
+	if !m.Hizo() && len(m.Pendientes) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("## Migración de blueprints (RFC 0004)\n")
+	if m.Hizo() {
+		home, _ := blueprints.Home()
+		fmt.Fprintf(&b, "QDD movió %s a su carpeta central (%s): el proyecto ya solo versiona %s. Incluye en el próximo commit la eliminación de %s/, el lockfile actualizado y .qdd/state.json.\n", strings.Join(m.Migrados, ", "), filepath.Join(home, "blueprints"), blueprints.LockFile, blueprints.Dir)
+	}
+	if err := sellarVersion(root, Version); m.Hizo() && err != nil {
+		fmt.Fprintf(&b, "⚠️ No se pudo fijar la versión mínima de QDD en .qdd/state.json: %v\n", err)
+	}
+	for _, p := range m.Pendientes {
+		fmt.Fprintf(&b, "- BP-05-LEGACY (%s), termínalo tú: %s\n", p.ID, p.Motivo)
+	}
+	return b.String()
+}
+
+func origenDelRegistro(reg blueprints.Registro) string {
+	if reg.Central {
+		return " (registro central de la organización)"
+	}
+	return " (.qdd/config.yaml)"
+}
+
+// sellarVersion exige en .qdd/state.json al menos esta versión de QDD: tras
+// migrar los blueprints a la carpeta central, un QDD anterior (otra máquina,
+// un CI fijado) se detiene con un error claro en vez de trabajar sin ver los
+// blueprints. Nunca baja la versión exigida; un binario de desarrollo no sella.
+func sellarVersion(root, version string) error {
+	if _, ok := blueprintsVersion(version); !ok {
+		return nil
+	}
+	path := filepath.Join(root, ".qdd", "state.json")
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	state := map[string]interface{}{}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("%s: JSON inválido: %w", path, err)
+	}
+	actual, _ := state["version"].(string)
+	if actual != "" && !isOlder(actual, version) {
+		return nil
+	}
+	state["version"] = version
+	out, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(out, '\n'), 0644)
+}
+
+// blueprintsVersion acepta solo versiones publicadas (vX.Y.Z).
+func blueprintsVersion(v string) (string, bool) {
+	var a, b, c int
+	n, err := fmt.Sscanf(v, "v%d.%d.%d", &a, &b, &c)
+	return v, err == nil && n == 3 && v == fmt.Sprintf("v%d.%d.%d", a, b, c)
 }

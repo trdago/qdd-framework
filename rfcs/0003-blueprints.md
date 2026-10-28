@@ -1,6 +1,6 @@
 # RFC 0003: Blueprints — arquetipos de módulo de cada organización
 
-**Status:** Implemented (fase 1 y 2)
+**Status:** Implemented (fase 1 y 2). Registro, almacenamiento y evolución: ver [RFC 0004](0004-blueprints-centrales.md).
 **Created:** 2026-10-23
 
 ## 1. Summary
@@ -72,7 +72,7 @@ qdd blueprint add <repo>//auth --ref v1.2.0  # una subcarpeta puntual
 - Se clona con `git` y las credenciales del usuario. **La protección es el control de acceso al repositorio**: quien no tiene acceso no puede importar.
 - `protocol.ext.allow=never` y `--` evitan la inyección de transportes y de opciones.
 - **Todo o nada**: se validan todos los blueprints pedidos antes de copiar cualquiera.
-- Cada blueprint se copia a `.qdd/blueprints/<id>/`, sin `.git` ni enlaces simbólicos. Esta copia se versiona con el proyecto para que el build sea reproducible.
+- ~~Cada blueprint se copia a `.qdd/blueprints/<id>/`~~. Desde el [RFC 0004](0004-blueprints-centrales.md), vive en la carpeta central de QDD y el proyecto solo versiona el lockfile.
 - `.qdd/blueprints.lock.yaml` fija `origen`, `subdir`, `ref`, `commit` y el `sha256` de cada copia.
 
 ### 3.3 Aplicar: `qdd blueprint apply` / MCP `qdd_blueprint_apply`
@@ -126,6 +126,6 @@ Una IA conoce los blueprints por tres vías, sin que nadie se lo pida:
 
 - Verificación de firma de los tags (cosign o minisign) antes de importar.
 - Lista de orígenes permitidos en `.qdd/config.yaml`, para que un proyecto solo acepte blueprints del repositorio de su organización.
-- Un registro a nivel de usuario (`~/.config/qdd`), para que un proyecto nuevo conozca el repositorio de la organización desde `qdd init`.
+- ~~Un registro a nivel de usuario~~: resuelto en el [RFC 0004](0004-blueprints-centrales.md) (registro central por remote git).
 - Dependencias entre blueprints, por ejemplo `auditoria` requiere `auth`.
 - Trazabilidad entre escenarios y pruebas: que el gate exija una prueba que cite cada id de escenario.
