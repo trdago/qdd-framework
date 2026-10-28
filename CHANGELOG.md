@@ -4,6 +4,21 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 📚 Documentación al día (FND-072)
+
+- **Guía nueva [`docs/blueprints.md`](docs/blueprints.md):** cómo crear el repositorio de blueprints de la organización (estructura, `catalogo.yaml`, campos, validaciones, versionado), importarlo, aplicarlo, usarlo con una IA y qué vigila el gate.
+- **Command Reference completa:**
+  - comandos que faltaban: `qdd modules`, `modules approve`, `modules context`, `blueprint show`, `certify human`, `undo` y `mcp-server`;
+  - todas las tools MCP, agrupadas, incluidas `qdd_project_context`, `qdd_module_save` y `qdd_certify_human`;
+  - secciones nuevas: fichas de módulo, reglas del gate (`QA-*`, `CI-*`, `HEART-*`, `BP-*`) y adaptadores de IA.
+- **Getting Started** con el recorrido actual: init, audit, blueprints, fichas, programar con IA y certificar.
+- **Architecture:** fichas de módulo y blueprints. Ya no cita `qdd sync` ni `qdd score`, que no son comandos de la CLI (son las tools `qdd_sync` y `qdd_score`).
+- **README:** blueprints, fichas, gate veraz y OpenCode; índice de la documentación; badge de build apuntando a `quality.yml`.
+- **README de npm** al día; deja de listar `/qdd validate` y `/qdd docs`, que no están implementados.
+- **La documentación ya no puede quedar atrás:** `cli/cmd/docs_reference_test.go` falla si la referencia omite un comando o una tool registrada, si nombra una tool que el servidor no registra o si un enlace relativo está roto.
+
 ## [v2.6.0] - 2026-10-30
 
 ### ▶ Comandos para la persona, con un clic desde el panel (RFC 0006 §3.9, `consola-claude-code` v5.0.0)
