@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,8 +15,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LockEntry fija de dónde salió un blueprint importado y su huella, para que
-// el gate detecte si la copia del proyecto se alteró a mano.
+// FormatoLock es la versión del lockfile. El formato 2 (RFC 0004) significa
+// que los blueprints viven en la carpeta central y el proyecto solo guarda el
+// lockfile; sin formato, el proyecto es del esquema anterior (copias en
+// .qdd/blueprints/), que Migrar convierte una sola vez.
+const FormatoLock = 2
+
+// LockEntry fija de dónde salió un blueprint importado (repositorio, subcarpeta,
+// tag y commit) y su huella, con la que QDD lo reconstruye y lo verifica.
 type LockEntry struct {
 	ID         string `yaml:"id"`
 	Version    string `yaml:"version"`
@@ -31,6 +36,7 @@ type LockEntry struct {
 
 // Lock es el contenido de .qdd/blueprints.lock.yaml.
 type Lock struct {
+	Formato    int         `yaml:"formato,omitempty"`
 	Blueprints []LockEntry `yaml:"blueprints"`
 }
 
@@ -59,18 +65,18 @@ type Catalogo struct {
 // AddInput describe qué importar.
 type AddInput struct {
 	Root       string
-	Origen     string   // carpeta local, o repositorio git (opcionalmente repo//subcarpeta)
-	Ref        string   // tag, rama o commit del repositorio git
+	Origen     string   // repositorio git: URL (opcionalmente repo//subcarpeta) o carpeta local de un repositorio
+	Ref        string   // tag de versión vX.Y.Z; vacío = la última versión publicada
 	Blueprints []string // ids a importar de un repositorio con varios
 	Paquete    string   // paquete del catálogo a importar
 	Todos      bool     // importar todos los blueprints del repositorio
 }
 
-// Add importa uno o varios blueprints al proyecto con un solo clon: los
-// valida TODOS antes de copiar nada, copia cada carpeta a .qdd/blueprints/<id>
-// y registra origen, commit y huella en el lockfile. Un repositorio git se
-// clona con las credenciales git del usuario, así que un repositorio privado
-// solo lo puede importar quien tenga acceso a él.
+// Add importa uno o varios blueprints de una versión publicada (tag vX.Y.Z)
+// del repositorio: los valida TODOS antes de guardar nada, guarda cada uno en
+// la carpeta central y registra origen, tag, commit y huella en el lockfile.
+// El repositorio se clona una vez por máquina con las credenciales git del
+// usuario, así que uno privado solo lo puede importar quien tenga acceso.
 func Add(in AddInput) ([]LockEntry, []string) {
 	origen := strings.TrimSpace(in.Origen)
 	if origen == "" || strings.HasPrefix(origen, "-") {
@@ -237,14 +243,7 @@ func parseSeleccion(base string, carpetas []string) ([]Blueprint, []string) {
 }
 
 func install(root string, b Blueprint, entry LockEntry) (LockEntry, error) {
-	dest := filepath.Join(root, Dir, b.ID)
-	if err := os.RemoveAll(dest); err != nil {
-		return LockEntry{}, err
-	}
-	if err := copyTree(b.Dir, dest); err != nil {
-		return LockEntry{}, err
-	}
-	sum, err := HashDir(dest)
+	_, sum, err := storePut(b.Dir)
 	if err != nil {
 		return LockEntry{}, err
 	}
@@ -264,38 +263,89 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-// fetch deja el origen en una carpeta local y devuelve su raíz, la subcarpeta
-// pedida con 'repo//subcarpeta' y los datos del lockfile. Devuelve siempre
-// una función de limpieza (para el clon temporal), aunque falle.
+// fetch deja una versión publicada del origen en una carpeta temporal y
+// devuelve su raíz, la subcarpeta pedida y los datos del lockfile. Devuelve
+// siempre una función de limpieza, aunque falle.
 func fetch(origen, ref string) (string, string, LockEntry, func(), error) {
 	noop := func() {}
-	if strings.HasPrefix(origen, "~/") {
-		home, _ := os.UserHomeDir()
-		origen = filepath.Join(home, origen[2:])
+	if ref != "" && !tagPattern.MatchString(ref) {
+		return "", "", LockEntry{}, noop, fmt.Errorf("--ref debe ser una versión publicada (tag vX.Y.Z); '%s' no lo es. QDD no importa ramas ni commits sueltos", ref)
 	}
-	if info, err := os.Stat(origen); err == nil && info.IsDir() {
-		abs, _ := filepath.Abs(origen)
-		return abs, "", LockEntry{Origen: abs, Commit: gitHead(abs)}, noop, nil
+	repo, subdir, err := resolverOrigen(origen)
+	if err != nil {
+		return "", "", LockEntry{}, noop, err
 	}
-	repo, subdir := splitSource(origen)
-	if subdir != "" && !isInside(subdir) {
-		return "", "", LockEntry{}, noop, fmt.Errorf("origen: la subcarpeta '%s' debe ser relativa al repositorio", subdir)
+	mirror, err := ensureMirror(repo, true)
+	if err != nil {
+		return "", "", LockEntry{}, noop, err
+	}
+	tags, err := versionTags(mirror)
+	if err != nil {
+		return "", "", LockEntry{}, noop, err
+	}
+	if len(tags) == 0 {
+		return "", "", LockEntry{}, noop, fmt.Errorf("'%s' no tiene versiones publicadas (tags vX.Y.Z): publícalas con 'qdd blueprint release'", repo)
+	}
+	ref = firstNonEmpty(ref, tags[0])
+	commit, err := git(mirror, "rev-parse", "--verify", "--quiet", "refs/tags/"+ref+"^{commit}")
+	if err != nil {
+		return "", "", LockEntry{}, noop, fmt.Errorf("'%s' no tiene la versión '%s'. Versiones: %s", repo, ref, strings.Join(tags, ", "))
 	}
 	tmp, err := os.MkdirTemp("", "qdd-blueprint-")
 	if err != nil {
 		return "", "", LockEntry{}, noop, err
 	}
 	cleanup := func() { os.RemoveAll(tmp) }
-	args := []string{"-c", "protocol.ext.allow=never", "clone", "--quiet", "--depth", "1"}
-	if ref != "" {
-		args = append(args, "--branch", ref)
+	if err := extraer(mirror, commit, tmp); err != nil {
+		return "", "", LockEntry{}, cleanup, err
 	}
-	args = append(args, "--", repo, tmp)
-	out, err := exec.Command("git", args...).CombinedOutput()
+	return tmp, subdir, LockEntry{Origen: repo, Ref: ref, Commit: commit}, cleanup, nil
+}
+
+// resolverOrigen separa el repositorio de la subcarpeta. Una carpeta local
+// vale solo si está dentro de un repositorio git: QDD importa versiones
+// publicadas, nunca archivos sueltos.
+func resolverOrigen(origen string) (string, string, error) {
+	origen = strings.TrimSpace(origen)
+	if strings.HasPrefix(origen, "~/") {
+		home, _ := os.UserHomeDir()
+		origen = filepath.Join(home, origen[2:])
+	}
+	if info, err := os.Stat(origen); err == nil && info.IsDir() {
+		return repoLocal(origen)
+	}
+	repo, subdir := splitSource(origen)
+	if subdir != "" && !isInside(subdir) {
+		return "", "", fmt.Errorf("origen: la subcarpeta '%s' debe ser relativa al repositorio", subdir)
+	}
+	return repo, subdir, nil
+}
+
+func repoLocal(dir string) (string, string, error) {
+	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return "", "", LockEntry{}, cleanup, fmt.Errorf("no se pudo clonar '%s' (¿tienes acceso al repositorio?): %s", repo, strings.TrimSpace(string(out)))
+		return "", "", err
 	}
-	return tmp, subdir, LockEntry{Origen: repo, Ref: ref, Commit: gitHead(tmp)}, cleanup, nil
+	top, err := git(abs, "rev-parse", "--show-toplevel")
+	if err != nil || top == "" {
+		return "", "", fmt.Errorf("'%s' no es un repositorio git: QDD solo importa blueprints versionados (git init, commit y 'qdd blueprint release')", dir)
+	}
+	realAbs, _ := filepath.EvalSymlinks(abs)
+	realTop, _ := filepath.EvalSymlinks(top)
+	rel, err := filepath.Rel(realTop, realAbs)
+	if err != nil {
+		return "", "", err
+	}
+	if rel == "." {
+		return abs, "", nil
+	}
+	// La raíz se expresa como la escribió el usuario (sin resolver enlaces),
+	// para que el registro y el lockfile la nombren igual.
+	repo := abs
+	for range strings.Split(filepath.ToSlash(rel), "/") {
+		repo = filepath.Dir(repo)
+	}
+	return repo, filepath.ToSlash(rel), nil
 }
 
 // splitSource separa "repo//subcarpeta" (convención de Terraform); el "//"
@@ -310,16 +360,6 @@ func splitSource(origen string) (string, string) {
 		return origen, ""
 	}
 	return origen[:start+i], strings.Trim(origen[start+i+2:], "/")
-}
-
-func gitHead(dir string) string {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
 }
 
 // blueprintFiles lista los archivos regulares de un blueprint, ordenados y
@@ -371,7 +411,7 @@ func HashDir(dir string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func copyTree(src, dest string) error {
+func copyTree(src, dest string, mode os.FileMode) error {
 	files, err := blueprintFiles(src)
 	if err != nil {
 		return err
@@ -385,7 +425,7 @@ func copyTree(src, dest string) error {
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(target, data, 0644); err != nil {
+		if err := os.WriteFile(target, data, mode); err != nil {
 			return err
 		}
 	}
@@ -421,39 +461,52 @@ func saveLockEntry(root string, entry LockEntry) error {
 		out = append(out, e)
 	}
 	l.Blueprints = append(out, entry)
+	return saveLock(root, l)
+}
+
+// saveLock escribe el lockfile, siempre en el formato vigente.
+func saveLock(root string, l Lock) error {
+	l.Formato = FormatoLock
 	sort.Slice(l.Blueprints, func(i, j int) bool { return l.Blueprints[i].ID < l.Blueprints[j].ID })
 	data, err := yaml.Marshal(l)
 	if err != nil {
 		return err
 	}
-	header := "# Blueprints importados con 'qdd blueprint add'. No se edita a mano.\n"
+	header := "# Blueprints importados con 'qdd blueprint add'. Lo administra QDD: no se edita a mano.\n# El contenido vive en la carpeta central de QDD (RFC 0004), no en el proyecto.\n"
+	if err := os.MkdirAll(filepath.Join(root, filepath.Dir(LockFile)), 0755); err != nil {
+		return err
+	}
 	return os.WriteFile(filepath.Join(root, LockFile), append([]byte(header), data...), 0644)
 }
 
-// Find lee un blueprint importado al proyecto.
+// Find lee un blueprint del lockfile desde la carpeta central.
 func Find(root, id string) (Blueprint, error) {
 	if !idPattern.MatchString(id) {
 		return Blueprint{}, fmt.Errorf("'%s' no es un id de blueprint válido", id)
 	}
-	b, err := ParseDir(filepath.Join(root, Dir, id))
+	lock, err := LoadLock(root)
 	if err != nil {
-		return Blueprint{}, fmt.Errorf("el blueprint '%s' no está importado; usa 'qdd blueprint add <origen>' (%v)", id, err)
+		return Blueprint{}, err
 	}
-	return b, nil
+	e, ok := lock.Entry(id)
+	if !ok {
+		return Blueprint{}, fmt.Errorf("el blueprint '%s' no está importado; usa 'qdd blueprint add %s'", id, id)
+	}
+	return load(e)
 }
 
-// List lee los blueprints importados al proyecto.
+// List lee los blueprints del lockfile desde la carpeta central.
 func List(root string) ([]Blueprint, []error) {
-	entries, _ := os.ReadDir(filepath.Join(root, Dir))
+	lock, err := LoadLock(root)
+	if err != nil {
+		return nil, []error{err}
+	}
 	var out []Blueprint
 	var errs []error
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		b, err := ParseDir(filepath.Join(root, Dir, e.Name()))
+	for _, e := range lock.Blueprints {
+		b, err := load(e)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("%s: %w", e.ID, err))
 			continue
 		}
 		out = append(out, b)

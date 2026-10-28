@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	// Dir guarda las copias importadas (vendorizadas) de cada blueprint.
+	// Dir es donde el esquema anterior (v1.10–v1.11) copiaba cada blueprint
+	// dentro del proyecto. Hoy solo existe hasta que Migrar lo convierte.
 	Dir = ".qdd/blueprints"
 	// LockFile fija origen, commit y huella de cada blueprint importado.
 	LockFile = ".qdd/blueprints.lock.yaml"

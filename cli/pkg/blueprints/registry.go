@@ -14,15 +14,34 @@ import (
 const configFile = ".qdd/config.yaml"
 
 // Registro es el repositorio de blueprints de la organización. QDD lo guarda
-// la primera vez que se importa desde él; después basta con nombrar los
-// blueprints (qdd blueprint add auth auditoria).
+// en el proyecto y en el registro central la primera vez que se importa desde
+// él; después basta con nombrar los blueprints (qdd blueprint add auth).
 type Registro struct {
 	Origen string `yaml:"origen"`
-	Ref    string `yaml:"ref,omitempty"`
+	// Ref es del esquema anterior: hoy se importa siempre la última versión
+	// publicada, salvo que se pida otra con --ref. Se lee para no romper
+	// config.yaml existentes y se borra al volver a guardar el registro.
+	Ref string `yaml:"ref,omitempty"`
+	// Central indica que el registro viene de la organización del proyecto
+	// (registro central de QDD) y no de su .qdd/config.yaml.
+	Central bool `yaml:"-"`
 }
 
-// LoadRegistro lee el registro de .qdd/config.yaml; vacío si no hay.
+// LoadRegistro devuelve el repositorio de blueprints del proyecto: el de su
+// .qdd/config.yaml o, si no tiene, el de su organización según su remote git.
 func LoadRegistro(root string) (Registro, error) {
+	reg, err := registroDelProyecto(root)
+	if err != nil || reg.Origen != "" {
+		return reg, err
+	}
+	org, ok := OrganizacionDe(root)
+	if !ok {
+		return Registro{}, nil
+	}
+	return Registro{Origen: org.Origen, Central: true}, nil
+}
+
+func registroDelProyecto(root string) (Registro, error) {
 	data, err := os.ReadFile(filepath.Join(root, configFile))
 	if os.IsNotExist(err) {
 		return Registro{}, nil
@@ -100,9 +119,10 @@ type AddResult struct {
 }
 
 // AddManaged importa como Add, pero administra el registro de la
-// organización: sin origen usa el de .qdd/config.yaml (y su ref, si no se
-// pide otra), y la primera vez que se importa desde un repositorio de varios
-// blueprints lo guarda para que después baste con nombrarlos.
+// organización: sin origen usa el del proyecto o el de su organización, y la
+// primera vez que se importa desde un repositorio de varios blueprints lo
+// guarda en el proyecto y en el registro central, para que este y los demás
+// proyectos de la organización solo tengan que nombrarlos.
 func AddManaged(in AddInput) (AddResult, []string) {
 	reg, err := LoadRegistro(in.Root)
 	if err != nil {
@@ -110,30 +130,36 @@ func AddManaged(in AddInput) (AddResult, []string) {
 	}
 	usaRegistro := strings.TrimSpace(in.Origen) == ""
 	if usaRegistro && reg.Origen == "" {
-		return AddResult{}, []string{"todavía no hay repositorio de blueprints de la organización: indícalo una vez y QDD lo recordará (qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.0.0 auth)"}
+		return AddResult{}, []string{"todavía no hay repositorio de blueprints de la organización: indícalo una vez y QDD lo recordará para todos sus proyectos (qdd blueprint add git@github.com:org/qdd-blueprints.git auth)"}
 	}
 	if usaRegistro {
 		in.Origen = reg.Origen
-		in.Ref = firstNonEmpty(in.Ref, reg.Ref)
 	}
 	entries, problems := Add(in)
 	if len(problems) > 0 {
 		return AddResult{}, problems
 	}
-	nuevo, ok := registroDe(entries, in.Ref)
-	if !ok || (reg.Origen != "" && nuevo.Origen != reg.Origen) || nuevo == reg {
+	nuevo, ok := registroDe(entries)
+	if !ok || (reg.Origen != "" && nuevo.Origen != reg.Origen) {
 		return AddResult{Entries: entries, Registro: reg}, nil
 	}
-	if err := SaveRegistro(in.Root, nuevo); err != nil {
-		return AddResult{Entries: entries, Registro: reg}, []string{"se importó, pero no se pudo guardar el registro en config.yaml: " + err.Error()}
+	var warnings []string
+	if err := RegistrarOrganizacion(in.Root, nuevo); err != nil {
+		warnings = append(warnings, "se importó, pero no se pudo actualizar el registro central: "+err.Error())
 	}
-	return AddResult{Entries: entries, Registro: nuevo, Guardado: true}, nil
+	if nuevo == reg {
+		return AddResult{Entries: entries, Registro: reg}, warnings
+	}
+	if err := SaveRegistro(in.Root, nuevo); err != nil {
+		return AddResult{Entries: entries, Registro: reg}, append(warnings, "se importó, pero no se pudo guardar el registro en config.yaml: "+err.Error())
+	}
+	return AddResult{Entries: entries, Registro: nuevo, Guardado: true}, warnings
 }
 
 // registroDe deduce el registro a partir de lo importado: solo cuenta si los
-// blueprints salieron de subcarpetas de un mismo repositorio (no de una
-// carpeta que es en sí un blueprint).
-func registroDe(entries []LockEntry, ref string) (Registro, bool) {
+// blueprints salieron de subcarpetas de un mismo repositorio (no de un
+// repositorio que es en sí un blueprint).
+func registroDe(entries []LockEntry) (Registro, bool) {
 	if len(entries) == 0 {
 		return Registro{}, false
 	}
@@ -142,5 +168,5 @@ func registroDe(entries []LockEntry, ref string) (Registro, bool) {
 			return Registro{}, false
 		}
 	}
-	return Registro{Origen: entries[0].Origen, Ref: ref}, true
+	return Registro{Origen: entries[0].Origen}, true
 }

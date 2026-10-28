@@ -69,6 +69,7 @@ Para encadenar comandos con rollback automático si uno falla:
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		enterProjectRoot(cmd.Name())
+		migrateBlueprints(cmd.Name())
 
 		// Detectar version mismatch
 		if err := validateProjectVersion(cmd.Root().Version); err != nil {
@@ -118,6 +119,24 @@ Para encadenar comandos con rollback automático si uno falla:
 		input := strings.Join(args, " ")
 		runQCL(input)
 	},
+}
+
+// migrateBlueprints migra, la primera vez que corre esta versión en un
+// proyecto del esquema anterior, sus blueprints a la carpeta central (RFC
+// 0004). Escribe en stderr para no ensuciar salidas como --json. El servidor
+// MCP no migra al arrancar: lo hace qdd_project_context, para que la IA se
+// entere y lo termine.
+func migrateBlueprints(name string) {
+	if name == "init" || name == "mcp-server" {
+		return
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	if notice := migrationNotice(cwd); notice != "" {
+		fmt.Fprint(os.Stderr, notice)
+	}
 }
 
 // enterProjectRoot hace que cada comando opere sobre la raíz del proyecto

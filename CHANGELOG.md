@@ -4,6 +4,25 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 💥 Blueprints centrales: QDD administra su ciclo de vida (RFC 0004, FND-052)
+
+**Breaking.** Los blueprints ya no se copian dentro de cada proyecto.
+
+- **Carpeta central** (`~/.local/share/qdd/blueprints`). Tiene un espejo por repositorio, que se clona una vez por máquina, y un store inmutable por versión, compartido por todos los proyectos. El proyecto solo versiona `.qdd/blueprints.lock.yaml` (formato 2).
+- **Sin configurar nada.** Los proyectos de la misma organización (mismo dueño en su remote git) ven el repositorio de blueprints de forma automática.
+- **CI.** Reconstruye cada blueprint desde el commit del lockfile. El job necesita acceso de solo lectura al repositorio de la organización.
+- **La evolución la dicta QDD:**
+  - solo se importan versiones publicadas (tags `vX.Y.Z`; sin `--ref`, la última), así que ya no se aceptan ramas, commits sueltos ni carpetas sin git;
+  - `qdd blueprint contribute`, `propose` y `release`: QDD calcula el bump semver de cada cambio, publica la rama, abre el PR y etiqueta el repositorio;
+  - `qdd blueprint sync` trae lo publicado.
+- **Gate:**
+  - `BP-05-LEGACY`: quedan copias dentro del proyecto;
+  - `BP-06-BEHIND`: la organización publicó una versión más nueva.
+- **Migración automática, una sola vez.** Las copias íntegras de `.qdd/blueprints/` pasan al store, y la IA recibe por `qdd_project_context` la instrucción de commitear el cambio. Las copias editadas a mano nunca se borran: quedan como tarea guiada (`BP-05-LEGACY`) para llevarlas al repositorio de la organización.
+- **MCP:** `qdd_blueprint_sync`, `qdd_blueprint_contribute` y `qdd_blueprint_propose`. Las reglas que reciben las IAs prohíben copiar o versionar a mano un blueprint.
+
 ## [v1.11.0] - 2026-10-24
 
 ### 🚀 Funciona a la primera (FND-040 a FND-051)
