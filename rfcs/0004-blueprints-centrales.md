@@ -87,7 +87,8 @@ QDD hace lo siguiente:
 1. Cada copia íntegra (su huella coincide con el lockfile) se guarda en el store y se borra del proyecto. No necesita red ni que el origen exista.
 2. El lockfile pasa al formato 2, y el repositorio del `config.yaml` se lleva al registro central.
 3. Una copia **editada a mano** o **fuera del lockfile** no se borra nunca. Queda como `BP-05-LEGACY`, con los pasos para que la IA la termine: `contribute`, portar los cambios, `propose` con confirmación del humano y borrar la copia.
-4. La IA recibe la instrucción de commitear la eliminación de `.qdd/blueprints/` y el lockfile.
+4. Se fija `version` en `.qdd/state.json` (nunca hacia abajo). Un QDD anterior en otra máquina o en el CI se detiene con "El proyecto requiere QDD v2.0.0", en vez de trabajar sin ver los blueprints o volver a copiarlos dentro del proyecto.
+5. La IA recibe la instrucción de commitear la eliminación de `.qdd/blueprints/`, el lockfile y `state.json`.
 
 Sin `.qdd/blueprints/`, la migración no hace nada. Por eso ocurre una sola vez.
 

@@ -247,3 +247,36 @@ func TestMigrationNotice_LeftoversAreTheAIsTask(t *testing.T) {
 		t.Fatalf("una copia editada queda como tarea guiada para la IA: %q", text)
 	}
 }
+
+func TestSellarVersion_OlderQDDStopsInsteadOfMissingTheBlueprints(t *testing.T) {
+	root := t.TempDir()
+	state := filepath.Join(root, ".qdd", "state.json")
+	if err := os.MkdirAll(filepath.Dir(state), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(state, []byte(`{"status":"initialized","version":"v1.11.0"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := sellarVersion(root, "v2.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(state)
+	if !strings.Contains(string(data), `"version": "v2.0.0"`) || !strings.Contains(string(data), `"status": "initialized"`) {
+		t.Fatalf("el proyecto migrado exige la versión que lo migró y conserva el resto: %s", data)
+	}
+	if err := checkVersionAge("v1.11.0", "v2.0.0"); err == nil {
+		t.Fatal("un QDD anterior debe detenerse ante un proyecto migrado")
+	}
+	if err := sellarVersion(root, "v1.12.0"); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(state); !strings.Contains(string(data), "v2.0.0") {
+		t.Fatalf("nunca se baja la versión exigida: %s", data)
+	}
+	if err := sellarVersion(root, "dev"); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(state); !strings.Contains(string(data), "v2.0.0") {
+		t.Fatalf("un binario de desarrollo no sella versión: %s", data)
+	}
+}

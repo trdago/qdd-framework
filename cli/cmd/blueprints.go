@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -471,7 +472,10 @@ func migrationNotice(root string) string {
 	b.WriteString("## Migración de blueprints (RFC 0004)\n")
 	if m.Hizo() {
 		home, _ := blueprints.Home()
-		fmt.Fprintf(&b, "QDD movió %s a su carpeta central (%s): el proyecto ya solo versiona %s. Incluye en el próximo commit la eliminación de %s/ y el lockfile actualizado.\n", strings.Join(m.Migrados, ", "), filepath.Join(home, "blueprints"), blueprints.LockFile, blueprints.Dir)
+		fmt.Fprintf(&b, "QDD movió %s a su carpeta central (%s): el proyecto ya solo versiona %s. Incluye en el próximo commit la eliminación de %s/, el lockfile actualizado y .qdd/state.json.\n", strings.Join(m.Migrados, ", "), filepath.Join(home, "blueprints"), blueprints.LockFile, blueprints.Dir)
+	}
+	if err := sellarVersion(root, Version); m.Hizo() && err != nil {
+		fmt.Fprintf(&b, "⚠️ No se pudo fijar la versión mínima de QDD en .qdd/state.json: %v\n", err)
 	}
 	for _, p := range m.Pendientes {
 		fmt.Fprintf(&b, "- BP-05-LEGACY (%s), termínalo tú: %s\n", p.ID, p.Motivo)
@@ -484,4 +488,43 @@ func origenDelRegistro(reg blueprints.Registro) string {
 		return " (registro central de la organización)"
 	}
 	return " (.qdd/config.yaml)"
+}
+
+// sellarVersion exige en .qdd/state.json al menos esta versión de QDD: tras
+// migrar los blueprints a la carpeta central, un QDD anterior (otra máquina,
+// un CI fijado) se detiene con un error claro en vez de trabajar sin ver los
+// blueprints. Nunca baja la versión exigida; un binario de desarrollo no sella.
+func sellarVersion(root, version string) error {
+	if _, ok := blueprintsVersion(version); !ok {
+		return nil
+	}
+	path := filepath.Join(root, ".qdd", "state.json")
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	state := map[string]interface{}{}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("%s: JSON inválido: %w", path, err)
+	}
+	actual, _ := state["version"].(string)
+	if actual != "" && !isOlder(actual, version) {
+		return nil
+	}
+	state["version"] = version
+	out, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(out, '\n'), 0644)
+}
+
+// blueprintsVersion acepta solo versiones publicadas (vX.Y.Z).
+func blueprintsVersion(v string) (string, bool) {
+	var a, b, c int
+	n, err := fmt.Sscanf(v, "v%d.%d.%d", &a, &b, &c)
+	return v, err == nil && n == 3 && v == fmt.Sprintf("v%d.%d.%d", a, b, c)
 }

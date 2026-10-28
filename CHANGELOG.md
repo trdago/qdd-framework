@@ -20,7 +20,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Gate:**
   - `BP-05-LEGACY`: quedan copias dentro del proyecto;
   - `BP-06-BEHIND`: la organización publicó una versión más nueva.
-- **Migración automática, una sola vez.** Las copias íntegras de `.qdd/blueprints/` pasan al store, y la IA recibe por `qdd_project_context` la instrucción de commitear el cambio. Las copias editadas a mano nunca se borran: quedan como tarea guiada (`BP-05-LEGACY`) para llevarlas al repositorio de la organización.
+- **Migración automática, una sola vez.** Las copias íntegras de `.qdd/blueprints/` pasan al store. `.qdd/state.json` exige v2.0.0, así que un QDD anterior se detiene en vez de trabajar sin ver los blueprints. La IA recibe por `qdd_project_context` la instrucción de commitear el cambio. Las copias editadas a mano nunca se borran: quedan como tarea guiada (`BP-05-LEGACY`) para llevarlas al repositorio de la organización.
 - **MCP:** `qdd_blueprint_sync`, `qdd_blueprint_contribute` y `qdd_blueprint_propose`. Las reglas que reciben las IAs prohíben copiar o versionar a mano un blueprint.
 
 ## [v1.11.0] - 2026-10-24
