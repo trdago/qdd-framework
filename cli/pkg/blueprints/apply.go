@@ -227,10 +227,7 @@ func Apply(in ApplyInput) (ApplyResult, []string) {
 	if len(pendientes) > 0 {
 		return ApplyResult{Pendientes: pendientes}, nil
 	}
-	rutas := in.Rutas
-	if len(rutas) == 0 {
-		rutas = b.Ficha.Rutas
-	}
+	rutas := rutasDe(in, modulo, b)
 	if problems := validateRutas(rutas); len(problems) > 0 {
 		return ApplyResult{}, problems
 	}
@@ -283,10 +280,35 @@ func (b Blueprint) ficha(root, modulo string, rutas []string, gen, genPrevio Gen
 	m.Pruebas.Goldensets = dedupe(append(actual.Pruebas.Goldensets, conformidad))
 	m.ADRs = actual.ADRs
 	m.Findings = actual.Findings
-	m.Fuentes = dedupe(append(actual.Fuentes,
-		filepath.ToSlash(filepath.Join(Dir, b.ID, ManifestName)),
+	m.Fuentes = dedupe(append(sinCopiasLegadas(actual.Fuentes),
+		LockFile,
 		filepath.ToSlash(filepath.Join(ApplicationsDir, modulo+".yaml"))))
 	return m
+}
+
+// rutasDe decide las rutas del módulo: las pedidas; si no, las que el módulo
+// ya tiene (re-aplicar nunca lo mueve); si es nuevo, las que sugiere el blueprint.
+func rutasDe(in ApplyInput, modulo string, b Blueprint) []string {
+	if len(in.Rutas) > 0 {
+		return in.Rutas
+	}
+	if actual, ok := modules.Find(in.Root, modulo); ok && len(actual.Rutas) > 0 {
+		return actual.Rutas
+	}
+	return b.Ficha.Rutas
+}
+
+// sinCopiasLegadas quita de las fuentes las rutas del esquema anterior
+// (.qdd/blueprints/<id>/…), que ya no existen en el proyecto.
+func sinCopiasLegadas(fuentes []string) []string {
+	var out []string
+	for _, f := range fuentes {
+		if strings.HasPrefix(filepath.ToSlash(f), Dir+"/") {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // propias devuelve lo que está en la ficha pero no lo generó el blueprint.

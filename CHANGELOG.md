@@ -4,6 +4,34 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🩺 `qdd doctor` sabe reparar todo lo de los blueprints (FND-053, FND-054)
+
+Desde esta versión, toda funcionalidad de QDD es determinista y `qdd doctor` sabe diagnosticarla y repararla. Si doctor no puede definir cómo repararla, es señal de que algo quedó ambiguo y se completa.
+
+- **Nuevo grupo "4. Blueprints de la organización"** con 5 diagnósticos. Antes, doctor decía "100% operativo" sin mirar los blueprints:
+  - sin copias dentro del proyecto;
+  - íntegros en la carpeta central;
+  - acceso al repositorio de la organización;
+  - al día con lo publicado;
+  - módulos generados con la versión importada.
+- **`qdd doctor --fix` repara de forma determinista:**
+
+  | Estado | Reparación |
+  |---|---|
+  | Lockfile ilegible | Lo restaura del último commit. |
+  | Copias del esquema anterior | Las migra. |
+  | Blueprints que faltan en esta máquina (otro PC) | Los reconstruye. |
+  | Lockfile editado a mano | Lo rehace desde la versión publicada que fija. |
+  | Módulo cuyo blueprint ya no está importado | Lo vuelve a importar. |
+  | Módulo generado con otra versión | Lo re-aplica con sus respuestas registradas; la ficha vuelve a borrador para tu aprobación. |
+
+  También sincroniza con lo publicado.
+- **Lo que es decisión humana, doctor no lo decide:** preguntas nuevas de un blueprint, actualizar de versión y llevar copias editadas al repositorio de la organización. En esos casos dice exactamente qué decidir y con qué comando.
+- **Sin red, sin falsos errores:** si la carpeta central ya tiene todo, la falta de conexión no es un problema. Un proyecto sin blueprints no usa la red.
+- **Corregido: re-aplicar un blueprint movía el módulo.** Sin `--ruta`, ahora conserva las rutas del módulo en vez de las sugeridas, y ya no crea esqueletos. Además, la ficha cita el lockfile en vez de `.qdd/blueprints/<id>/`, que ya no existe.
+
 ## [v2.0.0] - 2026-10-28
 
 ### 💥 Blueprints centrales: QDD administra su ciclo de vida (RFC 0004, FND-052)

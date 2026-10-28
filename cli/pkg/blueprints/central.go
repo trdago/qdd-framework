@@ -36,8 +36,12 @@ var (
 	slugPattern   = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-// errHuella indica que lo publicado en el origen no coincide con el lockfile.
-var errHuella = errors.New("no coincide con la huella del lockfile")
+// errHuella indica que lo publicado en el origen no coincide con el lockfile;
+// errSinHuella, que el lockfile no fija huella o commit válidos.
+var (
+	errHuella    = errors.New("no coincide con la huella del lockfile")
+	errSinHuella = errors.New("el lockfile no fija una huella y un commit válidos")
+)
 
 // Home es la carpeta central de QDD del usuario.
 func Home() (string, error) {
@@ -192,7 +196,7 @@ func writeFrom(r io.Reader, target string) error {
 
 func storePath(sum string) (string, error) {
 	if !shaPattern.MatchString(sum) {
-		return "", fmt.Errorf("huella inválida en el lockfile: '%s'", sum)
+		return "", fmt.Errorf("huella '%s': %w", sum, errSinHuella)
 	}
 	dir, err := centralDir("store")
 	if err != nil {
@@ -252,7 +256,7 @@ func materialize(e LockEntry) (string, error) {
 		return dest, nil
 	}
 	if !commitPattern.MatchString(e.Commit) {
-		return "", fmt.Errorf("el lockfile no fija el commit de '%s': vuelve a importarlo con 'qdd blueprint add %s'", e.ID, e.ID)
+		return "", fmt.Errorf("'%s': %w; vuelve a importarlo con 'qdd blueprint add %s' o 'qdd doctor --fix'", e.ID, errSinHuella, e.ID)
 	}
 	mirror, err := ensureMirror(e.Origen, false)
 	if err != nil {

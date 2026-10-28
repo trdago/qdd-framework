@@ -280,3 +280,33 @@ func TestSellarVersion_OlderQDDStopsInsteadOfMissingTheBlueprints(t *testing.T) 
 		t.Fatalf("un binario de desarrollo no sella versión: %s", data)
 	}
 }
+
+func blueprintsGroup(t *testing.T, list *Checklist) *CheckGroup {
+	t.Helper()
+	for _, g := range list.Groups {
+		if strings.Contains(g.Name, "Blueprints") {
+			return g
+		}
+	}
+	t.Fatalf("doctor debe revisar los blueprints de la organización: %+v", list.Groups)
+	return nil
+}
+
+func TestDoctor_DiagnosesAndRepairsBlueprints(t *testing.T) {
+	root := chdirToTempRepo(t)
+	legacyCmdProject(t, root)
+
+	g := blueprintsGroup(t, runDeterministicChecks(root))
+	if len(g.Items) != 5 || g.Items[0].Success {
+		t.Fatalf("una copia del esquema anterior es un problema que doctor ve: %+v", g.Items)
+	}
+	runSelectiveFixes(root, runDeterministicChecks(root))
+	for _, item := range blueprintsGroup(t, runDeterministicChecks(root)).Items {
+		if !item.Success {
+			t.Fatalf("doctor --fix deja los blueprints operativos: %s (%s)", item.Name, item.Error)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, blueprints.Dir)); !os.IsNotExist(err) {
+		t.Fatal("doctor --fix migró las copias a la carpeta central")
+	}
+}
