@@ -367,7 +367,7 @@ const findingsByPillar = computed(() => {
     const p = f.pillar || 'Certificación'
     if (!groups[p]) groups[p] = { title: p, items: [], passIcon: true }
     groups[p].items.push(f)
-    if (f.status.toUpperCase() !== 'RESOLVED') {
+    if (f.status === 'OPEN') {
       groups[p].passIcon = false
     }
   })
@@ -375,10 +375,8 @@ const findingsByPillar = computed(() => {
   return groups
 })
 
-const openFindingsCount = computed(() => {
-  if (!state.value?.findings) return 0
-  return state.value.findings.filter(f => f.status.toUpperCase() !== 'RESOLVED').length
-})
+// El backend normaliza el estado (pkg/findings): la UI no lo reinterpreta (FND-056).
+const openFindingsCount = computed(() => state.value?.findings_conteo?.abiertos ?? 0)
 
 
 const renderLifecycle = async () => {
@@ -977,7 +975,7 @@ onUnmounted(() => {
                   <span class="stat-label">Certificaciones Activas</span>
                 </div>
                 <div class="stat-card">
-                  <span class="stat-value">{{ state.findings ? state.findings.filter(f => f.status === 'OPEN').length : 0 }}</span>
+                  <span class="stat-value">{{ state.findings_conteo?.abiertos ?? 0 }}</span>
                   <span class="stat-label">Bugs Abiertos</span>
                 </div>
                 <div class="stat-card" style="border-left: 2px solid #3b82f6;">
@@ -1353,7 +1351,7 @@ onUnmounted(() => {
                  <div class="card glass-panel" style="padding: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
                     <h3 style="font-size: 16px; margin: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">🐞 Deuda Técnica</h3>
                     <div style="font-size: 32px; font-weight: bold; color: var(--accent-color); margin-bottom: 16px;">{{ openFindingsCount }} <span style="font-size: 14px; font-weight: normal; color: var(--text-muted);">Abiertos</span></div>
-                    <button class="btn btn-outline" style="width: 100%;" @click="openDetail({title: 'Radar de Bugs', content: '### Hallazgos Abiertos\n' + Object.values(findingsByPillar).flatMap(g => g.items.filter(i=>i.status.toUpperCase()!=='RESOLVED')).map(f => '- **' + f.id + '**: ' + f.status).join('\n')}, 'Quality')">Analizar Bugs</button>
+                    <button class="btn btn-outline" style="width: 100%;" @click="openDetail({title: 'Radar de Bugs', content: '### Hallazgos Abiertos\n' + Object.values(findingsByPillar).flatMap(g => g.items.filter(i=>i.status==='OPEN')).map(f => '- **' + f.id + '**: ' + f.status).join('\n')}, 'Quality')">Analizar Bugs</button>
                  </div>
               </div>
            </div>

@@ -58,3 +58,25 @@ func Score(violations []Violation) int {
 	}
 	return score
 }
+
+// GradoSinMedir se muestra mientras no hay una certificación con la escala
+// actual: QDD nunca inventa un puntaje (FND-051).
+const GradoSinMedir = "Sin medir"
+
+// Grado es la única escala cualitativa del puntaje. La usan el dashboard,
+// qdd_score y report (FND-057).
+func Grado(score int) string {
+	if score < 50 {
+		return "D (CRITICAL)"
+	}
+	if score < 70 {
+		return "C"
+	}
+	if score < 80 {
+		return "B"
+	}
+	if score < 90 {
+		return "A"
+	}
+	return "World-Class"
+}

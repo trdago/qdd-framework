@@ -16,6 +16,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/cognitive"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/topology"
 	"gopkg.in/yaml.v3"
@@ -251,8 +252,9 @@ type DashboardUnderstanding struct {
 	NextSteps  string   `json:"next_steps"`
 }
 
+// ValueMetrics solo contiene lo que se puede contar en el proyecto. Las
+// "horas ahorradas" se calculaban con constantes y se quitaron (FND-055).
 type ValueMetrics struct {
-	HoursSaved  int `json:"hours_saved"`
 	DebtReduced int `json:"debt_reduced"`
 }
 
@@ -302,6 +304,7 @@ type QDDState struct {
 	GraphData      DashboardGraphData        `json:"graph_data"`
 	LocalLLM       cognitive.LocalLLMInfo    `json:"local_llm"`
 	AutoUICert     bool                      `json:"auto_ui_certification"`
+	FindingsConteo findings.Conteo           `json:"findings_conteo"`
 }
 
 func BuildState() QDDState {
@@ -320,17 +323,18 @@ func BuildState() QDDState {
 	loadUnderstandingAndConfig(&response, qddDir)
 	loadTopology(&response, cwd, qddDir)
 
-	openFindings, _ := loadGraphData(&response, cwd)
+	loadGraphData(&response, cwd)
+	response.FindingsConteo = findings.ContarEn(cwd)
 
 	loadHistoricalTrends(&response, cwd)
 
 	score, grade, _ := puntajeDelDashboard(cwd)
 	response.Score = score
 	response.Grade = grade
-	response.QualityStatus = determineQualityStatus(openFindings)
+	response.QualityStatus = determineQualityStatus(response.FindingsConteo.Abiertos)
 	response.LocalLLM = cognitive.DetectLocalLLM()
 
-	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
+	if response.ValueMetrics.DebtReduced == 0 {
 		response.MCPLogs = append([]string{"[FILOSOFÍA QDD] 'Lo que no se mide no se mejora'. Finaliza sprints y certificaciones para generar métricas de valor cuantificables."}, response.MCPLogs...)
 	}
 
@@ -550,14 +554,6 @@ func processCertificationRow(response *QDDState, rows *sql.Rows) {
 		version = fmt.Sprintf("%v", rawData["version"])
 	}
 
-	mockHistory := []CertificationRun{
-		{RunID: "run-001", Timestamp: time.Now().Add(-48 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.2s"},
-		{RunID: "run-002", Timestamp: time.Now().Add(-24 * time.Hour).Format(time.RFC3339), Status: "FAIL", Duration: "0.8s"},
-		{RunID: "run-003", Timestamp: time.Now().Add(-12 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "1.1s"},
-		{RunID: "run-004", Timestamp: time.Now().Add(-2 * time.Hour).Format(time.RFC3339), Status: "PASS", Duration: "0.9s"},
-		{RunID: "run-005", Timestamp: time.Now().Format(time.RFC3339), Status: status, Duration: "1.0s"},
-	}
-
 	response.Certifications = append(response.Certifications, DashboardCertification{
 		ID:      name,
 		Version: version,
@@ -565,7 +561,6 @@ func processCertificationRow(response *QDDState, rows *sql.Rows) {
 		Name:    "Cumplimiento verificado",
 		Type:    "Proyecto",
 		Raw:     rawData,
-		History: mockHistory,
 	})
 }
 
@@ -587,30 +582,47 @@ func processFindingRow(response *QDDState, rows *sql.Rows) int {
 	var rawData map[string]interface{}
 	json.Unmarshal([]byte(metaStr), &rawData)
 
-	status := "OPEN"
-	if rawData != nil && rawData["status"] != nil {
-		status = fmt.Sprintf("%v", rawData["status"])
-	}
-
-	isResolved := (strings.ToUpper(status) == "RESOLVED")
-	openCount := 1
-	if isResolved {
-		openCount = 0
+	estado := findings.Normalizar(textoDe(rawData, "status"))
+	if estado == findings.Resuelto {
 		response.ValueMetrics.DebtReduced++
-		response.ValueMetrics.HoursSaved += 2
 	}
-
-	pillar := determineFindingPillar(name, rawData)
 
 	response.Findings = append(response.Findings, DashboardFinding{
 		ID:     name,
-		Status: status,
-		Pillar: pillar,
-		Desc:   "Deuda técnica documentada.",
+		Status: etiquetaDeEstado[estado],
+		Pillar: determineFindingPillar(name, rawData),
+		Desc:   descripcionDe(rawData),
 		Raw:    rawData,
 	})
 
-	return openCount
+	if estado == findings.Abierto {
+		return 1
+	}
+	return 0
+}
+
+// etiquetaDeEstado es lo que muestra la UI para cada estado normalizado.
+var etiquetaDeEstado = map[findings.Estado]string{
+	findings.Abierto:    "OPEN",
+	findings.Resuelto:   "RESOLVED",
+	findings.Descartado: "WONTFIX",
+	findings.SinEstado:  "SIN ESTADO",
+}
+
+func textoDe(raw map[string]interface{}, clave string) string {
+	if raw == nil || raw[clave] == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", raw[clave])
+}
+
+// descripcionDe usa lo que dice el finding. Antes todos mostraban el texto
+// fijo "Deuda técnica documentada." (FND-055).
+func descripcionDe(raw map[string]interface{}) string {
+	if d := textoDe(raw, "description"); d != "" {
+		return d
+	}
+	return textoDe(raw, "title")
 }
 
 func determineFindingPillar(name string, rawData map[string]interface{}) string {
@@ -744,10 +756,6 @@ func processSprintRow(response *QDDState, rows *sql.Rows) {
 
 	status := determineSprintStatus(contentStr, rawData)
 
-	if status == "COMPLETED" || status == "CERTIFIED" {
-		response.ValueMetrics.HoursSaved += 4
-	}
-
 	response.Sprints = append(response.Sprints, DashboardSprint{
 		ID:     name,
 		Status: status,
@@ -777,34 +785,17 @@ func extractStatusFromContent(contentStr string) string {
 
 // gradoSinMedir se muestra mientras el proyecto no tiene una certificación con
 // la escala actual: el dashboard nunca inventa un puntaje.
-const gradoSinMedir = "Sin medir"
+const gradoSinMedir = audit.GradoSinMedir
 
 // puntajeDelDashboard muestra el puntaje único de QDD (audit.Score) tal como
-// quedó en la última certificación (FND-051). Antes contaba solo findings
-// abiertos y mostraba 100 "World-Class" con pruebas que fallaban. No corre la
-// auditoría: el dashboard se refresca seguido y eso ejecutaría las pruebas.
+// quedó en la última certificación (FND-051), con la escala única (FND-057).
+// No corre la auditoría: eso ejecutaría las pruebas en cada refresco.
 func puntajeDelDashboard(cwd string) (int, string, bool) {
 	score, medido := audit.UltimoPuntaje(cwd)
 	if !medido {
 		return 0, gradoSinMedir, false
 	}
-	return score, determineDashboardGrade(score), true
-}
-
-func determineDashboardGrade(finalScore int) string {
-	if finalScore < 50 {
-		return "D (CRITICAL)"
-	}
-	if finalScore < 70 {
-		return "C"
-	}
-	if finalScore < 80 {
-		return "B"
-	}
-	if finalScore < 90 {
-		return "A"
-	}
-	return "World-Class"
+	return score, audit.Grado(score), true
 }
 
 // determineQualityStatus reflects open-findings count, not qdd audit's

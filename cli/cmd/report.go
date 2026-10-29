@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,25 +21,25 @@ var (
 )
 
 type ComprehensiveReport struct {
-	Timestamp          string                `json:"timestamp"`
-	ProjectName        string                `json:"project_name"`
-	ProjectRoot        string                `json:"project_root"`
-	Score              int                   `json:"score"`
-	Grade              string                `json:"grade"`
-	Tendency           string                `json:"tendency"`
-	ViolationsCount    int                   `json:"violations_count"`
-	Violations         []audit.Violation     `json:"violations"`
-	TotalCertifications int                  `json:"total_certifications"`
-	CertifiedCount     int                   `json:"certified_count"`
-	PendingCount       int                   `json:"pending_count"`
-	OpenFindingsCount  int                   `json:"open_findings_count"`
-	ResolvedFindings   int                   `json:"resolved_findings_count"`
-	AIGovernanceStatus string                `json:"ai_governance_status"`
-	DoctorHealthy      bool                  `json:"doctor_healthy"`
-	DoctorDetails      []string              `json:"doctor_details"`
-	LocalLLM           cognitive.LocalLLMInfo `json:"local_llm"`
-	EvolutionPriority  string                `json:"evolution_priority"`
-	EvolutionAdvice    string                `json:"evolution_advice"`
+	Timestamp           string                 `json:"timestamp"`
+	ProjectName         string                 `json:"project_name"`
+	ProjectRoot         string                 `json:"project_root"`
+	Score               int                    `json:"score"`
+	Grade               string                 `json:"grade"`
+	Tendency            string                 `json:"tendency"`
+	ViolationsCount     int                    `json:"violations_count"`
+	Violations          []audit.Violation      `json:"violations"`
+	TotalCertifications int                    `json:"total_certifications"`
+	CertifiedCount      int                    `json:"certified_count"`
+	PendingCount        int                    `json:"pending_count"`
+	OpenFindingsCount   int                    `json:"open_findings_count"`
+	ResolvedFindings    int                    `json:"resolved_findings_count"`
+	AIGovernanceStatus  string                 `json:"ai_governance_status"`
+	DoctorHealthy       bool                   `json:"doctor_healthy"`
+	DoctorDetails       []string               `json:"doctor_details"`
+	LocalLLM            cognitive.LocalLLMInfo `json:"local_llm"`
+	EvolutionPriority   string                 `json:"evolution_priority"`
+	EvolutionAdvice     string                 `json:"evolution_advice"`
 }
 
 var reportCmd = &cobra.Command{
@@ -78,7 +79,7 @@ func GenerateComprehensiveReport(cwd string) ComprehensiveReport {
 
 	evoReport, _ := evolution.Analyze(cwd, medicionDe(violations))
 
-	score, grade, tendency := getScoreMetadata(cwd, evoReport)
+	score, grade, tendency := getScoreMetadata(evoReport, violations)
 
 	totalCerts, certifiedCerts, pendingCerts := countProjectCertifications(cwd)
 	openFindings, resolvedFindings := countProjectFindings(cwd)
@@ -115,19 +116,20 @@ func GenerateComprehensiveReport(cwd string) ComprehensiveReport {
 		AIGovernanceStatus:  aiStatus,
 		DoctorHealthy:       doctorHealthy,
 		DoctorDetails:       doctorDetails,
-		LocalLLM:           localLLM,
+		LocalLLM:            localLLM,
 		EvolutionPriority:   evoPriority,
 		EvolutionAdvice:     evoAdvice,
 	}
 }
 
-func getScoreMetadata(cwd string, evoReport *evolution.Report) (int, string, string) {
+// getScoreMetadata usa el puntaje de evolution o, si no hay informe, el de la
+// auditoría que ya corrió. Antes devolvía 100 "A+ (Excelente)" inventado (FND-055).
+func getScoreMetadata(evoReport *evolution.Report, violations []audit.Violation) (int, string, string) {
 	if evoReport != nil {
-		score := evoReport.Score
-		grade := determineGrade(score)
-		return score, grade, evoReport.Tendency
+		return evoReport.Score, audit.Grado(evoReport.Score), evoReport.Tendency
 	}
-	return 100, "A+ (Excelente)", "Estable"
+	score := audit.Score(violations)
+	return score, audit.Grado(score), audit.GradoSinMedir
 }
 
 func filterAIViolations(violations []audit.Violation) []audit.Violation {
@@ -171,30 +173,8 @@ func countProjectCertifications(cwd string) (int, int, int) {
 }
 
 func countProjectFindings(cwd string) (int, int) {
-	findingsDir := filepath.Join(cwd, ".qdd", "project", "findings")
-	entries, err := os.ReadDir(findingsDir)
-	if err != nil {
-		return 0, 0
-	}
-
-	open, resolved := 0, 0
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
-			continue
-		}
-		content, err := os.ReadFile(filepath.Join(findingsDir, entry.Name()))
-		if err != nil {
-			continue
-		}
-		text := string(content)
-		if containsStringFold(text, "status: resolved") || containsStringFold(text, "status: closed") {
-			resolved++
-		}
-		if !containsStringFold(text, "status: resolved") && !containsStringFold(text, "status: closed") {
-			open++
-		}
-	}
-	return open, resolved
+	c := findings.ContarEn(cwd)
+	return c.Abiertos, c.Resueltos
 }
 
 func runDoctorQuickCheck(cwd string) (bool, []string) {

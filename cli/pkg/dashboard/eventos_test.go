@@ -154,3 +154,27 @@ func TestBroker_UltimoEstado(t *testing.T) {
 		t.Errorf("Ultimo = %q, %v", data, ok)
 	}
 }
+
+// FND-055: el dashboard inventaba un historial para cada certificación, horas
+// ahorradas con constantes y la misma descripción para todo finding.
+func TestBuildState_SinDatosSimulados(t *testing.T) {
+	dir := proyectoMedido(t)
+	os.WriteFile(filepath.Join(dir, ".qdd", "project", "findings", "FND-001.yaml"),
+		[]byte("title: Título real\ndescription: Qué pasó de verdad\nstatus: resolved\n"), 0644)
+	cert := filepath.Join(dir, ".qdd", "project", "certification")
+	os.MkdirAll(cert, 0755)
+	os.WriteFile(filepath.Join(cert, "CERT-900.yaml"), []byte("id: CERT-900\nname: Mi certificación\nstatus: certified\n"), 0644)
+
+	s := BuildState()
+	for _, c := range s.Certifications {
+		if len(c.History) != 0 {
+			t.Errorf("certificación %s con historial sin fuente: %v", c.ID, c.History)
+		}
+	}
+	if len(s.Findings) != 1 || s.Findings[0].Desc != "Qué pasó de verdad" {
+		t.Errorf("descripción del finding = %+v; want la del archivo", s.Findings)
+	}
+	if s.ValueMetrics.DebtReduced != 1 {
+		t.Errorf("deuda reducida = %d; want 1 (findings resueltos)", s.ValueMetrics.DebtReduced)
+	}
+}

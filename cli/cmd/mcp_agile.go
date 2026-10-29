@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,9 +75,7 @@ func processSingleFinding(path string, out *string, total, resolved, pending *in
 
 	*total++
 	icon := "🔴"
-	statusLower := strings.ToLower(f.Status)
-	
-	if statusLower == "resolved" || statusLower == "closed" {
+	if findings.Normalizar(f.Status) == findings.Resuelto {
 		icon = "🟢"
 		*resolved++
 		*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
@@ -102,18 +101,18 @@ func registerSprintTool(s *server.MCPServer) {
 		if !ok {
 			return mcp.NewToolResultError("Argumentos inválidos"), nil
 		}
-		
+
 		sprintParams, err := extractSprintParams(argsMap)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
-		
+
 		sprintsDir := filepath.Join(".", ".qdd", "project", "sprints")
 		os.MkdirAll(sprintsDir, 0755)
-		
+
 		sprintFile := filepath.Join(sprintsDir, fmt.Sprintf("sprint-%s.md", sprintParams["numero"]))
 		certFile := filepath.Join(sprintsDir, fmt.Sprintf("sprint-%s-cert.yaml", sprintParams["numero"]))
-		
+
 		if _, err := os.Stat(certFile); !os.IsNotExist(err) {
 			return mcp.NewToolResultText(fmt.Sprintf("El sprint/certificado %s ya existe.", sprintParams["numero"])), nil
 		}
@@ -133,13 +132,13 @@ func extractSprintParams(argsMap map[string]interface{}) (map[string]string, err
 	}
 
 	params := map[string]string{
-		"numero": getString("numero"),
-		"goal": getString("goal"),
-		"happy_path": getString("happy_path"),
-		"error_paths": getString("error_paths"),
-		"edge_cases": getString("edge_cases"),
+		"numero":                getString("numero"),
+		"goal":                  getString("goal"),
+		"happy_path":            getString("happy_path"),
+		"error_paths":           getString("error_paths"),
+		"edge_cases":            getString("edge_cases"),
 		"technical_constraints": getString("technical_constraints"),
-		"executable_tests": getString("executable_tests"),
+		"executable_tests":      getString("executable_tests"),
 	}
 
 	if err := validateSprintParams(params); err != nil {
@@ -176,7 +175,7 @@ func generateCertYAMLContent(params map[string]string) string {
   
   scenarios:
     happy_path:`, params["numero"], params["goal"])
-	
+
 	certContent += appendRules(params["happy_path"], "      - ")
 	certContent += "\n    error_paths:"
 	certContent += appendRules(params["error_paths"], "      - ")
@@ -184,7 +183,7 @@ func generateCertYAMLContent(params map[string]string) string {
 	if params["edge_cases"] != "" {
 		certContent += appendRules(params["edge_cases"], "      - ")
 	}
-	
+
 	certContent += "\n\n  technical_constraints:"
 	certContent += appendRules(params["technical_constraints"], "    - ")
 	certContent += "\n\n  executable_tests:"
@@ -240,7 +239,7 @@ func registerReleaseTool(s *server.MCPServer) {
 		if !ok {
 			return mcp.NewToolResultError("Argumento 'version' requerido"), nil
 		}
-		
+
 		cwd, err := os.Getwd()
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
@@ -258,7 +257,7 @@ func runReleaseBuilds(cwd string) {
 	if fileExists(filepath.Join(cwd, "package.json")) {
 		exec.Command("npm", "run", "build").Run()
 	}
-	
+
 	if !fileExists(filepath.Join(cwd, "package.json")) && fileExists(filepath.Join(cwd, "Makefile")) {
 		exec.Command("make", "build").Run()
 	}
