@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,8 +17,9 @@ import (
 // ni exigir un proyecto.
 
 var (
-	consolaSinBarra bool
-	consolaSiActivo bool
+	consolaSinBarra   bool
+	consolaSiActivo   bool
+	consolaConfirmado bool
 )
 
 var consolaCmd = &cobra.Command{
@@ -30,8 +32,12 @@ var consolaCmd = &cobra.Command{
   qdd consola estado                 dice si está activo y al día (lo mismo que revisa 'qdd doctor')
   qdd consola actualizar             lo deja en la versión de esta CLI (--si-activo: solo si se activó)
   qdd consola statusline             la barra: lee el JSON de la consola por la entrada estándar
+  qdd consola panel                  lo que dibuja el panel, en JSON: estado por frente y acciones
+  qdd consola accion <id> [--confirmado]  ejecuta una acción que ofrece 'qdd consola panel'
 
 El panel se abre solo en los proyectos con .qdd/project/estado.yaml; /estado lo abre y /estado cerrar lo cierra.
+Desde el panel se aprueban las fichas en borrador (1…9), se revisa el estado (c) y se audita (u); lo que escribe
+pide «s  Sí» antes de correr.
 Una barra propia (statusLine) no se toca.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
@@ -42,11 +48,21 @@ var consolaDesactivarCmd = &cobra.Command{Use: "desactivar", Short: "Quita el pa
 var consolaEstadoCmd = &cobra.Command{Use: "estado", Short: "Dice si la consola está activa y al día", Run: runConsolaEstado}
 var consolaActualizarCmd = &cobra.Command{Use: "actualizar", Short: "Deja el panel en la versión de esta CLI", Run: runConsolaActualizar}
 var consolaStatuslineCmd = &cobra.Command{Use: "statusline", Short: "Barra de estado de Claude Code (JSON por la entrada estándar); nunca falla", Run: runConsolaStatusline}
+var consolaPanelCmd = &cobra.Command{Use: "panel", Short: "Lo que dibuja el panel, en JSON (estado por frente y acciones); nunca falla", Run: runConsolaPanel}
+var consolaAccionCmd = &cobra.Command{
+	Use:   "accion <id>",
+	Short: "Ejecuta una acción que ofrece 'qdd consola panel' (lo que escribe, solo con --confirmado)",
+	Args:  cobra.ExactArgs(1),
+	Run:   runConsolaAccion,
+}
 
 func init() {
 	consolaActivarCmd.Flags().BoolVar(&consolaSinBarra, "sin-barra", false, "instala solo el panel; no cambia la barra (statusLine)")
 	consolaActualizarCmd.Flags().BoolVar(&consolaSiActivo, "si-activo", false, "no hace nada si la consola no se activó (para instaladores)")
-	consolaCmd.AddCommand(consolaActivarCmd, consolaDesactivarCmd, consolaEstadoCmd, consolaActualizarCmd, consolaStatuslineCmd)
+	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
+	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
+	consolaCmd.AddCommand(consolaActivarCmd, consolaDesactivarCmd, consolaEstadoCmd, consolaActualizarCmd, consolaStatuslineCmd,
+		consolaPanelCmd, consolaAccionCmd)
 	rootCmd.AddCommand(consolaCmd)
 }
 
@@ -112,4 +128,35 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 	if l := consola.Barra(datos, time.Now(), true); l != "" {
 		fmt.Print(l)
 	}
+}
+
+// runConsolaPanel siempre imprime un JSON: sin estado.yaml, el estado es null y el motivo dice cómo crearlo.
+func runConsolaPanel(cmd *cobra.Command, args []string) {
+	out, err := json.Marshal(consola.Panel(estadoRaiz(), time.Now()))
+	if err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Println(string(out))
+}
+
+// runConsolaAccion vuelve a calcular las acciones: el panel solo pasa el id y qdd decide si existe y si está confirmada.
+func runConsolaAccion(cmd *cobra.Command, args []string) {
+	os.Exit(consolaAccion(estadoRaiz(), args[0], consolaConfirmado, os.Stdout, os.Stderr))
+}
+
+func consolaAccion(root, id string, confirmado bool, salida, errores io.Writer) int {
+	a, err := consola.BuscarAccion(consola.Acciones(root, consola.HayEstado(root)), id)
+	if err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	if err := consola.Autorizar(a, confirmado); err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	bin, err := os.Executable()
+	if err != nil {
+		bin = "qdd"
+	}
+	return a.Ejecutar(root, bin, salida)
 }
