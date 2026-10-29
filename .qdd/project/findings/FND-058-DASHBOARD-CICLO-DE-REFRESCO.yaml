@@ -1,8 +1,0 @@
-title: "El dashboard se refresca solo cada 500 ms aunque no cambie nada"
-description: "RunWatcher observa todo .qdd/, y BuildState escribe dentro de .qdd/ (cognitive_history.json mediante un .tmp + rename, y knowledge.db en SyncToGraph). Cada escritura dispara otro BuildState 500 ms después. Además, el heartbeat agrega una línea a .qdd/mcp.log cada 15 s. Se reprodujo con una prueba exploratoria: 10 reconstrucciones en 5 s sin cambios externos, en un proyecto vacío con un puntaje medido."
-impact: "Con el dashboard abierto, QDD recorre todo el código del proyecto dos veces por segundo, reenvía el estado por SSE y hace crecer mcp.log sin límite con líneas que no son del MCP."
-action_taken: "Pendiente (RFC 0005 §3.9). El watcher ignora los archivos que escribe el propio dashboard (knowledge.db, metrics/, mcp.log, *.tmp). Se elimina el heartbeat y el historial se escribe solo cuando cambia el puntaje."
-test_result: "Pendiente: prueba de regresión basada en la exploratoria. Con un puntaje medido y sin cambios externos, BuildState corre una sola vez en 3 s."
-status: open
-detectado_por: ia
-date: "2026-10-29"
