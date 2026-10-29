@@ -92,6 +92,16 @@ La invariante actual «La barra solo usa el JSON de la consola: sin red, sin arc
 - Ese segmento lee solo archivos locales del proyecto. No usa red, tiene un tope de 100 ms y, si falla o tarda, no muestra nada.
 - Los demás segmentos siguen usando solo el JSON de la consola.
 
+### 3.4.1 Panel dentro de Claude Code (mod `qdd-estado`, prototipo)
+
+Claude Code (v2.1.287+) deja que un plugin de tipo *mod* dibuje un panel: al lado de la conversación si la terminal es ancha y usa la vista fullscreen (`/tui fullscreen`), y encima del prompt si no. Es la vía oficial para tener la tabla en la misma consola, como OpenCode, sin que otro programa escriba sobre la pantalla de Claude Code.
+
+- `qdd estado ver --json` entrega el estado ya resuelto (`estado.Datos`): resumen, etapas y abreviaturas, un símbolo por celda, y las listas de ⏳ (con su bloqueo y de quién) y de ❌. Quien dibuja no interpreta reglas ni lee el YAML.
+- El mod `plugins/qdd-estado` llama a esa salida cada 2 s (`$.process.run`, tope de 3 s) y redibuja solo si cambió. Sin `qdd`, con un `qdd` antiguo o sin archivo, el panel dice cómo crearlo. `/estado` abre el panel y `/estado cerrar` lo cierra. `QDD_BIN` apunta a otro binario.
+- El panel se abre solo si hay frentes. Si se abre sin que el usuario lo pida, Claude Code solo lo muestra desde 144 columnas.
+- Pruebas: `claude plugin validate` y `claude plugin test` (dibujo, sin archivo, redibujo al cambiar).
+- Pendiente para dejarlo de prototipo: probarlo en una sesión real con fullscreen (Linux y Windows) y distribuirlo desde el marketplace de la organización.
+
 ### 3.5 Agnóstico al sistema operativo
 
 Todo en Go puro, sin cgo. La terminal se maneja con secuencias ANSI y `golang.org/x/term` (tamaño y modo crudo), que funcionan en Windows 10+, macOS y Linux. No hay dependencia de tmux; el panel dividido lo arma cada terminal.

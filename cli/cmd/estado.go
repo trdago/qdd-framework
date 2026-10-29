@@ -36,7 +36,7 @@ var estadoCmd = &cobra.Command{
 	Short: "Estado por frente: la tabla de frentes × etapas del proyecto (RFC 0006)",
 	Long: `Lee y escribe .qdd/project/estado.yaml (blueprint estado-por-frente, destino «archivo»).
 
-  qdd estado                         imprime la tabla (markdown o mensajería, según la ficha)
+  qdd estado [--json]                imprime la tabla (markdown o mensajería, según la ficha; --json para un panel)
   qdd estado init                    crea el archivo con las etapas de la ficha
   qdd estado set <frente> <etapa> <ok|espera|falla|na> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
   qdd estado cerrar <frente> --motivo "…" [--descartado]
@@ -93,6 +93,7 @@ func init() {
 	for _, c := range []*cobra.Command{estadoCmd, estadoVerCmd} {
 		c.Flags().StringVar(&estadoFormato, "formato", "", "markdown | mensajeria (por defecto, el de la ficha)")
 		c.Flags().StringVar(&estadoAlcance, "alcance", "", "abiertos | todos (por defecto, el de la ficha)")
+		c.Flags().BoolVar(&estadoJSON, "json", false, "salida JSON para quien dibuja el estado (p. ej. el mod de Claude Code)")
 	}
 	estadoInitCmd.Flags().StringVar(&estadoEtapas, "etapas", "", "etapas separadas por coma (si la ficha dice «propias»)")
 	f := estadoSetCmd.Flags()
@@ -155,6 +156,11 @@ func cargarEstado(root string) estado.Estado {
 func runEstadoVer(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	e := cargarEstado(root)
+	if estadoJSON {
+		out, _ := json.Marshal(estado.Datos(e, time.Now()))
+		fmt.Println(string(out))
+		return
+	}
 	op := estadoOpciones(root)
 	formato := primero(estadoFormato, op["formato"], "markdown")
 	alcance := estado.Alcance(primero(estadoAlcance, op["alcance"], string(estado.AlcanceAbiertos)))

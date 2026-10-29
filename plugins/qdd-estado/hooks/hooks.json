@@ -1,0 +1,4 @@
+{
+  "description": "Hooks module del panel de estado por frente",
+  "modules": ["./register.js"]
+}

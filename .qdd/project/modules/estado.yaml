@@ -9,6 +9,7 @@ rutas:
     - cli/cmd/estado_vt_other.go
     - cli/cmd/mcp_estado.go
     - cli/pkg/audit/estado_check.go
+    - plugins/qdd-estado
 objetivo_operativo:
     problema: El blueprint estado-por-frente con destino «archivo» pide una tabla de frentes × etapas que sobreviva a una sesión cortada y que un lector automático pueda revisar. Sin herramienta, la tabla se escribe a mano, sin validar, y nadie la ve mientras trabaja.
     usuarios: Las personas que siguen el avance desde la consola (barra de estado y panel) y los agentes que retoman o reportan trabajo (CLI y tool MCP qdd_estado).
@@ -23,6 +24,7 @@ objetivo_tecnologico:
         - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - 'qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.'
+        - 'El mod qdd-estado solo dibuja lo que entrega qdd estado ver --json: no interpreta reglas ni lee el YAML.'
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
         - Un frente nunca se borra; se cierra o se descarta con motivo.
@@ -34,6 +36,7 @@ pruebas:
         - cd cli && go test ./pkg/estado/...
         - cd cli && go test ./pkg/audit/ -run EstadoCheck
         - cd cli && go test ./cmd/ -run EstadoTool
+        - cd plugins/qdd-estado && claude plugin validate . && claude plugin test
         - cd cli && GOOS=windows go vet ./cmd ./pkg/estado && GOOS=darwin go vet ./cmd ./pkg/estado
 fuentes:
     - rfcs/0006-estado-por-frente-en-consola.md

@@ -1,6 +1,7 @@
 package estado
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -350,5 +351,28 @@ func TestPanel_ColumnaFrenteMideLoQueElNombreMasLargo(t *testing.T) {
 	cab := lineas[2]
 	if AnchoVisible(cab) > largo+1+3*len(e.Etapas) {
 		t.Fatalf("la columna Frente no debe rellenar hasta el ancho de la terminal: %d columnas en %q", AnchoVisible(cab), cab)
+	}
+}
+
+func TestDatos_LoQueDibujaElPanelDeLaConsola(t *testing.T) {
+	e := mustParse(t, valido)
+	d := Datos(e, ahora)
+	if d.Resumen != Statusline(e, ahora) || len(d.Frentes) != 2 {
+		t.Fatalf("resumen y solo frentes abiertos (o recién cerrados): %+v", d)
+	}
+	if strings.Join(d.Abreviaturas, ",") != "Có,Pu,Po,Va" {
+		t.Fatalf("abreviaturas únicas: %v", d.Abreviaturas)
+	}
+	if strings.Join(d.Frentes[0].Simbolos, "") != "✅✅✅⏳" {
+		t.Fatalf("un símbolo por etapa, en orden: %v", d.Frentes[0].Simbolos)
+	}
+	if len(d.Esperas) != 1 || d.Esperas[0].DeQuien != "uso real" || d.Esperas[0].Texto == "" {
+		t.Fatalf("cada ⏳ con qué espera y de quién: %+v", d.Esperas)
+	}
+	if len(d.Fallas) != 1 || !strings.Contains(d.Fallas[0].Texto, "ticket") {
+		t.Fatalf("cada ❌ con su falla: %+v", d.Fallas)
+	}
+	if _, err := json.Marshal(d); err != nil {
+		t.Fatal(err)
 	}
 }
