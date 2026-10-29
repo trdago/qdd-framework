@@ -2,7 +2,7 @@
 
 **Status:** Accepted (aprobado por el humano el 2026-10-29; implementado en la rama feat/estado-por-frente)
 **Created:** 2026-10-29
-**Relacionado:** blueprint `estado-por-frente` (v1.0.0, opción `destino: archivo`), blueprint `consola-claude-code` (aporte v1.1.0), [RFC 0004](0004-blueprints-centrales.md).
+**Relacionado:** blueprint `estado-por-frente` (v1.0.0, opción `destino: archivo`), blueprint `consola-claude-code` (v2.0.0), [RFC 0004](0004-blueprints-centrales.md).
 
 ## 1. Summary
 
@@ -84,9 +84,9 @@ Reglas del archivo:
 - `qdd audit` agrega la regla `EPF-01-CHECK`: si el módulo usa `destino: archivo` y el archivo existe, corre `check` (sin `--respuesta`).
 - Tool MCP `qdd_estado` con `ver`, `set`, `cerrar` y `check`: los agentes actualizan el archivo por la misma validación que el humano.
 
-### 3.4 Barra de estado (aporte `consola-claude-code` v1.1.0)
+### 3.4 Barra de estado (`consola-claude-code` v2.0.0)
 
-La invariante actual «La barra solo usa el JSON de la consola: sin red, sin archivos ni llamadas extra» impide leer `estado.yaml`. Se propone (cambio **minor**, porque agrega y no quita) una opción nueva, `segmento_estado`:
+La invariante de la v1.0.0, «La barra solo usa el JSON de la consola: sin red, sin archivos ni llamadas extra», impedía leer `estado.yaml`. Se reescribió, y por eso QDD fijó la versión **mayor** (2.0.0, publicada el 2026-10-29). La pregunta nueva es `consola_qdd` (§3.6):
 
 - La barra puede mostrar un único segmento extra que entrega `qdd estado statusline`.
 - Ese segmento lee solo archivos locales del proyecto. No usa red, tiene un tope de 100 ms y, si falla o tarda, no muestra nada.
@@ -111,7 +111,7 @@ Decisión del humano (2026-10-29): el usuario solo activa algo; QDD hace el rest
 - `qdd consola desactivar` desinstala el panel, quita el marketplace y devuelve la barra anterior. `qdd consola estado` dice si está activo y al día.
 - `qdd doctor` suma el grupo «6. Consola de Claude Code» solo si se activó en esa máquina: panel instalado, habilitado y en la versión de la CLI, y barra de QDD si se eligió. `qdd doctor --fix` lo repara.
 - `make install` e `npm install` ejecutan `qdd consola actualizar --si-activo`, así que el panel se actualiza junto con la CLI.
-- Nada se escribe en el proyecto. El blueprint `consola-claude-code` v1.1.0 pregunta si se quiere el panel; la ficha lo registra y la persona lo activa con un comando.
+- Nada se escribe en el proyecto. El blueprint `consola-claude-code` v2.0.0 (pregunta `consola_qdd`) define si se quiere el panel; la ficha lo registra y la persona lo activa con un comando.
 
 ### 3.5 Agnóstico al sistema operativo
 
