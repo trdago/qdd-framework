@@ -249,4 +249,27 @@ describe('App.vue - Enterprise Dashboard', () => {
 
     expect(wrapper.vm.openFindingsCount).toBe(1)
   })
+
+  // FND-060: la UI daba por aprobada toda certificación 'certified', incluido
+  // el catálogo core que el proyecto nunca adoptó. Ahora usa el conteo del backend.
+  it('cuenta las certificaciones según el backend y no da por cumplido el catálogo', async () => {
+    const instance = MockEventSource.instances[0]
+    instance.onmessage({ data: JSON.stringify({
+      score: 90, grade: 'World-Class', quality_status: 'PASS',
+      findings: [], findings_conteo: { abiertos: 0, resueltos: 0, descartados: 0, sin_estado: 0 },
+      certifications: [
+        { id: 'CERT-OK', name: 'Adoptada', status: 'CUMPLE', type: 'Proyecto', origen: 'proyecto', is_core: false },
+        { id: 'CERT-SIN', name: 'Sin estado', status: 'SIN ESTADO', type: 'Proyecto', origen: 'proyecto', is_core: false },
+        { id: 'CERT-CAT', name: 'Catálogo', status: 'DISPONIBLE', type: 'Catálogo', origen: 'catalogo', is_core: true }
+      ],
+      certificaciones_conteo: { cumplen: 1, no_cumplen: 0, pendientes: 0, sin_estado: 1, disponibles: 1 },
+      sprints: [], knowledge: [], config: {},
+      telemetry: { uptime: '1s', memory_sys: '1 MB', goroutines: 1 },
+      topology: { application: { name: 'QDD', children: [] } },
+      historical_trends: []
+    }) })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.certStats).toEqual({ adoptadas: 2, cumplen: 1, pendientes: 1, disponibles: 1 })
+  })
 })

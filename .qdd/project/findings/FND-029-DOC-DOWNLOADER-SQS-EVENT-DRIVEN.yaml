@@ -1,7 +1,7 @@
 id: FND-029-DOC-DOWNLOADER-SQS-EVENT-DRIVEN
 type: IMPROVEMENT
 title: 'Arquitectura Event-Driven para Descarga de Documentos con AWS SQS Long-Polling'
-status: RESOLVED
+status: resolved
 severity: HIGH
 impact: 'HIGH - Eliminación del sondeo periódico (polling cada 60s) en el worker local doc_downloader mediante el consumo reactivo e instantáneo con AWS SQS Long-Polling (WaitTimeSeconds: 20).'
 created_at: '2026-08-22T12:35:00-04:00'

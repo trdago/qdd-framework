@@ -12,8 +12,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed version.txt
@@ -204,10 +206,37 @@ func handlePanicRecovery(r interface{}) {
 	fndID := fmt.Sprintf("FND-PANIC-%d", time.Now().Unix())
 	fndPath := filepath.Join(findingsDir, fndID+".yaml")
 
-	content := fmt.Sprintf("id: %s\ntype: PANIC_RECOVERED\ntitle: 'Pánico interceptado por Zero-Panic Guard'\nstatus: RESOLVED\nseverity: CRITICAL\nimpact: 'CRITICAL - Excepción no controlada interceptada en tiempo de ejecución: %v'\ncreated_at: '%s'\n", fndID, r, time.Now().Format(time.RFC3339))
-	_ = os.WriteFile(fndPath, []byte(content), 0644)
+	content, err := findingDePanico(fndID, r, time.Now())
+	if err == nil {
+		_ = os.WriteFile(fndPath, content, 0644)
+	}
 
 	os.Exit(1)
+}
+
+// findingDePanico registra el pánico como un finding abierto: atraparlo evita
+// la caída, pero el defecto que lo causó sigue sin corregir. Se serializa con
+// yaml para que cualquier mensaje quede legible (FND-062).
+func findingDePanico(id string, r interface{}, ahora time.Time) ([]byte, error) {
+	return yaml.Marshal(struct {
+		ID           string `yaml:"id"`
+		Type         string `yaml:"type"`
+		Title        string `yaml:"title"`
+		Status       string `yaml:"status"`
+		Severity     string `yaml:"severity"`
+		Impact       string `yaml:"impact"`
+		DetectadoPor string `yaml:"detectado_por"`
+		CreatedAt    string `yaml:"created_at"`
+	}{
+		ID:           id,
+		Type:         "PANIC_RECOVERED",
+		Title:        "Pánico interceptado por Zero-Panic Guard",
+		Status:       string(findings.Abierto),
+		Severity:     "CRITICAL",
+		Impact:       fmt.Sprintf("CRITICAL - Excepción no controlada interceptada en tiempo de ejecución: %v", r),
+		DetectadoPor: "qdd",
+		CreatedAt:    ahora.Format(time.RFC3339),
+	})
 }
 
 func isPipelineMode() bool {

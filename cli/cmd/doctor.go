@@ -7,9 +7,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/certificaciones"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 	"github.com/qdd-framework/qdd/ui"
@@ -90,6 +93,7 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	list.Groups = append(list.Groups, buildGroup2Checks(projectPath))
 	list.Groups = append(list.Groups, buildGroup3Checks(projectPath))
 	list.Groups = append(list.Groups, buildBlueprintChecks(projectPath))
+	list.Groups = append(list.Groups, buildRegistrosChecks(projectPath))
 	return list
 }
 
@@ -124,6 +128,61 @@ func groupHasFailures(g *CheckGroup) bool {
 		}
 	}
 	return false
+}
+
+// grupoRegistros revisa que los findings y las certificaciones del proyecto
+// digan su estado, porque de eso salen los indicadores (FND-061).
+const grupoRegistros = "5. Findings y certificaciones del proyecto"
+
+const (
+	itemFindingsSinEstado        = "Findings con estado (open | resolved | wontfix)"
+	itemFindingsNoCanonicos      = "Estado de los findings escrito en su forma canónica"
+	itemCertificacionesSinEstado = "Certificaciones del proyecto con estado"
+)
+
+func buildRegistrosChecks(projectPath string) *CheckGroup {
+	sinEstado := archivosDeFindings(findings.PorDecidir(projectPath))
+	noCanonicos := archivosDeFindings(findings.NoCanonicos(projectPath))
+	var certs []string
+	for _, c := range certificaciones.PorDecidir(projectPath) {
+		certs = append(certs, c.Archivo)
+	}
+	return &CheckGroup{Name: grupoRegistros, Items: []*CheckItem{
+		itemDeRegistros(itemFindingsSinEstado, sinEstado,
+			"Decide su estado y escríbelo en el campo status (open, resolved o wontfix); doctor no lo infiere"),
+		itemDeRegistros(itemFindingsNoCanonicos, noCanonicos,
+			"Escríbelo en minúscula con un valor canónico; 'qdd doctor --fix' lo corrige"),
+		itemDeRegistros(itemCertificacionesSinEstado, certs,
+			"Declara su estado en el campo status (certified, failed o pending); doctor no lo infiere"),
+	}}
+}
+
+func archivosDeFindings(fs []findings.Finding) []string {
+	var out []string
+	for _, f := range fs {
+		out = append(out, f.Archivo)
+	}
+	return out
+}
+
+func itemDeRegistros(nombre string, archivos []string, accion string) *CheckItem {
+	item := &CheckItem{Name: nombre, Success: len(archivos) == 0}
+	if item.Success {
+		return item
+	}
+	item.Error = fmt.Sprintf("%s: %s", accion, strings.Join(archivos, ", "))
+	return item
+}
+
+func repairFindingsNoCanonicos(projectPath, qddDir string) {
+	fmt.Println("  [~] Escribiendo el estado de los findings en su forma canónica...")
+	cambiados, err := findings.EscribirCanonicos(projectPath)
+	for _, a := range cambiados {
+		fmt.Printf("      %s\n", a)
+	}
+	if err != nil {
+		fmt.Printf("      [!] %v\n", err)
+	}
 }
 
 func buildGroup1Checks(projectPath string) *CheckGroup {
@@ -308,6 +367,7 @@ func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 		"Integración Antigravity (.antigravityrules)": repairMCP,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,
+		itemFindingsNoCanonicos: repairFindingsNoCanonicos,
 	}
 	
 	if handler, ok := repairRegistry[itemName]; ok {

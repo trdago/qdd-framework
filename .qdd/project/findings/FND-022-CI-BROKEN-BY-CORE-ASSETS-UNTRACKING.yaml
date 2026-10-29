@@ -3,7 +3,7 @@ type: bug
 title: "Untrackear cli/cmd/core_assets/ rompió el workflow de CI 'Code Quality & Audit'"
 description: "Al limpiar artefactos generados del repo (commit 34ff265), se dejó de trackear cli/cmd/core_assets/ (embebido en el binario vía //go:embed all:core_assets/core) asumiendo que se regenera antes de cada build. Se verificó localmente con `npm run build:cli`, que sí hace `rm -rf cli/cmd/core_assets && cp -r .qdd/core/* ...` antes de compilar. Pero no se verificó el otro punto de entrada de build: el Makefile, que es lo que usa .github/workflows/quality.yml vía `make build`. El target `build-cli` del Makefile nunca regeneraba core_assets — antes funcionaba solo porque la carpeta estaba commiteada en git. Al monitorear el deploy con `gh run list`/`gh run view` tras el push, se encontró el run fallido con el error real: 'pattern all:core_assets/core: no matching files found'."
 impact: "HIGH - CI quedó roto en main (workflow 'Code Quality & Audit' en rojo) inmediatamente después del push, bloqueando cualquier validación automática de PRs/commits futuros hasta que se detectara."
-status: RESOLVED
+status: resolved
 feature: "CI/CD - Makefile / GitHub Actions"
 author: "QDD System"
 created_at: "2026-07-18T00:00:00-04:00"

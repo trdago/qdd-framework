@@ -13,12 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type Certification struct {
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
-	Status string `yaml:"status"`
-}
-
 type Finding struct {
 	ID       string `yaml:"id"`
 	Type     string `yaml:"type"`

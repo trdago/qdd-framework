@@ -3,7 +3,7 @@ type: bug
 title: "qdd init/doctor/sync resolvían la raíz del proyecto con os.Getwd() crudo, sin buscar hacia arriba"
 description: "IntegrationManager.SyncAll(projectPath) se invocaba desde cli/cmd/init.go, cli/cmd/doctor.go y cli/cmd/mcp_agile.go (tool MCP qdd_sync) pasando directamente os.Getwd(), sin resolver la raíz real del proyecto/git. Al ejecutar estos comandos desde subdirectorios del propio monorepo (cli/, cli/cmd/, cli/ui/), se generaron copias duplicadas y parciales de .cursorrules, .clauderc, .antigravityrules, .claude/, .cursor/, .agents/ (y en un caso un .qdd/ anidado en cli/ui/) en lugar de operar sobre la raíz real del repositorio."
 impact: "MEDIUM - No afecta la lógica de auditoría/certificación, pero genera artefactos duplicados y confusos que pueden hacer que un agente (o humano) no sepa cuál copia de las reglas de gobernanza es la real, y ensucia el repositorio con archivos generados por accidente."
-status: RESOLVED
+status: resolved
 feature: "CLI - Integraciones IA (qdd init / qdd doctor / qdd_sync)"
 author: "QDD System"
 created_at: "2026-07-17T00:00:00-04:00"

@@ -1,0 +1,28 @@
+id: certificaciones
+nombre: Certificaciones (lector único)
+estado: borrador
+rutas:
+    - cli/pkg/certificaciones
+objetivo_operativo:
+    problema: Los indicadores de QDD (dashboard, qdd_score, report) tienen que mostrar qué certificaciones adoptó el proyecto y qué estado declaran, sin confundirlas con el catálogo de estándares que trae QDD.
+    usuarios: Los comandos e indicadores de QDD, y las personas que leen esos indicadores.
+    criterio_de_exito: Las mismas carpetas de certificaciones dan los mismos conteos en todos los lectores. El catálogo cuenta como disponible y una certificación del proyecto sin estado cuenta como sin estado, nunca como cumplida.
+    caso_real: 'v2.1.0: el dashboard mostraba en PASS toda certificación sin status, incluido el catálogo core, con un nombre y un tipo fijos; report solo contaba como cumplidas las que decían el texto literal status: certified (FND-060).'
+objetivo_tecnologico:
+    arquitectura: 'Paquete sin estado propio: Leer(cwd) lee .qdd/project/certification (Origen proyecto) y .qdd/core/certification (Origen catálogo); una del catálogo que el proyecto adoptó con el mismo id aparece una sola vez, como del proyecto. Normalizar traduce el status a un Estado (cumple, no_cumple, pendiente, sin estado) y Contar/ContarEn resumen. PorDecidir lista las del proyecto sin estado reconocido para doctor.'
+    decisiones:
+        - Las certificaciones se leen de los archivos y no del grafo, porque en el grafo el catálogo pisaba a la del proyecto con el mismo id.
+        - El status de una certificación del catálogo dice que el estándar está publicado, no que el proyecto lo cumpla, por eso no se interpreta.
+        - El estado de una certificación del proyecto es el que declara su YAML. La verificación automática del código es el puntaje de qdd audit, no este estado.
+        - Se aceptan sinónimos y mayúsculas (certified, PASSED, aprobada → cumple) para no romper certificaciones antiguas.
+    invariantes:
+        - Ningún otro paquete interpreta el campo status de una certificación. Todos usan Normalizar.
+        - Una certificación del catálogo nunca cuenta como cumplida.
+        - Un estado faltante o no reconocido es SinEstado. QDD no lo infiere del resto del archivo.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/certificaciones/...
+        - cd cli && go test ./cmd/ -run Indicadores
+fuentes:
+    - cli/pkg/certificaciones/certificaciones.go
+    - .qdd/project/findings/FND-060-CERTIFICACIONES-PASS-POR-DEFECTO.yaml

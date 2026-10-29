@@ -3,3 +3,4 @@ description: "FindProjectRoot buscaba cualquier .qdd hacia arriba antes de mirar
 impact: "Findings y reportes de otros repos escritos en la carpeta padre; gate saltado por falsos positivos."
 action_taken: "La búsqueda se detiene en el primer .qdd o .git (directorio o archivo de worktree). El auditor salta repos anidados, worktrees y carpetas ignoradas por git. Tests en detector_test.go y walk_test.go."
 date: "2026-10-21"
+status: resolved

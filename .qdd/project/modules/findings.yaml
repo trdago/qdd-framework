@@ -1,6 +1,6 @@
 id: findings
 nombre: Findings (lector único)
-estado: aprobado
+estado: borrador
 rutas:
     - cli/pkg/findings
 objetivo_operativo:
@@ -9,10 +9,11 @@ objetivo_operativo:
     criterio_de_exito: La misma carpeta de findings da los mismos conteos en todos los lectores. Un finding sin estado se informa como 'sin estado', nunca como abierto ni como resuelto.
     caso_real: 'v2.1.0: en el repositorio de QDD el dashboard decía "FAIL (Deuda Técnica Detectada)" porque contaba como abiertos 24 findings resueltos sin status, mientras qdd_score no contaba 18 que decían RESOLVED en mayúscula (FND-056).'
 objetivo_tecnologico:
-    arquitectura: 'Paquete sin estado propio: Leer(cwd) lee .qdd/project/findings/*.yaml, Normalizar traduce el status a un Estado (open, resolved, wontfix, sin estado) y Contar/ContarEn resumen. Los consumidores no leen los archivos de findings por su cuenta.'
+    arquitectura: 'Paquete sin estado propio: Leer(cwd) lee .qdd/project/findings/*.yaml, Normalizar traduce el status a un Estado (open, resolved, wontfix, sin estado) y Contar/ContarEn resumen. Los consumidores no leen los archivos de findings por su cuenta. Para doctor, PorDecidir lista los findings sin estado reconocido, NoCanonicos los que no están en su forma canónica y EscribirCanonicos reescribe solo la línea status de estos últimos.'
     decisiones:
         - Se aceptan sinónimos y mayúsculas (closed, fixed, resuelto → resolved; pending, in-progress → open) para no romper findings antiguos.
         - Un archivo que no se puede leer como YAML se omite. No se cuenta.
+        - 'EscribirCanonicos cambia solo la línea status de primer nivel y no toca los findings sin estado: ese estado lo decide una persona (FND-061).'
     invariantes:
         - Ningún otro paquete interpreta el campo status de un finding. Todos usan Normalizar.
         - Un estado faltante o no reconocido es SinEstado. QDD no lo infiere del resto del archivo.
@@ -22,6 +23,7 @@ pruebas:
         - cd cli && go test ./cmd/ -run Indicadores
 fuentes:
     - cli/pkg/findings/findings.go
+    - cli/pkg/findings/revision.go
     - rfcs/0005-reglas-como-principios.md
 ultima_revision: "2026-10-29"
 revisado_en_commit: 395b7c7305ea

@@ -3,3 +3,4 @@ description: "Una app Flutter recién creada (test/ vacía) recibía QA-01 porqu
 impact: "La persona no sabía si el problema era su código, su entorno o QDD."
 action_taken: "flutter test solo corre si hay *_test.dart en test/. QA-00 explica qué falta según el stack (script \"test\" en package.json, *_test.dart, tests/test_*.py). QA-01 avisa cuando la salida delata dependencias sin instalar. Tests en cli/pkg/audit/coverage_primera_vez_test.go."
 date: "2026-10-24"
+status: resolved

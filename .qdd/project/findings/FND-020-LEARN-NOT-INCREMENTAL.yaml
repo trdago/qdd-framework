@@ -3,7 +3,7 @@ type: gap
 title: "qdd_learn (MAP-REDUCE cognitivo) no era incremental: cada re-ejecución partía de cero"
 description: "handleLearnTool (cli/cmd/mcp_telemetry.go) generaba las instrucciones de aprendizaje sin verificar si ya existía un .qdd/understanding.json previo. Al pedirle a la IA que 're-aprenda' el proyecto, no había forma de que construyera sobre el conocimiento ya acumulado ni de que cruzara la documentación contra la estructura real del código (topología/grafo de conocimiento), ni instrucción explícita de buscar incoherencias entre lo documentado y lo implementado."
 impact: "MEDIUM - Cada corrida de qdd_learn era equivalente a empezar de cero, perdiendo la oportunidad de detectar drift entre el entendimiento anterior y el estado actual del proyecto, y de acumular conocimiento incrementalmente como exige el principio 'Aprendizaje Perpetuo' del manifiesto."
-status: RESOLVED
+status: resolved
 feature: "MCP - qdd_learn / qdd_evolution"
 author: "QDD System"
 created_at: "2026-07-17T00:00:00-04:00"

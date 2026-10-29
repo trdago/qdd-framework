@@ -3,3 +3,4 @@ description: "La fórmula del puntaje cambió (FND-041: de −2 por violación a
 impact: "Todos los proyectos existentes recibían una alarma falsa al actualizar; las IA obedecen a qdd_evolution y habrían dejado el trabajo pedido para buscar una regresión inexistente."
 action_taken: "El historial registra la escala de cada puntaje (escala: 2). La tendencia solo compara puntajes de la misma escala; la primera certificación con la escala nueva queda Estable y certify lo explica. Tests en cli/pkg/audit/escala_test.go; reproducido con v1.10.0 en scripts/primera-vez (paso 19)."
 date: "2026-10-24"
+status: resolved

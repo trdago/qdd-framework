@@ -3,3 +3,4 @@ description: "La detección del binario local de desarrollo en npm/install.js us
 impact: "Imposible actualizar qdd-framework vía npm en máquinas con el paquete 'qdd' instalado; los proyectos que exigen la versión nueva (.qdd/state.json) no podían correr qdd certify."
 action_taken: "El modo binario local solo se activa fuera de node_modules y exige que la ruta sea un archivo (statSync().isFile()); si existe pero no es archivo se avisa y se sigue con la descarga. Golden Set en npm/test/install.test.js (carpeta ../qdd -> descarga; archivo ../qdd en repo -> copia local; dentro de node_modules -> nunca local), ejecutado por make test y por publish.yml. Además bin/qdd.js ya no sale con 0 en silencio si falta el binario nativo."
 date: "2026-10-20"
+status: resolved

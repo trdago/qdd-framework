@@ -127,7 +127,7 @@ desactivados:
 
 ### 3.6 `qdd doctor`
 
-Esto aplica el principio de RFC 0004 §3.7: si doctor no puede diagnosticarlo, la regla quedó ambigua. Se agrega el grupo **"5. Cobertura de principios"**:
+Esto aplica el principio de RFC 0004 §3.7: si doctor no puede diagnosticarlo, la regla quedó ambigua. Se agrega el grupo **"6. Cobertura de principios"** (el grupo 5, "Findings y certificaciones del proyecto", revisa que los registros digan su estado; ver §3.9 punto 5):
 
 | Diagnóstico | `qdd doctor --fix` |
 |---|---|
@@ -164,6 +164,11 @@ Los indicadores que muestran el dashboard, `qdd_score`, `report` y `certify` sig
 | "Módulo certificado" significa "no tiene `else`", y un endpoint se marca "falta OWASP" porque su módulo tiene un `else`. | `topology/mapper.go:309`, `:354` | §3.1 |
 | El pilar de un finding (seguridad, estabilidad…) se adivina por palabras clave. | `state.go:620` | §3.1 |
 | "System Telemetry" muestra la memoria del proceso del dashboard, no algo del proyecto. | `state.go:406` | — |
+| Toda certificación sin status se muestra en PASS, incluido el catálogo core; `report` y `qdd_score` cuentan como cumplidas solo las que dicen `certified` literal. | `state.go:547`, `report.go:148`, `mcp_telemetry.go:116` | FND-060 |
+| Findings sin estado o en mayúscula que nadie pide corregir; `qdd bug` escribe `RESOLVED`. | `bugreport.go:105` | FND-061 |
+| Cada pánico interceptado se registra como resuelto, con un YAML que un apóstrofo deja inválido. | `root.go:207` | FND-062 |
+
+Resueltos en 2.2.0: FND-055 a FND-058 y FND-060 a FND-062. Las certificaciones tienen su lector único (`pkg/certificaciones`), igual que los findings (`pkg/findings`).
 
 **Invariante: los datos simulados y los mocks solo existen en las pruebas.** El producto nunca los contiene ni los muestra. Si un indicador no tiene una fuente real, muestra **sin medir**.
 
@@ -181,7 +186,7 @@ Diseño:
 2. **Las fuentes salen del `Contexto`** (§3.3): unidades y stacks reales, detectores de entradas y pruebas, y rutas declaradas. El grafo y la topología indexan cada unidad con el adaptador de su stack. Si una unidad no tiene adaptador, su indicador queda *sin medir* y no se omite.
 3. **"Certificado" significa "cumple sus principios aplicables"**, desglosado por categoría (§3.1). La categoría de un finding se declara en el finding (`categoria:`), no se adivina por palabras clave.
 4. **El valor se mide con datos reales:** `detectado_por` (§3.8), el tiempo entre que se abre y se cierra un finding (fechas de git) y los defectos que llegaron a producción (`detectado_por: produccion`). No hay constantes de "horas ahorradas".
-5. **El esquema del finding** tiene `status` obligatorio (`open | resolved | wontfix`, en minúscula), `categoria` y `detectado_por`. El gate lo valida, y `qdd doctor --fix` normaliza las mayúsculas y pregunta lo que falta. Doctor nunca inventa un estado.
+5. **El esquema del finding** tiene `status` obligatorio (`open | resolved | wontfix`, en minúscula), `categoria` y `detectado_por`. El gate lo valida, y `qdd doctor --fix` normaliza las mayúsculas y los sinónimos. Lo que falta, doctor lo informa con el archivo para que lo decida una persona: nunca inventa un estado.
 6. **El dashboard no escribe dentro de lo que observa** (FND-058). La telemetría del proceso pasa a una vista de diagnóstico, separada de los indicadores del proyecto.
 
 ## 4. Ejemplos
@@ -252,7 +257,7 @@ La revisión también señaló fallas de madurez de QDD como herramienta. Tienen
 1. **Honestidad del informe:** `Contexto` con todas las unidades, estado *no evaluado*, cobertura en el informe, y `por_que` y `categoria` en las violaciones existentes. Corrige CERT-040. Corrige FND-055 a FND-058: sin datos simulados, un solo lector de findings, una sola escala de grado y sin ciclo de refresco. No agrega reglas nuevas.
 2. **Detectores de contenido:** `P-ACCESS-CONTROL` (serverless primero), `P-TESTS-PER-UNIT`, `P-E2E-EVIDENCE`, `P-DECISIONS-RECORDED`.
 3. **Detectores declarados y herramientas existentes:** `principios:` en `config.yaml` y lectura de los linters del proyecto.
-4. **`init` mínimo, grupo 5 de doctor, `detectado_por` y plantillas derivadas del contexto.**
+4. **`init` mínimo, grupo 6 de doctor, `detectado_por` y plantillas derivadas del contexto.**
 5. **Herramienta (§6):** `ProveedorPR`, `propose` con todos los cambios, `blueprint registrar`, equivalentes CLI de las herramientas MCP, instalación sin shell y matriz de instalación en el CI, aviso de cambios de flujo.
 
 Las fases 1 y 2 van primero porque son las que cortan la falsa confianza. La fase 5 es independiente y puede avanzar en paralelo.

@@ -20,7 +20,7 @@ var bugCmd = &cobra.Command{
 	Use:   "bug",
 	Short: "Registra un error como Finding permanente (usado también por `qdd run --keep-alive`)",
 	Long: `Convierte un error observado (de un proceso supervisado, un CI, o reportado a mano) en un
-Finding con estado OPEN y su evidencia asociada, siguiendo el principio 'Aprendizaje Perpetuo'.
+Finding con estado open y su evidencia asociada, siguiendo el principio 'Aprendizaje Perpetuo'.
 No repara nada por sí solo: deja el finding marcado con test_pending para que un humano o una IA
 conectada por MCP agregue el test de regresión y aplique el fix real.`,
 	Run: runBug,
@@ -57,5 +57,5 @@ func runBug(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("[!] Finding %s creado (%s).\n", filed.Finding.ID, filed.FindingPath)
 	fmt.Printf("[!] Evidencia: %s\n", filed.EvidencePath)
-	fmt.Println("[!] Pendiente: agregar un test de regresión antes de marcarlo RESOLVED (ver metadata.test_note).")
+	fmt.Println("[!] Pendiente: agregar un test de regresión antes de marcarlo resolved (ver metadata.test_note).")
 }

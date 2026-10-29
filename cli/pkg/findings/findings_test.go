@@ -66,3 +66,60 @@ func TestLeer_Campos(t *testing.T) {
 		t.Errorf("finding = %+v", f)
 	}
 }
+
+// FND-061: nada pedía corregir un finding sin estado. QDD lo informa para que
+// una persona lo decida y nunca inventa el estado.
+func TestPorDecidir(t *testing.T) {
+	dir := t.TempDir()
+	escribir(t, dir, "FND-001.yaml", "title: a\nstatus: open\n")
+	escribir(t, dir, "FND-002.yaml", "title: b\nstatus: RESOLVED\n")
+	escribir(t, dir, "FND-003.yaml", "title: c\n")
+	escribir(t, dir, "FND-004.yaml", "title: d\nstatus: quizás\n")
+
+	got := PorDecidir(dir)
+	if len(got) != 2 || got[0].Archivo != "FND-003.yaml" || got[1].Archivo != "FND-004.yaml" {
+		t.Errorf("PorDecidir = %+v; want FND-003 y FND-004", got)
+	}
+}
+
+func TestNoCanonicos(t *testing.T) {
+	dir := t.TempDir()
+	escribir(t, dir, "FND-001.yaml", "title: a\nstatus: open\n")
+	escribir(t, dir, "FND-002.yaml", "title: b\nstatus: \"RESOLVED\"\n")
+	escribir(t, dir, "FND-003.yaml", "title: c\n")
+
+	got := NoCanonicos(dir)
+	if len(got) != 1 || got[0].Archivo != "FND-002.yaml" {
+		t.Errorf("NoCanonicos = %+v; want solo FND-002", got)
+	}
+}
+
+// doctor --fix escribe la forma canónica de un estado reconocido y no toca el
+// resto del archivo ni los findings cuyo estado tiene que decidir una persona.
+func TestEscribirCanonicos(t *testing.T) {
+	dir := t.TempDir()
+	escribir(t, dir, "FND-001.yaml", "title: a\nstatus: \"RESOLVED\"\naction_taken: |\n    status: closed dentro del texto\n")
+	escribir(t, dir, "FND-002.yaml", "title: b\nstatus: closed # cerrado en el sprint 3\n")
+	escribir(t, dir, "FND-003.yaml", "title: c\nstatus: quizás\n")
+	escribir(t, dir, "FND-004.yaml", "title: d\n")
+
+	cambiados, err := EscribirCanonicos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cambiados) != 2 {
+		t.Errorf("EscribirCanonicos cambió %v; want FND-001 y FND-002", cambiados)
+	}
+	want := map[string]string{
+		"FND-001.yaml": "title: a\nstatus: resolved\naction_taken: |\n    status: closed dentro del texto\n",
+		"FND-002.yaml": "title: b\nstatus: resolved\n",
+		"FND-003.yaml": "title: c\nstatus: quizás\n",
+		"FND-004.yaml": "title: d\n",
+	}
+	for archivo, contenido := range want {
+		data, _ := os.ReadFile(filepath.Join(Dir(dir), archivo))
+		if string(data) != contenido {
+			t.Errorf("%s =\n%q\nwant\n%q", archivo, data, contenido)
+		}
+	}
+}

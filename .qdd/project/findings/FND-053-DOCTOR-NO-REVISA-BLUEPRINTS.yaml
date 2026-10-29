@@ -3,3 +3,4 @@ description: "En v2.0.0, 'qdd doctor' solo revisaba la estructura .qdd, las inte
 impact: "El comando de autorreparación no reparaba justamente lo que más se rompe al abrir un proyecto en otro PC."
 action_taken: "Grupo '4. Blueprints de la organización' en doctor (pkg/blueprints.Diagnosticar): sin copias en el proyecto, blueprints íntegros en la carpeta central, acceso al repositorio (sin red no falla si la carpeta central ya tiene todo) y vigencia. 'doctor --fix' (pkg/blueprints.Reparar) migra, reconstruye desde el lockfile y sincroniza el espejo; nunca borra copias editadas ni actualiza blueprints por su cuenta. Un proyecto sin blueprints no usa la red (qdd init corre doctor --fix). Tests en cli/pkg/blueprints/diagnostico_test.go y TestDoctor_DiagnosesAndRepairsBlueprints."
 date: "2026-10-28"
+status: resolved

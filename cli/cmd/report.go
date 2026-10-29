@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/evolution"
 	"github.com/qdd-framework/qdd/pkg/integration"
@@ -146,30 +147,8 @@ func filterAIViolations(violations []audit.Violation) []audit.Violation {
 }
 
 func countProjectCertifications(cwd string) (int, int, int) {
-	certDir := filepath.Join(cwd, ".qdd", "project", "certification")
-	entries, err := os.ReadDir(certDir)
-	if err != nil {
-		return 0, 0, 0
-	}
-
-	total, certified, pending := 0, 0, 0
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
-			continue
-		}
-		total++
-		content, err := os.ReadFile(filepath.Join(certDir, entry.Name()))
-		if err != nil {
-			continue
-		}
-		if containsStringFold(string(content), "status: certified") {
-			certified++
-		}
-		if containsStringFold(string(content), "status: pending") {
-			pending++
-		}
-	}
-	return total, certified, pending
+	c := certificaciones.ContarEn(cwd)
+	return c.Adoptadas(), c.Cumplen, c.PorCumplir()
 }
 
 func countProjectFindings(cwd string) (int, int) {
@@ -282,40 +261,4 @@ func handleReportFileSaving(cwd, content, outputPath, format string) {
 	}
 	savePath := filepath.Join(reportsDir, fmt.Sprintf("report_%s.%s", timestamp, ext))
 	_ = os.WriteFile(savePath, []byte(content), 0644)
-}
-
-func containsStringFold(s, substr string) bool {
-	return containsFoldHelper(s, substr)
-}
-
-func containsFoldHelper(s, substr string) bool {
-	sLower := []rune(s)
-	subLower := []rune(substr)
-	if len(subLower) == 0 {
-		return true
-	}
-	if len(sLower) < len(subLower) {
-		return false
-	}
-	for i := 0; i <= len(sLower)-len(subLower); i++ {
-		match := true
-		for j := 0; j < len(subLower); j++ {
-			c1 := sLower[i+j]
-			c2 := subLower[j]
-			if c1 >= 'A' && c1 <= 'Z' {
-				c1 += 32
-			}
-			if c2 >= 'A' && c2 <= 'Z' {
-				c2 += 32
-			}
-			if c1 != c2 {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-	return false
 }
