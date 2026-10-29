@@ -1,0 +1,8 @@
+title: "El Zero-Panic Guard registraba cada pánico como resuelto y con un YAML que podía quedar inválido"
+description: "handlePanicRecovery (cli/cmd/root.go) escribía el finding del pánico con status RESOLVED, aunque atrapar el pánico solo evita la caída: el defecto que lo causó sigue sin corregir. Además armaba el YAML con fmt.Sprintf y metía el mensaje del pánico entre comillas simples sin escaparlo, así que un mensaje con un apóstrofo (por ejemplo can't index) dejaba el archivo inválido."
+impact: "Un pánico real no aparecía como deuda abierta en ningún indicador. Si el mensaje tenía un apóstrofo, el finding ni siquiera se podía leer y desaparecía de todos los conteos."
+action_taken: "findingDePanico arma el finding con yaml.Marshal (cualquier mensaje queda legible), con status open y detectado_por qdd."
+test_result: "TestFindingDePanico_AbiertoYLegible (cmd): con el formato anterior falla porque el lector de findings no puede leer el archivo; con el arreglo lo lee abierto."
+status: resolved
+detectado_por: ia
+date: "2026-10-29"

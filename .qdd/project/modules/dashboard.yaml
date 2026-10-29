@@ -16,6 +16,7 @@ objetivo_tecnologico:
         - Las carpetas nuevas dentro de .qdd/ se agregan al watcher cuando se crean, así no hace falta reiniciar el dashboard.
         - La tendencia del puntaje sale de certificate_history.json, que escribe audit/certify. Se toma el último puntaje de cada día con la escala actual. El dashboard no escribe historiales.
         - Un cliente SSE nuevo recibe el último estado difundido. Solo se reconstruye si todavía no hay ninguno.
+        - Los findings y las certificaciones se cuentan con sus lectores únicos (pkg/findings, pkg/certificaciones). La UI muestra los conteos del backend y no los recalcula. Una certificación del catálogo se muestra como disponible, nunca como cumplida (FND-060).
     invariantes:
         - Los datos simulados y los mocks solo existen en las pruebas. Si un indicador no tiene una fuente real, el dashboard muestra 'sin medir'.
         - BuildState solo lee las fuentes del proyecto. Nunca escribe en una ruta que el watcher considere un evento.
@@ -30,4 +31,4 @@ fuentes:
     - cli/cmd/dashboard.go
     - rfcs/0005-reglas-como-principios.md
 ultima_revision: "2026-10-29"
-revisado_en_commit: 74073e4e91bb
+revisado_en_commit: 63b3e5f52458

@@ -22,7 +22,7 @@ description: |
   cli/pkg/qcl/gatekeeper.go (mensajes de error del Gatekeeper) y cli/cmd/init.go (mensaje de "siguiente
   paso" impreso al terminar `qdd init`).
 impact: "HIGH - El onboarding oficial (qdd init -> getting-started.md) le indica al usuario ejecutar `qdd learn` como paso obligatorio; al hacerlo, no pasa nada útil (solo un aviso de motor deprecado), lo cual rompe la confianza en el framework justo en el primer contacto. El Gatekeeper también instruía a los usuarios a 'arreglar' un contexto insuficiente ejecutando un comando inexistente, dejándolos sin salida real."
-status: RESOLVED
+status: resolved
 feature: "CLI - Superficie de comandos / Onboarding"
 author: "QDD System"
 created_at: "2026-07-17T00:00:00-04:00"

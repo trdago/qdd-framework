@@ -3,3 +3,4 @@ description: "El dashboard calculaba su propio puntaje solo con findings abierto
 impact: "La pantalla que miran quienes no usan la terminal contradecía al gate; dos cifras distintas hacen que no se confíe en ninguna."
 action_taken: "Reemplaza la decisión de FND-021: el dashboard muestra el puntaje único (audit.Score) de la última certificación con la escala actual, sin correr las pruebas en cada refresco. Al abrirse sin certificación vigente mide una vez con qdd certify y mientras tanto muestra '—' / 'Midiendo'. Solo guarda historial con puntajes reales y el gráfico muestra únicamente datos reales. Tests en cli/pkg/dashboard/state_test.go, cli/cmd/dashboard_medir_test.go y cli/ui/src/App.spec.js."
 date: "2026-10-24"
+status: resolved

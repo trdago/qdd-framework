@@ -3,3 +3,4 @@ description: "QDD no auditaba los pipelines. notificador (8 workflows), reserva_
 impact: "Viola 'no se despliega sin pasar las pruebas'; riesgo de respuestas MCP corruptas."
 action_taken: "Reglas CI-01-UNGATED-DEPLOY y CI-02-DEPLOY-IGNORES-FAILURES (política deploy_gate, activa por defecto). publish.yml de QDD depende de un job de tests + audit. Logs del motor a stderr. Tests en deploy_gate_test.go y coverage_test.go."
 date: "2026-10-21"
+status: resolved

@@ -3,3 +3,4 @@ description: "Un proyecto FastAPI con pytest en requirements.txt y tests/test_*.
 impact: "Bloqueo falso ('no hay cómo probar') en proyectos que sí tienen pruebas."
 action_taken: "pytest se reconoce también por requirements*.txt o archivos test_*.py/*_test.py en tests/; usa .venv/venv si existe y si no python3. Sin suites en la raíz, se buscan en cada subcarpeta de primer nivel. Tests en cli/pkg/audit/coverage_primera_vez_test.go."
 date: "2026-10-24"
+status: resolved

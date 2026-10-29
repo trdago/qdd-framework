@@ -3,3 +3,4 @@ description: "El README indicaba 'go install github.com/trdago/qdd-framework/cli
 impact: "Quien no usa Node no tenía una forma documentada que funcionara."
 action_taken: "README con tres opciones verificadas (npm, binario de Releases, make install desde el código) y los primeros pasos. Test en cli/cmd/readme_test.go que impide volver a documentar el go install roto."
 date: "2026-10-24"
+status: resolved

@@ -1,7 +1,7 @@
 id: FND-003
 type: technical-debt
 title: "Uso de 'else' en Backend, Frontend y Scripts"
-status: RESOLVED
+status: resolved
 severity: high
 description: "Se detectaron bloques 'else' en las funciones de procesamiento del Dashboard, en componentes Vue (App.vue) y scripts (install.js), lo que viola la regla global de Clean Code: 'nunca usamos else en el codigo' (CLEAN-01)."
 evidence:

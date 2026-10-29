@@ -14,6 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/evolution"
 	"github.com/qdd-framework/qdd/pkg/integration"
@@ -80,44 +81,11 @@ func registerScoreTool(s *server.MCPServer) {
 	})
 }
 
+// getCertificationStats cuenta solo las del proyecto: el catálogo core son
+// estándares disponibles para adoptar, no deudas (FND-041, FND-060).
 func getCertificationStats() (int, int) {
-	qddDir := filepath.Join(".", ".qdd")
-	// Solo las del proyecto: el catálogo core son estándares disponibles para
-	// adoptar, no deudas (contarlas daba 0/100 F a todo proyecto nuevo, FND-041).
-	certDirs := []string{
-		filepath.Join(qddDir, "project", "certification"),
-	}
-
-	totalCerts := 0
-	certifiedCerts := 0
-	for _, certDir := range certDirs {
-		t, c := processCertDir(certDir)
-		totalCerts += t
-		certifiedCerts += c
-	}
-	return totalCerts, certifiedCerts
-}
-
-func processCertDir(certDir string) (int, int) {
-	total := 0
-	certified := 0
-	entries, _ := os.ReadDir(certDir)
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-			total++
-			if isCertCertified(filepath.Join(certDir, entry.Name())) {
-				certified++
-			}
-		}
-	}
-	return total, certified
-}
-
-func isCertCertified(path string) bool {
-	content, _ := os.ReadFile(path)
-	var cert Certification
-	yaml.Unmarshal(content, &cert)
-	return cert.Status == "certified"
+	c := certificaciones.ContarEn(".")
+	return c.Adoptadas(), c.Cumplen
 }
 
 func getFindingsStats() (int, int) {

@@ -1,0 +1,28 @@
+id: bugreport
+nombre: Registro de bugs (qdd bug y qdd run)
+estado: aprobado
+rutas:
+    - cli/pkg/bugreport
+    - cli/cmd/bug.go
+objetivo_operativo:
+    problema: Cada caída o error que QDD captura (qdd bug, qdd run --keep-alive) tiene que quedar como un finding permanente con su evidencia, para que se corrija con una prueba de regresión y no se pierda en un log.
+    usuarios: Desarrolladores que reportan un problema y el supervisor de qdd run.
+    criterio_de_exito: Cada problema capturado queda como un finding legible por pkg/findings, con estado open hasta que se confirma la corrección, y con su evidencia guardada.
+    caso_real: 'v2.1.0: qdd bug escribía el estado en mayúscula (OPEN, RESOLVED), una forma que el resto de QDD tenía que adivinar (FND-061).'
+objetivo_tecnologico:
+    arquitectura: File(cwd, Report) asigna el siguiente id, guarda la evidencia y escribe el finding en .qdd/project/findings. MarkResolved lo marca resuelto tras una reparación confirmada, sin borrar la evidencia.
+    decisiones:
+        - El estado se escribe con las constantes de pkg/findings (open, resolved), en su forma canónica.
+        - Lo que registra qdd bug o qdd run lo detectó QDD, por eso escribe detectado_por qdd (RFC 0005 §3.8).
+        - No escribe ni aplica la corrección ni inventa una prueba de regresión. La corrige una IA externa o una persona.
+    invariantes:
+        - Un finding recién registrado está abierto. Solo MarkResolved, tras una reparación confirmada, lo marca resuelto.
+        - La evidencia original nunca se borra.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/bugreport/...
+fuentes:
+    - cli/pkg/bugreport/bugreport.go
+    - .qdd/project/findings/FND-061-FINDINGS-SIN-ESTADO.yaml
+ultima_revision: "2026-10-29"
+revisado_en_commit: 63b3e5f52458

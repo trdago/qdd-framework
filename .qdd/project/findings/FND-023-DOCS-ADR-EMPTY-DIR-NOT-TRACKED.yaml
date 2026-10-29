@@ -3,7 +3,7 @@ type: bug
 title: "docs/adr/ existía vacío y sin trackear en git, rompiendo CERT-030 en CI"
 description: "Al monitorear el deploy con `gh run watch` tras el fix de FND-022, el paso 'Run Architecture Audit' de CI falló con una violación distinta: CERT-030-MANDATORY-ADR ('Debe existir el directorio docs/adr'). docs/adr/ existe localmente pero está completamente vacío (0 archivos) y git no trackea directorios vacíos, así que un checkout limpio (como hace CI) nunca lo materializa. `qdd audit` local nunca lo detectó porque la carpeta sí existe en este disco de trabajo desde hace días — el problema era invisible localmente y solo se manifestaba en un checkout fresco."
 impact: "MEDIUM - Bloqueaba el pipeline de CI (aunque no afectaba el desarrollo local), y es un ejemplo de un problema de 'funciona en mi máquina' invisible sin monitorear el CI real tras cada push."
-status: RESOLVED
+status: resolved
 feature: "CI/CD - CERT-030-MANDATORY-ADR"
 author: "QDD System"
 created_at: "2026-07-18T00:00:00-04:00"

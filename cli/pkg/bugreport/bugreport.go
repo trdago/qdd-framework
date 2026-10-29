@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,18 +27,21 @@ import (
 // package writes. Other fields (parent, resolves) are intentionally left
 // empty for a human/AI to fill in once the finding is triaged.
 type Finding struct {
-	ID          string         `yaml:"id"`
-	Type        string         `yaml:"type"`
-	Title       string         `yaml:"title"`
-	Description string         `yaml:"description"`
-	Impact      string         `yaml:"impact"`
-	Status      string         `yaml:"status"`
-	Feature     string         `yaml:"feature"`
-	Author      string         `yaml:"author"`
-	CreatedAt   string         `yaml:"created_at"`
-	Parent      string         `yaml:"parent"`
-	Resolves    string         `yaml:"resolves"`
-	Metadata    map[string]any `yaml:"metadata"`
+	ID          string `yaml:"id"`
+	Type        string `yaml:"type"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	Impact      string `yaml:"impact"`
+	Status      string `yaml:"status"`
+	// DetectadoPor dice quién encontró el defecto (RFC 0005 §3.8). Lo que
+	// registra qdd bug o qdd run lo encontró QDD.
+	DetectadoPor string         `yaml:"detectado_por"`
+	Feature      string         `yaml:"feature"`
+	Author       string         `yaml:"author"`
+	CreatedAt    string         `yaml:"created_at"`
+	Parent       string         `yaml:"parent"`
+	Resolves     string         `yaml:"resolves"`
+	Metadata     map[string]any `yaml:"metadata"`
 }
 
 // Report describes the crash/problem being filed. Command+Args identify what
@@ -102,7 +106,7 @@ func MarkResolved(findingPath, summary string, testAdded bool) error {
 		return err
 	}
 
-	f.Status = "RESOLVED"
+	f.Status = string(findings.Resuelto)
 	if f.Metadata == nil {
 		f.Metadata = map[string]any{}
 	}
@@ -125,18 +129,19 @@ func buildFinding(id string, r Report, evidencePath, goldenPath string) Finding 
 		Description: fmt.Sprintf(
 			"El proceso supervisado '%s' terminó con código de salida %d. Evidencia completa en %s.",
 			fullCommand, r.ExitCode, evidencePath),
-		Impact:    "HIGH - El proceso supervisado dejó de funcionar y la supervisión se detuvo hasta que esto se resuelva.",
-		Status:    "OPEN",
-		Feature:   "qdd run --keep-alive",
-		Author:    "QDD Supervisor",
-		CreatedAt: time.Now().Format(time.RFC3339),
+		Impact:       "HIGH - El proceso supervisado dejó de funcionar y la supervisión se detuvo hasta que esto se resuelva.",
+		Status:       string(findings.Abierto),
+		DetectadoPor: "qdd",
+		Feature:      "qdd run --keep-alive",
+		Author:       "QDD Supervisor",
+		CreatedAt:    time.Now().Format(time.RFC3339),
 		Metadata: map[string]any{
-			"command":       fullCommand,
-			"exit_code":     r.ExitCode,
-			"evidence_path": evidencePath,
+			"command":        fullCommand,
+			"exit_code":      r.ExitCode,
+			"evidence_path":  evidencePath,
 			"goldenset_path": goldenPath,
-			"test_pending":  true,
-			"test_note":     "Se ha generado un esqueleto de Golden Set. Quien lo resuelva debe rellenar este archivo para crear un test de regresión automático antes de marcarlo RESOLVED.",
+			"test_pending":   true,
+			"test_note":      "Se ha generado un esqueleto de Golden Set. Quien lo resuelva debe rellenar este archivo para crear un test de regresión automático antes de marcarlo RESOLVED.",
 		},
 	}
 }
@@ -188,14 +193,14 @@ func writeGoldenSetTemplate(cwd, id string, r Report) (string, error) {
 	if err := os.MkdirAll(goldenDir, 0755); err != nil {
 		return "", err
 	}
-	
+
 	path := filepath.Join(goldenDir, fmt.Sprintf("%s_test.json", id))
-	
+
 	argsStr := "[]"
 	if len(r.Args) > 0 {
 		argsStr = `["` + strings.Join(r.Args, `", "`) + `"]`
 	}
-	
+
 	template := fmt.Sprintf(`{
   "finding_id": "%s",
   "command": "%s",
@@ -218,14 +223,14 @@ func writeGoldenSetTemplate(cwd, id string, r Report) (string, error) {
 	if err := os.WriteFile(path, []byte(template), 0644); err != nil {
 		return "", err
 	}
-	
+
 	writeGoldenSetGoTest(goldenDir, id)
 	return path, nil
 }
 
 func writeGoldenSetGoTest(dir, id string) {
 	path := filepath.Join(dir, fmt.Sprintf("%s_runner_test.go", id))
-	
+
 	testFile := fmt.Sprintf(`package goldensets
 
 import (

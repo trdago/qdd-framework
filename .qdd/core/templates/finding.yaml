@@ -2,7 +2,9 @@
 id: "FIND-001"
 type: "bug" # bug | vulnerability | code_smell | architecture_gap
 title: "Título descriptivo del hallazgo técnico"
-status: "open" # open | in_progress | resolved | closed
+status: "open" # obligatorio, en minúscula: open | resolved | wontfix
+categoria: "correccion" # seguridad | correccion | auditabilidad | madurez
+detectado_por: "humano" # qdd | humano | ia | produccion
 severity: "high" # critical | high | medium | low
 discovered_at: "2026-08-16T00:00:00Z"
 discovered_by: "QDD Audit Engine"

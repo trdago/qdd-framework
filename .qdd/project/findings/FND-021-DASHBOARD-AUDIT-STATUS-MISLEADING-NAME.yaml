@@ -3,7 +3,7 @@ type: gap
 title: "El campo 'audit_status' del dashboard no refleja qdd audit, sino el conteo de findings abiertos"
 description: "Validación end-to-end real (sin mocks) de `qdd dashboard`: arrancó correctamente, sirvió la UI (HTTP 200), y tanto /api/state como /api/stream devolvieron datos reales. Se detectó una inconsistencia de nombres: BuildState() en cli/pkg/dashboard/state.go calcula 'audit_status'/'score' exclusivamente a partir de openFindings (computeFinalScore = 100 - openFindings*30, determineAuditStatus = FAIL si openFindings>0), sin relación alguna con audit.NewEngine(cwd).RunAll() (las violaciones estáticas reales que sí usa `qdd audit`/`qdd evolution`). En esta validación, qdd audit reportó 0 violaciones mientras el dashboard mostraba 'audit_status: FAIL (Deuda Técnica Detectada)' y score 70, porque había 1 finding abierto (FND-019) — el cálculo en sí es correcto, pero el nombre del campo sugiere que refleja el resultado de `qdd audit`, cuando en realidad refleja el estado de los Findings."
 impact: "LOW - No es un bug funcional (el dashboard no miente sobre nada, el score SÍ corresponde a los findings abiertos), pero el nombre 'audit_status' induce a error: alguien podría ver 'FAIL' y asumir que qdd audit está fallando, generando confusión de diagnóstico."
-status: RESOLVED
+status: resolved
 feature: "Dashboard - /api/state"
 author: "QDD System"
 created_at: "2026-07-17T00:00:00-04:00"

@@ -3,3 +3,4 @@ description: "Al definir cómo doctor repara un módulo desactualizado (BP-03), 
 impact: "Re-aplicar (a mano o desde doctor) desordenaba el mapa de módulos y dejaba carpetas nuevas en el proyecto; las fichas citaban archivos inexistentes."
 action_taken: "Re-aplicar sin --ruta conserva las rutas del módulo; solo un módulo nuevo toma las sugeridas. Las fuentes citan el lockfile y se limpian las rutas del esquema anterior. Encontrado aplicando el principio 'doctor debe saber reparar cada funcionalidad'. Test: TestApply_ReapplyKeepsTheModuleRoutesAndCitesExistingSources."
 date: "2026-10-28"
+status: resolved

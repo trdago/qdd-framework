@@ -22,14 +22,17 @@ func TestFile_CreatesOpenFindingAndEvidence(t *testing.T) {
 		t.Fatalf("File returned unexpected error: %v", err)
 	}
 
-	if filed.Finding.Status != "OPEN" {
-		t.Errorf("Status = %q, want OPEN", filed.Finding.Status)
+	if filed.Finding.Status != "open" {
+		t.Errorf("Status = %q, want open (FND-061: la forma canónica, en minúscula)", filed.Finding.Status)
+	}
+	if filed.Finding.DetectadoPor != "qdd" {
+		t.Errorf("DetectadoPor = %q, want qdd", filed.Finding.DetectadoPor)
 	}
 	if filed.Finding.ID != "FND-001" {
 		t.Errorf("ID = %q, want FND-001 for the first finding in an empty project", filed.Finding.ID)
 	}
 
-	assertFileContains(t, filed.FindingPath, "status: OPEN")
+	assertFileContains(t, filed.FindingPath, "status: open")
 	assertFileContains(t, filed.EvidencePath, "TypeError: cannot read property")
 }
 
@@ -104,4 +107,18 @@ func assertFileContains(t *testing.T, path, substr string) {
 	if !strings.Contains(string(data), substr) {
 		t.Errorf("expected %q to contain %q, got:\n%s", path, substr, data)
 	}
+}
+
+// FND-061: qdd bug escribía RESOLVED en mayúscula, una forma que el resto de
+// QDD tenía que adivinar.
+func TestMarkResolved_EscribeEstadoCanonico(t *testing.T) {
+	cwd := t.TempDir()
+	filed, err := File(cwd, Report{Command: "myapp", ExitCode: 2, Output: "panic"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MarkResolved(filed.FindingPath, "se corrigió", true); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContains(t, filed.FindingPath, "status: resolved")
 }

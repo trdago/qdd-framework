@@ -3,3 +3,4 @@ description: "executePipelineCommand lanzaba os.Args[0] con os.StartProcess, que
 impact: "El pipeline documentado en el README no funcionaba para nadie que lo instalara normalmente; solo con ruta absoluta."
 action_taken: "selfExecutable() usa os.Executable() (con LookPath de respaldo). Test en cli/cmd/root_raiz_test.go; el recorrido de primera vez lo prueba invocando 'qdd' desde el PATH."
 date: "2026-10-24"
+status: resolved

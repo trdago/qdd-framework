@@ -3,3 +3,4 @@ description: "runTests solo conocía npm o go. En proyectos sin package.json ni 
 impact: "Gate en verde sin pruebas en servel_votacion_app, esp32 y similares; en gdatos se saltaban las pruebas de Go."
 action_taken: "Comandos declarables en .qdd/config.yaml (test_commands), detección de todos los stacks presentes (npm, go, flutter, pytest), QA-00-NO-TEST-COMMAND cuando no hay cómo probar, y un fallo de compilación cuenta como fallo. Tests en cli/pkg/audit/coverage_test.go."
 date: "2026-10-21"
+status: resolved

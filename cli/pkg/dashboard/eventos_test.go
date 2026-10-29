@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/certificaciones"
 )
 
 // proyectoMedido crea un proyecto con un puntaje medido con la escala actual,
@@ -176,5 +178,50 @@ func TestBuildState_SinDatosSimulados(t *testing.T) {
 	}
 	if s.ValueMetrics.DebtReduced != 1 {
 		t.Errorf("deuda reducida = %d; want 1 (findings resueltos)", s.ValueMetrics.DebtReduced)
+	}
+}
+
+// FND-060: el dashboard mostraba en PASS toda certificación que no decía su
+// estado, incluido el catálogo core, y les ponía un nombre y un tipo fijos.
+func TestBuildState_CertificacionesConSuEstadoReal(t *testing.T) {
+	dir := proyectoMedido(t)
+	for carpeta, archivos := range map[string]map[string]string{
+		"core": {
+			"CERT-CAT.yaml": "id: CERT-CAT\ntitle: Estándar del catálogo\nstatus: certified\n",
+		},
+		"project": {
+			"CERT-OK.yaml":  "id: CERT-OK\nname: Adoptada y cumplida\nstatus: PASSED\n",
+			"CERT-SIN.yaml": "id: CERT-SIN\ntitle: Adoptada sin estado\n",
+		},
+	} {
+		base := filepath.Join(dir, ".qdd", carpeta, "certification")
+		os.MkdirAll(base, 0755)
+		for nombre, contenido := range archivos {
+			os.WriteFile(filepath.Join(base, nombre), []byte(contenido), 0644)
+		}
+	}
+
+	s := BuildState()
+	por := map[string]DashboardCertification{}
+	for _, c := range s.Certifications {
+		por[c.ID] = c
+	}
+	casos := []struct {
+		id, estado, nombre, tipo string
+		core                     bool
+	}{
+		{"CERT-CAT", "DISPONIBLE", "Estándar del catálogo", "Catálogo", true},
+		{"CERT-OK", "CUMPLE", "Adoptada y cumplida", "Proyecto", false},
+		{"CERT-SIN", "SIN ESTADO", "Adoptada sin estado", "Proyecto", false},
+	}
+	for _, c := range casos {
+		got := por[c.id]
+		if got.Status != c.estado || got.Name != c.nombre || got.Type != c.tipo || got.IsCore != c.core {
+			t.Errorf("%s = %+v; want estado %q, nombre %q, tipo %q, core %v", c.id, got, c.estado, c.nombre, c.tipo, c.core)
+		}
+	}
+	want := certificaciones.Conteo{Cumplen: 1, SinEstado: 1, Disponibles: 1}
+	if s.CertificacionesConteo != want {
+		t.Errorf("conteo = %+v; want %+v", s.CertificacionesConteo, want)
 	}
 }

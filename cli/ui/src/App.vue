@@ -243,20 +243,19 @@ let evtSource = null
 
 const certSearchQuery = ref('')
 
+// FND-060: el conteo lo hace el backend (pkg/certificaciones). El catálogo
+// cuenta como disponible, nunca como cumplido.
 const certStats = computed(() => {
-  if (!state.value?.certifications) return { total: 0, pass: 0, fail: 0 }
-  const certs = state.value.certifications
-  return {
-    total: certs.length,
-    pass: certs.filter(c => c.status === 'PASS' || c.status.toLowerCase() === 'certified').length,
-    fail: certs.filter(c => c.status !== 'PASS' && c.status.toLowerCase() !== 'certified').length
-  }
+  const c = state.value?.certificaciones_conteo
+  if (!c) return { adoptadas: 0, cumplen: 0, pendientes: 0, disponibles: 0 }
+  const pendientes = c.no_cumplen + c.pendientes + c.sin_estado
+  return { adoptadas: c.cumplen + pendientes, cumplen: c.cumplen, pendientes, disponibles: c.disponibles }
 })
 
 const filteredCerts = computed(() => {
   if (!state.value?.certifications) return []
   let certs = state.value.certifications.map(c => {
-    return { ...c, typeLabel: c.type || 'Proyecto' }
+    return { ...c, typeLabel: c.type }
   })
   
   if (certSearchQuery.value) {
@@ -971,8 +970,8 @@ onUnmounted(() => {
               <h3 class="panel-title">QMI Variables (Maturity Indicators)</h3>
               <div class="stats-cards" style="margin-top: 1rem;">
                 <div class="stat-card">
-                  <span class="stat-value">{{ state.certifications ? state.certifications.length : 0 }}</span>
-                  <span class="stat-label">Certificaciones Activas</span>
+                  <span class="stat-value">{{ certStats.adoptadas }}</span>
+                  <span class="stat-label">Certificaciones Adoptadas</span>
                 </div>
                 <div class="stat-card">
                   <span class="stat-value">{{ state.findings_conteo?.abiertos ?? 0 }}</span>
@@ -1330,18 +1329,19 @@ onUnmounted(() => {
                     <h3 style="font-size: 16px; margin: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">📑 Certifications</h3>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
                        <div>
-                         <div style="font-size: 24px; font-weight: bold; color: var(--success);">{{ certStats.pass }}</div>
-                         <div style="font-size: 12px; color: var(--text-muted);">Aprobadas</div>
+                         <div style="font-size: 24px; font-weight: bold; color: var(--success);">{{ certStats.cumplen }}</div>
+                         <div style="font-size: 12px; color: var(--text-muted);" title="Estado declarado en el YAML de cada certificación del proyecto">Cumplen (declarado)</div>
                        </div>
                        <div style="text-align: right;">
-                         <div style="font-size: 24px; font-weight: bold; color: var(--danger);">{{ certStats.fail }}</div>
-                         <div style="font-size: 12px; color: var(--text-muted);">Pendientes</div>
+                         <div style="font-size: 24px; font-weight: bold; color: var(--danger);">{{ certStats.pendientes }}</div>
+                         <div style="font-size: 12px; color: var(--text-muted);">Pendientes o sin estado</div>
                        </div>
                     </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">{{ certStats.disponibles }} disponibles en el catálogo, sin adoptar</div>
                     <div class="cert-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
                        <div v-for="cert in filteredCerts" :key="cert.id" class="card glass-panel clickable-card" @click="openDetail({...cert, title: cert.id, type: 'Certification'}, 'Certification')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1);">
                           <div style="font-size: 13px; font-weight: 500;">{{ cert.id }}</div>
-                          <div class="status-pill" :class="cert.status === 'PASS' ? 'resolved' : 'open'" style="font-size: 10px; padding: 2px 6px;">{{ cert.status }}</div>
+                          <div class="status-pill" :class="cert.status === 'CUMPLE' ? 'resolved' : 'open'" style="font-size: 10px; padding: 2px 6px;">{{ cert.status }}</div>
                        </div>
                        <div v-if="filteredCerts.length === 0" style="color: var(--text-muted); font-size: 13px; text-align: center;">No hay certificaciones configuradas</div>
                     </div>

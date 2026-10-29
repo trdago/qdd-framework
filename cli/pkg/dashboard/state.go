@@ -16,6 +16,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/cognitive"
+	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/topology"
@@ -214,6 +215,8 @@ type DashboardCertification struct {
 	Version string                 `json:"version"`
 	Status  string                 `json:"status"`
 	Type    string                 `json:"type"`
+	Origen  string                 `json:"origen"`
+	IsCore  bool                   `json:"is_core"`
 	Raw     map[string]interface{} `json:"raw,omitempty"`
 	History []CertificationRun     `json:"history,omitempty"`
 }
@@ -288,6 +291,9 @@ type QDDState struct {
 	QualityStatus  string                    `json:"quality_status"`
 	Findings       []DashboardFinding        `json:"findings"`
 	Certifications []DashboardCertification  `json:"certifications"`
+	// CertificacionesConteo sale de pkg/certificaciones: el catálogo cuenta
+	// como disponible, nunca como cumplido (FND-060).
+	CertificacionesConteo certificaciones.Conteo `json:"certificaciones_conteo"`
 	Sprints        []DashboardSprint         `json:"sprints"`
 	Knowledge      []DashboardKnowledgeDoc   `json:"knowledge"`
 	Understanding  *DashboardUnderstanding   `json:"understanding"`
@@ -325,6 +331,7 @@ func BuildState() QDDState {
 
 	loadGraphData(&response, cwd)
 	response.FindingsConteo = findings.ContarEn(cwd)
+	loadCertifications(&response, cwd)
 
 	loadHistoricalTrends(&response, cwd)
 
@@ -360,7 +367,6 @@ func loadGraphData(response *QDDState, cwd string) (int, int) {
 		dbGraph.SyncToGraph(cwd)
 		db := dbGraph.GetDB()
 
-		loadCertifications(response, db)
 		openFindings = loadFindings(response, db)
 		loadGraphNodes(response, db)
 		loadGraphEdges(response, db)
@@ -528,40 +534,45 @@ func loadTopology(response *QDDState, cwd, qddDir string) {
 	}
 }
 
-func loadCertifications(response *QDDState, db *sql.DB) {
-	rows, err := db.QueryContext(context.Background(), "SELECT id, name, metadata FROM nodes WHERE type = 'rule'")
-	if err == nil {
-		for rows.Next() {
-			processCertificationRow(response, rows)
-		}
-		rows.Close()
+// loadCertifications lee los archivos con pkg/certificaciones y no del grafo,
+// donde el catálogo pisaba a la del proyecto con el mismo id. El estado, el
+// nombre y el tipo salen del archivo (FND-060).
+func loadCertifications(response *QDDState, cwd string) {
+	cs, _ := certificaciones.Leer(cwd)
+	response.CertificacionesConteo = certificaciones.Contar(cs)
+	for _, c := range cs {
+		response.Certifications = append(response.Certifications, DashboardCertification{
+			ID:      c.ID,
+			Name:    c.Nombre,
+			Version: c.Version,
+			Status:  etiquetaDeCertificacion(c),
+			Type:    tipoDeCertificacion[c.Origen],
+			Origen:  string(c.Origen),
+			IsCore:  c.Origen == certificaciones.Catalogo,
+			Raw:     c.Datos,
+		})
 	}
 }
 
-func processCertificationRow(response *QDDState, rows *sql.Rows) {
-	var id, name, metaStr string
-	rows.Scan(&id, &name, &metaStr)
-	var rawData map[string]interface{}
-	json.Unmarshal([]byte(metaStr), &rawData)
+var tipoDeCertificacion = map[certificaciones.Origen]string{
+	certificaciones.Proyecto: "Proyecto",
+	certificaciones.Catalogo: "Catálogo",
+}
 
-	status := "PASS"
-	if rawData != nil && rawData["status"] != nil {
-		status = fmt.Sprintf("%v", rawData["status"])
+var etiquetaDeEstadoCert = map[certificaciones.Estado]string{
+	certificaciones.Cumple:    "CUMPLE",
+	certificaciones.NoCumple:  "NO CUMPLE",
+	certificaciones.Pendiente: "PENDIENTE",
+	certificaciones.SinEstado: "SIN ESTADO",
+}
+
+// etiquetaDeCertificacion: una del catálogo está disponible para adoptar; su
+// status dice que el estándar está publicado, no que el proyecto lo cumpla.
+func etiquetaDeCertificacion(c certificaciones.Certificacion) string {
+	if c.Origen == certificaciones.Catalogo {
+		return "DISPONIBLE"
 	}
-
-	version := "unknown"
-	if rawData != nil && rawData["version"] != nil {
-		version = fmt.Sprintf("%v", rawData["version"])
-	}
-
-	response.Certifications = append(response.Certifications, DashboardCertification{
-		ID:      name,
-		Version: version,
-		Status:  status,
-		Name:    "Cumplimiento verificado",
-		Type:    "Proyecto",
-		Raw:     rawData,
-	})
+	return etiquetaDeEstadoCert[c.Estado]
 }
 
 func loadFindings(response *QDDState, db *sql.DB) int {
