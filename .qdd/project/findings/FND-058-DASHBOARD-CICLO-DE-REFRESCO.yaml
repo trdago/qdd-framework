@@ -1,0 +1,8 @@
+title: "El dashboard se refresca solo cada 500 ms aunque no cambie nada"
+description: "RunWatcher observa todo .qdd/, y BuildState escribe dentro de .qdd/: cognitive_history.json con un .tmp + rename, knowledge.db en SyncToGraph y la carpeta project/certification, que topology creaba 'por si acaso'. Cada escritura disparaba otro BuildState 500 ms después. Además, el heartbeat agregaba una línea a .qdd/mcp.log cada 15 s, y cada navegador nuevo forzaba otra reconstrucción completa. Reproducido: 6 reconstrucciones en 3 s sin cambios externos."
+impact: "Con el dashboard abierto, QDD recorría todo el código del proyecto dos veces por segundo, reenviaba el estado por SSE y hacía crecer mcp.log sin límite con líneas que no eran del MCP. La tendencia del puntaje se leía de cognitive_history.json, donde el MCP registra eventos sin puntaje, que aparecían como puntos en 0 sin fecha."
+action_taken: "El dashboard ahora es dirigido por eventos (Vigilar): ignora sus propias escrituras (knowledge.db*) y los temporales (*.tmp, *.swp, *~), agrupa ráfagas en una ventana de 1 s y observa las carpetas nuevas. BuildState ya no escribe: la tendencia sale de certificate_history.json (último puntaje del día con la escala actual), y topology ya no crea carpetas al leer. Se eliminó el heartbeat. Un cliente SSE nuevo recibe el último estado difundido (Broker.Ultimo)."
+test_result: "TestVigilar_ProyectoQuietoNoReconstruye, TestVigilar_ReaccionaSoloAEventosReales, TestVigilar_ObservaCarpetasNuevas, TestBuildState_NoEscribeHistoriales, TestLoadHistoricalTrends_DesdeCertificaciones, TestBroker_UltimoEstado."
+status: resolved
+detectado_por: ia
+date: "2026-10-29"

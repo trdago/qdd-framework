@@ -94,7 +94,29 @@ func (b *StateBroker) Broadcast(data []byte) {
 	}
 }
 
+// Ultimo devuelve el último estado difundido, para servir a un cliente nuevo
+// sin reconstruir.
+func (b *StateBroker) Ultimo() ([]byte, bool) {
+	b.RLock()
+	defer b.RUnlock()
+	return b.cache, len(b.cache) > 0
+}
+
+// ventanaDeEventos agrupa una ráfaga de cambios (un editor que guarda, un git
+// checkout) en una sola reconstrucción. No hace falta más precisión.
+const ventanaDeEventos = time.Second
+
+// RunWatcher vigila el proyecto del directorio actual mientras viva el proceso.
 func RunWatcher() {
+	cwd, _ := os.Getwd()
+	Vigilar(context.Background(), cwd, nil)
+}
+
+// Vigilar difunde el estado del proyecto cada vez que cambia una de sus fuentes
+// en .qdd/. Es dirigido por eventos: con el proyecto quieto no reconstruye,
+// no escribe y no envía nada (FND-058). listo (opcional) se cierra cuando el
+// watcher ya observa y el estado inicial se difundió.
+func Vigilar(ctx context.Context, cwd string, listo chan struct{}) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		fmt.Println("Error creando fsnotify:", err)
@@ -102,17 +124,49 @@ func RunWatcher() {
 	}
 	defer watcher.Close()
 
-	cwd, _ := os.Getwd()
-	qddDir := filepath.Join(cwd, ".qdd")
+	observarArbol(watcher, filepath.Join(cwd, ".qdd"))
+	difundirEstado()
+	if listo != nil {
+		close(listo)
+	}
 
-	setupWatcherDirectories(watcher, qddDir)
-	broadcastInitialState()
-	startHeartbeat(qddDir)
-	monitorEvents(watcher)
+	var pendiente *time.Timer
+	defer func() {
+		if pendiente != nil {
+			pendiente.Stop()
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			fmt.Println("Watcher error:", err)
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if !esEventoDelProyecto(event) {
+				continue
+			}
+			if event.Op&fsnotify.Create != 0 {
+				observarArbol(watcher, event.Name)
+			}
+			if pendiente != nil {
+				pendiente.Stop()
+			}
+			pendiente = time.AfterFunc(ventanaDeEventos, difundirEstado)
+		}
+	}
 }
 
-func setupWatcherDirectories(watcher *fsnotify.Watcher, qddDir string) {
-	filepath.Walk(qddDir, func(path string, info fs.FileInfo, err error) error {
+// observarArbol agrega al watcher una carpeta y sus subcarpetas (fsnotify no es
+// recursivo). Si la ruta es un archivo, no hace nada.
+func observarArbol(watcher *fsnotify.Watcher, raiz string) {
+	filepath.Walk(raiz, func(path string, info fs.FileInfo, err error) error {
 		if err == nil && info.IsDir() {
 			watcher.Add(path)
 		}
@@ -120,68 +174,28 @@ func setupWatcherDirectories(watcher *fsnotify.Watcher, qddDir string) {
 	})
 }
 
-func broadcastInitialState() {
-	res := BuildState()
-	data, _ := json.Marshal(res)
+func difundirEstado() {
+	data, _ := json.Marshal(BuildState())
 	Broker.Broadcast(data)
 }
 
-func startHeartbeat(qddDir string) {
-	go func() {
-		for {
-			time.Sleep(15 * time.Second)
-			logFile := filepath.Join(qddDir, "mcp.log")
-			f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err == nil {
-				f.WriteString(fmt.Sprintf("[INFO] %s: QDD Framework monitor activo, analizando estado...\n", time.Now().Format("15:04:05")))
-				f.Close()
-			}
-		}
-	}()
-}
-
-func monitorEvents(watcher *fsnotify.Watcher) {
-	var timer *time.Timer
-	for {
-		cont := processWatcherEvent(watcher, &timer)
-		if !cont {
-			break
-		}
+// esEventoDelProyecto descarta lo que escribe el propio dashboard (el grafo en
+// knowledge.db) y los temporales de editores y escrituras atómicas: si contaran,
+// cada reconstrucción dispararía la siguiente.
+func esEventoDelProyecto(event fsnotify.Event) bool {
+	if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) == 0 {
+		return false
 	}
-}
-
-func processWatcherEvent(watcher *fsnotify.Watcher, timer **time.Timer) bool {
-	select {
-	case event, ok := <-watcher.Events:
-		if !ok {
+	nombre := filepath.Base(event.Name)
+	if strings.HasPrefix(nombre, "knowledge.db") {
+		return false
+	}
+	for _, sufijo := range []string{".tmp", ".swp", ".swx", "~"} {
+		if strings.HasSuffix(nombre, sufijo) {
 			return false
 		}
-		*timer = handleWatcherEvent(event, *timer)
-	case err, ok := <-watcher.Errors:
-		if !ok {
-			return false
-		}
-		fmt.Println("Watcher error:", err)
 	}
 	return true
-}
-
-func handleWatcherEvent(event fsnotify.Event, timer *time.Timer) *time.Timer {
-	isModify := event.Op&fsnotify.Write == fsnotify.Write
-	isCreate := event.Op&fsnotify.Create == fsnotify.Create
-	isRemove := event.Op&fsnotify.Remove == fsnotify.Remove
-
-	if isModify || isCreate || isRemove {
-		if timer != nil {
-			timer.Stop()
-		}
-		return time.AfterFunc(500*time.Millisecond, func() {
-			res := BuildState()
-			data, _ := json.Marshal(res)
-			Broker.Broadcast(data)
-		})
-	}
-	return timer
 }
 
 // Definición estricta del Contrato OpenAPI (Type-Safety)
@@ -310,15 +324,11 @@ func BuildState() QDDState {
 
 	loadHistoricalTrends(&response, cwd)
 
-	score, grade, medido := puntajeDelDashboard(cwd)
+	score, grade, _ := puntajeDelDashboard(cwd)
 	response.Score = score
 	response.Grade = grade
 	response.QualityStatus = determineQualityStatus(openFindings)
 	response.LocalLLM = cognitive.DetectLocalLLM()
-
-	if medido {
-		recordHistoricalTrend(cwd, score)
-	}
 
 	if response.ValueMetrics.HoursSaved == 0 && response.ValueMetrics.DebtReduced == 0 {
 		response.MCPLogs = append([]string{"[FILOSOFÍA QDD] 'Lo que no se mide no se mejora'. Finaliza sprints y certificaciones para generar métricas de valor cuantificables."}, response.MCPLogs...)
@@ -683,72 +693,37 @@ func loadGraphEdges(response *QDDState, db *sql.DB) {
 	}
 }
 
+// loadHistoricalTrends arma la tendencia desde las certificaciones reales
+// (certificate_history.json, que escribe audit/certify): el último puntaje de
+// cada día con la escala actual. Sin certificaciones el gráfico queda vacío
+// (FND-051). cognitive_history.json no sirve: mezcla eventos del MCP y del
+// benchmark sin puntaje (FND-058).
 func loadHistoricalTrends(response *QDDState, cwd string) {
-	histPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
-	if histData, err := os.ReadFile(histPath); err == nil {
-		parseHistoricalTrends(response, histData)
-	}
-	// Sin historial el gráfico queda vacío: antes mostraba una evolución
-	// inventada (40 → 75 → 100) a quien recién empezaba (FND-051).
-	if response.Historical == nil {
-		response.Historical = []HistoricalTrendPoint{}
-	}
-}
-
-func recordHistoricalTrend(cwd string, score int) {
-	histPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
-	var histList []map[string]interface{}
-	
-	if histData, err := os.ReadFile(histPath); err == nil {
-		json.Unmarshal(histData, &histList)
-	}
-
-	today := time.Now().Format("2006-01-02")
-	if len(histList) > 0 {
-		lastEntry := histList[len(histList)-1]
-		if lastEntry["date"] == today {
-			// Update today's score
-			lastEntry["score"] = score
-			histList[len(histList)-1] = lastEntry
-			data, _ := json.MarshalIndent(histList, "", "  ")
-			atomicWriteFile(histPath, data)
-			return
-		}
-	}
-
-	// Append new day
-	histList = append(histList, map[string]interface{}{
-		"date": today,
-		"score": score,
-	})
-	
-	data, _ := json.MarshalIndent(histList, "", "  ")
-	atomicWriteFile(histPath, data)
-}
-
-func atomicWriteFile(path string, data []byte) error {
-	tmpPath := path + ".tmp"
-	err := os.WriteFile(tmpPath, data, 0644)
+	response.Historical = []HistoricalTrendPoint{}
+	data, err := os.ReadFile(filepath.Join(cwd, ".qdd", "project", "metrics", "certificate_history.json"))
 	if err != nil {
-		return err
+		return
 	}
-	return os.Rename(tmpPath, path)
+	var history []audit.Certificate
+	if json.Unmarshal(data, &history) != nil {
+		return
+	}
+	for _, cert := range history {
+		agregarPuntoDelDia(response, cert)
+	}
 }
 
-func parseHistoricalTrends(response *QDDState, histData []byte) {
-	var histList []map[string]interface{}
-	json.Unmarshal(histData, &histList)
-	for _, item := range histList {
-		date := ""
-		score := 0
-		if d, ok := item["date"]; ok {
-			date = fmt.Sprintf("%v", d)
-		}
-		if s, ok := item["score"]; ok {
-			score = int(s.(float64))
-		}
-		response.Historical = append(response.Historical, HistoricalTrendPoint{Date: date, Score: score})
+func agregarPuntoDelDia(response *QDDState, cert audit.Certificate) {
+	if cert.Escala != audit.EscalaActual || len(cert.Timestamp) < 10 {
+		return
 	}
+	punto := HistoricalTrendPoint{Date: cert.Timestamp[:10], Score: cert.Score}
+	n := len(response.Historical)
+	if n > 0 && response.Historical[n-1].Date == punto.Date {
+		response.Historical[n-1] = punto
+		return
+	}
+	response.Historical = append(response.Historical, punto)
 }
 
 func loadSprints(response *QDDState, db *sql.DB) {

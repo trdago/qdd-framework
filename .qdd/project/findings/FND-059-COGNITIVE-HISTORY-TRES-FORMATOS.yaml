@@ -1,0 +1,8 @@
+title: "cognitive_history.json lo escriben tres partes con tres formatos distintos"
+description: "El MCP registra cada llamada a una herramienta ({timestamp, tool, status, details}, cmd/mcp.go:113), el benchmark guarda certificados cognitivos ({timestamp, scores, total, tendency}, pkg/qcl/benchmark/certificate.go:41) y, hasta FND-058, el dashboard escribía su tendencia ({date, score}). doctor e init validan y reparan un 'Contrato de Historial' para ese archivo que ninguno de los tres cumple por completo."
+impact: "Quien lee el archivo no sabe qué contiene. El dashboard mostraba eventos del MCP como puntos en 0. El MCP recorta el archivo a sus últimas 100 entradas y puede borrar los certificados del benchmark."
+action_taken: "Pendiente (RFC 0005 §3.9). Un archivo por fuente con su propio esquema: eventos del MCP, certificados cognitivos. La tendencia del puntaje ya sale de certificate_history.json (FND-058). doctor valida cada esquema."
+test_result: "Pendiente: cada escritor y su lector usan el mismo esquema, y escribir eventos del MCP no borra certificados del benchmark."
+status: open
+detectado_por: ia
+date: "2026-10-29"

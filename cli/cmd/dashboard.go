@@ -71,11 +71,13 @@ var dashboardCmd = &cobra.Command{
 			ch := dashboard.Broker.AddClient()
 			defer dashboard.Broker.RemoveClient(ch)
 
-			// Enviar estado inicial de inmediato para evitar que el UI se quede en mock si fsnotify falla (ej. Docker/WSL)
-			initialState := dashboard.BuildState()
-			initData, _ := json.Marshal(initialState)
-			fmt.Fprintf(w, "data: %s\n\n", string(initData))
-			flusher.Flush()
+			// AddClient ya dejó en ch el último estado difundido. Solo se reconstruye
+			// si todavía no hay ninguno (p. ej. fsnotify falló en Docker/WSL).
+			if _, ok := dashboard.Broker.Ultimo(); !ok {
+				initData, _ := json.Marshal(dashboard.BuildState())
+				fmt.Fprintf(w, "data: %s\n\n", string(initData))
+				flusher.Flush()
+			}
 
 			for {
 				select {
