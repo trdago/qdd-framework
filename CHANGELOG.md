@@ -23,6 +23,14 @@ El blueprint `estado-por-frente` con destino «archivo» ya tiene herramienta. L
 - **Regla `EPF-01-CHECK` en `qdd audit`.** Si el proyecto tiene `estado.yaml`, la auditoría bloquea sus violaciones. Sin el archivo no reporta nada.
 - **Tool MCP `qdd_estado`** (ver, set, cerrar, check). Aplica las mismas validaciones que la CLI.
 
+### 🖥️ `qdd consola activar`: el panel y la barra en Claude Code con un solo comando
+
+- **Panel dentro de Claude Code.** El mod `qdd-estado` muestra la tabla de frentes, lo que espera cada ⏳ y las fallas: al lado de la conversación con `/tui fullscreen`, encima del prompt si no. Se abre solo en los proyectos con `estado.yaml`; `/estado` lo abre y `/estado cerrar` lo cierra.
+- **Barra en Go.** `qdd consola statusline` muestra proyecto · modelo · contexto · 5h · semana · ◧ estado, se refresca cada 2 s y funciona en Windows sin bash ni jq. Una barra propia no se toca.
+- **Un solo comando.** `qdd consola activar` instala el mod que viene dentro del binario, con la versión de la CLI, usando los comandos oficiales de Claude Code. `qdd consola desactivar` lo deja todo como estaba.
+- **Siempre al día.** `qdd doctor` revisa el panel y la barra, y `--fix` los repara. `make install` y `npm install` los actualizan junto con la CLI.
+- **`qdd estado ver --json`.** Entrega el estado ya resuelto para quien lo dibuja.
+
 ## [v2.1.0] - 2026-10-28
 
 ### 🩺 `qdd doctor` sabe reparar todo lo de los blueprints (FND-053, FND-054)

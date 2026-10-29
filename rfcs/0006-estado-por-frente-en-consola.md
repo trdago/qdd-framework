@@ -92,15 +92,26 @@ La invariante actual «La barra solo usa el JSON de la consola: sin red, sin arc
 - Ese segmento lee solo archivos locales del proyecto. No usa red, tiene un tope de 100 ms y, si falla o tarda, no muestra nada.
 - Los demás segmentos siguen usando solo el JSON de la consola.
 
-### 3.4.1 Panel dentro de Claude Code (mod `qdd-estado`, prototipo)
+### 3.4.1 Panel dentro de Claude Code (mod `qdd-estado`)
 
 Claude Code (v2.1.287+) deja que un plugin de tipo *mod* dibuje un panel: al lado de la conversación si la terminal es ancha y usa la vista fullscreen (`/tui fullscreen`), y encima del prompt si no. Es la vía oficial para tener la tabla en la misma consola, como OpenCode, sin que otro programa escriba sobre la pantalla de Claude Code.
 
 - `qdd estado ver --json` entrega el estado ya resuelto (`estado.Datos`): resumen, etapas y abreviaturas, un símbolo por celda, y las listas de ⏳ (con su bloqueo y de quién) y de ❌. Quien dibuja no interpreta reglas ni lee el YAML.
-- El mod `plugins/qdd-estado` llama a esa salida cada 2 s (`$.process.run`, tope de 3 s) y redibuja solo si cambió. Sin `qdd`, con un `qdd` antiguo o sin archivo, el panel dice cómo crearlo. `/estado` abre el panel y `/estado cerrar` lo cierra. `QDD_BIN` apunta a otro binario.
+- El mod (`cli/pkg/consola/mod/qdd-estado`, embebido en el binario) llama a esa salida cada 2 s (`$.process.run`, tope de 3 s) y redibuja solo si cambió. Sin `qdd`, con un `qdd` antiguo o sin archivo, el panel dice cómo crearlo. `/estado` abre el panel y `/estado cerrar` lo cierra. `QDD_BIN` apunta a otro binario.
 - El panel se abre solo si hay frentes. Si se abre sin que el usuario lo pida, Claude Code solo lo muestra desde 144 columnas.
 - Pruebas: `claude plugin validate` y `claude plugin test` (dibujo, sin archivo, redibujo al cambiar).
-- Pendiente para dejarlo de prototipo: probarlo en una sesión real con fullscreen (Linux y Windows) y distribuirlo desde el marketplace de la organización.
+- Probado en una sesión real con fullscreen en Linux (2026-10-29). Windows: pendiente de una prueba real.
+
+### 3.6 Un solo interruptor: `qdd consola activar`
+
+Decisión del humano (2026-10-29): el usuario solo activa algo; QDD hace el resto.
+
+- `qdd consola activar [--sin-barra]` escribe el mod embebido, con la versión de la CLI en su `plugin.json`, en un marketplace local de la carpeta central (`<QDD_HOME>/claude`). Lo instala con los comandos oficiales de Claude Code: `claude plugin marketplace add <dir> --scope user`, `claude plugin install qdd-estado@qdd --scope user` y `claude plugin update` si la versión instalada es otra. Repetirlo no cambia nada.
+- La barra pasa a `qdd consola statusline` (Go, con `refreshInterval: 2`): la misma línea que la referencia del blueprint más el segmento de estado, sin bash ni jq, y por eso también funciona en Windows. Solo reemplaza una barra vacía, la de QDD o el script de referencia v1.0.0 sin cambios; una barra propia no se toca. Antes de cambiar `settings.json` deja una copia en `settings.json.qdd.bak`.
+- `qdd consola desactivar` desinstala el panel, quita el marketplace y devuelve la barra anterior. `qdd consola estado` dice si está activo y al día.
+- `qdd doctor` suma el grupo «6. Consola de Claude Code» solo si se activó en esa máquina: panel instalado, habilitado y en la versión de la CLI, y barra de QDD si se eligió. `qdd doctor --fix` lo repara.
+- `make install` e `npm install` ejecutan `qdd consola actualizar --si-activo`, así que el panel se actualiza junto con la CLI.
+- Nada se escribe en el proyecto. El blueprint `consola-claude-code` v1.1.0 pregunta si se quiere el panel; la ficha lo registra y la persona lo activa con un comando.
 
 ### 3.5 Agnóstico al sistema operativo
 

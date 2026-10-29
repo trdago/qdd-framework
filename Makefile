@@ -28,6 +28,7 @@ install: build
 	mkdir -p ~/.local/bin
 	rm -f ~/.local/bin/qdd
 	cp qdd ~/.local/bin/qdd
+	-~/.local/bin/qdd consola actualizar --si-activo
 	@echo "==> ¡Instalación completada! Ahora puedes usar el comando 'qdd' en cualquier lugar."
 
 run: install

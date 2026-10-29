@@ -94,7 +94,35 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	list.Groups = append(list.Groups, buildGroup3Checks(projectPath))
 	list.Groups = append(list.Groups, buildBlueprintChecks(projectPath))
 	list.Groups = append(list.Groups, buildRegistrosChecks(projectPath))
+	if g := buildConsolaChecks(); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	return list
+}
+
+// grupoConsola revisa el panel y la barra de QDD en Claude Code, solo si se activaron en esta máquina (RFC 0006 §3.6).
+const grupoConsola = "6. Consola de Claude Code (qdd consola)"
+
+func buildConsolaChecks() *CheckGroup {
+	g := &CheckGroup{Name: grupoConsola}
+	for _, d := range consolaActual().Diagnosticar() {
+		g.Items = append(g.Items, &CheckItem{Name: d.Nombre, Success: d.OK, Error: d.Detalle})
+	}
+	return g
+}
+
+func repairConsola(g *CheckGroup) {
+	if !groupHasFailures(g) {
+		return
+	}
+	fmt.Println("  [~] Reparando la consola de Claude Code...")
+	hecho, err := consolaActual().Reparar()
+	for _, h := range hecho {
+		fmt.Printf("      %s\n", h)
+	}
+	if err != nil {
+		fmt.Printf("      [!] %v\n", err)
+	}
 }
 
 // grupoBlueprints nombra el grupo de doctor que revisa los blueprints de la
@@ -345,6 +373,10 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 	for _, g := range checklist.Groups {
 		if g.Name == grupoBlueprints {
 			repairBlueprints(projectPath, g)
+			continue
+		}
+		if g.Name == grupoConsola {
+			repairConsola(g)
 			continue
 		}
 		for _, item := range g.Items {
