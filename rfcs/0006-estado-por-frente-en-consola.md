@@ -113,6 +113,26 @@ Decisión del humano (2026-10-29): el usuario solo activa algo; QDD hace el rest
 - `make install` e `npm install` ejecutan `qdd consola actualizar --si-activo`, así que el panel se actualiza junto con la CLI.
 - Nada se escribe en el proyecto. El blueprint `consola-claude-code` v2.0.0 (pregunta `consola_qdd`) define si se quiere el panel; la ficha lo registra y la persona lo activa con un comando.
 
+### 3.7 Acciones y jerarquía visual del panel (`consola-claude-code` v3.0.0, qdd 2.3.0)
+
+Decisión del humano (2026-10-29): el usuario vio el prototipo y pidió dejarlo así en el blueprint. El panel pasa de solo
+dibujar a ofrecer botones, pero la lógica sigue en Go.
+
+- `qdd consola panel --json` entrega en una sola lectura lo que dibuja el panel: `{formato, estado, motivo, acciones}`.
+  `estado` es lo mismo que `qdd estado ver --json` (o `null` con el `motivo`, p. ej. sin `estado.yaml`), y `acciones` es
+  la lista que qdd ofrece en ese momento: `aprobar:<ficha>` por cada ficha en `borrador` (hasta 9), `revisar-estado`
+  (`qdd estado check`, solo si hay `estado.yaml`) y `auditar` (`qdd audit`). Cada acción trae `id`, `tipo`
+  (`aprobar` | `comando`), `etiqueta`, `detalle` (el comando equivalente) y `confirmar` (`true` si escribe).
+- `qdd consola accion <id> [--confirmado]` vuelve a calcular las acciones, rechaza un id que no está en la lista y una
+  acción con `confirmar` sin `--confirmado`, y la ejecuta con el mismo binario de qdd en la raíz del proyecto. Sale con
+  el código de la acción. El panel no arma comandos: solo pasa ids.
+- El mod dibuja cuatro niveles: cabecera con borde y los tres conteos en números grandes de 3 filas (█ ▀ ▄), títulos en
+  negrita, texto y detalle atenuado. Cada frente toma el color de su peor etapa (❌ rojo, ⏳ amarillo, ✅ verde). El tamaño
+  de letra (`size`) se declara, pero la terminal lo ignora; en las apps que lo respetan se ve de verdad.
+- Teclas: `1…9` aprueban la ficha de esa fila, `c` revisa el estado y `u` audita. Lo que escribe abre un recuadro
+  «¿…?» con `s  Sí` y `n  No` dentro del mismo panel. El resultado (últimas líneas de la salida) queda en un recuadro
+  verde o rojo, y el panel se vuelve a leer.
+
 ### 3.5 Agnóstico al sistema operativo
 
 Todo en Go puro, sin cgo. La terminal se maneja con secuencias ANSI y `golang.org/x/term` (tamaño y modo crudo), que funcionan en Windows 10+, macOS y Linux. No hay dependencia de tmux; el panel dividido lo arma cada terminal.
