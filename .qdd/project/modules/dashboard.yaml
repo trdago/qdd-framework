@@ -1,6 +1,6 @@
 id: dashboard
 nombre: Dashboard (Centro de Comando Web)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/dashboard
     - cli/cmd/dashboard.go
@@ -29,3 +29,5 @@ fuentes:
     - cli/pkg/dashboard/state.go
     - cli/cmd/dashboard.go
     - rfcs/0005-reglas-como-principios.md
+ultima_revision: "2026-10-29"
+revisado_en_commit: 74073e4e91bb
