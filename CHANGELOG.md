@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.3.0] - 2026-10-29
+
+### 🖱️ El panel de estado con acciones y jerarquía visual (RFC 0006 §3.7, `consola-claude-code` v3.0.0)
+
+- **Acciones desde el panel.** Cada ficha en borrador tiene su botón (teclas `1…9`) para aprobarla. `c` revisa el estado (`qdd estado check`, solo lectura) y `u` audita (`qdd audit`). Lo que escribe abre un recuadro «¿…?» con `s  Sí` y `n  No` dentro del panel, y el resultado queda a la vista en verde o rojo.
+- **La lógica sigue en Go.** `qdd consola panel` entrega en un JSON el estado por frente y las acciones de ahora. `qdd consola accion <id> [--confirmado]` las vuelve a calcular antes de ejecutar: rechaza un id que no ofrece y una acción que escribe sin `--confirmado`. El panel solo pasa ids, nunca comandos.
+- **Cuatro niveles visuales.** La cabecera, con borde, muestra los frentes, los ⏳ y los ❌ en números grandes de 3 filas. Debajo van los títulos en negrita, el texto y el detalle atenuado. Cada frente toma el color de su peor etapa: ❌ rojo, ⏳ amarillo, ✅ verde.
+- **Se abre también sin frentes** si hay fichas por aprobar. Sin `estado.yaml`, dice cómo crearlo y sigue ofreciendo las fichas.
+
 ## [v2.2.0] - 2026-10-29
 
 ### ◧ `qdd estado`: el estado por frente en la consola (RFC 0006)
