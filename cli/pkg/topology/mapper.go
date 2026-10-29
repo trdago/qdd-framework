@@ -98,7 +98,6 @@ func loadAvailableCerts(cwd string, availableCerts *[]CertYAML) {
 	loadCertsFromDir(coreCertDir, true, availableCerts)
 
 	projCertDir := filepath.Join(cwd, ".qdd", "project", "certification")
-	os.MkdirAll(projCertDir, 0755) // Ensure exists
 	loadCertsFromDir(projCertDir, false, availableCerts)
 }
 

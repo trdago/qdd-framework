@@ -1,0 +1,31 @@
+id: dashboard
+nombre: Dashboard (Centro de Comando Web)
+estado: borrador
+rutas:
+    - cli/pkg/dashboard
+    - cli/cmd/dashboard.go
+objetivo_operativo:
+    problema: Quien trabaja con QDD necesita ver de un vistazo el estado real del proyecto (puntaje, findings, certificaciones, sprints, módulos) y enterarse cuando cambia, sin correr comandos.
+    usuarios: Desarrolladores y responsables técnicos con el dashboard abierto mientras trabajan, ellos o una IA.
+    criterio_de_exito: Cada número que se muestra sale de una fuente real del proyecto, y el dashboard se actualiza cuando esa fuente cambia. Si no hay fuente, muestra 'sin medir'. Con el proyecto quieto, el dashboard no consume CPU.
+    caso_real: 'v2.1.0: con el dashboard abierto, QDD reconstruía el estado cada 500 ms aunque no cambiara nada, porque escribía dentro de lo que observaba (FND-058). Además mostraba un historial de certificaciones simulado (FND-055).'
+objetivo_tecnologico:
+    arquitectura: 'Dirigido por eventos: RunWatcher observa .qdd/ con fsnotify; un evento relevante, agrupado en una ventana de 1 s, reconstruye el estado (BuildState) y lo difunde por SSE a los navegadores (StateBroker, que guarda el último estado para los clientes nuevos). Las acciones del usuario (políticas, intenciones) también reconstruyen y difunden. No hay sondeos ni heartbeat.'
+    decisiones:
+        - El watcher ignora lo que escribe el propio dashboard (knowledge.db y sus archivos de journal) y los temporales (*.tmp, archivos de intercambio de editores). Si no los ignorara, cada escritura dispararía otra reconstrucción.
+        - Las carpetas nuevas dentro de .qdd/ se agregan al watcher cuando se crean, así no hace falta reiniciar el dashboard.
+        - La tendencia del puntaje sale de certificate_history.json, que escribe audit/certify. Se toma el último puntaje de cada día con la escala actual. El dashboard no escribe historiales.
+        - Un cliente SSE nuevo recibe el último estado difundido. Solo se reconstruye si todavía no hay ninguno.
+    invariantes:
+        - Los datos simulados y los mocks solo existen en las pruebas. Si un indicador no tiene una fuente real, el dashboard muestra 'sin medir'.
+        - BuildState solo lee las fuentes del proyecto. Nunca escribe en una ruta que el watcher considere un evento.
+        - Con el proyecto quieto, el dashboard no reconstruye el estado, no escribe archivos y no envía mensajes.
+        - El puntaje es el de audit.Score de la última certificación. El dashboard no corre la auditoría al refrescar.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/dashboard/...
+        - cd cli && go test ./cmd/ -run Dashboard
+fuentes:
+    - cli/pkg/dashboard/state.go
+    - cli/cmd/dashboard.go
+    - rfcs/0005-reglas-como-principios.md
