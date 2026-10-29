@@ -1,0 +1,43 @@
+id: estado
+nombre: Estado por frente (qdd estado)
+estado: borrador
+rutas:
+    - cli/pkg/estado
+    - cli/cmd/estado.go
+    - cli/cmd/estado_watch.go
+    - cli/cmd/estado_vt_windows.go
+    - cli/cmd/estado_vt_other.go
+    - cli/cmd/mcp_estado.go
+    - cli/pkg/audit/estado_check.go
+objetivo_operativo:
+    problema: El blueprint estado-por-frente con destino «archivo» pide una tabla de frentes × etapas que sobreviva a una sesión cortada y que un lector automático pueda revisar. Sin herramienta, la tabla se escribe a mano, sin validar, y nadie la ve mientras trabaja.
+    usuarios: Las personas que siguen el avance desde la consola (barra de estado y panel) y los agentes que retoman o reportan trabajo (CLI y tool MCP qdd_estado).
+    criterio_de_exito: 'Toda escritura por qdd estado set o cerrar, o por qdd_estado, deja un archivo que cumple EPF-C01…C07, o no escribe nada. qdd audit bloquea un estado.yaml que no los cumple. La barra muestra el resumen sin fallar nunca, y el panel se ve igual en Linux, macOS y Windows.'
+    caso_real: '2026-10-29, notificador_de_ofertas: los reportes de avance de la sesión ADR-008 (Gemini retirado) se daban en prosa. Con qdd estado quedaron 5 frentes; el set de un ✅ sin evidencia se rechazó con EPF-C02, y la barra mostró «◧ 5 frentes · ⏳4 ❌1».'
+objetivo_tecnologico:
+    arquitectura: 'pkg/estado es puro y sin terminal: Parse/Load/Save (escritura atómica con archivo temporal y rename), Check (EPF-C01…C07, contra la versión de git HEAD vía Anterior), CheckRespuesta (EPF-A01), Set/Init/Cerrar (validan el frente tocado antes de escribir), y los renderizadores Markdown, Mensajeria, Statusline y Panel. cmd/estado*.go solo conecta flags y terminal: el panel watch usa la pantalla alternativa ANSI, sondea mtime y tamaño (sin inotify) y restaura la terminal al salir. mcp_estado.go y audit/estado_check.go reutilizan las mismas funciones.'
+    decisiones:
+        - 'qdd estado tiene sus propios hooks vacíos: no escribe .qdd/working, no migra ni exige contexto, porque la barra lo ejecuta a cada rato.'
+        - 'statusline nunca falla ni escribe en stderr y corta a los 50 ms: si algo sale mal, la barra no muestra el segmento.'
+        - 'Una escritura solo se rechaza por violaciones del frente que toca: un error previo en otro frente no bloquea el trabajo, pero check y audit lo siguen reportando.'
+        - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
+        - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
+        - 'qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.'
+    invariantes:
+        - Nada escribe estado.yaml sin pasar por Check del frente tocado.
+        - Un frente nunca se borra; se cierra o se descarta con motivo.
+        - statusline no imprime nada si no hay archivo o está ilegible, y nunca sale con error.
+        - Sin estado.yaml, qdd audit no reporta EPF-01-CHECK.
+        - Ninguna línea del panel es más ancha que la terminal.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/estado/...
+        - cd cli && go test ./pkg/audit/ -run EstadoCheck
+        - cd cli && go test ./cmd/ -run EstadoTool
+        - cd cli && GOOS=windows go vet ./cmd ./pkg/estado && GOOS=darwin go vet ./cmd ./pkg/estado
+fuentes:
+    - rfcs/0006-estado-por-frente-en-consola.md
+    - cli/pkg/estado/estado.go
+    - cli/pkg/estado/check.go
+    - cli/pkg/estado/set.go
+    - cli/pkg/estado/render.go

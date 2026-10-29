@@ -4,6 +4,25 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ◧ `qdd estado`: el estado por frente en la consola (RFC 0006)
+
+El blueprint `estado-por-frente` con destino «archivo» ya tiene herramienta. La tabla de frentes × etapas vive en `.qdd/project/estado.yaml`; una sesión cortada o un agente nuevo retoma desde los ⏳ sin rehacer lo hecho. Es un binario Go, igual en Linux, macOS y Windows.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd estado` / `qdd estado ver` | Imprime la tabla en markdown o mensajería, según la ficha. |
+| `qdd estado init` | Crea el archivo con las etapas de la ficha (o `--etapas`). |
+| `qdd estado set <frente> <etapa> <ok\|espera\|falla\|na>` | Actualiza una celda. Valida antes de escribir: un ✅ sin evidencia no se guarda. |
+| `qdd estado cerrar <frente> --motivo …` | Cierra o descarta un frente. Nunca se borra. |
+| `qdd estado check [--respuesta r.md] [--json]` | Lector automático EPF-C01…C07 y EPF-A01. Compara contra git HEAD para detectar frentes que desaparecen. |
+| `qdd estado statusline` | Una línea para la barra de la consola (`◧ 5 frentes · ⏳4 ❌1`). Nunca falla, tarda menos de 50 ms y sin archivo no imprime nada. |
+| `qdd estado watch` | Panel en vivo para un panel dividido de la terminal. Muestra la tabla compacta, lo que espera cada ⏳ y de quién, y las fallas. Se redibuja al cambiar el archivo o el tamaño. Sale con `q`. |
+
+- **Regla `EPF-01-CHECK` en `qdd audit`.** Si el proyecto tiene `estado.yaml`, la auditoría bloquea sus violaciones. Sin el archivo no reporta nada.
+- **Tool MCP `qdd_estado`** (ver, set, cerrar, check). Aplica las mismas validaciones que la CLI.
+
 ## [v2.1.0] - 2026-10-28
 
 ### 🩺 `qdd doctor` sabe reparar todo lo de los blueprints (FND-053, FND-054)
