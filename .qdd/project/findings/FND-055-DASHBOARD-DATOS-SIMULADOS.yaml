@@ -1,0 +1,9 @@
+title: "El dashboard muestra datos simulados como si fueran mediciones"
+description: "cli/pkg/dashboard/state.go arma un historial falso para cada certificación (mockHistory: 5 ejecuciones con fechas relativas a 'ahora' y un FAIL fijo en la segunda). 'Horas ahorradas' y 'deuda reducida' suman constantes (+2 h por finding resuelto, +4 h por sprint completado), y todo finding tiene la descripción fija 'Deuda técnica documentada.'."
+impact: "Quien mira el dashboard ve una historia y un valor que nunca ocurrieron, lo que destruye la confianza en todos los indicadores. Es el mismo defecto que FND-051 corrigió para la tendencia del puntaje."
+rule: "Los datos simulados y los mocks solo existen en las pruebas. El producto (dashboard, MCP, informes) nunca los contiene: sin fuente real, el indicador muestra 'sin medir'."
+action_taken: "Pendiente (RFC 0005 §3.9). Quitar mockHistory, las constantes de horas y la descripción fija. El historial de certificaciones sale de certificate_history.json, y el valor sale de detectado_por y de las fechas reales de apertura y cierre."
+test_result: "Pendiente: prueba de regresión que falle si BuildState devuelve un historial o un valor sin fuente."
+status: open
+detectado_por: ia
+date: "2026-10-29"
