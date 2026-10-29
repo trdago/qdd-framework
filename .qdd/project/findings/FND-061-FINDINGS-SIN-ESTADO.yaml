@@ -1,0 +1,8 @@
+title: "Hay findings sin estado y doctor no los señala"
+description: "24 findings de este repositorio (p. ej. FND-029, FND-032, FND-054) no tienen campo status, y 18 lo escriben en mayúscula. Desde FND-056 se cuentan como 'sin estado' y ya no como deuda abierta, pero nada pide corregirlos, y qdd bug sigue escribiendo RESOLVED en mayúscula (pkg/bugreport/bugreport.go:105)."
+impact: "Los indicadores muestran findings 'sin estado' indefinidamente, y quien registra un finding nuevo no sabe qué valores son válidos."
+action_taken: "Pendiente (RFC 0005 §3.9 punto 5). doctor lista los findings sin estado o con un estado no reconocido; con --fix normaliza las mayúsculas y los sinónimos, y pide a la persona el estado que falta, sin inventarlo. qdd bug escribe 'resolved'. La plantilla de finding incluye status, categoria y detectado_por."
+test_result: "Pendiente."
+status: open
+detectado_por: ia
+date: "2026-10-29"

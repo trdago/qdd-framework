@@ -226,4 +226,27 @@ describe('App.vue - Enterprise Dashboard', () => {
     expect(chart.datasets.length).toBe(1)
     expect(chart.datasets[0].data).toEqual([])
   })
+
+  // FND-056: la UI contaba como abierto todo lo que no fuera RESOLVED, incluidos
+  // los descartados y los que no tienen estado. Ahora usa el conteo del backend.
+  it('cuenta como abiertos solo los findings abiertos según el backend', async () => {
+    const instance = MockEventSource.instances[0]
+    instance.onmessage({ data: JSON.stringify({
+      score: 90, grade: 'World-Class', quality_status: 'FAIL (Deuda Técnica Detectada)',
+      findings: [
+        { id: 'a', status: 'OPEN', pillar: 'Seguridad', desc: 'x' },
+        { id: 'b', status: 'RESOLVED', pillar: 'Seguridad', desc: 'x' },
+        { id: 'c', status: 'WONTFIX', pillar: 'Seguridad', desc: 'x' },
+        { id: 'd', status: 'SIN ESTADO', pillar: 'Seguridad', desc: 'x' }
+      ],
+      findings_conteo: { abiertos: 1, resueltos: 1, descartados: 1, sin_estado: 1 },
+      certifications: [], sprints: [], knowledge: [], config: {},
+      telemetry: { uptime: '1s', memory_sys: '1 MB', goroutines: 1 },
+      topology: { application: { name: 'QDD', children: [] } },
+      historical_trends: []
+    }) })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.openFindingsCount).toBe(1)
+  })
 })

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"os"
 	"path/filepath"
 	"sort"
@@ -73,7 +74,7 @@ func registerScoreTool(s *server.MCPServer) {
 		openFindings, resolvedFindings := getFindingsStats()
 
 		finalScore := audit.Score(violations)
-		out := formatScoreOutput(finalScore, determineGrade(finalScore), certifiedCerts, totalCerts, openFindings, resolvedFindings)
+		out := formatScoreOutput(finalScore, audit.Grado(finalScore), certifiedCerts, totalCerts, openFindings, resolvedFindings)
 		out += fmt.Sprintf("Problemas que bloquean el gate: %d\nRecomendaciones (no bloquean): %d\n", len(audit.Bloqueantes(violations)), len(audit.Recomendaciones(violations)))
 		return mcp.NewToolResultText(out), nil
 	})
@@ -86,7 +87,7 @@ func getCertificationStats() (int, int) {
 	certDirs := []string{
 		filepath.Join(qddDir, "project", "certification"),
 	}
-	
+
 	totalCerts := 0
 	certifiedCerts := 0
 	for _, certDir := range certDirs {
@@ -120,46 +121,8 @@ func isCertCertified(path string) bool {
 }
 
 func getFindingsStats() (int, int) {
-	findDir := filepath.Join(".", ".qdd", "project", "findings")
-	findEntries, _ := os.ReadDir(findDir)
-	openFindings := 0
-	resolvedFindings := 0
-	
-	for _, entry := range findEntries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-			processFindingEntry(filepath.Join(findDir, entry.Name()), &openFindings, &resolvedFindings)
-		}
-	}
-	return openFindings, resolvedFindings
-}
-
-func processFindingEntry(path string, open, resolved *int) {
-	content, _ := os.ReadFile(path)
-	var fnd Finding
-	yaml.Unmarshal(content, &fnd)
-	
-	if fnd.Status == "open" {
-		*open++
-	}
-	if fnd.Status == "resolved" {
-		*resolved++
-	}
-}
-
-func determineGrade(score int) string {
-	if score >= 95 {
-		return "A+ (World-Class)"
-	}
-	if score >= 80 {
-		return "B (Bueno)"
-	}
-	if score >= 60 {
-		return "C (Requiere Atención)"
-	}
-	if score >= 40 {
-		return "D (Pobre)"
-	}
-	return "F"
+	c := findings.ContarEn(".")
+	return c.Abiertos, c.Resueltos
 }
 
 func formatScoreOutput(finalScore int, grado string, certifiedCerts, totalCerts, openFindings, resolvedFindings int) string {
@@ -167,6 +130,9 @@ func formatScoreOutput(finalScore int, grado string, certifiedCerts, totalCerts,
 	out += fmt.Sprintf("Certificaciones del proyecto cumplidas: %d/%d\n", certifiedCerts, totalCerts)
 	out += fmt.Sprintf("Findings Abiertos: %d\n", openFindings)
 	out += fmt.Sprintf("Findings Resueltos: %d\n", resolvedFindings)
+	if sin := findings.ContarEn(".").SinEstado; sin > 0 {
+		out += fmt.Sprintf("Findings sin estado (falta o no se reconoce su status): %d\n", sin)
+	}
 	return out
 }
 
@@ -184,7 +150,7 @@ func registerStatusTool(s *server.MCPServer) {
 			json.Unmarshal(stateData, &state)
 			out += fmt.Sprintf("Versión: %v\nEstado: %v\n", state["version"], state["status"])
 		}
-		
+
 		return mcp.NewToolResultText(out), nil
 	})
 }
@@ -270,7 +236,7 @@ func buildKnowledgeIndex(cwd string) []KnowledgeIndexEntry {
 		if _, err := os.Stat(folderPath); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		index = append(index, scanDocFolder(cwd, folderPath)...)
 	}
 	return index
@@ -331,16 +297,16 @@ func buildUIInstruction(cwd string) string {
 	}
 
 	uiComponents := discoverUIComponents(cwd)
-	
+
 	sort.Slice(uiComponents, func(i, j int) bool {
 		return uiComponents[i].SizeBytes > uiComponents[j].SizeBytes
 	})
-	
+
 	var topUIComponents []string
 	for i := 0; i < len(uiComponents) && i < 3; i++ {
 		topUIComponents = append(topUIComponents, uiComponents[i].Path)
 	}
-	
+
 	if len(topUIComponents) == 0 {
 		return ""
 	}
@@ -361,7 +327,7 @@ Tu tarea es:
 func discoverUIComponents(cwd string) []KnowledgeIndexEntry {
 	var uiComponents []KnowledgeIndexEntry
 	uiExtensions := map[string]bool{".vue": true, ".tsx": true, ".jsx": true, ".svelte": true, ".ts": true, ".js": true}
-	
+
 	filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -442,13 +408,13 @@ func registerMapTool(s *server.MCPServer) {
 		if err != nil {
 			return mcp.NewToolResultText("Error al mapear el proyecto: " + err.Error()), nil
 		}
-		
+
 		qddDir := filepath.Join(cwd, ".qdd", "project")
 		os.MkdirAll(qddDir, 0755)
 		outPath := filepath.Join(qddDir, "topology.json")
 		data, _ := json.MarshalIndent(projTopology, "", "  ")
 		os.WriteFile(outPath, data, 0644)
-		
+
 		return mcp.NewToolResultText(fmt.Sprintf("Topología generada. Score Global: %d%%", projTopology.GlobalScore)), nil
 	})
 }
@@ -516,5 +482,3 @@ func registerLocalLLMTools(s *server.MCPServer) {
 		return mcp.NewToolResultText(out), nil
 	})
 }
-
-

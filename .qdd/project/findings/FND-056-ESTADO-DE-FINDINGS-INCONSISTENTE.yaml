@@ -1,8 +1,8 @@
 title: "El estado de un finding se interpreta distinto en el dashboard y en el MCP"
 description: "El dashboard trata como abierto todo finding cuyo status no sea RESOLVED, aunque no tenga el campo (state.go:580). qdd_score solo reconoce 'open' y 'resolved' en minúscula (mcp_telemetry.go:141). En este repositorio, 24 findings ya resueltos no tienen status (p. ej. FND-029, FND-054) y 18 dicen RESOLVED en mayúscula."
 impact: "El dashboard muestra 'FAIL (Deuda Técnica Detectada)' en un proyecto sin deuda abierta. qdd_score no cuenta los 24 sin status ni los 18 en mayúscula. El mismo proyecto tiene dos números de deuda distintos."
-action_taken: "Pendiente (RFC 0005 §3.9). Un esquema de finding con status obligatorio (enum en minúscula: open, resolved, wontfix), validado por el gate. qdd doctor --fix normaliza las mayúsculas y pregunta el estado cuando falta, sin inventarlo. Un solo lector de findings para el dashboard, el MCP y report."
-test_result: "Pendiente: la misma carpeta de findings da los mismos conteos en el dashboard y en qdd_score."
-status: open
+action_taken: "Nuevo paquete pkg/findings: único lector y normalizador del estado (open, resolved, wontfix, sin estado; acepta sinónimos y mayúsculas). Lo usan el dashboard, qdd_score, qdd_sprint, report (que buscaba el texto 'status: resolved') y evolution. La UI usa findings_conteo del backend en vez de reinterpretar. Un finding sin status no se cuenta como abierto: se informa como 'sin estado'. Pendiente en FND-061: que doctor señale y ayude a corregir los findings sin estado, y decidir el estado de los 24 de este repositorio."
+test_result: "TestNormalizar, TestContarEn, TestIndicadores_MismoConteoDeFindingsEnTodosLosLectores, TestIndicadores_SinEstadoNoEsDeudaAbierta, App.spec.js (cuenta como abiertos solo los findings abiertos según el backend)."
+status: resolved
 detectado_por: ia
 date: "2026-10-29"

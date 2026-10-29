@@ -77,3 +77,20 @@ func TestScore(t *testing.T) {
 		}
 	}
 }
+
+// FND-057: el dashboard y el MCP usaban escalas distintas para el mismo
+// puntaje (un 92 era World-Class en uno y B en el otro). Grado es la única.
+func TestGrado(t *testing.T) {
+	cases := []struct {
+		score int
+		want  string
+	}{
+		{100, "World-Class"}, {90, "World-Class"}, {89, "A"}, {80, "A"},
+		{79, "B"}, {70, "B"}, {69, "C"}, {50, "C"}, {49, "D (CRITICAL)"}, {0, "D (CRITICAL)"},
+	}
+	for _, c := range cases {
+		if got := Grado(c.score); got != c.want {
+			t.Errorf("Grado(%d) = %q; want %q", c.score, got, c.want)
+		}
+	}
+}

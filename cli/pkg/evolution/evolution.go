@@ -8,6 +8,7 @@ package evolution
 
 import (
 	"encoding/json"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"os"
 	"path/filepath"
 	"sort"
@@ -28,8 +29,7 @@ type Finding struct {
 }
 
 func (f Finding) isOpen() bool {
-	s := strings.ToUpper(strings.TrimSpace(f.Status))
-	return s != "RESOLVED" && s != "CLOSED" && s != ""
+	return findings.Normalizar(f.Status) == findings.Abierto
 }
 
 func (f Finding) priorityWeight() int {
@@ -73,15 +73,15 @@ type certHistoryEntry struct {
 
 // Report is the outcome of studying the project's accumulated QDD knowledge.
 type Report struct {
-	Score            int
-	Tendency         string
-	Violations       int
-	Recomendaciones  int
-	OpenFindings     []Finding
-	PendingCerts     []ProjectCert
+	Score              int
+	Tendency           string
+	Violations         int
+	Recomendaciones    int
+	OpenFindings       []Finding
+	PendingCerts       []ProjectCert
 	AvailableCoreCerts []CoreCert
-	Priority         string
-	Recommendation   string
+	Priority           string
+	Recommendation     string
 }
 
 // Medicion es el resultado de la auditoría actual (audit.Score, audit.Bloqueantes

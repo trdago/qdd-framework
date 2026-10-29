@@ -1,0 +1,8 @@
+title: "El dashboard muestra como PASS toda certificación que no dice su estado"
+description: "processCertificationRow (cli/pkg/dashboard/state.go) asume status PASS cuando el YAML no trae status, y les pone a todas el nombre fijo 'Cumplimiento verificado' y el tipo 'Proyecto'. El grafo mezcla las certificaciones del proyecto con el catálogo core (estándares disponibles para adoptar, sin status), así que todo el catálogo aparece como cumplido."
+impact: "El dashboard dice que el proyecto cumple certificaciones que nunca se evaluaron. Es un dato inventado (la misma clase de defecto que FND-055)."
+action_taken: "Pendiente (RFC 0005 §3.9). Distinguir catálogo y proyecto en el grafo, mostrar el catálogo como 'disponible' y una certificación del proyecto sin status como 'sin estado'. El nombre y el tipo salen del YAML."
+test_result: "Pendiente: una certificación sin status no aparece como PASS, y una del catálogo no cuenta como cumplida."
+status: open
+detectado_por: ia
+date: "2026-10-29"

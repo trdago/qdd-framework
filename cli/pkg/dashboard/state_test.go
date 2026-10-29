@@ -47,29 +47,6 @@ func TestLoadHistoricalTrends_NoInventaDatos(t *testing.T) {
 	}
 }
 
-func TestDetermineDashboardGrade(t *testing.T) {
-	cases := []struct {
-		score int
-		want  string
-	}{
-		{100, "World-Class"},
-		{90, "World-Class"},
-		{85, "A"},
-		{75, "B"},
-		{69, "C"},
-		{50, "C"},
-		{49, "D (CRITICAL)"},
-		{0, "D (CRITICAL)"},
-	}
-
-	for _, c := range cases {
-		got := determineDashboardGrade(c.score)
-		if got != c.want {
-			t.Errorf("determineDashboardGrade(%d) = %q, want %q", c.score, got, c.want)
-		}
-	}
-}
-
 func TestDetermineQualityStatus(t *testing.T) {
 	if got := determineQualityStatus(0); got != "PASS" {
 		t.Errorf("determineQualityStatus(0) = %q, want PASS", got)
