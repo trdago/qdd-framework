@@ -1,0 +1,6 @@
+{
+  "name": "qdd-estado",
+  "version": "0.1.0",
+  "description": "Panel con el estado por frente del proyecto (QDD, blueprint estado-por-frente): la tabla de frentes × etapas, lo que espera cada ⏳ y de quién, y las fallas",
+  "author": { "name": "QDD Framework" }
+}

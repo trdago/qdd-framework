@@ -79,6 +79,7 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	}
 	*violations = append(*violations, RunModuleHeartCheck(e.cwd, p.ModuleHeart)...)
 	*violations = append(*violations, RunBlueprintCheck(e.cwd)...)
+	*violations = append(*violations, RunEstadoCheck(e.cwd)...)
 	*violations = append(*violations, CheckDatabasePerformance(e.cwd)...)
 	if p.DataUniqueness {
 		*violations = append(*violations, CheckDataUniqueness(e.cwd)...)

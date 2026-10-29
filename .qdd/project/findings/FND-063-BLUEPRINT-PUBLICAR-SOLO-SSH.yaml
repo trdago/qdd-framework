@@ -1,0 +1,37 @@
+id: "FND-063"
+type: "bug"
+title: "qdd blueprint propose y release solo publican por SSH: con una deploy key sin escritura fallan aunque gh tenga sesión"
+status: "open"
+categoria: "correccion"
+detectado_por: "ia"
+severity: "medium"
+discovered_at: "2026-10-29T19:30:00Z"
+discovered_by: "Claude Code (RFC 0006, publicación de consola-claude-code 2.0.0)"
+
+context:
+  module: "blueprints"
+  files_affected:
+    - "cli/pkg/blueprints/evolucion.go"
+  description: >
+    propose y release hacen git push al origen registrado (git@github.com:trdago/qdd-blueprints.git). En una máquina
+    cuya clave SSH es una deploy key de otro repositorio, el push falla con «Permission … denied to deploy key»,
+    aunque gh tenga sesión con permisos de escritura y git use gh como credential helper para HTTPS. propose dejó el
+    commit hecho, sin rama publicada ni PR; release no dejó la etiqueta local. Se publicó a mano por HTTPS (PR #1 y
+    etiqueta v2.0.0, formato de release respetado).
+
+reproduction:
+  steps:
+    - "1. Máquina con una deploy key de otro repo como clave SSH por defecto y gh con sesión"
+    - "2. qdd blueprint propose <id> -m '…'"
+  expected: "La rama se publica y el PR se abre (por SSH o, si falla, por HTTPS con las credenciales de gh)"
+  actual: "ERROR: Permission to trdago/qdd-blueprints.git denied to deploy key; sin rama ni PR"
+
+impact_analysis:
+  blast_radius: "low"
+  zero_else_violated: false
+  zero_mocks_violated: false
+
+resolution:
+  propuesta: >
+    Si el push SSH falla por permisos y el origen es de github.com, reintentar contra la URL HTTPS equivalente (git
+    usa el credential helper de gh) y decirlo en la salida; prueba de regresión con un remoto que rechaza SSH.

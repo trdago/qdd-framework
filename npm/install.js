@@ -136,9 +136,20 @@ function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
         fs.unlinkSync(downloadDest);
       }
       console.log('[QDD] ¡Instalación nativa completada exitosamente!');
+      actualizarConsola(path.join(binDir, binaryName));
     } catch (err) {
       console.error('[QDD] Error al extraer el binario:', err.message);
     }
+  }
+}
+
+// actualizarConsola deja el panel de Claude Code en la versión recién instalada si el usuario lo activó
+// ('qdd consola activar', RFC 0006 §3.6). Sin activar no hace nada; un error no rompe la instalación.
+function actualizarConsola(bin) {
+  try {
+    execSync(`"${bin}" consola actualizar --si-activo`, { stdio: 'inherit' });
+  } catch (err) {
+    console.error('[QDD] No se pudo actualizar el panel de Claude Code:', err.message);
   }
 }
 
