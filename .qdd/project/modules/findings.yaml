@@ -1,6 +1,6 @@
 id: findings
 nombre: Findings (lector único)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/findings
 objetivo_operativo:
@@ -26,4 +26,4 @@ fuentes:
     - cli/pkg/findings/revision.go
     - rfcs/0005-reglas-como-principios.md
 ultima_revision: "2026-10-29"
-revisado_en_commit: 395b7c7305ea
+revisado_en_commit: 63b3e5f52458

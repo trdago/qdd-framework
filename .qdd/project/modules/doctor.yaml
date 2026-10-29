@@ -1,6 +1,6 @@
 id: doctor
 nombre: QDD Doctor (diagnóstico y autorreparación)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/cmd/doctor.go
 objetivo_operativo:
@@ -28,5 +28,5 @@ fuentes:
     - cli/cmd/doctor.go
     - rfcs/0004-blueprints-centrales.md
     - rfcs/0005-reglas-como-principios.md
-ultima_revision: "2026-10-28"
-revisado_en_commit: 2fa5653b9c3b
+ultima_revision: "2026-10-29"
+revisado_en_commit: 63b3e5f52458

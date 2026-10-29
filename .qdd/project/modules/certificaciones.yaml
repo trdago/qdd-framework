@@ -1,6 +1,6 @@
 id: certificaciones
 nombre: Certificaciones (lector único)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/certificaciones
 objetivo_operativo:
@@ -26,3 +26,5 @@ pruebas:
 fuentes:
     - cli/pkg/certificaciones/certificaciones.go
     - .qdd/project/findings/FND-060-CERTIFICACIONES-PASS-POR-DEFECTO.yaml
+ultima_revision: "2026-10-29"
+revisado_en_commit: 63b3e5f52458
