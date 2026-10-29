@@ -149,6 +149,41 @@ Esto aplica el principio de RFC 0004 §3.7: si doctor no puede diagnosticarlo, l
 
 Cada finding agrega `detectado_por: qdd | humano | ia | produccion`. `qdd report` muestra cuántos defectos reales encontró el gate frente a los que encontraron otras fuentes. Con eso se puede responder con datos si la auditoría aporta, como pide la revisión externa.
 
+### 3.9 Indicadores
+
+Los indicadores que muestran el dashboard, `qdd_score`, `report` y `certify` siguen el mismo principio que las reglas. Una revisión del dashboard (2026-10-29) encontró que hoy no lo cumplen:
+
+| Problema | Dónde | Finding |
+|---|---|---|
+| Historial de certificaciones simulado, "horas ahorradas" con constantes y descripción fija de cada finding. | `dashboard/state.go:543`, `:590`, `:773`, `:599` | FND-055 |
+| El estado de un finding se interpreta distinto en el dashboard y en el MCP. Hay 24 findings resueltos sin `status`, que el dashboard cuenta como abiertos. | `state.go:580`, `mcp_telemetry.go:141` | FND-056 |
+| Dos escalas de grado para el mismo puntaje. | `state.go:819`, `mcp_telemetry.go:149` | FND-057 |
+| Ciclo de refresco: el dashboard se reconstruye cada 500 ms porque escribe dentro de lo que observa. | `state.go:97-185` | FND-058 |
+| El grafo de código solo indexa `.go`, y una prueba solo se reconoce por `_test.go` o `.spec.ts`. | `graph/db.go:302`, `:339` | §3.3 |
+| La topología etiqueta por defecto `.go`, `.vue`, `.css`, `.html` y las rutas `ui/` y `pkg/`, que es la estructura de QDD. | `topology/mapper.go:74` | §3.3 |
+| "Módulo certificado" significa "no tiene `else`", y un endpoint se marca "falta OWASP" porque su módulo tiene un `else`. | `topology/mapper.go:309`, `:354` | §3.1 |
+| El pilar de un finding (seguridad, estabilidad…) se adivina por palabras clave. | `state.go:620` | §3.1 |
+| "System Telemetry" muestra la memoria del proceso del dashboard, no algo del proyecto. | `state.go:406` | — |
+
+**Invariante: los datos simulados y los mocks solo existen en las pruebas.** El producto nunca los contiene ni los muestra. Si un indicador no tiene una fuente real, muestra **sin medir**.
+
+Diseño:
+
+1. **Cada indicador se declara**, igual que un principio:
+   ```yaml
+   id: I-FINDINGS-ABIERTOS
+   mide: findings con status open
+   fuente: .qdd/project/findings/*.yaml   # esquema validado (FND-056)
+   formula: count(status == open)
+   unidad: findings
+   ```
+   Un solo paquete (`pkg/indicadores`) los calcula, y el dashboard, el MCP, `report` y `certify` los consumen. No puede haber dos fórmulas ni dos escalas para el mismo indicador.
+2. **Las fuentes salen del `Contexto`** (§3.3): unidades y stacks reales, detectores de entradas y pruebas, y rutas declaradas. El grafo y la topología indexan cada unidad con el adaptador de su stack. Si una unidad no tiene adaptador, su indicador queda *sin medir* y no se omite.
+3. **"Certificado" significa "cumple sus principios aplicables"**, desglosado por categoría (§3.1). La categoría de un finding se declara en el finding (`categoria:`), no se adivina por palabras clave.
+4. **El valor se mide con datos reales:** `detectado_por` (§3.8), el tiempo entre que se abre y se cierra un finding (fechas de git) y los defectos que llegaron a producción (`detectado_por: produccion`). No hay constantes de "horas ahorradas".
+5. **El esquema del finding** tiene `status` obligatorio (`open | resolved | wontfix`, en minúscula), `categoria` y `detectado_por`. El gate lo valida, y `qdd doctor --fix` normaliza las mayúsculas y pregunta lo que falta. Doctor nunca inventa un estado.
+6. **El dashboard no escribe dentro de lo que observa** (FND-058). La telemetría del proceso pasa a una vista de diagnóstico, separada de los indicadores del proyecto.
+
 ## 4. Ejemplos
 
 ### 4.1 Cero else → `P-READABLE-FLOW`
@@ -214,7 +249,7 @@ La revisión también señaló fallas de madurez de QDD como herramienta. Tienen
 
 ## 7. Fases
 
-1. **Honestidad del informe:** `Contexto` con todas las unidades, estado *no evaluado*, cobertura en el informe, y `por_que` y `categoria` en las violaciones existentes. Corrige CERT-040. No agrega reglas nuevas.
+1. **Honestidad del informe:** `Contexto` con todas las unidades, estado *no evaluado*, cobertura en el informe, y `por_que` y `categoria` en las violaciones existentes. Corrige CERT-040. Corrige FND-055 a FND-058: sin datos simulados, un solo lector de findings, una sola escala de grado y sin ciclo de refresco. No agrega reglas nuevas.
 2. **Detectores de contenido:** `P-ACCESS-CONTROL` (serverless primero), `P-TESTS-PER-UNIT`, `P-E2E-EVIDENCE`, `P-DECISIONS-RECORDED`.
 3. **Detectores declarados y herramientas existentes:** `principios:` en `config.yaml` y lectura de los linters del proyecto.
 4. **`init` mínimo, grupo 5 de doctor, `detectado_por` y plantillas derivadas del contexto.**

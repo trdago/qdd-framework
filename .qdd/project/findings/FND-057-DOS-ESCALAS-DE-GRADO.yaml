@@ -1,0 +1,8 @@
+title: "El puntaje único tiene dos escalas de grado"
+description: "El dashboard asigna World-Class desde 90 y A desde 80 (state.go:819). qdd_score asigna A+ desde 95 y B desde 80 (mcp_telemetry.go:149). audit.Score se declara como el único puntaje, pero su grado depende de quién lo muestre."
+impact: "Un 92 es 'World-Class' en el dashboard y 'B (Bueno)' en el MCP. Un informe para jefaturas puede citar cualquiera de los dos."
+action_taken: "Pendiente (RFC 0005 §3.9). Una sola función de grado en el paquete de indicadores, usada por el dashboard, el MCP, report y certify."
+test_result: "Pendiente: prueba de tabla que verifique el mismo grado para cada puntaje en todos los consumidores."
+status: open
+detectado_por: ia
+date: "2026-10-29"
