@@ -189,8 +189,8 @@ var consolaPedirCmd = &cobra.Command{
 	Use:   "pedir -m <motivo> [--carpeta <dir>] <comando…>",
 	Short: "Deja un comando en el panel para que la persona lo ejecute con un clic (no lo ejecuta)",
 	Long: `Deja un comando en la cola del panel del proyecto. No lo ejecuta: corre solo cuando la persona lo confirma
-en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien sale de la cola; si
-falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
+en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien queda hecho (en gris, no
+se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
 
   qdd consola pedir -m "Publicar v2.5.1 (dispara npm y el binario)" -- git push origin v2.5.1
   qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"`,

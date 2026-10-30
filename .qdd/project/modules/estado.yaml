@@ -30,7 +30,8 @@ objetivo_tecnologico:
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
         - 'Orden de las secciones del panel: estado por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas; la confirmación va en la sección del botón pulsado.'
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
-        - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta y, si termina bien, sale de la cola.'
+        - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta.'
+        - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
@@ -44,6 +45,8 @@ objetivo_tecnologico:
         - Una acción que escribe (aprobar, auditar) no corre sin --confirmado, que el panel pasa solo después de «s  Sí».
         - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí».'
         - Pedir o descartar un comando no escribe nada en el proyecto.
+        - 'Un pedido aceptado no se ejecuta dos veces: solo uno pendiente o con falla corre, y el cambio a ejecutando se hace con la cola bloqueada (FND-070).'
+        - La tecla de un pedido no cambia mientras está abierto (FND-071).
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
 pruebas:
@@ -62,4 +65,4 @@ fuentes:
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 1194e98d7772
+revisado_en_commit: 56599d69172e

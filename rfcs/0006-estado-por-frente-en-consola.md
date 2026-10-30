@@ -167,8 +167,18 @@ bloquearon, o el comando publica algo, como el push del tag de una versión), no
   sección del botón que se pulsó.
 - La confirmación muestra el motivo, «Ejecutará: <comando>» y «En: <carpeta>». Con «s  Sí» el panel pide
   `qdd consola accion pedido:<id> --confirmado`, que corre el comando con la shell del sistema (`sh -c`; en Windows,
-  `cmd /C`) en su carpeta. Si termina bien sale de la cola; si falla queda para reintentarlo. «x  Descartar» lo quita
-  sin ejecutarlo (`qdd consola descartar <id>`). `qdd consola pedidos` lista la cola.
+  `cmd /C`) en su carpeta. «x  Descartar» lo quita sin ejecutarlo (`qdd consola descartar <id>`). `qdd consola
+  pedidos` lista la cola.
+- Estados (qdd 2.6.2): un pedido pasa por `pendiente` → `ejecutando` → `hecho` (salió con 0) o `fallo`, y la acción
+  los entrega en `estado`, con `inicio`, `fin` y `resultado` (últimas líneas de la salida). Solo uno pendiente o con
+  falla se ejecuta: el paso a `ejecutando` se hace con la cola bloqueada (un archivo `.lock`), así un pedido aceptado
+  no corre dos veces (FND-070). Cada pedido guarda su tecla desde que se pide y la conserva mientras está abierto; la
+  de uno hecho queda libre (FND-071). En el panel, cada pedido ocupa tres líneas (qué, `$ comando`, dónde y cuándo):
+  pendiente con su botón; ejecutando (⟳) y hecho (✓) en gris y sin botón; con falla (✗) en rojo, con el error y
+  «↻ Reintentar» en su misma tecla. El panel marca el pedido como ejecutando apenas se confirma, sin esperar a qdd.
+  Un hecho se sigue viendo 30 minutos; uno que lleva más de 15 minutos ejecutándose se da por cortado (fallo). El
+  tope de 9 y los duplicados cuentan solo los abiertos. Una cola de qdd 2.6.0 (sin estado ni tecla) se lee como
+  pendiente.
 - Las instrucciones para la IA (bloque de AGENTS.md, CLAUDE.md…) le dicen que use `qdd_consola_pedir` y que nunca
   ejecute ella misma `qdd consola accion` sobre un pedido. QDD no puede impedirlo técnicamente a un agente con shell
   propia: lo que lo protege es que la confirmación está en la interfaz de la persona y los permisos del agente.

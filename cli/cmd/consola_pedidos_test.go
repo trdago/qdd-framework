@@ -50,8 +50,13 @@ func TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18(t *testing.T) {
 	if len(consola.Pedidos(root)) != 1 {
 		t.Fatal("el pedido sigue en la cola")
 	}
-	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || len(consola.Pedidos(root)) != 0 {
-		t.Fatalf("confirmado corre y sale de la cola: %d %q", codigo, salida.String())
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || consola.Pedidos(root)[0].Estado != consola.EstadoHecho {
+		t.Fatalf("confirmado corre y queda hecho: %d %q", codigo, salida.String())
+	}
+	salida.Reset()
+	errores.Reset()
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo == 0 {
+		t.Fatalf("FND-070: un pedido hecho no se acepta dos veces: %q %q", salida.String(), errores.String())
 	}
 }
 
