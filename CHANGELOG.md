@@ -6,6 +6,33 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.1] - 2026-10-30 (preview)
+
+Primera **preview**: `npm i -g qdd-framework@preview`. Pasa a `latest` como 2.8.0 con 5 h de uso real medido (VER-05).
+
+### 📏 Uso real medido y canal preview (RFC 0010)
+
+- **`qdd uso`** mide cuánto se usa de verdad cada versión de qdd en tus proyectos QDD: comandos, herramientas MCP, pulsos del agente y mensajes con el panel. Dos eventos a menos de 5 min son uso continuo; uno aislado no suma.
+- **`qdd uso evidencia <versión>`** deja esas horas en `.qdd/project/evidence/uso/` para commitearlas con la release.
+- **`VER-05-UNPROVEN-RELEASE`** (`uso_minimo_horas` en `.qdd/policies.yaml`; qdd usa 5): una minor o una major pasa a `latest` solo con sus horas medidas. Una preview y un fix no esperan.
+- **Canal preview:** un tag `vX.Y.Z-rc.N` se publica en npm con `--tag preview` y como pre-release en GitHub.
+
+### 🧭 El panel se ordena solo y se limpia solo
+
+- **Cada mensaje es un ciclo:** lo que ya se vio (un pedido hecho, el resultado de una acción) sale del tablero en el mensaje siguiente.
+- **Autorización según el modo de la IA:** el panel anota el modo de permisos de la IA principal. `qdd_project_context` le dice cuándo pedir permiso: en auto, solo antes de cambiar algo ya definido (una ficha aprobada, un blueprint, una versión o un tag, o algo que no se puede deshacer).
+- **Pedidos en orden** (FND-080): `--despues`/`--antes` en `qdd consola pedir` (y `despues`/`antes` en `qdd_consola_pedir`). El que espera va justo después y no tiene botón hasta que lo otro esté hecho.
+- **«Todavía no» no es una falla** (FND-082): un pedido que sale con 75 vuelve a pendiente, en gris, con su aviso.
+- **Una cola por repositorio** (FND-081): un worktree usa la del checkout principal, y `qdd doctor --fix` junta lo que quedó fuera de lugar.
+- **Sin sección «Esperando»:** el ⏳ ya está en la tabla y en el resumen.
+
+### 🐛 Estado por tarea
+
+- **«·» es sin empezar** (FND-085). Una tarea nueva con solo «Código ✅» ya no queda terminada ni sale del panel, y «—» es solo «no aplica».
+- **La barra y el panel cuentan lo mismo** (FND-086): las tareas pendientes y cada ⏳ y ❌ que tienen.
+- **Los textos dicen «tarea»** en la ayuda, la tabla (`| Tarea |`), el panel y los errores.
+- **Blueprints** (FND-083, FND-084): `propose` lleva el catálogo y el README, y la ficha del estado puede apuntar a `.qdd/project/estado.yaml`.
+
 ### 🔁 Un blueprint puede reemplazar a otro (RFC 0009)
 
 - **`reemplaza: [id]` en `blueprint.yaml`.** Sirve para cambiar el id de un estándar publicado o juntar dos en uno, como `estado-por-tareas`, que reemplaza a `estado-por-frente`.
