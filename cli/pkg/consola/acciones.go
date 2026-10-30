@@ -32,14 +32,18 @@ const (
 // Accion es un botón del panel. Args son los argumentos de qdd para un comando; no salen en el JSON. En un pedido,
 // Detalle es el comando exacto y Carpeta dónde corre.
 type Accion struct {
-	ID        string   `json:"id"`
-	Tipo      string   `json:"tipo"`
-	Etiqueta  string   `json:"etiqueta"`
-	Detalle   string   `json:"detalle"`
-	Carpeta   string   `json:"carpeta,omitempty"`
-	Tecla     string   `json:"tecla,omitempty"`
-	Confirmar bool     `json:"confirmar"`
-	Args      []string `json:"-"`
+	ID        string     `json:"id"`
+	Tipo      string     `json:"tipo"`
+	Etiqueta  string     `json:"etiqueta"`
+	Detalle   string     `json:"detalle"`
+	Carpeta   string     `json:"carpeta,omitempty"`
+	Tecla     string     `json:"tecla,omitempty"`
+	Estado    string     `json:"estado,omitempty"`    // solo pedidos: pendiente, ejecutando, hecho o fallo
+	Resultado string     `json:"resultado,omitempty"` // solo pedidos: últimas líneas de la salida
+	Inicio    *time.Time `json:"inicio,omitempty"`
+	Fin       *time.Time `json:"fin,omitempty"`
+	Confirmar bool       `json:"confirmar"`
+	Args      []string   `json:"-"`
 	ficha     string
 	pedido    string
 }

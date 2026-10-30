@@ -189,8 +189,8 @@ var consolaPedirCmd = &cobra.Command{
 	Use:   "pedir -m <motivo> [--carpeta <dir>] <comando…>",
 	Short: "Deja un comando en el panel para que la persona lo ejecute con un clic (no lo ejecuta)",
 	Long: `Deja un comando en la cola del panel del proyecto. No lo ejecuta: corre solo cuando la persona lo confirma
-en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien sale de la cola; si
-falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
+en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien queda hecho (en gris, no
+se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
 
   qdd consola pedir -m "Publicar v2.5.1 (dispara npm y el binario)" -- git push origin v2.5.1
   qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"`,
@@ -204,15 +204,41 @@ var consolaPedidosCmd = &cobra.Command{
 	Use:   "pedidos",
 	Short: "Lista los comandos que esperan a la persona en el panel",
 	Run: func(cmd *cobra.Command, args []string) {
-		cola := consola.Pedidos(estadoRaiz())
-		if len(cola) == 0 {
-			fmt.Println("No hay comandos esperando en el panel.")
-			return
-		}
-		for _, p := range cola {
-			fmt.Printf("[%s] %s\n    %s\n    en %s · %s\n", consola.TeclaDe(estadoRaiz(), p.ID), p.Motivo, p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
-		}
+		listarPedidos(estadoRaiz(), os.Stdout)
 	},
+}
+
+// listarPedidos muestra cada pedido con su tecla (✓ si ya está hecho, sin tecla si se está ejecutando) y su estado.
+func listarPedidos(root string, salida io.Writer) {
+	cola := consola.Pedidos(root)
+	if len(cola) == 0 {
+		fmt.Fprintln(salida, "No hay comandos esperando en el panel.")
+		return
+	}
+	for _, p := range cola {
+		fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n    en %s · %s\n", marcaPedido(p), p.Motivo, estadoPedido(p), p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
+	}
+}
+
+func marcaPedido(p consola.Pedido) string {
+	if p.Estado == consola.EstadoHecho {
+		return "✓"
+	}
+	if p.Estado == consola.EstadoEjecutando {
+		return "⟳"
+	}
+	return p.Tecla
+}
+
+func estadoPedido(p consola.Pedido) string {
+	cuando := ""
+	if p.Fin != nil {
+		cuando = " " + p.Fin.Local().Format("15:04")
+	}
+	if p.Estado == consola.EstadoFallo {
+		return fmt.Sprintf("falló (código %d)%s", p.Codigo, cuando)
+	}
+	return p.Estado + cuando
 }
 
 var consolaDescartarCmd = &cobra.Command{

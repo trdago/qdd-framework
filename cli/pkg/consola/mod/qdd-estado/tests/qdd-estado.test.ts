@@ -212,3 +212,52 @@ test('las secciones van en orden: estado por frente, acciones, para ti, esperand
   expect(orden.every((i) => i >= 0)).toBe(true)
   expect([...orden].sort((a, b) => a - b)).toEqual(orden)
 })
+
+// FND-070: un pedido aceptado no puede quedar para aceptarlo de nuevo: queda en gris y sin botón.
+test('un pedido aceptado queda en gris y sin botón aunque qdd todavía no lo marque (FND-070)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO] }), llamadas, { exitCode: 0, stdout: 'listo', stderr: '' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'b-pedido:1' })
+  await ui.press({ key: 'si' })
+  expect(await ui.find({ key: 'b-pedido:1' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /✓ .*Publicar v2\.5\.1/ })).toMatchObject({ props: { dimColor: true } })
+  expect(llamadas.filter((a) => a[2] === 'accion').length).toBe(1)
+})
+
+test('un pedido ejecutándose o hecho se ve en gris y no se puede clickear (FND-070)', async ($, on) => {
+  const ejecutando = { ...PEDIDO, tecla: undefined, estado: 'ejecutando', inicio: '2026-10-30T12:00:00-03:00' }
+  const hecho = { ...PEDIDO, id: 'pedido:2', etiqueta: 'Mergear #31', tecla: undefined, estado: 'hecho', fin: '2026-10-30T12:05:00-03:00' }
+  preparar(on, ok({ ...PANEL, acciones: [ejecutando, hecho] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-pedido:1' })).toBeUndefined()
+  expect(await ui.find({ key: 'b-pedido:2' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /ejecutando/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /✓ .*Mergear #31/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: /hecho 12:05|hecho \d\d:05/ })).toBeDefined()
+})
+
+test('un pedido que falló muestra su error y se puede reintentar con su misma tecla', async ($, on) => {
+  const fallo = { ...PEDIDO, estado: 'fallo', resultado: 'Permission denied (publickey)', fin: '2026-10-30T12:05:00-03:00' }
+  preparar(on, ok({ ...PANEL, acciones: [fallo] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /✗ .*Publicar v2\.5\.1/ })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: /Permission denied/ })).toBeDefined()
+  const reintentar = await ui.find({ key: 'b-pedido:1' })
+  expect(reintentar).toMatchObject({ props: { hotkey: 'a' } })
+  expect(reintentar?.text).toContain('↻ Reintentar')
+})
+
+test('un pedido hecho no vuelve a abrir el panel', async ($, on) => {
+  const aperturas: unknown[] = []
+  const vacio = { formato: 1, estado: null, motivo: 'sin estado', acciones: [] }
+  const salida = ok(vacio)
+  const clock = preparar(on, salida, [], undefined, aperturas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  salida.stdout = JSON.stringify({ ...vacio, acciones: [{ ...PEDIDO, tecla: undefined, estado: 'hecho' }] })
+  await clock.advance(2000)
+  expect(aperturas.length).toBe(0)
+})

@@ -4,6 +4,16 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.6.2] - 2026-10-30
+
+### ✓ Un comando aceptado no se vuelve a ofrecer
+
+- **Cada pedido muestra su estado.** En «▶ Para ti», un comando pendiente tiene su botón; apenas lo confirmas con «s  Sí» pasa a **⟳ ejecutando** y, al terminar, a **✓ hecho**, los dos en gris y sin botón: no se puede aceptar de nuevo. Si falla queda en rojo, con las últimas líneas del error y **↻ Reintentar** en su misma tecla (FND-070).
+- **qdd también lo impide.** `qdd consola accion pedido:<id>` rechaza un pedido que se está ejecutando o que ya se ejecutó, y la cola se cambia con un bloqueo: dos clics seguidos corren el comando una sola vez.
+- **Las teclas no se mueven.** Cada pedido guarda su tecla (a, b, d…) desde que se pide; antes, al salir uno de la cola, los demás cambiaban de letra (FND-071).
+- **Panel más claro.** Cada pedido ocupa tres líneas iguales: qué, el comando exacto en monoespaciado y dónde/cuándo. El título de «▶ Para ti» resume cuántos hay por hacer y cuántos hechos; los hechos van al final y se van solos a la media hora. La confirmación dice qué vas a confirmar antes de la pregunta.
+- Un pedido que lleva más de 15 minutos ejecutándose (por ejemplo, si se cerró Claude Code) se da por cortado y queda para reintentarlo. La cola de qdd 2.6.0 se sigue leyendo.
+
 ## [v2.6.1] - 2026-10-30
 
 ### 🧭 Nuevo orden del panel

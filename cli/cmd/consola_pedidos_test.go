@@ -50,8 +50,13 @@ func TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18(t *testing.T) {
 	if len(consola.Pedidos(root)) != 1 {
 		t.Fatal("el pedido sigue en la cola")
 	}
-	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || len(consola.Pedidos(root)) != 0 {
-		t.Fatalf("confirmado corre y sale de la cola: %d %q", codigo, salida.String())
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || consola.Pedidos(root)[0].Estado != consola.EstadoHecho {
+		t.Fatalf("confirmado corre y queda hecho: %d %q", codigo, salida.String())
+	}
+	salida.Reset()
+	errores.Reset()
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo == 0 {
+		t.Fatalf("FND-070: un pedido hecho no se acepta dos veces: %q %q", salida.String(), errores.String())
 	}
 }
 
@@ -75,5 +80,25 @@ func TestConsolaPedirTool_NuncaEjecutaYDiceQueEsperaALaPersona_CCC_C17(t *testin
 	}
 	if cola := consola.Pedidos(root); len(cola) != 1 || cola[0].Carpeta != root {
 		t.Fatalf("queda en la cola del proyecto, sin ejecutarse: %+v", cola)
+	}
+}
+
+func TestConsolaPedidos_ListaCadaPedidoConSuEstado(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	hecho, _ := consola.Pedir(root, "exit 0", "Ya hecho", "", ahoraPrueba)
+	consola.Pedir(root, "exit 0; echo", "Por hacer", "", ahoraPrueba)
+	var salida, errores bytes.Buffer
+	consolaAccion(root, "pedido:"+hecho.ID, true, &salida, &errores)
+	salida.Reset()
+	listarPedidos(root, &salida)
+	texto := salida.String()
+	if !strings.Contains(texto, "[✓] Ya hecho · hecho") || !strings.Contains(texto, "[b] Por hacer · pendiente") {
+		t.Fatalf("cada pedido dice su tecla (o ✓) y su estado: %q", texto)
+	}
+	salida.Reset()
+	listarPedidos(t.TempDir(), &salida)
+	if !strings.Contains(salida.String(), "No hay comandos") {
+		t.Fatalf("sin pedidos lo dice: %q", salida.String())
 	}
 }

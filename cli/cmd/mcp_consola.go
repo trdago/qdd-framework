@@ -31,5 +31,5 @@ func handleConsolaPedirTool(ctx context.Context, request mcp.CallToolRequest) (*
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Quedó en el panel de estado con la tecla %s: «%s» → %s (en %s).\nNo lo ejecutes tú: dile a la persona que lo ejecute desde el panel (clic en el panel, tecla %s y «s  Sí»). Si termina bien sale de la cola; puedes revisar con 'qdd consola pedidos'.", consola.TeclaDe(root, p.ID), p.Motivo, p.Comando, p.Carpeta, consola.TeclaDe(root, p.ID))), nil
+	return mcp.NewToolResultText(fmt.Sprintf("Quedó en el panel de estado con la tecla %s: «%s» → %s (en %s).\nNo lo ejecutes tú: dile a la persona que lo ejecute desde el panel (clic en el panel, tecla %s y «s  Sí»). Puedes ver si quedó hecho o falló con 'qdd consola pedidos'.", consola.TeclaDe(root, p.ID), p.Motivo, p.Comando, p.Carpeta, consola.TeclaDe(root, p.ID))), nil
 }
