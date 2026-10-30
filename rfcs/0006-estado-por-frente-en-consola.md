@@ -150,6 +150,27 @@ Va en la barra, no en el panel. D es el disco de la carpeta del proyecto y G0…
 - macOS mide solo D (RAM, CPU y GPU necesitan APIs de Mach que Go no expone sin cgo); otros sistemas no muestran la línea.
   Toda la medición tiene un tope de 400 ms: si se pasa, la barra sale sin la segunda línea.
 
+### 3.9 Comandos que la IA deja para la persona (`consola-claude-code` v4.1.0; qdd 2.6.0)
+
+Decisión del humano (2026-10-30): cuando la IA no puede o no debe ejecutar un comando (no tiene permiso, se lo
+bloquearon, o el comando publica algo, como el push del tag de una versión), no le pide a la persona que lo escriba con
+`!`: lo deja en su panel, que lo ejecuta con un clic. Vale **cualquier comando**, siempre con la confirmación «s  Sí».
+
+- La IA lo deja con la tool MCP `qdd_consola_pedir` (`comando`, `motivo`, `carpeta`) o con
+  `qdd consola pedir -m <motivo> [--carpeta <dir>] <comando…>`. QDD **no lo ejecuta**: solo lo guarda.
+- La cola es de esta máquina y no se versiona: `<QDD_HOME>/claude/pedidos/<carpeta>-<hash>.json`, una por proyecto
+  (privada, escritura atómica). El mismo comando en la misma carpeta no se duplica; el tope es 9.
+- `qdd consola panel --json` entrega cada pedido como una acción `pedido:<id>` con su motivo (`etiqueta`), el comando
+  exacto (`detalle`), la `carpeta` y la `tecla` (a, b, d…: no usan las de otros botones). El panel los muestra
+  primero, en «▶ Para ti», y se abre solo cuando llega uno nuevo.
+- La confirmación muestra el motivo, «Ejecutará: <comando>» y «En: <carpeta>». Con «s  Sí» el panel pide
+  `qdd consola accion pedido:<id> --confirmado`, que corre el comando con la shell del sistema (`sh -c`; en Windows,
+  `cmd /C`) en su carpeta. Si termina bien sale de la cola; si falla queda para reintentarlo. «x  Descartar» lo quita
+  sin ejecutarlo (`qdd consola descartar <id>`). `qdd consola pedidos` lista la cola.
+- Las instrucciones para la IA (bloque de AGENTS.md, CLAUDE.md…) le dicen que use `qdd_consola_pedir` y que nunca
+  ejecute ella misma `qdd consola accion` sobre un pedido. QDD no puede impedirlo técnicamente a un agente con shell
+  propia: lo que lo protege es que la confirmación está en la interfaz de la persona y los permisos del agente.
+
 ### 3.5 Agnóstico al sistema operativo
 
 Todo en Go puro, sin cgo. La terminal se maneja con secuencias ANSI y `golang.org/x/term` (tamaño y modo crudo), que funcionan en Windows 10+, macOS y Linux. No hay dependencia de tmux; el panel dividido lo arma cada terminal.

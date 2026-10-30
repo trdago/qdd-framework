@@ -35,6 +35,7 @@ var mcpCmd = &cobra.Command{
 		registerModuleSaveTool(s)
 		registerBlueprintTools(s)
 		registerEstadoTool(s)
+		registerConsolaTools(s)
 		registerAuditTool(s)
 		registerCertifyTool(s)
 		
