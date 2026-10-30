@@ -4,17 +4,18 @@ estado: aprobado
 rutas:
     - cli/cmd/doctor.go
 objetivo_operativo:
-    problema: Quien usa QDD necesita saber, con un solo comando, si el entorno del proyecto está sano (estructura .qdd, integraciones de IA, dashboard, blueprints de la organización) y repararlo sin conocer el detalle interno de QDD.
+    problema: Quien usa QDD necesita saber, con un solo comando, si el entorno del proyecto está sano (estructura .qdd, integraciones de IA, dashboard, blueprints de la organización, consola de Claude Code) y repararlo sin conocer el detalle interno de QDD.
     usuarios: Desarrolladores al abrir un proyecto (también en otro PC), 'qdd init' (que corre doctor --fix al terminar) y las IAs que trabajan en el proyecto.
     criterio_de_exito: '''qdd doctor'' falla solo ante un problema real y dice qué hacer; ''qdd doctor --fix'' deja el entorno operativo sin descartar información, y lo que no puede reparar solo (decisiones humanas, credenciales) lo explica.'
     caso_real: 'v2.0.0: doctor decía ''100% operativo'' en un proyecto con blueprints que no podía reconstruir o atrasados respecto de la organización, porque no revisaba los blueprints.'
 objetivo_tecnologico:
-    arquitectura: Checklist determinista por grupos (CheckGroup/CheckItem). Con --fix, runSelectiveFixes despacha una reparación por cada ítem fallido y vuelve a evaluar. Escribe un reporte del resultado. El grupo de blueprints delega en pkg/blueprints (Diagnosticar/Reparar). El grupo 5 (findings y certificaciones del proyecto) delega en pkg/findings y pkg/certificaciones.
+    arquitectura: Checklist determinista por grupos (CheckGroup/CheckItem). Con --fix, runSelectiveFixes despacha una reparación por cada ítem fallido y vuelve a evaluar. Escribe un reporte del resultado. El grupo de blueprints delega en pkg/blueprints (Diagnosticar/Reparar). El grupo 5 (findings y certificaciones del proyecto) delega en pkg/findings y pkg/certificaciones. El grupo 6 (consola de Claude Code) aparece solo si se activó en esta máquina y delega en pkg/consola (Diagnosticar/Reparar).
     decisiones:
         - 'Grupo de blueprints: lockfile ilegible → se restaura del último commit; copia legada → migra; falta en esta máquina → reconstruye; lockfile editado → se rehace desde la versión publicada que fija; módulo sin su blueprint → se importa del registro; módulo desactualizado → se re-aplica con sus respuestas (la ficha vuelve a borrador).'
         - Los blueprints se reparan una sola vez por ejecución aunque fallen varios de sus ítems.
         - Sin red, el acceso al repositorio de la organización no falla si la carpeta central ya tiene todo lo que el lockfile fija (degradación elegante).
         - 'Grupo de findings y certificaciones: un estado reconocido pero no canónico (RESOLVED, closed) → --fix escribe la forma canónica; un finding o una certificación del proyecto sin estado reconocido → doctor lo informa con el archivo y no lo repara, porque el estado lo decide una persona (FND-061).'
+        - 'Grupo de la consola (RFC 0006 §3.6): solo existe si se usó qdd consola activar en esta máquina. Panel ausente, de otra versión que la CLI o desactivado, o barra que ya no es la de QDD → --fix vuelve a activar con lo que se eligió al activar.'
     invariantes:
         - Toda funcionalidad de QDD es determinista y doctor sabe diagnosticarla y repararla. Si doctor no puede definir cómo debería comportarse para repararla, la funcionalidad quedó ambigua y se completa antes de darla por terminada.
         - 'Lo que necesita una decisión humana (preguntas de diseño, actualizar de versión, publicar en el repositorio de la organización) doctor no lo decide: dice exactamente qué decidir y con qué comando.'
@@ -24,9 +25,11 @@ pruebas:
     comandos:
         - cd cli && go test ./cmd/ -run Doctor
         - cd cli && go test ./pkg/blueprints/...
+        - cd cli && go test ./pkg/consola/...
 fuentes:
     - cli/cmd/doctor.go
     - rfcs/0004-blueprints-centrales.md
     - rfcs/0005-reglas-como-principios.md
-ultima_revision: "2026-10-29"
-revisado_en_commit: 63b3e5f52458
+    - rfcs/0006-estado-por-frente-en-consola.md
+ultima_revision: "2026-10-30"
+revisado_en_commit: c348226f20bb

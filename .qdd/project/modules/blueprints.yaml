@@ -7,7 +7,7 @@ rutas:
     - cli/cmd/mcp_blueprints.go
     - cli/pkg/audit/blueprint_check.go
 objetivo_operativo:
-    problema: Cada organización mantiene sus estándares de módulo (auth, auditoría…) en su propio repositorio, privado si quiere, y todos sus proyectos deben usarlos, mantenerlos al día y aportar mejoras sin que cada proyecto cargue con una copia del repositorio.
+    problema: Cada organización mantiene sus estándares de módulo (auth, auditoría…) en su propio repositorio, privado si quiere, y todos sus proyectos deben usarlos, mantenerlos al día y aportar mejoras sin que cada proyecto cargue con una copia del repositorio. Una persona puede además sumar estándares de otras fuentes (p. ej. su repositorio público) sin mezclarlos con los de la organización.
     usuarios: Equipos que desarrollan varios proyectos con QDD (p. ej. FairplayChile) y las IAs que trabajan en ellos vía MCP.
     criterio_de_exito: Un proyecto cuyo remote git pertenece a una organización registrada ve sus blueprints sin configurar nada; el repositorio se clona una sola vez por máquina; el proyecto solo versiona el lockfile; el CI reconstruye cada blueprint desde el commit del lockfile; un proyecto del esquema anterior se migra solo, una vez.
     caso_real: 'RFC 0004: con 10 proyectos de FairplayChile había 10 registros, 10 copias vendorizadas y ningún flujo para aportar al repositorio de la organización.'
@@ -17,12 +17,15 @@ objetivo_tecnologico:
         - 'Opción A del RFC 0004: el CI reconstruye desde el commit del lockfile con credenciales de solo lectura; no se vendoriza.'
         - 'El store se direcciona por contenido (sha256): dos proyectos con la misma versión comparten la misma carpeta.'
         - 'Diagnosticar solo usa la red para comprobar el acceso al repositorio de un proyecto con blueprints; Reparar no decide lo que necesita a una persona (preguntas nuevas, actualizar de versión, aportar a la organización): dice qué hacer (FND-053).'
+        - 'Varias fuentes (RFC 0007): el lockfile dice de qué repositorio salió cada blueprint. Sin origen, add, sync, contribute, propose y doctor usan esa fuente; los ids nuevos, --paquete y --todos van al repositorio registrado. --origen elige la fuente de un blueprint nuevo. No hay configuración extra: las fuentes son las del lockfile más la registrada.'
         - 'La migración del esquema anterior (.qdd/blueprints/<id>) es automática y ocurre una vez: mueve al store las copias íntegras y deja las alteradas como BP-05-LEGACY para que una IA lleve sus cambios al repositorio de la organización.'
     invariantes:
         - Ningún proyecto contiene una copia ni un clon del repositorio de blueprints (salvo copias legadas pendientes de migrar, que el gate reporta).
         - Lo que se usa de un blueprint siempre coincide con el sha256 del lockfile; si no, BP-02-ALTERED.
         - Un repositorio git se clona con las credenciales del usuario, sin prompts interactivos y con protocol.ext.allow=never.
         - Las preguntas de diseño de un blueprint las responde un humano, nunca la IA.
+        - 'Un id pertenece a una sola fuente: importarlo desde otra se rechaza salvo con --reemplazar, y un blueprint importado se aporta siempre a su fuente (FND-064).'
+        - 'Si una fuente falla al importar o sincronizar, no oculta ni deja a medias las demás: el lockfile queda como estaba y el problema se informa por fuente (FND-065, FND-066).'
         - 'La migración nunca descarta cambios: una copia legada alterada o fuera del lockfile no se borra.'
 pruebas:
     comandos:
@@ -30,6 +33,7 @@ pruebas:
 fuentes:
     - rfcs/0003-blueprints.md
     - rfcs/0004-blueprints-centrales.md
+    - rfcs/0007-fuentes-de-blueprints.md
     - cli/pkg/blueprints/diagnostico.go
-ultima_revision: "2026-10-29"
-revisado_en_commit: 421041240b80
+ultima_revision: "2026-10-30"
+revisado_en_commit: 01fe1000f233

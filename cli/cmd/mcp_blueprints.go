@@ -16,7 +16,8 @@ func registerBlueprintTools(s *server.MCPServer) {
 		mcp.WithString("blueprints", mcp.Description("Ids a importar, separados por comas (p. ej. 'auth, auditoria').")),
 		mcp.WithString("paquete", mcp.Description("Paquete del catalogo.yaml del repositorio (alternativa a 'blueprints').")),
 		mcp.WithBoolean("todos", mcp.Description("Importa todos los blueprints del repositorio.")),
-		mcp.WithString("origen", mcp.Description("Repositorio de la organización, SOLO si el humano lo indicó y no hay uno registrado.")),
+		mcp.WithString("origen", mcp.Description("Repositorio de blueprints, SOLO si el humano lo indicó: el de la organización cuando no hay uno registrado, u otra fuente suya (p. ej. su repositorio personal). Para actualizar un blueprint ya importado no hace falta: QDD usa la fuente del lockfile.")),
+		mcp.WithBoolean("reemplazar", mcp.Description("Reemplaza un blueprint ya importado desde otra fuente por el de 'origen'. SOLO si el humano lo pidió explícitamente.")),
 		mcp.WithString("ref", mcp.Description("Versión publicada (tag vX.Y.Z); por defecto, la última. Úsala solo si el humano pidió una versión.")),
 	)
 	RegisterToolWithTelemetry(s, add, handleBlueprintAddTool)
@@ -38,13 +39,14 @@ func registerBlueprintTools(s *server.MCPServer) {
 	RegisterToolWithTelemetry(s, apply, handleBlueprintApplyTool)
 
 	sync := mcp.NewTool("qdd_blueprint_sync",
-		mcp.WithDescription("Trae lo que la organización publicó en su repositorio de blueprints y dice qué blueprints del proyecto tienen una versión más nueva. Úsala cuando el gate reporte BP-06-BEHIND o el humano pregunte si hay estándares nuevos; luego actualiza con qdd_blueprint_add y vuelve a aplicar con qdd_blueprint_apply."),
+		mcp.WithDescription("Trae lo publicado en cada fuente de blueprints del proyecto (el repositorio de la organización y las demás del lockfile) y dice qué blueprints tienen una versión más nueva. Úsala cuando el gate reporte BP-06-BEHIND o el humano pregunte si hay estándares nuevos; luego actualiza con qdd_blueprint_add y vuelve a aplicar con qdd_blueprint_apply."),
 	)
 	RegisterToolWithTelemetry(s, sync, handleBlueprintSyncTool)
 
 	contribute := mcp.NewTool("qdd_blueprint_contribute",
 		mcp.WithDescription("Prepara un cambio a un blueprint de la organización (o uno nuevo) en la carpeta central de QDD, nunca dentro del proyecto: devuelve la carpeta a editar, en la rama aporte/<id>. Úsala cuando el humano quiera mejorar un estándar o cuando una migración (BP-05-LEGACY) pida llevar cambios al repositorio de la organización."),
 		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint a cambiar o crear.")),
+		mcp.WithString("origen", mcp.Description("Fuente donde crear un blueprint NUEVO, SOLO si el humano la indicó (por defecto, el repositorio de la organización). Un blueprint importado va siempre a su propia fuente.")),
 	)
 	RegisterToolWithTelemetry(s, contribute, handleBlueprintContributeTool)
 
@@ -52,32 +54,43 @@ func registerBlueprintTools(s *server.MCPServer) {
 		mcp.WithDescription("Publica el aporte preparado con qdd_blueprint_contribute como pull request al repositorio de la organización: QDD valida el blueprint, calcula el cambio semver y fija la versión (no la elijas tú), commitea, publica la rama y abre el PR. Publica fuera del proyecto: úsala SOLO con la confirmación explícita del humano."),
 		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint.")),
 		mcp.WithString("mensaje", mcp.Required(), mcp.Description("Qué cambia y por qué (va al commit y al PR).")),
+		mcp.WithString("origen", mcp.Description("La misma fuente que se usó en qdd_blueprint_contribute para un blueprint nuevo.")),
 	)
 	RegisterToolWithTelemetry(s, propose, handleBlueprintProposeTool)
 }
 
 func handleBlueprintSyncTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	res, err := blueprints.Sincronizar(projectRootForMCP())
-	if err != nil {
+	if err != nil && len(res) == 0 {
 		return mcp.NewToolResultError(err.Error()), nil
-	}
-	if len(res.Novedades) == 0 {
-		return mcp.NewToolResultText(fmt.Sprintf("%s sincronizado (última versión %s). Los blueprints del proyecto están al día.", res.Origen, res.Ref)), nil
 	}
 	var s strings.Builder
 	var ids []string
-	fmt.Fprintf(&s, "%s publicó %s. Versiones nuevas:\n", res.Origen, res.Ref)
-	for _, n := range res.Novedades {
-		fmt.Fprintf(&s, "- %s: %s → %s\n", n.ID, n.Actual, n.Disponible)
-		ids = append(ids, n.ID)
+	for _, f := range res {
+		if f.Problema != "" {
+			fmt.Fprintf(&s, "⚠️ %s no se pudo sincronizar: %s\n", f.Origen, f.Problema)
+			continue
+		}
+		fmt.Fprintf(&s, "%s sincronizado (última versión %s).\n", f.Origen, f.Ref)
+		for _, n := range f.Novedades {
+			fmt.Fprintf(&s, "- %s: %s → %s\n", n.ID, n.Actual, n.Disponible)
+			ids = append(ids, n.ID)
+		}
 	}
-	fmt.Fprintf(&s, "Actualiza con qdd_blueprint_add (blueprints=%s) y vuelve a aplicar cada uno con qdd_blueprint_apply; si aparecen preguntas nuevas, házselas al humano.", strings.Join(ids, ", "))
+	if err != nil {
+		fmt.Fprintf(&s, "⚠️ %v\n", err)
+	}
+	if len(ids) == 0 {
+		s.WriteString("No hay versiones nuevas de los blueprints del proyecto.")
+		return mcp.NewToolResultText(s.String()), nil
+	}
+	fmt.Fprintf(&s, "Actualiza con qdd_blueprint_add (blueprints=%s, sin origen: QDD usa la fuente de cada uno) y vuelve a aplicar cada uno con qdd_blueprint_apply; si aparecen preguntas nuevas, házselas al humano.", strings.Join(ids, ", "))
 	return mcp.NewToolResultText(s.String()), nil
 }
 
 func handleBlueprintContributeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	id := strings.TrimSpace(stringArg(request, "blueprint"))
-	ap, err := blueprints.Aportar(projectRootForMCP(), id)
+	ap, err := blueprints.Aportar(projectRootForMCP(), id, strings.TrimSpace(stringArg(request, "origen")))
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
@@ -86,7 +99,7 @@ func handleBlueprintContributeTool(ctx context.Context, request mcp.CallToolRequ
 
 func handleBlueprintProposeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	id := strings.TrimSpace(stringArg(request, "blueprint"))
-	p, err := blueprints.Proponer(projectRootForMCP(), id, stringArg(request, "mensaje"))
+	p, err := blueprints.Proponer(projectRootForMCP(), id, stringArg(request, "mensaje"), strings.TrimSpace(stringArg(request, "origen")))
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
@@ -105,6 +118,7 @@ func handleBlueprintAddTool(ctx context.Context, request mcp.CallToolRequest) (*
 		Blueprints: splitPaths(stringArg(request, "blueprints")),
 		Paquete:    strings.TrimSpace(stringArg(request, "paquete")),
 		Todos:      boolArg(request, "todos"),
+		Reemplazar: boolArg(request, "reemplazar"),
 	})
 	if len(problems) > 0 && len(res.Entries) == 0 {
 		return mcp.NewToolResultError("No se importó nada:\n- " + strings.Join(problems, "\n- ")), nil

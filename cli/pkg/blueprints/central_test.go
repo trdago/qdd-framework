@@ -317,11 +317,11 @@ func TestSincronizar_ReportsNewerVersions(t *testing.T) {
 	}
 	publicar(t, repo, "1.1.0", "v1.1.0")
 
-	s, err := Sincronizar(root)
-	if err != nil {
-		t.Fatal(err)
+	res, err := Sincronizar(root)
+	if err != nil || len(res) != 1 {
+		t.Fatalf("una sola fuente, la organización: %+v (%v)", res, err)
 	}
-	if s.Ref != "v1.1.0" || len(s.Novedades) != 1 || s.Novedades[0].ID != "auth" || s.Novedades[0].Disponible != "1.1.0" {
+	if s := res[0]; s.Ref != "v1.1.0" || len(s.Novedades) != 1 || s.Novedades[0].ID != "auth" || s.Novedades[0].Disponible != "1.1.0" {
 		t.Fatalf("se esperaba auth 1.0.0 → 1.1.0 en v1.1.0: %+v", s)
 	}
 }
@@ -332,7 +332,7 @@ func TestAportar_PreparesABranchInTheCentralWorkspace(t *testing.T) {
 	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Ref: "v1.0.0", Blueprints: []string{"pagos"}}); len(problems) > 0 {
 		t.Fatal(problems)
 	}
-	ap, err := Aportar(root, "pagos")
+	ap, err := Aportar(root, "pagos", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestAportar_PreparesABranchInTheCentralWorkspace(t *testing.T) {
 
 	// Un trabajo en curso no se pisa al volver a pedir el aporte.
 	writeFile(t, filepath.Join(ap.Carpeta, "NOTAS.md"), "en curso\n")
-	again, err := Aportar(root, "pagos")
+	again, err := Aportar(root, "pagos", "")
 	if err != nil || again.Carpeta != ap.Carpeta {
 		t.Fatalf("se reutiliza el mismo espacio de trabajo: %+v (%v)", again, err)
 	}

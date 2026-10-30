@@ -1,0 +1,9 @@
+id: "FND-066"
+title: "qdd blueprint sync solo miraba el repositorio de la organización e ignoraba las demás fuentes del lockfile"
+description: "Sincronizar (cli/pkg/blueprints/evolucion.go) actualizaba solo el espejo del repositorio registrado y descartaba las entradas del lockfile de otros orígenes. Un blueprint importado desde otra fuente nunca recibía aviso de versión nueva en sync, y como el gate solo compara contra espejos ya actualizados, tampoco aparecía en BP-06-BEHIND."
+impact: "Un proyecto podía quedar atrás de una fuente sin que QDD lo dijera nunca."
+action_taken: "Sincronizar recorre el repositorio registrado y cada fuente del lockfile y devuelve un resultado por fuente. Una fuente inaccesible o sin versiones publicadas no oculta las demás: su resultado lleva el problema y la CLI termina con error. Además, contribute, propose y release aceptan --origen para crear y publicar un blueprint nuevo en otra fuente; un blueprint importado se aporta siempre a la suya."
+test_result: "TestSincronizar_EverySourceOfTheProject y TestSincronizar_AnUnreachableSourceDoesNotHideTheOthers (pkg/blueprints): antes del arreglo solo había resultado de la organización. TestAportar_NewBlueprintGoesToTheChosenSource y TestAportar_AnImportedBlueprintKeepsItsSource cubren --origen."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

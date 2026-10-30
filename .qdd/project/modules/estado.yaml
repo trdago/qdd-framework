@@ -1,6 +1,6 @@
 id: estado
 nombre: Estado por frente (qdd estado)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/estado
     - cli/cmd/estado.go
@@ -25,7 +25,7 @@ objetivo_tecnologico:
         - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
-        - 'El mod qdd-estado dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).'
+        - El mod qdd-estado dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
@@ -57,3 +57,5 @@ fuentes:
     - cli/pkg/estado/check.go
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
+ultima_revision: "2026-10-30"
+revisado_en_commit: 01fe1000f233

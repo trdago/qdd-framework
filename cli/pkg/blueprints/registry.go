@@ -118,23 +118,135 @@ type AddResult struct {
 	Guardado bool     // si se guardó o actualizó el registro en config.yaml
 }
 
-// AddManaged importa como Add, pero administra el registro de la
-// organización: sin origen usa el del proyecto o el de su organización, y la
-// primera vez que se importa desde un repositorio de varios blueprints lo
+// AddManaged importa como Add, pero administra las fuentes: sin origen, cada
+// id ya importado se actualiza desde la fuente que dice el lockfile y los
+// nuevos salen del repositorio del proyecto o de su organización (FND-065).
+// La primera vez que se importa desde un repositorio de varios blueprints lo
 // guarda en el proyecto y en el registro central, para que este y los demás
-// proyectos de la organización solo tengan que nombrarlos.
+// proyectos de la organización solo tengan que nombrarlos. Si una fuente
+// falla, el lockfile queda como estaba.
 func AddManaged(in AddInput) (AddResult, []string) {
 	reg, err := LoadRegistro(in.Root)
 	if err != nil {
 		return AddResult{}, []string{err.Error()}
 	}
-	usaRegistro := strings.TrimSpace(in.Origen) == ""
-	if usaRegistro && reg.Origen == "" {
-		return AddResult{}, []string{"todavía no hay repositorio de blueprints de la organización: indícalo una vez y QDD lo recordará para todos sus proyectos (qdd blueprint add git@github.com:org/qdd-blueprints.git auth)"}
+	if strings.TrimSpace(in.Origen) != "" {
+		return addManagedDesde(in, reg)
 	}
-	if usaRegistro {
-		in.Origen = reg.Origen
+	grupos, problems := porFuente(in, reg)
+	if len(problems) > 0 {
+		return AddResult{}, problems
 	}
+	previo, err := os.ReadFile(filepath.Join(in.Root, LockFile))
+	if err != nil && !os.IsNotExist(err) {
+		return AddResult{}, []string{err.Error()}
+	}
+	res := AddResult{Registro: reg}
+	var warnings []string
+	for _, g := range grupos {
+		r, w := addManagedDesde(g, reg)
+		if len(r.Entries) == 0 && len(w) > 0 {
+			return AddResult{}, append(w, restaurarLockfile(in.Root, previo)...)
+		}
+		res.Entries = append(res.Entries, r.Entries...)
+		warnings = append(warnings, w...)
+		if r.Guardado {
+			res.Registro, res.Guardado = r.Registro, true
+		}
+	}
+	return res, warnings
+}
+
+// porFuente reparte lo pedido entre las fuentes: un id del lockfile va a su
+// fuente; un id nuevo, un --paquete o --todos, al repositorio registrado.
+func porFuente(in AddInput, reg Registro) ([]AddInput, []string) {
+	lock, err := LoadLock(in.Root)
+	if err != nil {
+		return nil, []string{err.Error()}
+	}
+	var grupos []AddInput
+	agregar := func(origen, id string) {
+		for i := range grupos {
+			if grupos[i].Origen == origen && id != "" {
+				grupos[i].Blueprints = append(grupos[i].Blueprints, id)
+				return
+			}
+		}
+		g := in
+		g.Origen, g.Blueprints = origen, nil
+		if id != "" {
+			g.Blueprints = []string{id}
+		}
+		grupos = append(grupos, g)
+	}
+	var nuevos []string
+	for _, id := range in.Blueprints {
+		e, ok := lock.Entry(id)
+		if !ok {
+			nuevos = append(nuevos, id)
+			continue
+		}
+		if e.Subdir == "" {
+			agregar(origenDeEntrada(e), "") // la fuente es en sí el blueprint
+			continue
+		}
+		agregar(e.Origen, id)
+	}
+	if len(nuevos) > 0 || in.Paquete != "" || in.Todos || len(in.Blueprints) == 0 {
+		if reg.Origen == "" {
+			return nil, []string{"todavía no hay repositorio de blueprints de la organización: indícalo una vez y QDD lo recordará para todos sus proyectos (qdd blueprint add git@github.com:org/qdd-blueprints.git auth)"}
+		}
+		g := in
+		g.Origen, g.Blueprints = reg.Origen, nuevos
+		g, grupos = unirAlRegistro(g, grupos)
+		grupos = append([]AddInput{g}, grupos...)
+	}
+	if in.Ref != "" && len(grupos) > 1 {
+		return nil, []string{"--ref es una versión de una sola fuente, y lo pedido viene de varias: impórtalos por separado"}
+	}
+	return grupos, nil
+}
+
+// unirAlRegistro suma a reg los ids de grupos cuya fuente es el repositorio
+// registrado (un solo Add por fuente) y devuelve los demás grupos.
+func unirAlRegistro(reg AddInput, grupos []AddInput) (AddInput, []AddInput) {
+	repo, _, _ := resolverOrigen(reg.Origen)
+	var otros []AddInput
+	for _, g := range grupos {
+		if g.Origen != repo || len(g.Blueprints) == 0 || reg.Paquete != "" || reg.Todos {
+			otros = append(otros, g)
+			continue
+		}
+		reg.Blueprints = append(reg.Blueprints, g.Blueprints...)
+	}
+	return reg, otros
+}
+
+// origenDeEntrada es el origen con el que se vuelve a importar una entrada
+// del lockfile: el repositorio y, si la tiene, su subcarpeta.
+func origenDeEntrada(e LockEntry) string {
+	if e.Subdir == "" {
+		return e.Origen
+	}
+	if exists(e.Origen) {
+		return filepath.Join(e.Origen, filepath.FromSlash(e.Subdir))
+	}
+	return e.Origen + "//" + e.Subdir
+}
+
+func restaurarLockfile(root string, previo []byte) []string {
+	path := filepath.Join(root, LockFile)
+	err := os.Remove(path)
+	if previo != nil {
+		err = os.WriteFile(path, previo, 0644)
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return []string{"no se pudo dejar el lockfile como estaba: " + err.Error()}
+	}
+	return nil
+}
+
+func addManagedDesde(in AddInput, reg Registro) (AddResult, []string) {
 	entries, problems := Add(in)
 	if len(problems) > 0 {
 		return AddResult{}, problems
