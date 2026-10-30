@@ -104,7 +104,8 @@ export function tocaEnviar(ahora, ultimo) {
 }
 
 // paraTi cuenta los comandos que la IA dejó para la persona y que todavía se pueden ejecutar (pendientes o con falla;
-// un qdd anterior a 2.6.2 no trae estado: cuenta como pendiente). Se ejecutan desde Claude Code.
+// un qdd anterior a 2.6.2 no trae estado: cuenta como pendiente; uno en espera de otro no cuenta, FND-080). Se
+// ejecutan desde Claude Code.
 export function paraTi(acciones) {
   return (acciones || []).filter((a) => a.tipo === 'pedido' && (!a.estado || a.estado === 'pendiente' || a.estado === 'fallo')).length
 }

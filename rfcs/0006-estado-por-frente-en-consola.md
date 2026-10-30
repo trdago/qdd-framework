@@ -179,6 +179,15 @@ bloquearon, o el comando publica algo, como el push del tag de una versión), no
   Un hecho se sigue viendo 30 minutos; uno que lleva más de 15 minutos ejecutándose se da por cortado (fallo). El
   tope de 9 y los duplicados cuentan solo los abiertos. Una cola de qdd 2.6.0 (sin estado ni tecla) se lee como
   pendiente.
+- Orden (qdd 2.8.0, decisión del humano, FND-080): un pedido puede esperar a otros. La IA lo dice al pedir:
+  `--despues <id|tecla>` (lo deja esperando a ese) o `--antes <id|tecla>` (hace que ese espere a este); en la tool,
+  `despues` y `antes`, separados por coma. Pedir de nuevo un comando que ya está, con orden, lo reordena sin duplicarlo.
+  QDD guarda la dependencia por id (`despues` en la cola) y rechaza un ciclo, una referencia que no está o ir antes de
+  algo que ya corrió, sin cambiar la cola. La cola se entrega ordenada: cada pedido justo después de lo que espera; sin
+  dependencias, en el orden en que se pidió. Un pedido pendiente (o con falla) que espera algo que no está hecho llega
+  con `estado: "espera"` y `espera: [teclas]`, sin tecla: el panel lo dibuja en gris («◌ … · espera a [a]»), sin botón,
+  no lo cuenta en «▶ N para ti» y `qdd consola accion` lo rechaza. Una falla de lo que espera lo sigue bloqueando; un
+  hecho que otro espera no sale de la cola a los 30 minutos; descartar algo libera a lo que lo esperaba.
 - Las instrucciones para la IA (bloque de AGENTS.md, CLAUDE.md…) le dicen que use `qdd_consola_pedir` y que nunca
   ejecute ella misma `qdd consola accion` sobre un pedido. QDD no puede impedirlo técnicamente a un agente con shell
   propia: lo que lo protege es que la confirmación está en la interfaz de la persona y los permisos del agente.

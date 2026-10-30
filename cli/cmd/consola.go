@@ -189,19 +189,26 @@ func consolaAccion(root, id string, confirmado bool, salida, errores io.Writer) 
 
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
+var consolaDespues, consolaAntes []string
 
 var consolaPedirCmd = &cobra.Command{
-	Use:   "pedir -m <motivo> [--carpeta <dir>] <comando…>",
+	Use:   "pedir -m <motivo> [--carpeta <dir>] [--despues <id>] [--antes <id>] <comando…>",
 	Short: "Deja un comando en el panel para que la persona lo ejecute con un clic (no lo ejecuta)",
 	Long: `Deja un comando en la cola del panel del proyecto. No lo ejecuta: corre solo cuando la persona lo confirma
 en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien queda hecho (en gris, no
 se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
 
+Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
+sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
+Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+
   qdd consola pedir -m "Publicar v2.5.1 (dispara npm y el binario)" -- git push origin v2.5.1
-  qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"`,
+  qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"
+  qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, args, os.Stdout, os.Stderr))
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes}
+		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
 
@@ -221,7 +228,7 @@ func listarPedidos(root string, salida io.Writer) {
 		return
 	}
 	for _, p := range cola {
-		fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n    en %s · %s\n", marcaPedido(p), p.Motivo, estadoPedido(p), p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
+		fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n    en %s · %s\n", marcaPedido(p), p.Motivo, estadoPedido(p, consola.EsperaDe(root, p.ID)), p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
 	}
 }
 
@@ -235,7 +242,10 @@ func marcaPedido(p consola.Pedido) string {
 	return p.Tecla
 }
 
-func estadoPedido(p consola.Pedido) string {
+func estadoPedido(p consola.Pedido, espera []string) string {
+	if len(espera) > 0 {
+		return esperaTexto(espera)
+	}
 	cuando := ""
 	if p.Fin != nil {
 		cuando = " " + p.Fin.Local().Format("15:04")
@@ -261,15 +271,29 @@ var consolaDescartarCmd = &cobra.Command{
 func init() {
 	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "por qué lo tiene que ejecutar la persona (se lee en el panel)")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
+	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
+	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
 	consolaCmd.AddCommand(consolaPedirCmd, consolaPedidosCmd, consolaDescartarCmd)
 }
 
-func consolaPedir(root, motivo, carpeta string, args []string, salida, errores io.Writer) int {
-	p, err := consola.Pedir(root, strings.Join(args, " "), motivo, carpeta, time.Now())
+func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []string, salida, errores io.Writer) int {
+	p, err := consola.PedirEnOrden(root, strings.Join(args, " "), motivo, carpeta, orden, time.Now())
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(salida, "[+] Quedó en el panel de estado con la tecla %s: %s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»).\n", consola.TeclaDe(root, p.ID), p.Motivo, p.Comando, p.Carpeta)
+	fmt.Fprintf(salida, "[+] Quedó en el panel de estado con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»).\n", p.Tecla, p.Motivo, conEspera(consola.EsperaDe(root, p.ID)), p.Comando, p.Carpeta)
 	return 0
+}
+
+// esperaTexto dice a qué pedidos espera uno: «espera a [a] [b]».
+func esperaTexto(espera []string) string {
+	return "espera a [" + strings.Join(espera, "] [") + "]"
+}
+
+func conEspera(espera []string) string {
+	if len(espera) == 0 {
+		return ""
+	}
+	return " · " + esperaTexto(espera)
 }

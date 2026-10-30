@@ -1,0 +1,9 @@
+id: "FND-080"
+title: "El panel ofrecía los pedidos en el orden en que se pidieron, aunque dependían unos de otros"
+description: "La cola de pedidos no sabía de dependencias: «▶ Para ti» los mostraba por orden de llegada y todos con su botón. El 2026-10-30, los merges de #14, #15 y #13 quedaron antes de los tags v2.6.1 y v2.6.2 (que se pidieron después) y del tag v2.7.0 de otra cola; la persona los pulsó en el orden que veía y fallaron con «Espera: primero va…»."
+impact: "La persona tenía que deducir el orden leyendo los motivos; un pedido pulsado antes de tiempo fallaba (o, sin la guarda escrita a mano en el comando, habría corrido fuera de orden)."
+action_taken: "Un pedido guarda a qué otros espera (despues, por id). qdd consola pedir --despues/--antes y la tool qdd_consola_pedir (despues/antes) lo declaran, y pedir de nuevo un comando abierto lo reordena. La cola se entrega con cada pedido justo después de lo que espera; uno que espera algo no hecho llega en estado «espera», sin tecla, y qdd consola accion lo rechaza. El panel (Claude Code) lo dibuja en gris «◌ … · espera a [a]» y OpenCode no lo cuenta en «▶ N para ti». Se rechazan ciclos y referencias que no están; descartar libera lo que esperaba; un hecho esperado no sale de la cola."
+test_result: "pedidos_orden_test.go (consola, 8 pruebas), TestConsolaPedir_ConOrdenDiceQueEsperaYLaListaLoMuestra_FND080 y TestConsolaPedirTool_AceptaDespuesYAntes_FND080 (cmd), «un pedido en espera dice a quién espera…» (mod qdd-tareas) y «paraTi no cuenta los pedidos en espera» (OpenCode). Antes del arreglo el panel dibujaba un botón «undefined  Mergear #14» para el pedido en espera."
+status: resolved
+detectado_por: humano
+date: "2026-10-30"

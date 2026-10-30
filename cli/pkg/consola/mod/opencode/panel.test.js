@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { vista, motivoDeSalida, celdas, destellosNuevos, brillo, fuenteDePulso, tocaEnviar } from './panel.js'
+import { vista, motivoDeSalida, celdas, destellosNuevos, brillo, fuenteDePulso, tocaEnviar, paraTi } from './panel.js'
 
 const ESTADO = {
   actualizado: '2026-10-30T02:40:00-03:00',
@@ -69,4 +69,13 @@ test('el resumen cuenta «▶ N para ti» con los pedidos que se pueden ejecutar
   const v = vista({ estado: ESTADO, acciones: [...pedidos, ...ACCIONES] }, '')
   assert.equal(v.resumen.at(-1).texto, '▶ 1 para ti')
   assert.equal(vista({ estado: ESTADO, acciones: [pedidos[1]] }, '').resumen.length, 3)
+})
+
+// FND-080: un pedido en espera no se cuenta como para ti hasta que lo que espera quede hecho.
+test('paraTi no cuenta los pedidos en espera (FND-080)', () => {
+  const acciones = [
+    { tipo: 'pedido', estado: 'pendiente' },
+    { tipo: 'pedido', estado: 'espera', espera: ['a'] },
+  ]
+  assert.equal(paraTi(acciones), 1)
 })
