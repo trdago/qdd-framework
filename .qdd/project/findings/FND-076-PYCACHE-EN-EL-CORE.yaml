@@ -1,0 +1,5 @@
+title: "QDD copiaba caché de Python a cada proyecto"
+description: "Cinco archivos __pycache__/*.pyc del plugin de documentos estaban versionados en .qdd/core y en cli/cmd/core_assets (antes de que el .gitignore los excluyera), uno sin su .py (generate_giant). Se embebían en el binario y qdd init los copiaba a cada proyecto; al actualizar a v1.11.0 aparecieron en git status de esp32 y gdatos-capa-integracion."
+impact: "Basura en los repositorios de todos los proyectos que usan QDD."
+action_taken: "Se quitan del repositorio; make core-assets y npm run build:cli descartan __pycache__ al empaquetar; init no copia caché de Python y borra la que versiones anteriores dejaron en .qdd/core (solo ahí). Tests en cli/cmd/init_tmp_test.go; el paso 21 del recorrido falla si aparece un .pyc."
+date: "2026-10-24"

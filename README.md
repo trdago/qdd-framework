@@ -144,6 +144,7 @@ cd mi-proyecto
 qdd init      # detecta el stack (también monorepos) y conecta tu IA
 qdd audit     # revisa el proyecto; funciona desde cualquier subcarpeta
 ```
+Lo temporal (scripts de un solo uso, pruebas manuales, logs, salidas) va en `./tmp`: `qdd init` la crea y git la ignora. Las IA conectadas a QDD también la usan.
 En un proyecto nuevo, QDD parte en **adopción gradual**: las prácticas de madurez (E2E, ADR, Conventional Commits) aparecen como recomendaciones y no bloquean; las pruebas que fallan, OWASP o desplegar sin pruebas sí bloquean. Para exigirlo todo desde el día uno: `adopcion: estricta` en `.qdd/policies.yaml`.
 
 ---

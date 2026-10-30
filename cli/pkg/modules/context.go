@@ -17,6 +17,12 @@ var workingMethod = []string{
 	"Todo bug se documenta como finding en .qdd/project/findings/ con su prueba de regresión.",
 	"No se commitea ni se despliega sin pasar el gate (qdd_audit): pruebas del proyecto + reglas QDD.",
 	"Si un módulo tiene un estándar de la organización (blueprint), se construye aplicándolo con qdd_blueprint_apply: sus preguntas las responde el humano (nunca tú) y sus invariantes no se discuten.",
+	"Lo temporal va en ./tmp (git lo ignora): scripts de un solo uso, pruebas manuales, descargas, logs y salidas. Nunca lo dejes en la raíz ni en las carpetas de código; si algo vale la pena conservar, muévelo a su lugar con su prueba.",
+}
+
+// MetodoDeTrabajo devuelve la forma de trabajo obligatoria, una regla por línea.
+func MetodoDeTrabajo() string {
+	return strings.Join(workingMethod, "\n")
 }
 
 // Estandar resume un blueprint importado al proyecto (lo calcula el paquete

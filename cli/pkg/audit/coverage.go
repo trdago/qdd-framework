@@ -16,6 +16,7 @@ type testCommand struct {
 	Label string // lo que se muestra al usuario, p. ej. "go test ./..."
 	Dir   string // carpeta donde se ejecuta
 	Args  []string
+	Env   []string // variables extra (ver sinCacheEnElProyecto)
 }
 
 type qddTestConfig struct {
@@ -27,11 +28,27 @@ type qddTestConfig struct {
 // cualquier stack). Si no, se detectan TODOS los stacks presentes: un proyecto
 // con package.json y go.mod corre ambas suites, no solo una.
 func resolveTestCommands(cwd string) []testCommand {
-	declared := declaredTestCommands(cwd)
-	if len(declared) > 0 {
-		return declared
+	cmds := declaredTestCommands(cwd)
+	if len(cmds) == 0 {
+		cmds = detectTestCommands(cwd)
 	}
-	return detectTestCommands(cwd)
+	env := sinCacheEnElProyecto(cwd)
+	for i := range cmds {
+		cmds[i].Env = env
+	}
+	return cmds
+}
+
+// sinCacheEnElProyecto evita que correr las pruebas ensucie el proyecto
+// (FND-077): la caché de Python va a ./tmp (o a la carpeta temporal del sistema
+// si el proyecto no tiene la ./tmp de QDD) y pytest no crea .pytest_cache.
+func sinCacheEnElProyecto(root string) []string {
+	cache := filepath.Join(os.TempDir(), "qdd-pycache")
+	if fileExists(filepath.Join(root, "tmp", ".gitignore")) {
+		cache = filepath.Join(root, "tmp", "pycache")
+	}
+	addopts := strings.TrimSpace(os.Getenv("PYTEST_ADDOPTS") + " -p no:cacheprovider")
+	return []string{"PYTHONPYCACHEPREFIX=" + cache, "PYTEST_ADDOPTS=" + addopts}
 }
 
 func declaredTestCommands(cwd string) []testCommand {
@@ -183,6 +200,7 @@ func pythonBin(cwd string) string {
 func runTestCommand(tc testCommand) (string, error) {
 	cmd := exec.Command(tc.Args[0], tc.Args[1:]...)
 	cmd.Dir = tc.Dir
+	cmd.Env = append(os.Environ(), tc.Env...)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return "", nil

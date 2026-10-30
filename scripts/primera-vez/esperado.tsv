@@ -13,3 +13,5 @@ flutter-app	05-audit	no tiene archivos *_test.dart: QA-00 bloquea
 flutter-app	14-audit-desde-subcarpeta	ídem
 py-api	05-audit	clon recién hecho sin dependencias instaladas, salvo que la máquina tenga fastapi
 py-api	14-audit-desde-subcarpeta	ídem
+vacio	14-audit-desde-subcarpeta	sin código, desde ./tmp: el gatekeeper pide declarar el stack
+vacio	15-modules-desde-subcarpeta	ídem

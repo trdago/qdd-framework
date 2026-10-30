@@ -1,0 +1,5 @@
+title: "Los archivos temporales quedaban sueltos en el proyecto"
+description: "QDD no proponía un lugar para lo temporal y casuístico. Las IA y las personas dejaban scripts de un solo uso, pruebas manuales, descargas, logs y salidas en la raíz o en las carpetas de código; el propio repositorio de QDD tiene una entrada en su .gitignore para un temporal olvidado (_tmp_old_app.vue)."
+impact: "Proyectos sucios, commits con basura y archivos casuísticos que nadie sabe si se pueden borrar."
+action_taken: "qdd init crea ./tmp con un .gitignore propio que la ignora entera, sin tocar el .gitignore del proyecto; si el proyecto ya versiona archivos en tmp/, QDD no se la apropia y avisa. Las reglas sincronizadas para las IA (CLAUDE.md, AGENTS.md, .cursorrules…) y el método de trabajo de qdd_project_context indican usar ./tmp. Tests en cli/cmd/init_tmp_test.go; el recorrido de primera vez lo verifica (paso 21)."
+date: "2026-10-24"
