@@ -139,9 +139,10 @@ func init() {
 	blueprintAddCmd.Flags().StringVar(&blueprintPaquete, "paquete", "", "importa un paquete declarado en el catalogo.yaml del repositorio")
 	blueprintAddCmd.Flags().BoolVar(&blueprintTodos, "todos", false, "importa todos los blueprints del repositorio")
 	blueprintAddCmd.Flags().BoolVar(&blueprintReemplazar, "reemplazar", false, "reemplaza un blueprint importado desde otra fuente por el de este origen")
-	for _, c := range []*cobra.Command{blueprintContributeCmd, blueprintProposeCmd, blueprintReleaseCmd} {
+	for _, c := range []*cobra.Command{blueprintContributeCmd, blueprintProposeCmd} {
 		c.Flags().StringVar(&blueprintOrigen, "origen", "", "fuente (repositorio) de un blueprint nuevo; por defecto, la de la organización")
 	}
+	blueprintReleaseCmd.Flags().StringVar(&blueprintOrigen, "origen", "", "fuente (repositorio) que se etiqueta; por defecto, la de la organización")
 	blueprintApplyCmd.Flags().StringVar(&blueprintModulo, "modulo", "", "id de la ficha a generar (por defecto, el id del blueprint)")
 	blueprintApplyCmd.Flags().StringArrayVar(&blueprintRutas, "ruta", nil, "carpeta del módulo en el proyecto (repetible)")
 	blueprintApplyCmd.Flags().StringArrayVar(&blueprintRespuestas, "respuesta", nil, "respuesta a una pregunta, como pregunta=valor (repetible)")
@@ -472,6 +473,9 @@ func runBlueprintPropose(cmd *cobra.Command, args []string) {
 	for _, r := range p.Razones {
 		fmt.Printf("    - %s\n", r)
 	}
+	if p.Via != "" {
+		fmt.Printf("[i] %s\n", p.Via)
+	}
 	if p.Aviso != "" {
 		fmt.Printf("[!] %s\n", p.Aviso)
 		return
@@ -486,6 +490,9 @@ func runBlueprintRelease(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	fmt.Printf("[+] Publicada la versión %s (cambio %s).\n", pub.Tag, pub.Cambio)
+	if pub.Via != "" {
+		fmt.Printf("[i] %s\n", pub.Via)
+	}
 	for _, c := range pub.Cambios {
 		fmt.Printf("    - %s: %s → %s\n", c.ID, c.Actual, c.Disponible)
 	}

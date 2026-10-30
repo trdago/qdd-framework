@@ -354,7 +354,7 @@ func repoLocal(dir string) (string, string, error) {
 	}
 	top, err := git(abs, "rev-parse", "--show-toplevel")
 	if err != nil || top == "" {
-		return "", "", fmt.Errorf("'%s' no es un repositorio git: QDD solo importa blueprints versionados (git init, commit y 'qdd blueprint release')", dir)
+		return repoBare(abs, dir)
 	}
 	realAbs, _ := filepath.EvalSymlinks(abs)
 	realTop, _ := filepath.EvalSymlinks(top)
@@ -372,6 +372,24 @@ func repoLocal(dir string) (string, string, error) {
 		repo = filepath.Dir(repo)
 	}
 	return repo, filepath.ToSlash(rel), nil
+}
+
+// repoBare acepta la carpeta de un repositorio bare (p. ej. uno compartido en
+// un disco de red): no tiene árbol de trabajo, así que es la raíz y no admite
+// subcarpeta (FND-067).
+func repoBare(abs, dir string) (string, string, error) {
+	noEsRepo := fmt.Errorf("'%s' no es un repositorio git: QDD solo importa blueprints versionados (git init, commit y 'qdd blueprint release')", dir)
+	out, err := git(abs, "rev-parse", "--is-bare-repository", "--absolute-git-dir")
+	bare, gitDir, _ := strings.Cut(out, "\n")
+	if err != nil || bare != "true" {
+		return "", "", noEsRepo
+	}
+	realAbs, _ := filepath.EvalSymlinks(abs)
+	realGitDir, _ := filepath.EvalSymlinks(strings.TrimSpace(gitDir))
+	if realAbs != realGitDir {
+		return "", "", fmt.Errorf("'%s' está dentro de un repositorio bare: indica su carpeta raíz (%s)", dir, gitDir)
+	}
+	return abs, "", nil
 }
 
 // splitSource separa "repo//subcarpeta" (convención de Terraform); el "//"

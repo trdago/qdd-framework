@@ -1,0 +1,9 @@
+id: "FND-069"
+title: "La ayuda de 'qdd blueprint release --origen' decía «fuente de un blueprint nuevo»"
+description: "contribute, propose y release registraban --origen con el mismo texto (cli/cmd/blueprints.go). En release, --origen no es la fuente de un blueprint nuevo sino el repositorio que se etiqueta."
+impact: "La ayuda describía mal qué hace release --origen."
+action_taken: "release registra --origen con su propio texto: «fuente (repositorio) que se etiqueta; por defecto, la de la organización»."
+test_result: "TestReleaseOrigenFlag_NamesTheSourceToTag (cmd): antes del arreglo la ayuda de release decía «de un blueprint nuevo»."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

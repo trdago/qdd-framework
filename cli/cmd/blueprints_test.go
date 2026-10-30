@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
@@ -308,5 +310,19 @@ func TestDoctor_DiagnosesAndRepairsBlueprints(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, blueprints.Dir)); !os.IsNotExist(err) {
 		t.Fatal("doctor --fix migró las copias a la carpeta central")
+	}
+}
+
+// FND-069: la ayuda de 'release --origen' decía «fuente de un blueprint nuevo»;
+// en release es la fuente que se etiqueta.
+func TestReleaseOrigenFlag_NamesTheSourceToTag(t *testing.T) {
+	release := blueprintReleaseCmd.Flags().Lookup("origen").Usage
+	if strings.Contains(release, "nuevo") || !strings.Contains(release, "etiqueta") {
+		t.Fatalf("release --origen es la fuente que se etiqueta: %q", release)
+	}
+	for _, c := range []*cobra.Command{blueprintContributeCmd, blueprintProposeCmd} {
+		if u := c.Flags().Lookup("origen").Usage; !strings.Contains(u, "nuevo") {
+			t.Fatalf("%s --origen sigue siendo la fuente de un blueprint nuevo: %q", c.Name(), u)
+		}
 	}
 }

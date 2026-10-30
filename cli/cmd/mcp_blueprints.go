@@ -104,6 +104,9 @@ func handleBlueprintProposeTool(ctx context.Context, request mcp.CallToolRequest
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	msg := fmt.Sprintf("%s v%s (cambio %s) publicado en la rama %s.\n- %s\n", id, p.Version, p.Cambio, p.Rama, strings.Join(p.Razones, "\n- "))
+	if p.Via != "" {
+		msg += p.Via + "\n"
+	}
 	if p.Aviso != "" {
 		return mcp.NewToolResultText(msg + "⚠️ " + p.Aviso), nil
 	}
