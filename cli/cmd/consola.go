@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -201,6 +202,9 @@ se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para c
 Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
 sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+Si depende de algo fuera de la cola (un tag, un CI, el merge de otra sesión), el comando lo revisa primero y sale con
+'exit 75' si todavía no está: el panel lo muestra en gris, «todavía no», no como falla. Un comando que corre en otro
+repositorio (--carpeta) queda en el panel de ese repositorio; los worktrees comparten el del checkout principal.
 
   qdd consola pedir -m "Publicar v2.5.1 (dispara npm y el binario)" -- git push origin v2.5.1
   qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"
@@ -282,8 +286,17 @@ func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []stri
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(salida, "[+] Quedó en el panel de estado con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»).\n", p.Tecla, p.Motivo, conEspera(consola.EsperaDe(root, p.ID)), p.Comando, p.Carpeta)
+	cola := consola.ColaDe(root, p.Carpeta)
+	fmt.Fprintf(salida, "[+] Quedó en %s con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»).\n", panelDe(root, cola), p.Tecla, p.Motivo, conEspera(consola.EsperaDe(cola, p.ID)), p.Comando, p.Carpeta)
 	return 0
+}
+
+// panelDe nombra el panel donde quedó un pedido: el de esta sesión o el del repositorio donde corre (FND-081).
+func panelDe(root, cola string) string {
+	if cola == root {
+		return "el panel de estado"
+	}
+	return "el panel de " + filepath.Base(cola) + " (el repositorio donde corre, no el de esta sesión)"
 }
 
 // esperaTexto dice a qué pedidos espera uno: «espera a [a] [b]».

@@ -448,8 +448,11 @@ func Proponer(root, id, mensaje, origen string) (Propuesta, error) {
 	}
 	p.Rama = rama
 	titulo := fmt.Sprintf("feat(%s): %s (v%s)", id, strings.TrimSpace(mensaje), p.Version)
-	if _, err := git(espacio, "commit", "--quiet", "-m", titulo); err != nil {
-		return Propuesta{}, err
+	// Sin nada nuevo desde el último propose no hay commit vacío: se vuelve a publicar la rama y el PR (FND-083).
+	if _, hayCambios := git(espacio, "diff", "--cached", "--quiet"); hayCambios != nil { // --quiet sale con 1 si hay cambios
+		if _, err := git(espacio, "commit", "--quiet", "-m", titulo); err != nil {
+			return Propuesta{}, err
+		}
 	}
 	if p.Commit, err = git(espacio, "rev-parse", "HEAD"); err != nil {
 		return Propuesta{}, err
@@ -517,8 +520,26 @@ func versionar(espacio, carpeta, subdir, id string) (Propuesta, error) {
 	if problems := nuevo.Validate(); len(problems) > 0 {
 		return Propuesta{}, fmt.Errorf("el blueprint '%s' no es válido: %s", id, strings.Join(problems, "; "))
 	}
-	_, err = git(espacio, "add", "--all", "--", subdir)
-	return p, err
+	if _, err := git(espacio, "add", "--all", "--", subdir); err != nil {
+		return p, err
+	}
+	return p, agregarCompartidos(espacio)
+}
+
+// compartidos son los archivos del repositorio que describen a todos los blueprints: un aporte puede cambiarlos (por
+// ejemplo, sacar del paquete base un blueprint reemplazado) y van en el mismo PR (FND-083).
+var compartidos = []string{CatalogName, "README.md"}
+
+func agregarCompartidos(espacio string) error {
+	for _, archivo := range compartidos {
+		if !exists(filepath.Join(espacio, archivo)) {
+			continue
+		}
+		if _, err := git(espacio, "add", "--", archivo); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func fijarVersion(manifest, version string) error {

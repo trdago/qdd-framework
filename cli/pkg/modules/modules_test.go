@@ -201,3 +201,17 @@ func TestTextoAprobada_SinCommitLoDice(t *testing.T) {
 		t.Fatalf("con commit: %q", got)
 	}
 }
+
+// FND-084: el estado por tareas lo crea 'qdd estado init', que necesita la ficha: la ficha no puede exigir que el
+// archivo ya exista. Solo los datos que escribe QDD (DatosDeQDD) quedan exentos.
+func TestValidateRutas_ElEstadoDeQDDNoTieneQueExistirTodavia_FND084(t *testing.T) {
+	root := t.TempDir()
+	m := Module{Rutas: []string{".qdd/project/estado.yaml"}}
+	if problems := m.validateRutas(root); len(problems) != 0 {
+		t.Fatalf("el archivo de estado lo crea su comando después: %v", problems)
+	}
+	m.Rutas = []string{"internal/estado"}
+	if problems := m.validateRutas(root); len(problems) == 0 {
+		t.Fatal("cualquier otra ruta tiene que existir")
+	}
+}

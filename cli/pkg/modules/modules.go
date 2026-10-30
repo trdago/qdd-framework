@@ -100,6 +100,11 @@ func (m Module) Validate(root string) []string {
 	return append(problems, m.validateRutas(root)...)
 }
 
+// DatosDeQDD son los archivos de .qdd que pertenecen a un módulo del proyecto porque QDD los escribe por él: el estado
+// por tareas, que crea 'qdd estado init'. Pueden ser ruta de una ficha aunque estén en .qdd y aunque todavía no
+// existan (su comando necesita la ficha para crearlos). Nada más de .qdd es ruta de un módulo (FND-084).
+var DatosDeQDD = map[string]bool{".qdd/project/estado.yaml": true}
+
 func (m Module) validateRutas(root string) []string {
 	if len(m.Rutas) == 0 {
 		return []string{"rutas: declara al menos una carpeta o archivo del módulo"}
@@ -111,7 +116,7 @@ func (m Module) validateRutas(root string) []string {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' debe ser relativa a la raíz del proyecto", r))
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(root, clean)); err != nil {
+		if _, err := os.Stat(filepath.Join(root, clean)); err != nil && !DatosDeQDD[filepath.ToSlash(clean)] {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' no existe en el proyecto", r))
 		}
 	}

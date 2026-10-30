@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/integration"
@@ -94,7 +95,7 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	list.Groups = append(list.Groups, buildGroup3Checks(projectPath))
 	list.Groups = append(list.Groups, buildBlueprintChecks(projectPath))
 	list.Groups = append(list.Groups, buildRegistrosChecks(projectPath))
-	if g := buildConsolaChecks(); len(g.Items) > 0 {
+	if g := buildConsolaChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
 	return list
@@ -103,20 +104,42 @@ func runDeterministicChecks(projectPath string) *Checklist {
 // grupoConsola revisa el panel y la barra de QDD en Claude Code, solo si se activaron en esta máquina (RFC 0006 §3.6).
 const grupoConsola = "6. Consola de Claude Code (qdd consola)"
 
-func buildConsolaChecks() *CheckGroup {
+// La cola de pedidos se revisa con la consola activa o si tiene pedidos fuera de lugar (FND-081).
+func buildConsolaChecks(projectPath string) *CheckGroup {
 	g := &CheckGroup{Name: grupoConsola}
 	for _, d := range consolaActual().Diagnosticar() {
 		g.Items = append(g.Items, &CheckItem{Name: d.Nombre, Success: d.OK, Error: d.Detalle})
 	}
+	if cola := consola.DiagnosticarCola(projectPath); len(g.Items) > 0 || !cola.OK {
+		g.Items = append(g.Items, &CheckItem{Name: cola.Nombre, Success: cola.OK, Error: cola.Detalle})
+	}
 	return g
 }
 
-func repairConsola(g *CheckGroup) {
-	if !groupHasFailures(g) {
+// repairConsola repara lo que falló: la cola se junta sin reactivar la consola, y la consola se reactiva solo si
+// falló algo de ella.
+func repairConsola(projectPath string, g *CheckGroup) {
+	consolaFalla := false
+	for _, item := range g.Items {
+		if item.Success {
+			continue
+		}
+		if item.Name == consola.DiagnosticarCola(projectPath).Nombre {
+			fmt.Println("  [~] Juntando la cola de pedidos del panel...")
+			hecho, err := consola.RepararCola(projectPath)
+			imprimirReparado(hecho, err)
+			continue
+		}
+		consolaFalla = true
+	}
+	if !consolaFalla {
 		return
 	}
 	fmt.Println("  [~] Reparando la consola de Claude Code...")
-	hecho, err := consolaActual().Reparar()
+	imprimirReparado(consolaActual().Reparar())
+}
+
+func imprimirReparado(hecho []string, err error) {
 	for _, h := range hecho {
 		fmt.Printf("      %s\n", h)
 	}
@@ -376,7 +399,7 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 			continue
 		}
 		if g.Name == grupoConsola {
-			repairConsola(g)
+			repairConsola(projectPath, g)
 			continue
 		}
 		for _, item := range g.Items {

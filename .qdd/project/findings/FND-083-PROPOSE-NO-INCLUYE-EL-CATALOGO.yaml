@@ -1,0 +1,9 @@
+id: "FND-083"
+title: "qdd blueprint propose no llevaba al PR los cambios del catálogo ni del README, y fallaba con «exit status 1»"
+description: "Proponer solo agregaba la carpeta del blueprint. Al deprecar estado-por-frente (2026-10-30), el cambio de catalogo.yaml (sacarlo del paquete base) y del README quedó fuera del PR #6: un proyecto nuevo con --paquete base habría instalado los dos blueprints. Además, sin nada nuevo en la carpeta, el commit vacío fallaba y git lo decía en la salida estándar, que se descartaba: el error era solo «exit status 1»."
+impact: "El catálogo de la organización no se podía cambiar con el flujo de QDD y el error no decía qué hacer."
+action_taken: "propose agrega también los archivos compartidos del repositorio (catalogo.yaml y README.md) si existen; sin nada nuevo desde el último propose, no hace un commit vacío: vuelve a publicar la rama y el PR. Los errores de git traen lo que git escribió, aunque sea en la salida estándar."
+test_result: "TestProponer_IncluyeElCatalogoYElReadmeYSinNadaNuevoNoFallaACiegas_FND083 y TestGit_UnErrorDiceLoQueGitEscribio_FND083 (blueprints): antes del arreglo los dos fallaban con «exit status 1»."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"
