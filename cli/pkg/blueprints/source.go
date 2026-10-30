@@ -70,6 +70,7 @@ type AddInput struct {
 	Blueprints []string // ids a importar de un repositorio con varios
 	Paquete    string   // paquete del catálogo a importar
 	Todos      bool     // importar todos los blueprints del repositorio
+	Reemplazar bool     // permite que un id importado desde otra fuente pase a esta
 }
 
 // Add importa uno o varios blueprints de una versión publicada (tag vX.Y.Z)
@@ -95,6 +96,9 @@ func Add(in AddInput) ([]LockEntry, []string) {
 	if len(problems) > 0 {
 		return nil, problems
 	}
+	if problems := choques(in, bps, entry.Origen); len(problems) > 0 {
+		return nil, problems
+	}
 	var entries []LockEntry
 	for i, b := range bps {
 		e := entry
@@ -106,6 +110,28 @@ func Add(in AddInput) ([]LockEntry, []string) {
 		entries = append(entries, installed)
 	}
 	return entries, nil
+}
+
+// choques rechaza los blueprints cuyo id ya está importado desde otra fuente:
+// un id pertenece a una sola fuente y solo se cambia de fuente a pedido
+// (Reemplazar), nunca por accidente (FND-064).
+func choques(in AddInput, bps []Blueprint, repo string) []string {
+	if in.Reemplazar {
+		return nil
+	}
+	lock, err := LoadLock(in.Root)
+	if err != nil {
+		return []string{err.Error()}
+	}
+	var problems []string
+	for _, b := range bps {
+		e, ok := lock.Entry(b.ID)
+		if !ok || e.Origen == repo {
+			continue
+		}
+		problems = append(problems, fmt.Sprintf("'%s' ya está importado desde %s: un id pertenece a una sola fuente. Para cambiarlo por el de %s usa --reemplazar y después vuelve a aplicarlo (qdd blueprint apply %s)", b.ID, e.Origen, repo, b.ID))
+	}
+	return problems
 }
 
 // seleccionar decide qué carpetas del origen importar.

@@ -75,17 +75,17 @@ func TestProponer_ValidatesVersionsPushesAndOpensThePR(t *testing.T) {
 	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Blueprints: []string{"auth"}}); len(problems) > 0 {
 		t.Fatal(problems)
 	}
-	if _, err := Proponer(root, "auth", "sin aporte"); err == nil || !strings.Contains(err.Error(), "qdd blueprint contribute auth") {
+	if _, err := Proponer(root, "auth", "sin aporte", ""); err == nil || !strings.Contains(err.Error(), "qdd blueprint contribute auth") {
 		t.Fatalf("sin aporte en curso, se pide preparar uno: %v", err)
 	}
-	ap, err := Aportar(root, "auth")
+	ap, err := Aportar(root, "auth", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Proponer(root, "auth", "nada"); err == nil || !strings.Contains(err.Error(), "no tiene cambios") {
+	if _, err := Proponer(root, "auth", "nada", ""); err == nil || !strings.Contains(err.Error(), "no tiene cambios") {
 		t.Fatalf("un aporte sin cambios se rechaza: %v", err)
 	}
-	if _, err := Proponer(root, "auth", ""); err == nil {
+	if _, err := Proponer(root, "auth", "", ""); err == nil {
 		t.Fatal("un aporte sin descripción se rechaza")
 	}
 
@@ -93,7 +93,7 @@ func TestProponer_ValidatesVersionsPushesAndOpensThePR(t *testing.T) {
 	editado := strings.Replace(authBlueprint, `invariantes: ["Autorización por permiso, nunca por nombre de rol"]`, `invariantes: ["Autorización por permiso, nunca por nombre de rol", "Toda sesión expira"]`, 1)
 	writeFile(t, manifest, strings.Replace(editado, "version: 1.0.0", "version: 7.0.0", 1))
 
-	p, err := Proponer(root, "auth", "las sesiones expiran")
+	p, err := Proponer(root, "auth", "las sesiones expiran", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,12 +115,12 @@ func TestProponer_InvalidBlueprintIsNotPublished(t *testing.T) {
 	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Blueprints: []string{"auth"}}); len(problems) > 0 {
 		t.Fatal(problems)
 	}
-	ap, err := Aportar(root, "auth")
+	ap, err := Aportar(root, "auth", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), "id: auth\nnombre: X\nversion: 1.0.0\n")
-	if _, err := Proponer(root, "auth", "rompe todo"); err == nil || !strings.Contains(err.Error(), "no es válido") {
+	if _, err := Proponer(root, "auth", "rompe todo", ""); err == nil || !strings.Contains(err.Error(), "no es válido") {
 		t.Fatalf("un blueprint inválido no se propone: %v", err)
 	}
 	if _, err := git(repo, "rev-parse", "--verify", "--quiet", "refs/heads/aporte/auth"); err == nil {
@@ -135,21 +135,21 @@ func TestPublicar_TagsTheRepositoryFromTheChanges(t *testing.T) {
 	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Blueprints: []string{"auth"}}); len(problems) > 0 {
 		t.Fatal(problems)
 	}
-	if _, err := Publicar(root); err == nil || !strings.Contains(err.Error(), "no hay cambios") {
+	if _, err := Publicar(root, ""); err == nil || !strings.Contains(err.Error(), "no hay cambios") {
 		t.Fatalf("sin cambios no hay versión que publicar: %v", err)
 	}
 
-	ap, err := Aportar(root, "auth")
+	ap, err := Aportar(root, "auth", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), strings.Replace(authBlueprint, "        invariantes: [\"El correo se normaliza a minúsculas\"]\n", "", 1))
-	if _, err := Proponer(root, "auth", "el correo ya no se normaliza"); err != nil {
+	if _, err := Proponer(root, "auth", "el correo ya no se normaliza", ""); err != nil {
 		t.Fatal(err)
 	}
 	gitIn(t, repo, "merge", "-q", "--no-edit", "aporte/auth") // el PR se integra
 
-	pub, err := Publicar(root)
+	pub, err := Publicar(root, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestPublicar_RejectsChangesThatSkippedPropose(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "auth", ManifestName), strings.Replace(authBlueprint, "nunca por nombre de rol", "o por rol", 1))
 	gitIn(t, repo, "commit", "-q", "-am", "a mano")
 
-	if _, err := Publicar(root); err == nil || !strings.Contains(err.Error(), "qdd blueprint propose") {
+	if _, err := Publicar(root, ""); err == nil || !strings.Contains(err.Error(), "qdd blueprint propose") {
 		t.Fatalf("un cambio sin versión dictada por QDD no se publica: %v", err)
 	}
 }

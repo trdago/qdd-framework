@@ -233,13 +233,7 @@ func reconstruir(root string, e LockEntry) []string {
 // reimportar rehace la entrada del lockfile desde la versión publicada que
 // fija (o la última, si no fija un tag).
 func reimportar(root string, e LockEntry) []string {
-	origen := e.Origen
-	if e.Subdir != "" && exists(e.Origen) {
-		origen = filepath.Join(e.Origen, filepath.FromSlash(e.Subdir))
-	}
-	if e.Subdir != "" && !exists(e.Origen) {
-		origen = e.Origen + "//" + e.Subdir
-	}
+	origen := origenDeEntrada(e)
 	ref := ""
 	if tagPattern.MatchString(e.Ref) {
 		ref = e.Ref

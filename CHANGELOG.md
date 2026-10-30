@@ -4,6 +4,16 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🧩 Varias fuentes de blueprints en un proyecto (RFC 0007)
+
+- **Tus estándares junto a los de tu organización.** Importa desde otro repositorio con su URL (`qdd blueprint add git@github.com:yo/mis-blueprints.git mi-estandar`). El lockfile recuerda la fuente de cada blueprint, y el repositorio de la organización no cambia.
+- **Cada blueprint se actualiza desde su fuente.** `qdd blueprint add <id>` sin origen (lo que pide `BP-06-BEHIND`) usa la fuente del lockfile; los ids nuevos, `--paquete` y `--todos` van a la organización. Si una fuente falla, el lockfile queda como estaba (FND-065).
+- **Un id no se pisa.** Un blueprint con un id ya importado desde otra fuente se rechaza; para cambiarlo a propósito, `--reemplazar` (FND-064).
+- **`sync` revisa todas las fuentes.** Da un resultado por fuente, y una inaccesible no oculta las demás (FND-066).
+- **Crear y publicar en tu repositorio.** `contribute`, `propose` y `release` aceptan `--origen` para un blueprint nuevo. Uno importado se aporta siempre a su fuente.
+
 ## [v2.4.0] - 2026-10-29
 
 ### 📊 Línea de recursos en la barra (RFC 0006 §3.8, `consola-claude-code` v4.0.0)

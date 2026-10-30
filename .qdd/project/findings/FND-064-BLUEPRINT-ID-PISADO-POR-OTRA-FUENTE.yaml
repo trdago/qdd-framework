@@ -1,0 +1,9 @@
+id: "FND-064"
+title: "Importar un blueprint con un id ya importado desde otra fuente lo reemplazaba sin avisar"
+description: "El lockfile identifica cada blueprint solo por su id, y saveLockEntry (cli/pkg/blueprints/source.go) reemplaza la entrada con el mismo id sin mirar su origen. Si un proyecto tenía auth del repositorio de la organización y se importaba otro auth desde un repositorio personal, el de la organización desaparecía del lockfile sin ningún aviso."
+impact: "Un estándar de la organización, con sus invariantes, quedaba reemplazado en silencio por el de otra fuente. Los módulos generados con él seguían apuntando al id, pero ahora a otro contenido."
+action_taken: "Add rechaza, antes de guardar nada, un id importado desde otra fuente y dice cómo cambiarlo a propósito (--reemplazar en la CLI, reemplazar en qdd_blueprint_add). Un id pertenece a una sola fuente."
+test_result: "TestAdd_SameIDFromAnotherSourceIsNotSilentlyReplaced (pkg/blueprints): antes del arreglo Add devolvía cero problemas y el lockfile quedaba con el auth de la otra fuente; con el arreglo se rechaza, no se importa nada y con Reemplazar el cambio se hace."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

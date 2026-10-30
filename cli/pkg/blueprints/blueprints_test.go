@@ -454,12 +454,18 @@ func TestApply_ReapplyKeepsProjectAdditionsAndPreviousAnswers(t *testing.T) {
 }
 
 func TestCheck_DetectsOutdatedApplication(t *testing.T) {
-	root := importedProject(t)
+	root := t.TempDir()
+	src := sourceBlueprint(t, authBlueprint)
+	if _, problems := Add(AddInput{Root: root, Origen: src}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
 	if _, problems := Apply(ApplyInput{Root: root, Blueprint: "auth", Respuestas: map[string]string{"identificador": "correo", "recuperacion": "correo"}}); len(problems) > 0 {
 		t.Fatal(problems)
 	}
-	v2 := strings.Replace(authBlueprint, "version: 1.0.0", "version: 1.1.0", 1)
-	if _, problems := Add(AddInput{Root: root, Origen: sourceBlueprint(t, v2)}); len(problems) > 0 {
+	writeFile(t, filepath.Join(src, ManifestName), strings.Replace(authBlueprint, "version: 1.0.0", "version: 1.1.0", 1))
+	gitIn(t, src, "commit", "-q", "-am", "1.1.0")
+	gitIn(t, src, "tag", "v1.1.0")
+	if _, problems := Add(AddInput{Root: root, Origen: src}); len(problems) > 0 {
 		t.Fatal(problems)
 	}
 	if !hasRule(Check(root), "BP-03-OUTDATED") {

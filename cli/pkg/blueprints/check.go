@@ -86,7 +86,7 @@ func checkVigencia(e LockEntry) []Problema {
 	if disponible == "" || compararVersion(disponible, e.Version) <= 0 {
 		return nil
 	}
-	return []Problema{{"BP-06-BEHIND", LockFile, fmt.Sprintf("La organización publicó %s@%s (%s) y el proyecto usa %s. Actualízalo: qdd blueprint add %s (y vuelve a aplicarlo a sus módulos con qdd blueprint apply).", e.ID, disponible, tags[0], e.Version, e.ID)}}
+	return []Problema{{"BP-06-BEHIND", LockFile, fmt.Sprintf("%s publicó %s@%s (%s) y el proyecto usa %s. Actualízalo: qdd blueprint add %s (y vuelve a aplicarlo a sus módulos con qdd blueprint apply).", e.Origen, e.ID, disponible, tags[0], e.Version, e.ID)}}
 }
 
 func checkApplication(root string, a Aplicacion, versiones map[string]string) []Problema {

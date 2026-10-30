@@ -199,28 +199,76 @@ type Sincronizacion struct {
 	Origen    string
 	Ref       string // última versión publicada del repositorio
 	Novedades []Novedad
+	Problema  string // por qué no se pudo sincronizar esta fuente
 }
 
-// Sincronizar actualiza el espejo central del repositorio de la organización,
-// reconstruye en la carpeta central lo que el lockfile fija y dice qué
-// blueprints del proyecto tienen una versión publicada más nueva.
-func Sincronizar(root string) (Sincronizacion, error) {
-	repo, mirror, err := espejoDelRegistro(root)
+// Sincronizar actualiza el espejo central de cada fuente del proyecto (el
+// repositorio de su organización y las demás de su lockfile), reconstruye en
+// la carpeta central lo que el lockfile fija y dice qué blueprints tienen una
+// versión publicada más nueva. Una fuente inaccesible no oculta las demás: su
+// resultado lleva el Problema (FND-066).
+func Sincronizar(root string) ([]Sincronizacion, error) {
+	lock, err := LoadLock(root)
 	if err != nil {
-		return Sincronizacion{}, err
+		return nil, err
+	}
+	fuentes, err := fuentesDe(root, lock)
+	if err != nil {
+		return nil, err
+	}
+	var res []Sincronizacion
+	for _, repo := range fuentes {
+		res = append(res, sincronizarFuente(repo, lock))
+	}
+	if _, errs := List(root); len(errs) > 0 {
+		return res, errs[0]
+	}
+	return res, nil
+}
+
+// fuentesDe lista los repositorios del proyecto: primero el registrado, luego
+// los del lockfile, sin repetir.
+func fuentesDe(root string, lock Lock) ([]string, error) {
+	reg, err := LoadRegistro(root)
+	if err != nil {
+		return nil, err
+	}
+	var fuentes []string
+	if reg.Origen != "" {
+		repo, _, err := resolverOrigen(reg.Origen)
+		if err != nil {
+			return nil, err
+		}
+		fuentes = append(fuentes, repo)
+	}
+	for _, o := range origenesDe(lock) {
+		if !inList(fuentes, o) {
+			fuentes = append(fuentes, o)
+		}
+	}
+	if len(fuentes) == 0 {
+		return nil, errors.New("el proyecto no tiene repositorio de blueprints de la organización: impórtalo una vez con 'qdd blueprint add <repositorio> <id>'")
+	}
+	return fuentes, nil
+}
+
+func sincronizarFuente(repo string, lock Lock) Sincronizacion {
+	s := Sincronizacion{Origen: repo}
+	mirror, err := ensureMirror(repo, true)
+	if err != nil {
+		s.Problema = err.Error()
+		return s
 	}
 	tags, err := versionTags(mirror)
 	if err != nil {
-		return Sincronizacion{}, err
+		s.Problema = err.Error()
+		return s
 	}
 	if len(tags) == 0 {
-		return Sincronizacion{}, fmt.Errorf("'%s' no tiene versiones publicadas (tags vX.Y.Z): publícalas con 'qdd blueprint release'", repo)
+		s.Problema = fmt.Sprintf("'%s' no tiene versiones publicadas (tags vX.Y.Z): publícalas con 'qdd blueprint release'", repo)
+		return s
 	}
-	s := Sincronizacion{Origen: repo, Ref: tags[0]}
-	lock, err := LoadLock(root)
-	if err != nil {
-		return s, err
-	}
+	s.Ref = tags[0]
 	for _, e := range lock.Blueprints {
 		if e.Origen != repo {
 			continue
@@ -229,26 +277,7 @@ func Sincronizar(root string) (Sincronizacion, error) {
 			s.Novedades = append(s.Novedades, Novedad{ID: e.ID, Actual: e.Version, Disponible: v})
 		}
 	}
-	if _, errs := List(root); len(errs) > 0 {
-		return s, errs[0]
-	}
-	return s, nil
-}
-
-func espejoDelRegistro(root string) (string, string, error) {
-	reg, err := LoadRegistro(root)
-	if err != nil {
-		return "", "", err
-	}
-	if reg.Origen == "" {
-		return "", "", errors.New("el proyecto no tiene repositorio de blueprints de la organización: impórtalo una vez con 'qdd blueprint add <repositorio> <id>'")
-	}
-	repo, _, err := resolverOrigen(reg.Origen)
-	if err != nil {
-		return "", "", err
-	}
-	mirror, err := ensureMirror(repo, true)
-	return repo, mirror, err
+	return s
 }
 
 // Aporte es el espacio de trabajo central donde se edita un blueprint.
@@ -260,10 +289,10 @@ type Aporte struct {
 }
 
 // Aportar prepara en la carpeta central (nunca en el proyecto) un clon
-// editable del repositorio de la organización, en la rama aporte/<id> sobre
+// editable de la fuente del blueprint (ver origenDe), en la rama aporte/<id> sobre
 // lo último publicado. Si el clon tiene cambios sin commitear, no lo toca.
-func Aportar(root, id string) (Aporte, error) {
-	repo, subdir, err := origenDe(root, id)
+func Aportar(root, id, origen string) (Aporte, error) {
+	repo, subdir, err := origenDe(root, id, origen)
 	if err != nil {
 		return Aporte{}, err
 	}
@@ -289,9 +318,10 @@ func Aportar(root, id string) (Aporte, error) {
 }
 
 // origenDe devuelve el repositorio y la carpeta de un blueprint: la del
-// lockfile si está importado, o <id>/ en el repositorio de la organización
-// si es un blueprint nuevo.
-func origenDe(root, id string) (string, string, error) {
+// lockfile si está importado, o <id>/ en la fuente elegida (origen) o, sin
+// ella, en el repositorio de la organización si es un blueprint nuevo. Un
+// blueprint importado se aporta siempre a su propia fuente.
+func origenDe(root, id, origen string) (string, string, error) {
 	if !idPattern.MatchString(id) {
 		return "", "", fmt.Errorf("'%s' no es un id de blueprint válido", id)
 	}
@@ -299,18 +329,34 @@ func origenDe(root, id string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	if e, ok := lock.Entry(id); ok {
-		return e.Origen, e.Subdir, nil
-	}
-	reg, err := LoadRegistro(root)
+	elegido, err := fuenteElegida(root, origen)
 	if err != nil {
 		return "", "", err
 	}
-	if reg.Origen == "" {
-		return "", "", errors.New("el proyecto no tiene repositorio de blueprints de la organización: impórtalo una vez con 'qdd blueprint add <repositorio> <id>'")
+	e, ok := lock.Entry(id)
+	if ok && origen != "" && elegido != e.Origen {
+		return "", "", fmt.Errorf("'%s' está importado desde %s: su aporte va a esa fuente (no indiques --origen)", id, e.Origen)
 	}
-	repo, _, err := resolverOrigen(reg.Origen)
-	return repo, id, err
+	if ok {
+		return e.Origen, e.Subdir, nil
+	}
+	return elegido, id, nil
+}
+
+// fuenteElegida es el repositorio de origen, o el registrado si no se indica.
+func fuenteElegida(root, origen string) (string, error) {
+	if strings.TrimSpace(origen) == "" {
+		reg, err := LoadRegistro(root)
+		if err != nil {
+			return "", err
+		}
+		origen = reg.Origen
+	}
+	if origen == "" {
+		return "", errors.New("el proyecto no tiene repositorio de blueprints de la organización: indica la fuente con --origen o impórtala una vez con 'qdd blueprint add <repositorio> <id>'")
+	}
+	repo, _, err := resolverOrigen(origen)
+	return repo, err
 }
 
 func espacioPath(repo string) (string, error) {
@@ -382,11 +428,11 @@ var abrirPR = func(espacio, rama, titulo, cuerpo string) (string, error) {
 // organización. QDD valida el blueprint, calcula el cambio respecto de lo
 // publicado y fija la versión (nadie la elige a mano), commitea, hace push de
 // la rama aporte/<id> y abre el PR.
-func Proponer(root, id, mensaje string) (Propuesta, error) {
+func Proponer(root, id, mensaje, origen string) (Propuesta, error) {
 	if strings.TrimSpace(mensaje) == "" {
 		return Propuesta{}, errors.New("describe el cambio con -m: queda en el commit y en el pull request")
 	}
-	repo, subdir, err := origenDe(root, id)
+	repo, subdir, err := origenDe(root, id, origen)
 	if err != nil {
 		return Propuesta{}, err
 	}
@@ -503,14 +549,18 @@ type Publicacion struct {
 	Cambios []Novedad
 }
 
-// Publicar etiqueta lo integrado en el repositorio de la organización. QDD
+// Publicar etiqueta lo integrado en la fuente indicada (origen) o, sin ella,
+// en el repositorio de la organización. QDD
 // valida todos los blueprints, exige que cada uno que cambió haya subido su
 // versión como corresponde (es decir, que pasó por 'qdd blueprint propose') y
 // calcula el tag: el mayor cambio entre los blueprints decide si sube el
 // major, el minor o el patch del repositorio.
-func Publicar(root string) (Publicacion, error) {
-	repo, _, err := espejoDelRegistro(root)
+func Publicar(root, origen string) (Publicacion, error) {
+	repo, err := fuenteElegida(root, origen)
 	if err != nil {
+		return Publicacion{}, err
+	}
+	if _, err := ensureMirror(repo, true); err != nil {
 		return Publicacion{}, err
 	}
 	espacio, err := espacioDeTrabajo(repo)
