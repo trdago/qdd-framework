@@ -49,7 +49,7 @@ objetivo_tecnologico:
         - La tecla de un pedido no cambia mientras está abierto (FND-071).
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
-        - 'La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive en .qdd/working/actividad.json y nunca cambia estado.yaml.'
+        - La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive en .qdd/working/actividad.json y nunca cambia estado.yaml.
         - Una tarea sin pulsos durante 120 s deja de estar en curso; cerrarla o descartarla la apaga.
         - Un pulso nunca demora la herramienta, el subagente ni el comando que lo produce; sin tarea en curso no hace nada.
 pruebas:
@@ -70,4 +70,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 56599d69172e
+revisado_en_commit: 2a1743db16ee
