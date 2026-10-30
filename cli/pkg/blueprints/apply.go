@@ -338,7 +338,7 @@ func validateRutas(rutas []string) []string {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' debe ser relativa a la raíz del proyecto", r))
 			continue
 		}
-		if clean == ".qdd" || strings.HasPrefix(clean, ".qdd/") {
+		if (clean == ".qdd" || strings.HasPrefix(clean, ".qdd/")) && !modules.DatosDeQDD[clean] {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' está dentro de .qdd; el código de la aplicación nunca vive ahí", r))
 		}
 	}
@@ -347,9 +347,14 @@ func validateRutas(rutas []string) []string {
 
 // writeSkeletons crea las rutas del módulo que aún no existen, con un
 // README.md que deja el esqueleto conceptual. Nunca toca carpetas existentes.
+// Una ruta de archivo (con extensión, como .qdd/project/estado.yaml) no se crea:
+// la escribe su propio comando, y como carpeta ya no se podría escribir (FND-084).
 func writeSkeletons(root string, b Blueprint, m modules.Module, respuestas map[string]string) ([]string, error) {
 	var created []string
 	for _, r := range m.Rutas {
+		if filepath.Ext(filepath.Clean(r)) != "" {
+			continue
+		}
 		dir := filepath.Join(root, filepath.Clean(r))
 		if _, err := os.Stat(dir); err == nil {
 			continue

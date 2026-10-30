@@ -1,0 +1,9 @@
+id: "FND-084"
+title: "La ficha del estado por tareas no podía apuntar a .qdd/project/estado.yaml"
+description: "apply rechaza toda ruta dentro de .qdd (el código nunca vive ahí), pero el estado por tareas es justamente ese archivo, que escribe qdd estado. Cada proyecto inventó una ruta distinta (llmlocal: docs; notificador_de_ofertas: .agents/rules/estado-por-frente), y la instalación limpia del blueprint ganador (2026-10-30) se detuvo pidiendo --ruta."
+impact: "La ficha no apuntaba a lo que el módulo cambia: HEART no avisaba cuando cambiaba el estado y cada proyecto lo resolvía a mano."
+action_taken: "validateRutas acepta, dentro de .qdd, solo .qdd/project/estado.yaml (datosDeQDD); el resto de .qdd sigue prohibido. El esqueleto ya no convierte en carpeta una ruta de archivo (con extensión): antes creaba .qdd/project/estado.yaml/README.md y el estado no se podía escribir. El blueprint estado-por-tareas sugiere esa ruta en su ficha (blueprints #6)."
+test_result: "TestValidateRutas_SoloElEstadoDelProyectoPuedeVivirEnQdd_FND084 y TestWriteSkeletons_UnaRutaDeArchivoNoSeVuelveCarpeta_FND084 (blueprints): antes del arreglo el primero fallaba con «está dentro de .qdd» y el segundo creaba las tres rutas como carpetas."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"
