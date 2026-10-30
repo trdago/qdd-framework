@@ -20,7 +20,8 @@ import (
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
 		mcp.WithDescription("Estado por frente del proyecto (.qdd/project/estado.yaml, blueprint estado-por-tareas, antes estado-por-frente, con destino «archivo»). Al RETOMAR una sesión o empezar como agente nuevo, llama accion=ver y sigue desde los ⏳, sin rehacer lo hecho. Al AVANZAR, actualiza la celda con accion=set ANTES de reportar: un ✅ lleva evidencia (commit, versión, n/n pruebas o id de corrida), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Un frente se cierra con accion=cerrar y su motivo; nunca se borra. accion=check aplica el lector automático (EPF-C01…C07 y, con 'respuesta', EPF-A01). Las escrituras se validan: si violan una regla, no se escribe nada."),
-		mcp.WithString("accion", mcp.Description("ver (por defecto) | set | cerrar | check")),
+		mcp.WithString("accion", mcp.Description("ver (por defecto) | set | cerrar | check | activar | pulso | terminar")),
+		mcp.WithString("fuente", mcp.Description("Quién deja el pulso: agente (por defecto) | subagente | comando (pulso).")),
 		mcp.WithString("frente", mcp.Description("Id del frente (set, cerrar).")),
 		mcp.WithString("nombre", mcp.Description("Nombre del frente al crearlo (set).")),
 		mcp.WithString("etapa", mcp.Description("Etapa (columna) tal como está en el archivo (set).")),
@@ -49,6 +50,23 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
 		return resultadoEscritura(err, "frente cerrado")
 	}
+	if accion == "activar" {
+		return resultadoEscritura(estado.Activar(root, stringArg(request, "frente"), "mcp", now), "tarea en curso: el panel la muestra «● running» y se apaga sola a los 120 s sin pulsos")
+	}
+	if accion == "terminar" {
+		return resultadoEscritura(estado.Terminar(root, stringArg(request, "frente")), "tarea fuera de curso")
+	}
+	if accion == "pulso" {
+		fuente := strings.TrimSpace(stringArg(request, "fuente"))
+		if fuente == "" {
+			fuente = estado.FuenteAgente
+		}
+		id, err := estado.Pulsar(root, stringArg(request, "frente"), fuente, now)
+		if err == nil && id == "" {
+			return mcp.NewToolResultText("sin tarea en curso: el pulso no hizo nada (declárala con accion=activar)"), nil
+		}
+		return resultadoEscritura(err, "pulso de "+id)
+	}
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
 		return mcp.NewToolResultError(estado.ErrSinArchivo.Error()), nil
@@ -60,7 +78,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoCheck(e, root, stringArg(request, "respuesta"), now), nil
 	}
 	if accion != "" && accion != "ver" {
-		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar o check", accion)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar, check, activar, pulso o terminar", accion)), nil
 	}
 	return mcp.NewToolResultText(estado.Markdown(e, now, estado.AlcanceAbiertos)), nil
 }

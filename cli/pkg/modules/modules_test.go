@@ -191,3 +191,13 @@ func TestBuildContext_StandardsGuideTheAI(t *testing.T) {
 		}
 	}
 }
+
+// En un repositorio sin commits no queda «(revisada en )» vacío (caso real: maia-laya-local, 2026-10-30).
+func TestTextoAprobada_SinCommitLoDice(t *testing.T) {
+	if got := TextoAprobada(Module{ID: "evaluacion"}); !strings.Contains(got, "aún no tiene commits") || strings.Contains(got, "revisada en )") {
+		t.Fatalf("sin commit: %q", got)
+	}
+	if got := TextoAprobada(Module{ID: "pagos", RevisadoEnCommit: "abc1234"}); got != "[+] Ficha 'pagos' aprobada (revisada en abc1234)." {
+		t.Fatalf("con commit: %q", got)
+	}
+}

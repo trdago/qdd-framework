@@ -1,0 +1,9 @@
+id: "FND-070"
+title: "Un pedido aceptado en el panel se podía aceptar de nuevo"
+description: "Mientras el comando de un pedido corría, y si la lectura del panel llegaba antes de que qdd lo sacara de la cola, el panel seguía mostrando su botón; 'qdd consola accion pedido:<id> --confirmado' tampoco sabía si ya se estaba ejecutando. Un comando como el push de un tag o el merge de un PR podía correr dos veces."
+impact: "Doble ejecución de comandos que publican (tags, merges) y ninguna señal visual de que el pedido ya fue aceptado."
+action_taken: "Los pedidos tienen estado (pendiente, ejecutando, hecho, fallo). ejecutarPedido pasa a ejecutando con la cola bloqueada y rechaza uno que no esté pendiente o con falla; un hecho queda a la vista en gris. El panel marca el pedido como ejecutando apenas se confirma y no ofrece botón para ejecutando ni hecho."
+test_result: "TestEjecutar_UnPedidoAceptadoNoCorreDosVeces_FND070, TestEjecutar_UnPedidoEjecutandoseNoSeAceptaNiSeDescarta_FND070 (consola), TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18 (cmd) y los tests FND-070 del mod: antes del arreglo la segunda ejecución corría y el botón seguía."
+status: resolved
+detectado_por: humano
+date: "2026-10-30"

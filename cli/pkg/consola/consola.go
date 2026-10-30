@@ -18,15 +18,17 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// 'qdd consola activar' (RFC 0006 §3.6): un solo interruptor deja en Claude Code el panel de estado por frente (mod
-// qdd-estado) y la barra en Go. El mod viaja dentro del binario, así que su versión es siempre la de la CLI que le
+// 'qdd consola activar' (RFC 0006 §3.6): un solo interruptor deja en Claude Code el panel de tareas (mod
+// qdd-tareas) y la barra en Go. El mod viaja dentro del binario, así que su versión es siempre la de la CLI que le
 // entrega 'qdd estado ver --json'. Se instala con los comandos oficiales de Claude Code desde un marketplace local en
 // la carpeta central de QDD; nada se escribe en el proyecto.
 
 const (
-	// Marketplace y Plugin forman el id que ve Claude Code: qdd-estado@qdd.
+	// Marketplace y Plugin forman el id que ve Claude Code: qdd-tareas@qdd.
 	Marketplace = "qdd"
-	Plugin      = "qdd-estado"
+	Plugin      = "qdd-tareas"
+	// PluginAnterior es el nombre que tuvo el panel hasta qdd 2.4.0; activar lo desinstala.
+	PluginAnterior = "qdd-estado"
 	// ComandoBarra es lo que queda en statusLine.command.
 	ComandoBarra = "qdd consola statusline"
 	// RefrescoBarra (segundos) hace que la barra se actualice sola, también sin actividad en la sesión.
@@ -36,7 +38,10 @@ const (
 // ID es el id del plugin en Claude Code.
 func ID() string { return Plugin + "@" + Marketplace }
 
-//go:embed mod/qdd-estado/.claude-plugin/plugin.json mod/qdd-estado/hooks/hooks.json mod/qdd-estado/hooks/register.js
+// IDAnterior es el id del panel con su nombre anterior (son tareas, no frentes).
+func IDAnterior() string { return PluginAnterior + "@" + Marketplace }
+
+//go:embed mod/qdd-tareas/.claude-plugin/plugin.json mod/qdd-tareas/hooks/hooks.json mod/qdd-tareas/hooks/register.js
 var modFS embed.FS
 
 // huellaReferencia100 es el SHA-256 (sin espacios al final) de referencias/statusline.sh del blueprint
@@ -62,6 +67,8 @@ type Consola struct {
 	ClaudeDir string   // configuración de Claude Code (CLAUDE_CONFIG_DIR o ~/.claude)
 	Run       Ejecutar // por defecto, Claude
 	Recursos  *bool    // segunda línea de recursos en la barra; nil conserva lo elegido antes
+	// BuscarOpenCode devuelve la configuración de OpenCode y si está en esta máquina; por defecto, la detección real.
+	BuscarOpenCode func() (string, bool)
 }
 
 // Registro es lo que QDD recuerda de la activación, en <QDDHome>/claude/activo.json.
@@ -70,6 +77,8 @@ type Registro struct {
 	Barra         bool            `json:"barra"`
 	BarraAnterior json.RawMessage `json:"barra_anterior,omitempty"`
 	Recursos      bool            `json:"recursos,omitempty"`
+	OpenCode      bool            `json:"opencode,omitempty"`
+	OpenCodeDir   string          `json:"opencode_dir,omitempty"`
 }
 
 // Diagnostico es un control de doctor.
@@ -149,7 +158,7 @@ func (c Consola) EscribirMarketplace() error {
 	if err := os.RemoveAll(destino); err != nil {
 		return err
 	}
-	err := fs.WalkDir(modFS, "mod/qdd-estado", func(ruta string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(modFS, "mod/qdd-tareas", func(ruta string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -157,7 +166,7 @@ func (c Consola) EscribirMarketplace() error {
 		if err != nil {
 			return err
 		}
-		rel := strings.TrimPrefix(ruta, "mod/qdd-estado/")
+		rel := strings.TrimPrefix(ruta, "mod/qdd-tareas/")
 		if rel == ".claude-plugin/plugin.json" {
 			data, err = conVersion(data, c.Version)
 			if err != nil {
@@ -175,7 +184,7 @@ func (c Consola) EscribirMarketplace() error {
 		"plugins": []map[string]string{{
 			"name":        Plugin,
 			"source":      "./plugins/" + Plugin,
-			"description": "Panel con el estado por frente del proyecto (qdd estado)",
+			"description": "Panel con las tareas en curso del proyecto (qdd estado)",
 			"version":     c.Version,
 		}},
 	}
@@ -225,6 +234,12 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 	if out, err := c.Run("plugin", "marketplace", "add", c.DirMarketplace(), "--scope", "user"); err != nil {
 		return hecho, fmt.Errorf("claude plugin marketplace add: %v: %s", err, strings.TrimSpace(string(out)))
 	}
+	if anterior, _ := c.versionDe(IDAnterior()); anterior != "" {
+		if out, err := c.Run("plugin", "uninstall", IDAnterior(), "--scope", "user"); err != nil {
+			return hecho, fmt.Errorf("claude plugin uninstall %s: %v: %s", IDAnterior(), err, strings.TrimSpace(string(out)))
+		}
+		hecho = append(hecho, "Panel "+IDAnterior()+" (nombre anterior) desinstalado: ahora es "+ID()+".")
+	}
 	if out, err := c.Run("plugin", "install", ID(), "--scope", "user"); err != nil {
 		return hecho, fmt.Errorf("claude plugin install: %v: %s", err, strings.TrimSpace(string(out)))
 	}
@@ -252,6 +267,14 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 			reg.BarraAnterior = anterior
 		}
 	}
+	if dir, ok := c.buscarOpenCode(); ok {
+		msgs, registrado, err := c.activarOpenCode(dir)
+		hecho = append(hecho, msgs...)
+		if err != nil {
+			return hecho, err
+		}
+		reg.OpenCode, reg.OpenCodeDir = registrado, dir
+	}
 	if reg.Barra && reg.Recursos {
 		hecho = append(hecho, "La barra suma la línea de recursos: D (disco del proyecto) · G0… (GPU) · R (RAM) · C (CPU).")
 	}
@@ -259,11 +282,14 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 	if err := escribir(c.rutaRegistro(), append(data, '\n')); err != nil {
 		return hecho, err
 	}
-	return append(hecho, "Abre una sesión nueva de Claude Code (o /reload-plugins) para ver el panel; /estado lo abre."), nil
+	return append(hecho, "Abre una sesión nueva de Claude Code (o /reload-plugins) para ver el panel; /tareas lo abre."), nil
 }
 
 // versionInstalada lee 'claude plugin list --json'; "" si el panel no está instalado.
-func (c Consola) versionInstalada() (string, bool) {
+func (c Consola) versionInstalada() (string, bool) { return c.versionDe(ID()) }
+
+// versionDe devuelve la versión instalada del plugin id y si está activo; "" si no está.
+func (c Consola) versionDe(id string) (string, bool) {
 	out, err := c.Run("plugin", "list", "--json")
 	if err != nil {
 		return "", false
@@ -277,7 +303,7 @@ func (c Consola) versionInstalada() (string, bool) {
 		return "", false
 	}
 	for _, p := range lista {
-		if p.ID == ID() {
+		if p.ID == id {
 			return p.Version, p.Enabled
 		}
 	}
@@ -382,6 +408,9 @@ func (c Consola) Desactivar() ([]string, error) {
 		return nil, err
 	}
 	var hecho []string
+	if v, _ := c.versionDe(IDAnterior()); v != "" {
+		_, _ = c.Run("plugin", "uninstall", IDAnterior(), "--scope", "user")
+	}
 	if _, err := c.Run("plugin", "uninstall", ID(), "--scope", "user"); err == nil {
 		hecho = append(hecho, "Panel "+ID()+" desinstalado.")
 	}
@@ -395,6 +424,13 @@ func (c Consola) Desactivar() ([]string, error) {
 			return hecho, err
 		}
 		hecho = append(hecho, msg)
+	}
+	if ok && reg.OpenCodeDir != "" {
+		msgs, err := c.desactivarOpenCode(reg.OpenCodeDir)
+		hecho = append(hecho, msgs...)
+		if err != nil {
+			return hecho, err
+		}
 	}
 	if err := os.RemoveAll(c.DirMarketplace()); err != nil {
 		return hecho, err
@@ -427,10 +463,10 @@ func (c Consola) Diagnosticar() []Diagnostico {
 	}
 	c, err := c.completar()
 	if err != nil {
-		return []Diagnostico{{Nombre: "Panel de estado en Claude Code", Detalle: err.Error()}}
+		return []Diagnostico{{Nombre: "Panel de tareas en Claude Code", Detalle: err.Error()}}
 	}
 	version, enabled := c.versionInstalada()
-	panel := Diagnostico{Nombre: "Panel de estado en Claude Code (" + ID() + ")", OK: version == c.Version && enabled}
+	panel := Diagnostico{Nombre: "Panel de tareas en Claude Code (" + ID() + ")", OK: version == c.Version && enabled}
 	if version == "" {
 		panel.Detalle = "no está instalado; 'qdd doctor --fix' o 'qdd consola activar' lo instala"
 	}
@@ -441,15 +477,22 @@ func (c Consola) Diagnosticar() []Diagnostico {
 		panel.Detalle = "instalado pero desactivado en Claude Code"
 	}
 	diags := []Diagnostico{panel}
-	if !reg.Barra {
-		return diags
+	if reg.Barra {
+		diags = append(diags, c.diagnosticarBarra())
 	}
+	if reg.OpenCode {
+		diags = append(diags, c.diagnosticarOpenCode(reg.OpenCodeDir))
+	}
+	return diags
+}
+
+func (c Consola) diagnosticarBarra() Diagnostico {
 	settings, err := c.leerSettings()
 	barra := Diagnostico{Nombre: "Barra de la consola con «" + ComandoBarra + "»", OK: err == nil && esBarraQDD(settings["statusLine"])}
 	if !barra.OK {
 		barra.Detalle = "statusLine ya no apunta a la barra de QDD; 'qdd consola activar' la vuelve a poner"
 	}
-	return append(diags, barra)
+	return barra
 }
 
 // Reparar vuelve a activar con lo que se eligió al activar.

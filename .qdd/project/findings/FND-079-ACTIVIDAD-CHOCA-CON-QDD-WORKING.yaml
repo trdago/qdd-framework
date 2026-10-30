@@ -1,0 +1,9 @@
+id: "FND-079"
+title: "La tarea en curso no se podía activar: la actividad iba dentro de .qdd/working, que es un archivo"
+description: "RutaActividad era .qdd/working/actividad.json, pero root.go escribe .qdd/working como archivo con el nombre del comando qdd en curso (y lo borra al terminar; si el comando se corta, queda). Con ese archivo presente, guardarActividad fallaba con «not a directory» y la tarea nunca quedaba «● running». En notificador_de_ofertas había uno huérfano con «qdd». Los tests usaban carpetas temporales sin ese archivo."
+impact: "Lo nuevo de v2.7.0 (running y pulsos) no habría funcionado en un proyecto real. Además, si la carpeta llegaba a existir, el indicador working_on del dashboard dejaba de escribirse."
+action_taken: "La actividad pasa a <QDD_HOME>/claude/actividad/<carpeta>-<hash>.json, fuera del repositorio. estado.RutaLocal(root, carpeta) es la única función que arma esa clave; la cola de pedidos la usa (consola.RutaLocal) para que un cambio de clave toque a las dos."
+test_result: "TestActividad_NoChocaConElArchivoWorking_FND079 (estado): antes del arreglo Activar devolvía «not a directory»; TestRutaLocal_FueraDelRepositorioYPorProyecto."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"
