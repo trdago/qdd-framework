@@ -112,7 +112,12 @@ func Cerrar(root, frente, motivo string, descartado bool, now time.Time) error {
 	}
 	e.Frentes[i].MotivoCierre = motivo
 	e.Frentes[i].CerradoEl = now.Format(time.RFC3339)
-	return guardarValidado(root, e, frente, now)
+	if err := guardarValidado(root, e, frente, now); err != nil {
+		return err
+	}
+	// Una tarea cerrada o descartada deja de estar en curso (§3.13); la actividad es local y su falla no deshace el cierre.
+	_ = Terminar(root, frente)
+	return nil
 }
 
 // guardarValidado escribe solo si el frente tocado cumple las invariantes. Las violaciones de otros frentes no bloquean

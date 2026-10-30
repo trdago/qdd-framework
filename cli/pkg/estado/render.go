@@ -173,9 +173,9 @@ func Statusline(e Estado, now time.Time) string {
 			fallan++
 		}
 	}
-	palabra := "frentes"
+	palabra := "tareas"
 	if len(abiertos) == 1 {
-		palabra = "frente"
+		palabra = "tarea"
 	}
 	if esperan == 0 && fallan == 0 {
 		return fmt.Sprintf("◧ %d %s · %s", len(abiertos), palabra, Hecho)
