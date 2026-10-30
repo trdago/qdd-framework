@@ -182,7 +182,7 @@ func TestCheck_EPFC07_SinSecretosNiDatosPersonales(t *testing.T) {
 
 func TestStatusline(t *testing.T) {
 	got := Statusline(mustParse(t, valido), ahora)
-	if got != "◧ 2 frentes · ⏳1 ❌1" {
+	if got != "◧ 2 tareas · ⏳1 ❌1" {
 		t.Fatalf("resumen: %q", got)
 	}
 	sinNada := mustParse(t, "formato: 1\netapas: [Código]\nfrentes: []\n")
@@ -374,5 +374,48 @@ func TestDatos_LoQueDibujaElPanelDeLaConsola(t *testing.T) {
 	}
 	if _, err := json.Marshal(d); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// §3.9 (pedido del usuario, 2026-10-30): en el panel, un frente terminado sale en el acto. Quedan solo los abiertos con
+// alguna etapa sin ✅ ni —; los cerrados y descartados, aunque sean recientes, tampoco se muestran.
+func TestDatosPendientes_UnFrenteTerminadoSaleDelPanel(t *testing.T) {
+	cerrado := ahora.Add(-time.Hour).Format(time.RFC3339)
+	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n" +
+		"  - {id: pendiente, nombre: Pendiente, estado: abierto, celdas: {Código: {estado: ✅, evidencia: abc}, Pruebas: {estado: ⏳, bloqueo: correr la suite, de_quien: CI}}}\n" +
+		"  - {id: vacio, nombre: Sin empezar, estado: abierto, celdas: {Código: {estado: ✅, evidencia: abc}}}\n" +
+		"  - {id: terminado, nombre: Terminado, estado: abierto, celdas: {Código: {estado: ✅, evidencia: abc}, Pruebas: {estado: —}}}\n" +
+		"  - {id: cerrado, nombre: Cerrado, estado: cerrado, cerrado_el: '" + cerrado + "', celdas: {Código: {estado: ✅, evidencia: abc}, Pruebas: {estado: ✅, evidencia: def}}}\n" +
+		"  - {id: descartado, nombre: Descartado, estado: descartado, cerrado_el: '" + cerrado + "', celdas: {Código: {estado: ✅, evidencia: abc}, Pruebas: {estado: ⏳, bloqueo: x, de_quien: y}}}\n"
+	e := mustParse(t, yaml)
+	d := DatosPendientes(e, ahora, 4)
+	var nombres []string
+	for _, f := range d.Frentes {
+		nombres = append(nombres, f.Nombre)
+	}
+	if strings.Join(nombres, ",") != "Pendiente,Sin empezar" {
+		t.Fatalf("solo los abiertos con algo por hacer: %v", nombres)
+	}
+	if len(d.Esperas) != 1 || d.Esperas[0].Frente != "Pendiente" {
+		t.Fatalf("el ⏳ de un frente descartado no se lista: %+v", d.Esperas)
+	}
+	if len(Datos(e, ahora).Frentes) != 5 {
+		t.Fatal("'qdd estado ver' conserva la regla de los 7 días para cerrados y descartados")
+	}
+}
+
+// §3.9: el panel muestra las 4 tareas pendientes más nuevas (las últimas del archivo) y cuenta las demás.
+func TestDatosPendientes_TopeDeLasMasNuevas(t *testing.T) {
+	yaml := "formato: 1\netapas: [Código]\nfrentes:\n"
+	for _, id := range []string{"t1", "t2", "t3", "t4", "t5", "t6"} {
+		yaml += "  - {id: " + id + ", nombre: " + id + ", estado: abierto, celdas: {Código: {estado: ❌, falla: rota}}}\n"
+	}
+	d := DatosPendientes(mustParse(t, yaml), ahora, 4)
+	var ids []string
+	for _, f := range d.Frentes {
+		ids = append(ids, f.ID)
+	}
+	if strings.Join(ids, ",") != "t3,t4,t5,t6" || d.Ocultos != 2 || len(d.Fallas) != 4 {
+		t.Fatalf("las 4 más nuevas, 2 ocultas y solo sus ❌: %v ocultos=%d fallas=%d", ids, d.Ocultos, len(d.Fallas))
 	}
 }

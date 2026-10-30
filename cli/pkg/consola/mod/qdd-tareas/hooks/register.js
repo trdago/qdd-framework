@@ -1,14 +1,15 @@
-// Mod de Claude Code para el estado por frente (QDD, RFC 0006 §3.4.1, §3.7 y §3.9; blueprint consola-claude-code).
-// Dibuja el panel en cuatro niveles (resumen en números grandes, títulos, texto y detalle atenuado) y los botones de
-// las acciones. Orden: estado por frente, Acciones, «▶ Para ti» (los comandos que la IA dejó para la persona),
-// ⏳ Esperando y ❌ Fallas. Cada pedido se ve en su estado: pendiente (botón con su tecla), ejecutando o hecho (en gris,
-// sin botón: no se acepta dos veces, FND-070) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
+// Mod de Claude Code con las tareas en curso del proyecto (QDD, RFC 0006 §3.4.1, §3.7, §3.9 y §3.10; blueprint
+// consola-claude-code). Dibuja el panel liviano: una línea de resumen en color, la tabla de las 4 tareas pendientes más
+// nuevas con su ✕ para descartarlas y los botones de las acciones. Orden: tareas, Acciones, «▶ Para ti» (los comandos
+// que la IA dejó para la persona), ⏳ Esperando y ❌ Fallas. Cada pedido se ve en su estado: pendiente (botón con su
+// tecla), ejecutando o hecho (en gris, sin botón: no se acepta dos veces, FND-070) y con falla (en rojo, con
+// «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
 
-const PANE = 'qdd-estado'
-const TITULO = 'Estado por frente'
+const PANE = 'qdd-tareas'
+const TITULO = 'Tareas'
 const INTERVALO_MS = 2000
 const TOPE_MS = 3000
 const TOPE_ACCION_MS = 60000
@@ -26,25 +27,7 @@ const pedidosVistos = new Set() // ids de los pedidos que ya abrieron el panel
 // locales: lo que el panel ya sabe de un pedido antes que qdd (o con un qdd anterior a 2.6.2, que no guarda el
 // estado): id → { estado, fin }. Así un pedido aceptado nunca vuelve a ofrecerse.
 const locales = new Map()
-
-// Números de 3 filas con caracteres de bloque: la terminal tiene un solo tamaño de letra.
-const DIGITOS = {
-  0: ['█▀█', '█ █', '▀▀▀'],
-  1: ['▀█ ', ' █ ', '▀▀▀'],
-  2: ['▀▀█', '█▀▀', '▀▀▀'],
-  3: ['▀▀█', ' ▀█', '▀▀▀'],
-  4: ['█ █', '▀▀█', '  ▀'],
-  5: ['█▀▀', '▀▀█', '▀▀▀'],
-  6: ['█▀▀', '█▀█', '▀▀▀'],
-  7: ['▀▀█', '  █', '  ▀'],
-  8: ['█▀█', '█▀█', '▀▀▀'],
-  9: ['█▀█', '▀▀█', '▀▀▀'],
-}
-
-function grande(n) {
-  const cifras = String(n).split('')
-  return [0, 1, 2].map((fila) => cifras.map((c) => DIGITOS[c][fila]).join(' '))
-}
+let inicio = '' // HOME, para acortar la carpeta a ~/…
 
 async function binario($) {
   const propio = await $.env.get('QDD_BIN')
@@ -109,7 +92,7 @@ function celdas(simbolos) {
   return simbolos.map((s) => (s === '—' || s === '?' ? s + ' ' : s)).join(' ')
 }
 
-// colorFrente: el frente toma el color de su peor etapa.
+// colorFrente: la tarea toma el color de su peor etapa.
 function colorFrente(f) {
   if (f.simbolos.includes('❌')) return 'red'
   if (f.simbolos.includes('⏳')) return 'yellow'
@@ -120,54 +103,75 @@ function titulo(Text, key, texto, color) {
   return Text({ key, color, weight: 'bold', size: 'title', children: [texto] })
 }
 
-function contador(Box, Text, key, n, etiqueta, color) {
-  return Box({
-    key,
-    flexDirection: 'column',
-    alignItems: 'center',
-    children: [
-      ...grande(n).map((l, i) => Text({ key: key + '-' + i, color, weight: 'bold', children: [l] })),
-      Text({ dimColor: true, size: 'caption', children: [etiqueta] }),
-    ],
-  })
+// corta deja la carpeta en ~/… y, si no cabe, muestra el final (lo que distingue un proyecto de otro).
+function corta(ruta, ancho) {
+  const casa = inicio && (ruta === inicio || ruta.startsWith(inicio + '/')) ? '~' + ruta.slice(inicio.length) : ruta
+  if (casa.length <= ancho) return casa
+  return '…' + casa.slice(casa.length - ancho + 1)
 }
 
-function cabecera(Box, Text, e) {
+// carpeta (§3.9): a la derecha, la carpeta del proyecto y el botón para abrirla con el gestor de archivos del sistema.
+// El panel no abre nada por su cuenta: pide 'abrir-carpeta', que qdd ofrece solo si el sistema tiene abridor.
+function carpeta(Box, Text, Button, $, ruta, abrirla, ancho) {
+  if (!ruta) return []
+  const boton = abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'o  Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []
+  const espacio = Math.max(12, ancho - (abrirla ? 20 : 4))
+  return [
+    Box({
+      key: 'carpeta',
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      columnGap: 1,
+      children: [Text({ key: 'ruta', dimColor: true, wrap: 'truncate-start', children: ['📂 ' + corta(ruta, espacio)] }), ...boton],
+    }),
+  ]
+}
+
+// cuantas: «4 tareas», o «4 de 9 tareas» si hay pendientes más antiguas que no entran.
+function cuantas(e) {
+  const n = e.frentes.length
+  return e.ocultos > 0 ? n + ' de ' + (n + e.ocultos) + ' tareas' : n + (n === 1 ? ' tarea' : ' tareas')
+}
+
+// cabecera: título con la hora y la versión de qdd a la derecha, y el resumen en una línea con el color de cada conteo.
+function cabecera(Box, Text, e, version) {
   const cuando = hora(e.actualizado)
   return Box({
     key: 'cabecera',
     flexDirection: 'column',
-    borderStyle: 'round',
-    borderColor: 'cyan',
-    paddingX: 1,
+    marginTop: 1,
     children: [
       Box({
         flexDirection: 'row',
         justifyContent: 'space-between',
         children: [
-          Text({ color: 'cyan', weight: 'bold', size: 'title', children: ['◧ ' + TITULO] }),
-          Text({ dimColor: true, size: 'caption', children: [cuando ? 'al día ' + cuando : ''] }),
+          Text({ key: 'titulo', color: 'cyan', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] }),
+          Text({ key: 'version', dimColor: true, size: 'caption', children: [version || ''] }),
         ],
       }),
       Box({
+        key: 'resumen',
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginTop: 1,
+        columnGap: 1,
         children: [
-          contador(Box, Text, 'c-frentes', e.frentes.length, 'frentes', 'cyan'),
-          contador(Box, Text, 'c-esperas', e.esperas.length, '⏳ esperan', 'yellow'),
-          contador(Box, Text, 'c-fallas', e.fallas.length, '❌ fallan', 'red'),
+          Text({ key: 'r-tareas', color: 'cyan', weight: 'semibold', children: [cuantas(e)] }),
+          Text({ dimColor: true, children: ['·'] }),
+          Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + e.esperas.length + ' esperan'] }),
+          Text({ dimColor: true, children: ['·'] }),
+          Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + e.fallas.length + ' fallan'] }),
         ],
       }),
     ],
   })
 }
 
-function tabla(Box, Text, e, ancho) {
-  const columnas = 3 * e.etapas.length
-  const largo = Math.max('Frente'.length, ...e.frentes.map((f) => f.nombre.length))
+// tabla: una fila por tarea con sus etapas y, al final, la ✕ que la descarta (pide «s  Sí»: escribe en estado.yaml).
+// La ✕ se pulsa con el mouse; las tareas más antiguas que no entran se cuentan debajo.
+function tabla(Box, Text, Button, $, e, lista, ancho) {
+  const columnas = 3 * e.etapas.length + 2
+  const largo = Math.max('Tarea'.length, ...e.frentes.map((f) => f.nombre.length))
   const nombreAncho = Math.max(8, Math.min(largo, ancho - columnas - 3))
-  const fila = (key, nombre, derecha, estilo) =>
+  const fila = (key, nombre, derecha, estilo, cierre) =>
     Box({
       key,
       flexDirection: 'row',
@@ -175,22 +179,29 @@ function tabla(Box, Text, e, ancho) {
       children: [
         Box({ width: nombreAncho, children: [Text({ ...estilo, wrap: 'truncate-end', children: [nombre] })] }),
         Text({ ...estilo, children: [derecha] }),
+        ...cierre,
       ],
     })
+  const equis = (f) => {
+    const a = lista.find((x) => x.id === 'descartar:' + f.id)
+    return a ? [Button({ key: 'x-' + f.id, label: '✕', plain: true, dimColor: true, onPress: () => pedir($, a) })] : []
+  }
   const leyenda = e.etapas.map((etapa, i) => e.abreviaturas[i] + ' ' + etapa).join(' · ')
+  const antiguas = e.ocultos > 0 ? [Text({ key: 'ocultas', dimColor: true, size: 'caption', children: ['+' + e.ocultos + ' más antiguas · qdd estado ver'] })] : []
   return Box({
     key: 'tabla',
     flexDirection: 'column',
     marginTop: 1,
     children: [
-      titulo(Text, 't-frentes', 'Frentes', undefined),
-      fila('cab', 'Frente', e.abreviaturas.join(' '), { dimColor: true, size: 'caption' }),
-      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, celdas(f.simbolos), { color: colorFrente(f) })),
+      fila('cab', 'Tarea', e.abreviaturas.join(' '), { dimColor: true, size: 'caption' }, []),
+      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, celdas(f.simbolos), { color: colorFrente(f) }, equis(f))),
+      ...antiguas,
       Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [leyenda] }),
     ],
   })
 }
 
+// seccion: «• tarea › etapa» y debajo «→ texto», con de quién atenuado en las esperas.
 function seccion(Box, Text, key, nombre, color, items, conQuien) {
   if (items.length === 0) return []
   return [
@@ -198,18 +209,15 @@ function seccion(Box, Text, key, nombre, color, items, conQuien) {
       key,
       flexDirection: 'column',
       marginTop: 1,
-      rowGap: 1,
       children: [
         titulo(Text, key + '-t', nombre + ' (' + items.length + ')', color),
         ...items.map((p, i) =>
           Box({
             key: key + '-' + i,
             flexDirection: 'column',
-            paddingLeft: 1,
             children: [
-              Text({ weight: 'semibold', wrap: 'wrap', children: [p.frente] }),
-              Text({ dimColor: true, size: 'caption', wrap: 'wrap', children: [p.etapa + (conQuien ? ' · de ' + (p.de_quien || '¿?') : '')] }),
-              Text({ wrap: 'wrap', children: ['→ ' + p.texto] }),
+              Text({ wrap: 'wrap', children: ['• ' + p.frente + ' › ' + p.etapa] }),
+              Text({ dimColor: true, wrap: 'wrap', children: ['  → ' + p.texto + (conQuien ? ' · de ' + (p.de_quien || '¿?') : '')] }),
             ],
           }),
         ),
@@ -219,7 +227,7 @@ function seccion(Box, Text, key, nombre, color, items, conQuien) {
 }
 
 // tecla: la que qdd da a cada pedido (a, b, d…), 1…9 para las fichas en el orden en que qdd las entrega, c para
-// revisar el estado y u para auditar.
+// revisar el estado, u para auditar y o para abrir la carpeta.
 function teclas(acciones) {
   const asignadas = {}
   let n = 0
@@ -235,6 +243,7 @@ function teclas(acciones) {
     }
     if (a.id === 'revisar-estado') asignadas[a.id] = 'c'
     if (a.id === 'auditar') asignadas[a.id] = 'u'
+    if (a.id === 'abrir-carpeta') asignadas[a.id] = 'o'
   }
   return asignadas
 }
@@ -375,7 +384,9 @@ function paraTi(Box, Text, Button, $, lista) {
   ]
 }
 
-function acciones(Box, Text, Button, $, lista) {
+function acciones(Box, Text, Button, $, todas) {
+  // «Abrir carpeta» va arriba, junto a la carpeta, y cada ✕ en la fila de su tarea.
+  const lista = todas.filter((a) => a.tipo !== 'abrir' && a.tipo !== 'descartar')
   if (lista.length === 0) return []
   const asignadas = teclas(lista)
   const filas = lista.filter((a) => a.tipo !== 'pedido').map((a) =>
@@ -416,7 +427,7 @@ function acciones(Box, Text, Button, $, lista) {
         ...(confirmando ? (confirmando.tipo === 'pedido' ? [] : [confirmacion(Box, Text, Button, $)]) : filas),
         ...paraTi(Box, Text, Button, $, pedidos(lista)),
         ...salida,
-        Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['Clic en el panel (o /estado) para darle el foco; luego la tecla de cada botón.'] }),
+        Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['Clic en un botón o en la ✕ de una tarea; con el foco en el panel (clic o /tareas), también la tecla de cada botón.'] }),
       ],
     }),
   ]
@@ -427,7 +438,7 @@ function sinEstado(Box, Text, motivo) {
     key: 'sin-estado',
     flexDirection: 'column',
     children: [
-      Text({ dimColor: true, wrap: 'wrap', children: [motivo || 'No hay estado por frente en este proyecto.'] }),
+      Text({ dimColor: true, wrap: 'wrap', children: [motivo || 'No hay tareas en este proyecto.'] }),
       Text({ dimColor: true, wrap: 'wrap', children: ["Se crea con 'qdd estado init' (blueprint estado-por-frente, destino «archivo»)."] }),
     ],
   })
@@ -437,12 +448,14 @@ function dibujar($, Box, Text, Button, ancho) {
   if (!datos) return sinEstado(Box, Text, falla)
   const e = datos.estado
   const lista = datos.acciones || []
-  if (!e) return Box({ flexDirection: 'column', children: [sinEstado(Box, Text, datos.motivo), ...acciones(Box, Text, Button, $, lista)] })
+  const arriba = carpeta(Box, Text, Button, $, datos.carpeta, lista.find((a) => a.id === 'abrir-carpeta'), ancho)
+  if (!e) return Box({ flexDirection: 'column', children: [...arriba, sinEstado(Box, Text, datos.motivo), ...acciones(Box, Text, Button, $, lista)] })
   return Box({
     flexDirection: 'column',
     children: [
-      cabecera(Box, Text, e),
-      tabla(Box, Text, e, ancho),
+      ...arriba,
+      cabecera(Box, Text, e, datos.version),
+      tabla(Box, Text, Button, $, e, lista, ancho),
       ...acciones(Box, Text, Button, $, lista),
       ...seccion(Box, Text, 's-esperas', '⏳ Esperando', 'yellow', e.esperas, true),
       ...seccion(Box, Text, 's-fallas', '❌ Fallas', 'red', e.fallas, false),
@@ -459,22 +472,23 @@ function hayQueMostrar() {
 
 export function register(on) {
   on('session.start', async ($, e, next) => {
+    inicio = (await $.env.get('HOME')) || ''
     await leer($)
     $.clock.every(INTERVALO_MS, async () => {
       await leer($)
     })
-    // Se abre solo si hay frentes, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
+    // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
     if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
     iniciado = true
     try {
-      await $.command.register({ name: 'estado', description: 'Abre el panel de estado por frente (/estado cerrar lo cierra)', immediate: true })
+      await $.command.register({ name: 'tareas', description: 'Abre el panel de tareas (/tareas cerrar lo cierra)', immediate: true })
     } catch (err) {
-      $.ui.log('no se registró /estado: ' + String(err?.message ?? err))
+      $.ui.log('no se registró /tareas: ' + String(err?.message ?? err))
     }
     return next(e)
   })
 
-  on('command.run', { command: 'estado' }, async ($, e) => {
+  on('command.run', { command: 'tareas' }, async ($, e) => {
     if ((e.args || '').trim() === 'cerrar') {
       await $.ui.close({ id: PANE })
       return {}

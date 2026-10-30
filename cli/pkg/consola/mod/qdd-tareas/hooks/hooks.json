@@ -1,0 +1,4 @@
+{
+  "description": "Hooks module del panel de tareas",
+  "modules": ["./register.js"]
+}

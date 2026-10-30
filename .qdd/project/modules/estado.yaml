@@ -25,7 +25,7 @@ objetivo_tecnologico:
         - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
-        - El mod qdd-estado dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
+        - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
         - 'Orden de las secciones del panel: estado por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas; la confirmación va en la sección del botón pulsado.'
@@ -56,7 +56,7 @@ pruebas:
         - cd cli && go test ./cmd/ -run EstadoTool
         - cd cli && go test ./pkg/consola/...
         - cd cli && go test ./cmd/ -run ConsolaAccion
-        - cd cli/pkg/consola/mod/qdd-estado && claude plugin validate . && claude plugin test
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
         - cd cli && GOOS=windows go vet ./cmd ./pkg/estado ./pkg/consola && GOOS=darwin go vet ./cmd ./pkg/estado ./pkg/consola
 fuentes:
     - rfcs/0006-estado-por-frente-en-consola.md

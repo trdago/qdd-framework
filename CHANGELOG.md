@@ -4,6 +4,32 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.7.0] - 2026-10-30
+
+### 🪶 Panel liviano y solo lo pendiente (RFC 0006 §3.10, `consola-claude-code` v6.0.0)
+
+- **Tareas.** En el panel, los frentes se llaman tareas. Se ven solo las 4 pendientes más nuevas, y las más antiguas se resumen en «+5 más antiguas».
+- **✕ para descartar.** Cada tarea tiene una ✕ al final de su fila. Pide «s  Sí» y la pasa a «descartado» con su motivo: sale del panel y queda en el archivo.
+- **Panel liviano.** La cabecera pasa a ser una línea con la hora y la versión de qdd, y el resumen va en otra línea con colores: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`. Ya no hay recuadro ni números grandes. Las listas de ⏳ y ❌ ocupan dos líneas por elemento.
+- **Un frente terminado sale del panel.** Si todas sus etapas están en ✅ o —, o si está cerrado o descartado, deja de verse en el acto. Sigue en `estado.yaml` y en `qdd estado ver --todos`.
+- **Aprobar sin commits.** En un repositorio sin commits, el aviso ya no queda como «(revisada en )».
+
+### 📂 Abrir la carpeta del proyecto desde el panel
+
+- **Arriba a la derecha** el panel muestra la carpeta del proyecto (`📂 ~/…/proyecto`) y el botón `o  Abrir carpeta`, que la abre con el gestor de archivos que el sistema tenga configurado: `xdg-open` en Linux y BSD, `open` en macOS y `explorer` en Windows.
+- **Sin confirmación**, porque no escribe nada. Como las demás acciones, la decide qdd: `qdd consola panel --json` trae `carpeta` y la acción `abrir-carpeta` (solo si existe el abridor), y `qdd consola accion abrir-carpeta` la lanza en una sesión propia. No es un enlace: los paneles de Claude Code solo aceptan enlaces `https://`. Si el abridor falla en los primeros 3 s, el panel lo dice.
+
+### 🧭 El panel en OpenCode, solo para mirar (RFC 0006 §3.11)
+
+- **Misma sincronización que en Claude Code.** Si OpenCode está en la máquina, `qdd consola activar` deja el panel en su barra lateral derecha. El panel ejecuta `qdd consola panel --json` cada 2 s, con un tope de 3 s, y se redibuja solo si algo cambió. Muestra las tareas, el resumen, ⏳/❌ y cuántas fichas esperan aprobación. No tiene botones, ✕ ni diálogos.
+- **Siempre en la versión de qdd.** El plugin viaja dentro del binario. `actualizar` y `doctor --fix` lo reescriben, `doctor` avisa si es de otra versión o si falta su entrada en `tui.json`, y `desactivar` lo quita.
+- **`tui.json` con cuidado.** Antes del primer cambio queda `tui.json.qdd.bak`. Solo se agrega una entrada, y un archivo que no es JSON válido no se toca: se avisa.
+
+### 🏷️ Son tareas, no frentes (RFC 0006 §3.12)
+
+- El panel pasa a llamarse `qdd-tareas@qdd` y se abre con `/tareas`. Al activar o actualizar se desinstala el `qdd-estado@qdd` anterior.
+- La barra dice `◧ 9 tareas · ⏳7 ❌2`. No cambian el formato de `estado.yaml` ni los comandos `qdd estado …`.
+
 ## [v2.6.2] - 2026-10-30
 
 ### ✓ Un comando aceptado no se vuelve a ofrecer

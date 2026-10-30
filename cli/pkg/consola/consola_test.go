@@ -65,7 +65,7 @@ frentes:
   - {id: a, nombre: A, estado: abierto, celdas: {Código: {estado: "⏳", bloqueo: b, de_quien: c}}}
   - {id: b, nombre: B, estado: abierto, celdas: {Código: {estado: "❌", falla: f}}}
 `)
-	if got := Barra([]byte(in), ahora, true); !strings.HasSuffix(got, " · ◧ 2 frentes · ⏳1 ❌1") {
+	if got := Barra([]byte(in), ahora, true); !strings.HasSuffix(got, " · ◧ 2 tareas · ⏳1 ❌1") {
 		t.Fatalf("segmento de estado al final: %q", got)
 	}
 }
@@ -77,6 +77,7 @@ type claudeFalso struct {
 	instalada   string
 	carpeta     string // versión del plugin.json del marketplace local
 	dir         string
+	anterior    bool // sigue instalado el panel con su nombre anterior (qdd-estado@qdd)
 }
 
 func (f *claudeFalso) run(args ...string) ([]byte, error) {
@@ -101,14 +102,24 @@ func (f *claudeFalso) run(args ...string) ([]byte, error) {
 	case cmd == "plugin update":
 		f.instalada = f.versionCarpeta()
 		return []byte("ok"), nil
+	case cmd == "plugin uninstall" && args[2] == IDAnterior():
+		if !f.anterior {
+			return []byte("not installed"), fmt.Errorf("exit 1")
+		}
+		f.anterior = false
+		return []byte("ok"), nil
 	case cmd == "plugin uninstall":
 		f.instalada = ""
 		return []byte("ok"), nil
 	case cmd == "plugin list":
-		if f.instalada == "" {
-			return []byte("[]"), nil
+		var lista []string
+		if f.anterior {
+			lista = append(lista, `{"id":"`+IDAnterior()+`","version":"2.4.0","enabled":true}`)
 		}
-		return []byte(`[{"id":"qdd-estado@qdd","version":"` + f.instalada + `","enabled":true}]`), nil
+		if f.instalada != "" {
+			lista = append(lista, `{"id":"`+ID()+`","version":"`+f.instalada+`","enabled":true}`)
+		}
+		return []byte("[" + strings.Join(lista, ",") + "]"), nil
 	}
 	return nil, fmt.Errorf("comando inesperado: %v", args)
 }
@@ -124,7 +135,8 @@ func (f *claudeFalso) versionCarpeta() string {
 
 func nuevaConsola(t *testing.T, version string, f *claudeFalso) Consola {
 	t.Helper()
-	return Consola{Version: version, QDDHome: filepath.Join(t.TempDir(), "qdd"), ClaudeDir: filepath.Join(t.TempDir(), "claude"), Run: f.run}
+	return Consola{Version: version, QDDHome: filepath.Join(t.TempDir(), "qdd"), ClaudeDir: filepath.Join(t.TempDir(), "claude"), Run: f.run,
+		BuscarOpenCode: func() (string, bool) { return "", false }}
 }
 
 func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente(t *testing.T) {
@@ -136,12 +148,12 @@ func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente(t *testing.T) {
 	if f.instalada != "2.2.0" {
 		t.Fatalf("el plugin.json del mod lleva la versión de la CLI: %q", f.instalada)
 	}
-	for _, rel := range []string{".claude-plugin/marketplace.json", "plugins/qdd-estado/hooks/register.js", "plugins/qdd-estado/hooks/hooks.json"} {
+	for _, rel := range []string{".claude-plugin/marketplace.json", "plugins/qdd-tareas/hooks/register.js", "plugins/qdd-tareas/hooks/hooks.json"} {
 		if _, err := os.Stat(filepath.Join(c.DirMarketplace(), rel)); err != nil {
 			t.Fatalf("falta %s en el marketplace local: %v", rel, err)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(c.DirMarketplace(), "plugins/qdd-estado/tests")); err == nil {
+	if _, err := os.Stat(filepath.Join(c.DirMarketplace(), "plugins/qdd-tareas/tests")); err == nil {
 		t.Fatal("las pruebas del mod no viajan al marketplace")
 	}
 	antes := len(f.llamadas)
@@ -280,4 +292,23 @@ func leerJSON(t *testing.T, ruta string) map[string]string {
 func jsonStr(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
+}
+
+// Son tareas, no frentes: el panel pasa a llamarse qdd-tareas@qdd y activar quita el de nombre anterior.
+func TestActivar_RenombraElPanelAQddTareasYQuitaElAnterior(t *testing.T) {
+	f := &claudeFalso{anterior: true}
+	c := nuevaConsola(t, "2.5.0", f)
+	hecho, err := c.Activar(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ID() != "qdd-tareas@qdd" || f.anterior || f.instalada != "2.5.0" {
+		t.Fatalf("queda solo qdd-tareas@qdd: id=%s anterior=%v instalada=%q", ID(), f.anterior, f.instalada)
+	}
+	if !strings.Contains(strings.Join(hecho, "\n"), IDAnterior()) {
+		t.Fatalf("activar dice que quitó el panel de nombre anterior: %v", hecho)
+	}
+	if _, err := c.Activar(false); err != nil {
+		t.Fatal(err)
+	}
 }
