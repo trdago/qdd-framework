@@ -1,0 +1,9 @@
+id: "FND-071"
+title: "Las teclas de los pedidos cambiaban al salir uno de la cola"
+description: "accionesDePedidos daba la tecla por la posición en la cola (TeclasPedidos[i]); al terminar o descartar un pedido, los de abajo cambiaban de letra entre una lectura del panel y la siguiente."
+impact: "La persona podía pulsar la letra que veía hace un momento y abrir la confirmación de otro comando."
+action_taken: "Cada pedido guarda su tecla al pedirse (la primera libre entre los abiertos) y la conserva; la de uno hecho queda libre. Una cola sin teclas (qdd 2.6.0) las recibe en orden al leerse."
+test_result: "TestPedidos_CadaPedidoConservaSuTecla_FND071 y TestPedidos_UnaColaDe260SinTeclaNiEstadoSeLee (consola): antes del arreglo el segundo pedido pasaba de la b a la a."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

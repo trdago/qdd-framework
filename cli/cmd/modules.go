@@ -91,7 +91,7 @@ func runModulesApprove(cmd *cobra.Command, args []string) {
 		fmt.Printf("[!] No se pudo aprobar '%s':\n  - %s\n", args[0], strings.Join(problems, "\n  - "))
 		os.Exit(1)
 	}
-	fmt.Printf("[+] Ficha '%s' aprobada (revisada en %s).\n", m.ID, m.RevisadoEnCommit)
+	fmt.Println(modules.TextoAprobada(m))
 }
 
 func runModulesContext(cmd *cobra.Command, args []string) {

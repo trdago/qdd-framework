@@ -12,6 +12,11 @@ import (
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
+// Las listas exactas de acciones no dependen de si la máquina tiene xdg-open: sin abridor salvo en los tests de §3.9.
+func init() {
+	buscarAbridor = func() (Abridor, bool) { return Abridor{}, false }
+}
+
 // proyectoConFichas arma un proyecto QDD (con .qdd/) con una ficha por id; las de borradores quedan en borrador y el resto aprobadas.
 func proyectoConFichas(t *testing.T, aprobadas []string, borradores []string) string {
 	t.Helper()
@@ -173,7 +178,38 @@ func TestPanel_ConEstado(t *testing.T) {
 	if d.Estado == nil || len(d.Estado.Frentes) != 1 || d.Motivo != "" {
 		t.Fatalf("con estado.yaml el panel trae los frentes: %+v", d)
 	}
-	if got := ids(d.Acciones); strings.Join(got, ",") != "revisar-estado,auditar" {
+	if got := ids(d.Acciones); strings.Join(got, ",") != "descartar:a,revisar-estado,auditar" {
 		t.Fatalf("acciones con estado y sin borradores: %v", got)
+	}
+}
+
+// §3.9: la ✕ de una tarea pide confirmación y la deja «descartada» con su motivo; sale del panel.
+func TestEjecutar_DescartarTareaConLaX_CCC_C22(t *testing.T) {
+	root := proyectoConFichas(t, nil, nil)
+	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n  - id: a\n    nombre: Frente A\n    estado: abierto\n    celdas:\n      Código: {estado: ✅, evidencia: abc}\n      Pruebas: {estado: ⏳, bloqueo: correr la suite, de_quien: CI}\n"
+	if err := os.MkdirAll(filepath.Join(root, ".qdd/project"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".qdd/project/estado.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	a, err := BuscarAccion(Acciones(root, true), "descartar:a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Autorizar(a, false); err == nil {
+		t.Fatal("descartar escribe en estado.yaml: exige --confirmado")
+	}
+	var salida bytes.Buffer
+	if codigo := a.Ejecutar(root, "qdd-que-no-se-usa", &salida); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, salida.String())
+	}
+	d := Panel(root, time.Now())
+	if len(d.Estado.Frentes) != 0 {
+		t.Fatalf("la tarea descartada sale del panel: %+v", d.Estado.Frentes)
+	}
+	escrito, _ := os.ReadFile(filepath.Join(root, ".qdd/project/estado.yaml"))
+	if !strings.Contains(string(escrito), "descartado") || !strings.Contains(string(escrito), MotivoDescarte) {
+		t.Fatalf("queda en el archivo con estado y motivo:\n%s", escrito)
 	}
 }

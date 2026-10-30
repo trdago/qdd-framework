@@ -27,35 +27,38 @@ var (
 
 var consolaCmd = &cobra.Command{
 	Use:   "consola",
-	Short: "Panel de estado y barra de QDD en Claude Code (activar | desactivar | estado | actualizar)",
+	Short: "Panel de tareas y barra de QDD en Claude Code (activar | desactivar | estado | actualizar)",
 	Long: `Un solo interruptor para la consola de Claude Code:
 
   qdd consola activar [--sin-barra] [--recursos | --sin-recursos]
-                                     instala el panel de estado por frente (mod qdd-estado@qdd) y la barra en Go;
+                                     instala el panel de tareas (mod qdd-tareas@qdd) y la barra en Go;
                                      --recursos suma la línea «D N% · G0 N% · R N% · C N%» (disco, GPU, RAM, CPU)
   qdd consola desactivar             lo quita y devuelve la barra que había
   qdd consola estado                 dice si está activo y al día (lo mismo que revisa 'qdd doctor')
   qdd consola actualizar             lo deja en la versión de esta CLI (--si-activo: solo si se activó)
   qdd consola statusline             la barra: lee el JSON de la consola por la entrada estándar
-  qdd consola panel                  lo que dibuja el panel, en JSON: estado por frente y acciones
+  qdd consola panel                  lo que dibuja el panel, en JSON: tareas y acciones
   qdd consola accion <id> [--confirmado]  ejecuta una acción que ofrece 'qdd consola panel'
   qdd consola pedir -m <motivo> <comando…>  deja un comando en el panel para que la persona lo ejecute
   qdd consola pedidos | descartar <id>      lista o quita los comandos que esperan en el panel
 
-El panel se abre solo en los proyectos con .qdd/project/estado.yaml; /estado lo abre y /estado cerrar lo cierra.
+El panel se abre solo en los proyectos con .qdd/project/estado.yaml; /tareas lo abre y /tareas cerrar lo cierra.
 Desde el panel se ejecutan los comandos que la IA dejó para la persona (a, b, d…), se aprueban las fichas en
-borrador (1…9), se revisa el estado (c) y se audita (u); lo que escribe pide «s  Sí» antes de correr.
+borrador (1…9), se revisa el estado (c), se audita (u), se abre la carpeta (o) y se descarta una tarea con su ✕;
+lo que escribe pide «s  Sí» antes de correr.
+Si OpenCode está en la máquina, activar también deja el panel en su barra lateral, solo para mirar: lee cada 2 s
+'qdd consola panel --json' y queda en la versión de esta CLI (actualizar y 'qdd doctor --fix' lo sincronizan).
 Una barra propia (statusLine) no se toca.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 }
 
-var consolaActivarCmd = &cobra.Command{Use: "activar", Short: "Instala el panel y la barra de QDD en Claude Code", Run: runConsolaActivar}
+var consolaActivarCmd = &cobra.Command{Use: "activar", Short: "Instala el panel y la barra de QDD en Claude Code (y el panel en OpenCode, si está)", Run: runConsolaActivar}
 var consolaDesactivarCmd = &cobra.Command{Use: "desactivar", Short: "Quita el panel y devuelve la barra anterior", Run: runConsolaDesactivar}
 var consolaEstadoCmd = &cobra.Command{Use: "estado", Short: "Dice si la consola está activa y al día", Run: runConsolaEstado}
 var consolaActualizarCmd = &cobra.Command{Use: "actualizar", Short: "Deja el panel en la versión de esta CLI", Run: runConsolaActualizar}
 var consolaStatuslineCmd = &cobra.Command{Use: "statusline", Short: "Barra de estado de Claude Code (JSON por la entrada estándar); nunca falla", Run: runConsolaStatusline}
-var consolaPanelCmd = &cobra.Command{Use: "panel", Short: "Lo que dibuja el panel, en JSON (estado por frente y acciones); nunca falla", Run: runConsolaPanel}
+var consolaPanelCmd = &cobra.Command{Use: "panel", Short: "Lo que dibuja el panel, en JSON (tareas y acciones); nunca falla", Run: runConsolaPanel}
 var consolaAccionCmd = &cobra.Command{
 	Use:   "accion <id>",
 	Short: "Ejecuta una acción que ofrece 'qdd consola panel' (lo que escribe, solo con --confirmado)",
@@ -153,7 +156,9 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 
 // runConsolaPanel siempre imprime un JSON: sin estado.yaml, el estado es null y el motivo dice cómo crearlo.
 func runConsolaPanel(cmd *cobra.Command, args []string) {
-	out, err := json.Marshal(consola.Panel(estadoRaiz(), time.Now()))
+	datos := consola.Panel(estadoRaiz(), time.Now())
+	datos.Version = Version
+	out, err := json.Marshal(datos)
 	if err != nil {
 		salirCon("%v", err)
 	}
@@ -189,8 +194,8 @@ var consolaPedirCmd = &cobra.Command{
 	Use:   "pedir -m <motivo> [--carpeta <dir>] <comando…>",
 	Short: "Deja un comando en el panel para que la persona lo ejecute con un clic (no lo ejecuta)",
 	Long: `Deja un comando en la cola del panel del proyecto. No lo ejecuta: corre solo cuando la persona lo confirma
-en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien sale de la cola; si
-falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
+en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien queda hecho (en gris, no
+se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para comandos que la IA no puede o no debe ejecutar, como publicar.
 
   qdd consola pedir -m "Publicar v2.5.1 (dispara npm y el binario)" -- git push origin v2.5.1
   qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"`,
@@ -204,15 +209,41 @@ var consolaPedidosCmd = &cobra.Command{
 	Use:   "pedidos",
 	Short: "Lista los comandos que esperan a la persona en el panel",
 	Run: func(cmd *cobra.Command, args []string) {
-		cola := consola.Pedidos(estadoRaiz())
-		if len(cola) == 0 {
-			fmt.Println("No hay comandos esperando en el panel.")
-			return
-		}
-		for _, p := range cola {
-			fmt.Printf("[%s] %s\n    %s\n    en %s · %s\n", consola.TeclaDe(estadoRaiz(), p.ID), p.Motivo, p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
-		}
+		listarPedidos(estadoRaiz(), os.Stdout)
 	},
+}
+
+// listarPedidos muestra cada pedido con su tecla (✓ si ya está hecho, sin tecla si se está ejecutando) y su estado.
+func listarPedidos(root string, salida io.Writer) {
+	cola := consola.Pedidos(root)
+	if len(cola) == 0 {
+		fmt.Fprintln(salida, "No hay comandos esperando en el panel.")
+		return
+	}
+	for _, p := range cola {
+		fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n    en %s · %s\n", marcaPedido(p), p.Motivo, estadoPedido(p), p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
+	}
+}
+
+func marcaPedido(p consola.Pedido) string {
+	if p.Estado == consola.EstadoHecho {
+		return "✓"
+	}
+	if p.Estado == consola.EstadoEjecutando {
+		return "⟳"
+	}
+	return p.Tecla
+}
+
+func estadoPedido(p consola.Pedido) string {
+	cuando := ""
+	if p.Fin != nil {
+		cuando = " " + p.Fin.Local().Format("15:04")
+	}
+	if p.Estado == consola.EstadoFallo {
+		return fmt.Sprintf("falló (código %d)%s", p.Codigo, cuando)
+	}
+	return p.Estado + cuando
 }
 
 var consolaDescartarCmd = &cobra.Command{
