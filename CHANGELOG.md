@@ -4,6 +4,13 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.6.1] - 2026-10-30
+
+### 🧭 Nuevo orden del panel
+
+- Las secciones van de arriba hacia abajo así: estado por frente (cabecera y tabla), **Acciones**, **▶ Para ti**, ⏳ Esperando y ❌ Fallas. Los botones quedan juntos bajo la tabla, y la confirmación aparece en la sección del botón que pulsaste.
+- **Acciones** son los botones fijos de QDD según el estado del proyecto (aprobar fichas, revisar el estado, auditar). **Para ti** son los comandos que la IA te dejó para ejecutar con un clic.
+
 ## [v2.6.0] - 2026-10-30
 
 ### ▶ Comandos para la persona, con un clic desde el panel (RFC 0006 §3.9, `consola-claude-code` v5.0.0)
