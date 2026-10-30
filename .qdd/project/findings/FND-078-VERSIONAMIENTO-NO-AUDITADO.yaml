@@ -1,0 +1,9 @@
+id: "FND-078"
+title: "Funcionalidades publicadas como patch (versionamiento no auditado)"
+description: "QDD publicó v1.9.23 como patch con dos commits 'feat' (gate veraz y fichas de módulo); debió ser 1.10.0. Nada en el audit revisaba que el número de versión reflejara el alcance de los cambios."
+impact: "El número de versión deja de comunicar riesgo: quien actualiza un patch recibe funcionalidades nuevas sin aviso."
+action_taken: "Certificación core CERT-024-SEMVER-RELEASES con reglas VER-01..VER-04 (política versioning, activa por defecto, desactivable con 'versioning: false'). Los checkouts de quality.yml y del gate de publish.yml usan fetch-depth: 0 para tener tags. Tests en versioning_test.go."
+date: "2026-10-22"
+test_result: "TestVersioning_* (cli/pkg/audit/versioning_test.go): una release con commits feat declarada como patch da VER-03 y sugiere el minor."
+status: resolved
+detectado_por: ia

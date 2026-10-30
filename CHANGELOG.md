@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🔢 El gate revisa el versionamiento semántico (CERT-024, FND-078)
+
+- **`qdd audit` verifica que el número de versión diga la verdad.** Si desde el último tag hay un commit `feat`, la versión nueva tiene que subir el MINOR; con `!` o `BREAKING CHANGE:`, el MAJOR (en `0.y.z`, el MINOR). Lo reporta como `VER-03-UNDERSIZED-BUMP` y dice qué versión corresponde.
+- También: una versión que no es semver (`VER-01`), una que retrocede respecto de un tag publicado (`VER-02`) y una sin entrada en un CHANGELOG que documenta versiones (`VER-04`). Lee `package.json`, `pyproject.toml`, `Cargo.toml` o `VERSION`.
+- Activa por defecto; se apaga con `versioning: false` en `.qdd/policies.yaml`. Los pipelines de QDD usan `fetch-depth: 0` para tener los tags.
+- Caso real: QDD v1.9.23 salió como patch con dos `feat`.
+
 ### 📚 Documentación al día (FND-072)
 
 - **Guía nueva [`docs/blueprints.md`](docs/blueprints.md):** cómo crear el repositorio de blueprints de la organización (estructura, `catalogo.yaml`, campos, validaciones, versionado), importarlo, aplicarlo, usarlo con una IA y qué vigila el gate.

@@ -1,0 +1,25 @@
+tags:
+    - core
+active: true
+id: CERT-024-SEMVER-RELEASES
+version: "1.0.0"
+title: "Versionamiento Semántico de Releases (SemVer 2.0.0)"
+status: certified
+related_feature: "Industry Standard Baseline"
+description: "Garantiza que el número de versión comunique honestamente el alcance de cada release. Activa por defecto; se desactiva con 'versioning: false' en .qdd/policies.yaml."
+rules:
+    - id: VER-01-INVALID-SEMVER
+      description: "La versión declarada (package.json, pyproject.toml, Cargo.toml, VERSION) cumple MAJOR.MINOR.PATCH."
+      method: "Static Manifest Analysis"
+    - id: VER-02-VERSION-REGRESSION
+      description: "La versión declarada nunca es menor que un tag ya publicado en la rama."
+      method: "Git Tag Verification"
+    - id: VER-03-UNDERSIZED-BUMP
+      description: "El salto de versión respeta los cambios desde el último tag (Conventional Commits): feat exige MINOR; '!' o 'BREAKING CHANGE:' exige MAJOR (MINOR en 0.y.z)."
+      method: "Git History Analysis"
+    - id: VER-04-CHANGELOG-MISSING
+      description: "Si el CHANGELOG documenta versiones, la versión nueva tiene su entrada."
+      method: "Changelog Verification"
+evidence:
+    timestamp: "2026-10-22T13:30:00-03:00"
+    test_result: "QDD v1.9.23 se publicó como patch con dos commits 'feat'; VER-03 lo detecta y sugiere 1.10.0."
