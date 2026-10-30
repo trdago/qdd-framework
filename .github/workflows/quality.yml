@@ -14,6 +14,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          # Historial y tags completos: la regla VER-03 compara los commits
+          # desde el último tag con el salto de versión declarado.
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5

@@ -32,6 +32,8 @@ type LockEntry struct {
 	Commit     string `yaml:"commit,omitempty"`
 	SHA256     string `yaml:"sha256"`
 	AgregadoEl string `yaml:"agregado_el"`
+
+	Reemplazo []string `yaml:"-"` // RFC 0009: ids que este import sacó del lockfile al reemplazarlos
 }
 
 // Lock es el contenido de .qdd/blueprints.lock.yaml.
@@ -109,6 +111,13 @@ func Add(in AddInput) ([]LockEntry, []string) {
 		}
 		entries = append(entries, installed)
 	}
+	for i, b := range bps {
+		migrados, err := migrarReemplazados(in.Root, b, entries[i].Origen)
+		if err != nil {
+			return entries, []string{err.Error()}
+		}
+		entries[i].Reemplazo = migrados
+	}
 	return entries, nil
 }
 
@@ -175,7 +184,7 @@ func idsPedidos(in AddInput, cat Catalogo, disponibles map[string]string) ([]str
 	}
 	pedidos = dedupe(pedidos)
 	if len(pedidos) == 0 {
-		return nil, []string{"el repositorio tiene varios blueprints: elige cuáles (qdd blueprint add <repo> auth auditoria), un --paquete o --todos. " + oferta(cat, disponibles)}
+		return nil, []string{"no pediste ningún blueprint: elige cuáles (qdd blueprint add <id>...), un --paquete o --todos. " + oferta(cat, disponibles)}
 	}
 	var problems []string
 	for _, id := range pedidos {

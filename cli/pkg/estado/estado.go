@@ -1,4 +1,4 @@
-// Package estado implementa el estado por frente en archivo (RFC 0006, blueprint estado-por-frente, destino «archivo»):
+// Package estado implementa el estado por frente en archivo (RFC 0006, blueprint estado-por-tareas, antes estado-por-frente; destino «archivo»):
 // la tabla de frentes × etapas en .qdd/project/estado.yaml, su lector automático y sus vistas para la consola.
 package estado
 

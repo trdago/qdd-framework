@@ -99,6 +99,7 @@ func printInitSummary(cwd string) {
 	fmt.Printf("    Proyecto: %s · %s\n", strings.Join(meta.Languages, ", "), meta.Architecture)
 	fmt.Println("\nSiguientes pasos:")
 	fmt.Println("  1. qdd audit   → revisa el proyecto (lo que es recomendación no bloquea)")
+	fmt.Println("     Lo temporal (scripts de un solo uso, logs, salidas) va en ./tmp: git la ignora.")
 	fmt.Println("  2. Abre tu IA (Claude Code, Cursor, Antigravity, OpenCode) en esta carpeta: ya quedó conectada a QDD.")
 	fmt.Println("     Pídele: \"ejecuta qdd_learn\" para que aprenda la arquitectura.")
 }
@@ -135,6 +136,10 @@ func runInitIteration(cwd string) (bool, int) {
 		return false, 1 // Artificial error count to force retry or stagnation
 	}
 	declararStack(cwd, meta)
+	limpiarPycacheDelCore(filepath.Join(cwd, ".qdd"))
+	if aviso := ensureTmpDir(cwd); aviso != "" {
+		fmt.Printf("[i] %s\n", aviso)
+	}
 
 	fmt.Println("[+] Conectando asistentes de IA:")
 	manager := integration.NewIntegrationManager()
@@ -383,7 +388,7 @@ func unpackCoreAssets(qddDir string) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if d.IsDir() || esCachePython(path) {
 			return nil
 		}
 		return extractSingleCoreAsset(qddDir, basePath, path)

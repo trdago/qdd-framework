@@ -326,3 +326,17 @@ func TestReleaseOrigenFlag_NamesTheSourceToTag(t *testing.T) {
 		}
 	}
 }
+
+// FND-073: sin terminal, 'qdd blueprint apply' listaba una pregunta condicional
+// como si fuera obligatoria, sin decir de qué respuesta depende.
+func TestPendingProblems_ConditionalQuestionSaysWhenItApplies(t *testing.T) {
+	canales := blueprints.Pregunta{ID: "canales", Pregunta: "¿Por qué canales?", Opciones: []blueprints.Opcion{{Valor: "correo"}, {Valor: "whatsapp"}}}
+	proveedor := blueprints.Pregunta{ID: "proveedor", Pregunta: "¿Qué proveedor?", Si: map[string]blueprints.Valores{"canales": {"whatsapp"}}, Opciones: []blueprints.Opcion{{Valor: "meta"}, {Valor: "otro"}}}
+	got := pendingProblems([]blueprints.Pregunta{canales, proveedor})
+	if strings.Contains(got[0], "solo si") {
+		t.Fatalf("una pregunta sin condición no debe decir 'solo si': %s", got[0])
+	}
+	if !strings.Contains(got[1], "solo si canales = whatsapp") {
+		t.Fatalf("la pregunta condicional debe decir de qué depende: %s", got[1])
+	}
+}

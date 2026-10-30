@@ -20,6 +20,9 @@ type QDDPolicies struct {
 	// DeployGate es un puntero para que los policies.yaml anteriores (sin la
 	// clave) la tengan ACTIVA: no desplegar sin pruebas es la regla base.
 	DeployGate *bool `yaml:"deploy_gate,omitempty" json:"deploy_gate,omitempty"`
+	// Versioning (SemVer de releases) también es puntero: activa por defecto,
+	// se desactiva con 'versioning: false'.
+	Versioning *bool `yaml:"versioning,omitempty" json:"versioning,omitempty"`
 	// ModuleHeart exige ficha vigente para cada zona de código (opt-in).
 	ModuleHeart bool `yaml:"module_heart,omitempty" json:"module_heart,omitempty"`
 	// Adopcion "gradual" convierte las reglas de madurez en recomendaciones.
@@ -30,6 +33,11 @@ type QDDPolicies struct {
 // DeployGateEnabled indica si se auditan los pipelines de despliegue.
 func (p QDDPolicies) DeployGateEnabled() bool {
 	return p.DeployGate == nil || *p.DeployGate
+}
+
+// VersioningEnabled indica si se audita el versionamiento semántico.
+func (p QDDPolicies) VersioningEnabled() bool {
+	return p.Versioning == nil || *p.Versioning
 }
 
 // DefaultPolicies returns the default strict QDD configuration

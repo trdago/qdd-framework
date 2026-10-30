@@ -4,6 +4,57 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔁 Un blueprint puede reemplazar a otro (RFC 0009)
+
+- **`reemplaza: [id]` en `blueprint.yaml`.** Sirve para cambiar el id de un estándar publicado o juntar dos en uno, como `estado-por-tareas`, que reemplaza a `estado-por-frente`.
+- **El gate lo avisa.** Si la fuente publicó el que reemplaza, `qdd audit` reporta `BP-07-REPLACED` con los comandos exactos para migrar. En ese caso ya no reporta `BP-06` para el viejo, y `qdd doctor` lo informa.
+- **`qdd blueprint add <nuevo>` migra.** Saca el viejo del lockfile y pasa tus módulos al nuevo, con su mismo id y sus respuestas. Después `qdd blueprint apply <nuevo> --modulo <módulo>` te pregunta solo lo nuevo. Un reemplazo de otra fuente no toca tu blueprint.
+- **`qdd estado` encuentra su ficha por el blueprint** que la generó (`estado-por-tareas` o, como legado, `estado-por-frente`), no por un id fijo.
+
+### 🔢 El gate revisa el versionamiento semántico (CERT-024, FND-078)
+
+- **`qdd audit` verifica que el número de versión diga la verdad.** Si desde el último tag hay un commit `feat`, la versión nueva tiene que subir el MINOR; con `!` o `BREAKING CHANGE:`, el MAJOR (en `0.y.z`, el MINOR). Lo reporta como `VER-03-UNDERSIZED-BUMP` y dice qué versión corresponde.
+- También: una versión que no es semver (`VER-01`), una que retrocede respecto de un tag publicado (`VER-02`) y una sin entrada en un CHANGELOG que documenta versiones (`VER-04`). Lee `package.json`, `pyproject.toml`, `Cargo.toml` o `VERSION`.
+- Activa por defecto; se apaga con `versioning: false` en `.qdd/policies.yaml`. Los pipelines de QDD usan `fetch-depth: 0` para tener los tags.
+- Caso real: QDD v1.9.23 salió como patch con dos `feat`.
+
+### 📚 Documentación al día (FND-072)
+
+- **Guía nueva [`docs/blueprints.md`](docs/blueprints.md):** cómo crear el repositorio de blueprints de la organización (estructura, `catalogo.yaml`, campos, validaciones, versionado), importarlo, aplicarlo, usarlo con una IA y qué vigila el gate.
+- **Command Reference completa:**
+  - comandos que faltaban: `qdd modules`, `modules approve`, `modules context`, `blueprint show`, `certify human`, `undo` y `mcp-server`;
+  - todas las tools MCP, agrupadas, incluidas `qdd_project_context`, `qdd_module_save` y `qdd_certify_human`;
+  - secciones nuevas: fichas de módulo, reglas del gate (`QA-*`, `CI-*`, `HEART-*`, `BP-*`) y adaptadores de IA.
+- **Getting Started** con el recorrido actual: init, audit, blueprints, fichas, programar con IA y certificar.
+- **Architecture:** fichas de módulo y blueprints. Ya no cita `qdd sync` ni `qdd score`, que no son comandos de la CLI (son las tools `qdd_sync` y `qdd_score`).
+- **README:** blueprints, fichas, gate veraz y OpenCode; índice de la documentación; badge de build apuntando a `quality.yml`.
+- **README de npm** al día; deja de listar `/qdd validate` y `/qdd docs`, que no están implementados.
+- **Al día con v2.x:** la guía de blueprints describe la carpeta central (el proyecto solo versiona el lockfile), varias fuentes, repositorios públicos por HTTPS, el ciclo `contribute` → `propose` → `release` y las reglas `BP-05` y `BP-06`. La referencia documenta `qdd estado`, `qdd consola` y las tools `qdd_estado` y `qdd_consola_pedir`, y el README presenta el panel de Claude Code.
+- **La documentación ya no puede quedar atrás:** `cli/cmd/docs_reference_test.go` falla si la referencia omite un comando o una tool registrada, si nombra una tool que el servidor no registra o si un enlace relativo está roto.
+
+### 🐛 Blueprints: mensajes más claros (FND-073, FND-074)
+
+- **`qdd blueprint apply` sin terminal** marca cada pregunta condicional con `(solo si …)`, igual que la tool MCP. Antes parecía obligatoria aunque no aplicara.
+- **`qdd blueprint add` sin nombres** ya no dice "el repositorio tiene varios blueprints" cuando hay uno solo, ni sugiere volver a indicar el repositorio registrado.
+
+### 🧹 Lo temporal va en `./tmp` (FND-075 a FND-077)
+
+- **`qdd init` crea `./tmp`** para lo temporal y casuístico: scripts de un solo uso, pruebas manuales, descargas, logs y salidas.
+  - Trae su propio `.gitignore`, que la ignora entera, así que no se toca el `.gitignore` del proyecto.
+  - Si el proyecto ya versiona archivos en `tmp/`, QDD no se la apropia y avisa.
+- **Las IA lo saben:** las reglas sincronizadas (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`…) y el método de trabajo de `qdd_project_context` indican usar `./tmp` y no dejar nada temporal en la raíz ni en las carpetas de código.
+- **QDD ya no copia caché de Python a los proyectos:**
+  - Se quitaron del repositorio los `__pycache__/*.pyc` que estaban versionados.
+  - El empaquetado los descarta.
+  - `qdd init` borra los que dejaron versiones anteriores dentro de `.qdd/core`.
+- **`qdd audit` ya no ensucia el proyecto:**
+  - Las pruebas corren con la caché de Python en `./tmp/pycache`.
+  - pytest no crea `.pytest_cache/`.
+  - Antes, cada auditoría de un proyecto Python dejaba `__pycache__/` en las carpetas de código.
+- **El recorrido de primera vez lo verifica** (paso 21): `./tmp` existe, git no la ve y no aparece ningún `.pyc`, ni siquiera después de correr las pruebas.
+
 ## [v2.7.0] - 2026-10-30
 
 ### ● Tarea en curso y pulsos de vida (RFC 0006 §3.13, blueprint nuevo `estado-por-tareas` v1.0.0)

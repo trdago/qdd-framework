@@ -19,6 +19,7 @@ objetivo_tecnologico:
         - 'Diagnosticar solo usa la red para comprobar el acceso al repositorio de un proyecto con blueprints; Reparar no decide lo que necesita a una persona (preguntas nuevas, actualizar de versión, aportar a la organización): dice qué hacer (FND-053).'
         - 'Varias fuentes (RFC 0007): el lockfile dice de qué repositorio salió cada blueprint. Sin origen, add, sync, contribute, propose y doctor usan esa fuente; los ids nuevos, --paquete y --todos van al repositorio registrado. --origen elige la fuente de un blueprint nuevo. No hay configuración extra: las fuentes son las del lockfile más la registrada.'
         - Una fuente puede ser cualquier URL git o carpeta local, incluida la raíz de un repositorio bare (FND-067). Ante un error de acceso a una URL SSH, QDD sugiere su URL HTTPS equivalente, que en un repositorio público no necesita llave (FND-068); al publicar (propose, release), si el push SSH falla, reintenta por esa URL HTTPS con las credenciales de git y lo dice (FND-063).
+        - 'Un blueprint puede reemplazar a otros de su misma fuente (RFC 0009, reemplaza: [id…]): el gate lo dice con BP-07-REPLACED (sin red, desde el espejo, y sin repetir BP-06) y qdd blueprint add <nuevo> saca el viejo del lockfile y pasa sus registros de aplicación al nuevo, con el mismo módulo, las mismas respuestas y la versión vieja, para que BP-03 pida volver a aplicarlo. doctor lo informa pero no migra.'
         - 'La migración del esquema anterior (.qdd/blueprints/<id>) es automática y ocurre una vez: mueve al store las copias íntegras y deja las alteradas como BP-05-LEGACY para que una IA lleve sus cambios al repositorio de la organización.'
     invariantes:
         - Ningún proyecto contiene una copia ni un clon del repositorio de blueprints (salvo copias legadas pendientes de migrar, que el gate reporta).
@@ -28,6 +29,7 @@ objetivo_tecnologico:
         - 'Un id pertenece a una sola fuente: importarlo desde otra se rechaza salvo con --reemplazar, y un blueprint importado se aporta siempre a su fuente (FND-064).'
         - 'Si una fuente falla al importar o sincronizar, no oculta ni deja a medias las demás: el lockfile queda como estaba y el problema se informa por fuente (FND-065, FND-066).'
         - 'La migración nunca descarta cambios: una copia legada alterada o fuera del lockfile no se borra.'
+        - Migrar a un blueprint que reemplaza a otro nunca cambia el id del módulo ni responde por la persona las preguntas nuevas; un reemplazo de otra fuente no toca el blueprint importado.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/blueprints/... ./pkg/audit/... ./cmd/...
@@ -35,6 +37,7 @@ fuentes:
     - rfcs/0003-blueprints.md
     - rfcs/0004-blueprints-centrales.md
     - rfcs/0007-fuentes-de-blueprints.md
+    - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 5a87679e811c
+revisado_en_commit: 1f4a9adc7578

@@ -34,6 +34,7 @@ objetivo_tecnologico:
         - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
         - 'Orden de los pedidos (qdd 2.8.0, RFC 0006 §3.9): la IA declara dependencias al pedir (--despues/--antes, o despues/antes en qdd_consola_pedir); qdd las guarda por id, entrega la cola con cada pedido justo después de lo que espera (sin dependencias, en el orden en que se pidió) y marca en espera, sin tecla, al que espera algo que no está hecho. El orden no se adivina leyendo los comandos: lo declara quien los pide.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
+        - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
         - Un frente nunca se borra; se cierra o se descarta con motivo.
@@ -72,4 +73,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 05aad7c7980b
+revisado_en_commit: 1f4a9adc7578

@@ -41,7 +41,7 @@ func Check(root string) []Problema {
 		}
 		versiones[e.ID] = b.Version
 		out = append(out, checkBlueprint(b, e)...)
-		out = append(out, checkVigencia(e)...)
+		out = append(out, checkVigencia(root, e)...)
 	}
 	out = append(out, checkLegado(root, lock)...)
 	apps, errs := LoadApplications(root)
@@ -73,7 +73,7 @@ func checkBlueprint(b Blueprint, e LockEntry) []Problema {
 
 // checkVigencia compara con la última versión que el espejo central conoce
 // (sin red: el espejo se actualiza al importar y con 'qdd blueprint sync').
-func checkVigencia(e LockEntry) []Problema {
+func checkVigencia(root string, e LockEntry) []Problema {
 	mirror, err := mirrorPath(e.Origen)
 	if err != nil || !exists(mirror) {
 		return nil
@@ -81,6 +81,9 @@ func checkVigencia(e LockEntry) []Problema {
 	tags, err := versionTags(mirror)
 	if err != nil || len(tags) == 0 || tags[0] == e.Ref {
 		return nil
+	}
+	if sucesor, ok := reemplazoEn(mirror, tags[0], e.ID); ok {
+		return []Problema{problemaReemplazado(root, e, sucesor, tags[0])}
 	}
 	disponible := versionEn(mirror, tags[0], e.Subdir)
 	if disponible == "" || compararVersion(disponible, e.Version) <= 0 {

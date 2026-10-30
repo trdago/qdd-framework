@@ -130,6 +130,9 @@ func handleBlueprintAddTool(ctx context.Context, request mcp.CallToolRequest) (*
 	var ids []string
 	for _, e := range res.Entries {
 		fmt.Fprintf(&s, "Importado %s@%s.\n", e.ID, e.Version)
+		if aviso := avisoDeReemplazo(e); aviso != "" {
+			fmt.Fprintf(&s, "%s Las preguntas nuevas son del humano: llama a qdd_blueprint_apply con ese módulo y házselas tal cual.\n", strings.TrimPrefix(aviso, "[+] "))
+		}
 		ids = append(ids, e.ID)
 	}
 	if res.Guardado {

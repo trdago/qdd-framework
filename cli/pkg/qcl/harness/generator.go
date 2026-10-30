@@ -35,6 +35,7 @@ func GenerateSystemPrompt(allowExecution bool) string {
     <rule_zero_else>Prohibición estricta de usar 'else' o 'else if'. Utiliza siempre cláusulas de guarda (guard clauses) y salidas rápidas ('return' temprano) dentro de todas las funciones en cualquier lenguaje.</rule_zero_else>
     <rule_tests_and_bugs>Todo bug encontrado DEBE documentarse inmediatamente como Finding (.qdd/project/findings/). Luego, DEBE generarse un test unitario (Golden Set) que reproduzca y prevenga el bug para siempre.</rule_tests_and_bugs>
     <rule_data_uniqueness>Principio Core de Unicidad del Dato (SSOT - CERT-034): Se prohíbe la duplicación redundante de campos o entidades en la base de datos a menos que exista un ADR formalmente justificado.</rule_data_uniqueness>
+    <rule_semver>Versionamiento Semántico (CERT-024): al preparar una release, el salto de versión lo dictan los commits desde el último tag — 'feat' exige MINOR, '!' o 'BREAKING CHANGE:' exige MAJOR, el resto PATCH. Nunca publicar funcionalidades nuevas como patch.</rule_semver>
     <rule_predictive_ui>Al requerir decisiones del usuario, el agente debe priorizar opciones múltiples y sugerencias directas estructuradas (ask_question) en lugar de requerir texto libre.</rule_predictive_ui>
     <rule_auto_sprints>Al crear Sprints, el agente autoconstruye los Golden Sets (caminos feliz, malo y casos borde) correspondientes antes de escribir código de producción.</rule_auto_sprints>
   </qdd_philosophy>

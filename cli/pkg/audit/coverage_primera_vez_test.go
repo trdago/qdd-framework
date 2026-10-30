@@ -100,6 +100,73 @@ func descripcionDe(violations []Violation, regla string) string {
 	return ""
 }
 
+// FND-077: al correr pytest, el gate dejaba __pycache__/ en las carpetas de
+// código y .pytest_cache/ en la raíz del proyecto.
+func TestResolveTestCommands_PytestNoEnsuciaElProyecto(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "requirements.txt"), "pytest\n")
+	writeFile(t, filepath.Join(dir, "tests", "test_x.py"), "")
+	writeFile(t, filepath.Join(dir, "tmp", ".gitignore"), "*\n")
+
+	cmds := resolveTestCommands(dir)
+	if len(cmds) != 1 {
+		t.Fatalf("se esperaba pytest, se obtuvo %q", labels(cmds))
+	}
+	tc := cmds[0]
+	if !tieneVariable(tc.Env, "PYTEST_ADDOPTS=", "-p no:cacheprovider") {
+		t.Errorf("pytest no debe crear .pytest_cache: env = %v", tc.Env)
+	}
+	want := "PYTHONPYCACHEPREFIX=" + filepath.Join(dir, "tmp", "pycache")
+	if !contiene(tc.Env, want) {
+		t.Errorf("la caché de Python debe ir a ./tmp: env = %v, want %s", tc.Env, want)
+	}
+}
+
+// Sin ./tmp administrada por QDD, la caché va a la carpeta temporal del sistema.
+func TestResolveTestCommands_PytestSinTmp(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "requirements.txt"), "pytest\n")
+	writeFile(t, filepath.Join(dir, "tests", "test_x.py"), "")
+
+	tc := resolveTestCommands(dir)[0]
+	for _, e := range tc.Env {
+		if strings.HasPrefix(e, "PYTHONPYCACHEPREFIX=") && strings.HasPrefix(e, "PYTHONPYCACHEPREFIX="+dir) {
+			t.Errorf("sin ./tmp no debe escribir caché dentro del proyecto: %s", e)
+		}
+	}
+	if len(tc.Env) == 0 {
+		t.Error("debe definir PYTHONPYCACHEPREFIX igual")
+	}
+}
+
+// Los comandos declarados (p. ej. "make test" que llama a pytest) también.
+func TestResolveTestCommands_DeclaradosTambienSinCache(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".qdd", "config.yaml"), "test_commands: [\"make test\"]\n")
+	tc := resolveTestCommands(dir)[0]
+	if !tieneVariable(tc.Env, "PYTHONPYCACHEPREFIX=", "") || !tieneVariable(tc.Env, "PYTEST_ADDOPTS=", "no:cacheprovider") {
+		t.Errorf("los comandos declarados deben correr sin ensuciar: env = %v", tc.Env)
+	}
+}
+
+func tieneVariable(env []string, prefijo, contenido string) bool {
+	for _, e := range env {
+		if strings.HasPrefix(e, prefijo) && strings.Contains(e, contenido) {
+			return true
+		}
+	}
+	return false
+}
+
+func contiene(lista []string, s string) bool {
+	for _, x := range lista {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
 // FND-047: en un monorepo (backend/ y frontend/) el gate no encontraba las
 // pruebas porque solo miraba la raíz y cli/.
 func TestDetectTestCommands_Monorepo(t *testing.T) {
