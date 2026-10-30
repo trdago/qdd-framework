@@ -81,7 +81,8 @@ func gitRaw(dir string, args ...string) ([]byte, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("%s", firstNonEmpty(strings.TrimSpace(stderr.String()), err.Error()))
+		// git escribe algunos errores en la salida («nothing to commit»): sin ellos solo queda «exit status 1» (FND-083).
+		return nil, fmt.Errorf("%s", firstNonEmpty(strings.TrimSpace(stderr.String()), strings.TrimSpace(string(out)), err.Error()))
 	}
 	return out, nil
 }
