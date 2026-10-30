@@ -50,7 +50,7 @@ objetivo_tecnologico:
         - Ninguna línea del panel es más ancha que la terminal.
         - 'Una etapa que no se tocó nunca se muestra como «no aplica»: es «·» hasta que alguien la marque.'
         - La barra y el panel nunca muestran totales distintos de ⏳ y ❌.
-        - 'Un modo de permisos que no es de Claude Code no se anota, y uno de hace más de 12 h ya no se sabe (sin medir).'
+        - Un modo de permisos que no es de Claude Code no se anota, y uno de hace más de 12 h ya no se sabe (sin medir).
         - Una barra propia (statusLine) nunca se reemplaza; antes de cambiar settings.json queda una copia.
         - Sin activar la consola, doctor no revisa nada de Claude Code.
         - qdd consola accion vuelve a calcular las acciones y rechaza un id que no ofrece, sin ejecutar nada.
@@ -85,4 +85,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: b15ea1209f69
+revisado_en_commit: f5a2abdb30b2

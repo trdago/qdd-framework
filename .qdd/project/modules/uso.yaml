@@ -8,7 +8,7 @@ rutas:
 objetivo_operativo:
     problema: Una versión de qdd con funciones nuevas se publicaba como latest apenas pasaba las pruebas, sin haberse usado en un proyecto real; los defectos que solo aparecen con el uso (panel, colas, blueprints) llegaban a todos.
     usuarios: Quien publica qdd (la persona y la IA que prepara la release), quien prueba una preview en su máquina u otro PC, y el gate de qdd audit.
-    criterio_de_exito: 'Una minor o una major sale primero como preview (vX.Y.Z-rc.N, npm --tag preview) y pasa a latest solo con la evidencia de las horas de uso real medidas que pide uso_minimo_horas (5 en qdd). Un fix sale directo. Las horas se miden, nunca se estiman.'
+    criterio_de_exito: Una minor o una major sale primero como preview (vX.Y.Z-rc.N, npm --tag preview) y pasa a latest solo con la evidencia de las horas de uso real medidas que pide uso_minimo_horas (5 en qdd). Un fix sale directo. Las horas se miden, nunca se estiman.
     caso_real: '2026-10-30: el usuario pidió que una versión que no es un fix tenga al menos 5 horas reales de uso medidas antes de desplegarse, y que las candidatas salgan como preview (v2.8.0-rc.1).'
 objetivo_tecnologico:
     arquitectura: pkg/uso anota eventos de uso real por versión en <QDD_HOME>/uso/<versión>.json (fuera de los proyectos, con bloqueo y escritura atómica) y cuenta el tiempo entre eventos seguidos. cmd registra un evento en cada comando de qdd (PersistentPreRunE), en cada herramienta MCP, en cada pulso del agente (qdd estado pulso) y en cada mensaje con el panel (qdd consola ciclo), solo dentro de un proyecto QDD. 'qdd uso evidencia <versión>' deja lo medido de la versión y sus candidatas en .qdd/project/evidence/uso/vX.Y.Z.yaml; VER-05 (pkg/audit) lo lee.
@@ -32,3 +32,4 @@ fuentes:
     - cli/pkg/uso/uso.go
     - .github/workflows/publish.yml
 ultima_revision: "2026-10-30"
+revisado_en_commit: f5a2abdb30b2
