@@ -20,6 +20,8 @@ var (
 	consolaSinBarra   bool
 	consolaSiActivo   bool
 	consolaConfirmado bool
+	consolaRecursos   bool
+	consolaSinRecurso bool
 )
 
 var consolaCmd = &cobra.Command{
@@ -27,7 +29,9 @@ var consolaCmd = &cobra.Command{
 	Short: "Panel de estado y barra de QDD en Claude Code (activar | desactivar | estado | actualizar)",
 	Long: `Un solo interruptor para la consola de Claude Code:
 
-  qdd consola activar [--sin-barra]  instala el panel de estado por frente (mod qdd-estado@qdd) y la barra en Go
+  qdd consola activar [--sin-barra] [--recursos | --sin-recursos]
+                                     instala el panel de estado por frente (mod qdd-estado@qdd) y la barra en Go;
+                                     --recursos suma la línea «D N% · G0 N% · R N% · C N%» (disco, GPU, RAM, CPU)
   qdd consola desactivar             lo quita y devuelve la barra que había
   qdd consola estado                 dice si está activo y al día (lo mismo que revisa 'qdd doctor')
   qdd consola actualizar             lo deja en la versión de esta CLI (--si-activo: solo si se activó)
@@ -58,6 +62,9 @@ var consolaAccionCmd = &cobra.Command{
 
 func init() {
 	consolaActivarCmd.Flags().BoolVar(&consolaSinBarra, "sin-barra", false, "instala solo el panel; no cambia la barra (statusLine)")
+	consolaActivarCmd.Flags().BoolVar(&consolaRecursos, "recursos", false, "la barra suma una línea con disco del proyecto, GPU, RAM y CPU (D · G0 · R · C)")
+	consolaActivarCmd.Flags().BoolVar(&consolaSinRecurso, "sin-recursos", false, "quita la línea de recursos de la barra")
+	consolaActivarCmd.MarkFlagsMutuallyExclusive("recursos", "sin-recursos")
 	consolaActualizarCmd.Flags().BoolVar(&consolaSiActivo, "si-activo", false, "no hace nada si la consola no se activó (para instaladores)")
 	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
 	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
@@ -80,7 +87,12 @@ func imprimirHecho(hecho []string, err error) {
 }
 
 func runConsolaActivar(cmd *cobra.Command, args []string) {
-	imprimirHecho(consolaActual().Activar(!consolaSinBarra))
+	c := consolaActual()
+	if consolaRecursos || consolaSinRecurso {
+		v := consolaRecursos
+		c.Recursos = &v
+	}
+	imprimirHecho(c.Activar(!consolaSinBarra))
 }
 
 func runConsolaDesactivar(cmd *cobra.Command, args []string) {
@@ -125,7 +137,13 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 	if err != nil {
 		return
 	}
-	if l := consola.Barra(datos, time.Now(), true); l != "" {
+	c := consolaActual()
+	reg, _ := c.LeerRegistro()
+	l := consola.Barra(datos, time.Now(), true)
+	if reg.Recursos {
+		l = consola.BarraConRecursos(datos, time.Now(), true, c.DirRecursos())
+	}
+	if l != "" {
 		fmt.Print(l)
 	}
 }

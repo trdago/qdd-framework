@@ -4,6 +4,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.0] - 2026-10-29
+
+### 📊 Línea de recursos en la barra (RFC 0006 §3.8, `consola-claude-code` v4.0.0)
+
+- **`qdd consola activar --recursos`** suma a la barra una segunda línea con el uso del equipo, en etiquetas de una letra: `D 70% · G0 7% · G1 — · R 38% · C 12%`. D es el disco de la carpeta del proyecto, G0…Gn el % de uso de cada GPU, R la RAM usada y C la CPU usada. `--sin-recursos` la quita, y `actualizar` y `doctor --fix` conservan la elección.
+- **Liviana.** Solo lee contadores locales. `nvidia-smi` se consulta como mucho cada 5 s (unos 20 ms) y con caché la barra tarda alrededor de 6 ms. Toda la medición tiene un tope de 400 ms.
+- **Nunca inventa.** Una GPU sin contador legible, como la integrada de Intel sin root, va con «—». Lo que el sistema no expone se omite: la primera lectura de la CPU no tiene con qué comparar, y en macOS solo se mide el disco.
+
 ## [v2.3.0] - 2026-10-29
 
 ### 🖱️ El panel de estado con acciones y jerarquía visual (RFC 0006 §3.7, `consola-claude-code` v3.0.0)

@@ -61,6 +61,7 @@ type Consola struct {
 	QDDHome   string   // carpeta central de QDD (por defecto, blueprints.Home)
 	ClaudeDir string   // configuración de Claude Code (CLAUDE_CONFIG_DIR o ~/.claude)
 	Run       Ejecutar // por defecto, Claude
+	Recursos  *bool    // segunda línea de recursos en la barra; nil conserva lo elegido antes
 }
 
 // Registro es lo que QDD recuerda de la activación, en <QDDHome>/claude/activo.json.
@@ -68,6 +69,7 @@ type Registro struct {
 	Version       string          `json:"version"`
 	Barra         bool            `json:"barra"`
 	BarraAnterior json.RawMessage `json:"barra_anterior,omitempty"`
+	Recursos      bool            `json:"recursos,omitempty"`
 }
 
 // Diagnostico es un control de doctor.
@@ -113,6 +115,15 @@ func claudeDir() string {
 
 // DirMarketplace es la carpeta del marketplace local.
 func (c Consola) DirMarketplace() string { return filepath.Join(c.QDDHome, "claude") }
+
+// DirRecursos es donde la barra guarda la caché de la línea de recursos (CPU y GPU entre lecturas).
+func (c Consola) DirRecursos() string {
+	c, err := c.completar()
+	if err != nil {
+		return ""
+	}
+	return c.DirMarketplace()
+}
 
 func (c Consola) rutaRegistro() string { return filepath.Join(c.DirMarketplace(), "activo.json") }
 
@@ -226,7 +237,10 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 	hecho = append(hecho, fmt.Sprintf("Panel %s %s instalado en Claude Code (alcance de usuario).", ID(), c.Version))
 
 	previo, _ := c.LeerRegistro()
-	reg := Registro{Version: c.Version, Barra: false, BarraAnterior: previo.BarraAnterior}
+	reg := Registro{Version: c.Version, Barra: false, BarraAnterior: previo.BarraAnterior, Recursos: previo.Recursos}
+	if c.Recursos != nil {
+		reg.Recursos = *c.Recursos
+	}
 	if barra {
 		msg, anterior, puesta, err := c.ponerBarra()
 		if err != nil {
@@ -237,6 +251,9 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 		if anterior != nil {
 			reg.BarraAnterior = anterior
 		}
+	}
+	if reg.Barra && reg.Recursos {
+		hecho = append(hecho, "La barra suma la línea de recursos: D (disco del proyecto) · G0… (GPU) · R (RAM) · C (CPU).")
 	}
 	data, _ := json.MarshalIndent(reg, "", "  ")
 	if err := escribir(c.rutaRegistro(), append(data, '\n')); err != nil {
