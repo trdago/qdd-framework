@@ -62,4 +62,4 @@ fuentes:
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: b6de4c39c30a
+revisado_en_commit: 1194e98d7772
