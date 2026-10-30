@@ -179,6 +179,9 @@ func printAddResult(res blueprints.AddResult, warnings []string) {
 	var ids []string
 	for _, e := range res.Entries {
 		fmt.Printf("[+] Blueprint '%s@%s' importado desde %s (commit %.12s).\n", e.ID, e.Version, e.Ref, e.Commit)
+		if aviso := avisoDeReemplazo(e); aviso != "" {
+			fmt.Println(aviso)
+		}
 		ids = append(ids, e.ID)
 	}
 	if res.Guardado {
@@ -581,4 +584,13 @@ func blueprintsVersion(v string) (string, bool) {
 	var a, b, c int
 	n, err := fmt.Sscanf(v, "v%d.%d.%d", &a, &b, &c)
 	return v, err == nil && n == 3 && v == fmt.Sprintf("v%d.%d.%d", a, b, c)
+}
+
+// avisoDeReemplazo dice qué blueprints sacó del lockfile un import que los reemplaza (RFC 0009) y que sus módulos
+// se vuelven a aplicar con el nuevo.
+func avisoDeReemplazo(e blueprints.LockEntry) string {
+	if len(e.Reemplazo) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("[+] %s reemplaza a %s: salió del lockfile y sus módulos pasaron a %s con su mismo id y sus respuestas. Vuelve a aplicarlos (qdd blueprint apply %s --modulo <módulo>) para responder lo nuevo.", e.ID, strings.Join(e.Reemplazo, ", "), e.ID, e.ID)
 }

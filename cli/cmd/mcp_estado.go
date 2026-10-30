@@ -19,7 +19,7 @@ import (
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
-		mcp.WithDescription("Estado por frente del proyecto (.qdd/project/estado.yaml, blueprint estado-por-frente con destino «archivo»). Al RETOMAR una sesión o empezar como agente nuevo, llama accion=ver y sigue desde los ⏳, sin rehacer lo hecho. Al AVANZAR, actualiza la celda con accion=set ANTES de reportar: un ✅ lleva evidencia (commit, versión, n/n pruebas o id de corrida), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Un frente se cierra con accion=cerrar y su motivo; nunca se borra. accion=check aplica el lector automático (EPF-C01…C07 y, con 'respuesta', EPF-A01). Las escrituras se validan: si violan una regla, no se escribe nada."),
+		mcp.WithDescription("Estado por frente del proyecto (.qdd/project/estado.yaml, blueprint estado-por-tareas, antes estado-por-frente, con destino «archivo»). Al RETOMAR una sesión o empezar como agente nuevo, llama accion=ver y sigue desde los ⏳, sin rehacer lo hecho. Al AVANZAR, actualiza la celda con accion=set ANTES de reportar: un ✅ lleva evidencia (commit, versión, n/n pruebas o id de corrida), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Un frente se cierra con accion=cerrar y su motivo; nunca se borra. accion=check aplica el lector automático (EPF-C01…C07 y, con 'respuesta', EPF-A01). Las escrituras se validan: si violan una regla, no se escribe nada."),
 		mcp.WithString("accion", mcp.Description("ver (por defecto) | set | cerrar | check")),
 		mcp.WithString("frente", mcp.Description("Id del frente (set, cerrar).")),
 		mcp.WithString("nombre", mcp.Description("Nombre del frente al crearlo (set).")),

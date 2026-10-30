@@ -31,6 +31,7 @@ objetivo_tecnologico:
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
         - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra primero, en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta y, si termina bien, sale de la cola.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
+        - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
         - Un frente nunca se borra; se cierra o se descarta con motivo.
@@ -61,4 +62,4 @@ fuentes:
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: b6de4c39c30a
+revisado_en_commit: 38a53cada0ed

@@ -36,7 +36,7 @@ func Diagnosticar(root string) []Diagnostico {
 		diagLegado(root, lock),
 		diagCentral(lock, err, faltan),
 		diagAcceso(lock, faltan),
-		diagVigencia(lock),
+		diagVigencia(root, lock),
 		diagModulos(root, lock),
 	}
 }
@@ -97,13 +97,13 @@ func diagAcceso(lock Lock, faltan []string) Diagnostico {
 	return Diagnostico{DiagAcceso, true, "acceso a " + strings.Join(repos, ", ")}
 }
 
-func diagVigencia(lock Lock) Diagnostico {
+func diagVigencia(root string, lock Lock) Diagnostico {
 	if len(lock.Blueprints) == 0 {
 		return Diagnostico{DiagVigencia, true, "sin blueprints de la organización"}
 	}
 	var detalle []string
 	for _, e := range lock.Blueprints {
-		for _, p := range checkVigencia(e) {
+		for _, p := range checkVigencia(root, e) {
 			detalle = append(detalle, p.Descripcion)
 		}
 	}

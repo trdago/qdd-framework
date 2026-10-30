@@ -106,6 +106,7 @@ type Blueprint struct {
 	Ficha        FichaBase   `yaml:"ficha"`
 	Conformidad  []Escenario `yaml:"conformidad,omitempty"`
 	Referencias  []string    `yaml:"referencias,omitempty"`
+	Reemplaza    []string    `yaml:"reemplaza,omitempty"` // RFC 0009: ids de la misma fuente que este blueprint reemplaza
 
 	Dir string `yaml:"-"`
 }
@@ -159,6 +160,7 @@ func (b Blueprint) Validate() []string {
 	problems = append(problems, b.validateVocabulario()...)
 	problems = append(problems, b.validatePreguntas()...)
 	problems = append(problems, b.validateEscenarios()...)
+	problems = append(problems, b.validateReemplaza()...)
 	return append(problems, b.validateReferencias()...)
 }
 

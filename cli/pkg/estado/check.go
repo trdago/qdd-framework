@@ -7,7 +7,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Lector automático de las invariantes del blueprint estado-por-frente (escenarios EPF-C01…C07). EPF-C08 (texto y
+// Lector automático de las invariantes del blueprint estado-por-tareas (antes estado-por-frente; escenarios EPF-C01…C07). EPF-C08 (texto y
 // tabla no se contradicen) necesita leer la prosa y queda como revisión humana.
 
 // Violacion es un escenario de conformidad que no se cumple.
