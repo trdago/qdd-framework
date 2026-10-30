@@ -92,7 +92,7 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd blueprint apply <id…> [--ruta …] [--modulo id] [--respuesta p=v …] [--prueba …]` | Pregunta las decisiones de diseño del blueprint (o las toma de `--respuesta`) y genera la ficha del módulo en **borrador**, sus escenarios de conformidad, el registro de decisiones y, si la carpeta no existe, un esqueleto `README.md`. Al volver a aplicarlo reutiliza las respuestas y conserva lo que el proyecto agregó a la ficha. |
 
 ### 🧭 Estado por frente y consola de Claude Code (RFC 0006)
-El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-frente`, destino «archivo»). La consola la muestra en un panel a la derecha de Claude Code (blueprint `consola-claude-code`).
+El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-frente`, destino «archivo»). La consola la muestra en un panel a la derecha de Claude Code (blueprint `consola-claude-code`) y, desde qdd 2.7.0, también en la barra lateral de OpenCode, de solo lectura.
 
 | Comando | Descripción |
 |---------|-------------|
@@ -102,8 +102,10 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd estado cerrar <frente>` | Cierra (o descarta) un frente con su motivo. Un frente nunca se borra en silencio. |
 | `qdd estado check [--respuesta r.md] [--json]` | Lector automático de los escenarios EPF-C01…C07 (y EPF-A01 con `--respuesta`); compara contra git HEAD para detectar frentes que desaparecen. Sale con 1 si hay violaciones. **Seguro.** |
 | `qdd estado watch` | Panel en vivo en la terminal, con la tabla, lo que espera cada ⏳ y las fallas (`q` o Ctrl-C para salir). **Seguro.** |
+| `qdd estado activa <tarea> [--fin] [--quien texto]` | Declara la tarea en curso (el panel la marca «● running»); con `--fin` la apaga. Se apaga sola a los 120 s sin pulsos. (qdd 2.7.0) |
+| `qdd estado pulso [<tarea>] [--fuente agente\|subagente\|comando]` | Señal de vida de la tarea en curso; sin tarea, late la última activada. Sin tarea en curso no imprime nada y sale con 0. **Seguro.** (qdd 2.7.0) |
 | `qdd estado statusline` | Resumen de una línea para una barra de estado; sin archivo no imprime nada y nunca falla. **Seguro.** |
-| `qdd consola activar [--recursos]` | Instala en Claude Code (alcance de usuario) el panel `qdd-estado` y la barra de QDD; con `--recursos`, la barra muestra disco, GPU, RAM y CPU. Una barra propia no se reemplaza sin dejar copia. Nada se escribe en el proyecto. |
+| `qdd consola activar [--recursos]` | Instala en Claude Code (alcance de usuario) el panel de QDD y la barra; si OpenCode está en la máquina, también su panel de solo lectura; con `--recursos`, la barra muestra disco, GPU, RAM y CPU. Una barra propia no se reemplaza sin dejar copia. Nada se escribe en el proyecto. |
 | `qdd consola actualizar` / `qdd consola desactivar` | Deja el panel en la versión de esta CLI, o lo quita y devuelve la barra anterior. |
 | `qdd consola estado` | Dice si la consola está activa y al día. **Seguro.** |
 | `qdd consola panel` | Lo que dibuja el panel, en JSON (estado por frente y acciones). Nunca falla. **Seguro.** |
@@ -134,7 +136,7 @@ Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP �
 
 | Tool MCP | Descripción |
 |---------|-------------|
-| `qdd_estado` | Estado por frente: `accion=ver` al retomar una sesión (seguir desde los ⏳), `set` al avanzar (antes de reportar), `cerrar` con motivo y `check` para el lector automático. Las escrituras se validan: si violan una regla, no se escribe nada. |
+| `qdd_estado` | Estado por frente: `accion=ver` al retomar una sesión (seguir desde los ⏳), `set` al avanzar (antes de reportar), `cerrar` con motivo y `check` para el lector automático; desde qdd 2.7.0, `activar`, `pulso` y `terminar` para la tarea en curso. Las escrituras se validan: si violan una regla, no se escribe nada. |
 | `qdd_consola_pedir` | Deja un comando en el panel para que la persona lo ejecute (comando, motivo y carpeta). Para lo que la IA no puede o no debe ejecutar, como publicar; la IA nunca lo ejecuta ella misma con `qdd consola accion`. |
 | `qdd_audit` | Lo mismo que `qdd audit`, para que la IA verifique su propio trabajo antes de proponer un commit. |
 | `qdd_certify` | Lo mismo que `qdd certify`. |
