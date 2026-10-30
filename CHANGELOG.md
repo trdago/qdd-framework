@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🔁 Un blueprint puede reemplazar a otro (RFC 0009)
+
+- **`reemplaza: [id]` en `blueprint.yaml`.** Sirve para cambiar el id de un estándar publicado o juntar dos en uno, como `estado-por-tareas`, que reemplaza a `estado-por-frente`.
+- **El gate lo avisa.** Si la fuente publicó el que reemplaza, `qdd audit` reporta `BP-07-REPLACED` con los comandos exactos para migrar. En ese caso ya no reporta `BP-06` para el viejo, y `qdd doctor` lo informa.
+- **`qdd blueprint add <nuevo>` migra.** Saca el viejo del lockfile y pasa tus módulos al nuevo, con su mismo id y sus respuestas. Después `qdd blueprint apply <nuevo> --modulo <módulo>` te pregunta solo lo nuevo. Un reemplazo de otra fuente no toca tu blueprint.
+- **`qdd estado` encuentra su ficha por el blueprint** que la generó (`estado-por-tareas` o, como legado, `estado-por-frente`), no por un id fijo.
+
 ### 🔢 El gate revisa el versionamiento semántico (CERT-024, FND-078)
 
 - **`qdd audit` verifica que el número de versión diga la verdad.** Si desde el último tag hay un commit `feat`, la versión nueva tiene que subir el MINOR; con `!` o `BREAKING CHANGE:`, el MAJOR (en `0.y.z`, el MINOR). Lo reporta como `VER-03-UNDERSIZED-BUMP` y dice qué versión corresponde.

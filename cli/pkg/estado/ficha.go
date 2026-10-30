@@ -5,8 +5,9 @@ import "strings"
 // Rule: Prohibido usar 'else'
 // Respuestas del blueprint guardadas en la ficha del módulo como decisiones «pregunta → valor».
 
-// ModuloID es el id de la ficha que genera el blueprint estado-por-frente.
-const ModuloID = "estado-por-frente"
+// Blueprints son los que generan la ficha del estado, en orden de preferencia: estado-por-tareas y, como legado,
+// estado-por-frente, al que reemplazó (RFC 0009). La ficha se busca por su blueprint y, si no, por estos ids.
+var Blueprints = []string{"estado-por-tareas", "estado-por-frente"}
 
 // Opciones lee las decisiones «clave → valor» de la ficha.
 func Opciones(decisiones []string) map[string]string {

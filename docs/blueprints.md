@@ -204,6 +204,7 @@ qdd blueprint release                     # etiqueta vX.Y.Z en el repositorio
 - `propose` calcula patch, minor o major según lo que cambió; `release` rechaza un blueprint que cambió sin pasar por `propose`.
 - Si SSH no tiene permiso de escritura (por ejemplo, una deploy key de solo lectura), `propose` y `release` reintentan por HTTPS con tus credenciales de git.
 - Los demás proyectos lo ven en su próximo `qdd audit` como `BP-06-BEHIND`.
+- **Cambiar el id de un blueprint** (o juntar dos en uno): crea el nuevo con `reemplaza: [id-viejo]`. Los proyectos que usan el viejo reciben `BP-07-REPLACED` y migran con `qdd blueprint add <nuevo>` ([RFC 0009](../rfcs/0009-blueprints-que-reemplazan.md)).
 
 ## 5. Con una IA
 
@@ -226,6 +227,7 @@ No hace falta usar la CLI. Las reglas que `qdd init` deja en tu IDE (`AGENTS.md`
 | `BP-04-MISSING` | El módulo se generó desde un blueprint que ya no está importado. | Vuelve a importarlo o quita la referencia de la ficha. |
 | `BP-05-LEGACY` | Queda una copia del esquema anterior dentro del proyecto (`.qdd/blueprints/`). | `qdd doctor --fix` la migra a la carpeta central; commitea el resultado. |
 | `BP-06-BEHIND` | Su fuente publicó una versión más nueva. | `qdd blueprint add <id>` y vuelve a aplicarlo con `qdd blueprint apply`. |
+| `BP-07-REPLACED` | Su fuente publicó otro blueprint que lo reemplaza (`reemplaza: [id]`). | `qdd blueprint add <nuevo>`: saca el viejo del lockfile y pasa tus módulos al nuevo, con su id y sus respuestas. Después `qdd blueprint apply <nuevo> --modulo <módulo>` para responder lo nuevo. |
 
 Las reglas `HEART-*` siguen vigilando que la ficha no quede atrás del código (ver [Reglas del gate](command-reference.md#reglas-del-gate)).
 

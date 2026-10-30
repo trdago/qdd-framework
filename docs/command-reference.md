@@ -92,7 +92,7 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd blueprint apply <id…> [--ruta …] [--modulo id] [--respuesta p=v …] [--prueba …]` | Pregunta las decisiones de diseño del blueprint (o las toma de `--respuesta`) y genera la ficha del módulo en **borrador**, sus escenarios de conformidad, el registro de decisiones y, si la carpeta no existe, un esqueleto `README.md`. Al volver a aplicarlo reutiliza las respuestas y conserva lo que el proyecto agregó a la ficha. |
 
 ### 🧭 Estado por frente y consola de Claude Code (RFC 0006)
-El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-frente`, destino «archivo»). La consola la muestra en un panel a la derecha de Claude Code (blueprint `consola-claude-code`) y, desde qdd 2.7.0, también en la barra lateral de OpenCode, de solo lectura.
+El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-tareas`, que reemplazó a `estado-por-frente`; destino «archivo»). La consola la muestra en un panel a la derecha de Claude Code (blueprint `consola-claude-code`) y, desde qdd 2.7.0, también en la barra lateral de OpenCode, de solo lectura.
 
 | Comando | Descripción |
 |---------|-------------|
@@ -207,6 +207,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `BP-04-MISSING` | El módulo se generó desde un blueprint que ya no está importado. | con blueprints |
 | `BP-05-LEGACY` | Queda una copia del esquema anterior dentro del proyecto (`.qdd/blueprints/`); `qdd doctor --fix` la migra. | con blueprints |
 | `BP-06-BEHIND` | La fuente del blueprint publicó una versión más nueva; `qdd blueprint add <id>` y volver a aplicarlo. | con blueprints |
+| `BP-07-REPLACED` | La fuente publicó un blueprint que reemplaza al importado (`reemplaza: [id]`); `qdd blueprint add <nuevo>` lo migra y el módulo conserva su id y sus respuestas (RFC 0009). | con blueprints |
 | `VER-01-INVALID-SEMVER` | La versión declarada (`package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION`) no es `MAJOR.MINOR.PATCH`. | `versioning` (activa por defecto) |
 | `VER-02-VERSION-REGRESSION` | La versión declarada es menor que un tag ya publicado. | `versioning` |
 | `VER-03-UNDERSIZED-BUMP` | El salto no cubre los cambios desde el último tag (Conventional Commits): un `feat` exige MINOR; `!` o `BREAKING CHANGE:`, MAJOR (MINOR en `0.y.z`). Dice la versión que corresponde. | `versioning` |

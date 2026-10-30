@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
@@ -37,7 +38,7 @@ var (
 var estadoCmd = &cobra.Command{
 	Use:   "estado",
 	Short: "Estado por frente: la tabla de frentes × etapas del proyecto (RFC 0006)",
-	Long: `Lee y escribe .qdd/project/estado.yaml (blueprint estado-por-frente, destino «archivo»).
+	Long: `Lee y escribe .qdd/project/estado.yaml (blueprint estado-por-tareas, antes estado-por-frente; destino «archivo»).
 
   qdd estado [--json]                imprime la tabla (markdown o mensajería, según la ficha; --json para un panel)
   qdd estado init                    crea el archivo con las etapas de la ficha
@@ -150,11 +151,25 @@ func estadoRaiz() string {
 }
 
 func estadoOpciones(root string) map[string]string {
-	m, ok := modules.Find(root, estado.ModuloID)
+	m, ok := fichaDelEstado(root)
 	if !ok {
 		return map[string]string{}
 	}
 	return estado.Opciones(m.ObjetivoTecnologico.Decisiones)
+}
+
+// fichaDelEstado busca la ficha por el blueprint que la generó (un proyecto migrado conserva el id de su módulo) y,
+// si no, por los ids de esos blueprints.
+func fichaDelEstado(root string) (modules.Module, bool) {
+	if m, ok := blueprints.FichaDeBlueprint(root, estado.Blueprints...); ok {
+		return m, true
+	}
+	for _, id := range estado.Blueprints {
+		if m, ok := modules.Find(root, id); ok {
+			return m, true
+		}
+	}
+	return modules.Module{}, false
 }
 
 func salirCon(format string, a ...any) {
@@ -212,7 +227,7 @@ func runEstadoInit(cmd *cobra.Command, args []string) {
 		}
 	}
 	if len(etapas) == 0 {
-		salirCon("la ficha %s no define etapas conocidas: pásalas con --etapas \"A,B,C\"", estado.ModuloID)
+		salirCon("la ficha del estado (%s) no define etapas conocidas: pásalas con --etapas \"A,B,C\"", strings.Join(estado.Blueprints, " o "))
 	}
 	if err := estado.Init(root, etapas, time.Now()); err != nil {
 		salirCon("%v", err)
