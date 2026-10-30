@@ -92,7 +92,7 @@ func diagAcceso(lock Lock, faltan []string) Diagnostico {
 		if len(faltan) == 0 {
 			return Diagnostico{DiagAcceso, true, fmt.Sprintf("sin conexión con %s; la carpeta central tiene todo lo que fija el lockfile", repo)}
 		}
-		return Diagnostico{DiagAcceso, false, fmt.Sprintf("no hay acceso a %s (%v). Esta máquina (o el CI) necesita acceso de solo lectura al repositorio: tu llave SSH o credencial git, o una deploy key / token en el CI.", repo, err)}
+		return Diagnostico{DiagAcceso, false, fmt.Sprintf("no hay acceso a %s (%v). Esta máquina (o el CI) necesita acceso de solo lectura al repositorio: tu llave SSH o credencial git, o una deploy key / token en el CI.%s", repo, err, sugerenciaHTTPS(repo))}
 	}
 	return Diagnostico{DiagAcceso, true, "acceso a " + strings.Join(repos, ", ")}
 }

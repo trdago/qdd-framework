@@ -1,0 +1,9 @@
+id: "FND-068"
+title: "Sin llave SSH, importar un repositorio de blueprints público fallaba sin decir que por HTTPS no hace falta"
+description: "El repositorio público trdago/qdd-blueprints se documentaba con su URL SSH (git@github.com:…). Quien no tiene llave SSH en GitHub recibía «Could not read from remote repository» de git, envuelto en «¿tienes acceso al repositorio?», al importar, sincronizar o en qdd doctor. Nada indicaba que la URL HTTPS del mismo repositorio funciona sin credenciales."
+impact: "Un repositorio de blueprints público parecía privado para cualquiera sin llave SSH configurada."
+action_taken: "Los errores de acceso al clonar o actualizar (add, sync, contribute, release) y el diagnóstico de acceso de qdd doctor agregan, para una URL SSH (usuario@host:ruta o ssh://), la URL HTTPS equivalente: «Si el repositorio es público no necesita llave SSH: usa https://…». El README del repositorio de blueprints enseña la URL HTTPS y tiene licencia MIT (trdago/qdd-blueprints#4)."
+test_result: "TestHTTPSEquivalente, TestAdd_WithoutSSHAccessSuggestsHTTPS y TestDoctor_WithoutSSHAccessSuggestsHTTPS (pkg/blueprints), con GIT_SSH_COMMAND=false: antes del arreglo el error no nombraba la URL HTTPS."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

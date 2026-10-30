@@ -376,7 +376,7 @@ func espacioDeTrabajo(repo string) (string, error) {
 		return espacio, clonarAtomico(repo, espacio)
 	}
 	if _, err := git(espacio, "fetch", "--quiet", "--prune", "--tags", "origin"); err != nil {
-		return "", fmt.Errorf("no se pudo actualizar '%s' (¿tienes acceso al repositorio?): %v", repo, err)
+		return "", sinAcceso("actualizar", repo, err)
 	}
 	return espacio, nil
 }
@@ -405,6 +405,7 @@ type Propuesta struct {
 	Commit  string
 	PR      string // URL del pull request; vacío si no se pudo abrir
 	Aviso   string // por qué no se abrió el PR y cómo abrirlo
+	Via     string // cómo se publicó la rama, si no fue por el origin (FND-063)
 }
 
 // abrirPR abre el pull request de la rama con la CLI de GitHub.
@@ -453,7 +454,7 @@ func Proponer(root, id, mensaje, origen string) (Propuesta, error) {
 	if p.Commit, err = git(espacio, "rev-parse", "HEAD"); err != nil {
 		return Propuesta{}, err
 	}
-	if _, err := git(espacio, "push", "--quiet", "-u", "origin", rama); err != nil {
+	if p.Via, err = empujar(espacio, repo, rama, "-u"); err != nil {
 		return p, fmt.Errorf("no se pudo publicar la rama %s en %s: %v", rama, repo, err)
 	}
 	p.PR, err = abrirPR(espacio, rama, titulo, cuerpoPR(id, p))
@@ -547,6 +548,7 @@ type Publicacion struct {
 	Tag     string
 	Cambio  string
 	Cambios []Novedad
+	Via     string // cómo se publicó, si no fue por el origin (FND-063)
 }
 
 // Publicar etiqueta lo integrado en la fuente indicada (origen) o, sin ella,
@@ -578,7 +580,7 @@ func Publicar(root, origen string) (Publicacion, error) {
 	if _, err := git(espacio, "tag", "--annotate", pub.Tag, "origin/HEAD", "-m", "Blueprints "+pub.Tag+" (qdd blueprint release)"); err != nil {
 		return Publicacion{}, err
 	}
-	if _, err := git(espacio, "push", "--quiet", "origin", "refs/tags/"+pub.Tag); err != nil {
+	if pub.Via, err = empujar(espacio, repo, "refs/tags/"+pub.Tag); err != nil {
 		git(espacio, "tag", "--delete", pub.Tag)
 		return Publicacion{}, fmt.Errorf("no se pudo publicar %s en %s: %v", pub.Tag, repo, err)
 	}

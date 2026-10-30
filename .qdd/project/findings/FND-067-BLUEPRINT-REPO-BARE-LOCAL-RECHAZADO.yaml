@@ -1,0 +1,9 @@
+id: "FND-067"
+title: "qdd blueprint add rechazaba una ruta local a un repositorio bare como «no es un repositorio git»"
+description: "resolverOrigen (cli/pkg/blueprints/source.go) trata una carpeta local como repositorio si 'git rev-parse --show-toplevel' encuentra su árbol de trabajo. Un repositorio bare no tiene árbol de trabajo, así que se rechazaba con «no es un repositorio git», aunque git lo clona sin problema. Se detectó en la prueba E2E de v2.5.0 con dos fuentes en disco."
+impact: "Un repositorio de blueprints compartido como bare en un disco de red o un servidor de archivos no se podía importar por su ruta; había que adivinar que con file:// sí funcionaba."
+action_taken: "repoLocal acepta la carpeta raíz de un repositorio bare (git rev-parse --is-bare-repository y --absolute-git-dir) como fuente sin subcarpeta. Una ruta dentro de un repositorio bare se rechaza indicando su raíz."
+test_result: "TestAdd_FromALocalBareRepository (pkg/blueprints): antes del arreglo fallaba con «no es un repositorio git»; ahora importa y el lockfile nombra la ruta tal como se indicó."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

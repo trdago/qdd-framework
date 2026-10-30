@@ -1,7 +1,7 @@
 id: "FND-063"
 type: "bug"
 title: "qdd blueprint propose y release solo publican por SSH: con una deploy key sin escritura fallan aunque gh tenga sesión"
-status: "open"
+status: "resolved"
 categoria: "correccion"
 detectado_por: "ia"
 severity: "medium"
@@ -35,3 +35,13 @@ resolution:
   propuesta: >
     Si el push SSH falla por permisos y el origen es de github.com, reintentar contra la URL HTTPS equivalente (git
     usa el credential helper de gh) y decirlo en la salida; prueba de regresión con un remoto que rechaza SSH.
+  action_taken: >
+    propose y release publican con empujar (cli/pkg/blueprints/publicas.go): si el push al origin falla y el origin
+    es una URL SSH, reintentan contra la URL HTTPS del mismo repositorio, que usa las credenciales de git (el credential
+    helper de gh). La salida lo dice (Propuesta.Via, Publicacion.Via) y el PR se abre igual. Si HTTPS también falla,
+    el error nombra los dos intentos. Se reprodujo de nuevo el 2026-10-30 al publicar trdago/qdd-blueprints#4.
+  test_result: >
+    TestProponer_PublishesOverHTTPSWhenSSHCannotPush y TestPublicar_TagsOverHTTPSWhenSSHCannotPush (pkg/blueprints),
+    con un origin cuyo push falla: antes del arreglo fallaban con «no se pudo publicar»; ahora la rama y el tag llegan
+    al repositorio y Via menciona HTTPS.
+  resolved_at: "2026-10-30"
