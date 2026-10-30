@@ -40,4 +40,4 @@ fuentes:
     - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 38a53cada0ed
+revisado_en_commit: 1f4a9adc7578
