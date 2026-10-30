@@ -13,6 +13,7 @@ import (
 
 func proyectoConTareas(t *testing.T, ids ...string) string {
 	t.Helper()
+	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
 	yaml := "formato: 1\netapas: [Código]\nfrentes:\n"
 	for _, id := range ids {
@@ -37,8 +38,12 @@ func TestActividad_ElAgenteDeclaraYLaTareaQuedaEnCurso_EPT_C01(t *testing.T) {
 	if len(en) != 1 || en["a"].Fuente != FuenteAgente || en["a"].Quien != "claude-code" {
 		t.Fatalf("la tarea declarada queda en curso: %+v", en)
 	}
-	if _, err := os.Stat(filepath.Join(root, RutaActividad)); err != nil {
-		t.Fatal("la actividad vive en .qdd/working (local, fuera de estado.yaml)")
+	ruta, err := RutaLocal(root, CarpetaActividad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(ruta); err != nil {
+		t.Fatal("la actividad vive en la carpeta central de QDD (local, fuera del repositorio y de estado.yaml)")
 	}
 	antes, _ := os.ReadFile(filepath.Join(root, Ruta))
 	if strings.Contains(string(antes), "pulso") {
@@ -120,7 +125,7 @@ func TestActividad_TerminarYCerrarLaApagan_EPT_C06(t *testing.T) {
 
 func TestActividad_ArchivoIlegibleEsSinTareasEnCurso(t *testing.T) {
 	root := proyectoConTareas(t, "a")
-	ruta := filepath.Join(root, RutaActividad)
+	ruta, _ := RutaLocal(root, CarpetaActividad)
 	_ = os.MkdirAll(filepath.Dir(ruta), 0o755)
 	_ = os.WriteFile(ruta, []byte("{roto"), 0o644)
 	if en := EnCurso(LeerActividad(root), ahora); len(en) != 0 {
@@ -153,5 +158,45 @@ func TestDatosEnCurso_LaTareaEnCursoSiempreSeVe_EPT_C07(t *testing.T) {
 	vencida := DatosEnCurso(mustParse(t, yaml), act, ahora.Add(VidaActividad+time.Second), 4)
 	if len(vencida.Frentes) != 4 || vencida.Actual != "" {
 		t.Fatalf("vencida, vuelve el tope de 4 y no hay actual: %d %q", len(vencida.Frentes), vencida.Actual)
+	}
+}
+
+// FND-079: .qdd/working es el archivo con el comando qdd en curso (root.go) y no puede ser una carpeta; con la
+// actividad dentro de él, activar fallaba con «not a directory» y la tarea nunca quedaba «● running».
+func TestActividad_NoChocaConElArchivoWorking_FND079(t *testing.T) {
+	root := proyectoConTareas(t, "a")
+	working := filepath.Join(root, ".qdd", "working")
+	if err := os.WriteFile(working, []byte("qdd"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Activar(root, "a", "claude-code", ahora); err != nil {
+		t.Fatalf("activar funciona con .qdd/working como archivo: %v", err)
+	}
+	if got, err := Pulsar(root, "", FuenteAgente, ahora.Add(time.Second)); err != nil || got != "a" {
+		t.Fatalf("el pulso late la tarea: %q, %v", got, err)
+	}
+	if en := EnCurso(LeerActividad(root), ahora.Add(2*time.Second)); len(en) != 1 {
+		t.Fatalf("la tarea queda en curso: %+v", en)
+	}
+	data, _ := os.ReadFile(working)
+	if string(data) != "qdd" {
+		t.Fatal(".qdd/working no se toca")
+	}
+}
+
+func TestRutaLocal_FueraDelRepositorioYPorProyecto(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("QDD_HOME", home)
+	uno, dos := filepath.Join(t.TempDir(), "Mi Proyecto"), filepath.Join(t.TempDir(), "Mi Proyecto")
+	r1, err := RutaLocal(uno, "actividad")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2, _ := RutaLocal(dos, "actividad")
+	if !strings.HasPrefix(r1, filepath.Join(home, "claude", "actividad", "mi-proyecto-")) || !strings.HasSuffix(r1, ".json") {
+		t.Fatalf("<QDD_HOME>/claude/<carpeta>/<slug>-<hash>.json: %s", r1)
+	}
+	if r1 == r2 {
+		t.Fatal("dos proyectos con el mismo nombre no comparten archivo")
 	}
 }

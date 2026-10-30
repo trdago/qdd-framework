@@ -273,7 +273,9 @@ Decisión del humano (2026-10-30; aprobada con «resuelve de forma autónoma tod
 se ejecuta, de forma sutil y elegante. **La declara el agente**; laten las herramientas del agente, los subagentes y los
 comandos externos; se ve como **punto + running**.
 
-- **Dónde vive.** En `.qdd/working/actividad.json`, que es local y está en `.gitignore`. Es actividad, no estado:
+- **Dónde vive.** En `<QDD_HOME>/claude/actividad/<carpeta>-<hash>.json`, fuera del repositorio y con la misma clave
+  por proyecto que la cola de pedidos (§3.9; una sola función, `RutaLocal`). No va en `.qdd/working`: ese es el archivo
+  donde cada comando qdd anota su nombre mientras corre (FND-079). Es actividad, no estado:
   `estado.yaml` no cambia y nada se commitea. Por cada tarea guarda `desde`, `pulso` (la última señal de vida),
   `fuente` (`agente` | `subagente` | `comando`) y `quien` (opcional). Se escribe de forma atómica; si el archivo falta o
   no se puede leer, no hay tareas en curso.

@@ -2,8 +2,6 @@ package consola
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,13 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/estado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -78,21 +75,12 @@ func (p Pedido) Ejecutable() bool {
 	return p.Estado == EstadoPendiente || p.Estado == EstadoFallo
 }
 
-var noSlug = regexp.MustCompile(`[^a-z0-9]+`)
+// RutaLocal es un archivo local del proyecto, fuera del repositorio: <QDD_HOME>/claude/<carpeta>/<slug>-<hash>.json.
+var RutaLocal = estado.RutaLocal
 
-// colaPath es el archivo de la cola del proyecto: <QDD_HOME>/claude/pedidos/<carpeta>-<hash>.json.
+// colaPath es el archivo de la cola del proyecto: <QDD_HOME>/claude/pedidos/<slug>-<hash>.json.
 func colaPath(root string) (string, error) {
-	home, err := blueprints.Home()
-	if err != nil {
-		return "", err
-	}
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256([]byte(abs))
-	slug := strings.Trim(noSlug.ReplaceAllString(strings.ToLower(filepath.Base(abs)), "-"), "-")
-	return filepath.Join(home, "claude", "pedidos", slug+"-"+hex.EncodeToString(sum[:])[:12]+".json"), nil
+	return RutaLocal(root, "pedidos")
 }
 
 // Pedidos devuelve la cola del proyecto en el orden en que se pidió, ya normalizada a la hora now: los hechos de

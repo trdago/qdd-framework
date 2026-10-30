@@ -11,11 +11,12 @@ import (
 // Rule: Prohibido usar 'else'
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el agente declara la tarea que trabaja y cada señal de
 // vida (una herramienta del agente, un subagente o un comando externo) la hace latir. Es actividad, no estado: vive en
-// .qdd/working/actividad.json (local, fuera de git) y estado.yaml no cambia. Sin pulso durante VidaActividad, la tarea
+// RutaLocal(root, CarpetaActividad), fuera del repositorio, y estado.yaml no cambia. No va en .qdd/working: ese es el
+// archivo con el comando qdd en curso (FND-079). Sin pulso durante VidaActividad, la tarea
 // deja de estar en curso, así un agente que se cae no la deja encendida.
 
 const (
-	RutaActividad = ".qdd/working/actividad.json"
+	CarpetaActividad = "actividad"
 	VidaActividad = 120 * time.Second
 
 	FuenteAgente    = "agente"
@@ -41,7 +42,11 @@ type Actividades struct {
 // LeerActividad devuelve la actividad del proyecto; sin archivo legible no hay tareas en curso.
 func LeerActividad(root string) Actividades {
 	a := Actividades{Formato: 1, Tareas: map[string]Actividad{}}
-	data, err := os.ReadFile(filepath.Join(root, RutaActividad))
+	ruta, err := RutaLocal(root, CarpetaActividad)
+	if err != nil {
+		return a
+	}
+	data, err := os.ReadFile(ruta)
 	if err != nil {
 		return a
 	}
@@ -158,7 +163,10 @@ func guardarActividad(root string, a Actividades, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	dest := filepath.Join(root, RutaActividad)
+	dest, err := RutaLocal(root, CarpetaActividad)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}

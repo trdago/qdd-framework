@@ -60,6 +60,7 @@ func TestEstadoTool_CerrarExigeMotivo(t *testing.T) {
 
 // §3.13 (blueprint estado-por-tareas): el agente declara la tarea en curso por MCP, la hace latir y la termina.
 func TestEstadoTool_ActivarPulsoYTerminar_EPT_C01(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
 	root := chdirToTempRepo(t)
 	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
 		t.Fatal(err)
