@@ -382,3 +382,15 @@ test('sin tarea en curso, las herramientas no envían pulsos', async ($, on) => 
   await $.tool.call({ tool: 'Bash', command: 'ls' })
   expect(llamadas.some((a) => a[2] === 'pulso')).toBe(false)
 })
+
+test('el resumen cuenta «▶ N para ti» solo con los pedidos que se pueden ejecutar', async ($, on) => {
+  const hecho = { ...PEDIDO, id: 'pedido:2', tecla: undefined, estado: 'hecho' }
+  const salida = ok({ ...PANEL, acciones: [PEDIDO, hecho, ...ACCIONES] })
+  const clock = preparar(on, salida)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '▶ 1 para ti' })).toMatchObject({ props: { color: 'yellow' } })
+  salida.stdout = JSON.stringify({ ...PANEL, acciones: [hecho, ...ACCIONES] })
+  await clock.advance(2000)
+  expect(await ui.find({ type: 'Text', text: /para ti$/ })).toBeUndefined()
+})

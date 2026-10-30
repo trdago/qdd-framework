@@ -193,7 +193,8 @@ Decisiones del humano (2026-10-30):
 
 **Panel liviano.** La cabecera es una línea `Tareas · HH:MM` en cian y negrita, con la versión de qdd
 atenuada a la derecha (`version` en `qdd consola panel --json`), y debajo el resumen en una línea con el color de cada
-conteo: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`. Ya no hay recuadro ni números de 3 filas. Las listas de ⏳ y ❌ van en
+conteo: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`, más `▶ N para ti` si hay comandos de §3.9 que se pueden
+  ejecutar (pendientes o con falla; lo mismo en OpenCode). Ya no hay recuadro ni números de 3 filas. Las listas de ⏳ y ❌ van en
 dos líneas por elemento: `• frente › etapa` y, atenuado, `→ qué falta · de quién`. La tabla, los botones, la
 confirmación y el recuadro del resultado no cambian.
 

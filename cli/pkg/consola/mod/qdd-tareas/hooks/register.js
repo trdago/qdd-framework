@@ -193,8 +193,12 @@ function cuantas(e) {
 }
 
 // cabecera: título con la hora y la versión de qdd a la derecha, y el resumen en una línea con el color de cada conteo.
-function cabecera(Box, Text, e, version) {
+function cabecera(Box, Text, e, version, lista = []) {
   const cuando = hora(e.actualizado)
+  const paraTiN = lista.filter((a) => a.tipo === 'pedido' && ejecutable(a)).length
+  const paraTiTexto = paraTiN > 0
+    ? [Text({ dimColor: true, children: ['·'] }), Text({ key: 'r-para-ti', color: 'yellow', weight: 'semibold', children: ['▶ ' + paraTiN + ' para ti'] })]
+    : []
   return Box({
     key: 'cabecera',
     flexDirection: 'column',
@@ -218,6 +222,7 @@ function cabecera(Box, Text, e, version) {
           Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + e.esperas.length + ' esperan'] }),
           Text({ dimColor: true, children: ['·'] }),
           Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + e.fallas.length + ' fallan'] }),
+          ...paraTiTexto,
         ],
       }),
     ],
@@ -513,7 +518,7 @@ function dibujar($, Box, Text, Button, ancho) {
     flexDirection: 'column',
     children: [
       ...arriba,
-      cabecera(Box, Text, e, datos.version),
+      cabecera(Box, Text, e, datos.version, lista),
       tabla(Box, Text, Button, $, e, lista, ancho),
       ...acciones(Box, Text, Button, $, lista),
       ...seccion(Box, Text, 's-esperas', '⏳ Esperando', 'yellow', e.esperas, true),

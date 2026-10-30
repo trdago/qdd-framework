@@ -63,3 +63,10 @@ test('las herramientas del agente de OpenCode laten, con un pulso a la CLI cada 
   assert.equal(tocaEnviar(10000, 6000), false)
   assert.equal(tocaEnviar(11000, 6000), true)
 })
+
+test('el resumen cuenta «▶ N para ti» con los pedidos que se pueden ejecutar', () => {
+  const pedidos = [{ id: 'pedido:1', tipo: 'pedido', estado: 'pendiente' }, { id: 'pedido:2', tipo: 'pedido', estado: 'hecho' }]
+  const v = vista({ estado: ESTADO, acciones: [...pedidos, ...ACCIONES] }, '')
+  assert.equal(v.resumen.at(-1).texto, '▶ 1 para ti')
+  assert.equal(vista({ estado: ESTADO, acciones: [pedidos[1]] }, '').resumen.length, 3)
+})

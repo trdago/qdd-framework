@@ -47,6 +47,7 @@ export function vista(datos, falla) {
       { texto: cuantas(e), tono: 'primary' },
       { texto: '⏳ ' + e.esperas.length, tono: 'warning' },
       { texto: '❌ ' + e.fallas.length, tono: 'error' },
+      ...(paraTi(datos.acciones) > 0 ? [{ texto: '▶ ' + paraTi(datos.acciones) + ' para ti', tono: 'warning' }] : []),
     ],
     cabecera: e.abreviaturas.join(' '),
     filas: e.frentes.map((f) => ({
@@ -100,4 +101,10 @@ export function fuenteDePulso(evento) {
 // tocaEnviar aplica el tope de un pulso a la CLI cada PULSO_MIN_MS.
 export function tocaEnviar(ahora, ultimo) {
   return ahora - ultimo >= PULSO_MIN_MS
+}
+
+// paraTi cuenta los comandos que la IA dejó para la persona y que todavía se pueden ejecutar (pendientes o con falla;
+// un qdd anterior a 2.6.2 no trae estado: cuenta como pendiente). Se ejecutan desde Claude Code.
+export function paraTi(acciones) {
+  return (acciones || []).filter((a) => a.tipo === 'pedido' && (!a.estado || a.estado === 'pendiente' || a.estado === 'fallo')).length
 }

@@ -17,7 +17,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 - **Tareas.** En el panel, los frentes se llaman tareas. Se ven solo las 4 pendientes más nuevas, y las más antiguas se resumen en «+5 más antiguas».
 - **✕ para descartar.** Cada tarea tiene una ✕ al final de su fila. Pide «s  Sí» y la pasa a «descartado» con su motivo: sale del panel y queda en el archivo.
-- **Panel liviano.** La cabecera pasa a ser una línea con la hora y la versión de qdd, y el resumen va en otra línea con colores: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`. Ya no hay recuadro ni números grandes. Las listas de ⏳ y ❌ ocupan dos líneas por elemento.
+- **Panel liviano.** La cabecera pasa a ser una línea con la hora y la versión de qdd, y el resumen va en otra línea con colores: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`. Si hay comandos para ti que se pueden ejecutar, el resumen suma `▶ N para ti`. Ya no hay recuadro ni números grandes. Las listas de ⏳ y ❌ ocupan dos líneas por elemento.
 - **Un frente terminado sale del panel.** Si todas sus etapas están en ✅ o —, o si está cerrado o descartado, deja de verse en el acto. Sigue en `estado.yaml` y en `qdd estado ver --todos`.
 - **Aprobar sin commits.** En un repositorio sin commits, el aviso ya no queda como «(revisada en )».
 
