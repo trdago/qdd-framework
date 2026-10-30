@@ -14,6 +14,7 @@ type DatosPanel struct {
 	Ocultos      int           `json:"ocultos"` // pendientes que no entran en el tope de DatosPendientes (los más antiguos)
 	Esperas      []Pendiente   `json:"esperas"`
 	Fallas       []Pendiente   `json:"fallas"`
+	Actual       string        `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
 }
 
 // FrentePanel es una fila: un símbolo por etapa, en el orden de Etapas.
@@ -22,6 +23,15 @@ type FrentePanel struct {
 	Nombre   string   `json:"nombre"`
 	Estado   string   `json:"estado"`
 	Simbolos []string `json:"simbolos"`
+	// Actividad solo va en una tarea en curso (§3.13): el panel muestra «● running» y destella cuando cambia Pulso.
+	Actividad *ActividadPanel `json:"actividad,omitempty"`
+}
+
+// ActividadPanel es la señal de vida de una tarea en curso, ya resuelta para el que dibuja.
+type ActividadPanel struct {
+	Running bool   `json:"running"`
+	Pulso   string `json:"pulso"`
+	Fuente  string `json:"fuente"`
 }
 
 // Pendiente es un ⏳ (qué espera y de quién) o un ❌ (la falla nombrada).
@@ -42,19 +52,43 @@ func Datos(e Estado, now time.Time) DatosPanel {
 // Un frente terminado, cerrado o descartado sale del panel en el acto; sigue en el archivo y en 'qdd estado ver --todos'.
 // Ocultos cuenta los pendientes más antiguos que no entran.
 func DatosPendientes(e Estado, now time.Time, tope int) DatosPanel {
+	return DatosEnCurso(e, Actividades{}, now, tope)
+}
+
+// DatosEnCurso es DatosPendientes con la actividad (§3.13): una tarea abierta en curso siempre se ve, aunque no esté
+// entre las tope más nuevas, y lleva su Actividad. Ocultos cuenta solo las pendientes que no se ven.
+func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel {
+	enCurso := EnCurso(act, now)
+	visibles := map[string]bool{}
 	var pendientes []string
 	for _, f := range e.Frentes {
-		if f.Estado == EstadoAbierto && !f.Terminado(e.Etapas) {
+		if f.Estado != EstadoAbierto {
+			continue
+		}
+		if _, ok := enCurso[f.ID]; ok {
+			visibles[f.ID] = true
+			continue
+		}
+		if !f.Terminado(e.Etapas) {
 			pendientes = append(pendientes, f.ID)
 		}
 	}
 	ocultos := max(len(pendientes)-tope, 0)
-	visibles := map[string]bool{}
 	for _, id := range pendientes[ocultos:] {
 		visibles[id] = true
 	}
 	d := datos(e, now, func(f Frente) bool { return f.Estado == EstadoAbierto && visibles[f.ID] })
 	d.Ocultos = ocultos
+	for i, f := range d.Frentes {
+		a, ok := enCurso[f.ID]
+		if !ok {
+			continue
+		}
+		d.Frentes[i].Actividad = &ActividadPanel{Running: true, Pulso: a.Pulso, Fuente: a.Fuente}
+	}
+	if _, ok := enCurso[act.Ultima]; ok && visibles[act.Ultima] {
+		d.Actual = act.Ultima
+	}
 	return d
 }
 

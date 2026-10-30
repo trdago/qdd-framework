@@ -82,7 +82,7 @@ func Panel(root string, now time.Time) DatosConsola {
 		d.Acciones = Acciones(root, false)
 		return d
 	}
-	datos := estado.DatosPendientes(e, now, MaxTareas)
+	datos := estado.DatosEnCurso(e, estado.LeerActividad(root), now, MaxTareas)
 	d.Estado = &datos
 	d.Acciones = Acciones(root, true)
 	return d

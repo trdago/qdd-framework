@@ -15,6 +15,12 @@ const TOPE_MS = 3000
 const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
+// Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
+// fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
+// como mucho cada PULSO_MIN_MS.
+const LATIDO_MS = 500
+const PULSO_MIN_MS = 5000
+const ACENTO = 'cyan'
 
 let datos = null // { estado, motivo, acciones }
 let falla = ''
@@ -28,6 +34,10 @@ const pedidosVistos = new Set() // ids de los pedidos que ya abrieron el panel
 // estado): id → { estado, fin }. Así un pedido aceptado nunca vuelve a ofrecerse.
 const locales = new Map()
 let inicio = '' // HOME, para acortar la carpeta a ~/…
+let tic = 0 // tics del latido; la fase cambia cada 2
+const destellos = {} // id → tics de destello que quedan
+const pulsos = {} // id → último pulso visto en el JSON
+let ultimoEnvio = -Infinity // cuándo se envió el último pulso a la CLI
 
 async function binario($) {
   const propio = await $.env.get('QDD_BIN')
@@ -51,8 +61,57 @@ async function leer($) {
   firma = huella
   datos = nuevo
   falla = motivo
+  verPulsos()
   $.ui.invalidate('ui.render')
   await abrirSiLlegaUnPedido($)
+}
+
+// verPulsos marca un destello en cada tarea cuyo pulso cambió desde la lectura anterior (lo deja cualquier fuente).
+function verPulsos() {
+  for (const f of datos?.estado?.frentes || []) {
+    const pulso = f.actividad?.pulso
+    if (!pulso) continue
+    if (pulsos[f.id] && pulsos[f.id] !== pulso) destellos[f.id] = 2
+    pulsos[f.id] = pulso
+  }
+}
+
+function hayEnCurso() {
+  return (datos?.estado?.frentes || []).some((f) => f.actividad?.running)
+}
+
+// latir avanza el tic local y redibuja solo si hay una tarea en curso o un destello pendiente.
+function latir($) {
+  const habia = Object.values(destellos).some((n) => n > 0)
+  for (const id of Object.keys(destellos)) destellos[id] = Math.max(0, destellos[id] - 1)
+  if (!hayEnCurso() && !habia) return
+  tic += 1
+  $.ui.invalidate('ui.render')
+}
+
+// pulsar destella al instante la tarea actual y, como mucho cada PULSO_MIN_MS, deja el pulso en la CLI sin esperar:
+// la herramienta o el subagente siguen su curso aunque qdd tarde o falle.
+async function pulsar($, fuente) {
+  const actual = datos?.estado?.actual
+  if (!actual) return
+  destellos[actual] = 2
+  $.ui.invalidate('ui.render')
+  const ahora = await $.clock.now()
+  if (ahora - ultimoEnvio < PULSO_MIN_MS) return
+  ultimoEnvio = ahora
+  const bin = await binario($)
+  $.process.run([bin, 'estado', 'pulso', '--fuente', fuente], { timeoutMs: TOPE_MS }).catch(() => {})
+}
+
+// enCurso: «● running» de una tarea en curso; el ● alterna tenue y brillante, y destella en acento con un pulso.
+function enCurso(Text, f) {
+  if (!f.actividad?.running) return []
+  const destella = (destellos[f.id] || 0) > 0
+  const brillante = Math.floor(tic / 2) % 2 === 0
+  return [
+    Text({ key: 'run-' + f.id, color: destella ? ACENTO : colorFrente(f), dimColor: !destella && !brillante, children: ['●'] }),
+    Text({ key: 'runt-' + f.id, dimColor: true, size: 'caption', children: ['running'] }),
+  ]
 }
 
 // Un comando pedido por la IA abre el panel (sin quitarle el foco a la conversación), una vez por pedido.
@@ -194,7 +253,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     marginTop: 1,
     children: [
       fila('cab', 'Tarea', e.abreviaturas.join(' '), { dimColor: true, size: 'caption' }, []),
-      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, celdas(f.simbolos), { color: colorFrente(f) }, equis(f))),
+      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, celdas(f.simbolos), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])),
       ...antiguas,
       Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [leyenda] }),
     ],
@@ -477,6 +536,9 @@ export function register(on) {
     $.clock.every(INTERVALO_MS, async () => {
       await leer($)
     })
+    $.clock.every(LATIDO_MS, async () => {
+      latir($)
+    })
     // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
     if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
     iniciado = true
@@ -496,6 +558,18 @@ export function register(on) {
     await leer($)
     await $.ui.open({ id: PANE, title: TITULO, focus: true })
     return {}
+  })
+
+  // Pulsos de vida (§3.13): cada herramienta del agente y cada subagente laten la tarea en curso. next(e) va primero
+  // y sin esperar al pulso.
+  on('tool.call', async ($, e, next) => {
+    pulsar($, 'agente')
+    return next(e)
+  })
+
+  on('agent.spawn', async ($, e, next) => {
+    pulsar($, 'subagente')
+    return next(e)
   })
 
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {

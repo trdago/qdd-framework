@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [v2.7.0] - 2026-10-30
 
+### ● Tarea en curso y pulsos de vida (RFC 0006 §3.13, blueprint nuevo `estado-por-tareas` v1.0.0)
+
+- **«● running» en la fila de la tarea que se trabaja.** El agente la declara con `qdd estado activa <tarea>` o con `qdd_estado accion=activar`. El `●` alterna entre tenue y brillante cada 1 s, y «running» va atenuado. Una tarea en curso siempre se ve, aunque no esté entre las 4 más nuevas.
+- **Pulsos de vida.** Cada herramienta del agente y cada subagente, en Claude Code y en OpenCode, hacen destellar el `●` en el color de acento. Los comandos externos (scripts, tests, deploys, workers) laten con `qdd estado pulso <tarea> --fuente comando`. El panel envía como mucho un pulso cada 5 s y nunca demora la herramienta.
+- **Se apaga sola.** Una tarea que pasa 120 s sin pulsos deja de estar en curso. También se apaga con `qdd estado activa <tarea> --fin`, al cerrarla o al descartarla.
+- **No es estado.** La actividad vive en `.qdd/working/actividad.json`, que es local y no se commitea. `estado.yaml` no cambia. `qdd consola panel --json` agrega `actividad` en cada tarea en curso y `actual` a nivel del estado.
+
 ### 🪶 Panel liviano y solo lo pendiente (RFC 0006 §3.10, `consola-claude-code` v6.0.0)
 
 - **Tareas.** En el panel, los frentes se llaman tareas. Se ven solo las 4 pendientes más nuevas, y las más antiguas se resumen en «+5 más antiguas».

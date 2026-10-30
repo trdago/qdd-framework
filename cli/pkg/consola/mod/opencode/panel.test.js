@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { vista, motivoDeSalida, celdas } from './panel.js'
+import { vista, motivoDeSalida, celdas, destellosNuevos, brillo, fuenteDePulso, tocaEnviar } from './panel.js'
 
 const ESTADO = {
   actualizado: '2026-10-30T02:40:00-03:00',
@@ -40,4 +40,26 @@ test('sin estado.yaml, sin qdd o con un qdd antiguo dice el motivo', () => {
 
 test('alinea ✅ ⏳ ❌ (2 columnas) con — (1 columna)', () => {
   assert.equal(celdas(['✅', '—', '⏳']), '✅ —  ⏳')
+})
+
+test('la tarea en curso: running, destello con un pulso nuevo y latido de 1 s (EPT-C11)', () => {
+  const conPulso = (pulso) => ({ ...ESTADO, actual: 'a', frentes: [{ ...ESTADO.frentes[0], actividad: { running: true, pulso, fuente: 'agente' } }, ESTADO.frentes[1]] })
+  const v = vista({ estado: conPulso('10:00:00'), acciones: [] }, '')
+  assert.deepEqual(v.filas.map((f) => f.running), [true, false])
+  assert.equal(v.actual, 'a')
+  const vistos = {}
+  assert.deepEqual(destellosNuevos(vistos, v.filas), [], 'la primera lectura no destella')
+  assert.deepEqual(destellosNuevos(vistos, vista({ estado: conPulso('10:00:07'), acciones: [] }, '').filas), ['a'])
+  assert.deepEqual([0, 1, 2, 3].map((t) => brillo(t, false)), ['brillante', 'brillante', 'tenue', 'tenue'])
+  assert.equal(brillo(3, true), 'acento')
+})
+
+test('las herramientas del agente de OpenCode laten, con un pulso a la CLI cada 5 s como mucho (EPT-C12)', () => {
+  const ev = (tool, status) => ({ type: 'message.part.updated', properties: { part: { type: 'tool', tool, state: { status } } } })
+  assert.equal(fuenteDePulso(ev('bash', 'running')), 'agente')
+  assert.equal(fuenteDePulso(ev('task', 'running')), 'subagente')
+  assert.equal(fuenteDePulso(ev('bash', 'completed')), '')
+  assert.equal(fuenteDePulso({ properties: { part: { type: 'text' } } }), '')
+  assert.equal(tocaEnviar(10000, 6000), false)
+  assert.equal(tocaEnviar(11000, 6000), true)
 })

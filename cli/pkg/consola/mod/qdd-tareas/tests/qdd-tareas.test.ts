@@ -314,3 +314,71 @@ test('un pedido hecho no vuelve a abrir el panel', async ($, on) => {
   await clock.advance(2000)
   expect(aperturas.length).toBe(0)
 })
+
+// RFC 0006 §3.13, blueprint estado-por-tareas: la tarea en curso dice «● running», el ● late y destella con cada pulso.
+const EN_CURSO = (pulso: string) => ({
+  ...PANEL,
+  estado: {
+    ...ESTADO,
+    actual: 'gemini',
+    frentes: ESTADO.frentes.map((f) => (f.id === 'gemini' ? { ...f, actividad: { running: true, pulso, fuente: 'agente' } } : f)),
+  },
+})
+
+test('la tarea en curso dice «● running» y el ● alterna tenue y brillante cada 1 s (EPT-C08)', async ($, on) => {
+  const clock = preparar(on, ok(EN_CURSO('2026-10-30T10:00:00-03:00')))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'running' })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.findAll({ type: 'Text', text: '●' })).toHaveLength(1)
+  const brillo = async () => !!(await ui.find({ type: 'Text', text: '●' }))?.props?.dimColor
+  const antes = await brillo()
+
+  await clock.advance(1000)
+  expect(await brillo()).toBe(!antes)
+  await clock.advance(1000)
+  expect(await brillo()).toBe(antes)
+})
+
+test('un pulso nuevo en el JSON hace destellar el ● en acento (EPT-C09)', async ($, on) => {
+  const salida = ok(EN_CURSO('2026-10-30T10:00:00-03:00'))
+  const clock = preparar(on, salida)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '●' })).not.toMatchObject({ props: { color: 'cyan' } })
+  salida.stdout = JSON.stringify(EN_CURSO('2026-10-30T10:00:07-03:00'))
+  await clock.advance(2000)
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: 'cyan' } })
+  await clock.advance(1000)
+  expect(await ui.find({ type: 'Text', text: '●' })).not.toMatchObject({ props: { color: 'cyan' } })
+})
+
+test('cada herramienta del agente late la tarea sin demorarla, con un pulso a la CLI cada 5 s como mucho (EPT-C10)', async ($, on) => {
+  const llamadas: string[][] = []
+  const clock = preparar(on, ok(EN_CURSO('2026-10-30T10:00:00-03:00')), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  on('agent.spawn', () => ({ model: 'sonnet' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const pulsos = () => llamadas.filter((a) => a[1] === 'estado' && a[2] === 'pulso')
+
+  expect(await $.tool.call({ tool: 'Bash', command: 'ls' })).toMatchObject({ result: 'hecho' })
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: 'cyan' } })
+  await $.tool.call({ tool: 'Read', file_path: '/work/a' })
+  expect(pulsos()).toEqual([['qdd', 'estado', 'pulso', '--fuente', 'agente']])
+
+  await clock.advance(5000)
+  await $.agent.spawn({ prompt: 'revisa' })
+  await clock.advance(1) // el pulso a la CLI va sin esperar: se completa en el tic siguiente
+  expect(pulsos()).toContainEqual(['qdd', 'estado', 'pulso', '--fuente', 'subagente'])
+  expect(pulsos().length).toBe(2)
+})
+
+test('sin tarea en curso, las herramientas no envían pulsos', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(llamadas.some((a) => a[2] === 'pulso')).toBe(false)
+})

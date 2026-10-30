@@ -277,14 +277,15 @@ comandos externos; se ve como **punto + running**.
   `fuente` (`agente` | `subagente` | `comando`) y `quien` (opcional). Se escribe de forma atómica; si el archivo falta o
   no se puede leer, no hay tareas en curso.
 - **Quién la declara.** El agente, al empezar a trabajar una tarea: `qdd estado activa <id>` o, por MCP,
-  `qdd_estado accion=activar frente=<id>`. La tarea tiene que existir y estar abierta. Puede haber más de una en curso
+  `qdd_estado accion=activar frente=<id>` (`accion=terminar` la apaga, `accion=pulso` late). La tarea tiene que existir y estar abierta. Puede haber más de una en curso
   (dos sesiones en tareas distintas). `qdd estado activa <id> --fin` la apaga, y también se apaga al cerrarla o
   descartarla (también con la ✕).
 - **Pulsos.** `qdd estado pulso [<id>] [--fuente agente|subagente|comando]` actualiza `pulso`. Sin `<id>`, late la
   última tarea que se activó en el proyecto: así el mod no necesita saber cuál es. La envían:
   - el mod de Claude Code en cada `tool.call` (`--fuente agente`) y en cada `agent.spawn` (`--fuente subagente`), con
     un máximo de 1 escritura cada 5 s. En el panel de esa sesión, el destello es inmediato;
-  - el plugin de OpenCode, cuando su agente ejecuta una herramienta (`--fuente agente`, con el mismo tope). Es su
+  - el plugin de OpenCode, cuando su agente empieza a ejecutar una herramienta (evento `message.part.updated` con
+    `state.status = running`; `--fuente subagente` para la herramienta `task`, `agente` para las demás; mismo tope). Es su
     única escritura y no cambia que sea solo para mirar: no tiene botones ni diálogos;
   - cualquier script, test, deploy o worker: `qdd estado pulso <id> --fuente comando`.
 - **Cuándo deja de estar en curso.** Si pasan 120 s sin pulso, la tarea deja de verse «running». Su entrada se limpia
@@ -292,11 +293,11 @@ comandos externos; se ve como **punto + running**.
 - **Contrato.** `qdd consola panel --json` agrega a cada tarea `actividad: {running, pulso, fuente}`; una tarea sin
   actividad no lleva el campo. Una tarea en curso **siempre se ve**, aunque no esté entre las 4 más nuevas. Los paneles
   siguen sin interpretar reglas: solo dibujan.
-- **Cómo se ve.** Entre las etapas y el nombre: `● running`. El `●` alterna entre tenue y brillante cada 1 s, con
-  «running» en gris. Cuando cambia `pulso`, el `●` destella con el color de acento durante unos 600 ms. El parpadeo es
-  local (`$.clock.every(1000)` y `invalidate` en Claude Code, `setInterval` en OpenCode), sin volver a ejecutar qdd, y
+- **Cómo se ve.** `● running` en la fila de la tarea (en Claude Code, después de las etapas y antes de la ✕; en OpenCode, entre las etapas y el nombre). El `●` alterna entre tenue y brillante cada 1 s, con
+  «running» en gris. Cuando cambia `pulso`, el `●` destella con el color de acento durante 2 tics de 500 ms (entre 0,5 y 1 s). El
+  parpadeo es local (`$.clock.every(500)` e `invalidate` en Claude Code, `setInterval` en OpenCode), sin volver a ejecutar qdd, y
   solo corre si hay alguna tarea en curso. La lectura de qdd sigue siendo cada 2 s.
-- **Pruebas.** En Go: activar, pulsar con y sin id, vencer a los 120 s, apagar al cerrar o descartar, la tarea en curso
+- **Pruebas** (escenarios EPT-C01…C12 del blueprint `estado-por-tareas`). En Go: activar, pulsar con y sin id, vencer a los 120 s, apagar al cerrar o descartar, la tarea en curso
   fuera del tope de 4 y una tarea que no existe (error). En el mod: el `●` alterna, el pulso destella, `tool.call`
   respeta el tope de 5 s y `next(e)` nunca se demora. En OpenCode: la lógica pura de la vista con `node --test`.
 
