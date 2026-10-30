@@ -202,9 +202,11 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `HEART-02-STALE-RECORD` | El código del módulo cambió después de aprobar su ficha. | `module_heart: true` |
 | `HEART-03-ZONE-WITHOUT-RECORD` | Hay una zona de código sin ficha. | `module_heart: true` |
 | `BP-01-INVALID` | Un blueprint importado, el lockfile o un registro de aplicación no es válido. | con blueprints |
-| `BP-02-ALTERED` | La copia de `.qdd/blueprints/` se editó a mano (no coincide con la huella del lockfile). | con blueprints |
+| `BP-02-ALTERED` | Lo publicado en el repositorio no coincide con la huella o la versión del lockfile (alguien lo editó a mano). | con blueprints |
 | `BP-03-OUTDATED` | El módulo se generó con otra versión del blueprint; hay que volver a aplicarlo. | con blueprints |
 | `BP-04-MISSING` | El módulo se generó desde un blueprint que ya no está importado. | con blueprints |
+| `BP-05-LEGACY` | Queda una copia del esquema anterior dentro del proyecto (`.qdd/blueprints/`); `qdd doctor --fix` la migra. | con blueprints |
+| `BP-06-BEHIND` | La fuente del blueprint publicó una versión más nueva; `qdd blueprint add <id>` y volver a aplicarlo. | con blueprints |
 
 Las políticas se configuran en `.qdd/policies.yaml`. Con `adopcion: gradual` (lo que deja `qdd init` en un proyecto nuevo), las prácticas de madurez se muestran como recomendaciones: restan 2 puntos y no bloquean. Cada problema que bloquea resta 10. Para exigirlo todo: `adopcion: estricta`.
 
