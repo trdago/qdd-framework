@@ -25,11 +25,13 @@ objetivo_tecnologico:
         - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
-        - El mod qdd-estado dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
+        - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
+        - 'Orden de las secciones del panel: estado por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas; la confirmación va en la sección del botón pulsado.'
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
-        - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra primero, en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta y, si termina bien, sale de la cola.'
+        - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta.'
+        - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
@@ -43,16 +45,22 @@ objetivo_tecnologico:
         - Una acción que escribe (aprobar, auditar) no corre sin --confirmado, que el panel pasa solo después de «s  Sí».
         - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí».'
         - Pedir o descartar un comando no escribe nada en el proyecto.
+        - 'Un pedido aceptado no se ejecuta dos veces: solo uno pendiente o con falla corre, y el cambio a ejecutando se hace con la cola bloqueada (FND-070).'
+        - La tecla de un pedido no cambia mientras está abierto (FND-071).
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
+        - 'La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive fuera del repositorio (<QDD_HOME>/claude/actividad/, misma clave por proyecto que la cola de pedidos: RutaLocal) y nunca cambia estado.yaml; no usa .qdd/working, que es el archivo del comando qdd en curso (FND-079).'
+        - Una tarea sin pulsos durante 120 s deja de estar en curso; cerrarla o descartarla la apaga.
+        - Un pulso nunca demora la herramienta, el subagente ni el comando que lo produce; sin tarea en curso no hace nada.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/estado/...
         - cd cli && go test ./pkg/audit/ -run EstadoCheck
         - cd cli && go test ./cmd/ -run EstadoTool
         - cd cli && go test ./pkg/consola/...
+        - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
         - cd cli && go test ./cmd/ -run ConsolaAccion
-        - cd cli/pkg/consola/mod/qdd-estado && claude plugin validate . && claude plugin test
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
         - cd cli && GOOS=windows go vet ./cmd ./pkg/estado ./pkg/consola && GOOS=darwin go vet ./cmd ./pkg/estado ./pkg/consola
 fuentes:
     - rfcs/0006-estado-por-frente-en-consola.md
@@ -60,5 +68,6 @@ fuentes:
     - cli/pkg/estado/check.go
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
+    - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: b6de4c39c30a
+revisado_en_commit: 2a1743db16ee

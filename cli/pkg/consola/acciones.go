@@ -20,33 +20,49 @@ import (
 // las vuelve a calcular antes de ejecutar una; el panel solo pasa ids (blueprint consola-claude-code v3.0.0).
 
 const (
-	TipoAprobar = "aprobar"
-	TipoComando = "comando"
+	TipoAprobar   = "aprobar"
+	TipoComando   = "comando"
+	TipoDescartar = "descartar"
+
+	// MaxTareas es cuántas tareas pendientes muestra el panel: las más nuevas (§3.9).
+	MaxTareas = 4
+
+	// MotivoDescarte es el motivo_cierre de una tarea descartada con la ✕ del panel: nunca desaparece en silencio.
+	MotivoDescarte = "descartada desde el panel de Claude Code (✕)"
 
 	// MaxFichas es el tope de fichas en borrador que se ofrecen: una tecla 1…9 por ficha.
 	MaxFichas = 9
 
-	prefijoAprobar = "aprobar:"
+	prefijoAprobar   = "aprobar:"
+	prefijoDescartar = "descartar:"
 )
 
 // Accion es un botón del panel. Args son los argumentos de qdd para un comando; no salen en el JSON. En un pedido,
 // Detalle es el comando exacto y Carpeta dónde corre.
 type Accion struct {
-	ID        string   `json:"id"`
-	Tipo      string   `json:"tipo"`
-	Etiqueta  string   `json:"etiqueta"`
-	Detalle   string   `json:"detalle"`
-	Carpeta   string   `json:"carpeta,omitempty"`
-	Tecla     string   `json:"tecla,omitempty"`
-	Confirmar bool     `json:"confirmar"`
-	Args      []string `json:"-"`
+	ID        string     `json:"id"`
+	Tipo      string     `json:"tipo"`
+	Etiqueta  string     `json:"etiqueta"`
+	Detalle   string     `json:"detalle"`
+	Carpeta   string     `json:"carpeta,omitempty"`
+	Tecla     string     `json:"tecla,omitempty"`
+	Estado    string     `json:"estado,omitempty"`    // solo pedidos: pendiente, ejecutando, hecho o fallo
+	Resultado string     `json:"resultado,omitempty"` // solo pedidos: últimas líneas de la salida
+	Inicio    *time.Time `json:"inicio,omitempty"`
+	Fin       *time.Time `json:"fin,omitempty"`
+	Confirmar bool       `json:"confirmar"`
+	Args      []string   `json:"-"`
 	ficha     string
 	pedido    string
+	tarea     string // id del frente que descarta la ✕ (§3.9)
+	programa  string // abridor de «Abrir carpeta» (§3.9)
 }
 
 // DatosConsola es lo que 'qdd consola panel --json' entrega al panel en una sola lectura.
 type DatosConsola struct {
 	Formato  int                `json:"formato"`
+	Version  string             `json:"version,omitempty"` // versión de qdd, que el panel muestra atenuada (§3.9)
+	Carpeta  string             `json:"carpeta"`           // raíz del proyecto, junto al botón «Abrir carpeta» (§3.9)
 	Estado   *estado.DatosPanel `json:"estado"`
 	Motivo   string             `json:"motivo,omitempty"`
 	Acciones []Accion           `json:"acciones"`
@@ -54,7 +70,7 @@ type DatosConsola struct {
 
 // Panel arma los datos del panel: el estado por frente (o el motivo por el que no hay) y las acciones de ahora.
 func Panel(root string, now time.Time) DatosConsola {
-	d := DatosConsola{Formato: 1}
+	d := DatosConsola{Formato: 1, Carpeta: root}
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
 		d.Motivo = estado.ErrSinArchivo.Error()
@@ -66,15 +82,15 @@ func Panel(root string, now time.Time) DatosConsola {
 		d.Acciones = Acciones(root, false)
 		return d
 	}
-	datos := estado.Datos(e, now)
+	datos := estado.DatosEnCurso(e, estado.LeerActividad(root), now, MaxTareas)
 	d.Estado = &datos
 	d.Acciones = Acciones(root, true)
 	return d
 }
 
 // Acciones lista lo que el panel puede pedir: los comandos que la IA dejó para la persona (§3.9), aprobar cada ficha
-// en borrador (hasta MaxFichas, por id), revisar el estado si hay estado.yaml, y auditar si la carpeta es un proyecto
-// QDD (tiene .qdd/).
+// en borrador (hasta MaxFichas, por id), descartar cada tarea con su ✕ (§3.10), revisar el estado si hay estado.yaml,
+// y auditar y abrir la carpeta (§3.10, si el sistema tiene abridor) si la carpeta es un proyecto QDD (tiene .qdd/).
 func Acciones(root string, hayEstado bool) []Accion {
 	acciones := append([]Accion{}, accionesDePedidos(root)...)
 	for _, m := range borradores(root) {
@@ -83,6 +99,7 @@ func Acciones(root string, hayEstado bool) []Accion {
 			Detalle: "qdd modules approve " + m.ID, Confirmar: true, ficha: m.ID,
 		})
 	}
+	acciones = append(acciones, descartes(root)...)
 	if hayEstado {
 		acciones = append(acciones, Accion{
 			ID: "revisar-estado", Tipo: TipoComando, Etiqueta: "Revisar estado", Detalle: "qdd estado check",
@@ -92,10 +109,31 @@ func Acciones(root string, hayEstado bool) []Accion {
 	if _, err := os.Stat(filepath.Join(root, ".qdd")); err != nil {
 		return acciones
 	}
-	return append(acciones, Accion{
+	acciones = append(acciones, Accion{
 		ID: "auditar", Tipo: TipoComando, Etiqueta: "Auditar", Detalle: "qdd audit", Confirmar: true,
 		Args: []string{"audit"},
 	})
+	a, ok := accionAbrir(root)
+	if !ok {
+		return acciones
+	}
+	return append(acciones, a)
+}
+
+// descartes ofrece la ✕ de cada tarea que el panel muestra (§3.9): pasa a «descartado» con MotivoDescarte.
+func descartes(root string) []Accion {
+	e, err := estado.Load(root)
+	if err != nil {
+		return nil
+	}
+	var out []Accion
+	for _, f := range estado.DatosPendientes(e, time.Now(), MaxTareas).Frentes {
+		out = append(out, Accion{
+			ID: prefijoDescartar + f.ID, Tipo: TipoDescartar, Etiqueta: "Descartar «" + f.Nombre + "»",
+			Detalle: "qdd estado cerrar " + f.ID + " --descartado --motivo \"" + MotivoDescarte + "\"", Confirmar: true, tarea: f.ID,
+		})
+	}
+	return out
 }
 
 // HayEstado dice si el proyecto tiene .qdd/project/estado.yaml.
@@ -146,6 +184,12 @@ func (a Accion) Ejecutar(root, bin string, salida io.Writer) int {
 	if a.Tipo == TipoPedido {
 		return ejecutarPedido(root, a, salida)
 	}
+	if a.Tipo == TipoAbrir {
+		return abrir(a, salida)
+	}
+	if a.Tipo == TipoDescartar {
+		return descartar(root, a, salida)
+	}
 	c := exec.Command(bin, a.Args...)
 	c.Dir = root
 	c.Stdout = salida
@@ -159,6 +203,15 @@ func aprobar(root, id string, salida io.Writer) int {
 		fmt.Fprintf(salida, "[!] No se pudo aprobar '%s':\n  - %s\n", id, strings.Join(problemas, "\n  - "))
 		return 1
 	}
-	fmt.Fprintf(salida, "[+] Ficha '%s' aprobada (revisada en %s).\n", m.ID, m.RevisadoEnCommit)
+	fmt.Fprintln(salida, modules.TextoAprobada(m))
+	return 0
+}
+
+func descartar(root string, a Accion, salida io.Writer) int {
+	if err := estado.Cerrar(root, a.tarea, MotivoDescarte, true, time.Now()); err != nil {
+		fmt.Fprintf(salida, "[!] No se pudo descartar '%s': %v\n", a.tarea, err)
+		return 1
+	}
+	fmt.Fprintf(salida, "[+] Tarea '%s' descartada: sale del panel y queda en el archivo con su motivo.\n", a.tarea)
 	return 0
 }
