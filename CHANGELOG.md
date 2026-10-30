@@ -17,6 +17,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Architecture:** fichas de módulo y blueprints. Ya no cita `qdd sync` ni `qdd score`, que no son comandos de la CLI (son las tools `qdd_sync` y `qdd_score`).
 - **README:** blueprints, fichas, gate veraz y OpenCode; índice de la documentación; badge de build apuntando a `quality.yml`.
 - **README de npm** al día; deja de listar `/qdd validate` y `/qdd docs`, que no están implementados.
+- **Al día con v2.x:** la guía de blueprints describe la carpeta central (el proyecto solo versiona el lockfile), varias fuentes, repositorios públicos por HTTPS, el ciclo `contribute` → `propose` → `release` y las reglas `BP-05` y `BP-06`. La referencia documenta `qdd estado`, `qdd consola` y las tools `qdd_estado` y `qdd_consola_pedir`, y el README presenta el panel de Claude Code.
 - **La documentación ya no puede quedar atrás:** `cli/cmd/docs_reference_test.go` falla si la referencia omite un comando o una tool registrada, si nombra una tool que el servidor no registra o si un enlace relativo está roto.
 
 ## [v2.6.0] - 2026-10-30

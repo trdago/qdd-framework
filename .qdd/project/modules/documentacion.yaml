@@ -1,29 +1,34 @@
 id: documentacion
 nombre: Documentación pública
-estado: borrador
+estado: aprobado
 rutas:
-  - README.md
-  - docs
-  - npm/README.md
-  - rfcs
+    - README.md
+    - docs
+    - npm/README.md
+    - rfcs
 objetivo_operativo:
-  problema: Quien llega por GitHub o npm necesita saber qué hace QDD, cómo empezar y qué comandos y tools existen de verdad.
-  usuarios: Personas que adoptan QDD, organizaciones que mantienen blueprints y las IAs que trabajan sobre un proyecto con QDD.
-  criterio_de_exito: Cada comando de la CLI y cada tool MCP registrada aparece en docs/command-reference.md, ninguna tool documentada falta en el servidor y ningún enlace relativo está roto (cli/cmd/docs_reference_test.go en verde).
-  caso_real: FND-072, la documentación quedó atrás del binario desde v1.9.23 (blueprints, fichas de módulo y gate veraz sin documentar).
+    problema: Quien llega por GitHub o npm necesita saber qué hace QDD, cómo empezar y qué comandos y tools existen de verdad.
+    usuarios: Personas que adoptan QDD, organizaciones que mantienen blueprints y las IAs que trabajan sobre un proyecto con QDD.
+    criterio_de_exito: Cada comando de la CLI y cada tool MCP registrada aparece en docs/command-reference.md, ninguna tool documentada falta en el servidor y ningún enlace relativo está roto (cli/cmd/docs_reference_test.go en verde).
+    caso_real: FND-072, la documentación quedó atrás del binario desde v1.9.23 (blueprints, fichas de módulo y gate veraz sin documentar).
 objetivo_tecnologico:
-  arquitectura: Markdown en el repositorio. docs/command-reference.md es la fuente única de comandos y tools; README, getting-started, blueprints y la arquitectura enlazan a ella en vez de repetir el detalle. npm/README.md se publica con el paquete y enlaza a GitHub.
-  decisiones:
-    - "Se documenta solo lo que existe; lo no implementado va en su sección de roadmap"
-    - "Los comandos que solo existen por MCP se marcan como tales"
-  invariantes:
-    - "Ningún ejemplo usa nombres de organizaciones, clientes o proyectos reales: el repositorio es público"
-    - "Toda capacidad nueva de la CLI o del MCP se documenta en la misma versión que la incorpora"
+    arquitectura: Markdown en el repositorio. docs/command-reference.md es la fuente única de comandos y tools; README, getting-started, blueprints y la arquitectura enlazan a ella en vez de repetir el detalle. npm/README.md se publica con el paquete y enlaza a GitHub.
+    decisiones:
+        - Se documenta solo lo que existe; lo no implementado va en su sección de roadmap
+        - Los comandos que solo existen por MCP se marcan como tales
+    invariantes:
+        - 'Ningún ejemplo usa nombres de organizaciones, clientes o proyectos reales: el repositorio es público'
+        - Toda capacidad nueva de la CLI o del MCP se documenta en la misma versión que la incorpora
 pruebas:
-  comandos:
-    - cd cli && go test ./cmd/ -run TestDocs_
-    - cd cli && go test ./cmd/ -run TestReadme_
-  goldensets: []
-adrs: []
-findings: [FND-048, FND-072]
-fuentes: [docs/command-reference.md, rfcs/0003-blueprints.md, CHANGELOG.md]
+    comandos:
+        - cd cli && go test ./cmd/ -run TestDocs_
+        - cd cli && go test ./cmd/ -run TestReadme_
+findings:
+    - FND-048
+    - FND-072
+fuentes:
+    - docs/command-reference.md
+    - rfcs/0003-blueprints.md
+    - CHANGELOG.md
+ultima_revision: "2026-10-30"
+revisado_en_commit: a0f49642aa70

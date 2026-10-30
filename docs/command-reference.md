@@ -69,7 +69,7 @@ Estos comandos puedes ejecutarlos sin miedo directo en la terminal. Su único tr
 | `qdd benchmark` | Evalúa la calidad de respuesta (Cognitive Quality) del framework. **Seguro.** |
 | `qdd modules` | Lista las fichas de módulo (`.qdd/project/modules/`) con su estado (borrador o aprobada), su desfase respecto del código y las zonas de código que aún no tienen ficha. **Seguro.** Ver [Fichas de módulo](#fichas-de-módulo). |
 | `qdd modules context [rutas…]` | Imprime el mismo contexto que recibe una IA con la tool MCP `qdd_project_context`: propósito, forma de trabajo obligatoria, cómo se prueba y la ficha de los módulos de esas rutas. Sirve para IAs sin MCP. **Seguro.** |
-| `qdd blueprint list` / `show <id>` | Lista los blueprints del lockfile (arquetipos de módulo de tu organización) o muestra el vocabulario, las preguntas y las invariantes de uno. También reporta los problemas del gate (`BP-01` a `BP-06`). **Seguro.** Ver RFC 0003 y RFC 0004. |
+| `qdd blueprint list` / `qdd blueprint show <id>` | Lista los blueprints del lockfile (arquetipos de módulo de tu organización) o muestra el vocabulario, las preguntas y las invariantes de uno. También reporta los problemas del gate (`BP-01` a `BP-06`). **Seguro.** Ver RFC 0003 y RFC 0004. |
 | `qdd blueprint sync` | Trae lo publicado en cada fuente del proyecto (la organización y las demás del lockfile) y dice qué blueprints tienen una versión más nueva. Una fuente inaccesible se informa sin ocultar las demás. **Seguro.** |
 | `qdd mcp-server` | Inicia el servidor MCP de QDD (JSON-RPC sobre stdio). No se usa a mano: `qdd init` lo registra en tu IDE. **Seguro.** |
 
@@ -90,6 +90,28 @@ Estos comandos modifican el repositorio agregando carpetas o archivos de goberna
 | `qdd blueprint propose <id> -m "…" [--origen repo]` | Valida el aporte, **calcula el cambio semver y fija la versión** (major/minor/patch según lo que cambió), commitea, publica la rama y abre el PR con `gh`. |
 | `qdd blueprint release [--origen repo]` | Tras el merge, etiqueta el repositorio de la organización, o el de `--origen` (`vX.Y.Z`). Rechaza los blueprints que cambiaron sin pasar por `propose`. |
 | `qdd blueprint apply <id…> [--ruta …] [--modulo id] [--respuesta p=v …] [--prueba …]` | Pregunta las decisiones de diseño del blueprint (o las toma de `--respuesta`) y genera la ficha del módulo en **borrador**, sus escenarios de conformidad, el registro de decisiones y, si la carpeta no existe, un esqueleto `README.md`. Al volver a aplicarlo reutiliza las respuestas y conserva lo que el proyecto agregó a la ficha. |
+
+### 🧭 Estado por frente y consola de Claude Code (RFC 0006)
+El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-frente`, destino «archivo»). La consola la muestra en un panel a la derecha de Claude Code (blueprint `consola-claude-code`).
+
+| Comando | Descripción |
+|---------|-------------|
+| `qdd estado init [--etapas …]` | Crea `.qdd/project/estado.yaml` con las etapas de la ficha (o las de `--etapas`). Es del humano: la IA no lo crea. |
+| `qdd estado ver` | Imprime la tabla. **Seguro.** |
+| `qdd estado set <frente> <etapa> <estado>` | Crea o actualiza una celda y valida antes de escribir: un ✅ lleva evidencia (commit, versión, n/n pruebas), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. |
+| `qdd estado cerrar <frente>` | Cierra (o descarta) un frente con su motivo. Un frente nunca se borra en silencio. |
+| `qdd estado check [--respuesta r.md] [--json]` | Lector automático de los escenarios EPF-C01…C07 (y EPF-A01 con `--respuesta`); compara contra git HEAD para detectar frentes que desaparecen. Sale con 1 si hay violaciones. **Seguro.** |
+| `qdd estado watch` | Panel en vivo en la terminal, con la tabla, lo que espera cada ⏳ y las fallas (`q` o Ctrl-C para salir). **Seguro.** |
+| `qdd estado statusline` | Resumen de una línea para una barra de estado; sin archivo no imprime nada y nunca falla. **Seguro.** |
+| `qdd consola activar [--recursos]` | Instala en Claude Code (alcance de usuario) el panel `qdd-estado` y la barra de QDD; con `--recursos`, la barra muestra disco, GPU, RAM y CPU. Una barra propia no se reemplaza sin dejar copia. Nada se escribe en el proyecto. |
+| `qdd consola actualizar` / `qdd consola desactivar` | Deja el panel en la versión de esta CLI, o lo quita y devuelve la barra anterior. |
+| `qdd consola estado` | Dice si la consola está activa y al día. **Seguro.** |
+| `qdd consola panel` | Lo que dibuja el panel, en JSON (estado por frente y acciones). Nunca falla. **Seguro.** |
+| `qdd consola accion <id> [--confirmado]` | Ejecuta una acción que ofrece el panel (aprobar una ficha, revisar el estado, auditar, un comando pedido). Lo que escribe corre solo con `--confirmado`, que el panel pasa después de «s  Sí». |
+| `qdd consola statusline` | La barra de estado de Claude Code (lee su JSON por la entrada estándar). Nunca falla. **Seguro.** |
+| `qdd consola pedir -m <motivo> [--carpeta dir] <comando…>` | Deja en «▶ Para ti» del panel un comando para que **la persona** lo ejecute con un clic (p. ej. el push de un tag). QDD no lo ejecuta: corre solo después de «s  Sí», en su carpeta. Un pedido aceptado queda en gris y no se acepta dos veces. |
+| `qdd consola pedidos` | Lista los comandos pedidos con su tecla y su estado (pendiente, ⟳ ejecutando, ✓ hecho, falló). **Seguro.** |
+| `qdd consola descartar <id>` | Quita un comando pedido sin ejecutarlo. |
 
 ### 🤖 Solo vía MCP — pedile a tu IDE con IA que las invoque
 Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP — tipear `qdd learn` (por ejemplo) en una terminal no hace nada útil:
@@ -112,6 +134,8 @@ Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP �
 
 | Tool MCP | Descripción |
 |---------|-------------|
+| `qdd_estado` | Estado por frente: `accion=ver` al retomar una sesión (seguir desde los ⏳), `set` al avanzar (antes de reportar), `cerrar` con motivo y `check` para el lector automático. Las escrituras se validan: si violan una regla, no se escribe nada. |
+| `qdd_consola_pedir` | Deja un comando en el panel para que la persona lo ejecute (comando, motivo y carpeta). Para lo que la IA no puede o no debe ejecutar, como publicar; la IA nunca lo ejecuta ella misma con `qdd consola accion`. |
 | `qdd_audit` | Lo mismo que `qdd audit`, para que la IA verifique su propio trabajo antes de proponer un commit. |
 | `qdd_certify` | Lo mismo que `qdd certify`. |
 | `qdd_status` | Panel de control. Escanea el repositorio para mostrar certificaciones activas y *Findings* (bugs) abiertos. |

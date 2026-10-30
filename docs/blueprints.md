@@ -13,7 +13,7 @@ Un blueprint no trae código. Trae decisiones:
 | **Escenarios de conformidad** | Casos que toda implementación debe pasar. | El mismo evento procesado dos veces genera una sola notificación. |
 | **Referencias** (opcional) | Implementaciones de referencia por stack. | `referencias/go/…` |
 
-QDD es público y solo trae el **mecanismo**: importar, aplicar y vigilar. Los blueprints viven en el repositorio de tu organización, privado si quieres. El diseño completo está en [RFC 0003](../rfcs/0003-blueprints.md).
+QDD es público y solo trae el **mecanismo**: importar, aplicar, vigilar y evolucionar. Los blueprints viven en el repositorio de tu organización (privado o público) y, en tu máquina, en la carpeta central de QDD: el proyecto solo versiona el lockfile. El diseño está en [RFC 0003](../rfcs/0003-blueprints.md), [RFC 0004](../rfcs/0004-blueprints-centrales.md) (carpeta central y ciclo de vida) y [RFC 0007](../rfcs/0007-fuentes-de-blueprints.md) (varias fuentes).
 
 ```mermaid
 graph LR
@@ -21,13 +21,15 @@ graph LR
     classDef proj fill:#1e1e1e,stroke:#3b82f6,color:#fff;
     classDef gate fill:#14b8a6,stroke:#0f766e,color:#fff;
     R["Repositorio de la organización<br/>blueprint.yaml + tag v1.0.0"]:::org
-    A["qdd blueprint add<br/>.qdd/blueprints + lockfile"]:::proj
+    A["qdd blueprint add<br/>carpeta central + lockfile"]:::proj
     P["qdd blueprint apply<br/>el humano responde las preguntas"]:::proj
     F["Ficha del módulo en borrador<br/>+ escenarios de conformidad"]:::proj
     H["qdd modules approve<br/>aprobación humana"]:::proj
-    G["qdd audit<br/>BP-01 a BP-04"]:::gate
+    G["qdd audit<br/>BP-01 a BP-06"]:::gate
+    C["contribute → propose → release<br/>PR y tag con semver calculado"]:::org
     R --> A --> P --> F --> H --> G
-    G -- versión nueva del blueprint --> A
+    G -- BP-06: versión nueva --> A
+    H -. cambiar el estándar .-> C --> R
 ```
 
 ## 1. Crear el repositorio de la organización
@@ -115,7 +117,7 @@ En los textos, `{{pregunta}}` se reemplaza por la respuesta del proyecto.
 
 ### Versionar
 
-Publica cada versión con un tag y súbela según lo que cambió:
+Cada versión es un tag `vX.Y.Z` del repositorio. No lo fijas a mano: `qdd blueprint propose` compara con lo publicado y calcula el cambio (ver [§4](#4-cambiar-o-crear-un-blueprint)):
 
 | Cambio | Versión |
 |---|---|
@@ -123,13 +125,9 @@ Publica cada versión con un tag y súbela según lo que cambió:
 | Opciones o preguntas nuevas | minor (`1.1.0`) |
 | Invariantes nuevas o distintas | major (`2.0.0`) |
 
-```bash
-git tag v1.0.0 && git push origin v1.0.0
-```
-
 ## 2. Importar en un proyecto
 
-La primera vez indicas el repositorio. QDD lo clona con tus credenciales git, valida los blueprints y registra el repositorio en `.qdd/config.yaml`:
+La primera vez indicas el repositorio. QDD lo clona con tus credenciales git, valida los blueprints y registra el repositorio en `.qdd/config.yaml` y en el registro central (los demás proyectos de la organización, con el mismo dueño en su remote git, lo encuentran solos):
 
 ```bash
 qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.0.0 notificaciones
@@ -151,10 +149,12 @@ qdd blueprint add --todos --ref v1.1.0  # todo, y actualiza el ref registrado
 qdd blueprint add                       # lista lo disponible
 ```
 
-- Cada blueprint se copia a `.qdd/blueprints/<id>/`, y su origen, commit y huella quedan en `.qdd/blueprints.lock.yaml`. Commitea ambos.
-- **Todo o nada:** si uno de los pedidos es inválido, no se importa ninguno.
+- El contenido vive en la **carpeta central** de QDD (`~/.local/share/qdd/blueprints`, o `$QDD_HOME`), nunca en el proyecto. El proyecto solo versiona `.qdd/blueprints.lock.yaml`, con la fuente, la versión, el commit y la huella de cada blueprint. Commitéalo.
+- **Todo o nada:** si uno de los pedidos es inválido, no se importa ninguno, y si una fuente falla el lockfile queda como estaba.
+- **Varias fuentes:** puedes sumar tus propios estándares con la URL de otro repositorio (`qdd blueprint add git@github.com:yo/mis-blueprints.git mi-estandar`). El lockfile recuerda la fuente de cada uno y `qdd blueprint add <id>` lo actualiza desde ahí. Un id ya importado desde otra fuente se rechaza, salvo con `--reemplazar`.
+- **Repositorios públicos:** se leen por HTTPS sin cuenta ni llave. Si no tienes acceso a una URL SSH, el error te dice su URL HTTPS.
 - **La protección es el acceso al repositorio:** quien no tiene acceso no puede importar. QDD bloquea transportes `ext::` e inyección de opciones en git.
-- La copia no se edita a mano: el gate lo detecta (`BP-02-ALTERED`). Los cambios se hacen en el repositorio de la organización.
+- **Otro PC:** `qdd doctor --fix` reconstruye la carpeta central desde el lockfile. Un proyecto con copias del esquema anterior (`.qdd/blueprints/`) se migra igual.
 
 ## 3. Aplicar: generar el módulo
 
@@ -188,14 +188,31 @@ Por último, un humano revisa y aprueba la ficha:
 qdd modules approve notificaciones
 ```
 
-## 4. Con una IA
+## 4. Cambiar o crear un blueprint
+
+Un blueprint nunca se edita en el proyecto: el cambio va a su repositorio, por PR.
+
+```bash
+qdd blueprint contribute notificaciones   # rama aporte/notificaciones en un clon de la carpeta central
+# … edita el blueprint en la carpeta que te indica …
+qdd blueprint propose notificaciones -m "Agrega el canal push"   # valida, calcula la versión, abre el PR
+# tras el merge:
+qdd blueprint release                     # etiqueta vX.Y.Z en el repositorio
+```
+
+- Uno importado se aporta siempre a su fuente; uno nuevo, a la organización o a la de `--origen`.
+- `propose` calcula patch, minor o major según lo que cambió; `release` rechaza un blueprint que cambió sin pasar por `propose`.
+- Si SSH no tiene permiso de escritura (por ejemplo, una deploy key de solo lectura), `propose` y `release` reintentan por HTTPS con tus credenciales de git.
+- Los demás proyectos lo ven en su próximo `qdd audit` como `BP-06-BEHIND`.
+
+## 5. Con una IA
 
 No hace falta usar la CLI. Las reglas que `qdd init` deja en tu IDE (`AGENTS.md`, `.clauderc`, `.cursorrules`…) le enseñan a la IA a usar los blueprints sola:
 
 - Si pides *"agrega el blueprint de notificaciones y auditoría"*, la IA llama a `qdd_blueprint_add`. Si el proyecto no tiene repositorio registrado, te pregunta la URL; nunca la inventa.
 - Antes de construir un módulo que un blueprint define, llama a `qdd_blueprint_apply` y **te hace sus preguntas tal cual**. Las respuestas son tuyas, no de la IA.
 - `qdd_project_context`, la primera llamada de toda tarea, muestra los estándares de la organización (aplicados o sin aplicar). Si la IA va a tocar una carpeta que coincide con las rutas de un blueprint sin aplicar, le pide aplicarlo en vez de inventar una ficha.
-- Las invariantes no se negocian: si una no sirve, el cambio se propone en el repositorio de la organización.
+- Las invariantes no se negocian: si una no sirve, la IA prepara el cambio con `qdd_blueprint_contribute` y, con tu confirmación, lo propone con `qdd_blueprint_propose` (QDD fija la versión). Nunca copia ni edita un blueprint dentro del proyecto.
 
 ## 5. Vigilar: el gate
 
@@ -204,9 +221,11 @@ No hace falta usar la CLI. Las reglas que `qdd init` deja en tu IDE (`AGENTS.md`
 | Regla | Cuándo bloquea | Qué hacer |
 |---|---|---|
 | `BP-01-INVALID` | Un blueprint, el lockfile o un registro de aplicación no se puede leer o no es válido. | Corrige el blueprint en el repositorio de la organización y vuelve a importarlo. |
-| `BP-02-ALTERED` | La copia en `.qdd/blueprints/` no coincide con la huella del lockfile. | Descarta el cambio local y llévalo al repositorio de la organización. |
+| `BP-02-ALTERED` | Lo publicado en el repositorio no coincide con la huella o la versión del lockfile (alguien lo editó a mano). | Vuelve a importarlo desde su fuente; los cambios van por `contribute` → `propose`. |
 | `BP-03-OUTDATED` | El módulo se generó con una versión distinta de la importada. | `qdd blueprint apply <id>` otra vez. |
 | `BP-04-MISSING` | El módulo se generó desde un blueprint que ya no está importado. | Vuelve a importarlo o quita la referencia de la ficha. |
+| `BP-05-LEGACY` | Queda una copia del esquema anterior dentro del proyecto (`.qdd/blueprints/`). | `qdd doctor --fix` la migra a la carpeta central; commitea el resultado. |
+| `BP-06-BEHIND` | Su fuente publicó una versión más nueva. | `qdd blueprint add <id>` y vuelve a aplicarlo con `qdd blueprint apply`. |
 
 Las reglas `HEART-*` siguen vigilando que la ficha no quede atrás del código (ver [Reglas del gate](command-reference.md#reglas-del-gate)).
 

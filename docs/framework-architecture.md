@@ -71,7 +71,7 @@ Una organización repite los mismos módulos en todos sus productos (usuarios y 
 
 La separación es estricta:
 
-- **El core de QDD** (público) trae solo el mecanismo: importar (`qdd blueprint add`), aplicar (`qdd blueprint apply`) y vigilar (reglas `BP-01` a `BP-04`).
+- **El core de QDD** (público) trae solo el mecanismo: importar (`qdd blueprint add`), aplicar (`qdd blueprint apply`), vigilar (reglas `BP-01` a `BP-06`) y evolucionar (`contribute`, `propose`, `release`).
 - **El contenido** vive en el repositorio de cada organización, privado si quiere, versionado con tags. El proyecto lo registra una vez en `.qdd/config.yaml` y fija lo importado en `.qdd/blueprints.lock.yaml`.
 
 Aplicar un blueprint genera la **ficha del módulo** en borrador: así, el estándar de la organización entra al mismo ciclo de aprobación humana y de vigilancia que cualquier otra ficha. Las preguntas de diseño las responde siempre un humano; la IA las hace, no las contesta.
@@ -107,7 +107,7 @@ QDD trata el conocimiento como el activo más valioso. Los artefactos son los "d
 - **ADRs (`.qdd/project/adr/`)**: Architecture Decision Records. Congelan en el tiempo el "por qué" se tomó una decisión (ej. "Por qué usamos gRPC en lugar de REST").
 - **Sprints (`.qdd/project/sprints/`)**: Archivos Markdown que orquestan el trabajo iterativo, definiendo el alcance, los criterios de aceptación y las certificaciones requeridas para el ciclo.
 - **Fichas de módulo (`.qdd/project/modules/`)**: El objetivo operativo, el objetivo tecnológico, las invariantes y las pruebas de cada módulo.
-- **Blueprints (`.qdd/blueprints/`, `.qdd/blueprints.lock.yaml`, `.qdd/project/blueprints/`)**: La copia fijada de los estándares de la organización y las decisiones que el proyecto tomó al aplicarlos. Sus escenarios de conformidad van en `.qdd/project/goldensets/<modulo>/conformidad.yaml`.
+- **Blueprints (`.qdd/blueprints.lock.yaml`, `.qdd/project/blueprints/`)**: La versión fijada de cada estándar (su contenido vive en la carpeta central de QDD, no en el proyecto) y las decisiones que el proyecto tomó al aplicarlos. Sus escenarios de conformidad van en `.qdd/project/goldensets/<modulo>/conformidad.yaml`.
 
 > **Regla de oro (CERT-033):** `.qdd/project/` nunca contiene código de aplicación — solo el conocimiento que QDD acumula *sobre* ese código. El código real del proyecto vive siempre en la raíz del repo, en una carpeta de código explícita (`src/`, o la convención idiomática ya existente como `cmd/`+`pkg/` en Go). `qdd init` debe detectar esa convención o proponerla en Modo Consultivo — nunca improvisar.
 
