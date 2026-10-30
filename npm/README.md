@@ -19,28 +19,41 @@ npm install -g qdd-framework
 
 ## ⚡ Comandos Principales
 
-- `qdd init`: Inicializa el entorno QDD en el proyecto e inyecta la configuración MCP en IDEs compatibles (Cursor, Claude Code, Antigravity).
-- `qdd audit`: Ejecuta la auditoría estática de código sobre los 9 pilares de calidad (Zero-Else, OWASP, Twelve-Factor, AI Governance, Clean Code, etc.).
-- `qdd certify`: Valida las certificaciones del proyecto y genera el certificado histórico de calidad.
-- `qdd doctor`: Diagnóstico determinista de salud y auto-reparación del entorno.
-- `qdd report`: Genera un reporte ejecutivo consolidado en formato Texto, Markdown o JSON para CI/CD.
-- `qdd evolution`: Consulta consultiva para determinar la siguiente mejora natural del proyecto.
+```bash
+cd mi-proyecto
+qdd init      # detecta el stack (también monorepos) y conecta tu IA
+qdd audit     # corre las pruebas y las reglas de QDD; funciona desde cualquier subcarpeta
+```
+
+- `qdd init`: Inicializa QDD en el proyecto, detecta el stack (Node, Go, Java/Kotlin, Python, Dart/Flutter, Rust, PHP, Ruby, .NET) y conecta tu IA (Claude Code, Cursor, Antigravity, OpenCode) por MCP. En un proyecto sin código: `qdd init --lenguaje Go --arquitectura "API REST"`.
+- `qdd audit`: Corre las pruebas del proyecto y revisa las reglas de QDD (Zero-Else, OWASP, Clean Code, despliegues sin pruebas, fichas y blueprints). Separa lo que bloquea de las recomendaciones (adopción gradual).
+- `qdd certify`: Audita, calcula el puntaje y lo guarda en el historial de calidad. `qdd certify human` certifica usabilidad y accesibilidad (WCAG 2.2).
+- `qdd modules`: Fichas de módulo (objetivo, invariantes y pruebas de cada módulo). `qdd modules approve <id>` las aprueba; `qdd modules context <rutas>` muestra lo que recibe la IA.
+- `qdd blueprint add | apply | list | show`: Importa los estándares de módulo de tu organización desde su propio repositorio y genera la ficha de cada módulo.
+- `qdd doctor`: Diagnóstico determinista de salud del entorno.
+- `qdd report`: Reporte ejecutivo consolidado en formato Texto, Markdown o JSON para CI/CD.
+- `qdd evolution`: Recomienda la siguiente mejora del proyecto.
 - `qdd dashboard`: Centro de Comando Web interactivo con streaming en tiempo real (SSE) y ejecución de agentes.
-- `qdd run`: Pipeline secuencial de comandos o modo supervisor con auto-reparación (`qdd run --keep-alive`).
+- `qdd run`: Pipeline secuencial de comandos con rollback, o modo supervisor con auto-reparación (`qdd run --keep-alive`).
 
 ---
 
 ## 🤖 Integración con Inteligencia Artificial (MCP Server)
 
-QDD expone un servidor Model Context Protocol (MCP) que permite a asistentes como **Google Antigravity**, **Claude Code** y **Cursor** consultar reglas, diagnosticar problemas y ejecutar tareas de forma gobernada:
+`qdd init` registra el servidor MCP de QDD y escribe sus reglas para **Claude Code**, **Cursor**, **Google Antigravity** y **OpenCode** (`AGENTS.md`). Con eso, tu IA:
 
-- `/qdd init`
-- `/qdd validate`
-- `/qdd certify`
-- `/qdd resolve` (Equipo Resolutor FAANG)
-- `/qdd report`
-- `/qdd evolution`
-- `/qdd docs`
+- llama a `qdd_project_context` antes de cambiar código y respeta la ficha y las invariantes del módulo;
+- aplica los blueprints de tu organización y te hace a ti sus preguntas de diseño;
+- no commitea ni despliega sin pasar `qdd_audit`.
+
+Pídeselo en lenguaje natural:
+
+```text
+/qdd "agrega el blueprint de notificaciones y construye el módulo"
+/qdd "resuelve el bug de conexión y genera el finding"
+```
+
+Todos los comandos y tools: [Command Reference](https://github.com/trdago/qdd-framework/blob/main/docs/command-reference.md) · [Blueprints](https://github.com/trdago/qdd-framework/blob/main/docs/blueprints.md) · [Getting Started](https://github.com/trdago/qdd-framework/blob/main/docs/getting-started.md)
 
 ---
 
