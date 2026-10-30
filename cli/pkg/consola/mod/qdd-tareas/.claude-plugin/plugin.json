@@ -1,0 +1,6 @@
+{
+  "name": "qdd-tareas",
+  "version": "0.1.0",
+  "description": "Panel con las tareas en curso del proyecto (QDD, blueprints estado-por-frente y consola-claude-code): las 4 más nuevas con sus etapas, lo que espera cada ⏳ y de quién, las fallas, la ✕ para descartar una tarea y botones para aprobar fichas, revisar, auditar y abrir la carpeta",
+  "author": { "name": "QDD Framework" }
+}

@@ -25,7 +25,7 @@ objetivo_tecnologico:
         - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
-        - El mod qdd-estado dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
+        - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
         - 'Orden de las secciones del panel: estado por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas; la confirmación va en la sección del botón pulsado.'
@@ -49,14 +49,18 @@ objetivo_tecnologico:
         - La tecla de un pedido no cambia mientras está abierto (FND-071).
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
+        - 'La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive fuera del repositorio (<QDD_HOME>/claude/actividad/, misma clave por proyecto que la cola de pedidos: RutaLocal) y nunca cambia estado.yaml; no usa .qdd/working, que es el archivo del comando qdd en curso (FND-079).'
+        - Una tarea sin pulsos durante 120 s deja de estar en curso; cerrarla o descartarla la apaga.
+        - Un pulso nunca demora la herramienta, el subagente ni el comando que lo produce; sin tarea en curso no hace nada.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/estado/...
         - cd cli && go test ./pkg/audit/ -run EstadoCheck
         - cd cli && go test ./cmd/ -run EstadoTool
         - cd cli && go test ./pkg/consola/...
+        - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
         - cd cli && go test ./cmd/ -run ConsolaAccion
-        - cd cli/pkg/consola/mod/qdd-estado && claude plugin validate . && claude plugin test
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
         - cd cli && GOOS=windows go vet ./cmd ./pkg/estado ./pkg/consola && GOOS=darwin go vet ./cmd ./pkg/estado ./pkg/consola
 fuentes:
     - rfcs/0006-estado-por-frente-en-consola.md
@@ -64,5 +68,6 @@ fuentes:
     - cli/pkg/estado/check.go
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
+    - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 56599d69172e
+revisado_en_commit: 2a1743db16ee

@@ -1,12 +1,12 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = {
-  plugin: 'qdd-estado',
+  plugin: 'qdd-tareas',
   component: 'Pane',
-  requestId: 'qdd-estado',
+  requestId: 'qdd-tareas',
   viewport: { columns: 160, rows: 40 },
   props: {
-    title: 'Estado por frente',
+    title: 'Tareas',
     isFocused: true,
     bodyColumns: 60,
     placement: 'dock',
@@ -18,7 +18,7 @@ const PANE = {
 const ESTADO = {
   formato: 1,
   actualizado: '2026-10-29T15:13:01-03:00',
-  resumen: '◧ 2 frentes · ⏳1 ❌1',
+  resumen: '◧ 2 tareas · ⏳1 ❌1',
   etapas: ['Código', 'Pruebas', 'Producción', 'Validación real'],
   abreviaturas: ['Có', 'Pu', 'Po', 'Va'],
   frentes: [
@@ -40,9 +40,9 @@ const PANEL = { formato: 1, estado: ESTADO, acciones: ACCIONES }
 type Salida = { exitCode: number; stdout: string; stderr: string }
 
 // Prepara los stubs comunes: 'panel' es lo que responde 'qdd consola panel --json' y 'accion' lo de 'qdd consola accion'.
-function preparar(on, panel: Salida, llamadas: string[][] = [], accion: Salida = { exitCode: 0, stdout: '', stderr: '' }, aperturas: unknown[] = []) {
+function preparar(on, panel: Salida, llamadas: string[][] = [], accion: Salida = { exitCode: 0, stdout: '', stderr: '' }, aperturas: unknown[] = [], env: Record<string, string> = {}) {
   const clock = mock.clock(on)
-  mock.env(on, {})
+  mock.env(on, env)
   on('session.start', () => ({ cwd: '/work' }))
   on('command.register', () => ({ value: undefined }))
   on('ui.open', ($, e) => {
@@ -59,21 +59,25 @@ function preparar(on, panel: Salida, llamadas: string[][] = [], accion: Salida =
 
 const ok = (d: unknown): Salida => ({ exitCode: 0, stdout: JSON.stringify(d), stderr: '' })
 
-test('dibuja la cabecera con números grandes, la tabla, lo que espera cada ⏳ y las fallas (CCC-C13)', async ($, on) => {
+test('dibuja el panel liviano: título con versión, resumen en una línea, tabla y listas cortas (CCC-C13)', async ($, on) => {
   const llamadas: string[][] = []
-  preparar(on, ok(PANEL), llamadas)
+  preparar(on, ok({ ...PANEL, version: 'v2.5.0' }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '◧ Estado por frente' })).toBeDefined()
-  // 2 frentes: la primera fila del 2 grande, en cian; 1 ⏳: la del 1, en amarillo.
-  expect(await ui.find({ type: 'Text', text: '▀▀█' })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })
-  expect(await ui.find({ type: 'Text', text: '▀█ ' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })
+  expect(await ui.find({ type: 'Text', text: 'v2.5.0' })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: '2 tareas' })).toMatchObject({ props: { color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '⏳ 1 esperan' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 fallan' })).toMatchObject({ props: { color: 'red' } })
+  // Sin números grandes ni recuadro en la cabecera.
+  expect(await ui.find({ type: 'Text', text: '▀▀█' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /Có Pu Po Va/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: 'yellow' } })
   expect(await ui.find({ type: 'Text', text: 'Ticket de MP en logs' })).toMatchObject({ props: { color: 'red' } })
-  expect(await ui.find({ type: 'Text', text: /Validación real · de uso real/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '• Gemini retirado › Validación real' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '  → ver un análisis con imagen · de uso real' })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: /la URL con el ticket se imprime/ })).toBeDefined()
   expect(await ui.find({ key: 'b-aprobar:pagos' })).toMatchObject({ props: { hotkey: '1' } })
   expect(await ui.find({ key: 'b-revisar-estado' })).toMatchObject({ props: { hotkey: 'c' } })
@@ -141,9 +145,58 @@ test('se redibuja solo cuando el panel cambia', async ($, on) => {
   await clock.advance(2000)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /Esperando/ })).toBeUndefined()
-  // 0 ⏳ y 0 ❌: el 0 grande reemplaza al 1.
-  expect(await ui.find({ type: 'Text', text: '▀█ ' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '█▀█' })).toMatchObject({ props: { color: 'yellow' } })
+  // 0 ⏳ y 0 ❌: el resumen cambia de 1 a 0.
+  expect(await ui.find({ type: 'Text', text: '⏳ 1 esperan' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '⏳ 0 esperan' })).toMatchObject({ props: { color: 'yellow' } })
+})
+
+test('muestra la carpeta del proyecto a la derecha y la abre con «o» sin confirmar (CCC-C21)', async ($, on) => {
+  const llamadas: string[][] = []
+  const abrir = { id: 'abrir-carpeta', tipo: 'abrir', etiqueta: 'Abrir carpeta', detalle: 'xdg-open /home/ana/proyectos/tienda', confirmar: false }
+  const conCarpeta = { ...PANEL, carpeta: '/home/ana/proyectos/tienda', acciones: [...ACCIONES, abrir] }
+  preparar(on, ok(conCarpeta), llamadas, { exitCode: 0, stdout: '[+] Carpeta abierta: xdg-open /home/ana/proyectos/tienda', stderr: '' }, [], { HOME: '/home/ana' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/ana/proyectos/tienda' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: '📂 ~/proyectos/tienda' })).toBeDefined()
+  expect(await ui.find({ key: 'b-abrir-carpeta' })).toMatchObject({ props: { hotkey: 'o' } })
+  // No se repite en la lista de acciones de abajo.
+  expect(await ui.find({ key: 'fila-abrir-carpeta' })).toBeUndefined()
+
+  await ui.press({ key: 'b-abrir-carpeta' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'abrir-carpeta'])
+  expect(await ui.find({ type: 'Text', text: /Carpeta abierta/ })).toBeDefined()
+})
+
+test('sin abridor en el sistema muestra la carpeta pero no el botón', async ($, on) => {
+  preparar(on, ok({ ...PANEL, carpeta: '/srv/app' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/srv/app' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '📂 /srv/app' })).toBeDefined()
+  expect(await ui.find({ key: 'b-abrir-carpeta' })).toBeUndefined()
+})
+
+test('cada tarea tiene su ✕: pide «s  Sí» y la descarta; las más antiguas se cuentan (CCC-C22)', async ($, on) => {
+  const llamadas: string[][] = []
+  const descartar = { id: 'descartar:ticket', tipo: 'descartar', etiqueta: 'Descartar «Ticket de MP en logs»', detalle: 'qdd estado cerrar ticket --descartado', confirmar: true }
+  const conX = { ...PANEL, estado: { ...ESTADO, ocultos: 5 }, acciones: [...ACCIONES, descartar] }
+  preparar(on, ok(conX), llamadas, { exitCode: 0, stdout: "[+] Tarea 'ticket' descartada: sale del panel y queda en el archivo con su motivo.", stderr: '' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: '2 de 7 tareas' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '+5 más antiguas · qdd estado ver' })).toBeDefined()
+  expect(await ui.find({ key: 'x-ticket' })).toMatchObject({ props: { label: '✕' } })
+  // Sin acción ofrecida por qdd no hay ✕, y la ✕ no se repite en la lista de acciones.
+  expect(await ui.find({ key: 'x-gemini' })).toBeUndefined()
+  expect(await ui.find({ key: 'fila-descartar:ticket' })).toBeUndefined()
+
+  await ui.press({ key: 'x-ticket' })
+  expect(await ui.find({ type: 'Text', text: '¿Descartar «Ticket de MP en logs»?' })).toBeDefined()
+  expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
+  await ui.press({ key: 'si' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'descartar:ticket', '--confirmado'])
+  expect(await ui.find({ type: 'Text', text: /Tarea 'ticket' descartada/ })).toBeDefined()
 })
 
 const PEDIDO = {
@@ -202,13 +255,13 @@ test('el panel se abre solo cuando llega un comando pedido, aunque no haya frent
   expect(aperturas.length).toBe(1)
 })
 
-test('las secciones van en orden: estado por frente, acciones, para ti, esperando y fallas', async ($, on) => {
+test('las secciones van en orden: tareas, acciones, para ti, esperando y fallas', async ($, on) => {
   preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const textos = (await ui.findAll({ type: 'Text' })).map((n) => n.text)
   const donde = (re: RegExp) => textos.findIndex((t) => re.test(t))
-  const orden = [/Estado por frente/, /^Frentes$/, /^Acciones$/, /Para ti/, /Esperando/, /Fallas/].map(donde)
+  const orden = [/^Tareas · /, /^Tarea$/, /^Acciones$/, /Para ti/, /Esperando/, /Fallas/].map(donde)
   expect(orden.every((i) => i >= 0)).toBe(true)
   expect([...orden].sort((a, b) => a - b)).toEqual(orden)
 })
@@ -260,4 +313,84 @@ test('un pedido hecho no vuelve a abrir el panel', async ($, on) => {
   salida.stdout = JSON.stringify({ ...vacio, acciones: [{ ...PEDIDO, tecla: undefined, estado: 'hecho' }] })
   await clock.advance(2000)
   expect(aperturas.length).toBe(0)
+})
+
+// RFC 0006 §3.13, blueprint estado-por-tareas: la tarea en curso dice «● running», el ● late y destella con cada pulso.
+const EN_CURSO = (pulso: string) => ({
+  ...PANEL,
+  estado: {
+    ...ESTADO,
+    actual: 'gemini',
+    frentes: ESTADO.frentes.map((f) => (f.id === 'gemini' ? { ...f, actividad: { running: true, pulso, fuente: 'agente' } } : f)),
+  },
+})
+
+test('la tarea en curso dice «● running» y el ● alterna tenue y brillante cada 1 s (EPT-C08)', async ($, on) => {
+  const clock = preparar(on, ok(EN_CURSO('2026-10-30T10:00:00-03:00')))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'running' })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.findAll({ type: 'Text', text: '●' })).toHaveLength(1)
+  const brillo = async () => !!(await ui.find({ type: 'Text', text: '●' }))?.props?.dimColor
+  const antes = await brillo()
+
+  await clock.advance(1000)
+  expect(await brillo()).toBe(!antes)
+  await clock.advance(1000)
+  expect(await brillo()).toBe(antes)
+})
+
+test('un pulso nuevo en el JSON hace destellar el ● en acento (EPT-C09)', async ($, on) => {
+  const salida = ok(EN_CURSO('2026-10-30T10:00:00-03:00'))
+  const clock = preparar(on, salida)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '●' })).not.toMatchObject({ props: { color: 'cyan' } })
+  salida.stdout = JSON.stringify(EN_CURSO('2026-10-30T10:00:07-03:00'))
+  await clock.advance(2000)
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: 'cyan' } })
+  await clock.advance(1000)
+  expect(await ui.find({ type: 'Text', text: '●' })).not.toMatchObject({ props: { color: 'cyan' } })
+})
+
+test('cada herramienta del agente late la tarea sin demorarla, con un pulso a la CLI cada 5 s como mucho (EPT-C10)', async ($, on) => {
+  const llamadas: string[][] = []
+  const clock = preparar(on, ok(EN_CURSO('2026-10-30T10:00:00-03:00')), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  on('agent.spawn', () => ({ model: 'sonnet' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const pulsos = () => llamadas.filter((a) => a[1] === 'estado' && a[2] === 'pulso')
+
+  expect(await $.tool.call({ tool: 'Bash', command: 'ls' })).toMatchObject({ result: 'hecho' })
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: 'cyan' } })
+  await $.tool.call({ tool: 'Read', file_path: '/work/a' })
+  expect(pulsos()).toEqual([['qdd', 'estado', 'pulso', '--fuente', 'agente']])
+
+  await clock.advance(5000)
+  await $.agent.spawn({ prompt: 'revisa' })
+  await clock.advance(1) // el pulso a la CLI va sin esperar: se completa en el tic siguiente
+  expect(pulsos()).toContainEqual(['qdd', 'estado', 'pulso', '--fuente', 'subagente'])
+  expect(pulsos().length).toBe(2)
+})
+
+test('sin tarea en curso, las herramientas no envían pulsos', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(llamadas.some((a) => a[2] === 'pulso')).toBe(false)
+})
+
+test('el resumen cuenta «▶ N para ti» solo con los pedidos que se pueden ejecutar', async ($, on) => {
+  const hecho = { ...PEDIDO, id: 'pedido:2', tecla: undefined, estado: 'hecho' }
+  const salida = ok({ ...PANEL, acciones: [PEDIDO, hecho, ...ACCIONES] })
+  const clock = preparar(on, salida)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '▶ 1 para ti' })).toMatchObject({ props: { color: 'yellow' } })
+  salida.stdout = JSON.stringify({ ...PANEL, acciones: [hecho, ...ACCIONES] })
+  await clock.advance(2000)
+  expect(await ui.find({ type: 'Text', text: /para ti$/ })).toBeUndefined()
 })
