@@ -1,6 +1,6 @@
 # RFC 0007: Varias fuentes de blueprints en un proyecto
 
-**Status:** Implemented (pendiente de release)
+**Status:** Implemented (qdd 2.5.0)
 **Created:** 2026-10-30
 **Extiende:** el [RFC 0004](0004-blueprints-centrales.md) (registro, sincronización y aportes).
 
