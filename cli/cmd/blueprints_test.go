@@ -324,6 +324,8 @@ func TestReleaseOrigenFlag_NamesTheSourceToTag(t *testing.T) {
 		if u := c.Flags().Lookup("origen").Usage; !strings.Contains(u, "nuevo") {
 			t.Fatalf("%s --origen sigue siendo la fuente de un blueprint nuevo: %q", c.Name(), u)
 		}
+	}
+}
 
 // FND-073: sin terminal, 'qdd blueprint apply' listaba una pregunta condicional
 // como si fuera obligatoria, sin decir de qué respuesta depende.

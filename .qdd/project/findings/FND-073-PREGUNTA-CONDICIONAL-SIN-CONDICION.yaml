@@ -4,3 +4,5 @@ description: "Sin terminal (o en CI), 'qdd blueprint apply' sin respuestas lista
 impact: "Quien completaba las respuestas a mano podía creer que debía decidir algo que no aplicaba a su proyecto."
 action_taken: "La CLI agrega '(solo si <condición>)' a cada pregunta condicional, con el mismo texto que usa la tool MCP (Pregunta.Condicion). Test en cli/cmd/blueprints_test.go (TestPendingProblems_ConditionalQuestionSaysWhenItApplies)."
 date: "2026-10-27"
+status: resolved
+detectado_por: ia

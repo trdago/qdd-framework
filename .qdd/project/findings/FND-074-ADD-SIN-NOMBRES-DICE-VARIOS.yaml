@@ -4,3 +4,5 @@ description: "Con un repositorio registrado, 'qdd blueprint add' sin ids ni --pa
 impact: "Mensaje contradictorio con lo que se listaba justo al lado; ejemplos que no aplicaban."
 action_taken: "El mensaje dice 'no pediste ningún blueprint: elige cuáles (qdd blueprint add <id>...), un --paquete o --todos' y sigue ofreciendo lo disponible. Lo comparten la CLI y la tool MCP qdd_blueprint_add. Test en cli/pkg/blueprints/blueprints_test.go (TestAdd_WithoutSelectionDoesNotClaimSeveralWhenThereIsOne)."
 date: "2026-10-27"
+status: resolved
+detectado_por: ia
