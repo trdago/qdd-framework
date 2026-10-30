@@ -40,7 +40,7 @@ func TestPedir_QuedaEnLaColaFueraDelProyecto_CCC_C17(t *testing.T) {
 	if p.ID == "" || p.Carpeta != root || !p.Creado.Equal(enCola) {
 		t.Fatalf("el pedido lleva id, la carpeta del proyecto por defecto y su hora: %+v", p)
 	}
-	if got := Pedidos(root); len(got) != 1 || got[0] != p {
+	if got := Pedidos(root); len(got) != 1 || got[0].ID != p.ID || got[0].Estado != EstadoPendiente || got[0].Tecla != "a" {
 		t.Fatalf("el pedido queda en la cola del proyecto: %+v", got)
 	}
 	entradas, _ := os.ReadDir(filepath.Join(root, ".qdd"))
@@ -106,7 +106,7 @@ func comandoQueEscribe(archivo string) string {
 	return "echo hecho > " + archivo
 }
 
-func TestEjecutar_UnPedidoCorreEnSuCarpetaYSaleDeLaCola_CCC_C18(t *testing.T) {
+func TestEjecutar_UnPedidoCorreEnSuCarpetaYQuedaHecho_CCC_C18(t *testing.T) {
 	root := proyectoConCola(t)
 	sub := filepath.Join(root, "sub")
 	if err := os.MkdirAll(sub, 0755); err != nil {
@@ -121,21 +121,144 @@ func TestEjecutar_UnPedidoCorreEnSuCarpetaYSaleDeLaCola_CCC_C18(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(sub, "marca.txt")); err != nil {
 		t.Fatal("el comando corre en la carpeta del pedido")
 	}
-	if len(Pedidos(root)) != 0 {
-		t.Fatal("un pedido que terminó bien sale de la cola")
+	cola := Pedidos(root)
+	if len(cola) != 1 || cola[0].Estado != EstadoHecho || cola[0].Fin == nil || cola[0].Abierto() {
+		t.Fatalf("un pedido que terminó bien queda a la vista como hecho, ya cerrado: %+v", cola)
+	}
+	hecho, _ := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
+	if hecho.Estado != EstadoHecho || hecho.Tecla != "" {
+		t.Fatalf("el panel lo muestra hecho y sin tecla, para no clickearlo de nuevo: %+v", hecho)
 	}
 }
 
-func TestEjecutar_UnPedidoQueFallaSigueEnLaCola_CCC_C18(t *testing.T) {
+// FND-070: un pedido aceptado se podía volver a ejecutar desde el panel (o con dos clics seguidos).
+func TestEjecutar_UnPedidoAceptadoNoCorreDosVeces_FND070(t *testing.T) {
 	root := proyectoConCola(t)
-	p := mustPedir(t, root, "exit 3", "Falla", "")
+	marca := filepath.Join(root, "veces.txt")
+	comando := "echo x >> " + marca
+	p := mustPedir(t, root, comando, "Una sola vez", "")
+	a, _ := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
+	var salida bytes.Buffer
+	if codigo := a.Ejecutar(root, "qdd", &salida); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, salida.String())
+	}
+	salida.Reset()
+	if codigo := a.Ejecutar(root, "qdd", &salida); codigo != 1 || !strings.Contains(salida.String(), "ya se ejecutó") {
+		t.Fatalf("la segunda vez se rechaza y se dice por qué: %d %q", codigo, salida.String())
+	}
+	if b, _ := os.ReadFile(marca); strings.Count(string(b), "x") != 1 {
+		t.Fatalf("el comando corrió una sola vez: %q", b)
+	}
+	if again := mustPedir(t, root, comando, "otra", ""); again.ID == p.ID || again.Estado != EstadoPendiente {
+		t.Fatalf("pedirlo de nuevo, ya hecho, es un pedido nuevo: %+v", again)
+	}
+}
+
+func TestEjecutar_UnPedidoEjecutandoseNoSeAceptaNiSeDescarta_FND070(t *testing.T) {
+	root := proyectoConCola(t)
+	p := mustPedir(t, root, "exit 0", "m", "")
+	inicio := time.Now()
+	if err := conCola(root, inicio, func(cola []Pedido) ([]Pedido, error) {
+		cola[0].Estado, cola[0].Inicio = EstadoEjecutando, &inicio
+		return cola, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
+	if a.Estado != EstadoEjecutando || a.Tecla != "" {
+		t.Fatalf("mientras corre el panel no ofrece tecla: %+v", a)
+	}
+	var salida bytes.Buffer
+	if codigo := a.Ejecutar(root, "qdd", &salida); codigo != 1 || !strings.Contains(salida.String(), "ya se está ejecutando") {
+		t.Fatalf("no se acepta mientras corre: %d %q", codigo, salida.String())
+	}
+	if err := Descartar(root, p.ID); err == nil {
+		t.Fatal("no se descarta mientras corre")
+	}
+}
+
+func TestPedidos_UnoQueQuedoEjecutandoseSeDaPorCortado(t *testing.T) {
+	root := proyectoConCola(t)
+	mustPedir(t, root, "exit 0", "m", "")
+	inicio := enCola
+	if err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		cola[0].Estado, cola[0].Inicio = EstadoEjecutando, &inicio
+		return cola, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cola := PedidosA(root, enCola.Add(TopeEjecucion+time.Minute))
+	if cola[0].Estado != EstadoFallo || !strings.Contains(cola[0].Salida, "se cortó") || !cola[0].Ejecutable() {
+		t.Fatalf("un pedido que no terminó queda como falla, para reintentarlo: %+v", cola[0])
+	}
+}
+
+func TestPedidos_LosHechosSeVanDespuesDeMediaHora(t *testing.T) {
+	root := proyectoConCola(t)
+	mustPedir(t, root, "exit 0", "m", "")
+	fin := enCola
+	if err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		cola[0].Estado, cola[0].Fin = EstadoHecho, &fin
+		return cola, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(PedidosA(root, enCola.Add(VidaHecho-time.Minute))) != 1 {
+		t.Fatal("recién hecho se sigue viendo")
+	}
+	if len(PedidosA(root, enCola.Add(VidaHecho+time.Minute))) != 0 {
+		t.Fatal("pasada media hora ya no aparece")
+	}
+}
+
+// FND-071: las teclas se recorrían cuando un pedido salía de la cola; la tecla que la persona veía cambiaba.
+func TestPedidos_CadaPedidoConservaSuTecla_FND071(t *testing.T) {
+	root := proyectoConCola(t)
+	a := mustPedir(t, root, "exit 0", "primero", "")
+	b := mustPedir(t, root, "echo dos", "segundo", "")
+	if a.Tecla != "a" || b.Tecla != "b" {
+		t.Fatalf("teclas en orden: %q %q", a.Tecla, b.Tecla)
+	}
+	accion, _ := BuscarAccion(Acciones(root, false), "pedido:"+a.ID)
+	var salida bytes.Buffer
+	accion.Ejecutar(root, "qdd", &salida)
+	if TeclaDe(root, b.ID) != "b" {
+		t.Fatalf("el segundo sigue con la b después de hacer el primero: %q", TeclaDe(root, b.ID))
+	}
+	c := mustPedir(t, root, "echo tres", "tercero", "")
+	if c.Tecla != "a" {
+		t.Fatalf("la tecla de un hecho queda libre para el siguiente: %q", c.Tecla)
+	}
+}
+
+func TestPedidos_UnaColaDe260SinTeclaNiEstadoSeLee(t *testing.T) {
+	root := proyectoConCola(t)
+	ruta, _ := colaPath(root)
+	os.MkdirAll(filepath.Dir(ruta), 0700)
+	vieja := `[{"id":"1","comando":"exit 0","motivo":"m","carpeta":"` + filepath.ToSlash(root) + `","creado":"2026-10-30T12:00:00Z"},{"id":"2","comando":"echo","motivo":"n","carpeta":"` + filepath.ToSlash(root) + `","creado":"2026-10-30T12:00:00Z"}]`
+	if err := os.WriteFile(ruta, []byte(vieja), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cola := Pedidos(root)
+	if len(cola) != 2 || cola[0].Estado != EstadoPendiente || cola[0].Tecla != "a" || cola[1].Tecla != "b" {
+		t.Fatalf("la cola de la versión anterior queda pendiente y con teclas: %+v", cola)
+	}
+}
+
+func TestEjecutar_UnPedidoQueFallaQuedaParaReintentar_CCC_C18(t *testing.T) {
+	root := proyectoConCola(t)
+	p := mustPedir(t, root, "echo no hay permiso; exit 3", "Falla", "")
 	a, _ := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
 	var salida bytes.Buffer
 	if codigo := a.Ejecutar(root, "qdd", &salida); codigo != 3 {
 		t.Fatalf("se devuelve el código del comando: %d", codigo)
 	}
-	if len(Pedidos(root)) != 1 {
-		t.Fatal("un pedido que falló queda para reintentarlo o descartarlo")
+	f, _ := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
+	if f.Estado != EstadoFallo || f.Tecla != "a" || !strings.Contains(f.Resultado, "no hay permiso") {
+		t.Fatalf("un pedido que falló muestra su error y conserva su tecla para reintentarlo: %+v", f)
+	}
+	if codigo := f.Ejecutar(root, "qdd", &salida); codigo != 3 {
+		t.Fatalf("reintentar lo vuelve a correr: %d", codigo)
 	}
 }
 

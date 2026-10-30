@@ -20,6 +20,56 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Al día con v2.x:** la guía de blueprints describe la carpeta central (el proyecto solo versiona el lockfile), varias fuentes, repositorios públicos por HTTPS, el ciclo `contribute` → `propose` → `release` y las reglas `BP-05` y `BP-06`. La referencia documenta `qdd estado`, `qdd consola` y las tools `qdd_estado` y `qdd_consola_pedir`, y el README presenta el panel de Claude Code.
 - **La documentación ya no puede quedar atrás:** `cli/cmd/docs_reference_test.go` falla si la referencia omite un comando o una tool registrada, si nombra una tool que el servidor no registra o si un enlace relativo está roto.
 
+## [v2.7.0] - 2026-10-30
+
+### ● Tarea en curso y pulsos de vida (RFC 0006 §3.13, blueprint nuevo `estado-por-tareas` v1.0.0)
+
+- **«● running» en la fila de la tarea que se trabaja.** El agente la declara con `qdd estado activa <tarea>` o con `qdd_estado accion=activar`. El `●` alterna entre tenue y brillante cada 1 s, y «running» va atenuado. Una tarea en curso siempre se ve, aunque no esté entre las 4 más nuevas.
+- **Pulsos de vida.** Cada herramienta del agente y cada subagente, en Claude Code y en OpenCode, hacen destellar el `●` en el color de acento. Los comandos externos (scripts, tests, deploys, workers) laten con `qdd estado pulso <tarea> --fuente comando`. El panel envía como mucho un pulso cada 5 s y nunca demora la herramienta.
+- **Se apaga sola.** Una tarea que pasa 120 s sin pulsos deja de estar en curso. También se apaga con `qdd estado activa <tarea> --fin`, al cerrarla o al descartarla.
+- **No es estado.** La actividad vive fuera del repositorio, en `<QDD_HOME>/claude/actividad/`, junto a la cola de pedidos y con la misma clave por proyecto. No se commitea. `estado.yaml` no cambia. `qdd consola panel --json` agrega `actividad` en cada tarea en curso y `actual` a nivel del estado.
+
+### 🪶 Panel liviano y solo lo pendiente (RFC 0006 §3.10, `consola-claude-code` v6.0.0)
+
+- **Tareas.** En el panel, los frentes se llaman tareas. Se ven solo las 4 pendientes más nuevas, y las más antiguas se resumen en «+5 más antiguas».
+- **✕ para descartar.** Cada tarea tiene una ✕ al final de su fila. Pide «s  Sí» y la pasa a «descartado» con su motivo: sale del panel y queda en el archivo.
+- **Panel liviano.** La cabecera pasa a ser una línea con la hora y la versión de qdd, y el resumen va en otra línea con colores: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`. Si hay comandos para ti que se pueden ejecutar, el resumen suma `▶ N para ti`. Ya no hay recuadro ni números grandes. Las listas de ⏳ y ❌ ocupan dos líneas por elemento.
+- **Un frente terminado sale del panel.** Si todas sus etapas están en ✅ o —, o si está cerrado o descartado, deja de verse en el acto. Sigue en `estado.yaml` y en `qdd estado ver --todos`.
+- **Aprobar sin commits.** En un repositorio sin commits, el aviso ya no queda como «(revisada en )».
+
+### 📂 Abrir la carpeta del proyecto desde el panel
+
+- **Arriba a la derecha** el panel muestra la carpeta del proyecto (`📂 ~/…/proyecto`) y el botón `o  Abrir carpeta`, que la abre con el gestor de archivos que el sistema tenga configurado: `xdg-open` en Linux y BSD, `open` en macOS y `explorer` en Windows.
+- **Sin confirmación**, porque no escribe nada. Como las demás acciones, la decide qdd: `qdd consola panel --json` trae `carpeta` y la acción `abrir-carpeta` (solo si existe el abridor), y `qdd consola accion abrir-carpeta` la lanza en una sesión propia. No es un enlace: los paneles de Claude Code solo aceptan enlaces `https://`. Si el abridor falla en los primeros 3 s, el panel lo dice.
+
+### 🧭 El panel en OpenCode, solo para mirar (RFC 0006 §3.11)
+
+- **Misma sincronización que en Claude Code.** Si OpenCode está en la máquina, `qdd consola activar` deja el panel en su barra lateral derecha. El panel ejecuta `qdd consola panel --json` cada 2 s, con un tope de 3 s, y se redibuja solo si algo cambió. Muestra las tareas, el resumen, ⏳/❌ y cuántas fichas esperan aprobación. No tiene botones, ✕ ni diálogos.
+- **Siempre en la versión de qdd.** El plugin viaja dentro del binario. `actualizar` y `doctor --fix` lo reescriben, `doctor` avisa si es de otra versión o si falta su entrada en `tui.json`, y `desactivar` lo quita.
+- **`tui.json` con cuidado.** Antes del primer cambio queda `tui.json.qdd.bak`. Solo se agrega una entrada, y un archivo que no es JSON válido no se toca: se avisa.
+
+### 🏷️ Son tareas, no frentes (RFC 0006 §3.12)
+
+- El panel pasa a llamarse `qdd-tareas@qdd` y se abre con `/tareas`. Al activar o actualizar se desinstala el `qdd-estado@qdd` anterior.
+- La barra dice `◧ 9 tareas · ⏳7 ❌2`. No cambian el formato de `estado.yaml` ni los comandos `qdd estado …`.
+
+## [v2.6.2] - 2026-10-30
+
+### ✓ Un comando aceptado no se vuelve a ofrecer
+
+- **Cada pedido muestra su estado.** En «▶ Para ti», un comando pendiente tiene su botón; apenas lo confirmas con «s  Sí» pasa a **⟳ ejecutando** y, al terminar, a **✓ hecho**, los dos en gris y sin botón: no se puede aceptar de nuevo. Si falla queda en rojo, con las últimas líneas del error y **↻ Reintentar** en su misma tecla (FND-070).
+- **qdd también lo impide.** `qdd consola accion pedido:<id>` rechaza un pedido que se está ejecutando o que ya se ejecutó, y la cola se cambia con un bloqueo: dos clics seguidos corren el comando una sola vez.
+- **Las teclas no se mueven.** Cada pedido guarda su tecla (a, b, d…) desde que se pide; antes, al salir uno de la cola, los demás cambiaban de letra (FND-071).
+- **Panel más claro.** Cada pedido ocupa tres líneas iguales: qué, el comando exacto en monoespaciado y dónde/cuándo. El título de «▶ Para ti» resume cuántos hay por hacer y cuántos hechos; los hechos van al final y se van solos a la media hora. La confirmación dice qué vas a confirmar antes de la pregunta.
+- Un pedido que lleva más de 15 minutos ejecutándose (por ejemplo, si se cerró Claude Code) se da por cortado y queda para reintentarlo. La cola de qdd 2.6.0 se sigue leyendo.
+
+## [v2.6.1] - 2026-10-30
+
+### 🧭 Nuevo orden del panel
+
+- Las secciones van de arriba hacia abajo así: estado por frente (cabecera y tabla), **Acciones**, **▶ Para ti**, ⏳ Esperando y ❌ Fallas. Los botones quedan juntos bajo la tabla, y la confirmación aparece en la sección del botón que pulsaste.
+- **Acciones** son los botones fijos de QDD según el estado del proyecto (aprobar fichas, revisar el estado, auditar). **Para ti** son los comandos que la IA te dejó para ejecutar con un clic.
+
 ## [v2.6.0] - 2026-10-30
 
 ### ▶ Comandos para la persona, con un clic desde el panel (RFC 0006 §3.9, `consola-claude-code` v5.0.0)

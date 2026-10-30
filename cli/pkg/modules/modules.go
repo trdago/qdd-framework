@@ -155,6 +155,15 @@ func Save(root string, m Module) (string, []string) {
 	return write(root, m)
 }
 
+// TextoAprobada es el aviso de una ficha recién aprobada. Sin commits en el repositorio no hay commit que citar: se
+// dice así en vez de dejar «(revisada en )».
+func TextoAprobada(m Module) string {
+	if m.RevisadoEnCommit == "" {
+		return fmt.Sprintf("[+] Ficha '%s' aprobada (sin commit de referencia: el repositorio aún no tiene commits).", m.ID)
+	}
+	return fmt.Sprintf("[+] Ficha '%s' aprobada (revisada en %s).", m.ID, m.RevisadoEnCommit)
+}
+
 // Approve marca la ficha como aprobada y revisada en el commit actual.
 func Approve(root, id string) (Module, []string) {
 	m, ok := Find(root, id)

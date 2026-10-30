@@ -161,15 +161,148 @@ bloquearon, o el comando publica algo, como el push del tag de una versión), no
 - La cola es de esta máquina y no se versiona: `<QDD_HOME>/claude/pedidos/<carpeta>-<hash>.json`, una por proyecto
   (privada, escritura atómica). El mismo comando en la misma carpeta no se duplica; el tope es 9.
 - `qdd consola panel --json` entrega cada pedido como una acción `pedido:<id>` con su motivo (`etiqueta`), el comando
-  exacto (`detalle`), la `carpeta` y la `tecla` (a, b, d…: no usan las de otros botones). El panel los muestra
-  primero, en «▶ Para ti», y se abre solo cuando llega uno nuevo.
+  exacto (`detalle`), la `carpeta` y la `tecla` (a, b, d…: no usan las de otros botones). El panel los muestra en
+  «▶ Para ti» y se abre solo cuando llega uno nuevo. Orden de las secciones (qdd 2.6.1, decisión del humano): estado
+  por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas. La confirmación aparece en la
+  sección del botón que se pulsó.
 - La confirmación muestra el motivo, «Ejecutará: <comando>» y «En: <carpeta>». Con «s  Sí» el panel pide
   `qdd consola accion pedido:<id> --confirmado`, que corre el comando con la shell del sistema (`sh -c`; en Windows,
-  `cmd /C`) en su carpeta. Si termina bien sale de la cola; si falla queda para reintentarlo. «x  Descartar» lo quita
-  sin ejecutarlo (`qdd consola descartar <id>`). `qdd consola pedidos` lista la cola.
+  `cmd /C`) en su carpeta. «x  Descartar» lo quita sin ejecutarlo (`qdd consola descartar <id>`). `qdd consola
+  pedidos` lista la cola.
+- Estados (qdd 2.6.2): un pedido pasa por `pendiente` → `ejecutando` → `hecho` (salió con 0) o `fallo`, y la acción
+  los entrega en `estado`, con `inicio`, `fin` y `resultado` (últimas líneas de la salida). Solo uno pendiente o con
+  falla se ejecuta: el paso a `ejecutando` se hace con la cola bloqueada (un archivo `.lock`), así un pedido aceptado
+  no corre dos veces (FND-070). Cada pedido guarda su tecla desde que se pide y la conserva mientras está abierto; la
+  de uno hecho queda libre (FND-071). En el panel, cada pedido ocupa tres líneas (qué, `$ comando`, dónde y cuándo):
+  pendiente con su botón; ejecutando (⟳) y hecho (✓) en gris y sin botón; con falla (✗) en rojo, con el error y
+  «↻ Reintentar» en su misma tecla. El panel marca el pedido como ejecutando apenas se confirma, sin esperar a qdd.
+  Un hecho se sigue viendo 30 minutos; uno que lleva más de 15 minutos ejecutándose se da por cortado (fallo). El
+  tope de 9 y los duplicados cuentan solo los abiertos. Una cola de qdd 2.6.0 (sin estado ni tecla) se lee como
+  pendiente.
 - Las instrucciones para la IA (bloque de AGENTS.md, CLAUDE.md…) le dicen que use `qdd_consola_pedir` y que nunca
   ejecute ella misma `qdd consola accion` sobre un pedido. QDD no puede impedirlo técnicamente a un agente con shell
   propia: lo que lo protege es que la confirmación está en la interfaz de la persona y los permisos del agente.
+### 3.10 Panel liviano, solo lo pendiente y la carpeta del proyecto (`consola-claude-code` v6.0.0; qdd 2.7.0)
+
+Decisiones del humano (2026-10-30):
+1. El panel se ve **liviano**: el usuario comparó el panel cargado (cabecera con borde y números grandes) con el de un
+   proyecto sin frentes y prefirió este. Reemplaza el primer nivel de §3.7.
+2. **Un frente terminado sale del panel.** En el panel los frentes se llaman **tareas**, se ven solo las **4 más
+   nuevas** y cada una tiene una **✕** para descartarla y sacarla «del mapa mental» si no se va a hacer nada.
+3. Hay un botón para **abrir la carpeta del proyecto** con el gestor de archivos que el sistema tenga configurado.
+
+**Panel liviano.** La cabecera es una línea `Tareas · HH:MM` en cian y negrita, con la versión de qdd
+atenuada a la derecha (`version` en `qdd consola panel --json`), y debajo el resumen en una línea con el color de cada
+conteo: `4 de 9 tareas · ⏳ 3 esperan · ❌ 1 fallan`, más `▶ N para ti` si hay comandos de §3.9 que se pueden
+  ejecutar (pendientes o con falla; lo mismo en OpenCode). Ya no hay recuadro ni números de 3 filas. Las listas de ⏳ y ❌ van en
+dos líneas por elemento: `• frente › etapa` y, atenuado, `→ qué falta · de quién`. La tabla, los botones, la
+confirmación y el recuadro del resultado no cambian.
+
+**Solo lo pendiente, 4 tareas.** El panel usa `estado.DatosPendientes(e, now, 4)`: de los frentes `abierto` con alguna
+etapa que no esté en ✅ ni en —, los 4 más nuevos (los últimos del archivo, que es donde `qdd estado set` agrega uno
+nuevo). `ocultos` cuenta los pendientes más antiguos, y el panel los resume en «+5 más antiguas · qdd estado ver». Los
+⏳ y ❌ que se listan son solo los de esas 4 tareas. Un frente terminado (todo ✅ o —), cerrado o descartado sale en el
+acto, sin los 7 días de `RecienCerrado`. Sigue en `estado.yaml` y en `qdd estado ver --todos`; `qdd estado ver`, la barra
+y el archivo (`frentes:`) no cambian de nombre.
+
+**La ✕ de cada tarea.** `qdd consola panel --json` ofrece `descartar:<id>` (`tipo: descartar`, `confirmar: true`) por
+cada tarea visible. La ✕ va al final de su fila y se pulsa con el mouse. Abre el recuadro «¿Descartar «…»?» con
+`s  Sí` / `n  No`, y con «Sí» hace lo mismo que `qdd estado cerrar <id> --descartado --motivo "descartada desde el panel
+de Claude Code (✕)"`. La tarea nunca desaparece en silencio: queda en el archivo con estado y motivo, y su lugar lo toma
+la siguiente más nueva. Si la fila no cumple las invariantes de `qdd estado`, no se escribe y el panel muestra el motivo.
+
+**Aviso de aprobación sin commit.** En un repositorio sin commits, aprobar una ficha ya no dice «(revisada en )»:
+dice «(sin commit de referencia: el repositorio aún no tiene commits)» (`modules.TextoAprobada`).
+
+**Abrir la carpeta.**
+
+- `qdd consola panel --json` suma `carpeta` (la raíz del proyecto) y la acción `abrir-carpeta` (`tipo: abrir`,
+  `confirmar: false`). Se ofrece solo en un proyecto QDD y si existe el abridor del sistema: `xdg-open` en Linux y BSD
+  (respeta la aplicación predeterminada para carpetas de XDG), `open` en macOS y `explorer` en Windows. El `detalle` es
+  el comando equivalente (`xdg-open /ruta`).
+- `qdd consola accion abrir-carpeta` lanza el abridor en su propia sesión (sobrevive al fin de qdd y al tope del panel).
+  Si termina con error dentro de 3 s, lo informa («¿hay una aplicación predeterminada para carpetas?») y sale con 1; si
+  sigue vivo, el gestor ya está abriendo y sale con 0.
+- El mod dibuja arriba, a la derecha, `📂 ~/…/carpeta` (acortada a `~` y, si no cabe, al final) y el botón
+  `o  Abrir carpeta`, que es lo clicable (la tecla es `o`, de *open*: `a, b, d…` son de los comandos de §3.9). No se usa un enlace: el elemento `Link` de los mods solo acepta `https:` (o
+  `http://localhost`), no `file://`, y los mods no tienen una API para abrir archivos. «Abrir carpeta» no se repite en la
+  lista de acciones de abajo. Sin abridor en el sistema, se ve la carpeta sin el botón. Como las demás acciones, el panel
+  no arma comandos: solo pide `abrir-carpeta`.
+- Probado en Omarchy (Hyprland, `inode/directory` → `files.desktop`): abre Thunar en la raíz y `qdd` sale en 0,1 s.
+
+### 3.11 El panel en OpenCode: solo actualizar y sincronizar (qdd 2.7.0)
+
+Decisión del humano (2026-10-30): llevar a OpenCode **solo la forma de actualizar y sincronizar el panel**, es decir,
+cómo se mantiene al día con el proyecto y con la versión de qdd, y dónde vive. En OpenCode el panel es **solo para
+mirar**: sin botones, ✕ ni diálogos, que siguen siendo de Claude Code.
+
+- **Dónde.** En la barra lateral derecha de OpenCode, con el espacio `sidebar_content` (orden 50, encima del contexto,
+  MCP, LSP, todo y archivos de OpenCode). OpenCode la muestra en la vista de una sesión y la oculta si la terminal es
+  angosta; se alterna con su propio atajo.
+- **Cómo se sincroniza.** Usa el mismo contrato que Claude Code: cada 2 s ejecuta `qdd consola panel --json` en la carpeta
+  del proyecto de la sesión (`api.state.path.directory`), con un tope de 3 s, y redibuja solo si el JSON cambió. Dibuja
+  lo mismo, en versión de lectura: `Tareas · HH:MM` con la versión, el resumen en una línea, las 4 tareas más nuevas, las
+  listas ⏳/❌ y cuántas fichas esperan aprobación. Sin `estado.yaml`, sin qdd o con un qdd antiguo, dice el motivo y
+  OpenCode sigue igual. `QDD_BIN` apunta a otro binario.
+- **Cómo se instala y se mantiene al día.** El plugin viaja dentro del binario de qdd, como el de Claude Code, así que su
+  versión es siempre la de la CLI. `qdd consola activar` lo deja en `<QDD_HOME>/opencode/qdd-tareas.tsx` (id `qdd.tareas`), con la versión
+  escrita en el archivo, si en la máquina hay OpenCode (`opencode` en el PATH o su carpeta de configuración). Lo registra
+  en `tui.json`, en la clave `"plugin"`, de `$XDG_CONFIG_HOME/opencode` (o `~/.config/opencode`). Antes de tocar
+  `tui.json` por primera vez guarda `tui.json.qdd.bak`; solo agrega su entrada, y si el archivo no es JSON válido no lo
+  toca y lo dice. `activo.json` recuerda `opencode: true`.
+- `qdd consola actualizar` y `qdd doctor --fix` reescriben el plugin con la versión de la CLI. `qdd doctor` avisa si
+  falta la entrada en `tui.json` o si el archivo es de otra versión. `qdd consola desactivar` quita la entrada y el
+  archivo. Los cambios se ven en una sesión nueva de OpenCode.
+
+### 3.12 Son tareas, no frentes: el nombre del panel (qdd 2.7.0)
+
+Decisión del humano (2026-10-30): «no son frentes, son tareas que estamos trabajando». Cambia el nombre en todo lo que
+se ve, no el formato del archivo:
+
+- El mod de Claude Code pasa de `qdd-estado@qdd` a **`qdd-tareas@qdd`** (carpeta `cli/pkg/consola/mod/qdd-tareas`) y el
+  comando de `/estado` a **`/tareas`** (`/tareas cerrar` lo cierra). `qdd consola activar`, `actualizar` y
+  `doctor --fix` desinstalan el `qdd-estado@qdd` que haya y lo dicen; `desactivar` quita los dos.
+- La barra dice `◧ 9 tareas · ⏳7 ❌2` (antes «frentes»), y lo mismo `qdd estado statusline`.
+- En OpenCode el plugin es `qdd-tareas.tsx`, con id `qdd.tareas`.
+- No cambian `.qdd/project/estado.yaml`, sus claves (`frentes:`), el JSON de `qdd consola panel` ni los comandos
+  `qdd estado …`: son el formato del blueprint `estado-por-frente`.
+
+### 3.13 Tarea en curso: «running» y pulsos de vida (blueprint `estado-por-tareas` v1.0.0; qdd 2.7.0)
+
+Decisión del humano (2026-10-30; aprobada con «resuelve de forma autónoma todo», como blueprint aparte `estado-por-tareas`): la fila de una tarea dice cuándo se está trabajando y late cuando algo de esa tarea
+se ejecuta, de forma sutil y elegante. **La declara el agente**; laten las herramientas del agente, los subagentes y los
+comandos externos; se ve como **punto + running**.
+
+- **Dónde vive.** En `<QDD_HOME>/claude/actividad/<carpeta>-<hash>.json`, fuera del repositorio y con la misma clave
+  por proyecto que la cola de pedidos (§3.9; una sola función, `RutaLocal`). No va en `.qdd/working`: ese es el archivo
+  donde cada comando qdd anota su nombre mientras corre (FND-079). Es actividad, no estado:
+  `estado.yaml` no cambia y nada se commitea. Por cada tarea guarda `desde`, `pulso` (la última señal de vida),
+  `fuente` (`agente` | `subagente` | `comando`) y `quien` (opcional). Se escribe de forma atómica; si el archivo falta o
+  no se puede leer, no hay tareas en curso.
+- **Quién la declara.** El agente, al empezar a trabajar una tarea: `qdd estado activa <id>` o, por MCP,
+  `qdd_estado accion=activar frente=<id>` (`accion=terminar` la apaga, `accion=pulso` late). La tarea tiene que existir y estar abierta. Puede haber más de una en curso
+  (dos sesiones en tareas distintas). `qdd estado activa <id> --fin` la apaga, y también se apaga al cerrarla o
+  descartarla (también con la ✕).
+- **Pulsos.** `qdd estado pulso [<id>] [--fuente agente|subagente|comando]` actualiza `pulso`. Sin `<id>`, late la
+  última tarea que se activó en el proyecto: así el mod no necesita saber cuál es. La envían:
+  - el mod de Claude Code en cada `tool.call` (`--fuente agente`) y en cada `agent.spawn` (`--fuente subagente`), con
+    un máximo de 1 escritura cada 5 s. En el panel de esa sesión, el destello es inmediato;
+  - el plugin de OpenCode, cuando su agente empieza a ejecutar una herramienta (evento `message.part.updated` con
+    `state.status = running`; `--fuente subagente` para la herramienta `task`, `agente` para las demás; mismo tope). Es su
+    única escritura y no cambia que sea solo para mirar: no tiene botones ni diálogos;
+  - cualquier script, test, deploy o worker: `qdd estado pulso <id> --fuente comando`.
+- **Cuándo deja de estar en curso.** Si pasan 120 s sin pulso, la tarea deja de verse «running». Su entrada se limpia
+  en la próxima escritura. Por eso un agente que se cae no deja una tarea encendida para siempre.
+- **Contrato.** `qdd consola panel --json` agrega a cada tarea `actividad: {running, pulso, fuente}`; una tarea sin
+  actividad no lleva el campo. Una tarea en curso **siempre se ve**, aunque no esté entre las 4 más nuevas. Los paneles
+  siguen sin interpretar reglas: solo dibujan.
+- **Cómo se ve.** `● running` en la fila de la tarea (en Claude Code, después de las etapas y antes de la ✕; en OpenCode, entre las etapas y el nombre). El `●` alterna entre tenue y brillante cada 1 s, con
+  «running» en gris. Cuando cambia `pulso`, el `●` destella con el color de acento durante 2 tics de 500 ms (entre 0,5 y 1 s). El
+  parpadeo es local (`$.clock.every(500)` e `invalidate` en Claude Code, `setInterval` en OpenCode), sin volver a ejecutar qdd, y
+  solo corre si hay alguna tarea en curso. La lectura de qdd sigue siendo cada 2 s.
+- **Pruebas** (escenarios EPT-C01…C12 del blueprint `estado-por-tareas`). En Go: activar, pulsar con y sin id, vencer a los 120 s, apagar al cerrar o descartar, la tarea en curso
+  fuera del tope de 4 y una tarea que no existe (error). En el mod: el `●` alterna, el pulso destella, `tool.call`
+  respeta el tope de 5 s y `next(e)` nunca se demora. En OpenCode: la lógica pura de la vista con `node --test`.
 
 ### 3.5 Agnóstico al sistema operativo
 

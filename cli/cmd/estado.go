@@ -29,6 +29,9 @@ var (
 	estadoCambio    estado.Cambio
 	estadoMotivo    string
 	estadoDescarta  bool
+	estadoFin       bool
+	estadoQuien     string
+	estadoFuente    string
 )
 
 var estadoCmd = &cobra.Command{
@@ -40,6 +43,8 @@ var estadoCmd = &cobra.Command{
   qdd estado init                    crea el archivo con las etapas de la ficha
   qdd estado set <frente> <etapa> <ok|espera|falla|na> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
   qdd estado cerrar <frente> --motivo "…" [--descartado]
+  qdd estado activa <tarea> [--fin]  la tarea en curso: el panel la muestra «● running» (blueprint estado-por-tareas)
+  qdd estado pulso [<tarea>] [--fuente agente|subagente|comando]  una señal de vida (sin tarea, la última activada)
   qdd estado check [--respuesta archivo.md] [--json]
   qdd estado statusline [--dir ruta] una línea para la barra de estado de la consola
   qdd estado watch                   panel en vivo (ponlo en un panel dividido de la terminal)`,
@@ -70,6 +75,18 @@ var estadoCerrarCmd = &cobra.Command{
 	Run:   runEstadoCerrar,
 }
 
+var estadoActivaCmd = &cobra.Command{
+	Use:   "activa <tarea>",
+	Short: "Declara la tarea en curso (con --fin la apaga); se apaga sola a los 120 s sin pulsos",
+	Args:  cobra.ExactArgs(1),
+	Run:   runEstadoActiva,
+}
+var estadoPulsoCmd = &cobra.Command{
+	Use:   "pulso [<tarea>]",
+	Short: "Señal de vida de una tarea en curso (sin tarea, la última activada); para scripts, tests, deploys y workers",
+	Args:  cobra.MaximumNArgs(1),
+	Run:   runEstadoPulso,
+}
 var estadoCheckCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Lector automático: escenarios EPF-C01…C07 (y EPF-A01 con --respuesta); sale con 1 si hay violaciones",
@@ -106,11 +123,14 @@ func init() {
 	f.BoolVar(&estadoCambio.Aprobado, "aprobado", false, "marca la aprobación como dada")
 	estadoCerrarCmd.Flags().StringVar(&estadoMotivo, "motivo", "", "por qué se cierra (obligatorio)")
 	estadoCerrarCmd.Flags().BoolVar(&estadoDescarta, "descartado", false, "se descarta en vez de cerrarse")
+	estadoActivaCmd.Flags().BoolVar(&estadoFin, "fin", false, "apaga la tarea en vez de declararla en curso")
+	estadoActivaCmd.Flags().StringVar(&estadoQuien, "quien", "", "quién la trabaja (opcional, p. ej. claude-code)")
+	estadoPulsoCmd.Flags().StringVar(&estadoFuente, "fuente", estado.FuenteComando, "agente | subagente | comando")
 	estadoCheckCmd.Flags().StringVar(&estadoResp, "respuesta", "", "archivo con la respuesta o el reporte (EPF-A01)")
 	estadoCheckCmd.Flags().BoolVar(&estadoJSON, "json", false, "salida JSON")
 	estadoWatchCmd.Flags().DurationVar(&estadoIntervalo, "intervalo", time.Second, "cada cuánto revisa si el archivo cambió")
 
-	estadoCmd.AddCommand(estadoVerCmd, estadoInitCmd, estadoSetCmd, estadoCerrarCmd, estadoCheckCmd, estadoStatuslineCmd, estadoWatchCmd)
+	estadoCmd.AddCommand(estadoVerCmd, estadoInitCmd, estadoSetCmd, estadoCerrarCmd, estadoActivaCmd, estadoPulsoCmd, estadoCheckCmd, estadoStatuslineCmd, estadoWatchCmd)
 	rootCmd.AddCommand(estadoCmd)
 }
 
@@ -214,6 +234,32 @@ func runEstadoCerrar(cmd *cobra.Command, args []string) {
 		salirCon("%v", err)
 	}
 	fmt.Printf("[+] %s cerrado: %s\n", args[0], estadoMotivo)
+}
+
+func runEstadoActiva(cmd *cobra.Command, args []string) {
+	root := estadoRaiz()
+	if estadoFin {
+		if err := estado.Terminar(root, args[0]); err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[+] %s ya no está en curso\n", args[0])
+		return
+	}
+	if err := estado.Activar(root, args[0], estadoQuien, time.Now()); err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Printf("[+] %s en curso: el panel la muestra «● running»; se apaga sola a los %d s sin pulsos\n", args[0], int(estado.VidaActividad.Seconds()))
+}
+
+// runEstadoPulso no imprime nada si no hay tarea en curso: lo llaman el mod en cada herramienta y los scripts.
+func runEstadoPulso(cmd *cobra.Command, args []string) {
+	id := ""
+	if len(args) == 1 {
+		id = args[0]
+	}
+	if _, err := estado.Pulsar(estadoRaiz(), id, estadoFuente, time.Now()); err != nil {
+		salirCon("%v", err)
+	}
 }
 
 func runEstadoCheck(cmd *cobra.Command, args []string) {

@@ -57,3 +57,31 @@ func TestEstadoTool_CerrarExigeMotivo(t *testing.T) {
 		t.Fatalf("cerrar sin motivo debe rechazarse: %q", resultText(t, res))
 	}
 }
+
+// §3.13 (blueprint estado-por-tareas): el agente declara la tarea en curso por MCP, la hace latir y la termina.
+func TestEstadoTool_ActivarPulsoYTerminar_EPT_C01(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{
+		"accion": "set", "frente": "x", "nombre": "X", "etapa": "Código", "estado": "falla", "falla": "rompe",
+	}))
+	res, _ := handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "activar", "frente": "nada"}))
+	if !res.IsError {
+		t.Fatalf("no se activa una tarea que no existe: %q", resultText(t, res))
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "activar", "frente": "x"}))
+	if res.IsError || len(estado.EnCurso(estado.LeerActividad(root), time.Now())) != 1 {
+		t.Fatalf("activar deja la tarea en curso: %q", resultText(t, res))
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "pulso"}))
+	if res.IsError || !strings.Contains(resultText(t, res), "x") {
+		t.Fatalf("un pulso sin frente late la última activada: %q", resultText(t, res))
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "terminar", "frente": "x"}))
+	if res.IsError || len(estado.EnCurso(estado.LeerActividad(root), time.Now())) != 0 {
+		t.Fatalf("terminar la apaga: %q", resultText(t, res))
+	}
+}
