@@ -20,6 +20,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Al día con v2.x:** la guía de blueprints describe la carpeta central (el proyecto solo versiona el lockfile), varias fuentes, repositorios públicos por HTTPS, el ciclo `contribute` → `propose` → `release` y las reglas `BP-05` y `BP-06`. La referencia documenta `qdd estado`, `qdd consola` y las tools `qdd_estado` y `qdd_consola_pedir`, y el README presenta el panel de Claude Code.
 - **La documentación ya no puede quedar atrás:** `cli/cmd/docs_reference_test.go` falla si la referencia omite un comando o una tool registrada, si nombra una tool que el servidor no registra o si un enlace relativo está roto.
 
+### 🐛 Blueprints: mensajes más claros (FND-073, FND-074)
+
+- **`qdd blueprint apply` sin terminal** marca cada pregunta condicional con `(solo si …)`, igual que la tool MCP. Antes parecía obligatoria aunque no aplicara.
+- **`qdd blueprint add` sin nombres** ya no dice "el repositorio tiene varios blueprints" cuando hay uno solo, ni sugiere volver a indicar el repositorio registrado.
+
 ## [v2.7.0] - 2026-10-30
 
 ### ● Tarea en curso y pulsos de vida (RFC 0006 §3.13, blueprint nuevo `estado-por-tareas` v1.0.0)
