@@ -1,5 +1,5 @@
 id: estado
-nombre: Estado por frente (qdd estado)
+nombre: Estado por tarea (qdd estado)
 estado: aprobado
 rutas:
     - cli/pkg/estado
@@ -35,6 +35,9 @@ objetivo_tecnologico:
         - 'Orden de los pedidos (qdd 2.8.0, RFC 0006 §3.9): la IA declara dependencias al pedir (--despues/--antes, o despues/antes en qdd_consola_pedir); qdd las guarda por id, entrega la cola con cada pedido justo después de lo que espera (sin dependencias, en el orden en que se pidió) y marca en espera, sin tecla, al que espera algo que no está hecho. El orden no se adivina leyendo los comandos: lo declara quien los pide.'
         - 'Una cola por repositorio (qdd 2.8.0): la cola y la actividad usan estado.ClaveLocal (un worktree es su checkout principal, leyendo .git y commondir sin ejecutar git), y un pedido va a la cola del proyecto donde corre; doctor (grupo 6) junta lo que quedó fuera de lugar.'
         - '«Todavía no» (qdd 2.8.0): un comando que sale con 75 (EX_TEMPFAIL) vuelve a pendiente con su aviso, en gris; no es una falla.'
+        - 'Cinco estados cerrados (qdd 2.8.0): ✅ ⏳ ❌, — no aplica y · sin empezar. Una tarea nueva llena con «·» lo que no se tocó: no queda terminada ni sale del panel (FND-085).'
+        - 'Una sola cuenta para los resúmenes (Estado.Totales): tareas pendientes y cada ⏳ y ❌ que tienen; la barra y el JSON del panel (tareas, esperan, fallan) dicen lo mismo (FND-086).'
+        - 'La palabra visible es «tarea» (blueprint estado-por-tareas): ayuda, tabla, panel y errores. La clave frentes del YAML y el parámetro frente de qdd_estado se mantienen por compatibilidad.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
         - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
     invariantes:
@@ -43,6 +46,8 @@ objetivo_tecnologico:
         - statusline no imprime nada si no hay archivo o está ilegible, y nunca sale con error.
         - Sin estado.yaml, qdd audit no reporta EPF-01-CHECK.
         - Ninguna línea del panel es más ancha que la terminal.
+        - 'Una etapa que no se tocó nunca se muestra como «no aplica»: es «·» hasta que alguien la marque.'
+        - 'La barra y el panel nunca muestran totales distintos de ⏳ y ❌.'
         - Una barra propia (statusLine) nunca se reemplaza; antes de cambiar settings.json queda una copia.
         - Sin activar la consola, doctor no revisa nada de Claude Code.
         - qdd consola accion vuelve a calcular las acciones y rechaza un id que no ofrece, sin ejecutar nada.

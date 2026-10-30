@@ -148,9 +148,15 @@ function hora(iso) {
   return dos(t.getHours()) + ':' + dos(t.getMinutes())
 }
 
-// celdas alinea los símbolos con las abreviaturas: ✅ ⏳ ❌ ocupan 2 columnas y — una.
+// celdas alinea los símbolos con las abreviaturas: ✅ ⏳ ❌ ocupan 2 columnas; — (no aplica), · (sin empezar) y ? una.
+const ANGOSTOS = new Set(['—', '·', '?'])
 function celdas(simbolos) {
-  return simbolos.map((s) => (s === '—' || s === '?' ? s + ' ' : s)).join(' ')
+  return simbolos.map((s) => (ANGOSTOS.has(s) ? s + ' ' : s)).join(' ')
+}
+
+// total: el de qdd (el mismo que la barra, FND-086); un qdd anterior no lo trae y se cuenta la lista.
+function total(n, lista) {
+  return typeof n === 'number' ? n : lista.length
 }
 
 // colorFrente: la tarea toma el color de su peor etapa.
@@ -221,9 +227,9 @@ function cabecera(Box, Text, e, version, lista = []) {
         children: [
           Text({ key: 'r-tareas', color: 'cyan', weight: 'semibold', children: [cuantas(e)] }),
           Text({ dimColor: true, children: ['·'] }),
-          Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + e.esperas.length + ' esperan'] }),
+          Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + total(e.esperan, e.esperas) + ' esperan'] }),
           Text({ dimColor: true, children: ['·'] }),
-          Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + e.fallas.length + ' fallan'] }),
+          Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + total(e.fallan, e.fallas) + ' fallan'] }),
           ...paraTiTexto,
         ],
       }),

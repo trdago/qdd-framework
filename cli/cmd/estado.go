@@ -37,13 +37,13 @@ var (
 
 var estadoCmd = &cobra.Command{
 	Use:   "estado",
-	Short: "Estado por frente: la tabla de frentes × etapas del proyecto (RFC 0006)",
+	Short: "Estado por tarea: la tabla de tareas × etapas del proyecto (RFC 0006)",
 	Long: `Lee y escribe .qdd/project/estado.yaml (blueprint estado-por-tareas, antes estado-por-frente; destino «archivo»).
 
   qdd estado [--json]                imprime la tabla (markdown o mensajería, según la ficha; --json para un panel)
   qdd estado init                    crea el archivo con las etapas de la ficha
-  qdd estado set <frente> <etapa> <ok|espera|falla|na> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
-  qdd estado cerrar <frente> --motivo "…" [--descartado]
+  qdd estado set <tarea> <etapa> <ok|espera|falla|na|sin-empezar> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
+  qdd estado cerrar <tarea> --motivo "…" [--descartado]
   qdd estado activa <tarea> [--fin]  la tarea en curso: el panel la muestra «● running» (blueprint estado-por-tareas)
   qdd estado pulso [<tarea>] [--fuente agente|subagente|comando]  una señal de vida (sin tarea, la última activada)
   qdd estado check [--respuesta archivo.md] [--json]
@@ -63,15 +63,15 @@ var estadoInitCmd = &cobra.Command{
 }
 
 var estadoSetCmd = &cobra.Command{
-	Use:   "set <frente> <etapa> <estado>",
+	Use:   "set <tarea> <etapa> <estado>",
 	Short: "Crea o actualiza una celda; valida antes de escribir",
 	Args:  cobra.ExactArgs(3),
 	Run:   runEstadoSet,
 }
 
 var estadoCerrarCmd = &cobra.Command{
-	Use:   "cerrar <frente>",
-	Short: "Cierra (o descarta) un frente con su motivo: un frente nunca desaparece en silencio",
+	Use:   "cerrar <tarea>",
+	Short: "Cierra (o descarta) una tarea con su motivo: una tarea nunca desaparece en silencio",
 	Args:  cobra.ExactArgs(1),
 	Run:   runEstadoCerrar,
 }
@@ -115,7 +115,7 @@ func init() {
 	}
 	estadoInitCmd.Flags().StringVar(&estadoEtapas, "etapas", "", "etapas separadas por coma (si la ficha dice «propias»)")
 	f := estadoSetCmd.Flags()
-	f.StringVar(&estadoCambio.Nombre, "nombre", "", "nombre del frente (al crearlo o para renombrarlo)")
+	f.StringVar(&estadoCambio.Nombre, "nombre", "", "nombre de la tarea (al crearla o para renombrarla)")
 	f.StringVar(&estadoCambio.Evidencia, "evidencia", "", "evidencia del ✅: commit, versión, n/n pruebas o id de corrida")
 	f.StringVar(&estadoCambio.Bloqueo, "bloqueo", "", "qué espera el ⏳")
 	f.StringVar(&estadoCambio.DeQuien, "de-quien", "", "de quién lo espera el ⏳")

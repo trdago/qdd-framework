@@ -45,7 +45,7 @@ func Check(e Estado, prev *Estado) []Violacion {
 	}
 	for _, f := range prev.Frentes {
 		if e.buscar(f.ID) < 0 {
-			vs = append(vs, Violacion{ID: "EPF-C05", Frente: f.ID, Mensaje: "el frente desapareció: ciérralo con 'qdd estado cerrar' y su motivo, no lo borres"})
+			vs = append(vs, Violacion{ID: "EPF-C05", Frente: f.ID, Mensaje: "la tarea desapareció: ciérrala con 'qdd estado cerrar' y su motivo, no lo borres"})
 		}
 	}
 	return vs
@@ -54,7 +54,7 @@ func Check(e Estado, prev *Estado) []Violacion {
 func checkFrente(e Estado, f Frente, vistos map[string]bool) []Violacion {
 	var vs []Violacion
 	if strings.TrimSpace(f.ID) == "" {
-		return []Violacion{{ID: "EPF-C01", Frente: f.Nombre, Mensaje: "frente sin id"}}
+		return []Violacion{{ID: "EPF-C01", Frente: f.Nombre, Mensaje: "tarea sin id"}}
 	}
 	if vistos[f.ID] {
 		vs = append(vs, Violacion{ID: "EPF-C01", Frente: f.ID, Mensaje: "id repetido"})
@@ -83,11 +83,11 @@ func checkCierre(f Frente) []Violacion {
 		return nil
 	case EstadoCerrado, EstadoDescartado:
 		if strings.TrimSpace(f.MotivoCierre) == "" {
-			return []Violacion{{ID: "EPF-C05", Frente: f.ID, Mensaje: "frente " + f.Estado + " sin motivo_cierre: hay que decir por qué"}}
+			return []Violacion{{ID: "EPF-C05", Frente: f.ID, Mensaje: "tarea " + f.Estado + " sin motivo_cierre: hay que decir por qué"}}
 		}
 		return nil
 	}
-	return []Violacion{{ID: "EPF-C01", Frente: f.ID, Mensaje: fmt.Sprintf("estado del frente %q: debe ser abierto, cerrado o descartado", f.Estado)}}
+	return []Violacion{{ID: "EPF-C01", Frente: f.ID, Mensaje: fmt.Sprintf("estado de la tarea %q: debe ser abierto, cerrado o descartado", f.Estado)}}
 }
 
 func checkCelda(frente, etapa string, c Celda) []Violacion {
@@ -108,9 +108,9 @@ func checkCelda(frente, etapa string, c Celda) []Violacion {
 		if strings.TrimSpace(c.Falla) == "" {
 			vs = append(vs, Violacion{ID: "EPF-C01", Frente: frente, Etapa: etapa, Mensaje: "❌ sin nombrar la falla"})
 		}
-	case NoAplica:
+	case NoAplica, SinEmpezar:
 	default:
-		vs = append(vs, Violacion{ID: "EPF-C01", Frente: frente, Etapa: etapa, Mensaje: fmt.Sprintf("estado %q: debe ser uno de ✅ ⏳ ❌ —", c.Estado)})
+		vs = append(vs, Violacion{ID: "EPF-C01", Frente: frente, Etapa: etapa, Mensaje: fmt.Sprintf("estado %q: debe ser uno de ✅ ⏳ ❌ — ·", c.Estado)})
 	}
 	return vs
 }

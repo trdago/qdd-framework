@@ -137,6 +137,16 @@ test('sin qdd o con un qdd antiguo no falla', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /actualiza qdd/ })).toBeDefined()
 })
 
+test('el resumen usa los totales de qdd, los mismos que la barra, y «·» es sin empezar (FND-085, FND-086)', async ($, on) => {
+  const nuevo = { id: 'login', nombre: 'Login', estado: 'abierto', simbolos: ['✅', '·', '·', '·'] }
+  preparar(on, ok({ ...PANEL, estado: { ...ESTADO, frentes: [...ESTADO.frentes, nuevo], tareas: 3, esperan: 2, fallan: 1 } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '⏳ 2 esperan' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 fallan' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: /✅ ·  ·  ·/ })).toBeDefined()
+})
+
 test('se redibuja solo cuando el panel cambia', async ($, on) => {
   const salida = ok(PANEL)
   const clock = preparar(on, salida)

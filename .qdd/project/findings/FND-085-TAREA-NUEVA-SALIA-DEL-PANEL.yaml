@@ -1,0 +1,9 @@
+id: "FND-085"
+title: "Una tarea nueva con solo «Código ✅» salía del panel como terminada"
+description: "qdd estado set, al crear una tarea, llenaba sus otras etapas con «—» (no aplica). Una tarea con Código ✅ y lo demás en «—» quedaba terminada (Terminado: todo en ✅ o —) y el panel la sacaba en el acto, aunque no tuviera pruebas ni producción. Se vio en la instalación limpia de estado-por-tareas (2026-10-30)."
+impact: "Lo que faltaba por hacer desaparecía del panel y de la barra; «—» decía «no aplica» de algo que solo no se había empezado."
+action_taken: "Nuevo estado cerrado «·» (sin empezar, alias sin-empezar): una tarea nueva llena con «·» lo que no se tocó, check lo acepta, no termina la tarea y ocupa una columna en los paneles. «—» sigue siendo no aplica. El blueprint estado-por-tareas suma el estado a su vocabulario y a EPF-C01."
+test_result: "TestSet_TareaNuevaQuedaSinEmpezarYSigueEnElPanel_FND085 (estado) y los tests de los mods (celdas con «·»): antes del arreglo la tarea quedaba con «—» y DatosPendientes no la mostraba."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

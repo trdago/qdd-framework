@@ -75,7 +75,7 @@ func dibujar(root string, ancho, alto int) {
 	var lineas []string
 	e, err := estado.Load(root)
 	if err != nil {
-		lineas = []string{"Estado por frente · " + filepath.Base(root), "", estado.Truncar(fmt.Sprintf("Sin %s legible: %v", estado.Ruta, err), ancho), "", "Créalo con 'qdd estado init'."}
+		lineas = []string{"Estado por tarea · " + filepath.Base(root), "", estado.Truncar(fmt.Sprintf("Sin %s legible: %v", estado.Ruta, err), ancho), "", "Créalo con 'qdd estado init'."}
 	}
 	if err == nil {
 		lineas = estado.Panel(e, filepath.Base(root), ancho, time.Now())

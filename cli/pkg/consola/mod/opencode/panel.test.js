@@ -38,8 +38,16 @@ test('sin estado.yaml, sin qdd o con un qdd antiguo dice el motivo', () => {
   assert.equal(motivoDeSalida(0, 'x'), '')
 })
 
-test('alinea ✅ ⏳ ❌ (2 columnas) con — (1 columna)', () => {
+test('alinea ✅ ⏳ ❌ (2 columnas) con — y · (1 columna)', () => {
   assert.equal(celdas(['✅', '—', '⏳']), '✅ —  ⏳')
+  assert.equal(celdas(['✅', '·', '·']), '✅ ·  ·', '«·» es sin empezar (FND-085)')
+})
+
+test('el resumen usa los totales de qdd, los mismos que la barra (FND-086)', () => {
+  const v = vista({ estado: { ...ESTADO, tareas: 7, esperan: 3, fallan: 2 }, acciones: [] }, '')
+  assert.deepEqual(v.resumen.map((r) => r.texto), ['2 de 7 tareas', '⏳ 3', '❌ 2'])
+  const viejo = vista({ estado: ESTADO, acciones: [] }, '')
+  assert.deepEqual(viejo.resumen.map((r) => r.texto).slice(1), ['⏳ 1', '❌ 1'], 'con un qdd anterior, cuenta las listas')
 })
 
 test('la tarea en curso: running, destello con un pulso nuevo y latido de 1 s (EPT-C11)', () => {

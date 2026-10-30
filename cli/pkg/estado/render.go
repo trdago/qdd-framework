@@ -23,8 +23,8 @@ func celdaTexto(c Celda) string {
 		return fmt.Sprintf("%s %s (%s)", Espera, c.Bloqueo, c.DeQuien)
 	case Falla:
 		return strings.TrimSpace(Falla + " " + c.Falla)
-	case NoAplica:
-		return NoAplica
+	case NoAplica, SinEmpezar:
+		return estado
 	}
 	return c.Estado
 }
@@ -48,7 +48,7 @@ func etiquetaFrente(f Frente) string {
 // Markdown arma la tabla de la respuesta con el alcance pedido.
 func Markdown(e Estado, now time.Time, alcance Alcance) string {
 	var b strings.Builder
-	b.WriteString("| Frente | " + strings.Join(e.Etapas, " | ") + " |\n")
+	b.WriteString("| Tarea | " + strings.Join(e.Etapas, " | ") + " |\n")
 	b.WriteString("|---" + strings.Repeat("|---", len(e.Etapas)) + "|\n")
 	for _, f := range e.Frentes {
 		if !f.EnAlcance(alcance, now) {
@@ -84,7 +84,7 @@ func Mensajeria(e Estado, now time.Time, alcance Alcance) string {
 func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
 	filas, ok := leerTablaMD(respuesta, len(e.Etapas))
 	if !ok {
-		return []Violacion{{ID: "EPF-A01", Mensaje: "la respuesta no trae la tabla de estado por frente"}}
+		return []Violacion{{ID: "EPF-A01", Mensaje: "la respuesta no trae la tabla de estado por tarea"}}
 	}
 	var vs []Violacion
 	esperados := map[string]bool{}
@@ -122,7 +122,7 @@ func primerEstado(celda string) string {
 	return NormalizarEstado(campos[0])
 }
 
-// leerTablaMD toma la primera tabla cuyo encabezado empieza por «Frente» y devuelve sus filas por etiqueta.
+// leerTablaMD toma la primera tabla cuyo encabezado empieza por «Tarea» (o «Frente», la tabla de antes) y devuelve sus filas por etiqueta.
 func leerTablaMD(texto string, etapas int) (map[string][]string, bool) {
 	filas := map[string][]string{}
 	enTabla := false
@@ -136,7 +136,7 @@ func leerTablaMD(texto string, etapas int) (map[string][]string, bool) {
 		}
 		celdas := partirFila(l)
 		if !enTabla {
-			enTabla = len(celdas) > 0 && strings.EqualFold(celdas[0], "Frente")
+			enTabla = len(celdas) > 0 && (strings.EqualFold(celdas[0], "Tarea") || strings.EqualFold(celdas[0], "Frente"))
 			continue
 		}
 		if len(celdas) != etapas+1 || strings.HasPrefix(celdas[0], "---") {
@@ -157,30 +157,24 @@ func partirFila(l string) []string {
 	return partes
 }
 
-// Statusline es la línea corta para la barra: frentes abiertos, cuántos esperan y cuántos fallan. "" si no hay
-// frentes abiertos.
+// Statusline es la línea corta para la barra: tareas pendientes, cuántos ⏳ y cuántos ❌ tienen (los mismos totales
+// que el panel, FND-086). "" si no hay tareas abiertas.
 func Statusline(e Estado, now time.Time) string {
-	abiertos := e.Abiertos()
-	if len(abiertos) == 0 {
+	if len(e.Abiertos()) == 0 {
 		return ""
 	}
-	esperan, fallan := 0, 0
-	for _, f := range abiertos {
-		if f.tiene(Espera) {
-			esperan++
-		}
-		if f.tiene(Falla) {
-			fallan++
-		}
+	t := e.Totales()
+	if t.Tareas == 0 {
+		return "◧ sin pendientes · " + Hecho
 	}
 	palabra := "tareas"
-	if len(abiertos) == 1 {
+	if t.Tareas == 1 {
 		palabra = "tarea"
 	}
-	if esperan == 0 && fallan == 0 {
-		return fmt.Sprintf("◧ %d %s · %s", len(abiertos), palabra, Hecho)
+	if t.Esperan == 0 && t.Fallan == 0 {
+		return fmt.Sprintf("◧ %d %s · %s", t.Tareas, palabra, Hecho)
 	}
-	return fmt.Sprintf("◧ %d %s · %s%d %s%d", len(abiertos), palabra, Espera, esperan, Falla, fallan)
+	return fmt.Sprintf("◧ %d %s · %s%d %s%d", t.Tareas, palabra, Espera, t.Esperan, Falla, t.Fallan)
 }
 
 // BuscarRaiz sube desde dir hasta encontrar el archivo de estado; "" si no hay.
@@ -216,7 +210,7 @@ func StatuslineDir(dir string, now time.Time) string {
 
 var ansi = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
 
-// AnchoVisible cuenta columnas de terminal: sin secuencias ANSI; ✅ ⏳ ❌ ocupan 2.
+// AnchoVisible cuenta columnas de terminal: sin secuencias ANSI; ✅ ⏳ ❌ ocupan 2 y — · una.
 func AnchoVisible(s string) int {
 	n := 0
 	for _, r := range ansi.ReplaceAllString(s, "") {
@@ -318,7 +312,7 @@ func Panel(e Estado, proyecto string, ancho int, now time.Time) []string {
 	}
 	var out []string
 	add := func(s string) { out = append(out, Truncar(s, ancho)) }
-	titulo := "Estado por frente · " + proyecto
+	titulo := "Estado por tarea · " + proyecto
 	if t, err := time.Parse(time.RFC3339, e.Actualizado); err == nil {
 		titulo += " · " + t.In(now.Location()).Format("15:04")
 	}
@@ -326,7 +320,7 @@ func Panel(e Estado, proyecto string, ancho int, now time.Time) []string {
 	add(strings.Repeat("─", ancho))
 
 	abrev := abreviaturas(e.Etapas)
-	nombreAncho := AnchoVisible("Frente")
+	nombreAncho := AnchoVisible("Tarea")
 	for _, f := range e.Frentes {
 		if f.EnAlcance(AlcanceAbiertos, now) && AnchoVisible(f.Nombre) > nombreAncho {
 			nombreAncho = AnchoVisible(f.Nombre)
@@ -338,7 +332,7 @@ func Panel(e Estado, proyecto string, ancho int, now time.Time) []string {
 	if nombreAncho < 8 {
 		nombreAncho = 8
 	}
-	cab := relleno("Frente", nombreAncho)
+	cab := relleno("Tarea", nombreAncho)
 	for _, a := range abrev {
 		cab += " " + relleno(a, 2)
 	}

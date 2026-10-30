@@ -12,9 +12,13 @@ type DatosPanel struct {
 	Abreviaturas []string      `json:"abreviaturas"`
 	Frentes      []FrentePanel `json:"frentes"`
 	Ocultos      int           `json:"ocultos"` // pendientes que no entran en el tope de DatosPendientes (los más antiguos)
-	Esperas      []Pendiente   `json:"esperas"`
-	Fallas       []Pendiente   `json:"fallas"`
-	Actual       string        `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
+	// Totales de las tareas pendientes, entren o no en el panel: los mismos que la barra (FND-086).
+	Tareas  int         `json:"tareas"`
+	Esperan int         `json:"esperan"`
+	Fallan  int         `json:"fallan"`
+	Esperas []Pendiente `json:"esperas"`
+	Fallas  []Pendiente `json:"fallas"`
+	Actual  string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
 }
 
 // FrentePanel es una fila: un símbolo por etapa, en el orden de Etapas.
@@ -48,7 +52,7 @@ func Datos(e Estado, now time.Time) DatosPanel {
 }
 
 // DatosPendientes (§3.9, panel de Claude Code) deja solo los frentes con algo por hacer: abiertos y con alguna etapa
-// que no esté en ✅ ni en —, y de ellos los tope más nuevos (los últimos del archivo, donde 'qdd estado set' agrega).
+// que no esté en ✅ ni en — (una en «·» todavía está por hacer), y de ellos los tope más nuevos (los últimos del archivo, donde 'qdd estado set' agrega).
 // Un frente terminado, cerrado o descartado sale del panel en el acto; sigue en el archivo y en 'qdd estado ver --todos'.
 // Ocultos cuenta los pendientes más antiguos que no entran.
 func DatosPendientes(e Estado, now time.Time, tope int) DatosPanel {
@@ -92,7 +96,32 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 	return d
 }
 
-// Terminado: todas las etapas en ✅ o en — (sin celdas vacías, ⏳ ni ❌).
+// Totales cuenta las tareas pendientes (abiertas y no terminadas) y cada ⏳ y cada ❌ que tienen. La barra y el panel
+// usan esta misma cuenta (FND-086).
+type Totales struct {
+	Tareas, Esperan, Fallan int
+}
+
+func (e Estado) Totales() Totales {
+	var t Totales
+	for _, f := range e.Abiertos() {
+		if f.Terminado(e.Etapas) {
+			continue
+		}
+		t.Tareas++
+		for _, etapa := range e.Etapas {
+			switch NormalizarEstado(f.Celdas[etapa].Estado) {
+			case Espera:
+				t.Esperan++
+			case Falla:
+				t.Fallan++
+			}
+		}
+	}
+	return t
+}
+
+// Terminado: todas las etapas en ✅ o en — (sin celdas vacías, «·», ⏳ ni ❌).
 func (f Frente) Terminado(etapas []string) bool {
 	for _, etapa := range etapas {
 		estado := NormalizarEstado(f.Celdas[etapa].Estado)
@@ -104,8 +133,10 @@ func (f Frente) Terminado(etapas []string) bool {
 }
 
 func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
+	t := e.Totales()
 	d := DatosPanel{
 		Formato: e.Formato, Actualizado: e.Actualizado, Resumen: Statusline(e, now), Etapas: e.Etapas,
+		Tareas: t.Tareas, Esperan: t.Esperan, Fallan: t.Fallan,
 		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
 	}
 	for _, f := range e.Frentes {

@@ -7,9 +7,15 @@ export const TOPE_MS = 3000
 export const LATIDO_MS = 500
 export const PULSO_MIN_MS = 5000
 
-// celdas alinea los símbolos con las abreviaturas: ✅ ⏳ ❌ ocupan 2 columnas y — una.
+// celdas alinea los símbolos con las abreviaturas: ✅ ⏳ ❌ ocupan 2 columnas; — (no aplica), · (sin empezar) y ? una.
+const ANGOSTOS = new Set(['—', '·', '?'])
 export function celdas(simbolos) {
-  return simbolos.map((s) => (s === '—' || s === '?' ? s + ' ' : s)).join(' ').trimEnd()
+  return simbolos.map((s) => (ANGOSTOS.has(s) ? s + ' ' : s)).join(' ').trimEnd()
+}
+
+// total: el de qdd (el mismo que la barra, FND-086); un qdd anterior no lo trae y se cuenta la lista.
+export function total(n, lista) {
+  return typeof n === 'number' ? n : lista.length
 }
 
 // tono de una tarea: el de su peor etapa.
@@ -45,8 +51,8 @@ export function vista(datos, falla) {
     version: datos.version || '',
     resumen: [
       { texto: cuantas(e), tono: 'primary' },
-      { texto: '⏳ ' + e.esperas.length, tono: 'warning' },
-      { texto: '❌ ' + e.fallas.length, tono: 'error' },
+      { texto: '⏳ ' + total(e.esperan, e.esperas), tono: 'warning' },
+      { texto: '❌ ' + total(e.fallan, e.fallas), tono: 'error' },
       ...(paraTi(datos.acciones) > 0 ? [{ texto: '▶ ' + paraTi(datos.acciones) + ' para ti', tono: 'warning' }] : []),
     ],
     cabecera: e.abreviaturas.join(' '),

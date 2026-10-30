@@ -20,12 +20,14 @@ const Ruta = ".qdd/project/estado.yaml"
 // Formato vigente del archivo.
 const Formato = 1
 
-// Estados cerrados de una celda.
+// Estados cerrados de una celda. SinEmpezar es una etapa que todavía no se toca; NoAplica, una que esta tarea no
+// necesita (FND-085).
 const (
-	Hecho    = "✅"
-	Espera   = "⏳"
-	Falla    = "❌"
-	NoAplica = "—"
+	Hecho      = "✅"
+	Espera     = "⏳"
+	Falla      = "❌"
+	NoAplica   = "—"
+	SinEmpezar = "·"
 )
 
 // Estados de un frente.
@@ -67,7 +69,7 @@ type Estado struct {
 	Frentes     []Frente `yaml:"frentes"`
 }
 
-// NormalizarEstado acepta el emoji o un alias escribible (ok, espera, falla, na) y devuelve el estado cerrado; "" si no
+// NormalizarEstado acepta el emoji o un alias escribible (ok, espera, falla, na, sin-empezar) y devuelve el estado cerrado; "" si no
 // es ninguno.
 func NormalizarEstado(s string) string {
 	v := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(s, "️", "")))
@@ -80,6 +82,8 @@ func NormalizarEstado(s string) string {
 		return Falla
 	case NoAplica, "na", "-", "n/a", "no-aplica":
 		return NoAplica
+	case SinEmpezar, "sin-empezar", ".", "pendiente":
+		return SinEmpezar
 	}
 	return ""
 }
@@ -120,7 +124,7 @@ func Save(root string, e Estado) error {
 		return err
 	}
 	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(append([]byte("# Estado por frente (RFC 0006). Se edita con 'qdd estado set' y 'qdd estado cerrar'.\n"), data...)); err != nil {
+	if _, err := tmp.Write(append([]byte("# Estado por tarea (RFC 0006). Se edita con 'qdd estado set' y 'qdd estado cerrar'.\n"), data...)); err != nil {
 		tmp.Close()
 		return err
 	}
