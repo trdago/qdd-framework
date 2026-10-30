@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.5.1] - 2026-10-30
+
+### 🌐 Repositorios de blueprints públicos, sin llave SSH
+
+- **Sugiere HTTPS.** Si no hay acceso a una URL SSH (`git@github.com:…`), el error de `add`, `sync`, `contribute`, `release` y `doctor` dice cuál es su URL HTTPS: un repositorio público se importa por ahí sin cuenta ni llave (FND-068).
+- **Publica por HTTPS si SSH no puede.** `propose` y `release` reintentan el push por la URL HTTPS del mismo repositorio cuando SSH no tiene permiso (por ejemplo, una deploy key de solo lectura), con las credenciales de git como las de `gh`. La salida lo dice y el PR se abre igual (FND-063).
+- **Repositorios bare en disco.** `qdd blueprint add /ruta/blueprints.git` acepta un repositorio bare, por ejemplo uno compartido en un disco de red (FND-067).
+- La ayuda de `release --origen` dice que es la fuente que se etiqueta (FND-069), y `LICENSE` trae el texto MIT completo.
+
 ## [v2.5.0] - 2026-10-30
 
 ### 🧩 Varias fuentes de blueprints en un proyecto (RFC 0007)
