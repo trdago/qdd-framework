@@ -29,6 +29,7 @@ objetivo_tecnologico:
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
+        - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra primero, en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta y, si termina bien, sale de la cola.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
@@ -40,6 +41,8 @@ objetivo_tecnologico:
         - Sin activar la consola, doctor no revisa nada de Claude Code.
         - qdd consola accion vuelve a calcular las acciones y rechaza un id que no ofrece, sin ejecutar nada.
         - Una acción que escribe (aprobar, auditar) no corre sin --confirmado, que el panel pasa solo después de «s  Sí».
+        - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí».'
+        - Pedir o descartar un comando no escribe nada en el proyecto.
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
 pruebas:
@@ -58,4 +61,4 @@ fuentes:
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 01fe1000f233
+revisado_en_commit: b6de4c39c30a

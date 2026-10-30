@@ -40,12 +40,15 @@ const PANEL = { formato: 1, estado: ESTADO, acciones: ACCIONES }
 type Salida = { exitCode: number; stdout: string; stderr: string }
 
 // Prepara los stubs comunes: 'panel' es lo que responde 'qdd consola panel --json' y 'accion' lo de 'qdd consola accion'.
-function preparar(on, panel: Salida, llamadas: string[][] = [], accion: Salida = { exitCode: 0, stdout: '', stderr: '' }) {
+function preparar(on, panel: Salida, llamadas: string[][] = [], accion: Salida = { exitCode: 0, stdout: '', stderr: '' }, aperturas: unknown[] = []) {
   const clock = mock.clock(on)
   mock.env(on, {})
   on('session.start', () => ({ cwd: '/work' }))
   on('command.register', () => ({ value: undefined }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.open', ($, e) => {
+    aperturas.push(e)
+    return { value: { isPlaced: true } }
+  })
   on('process.run', ($, e) => {
     llamadas.push([...e.argv])
     if (e.argv[2] === 'accion') return { value: { ...accion } }
@@ -141,4 +144,60 @@ test('se redibuja solo cuando el panel cambia', async ($, on) => {
   // 0 ⏳ y 0 ❌: el 0 grande reemplaza al 1.
   expect(await ui.find({ type: 'Text', text: '▀█ ' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '█▀█' })).toMatchObject({ props: { color: 'yellow' } })
+})
+
+const PEDIDO = {
+  id: 'pedido:1',
+  tipo: 'pedido',
+  etiqueta: 'Publicar v2.5.1 (dispara npm y el binario)',
+  detalle: 'git push origin v2.5.1',
+  carpeta: '/work/qdd',
+  tecla: 'a',
+  confirmar: true,
+}
+
+test('un comando pedido por la IA muestra su motivo, el comando exacto y la carpeta, y corre solo con «s  Sí» (CCC-C17, CCC-C18)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }), llamadas, { exitCode: 0, stdout: 'To github.com:trdago/qdd-framework.git\n * [new tag] v2.5.1 -> v2.5.1', stderr: '' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Para ti/ })).toBeDefined()
+  expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
+  expect(await ui.find({ type: 'Text', text: /git push origin v2\.5\.1/ })).toBeDefined()
+
+  await ui.press({ key: 'b-pedido:1' })
+  expect(await ui.find({ type: 'Text', text: '¿Publicar v2.5.1 (dispara npm y el binario)?' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Ejecutará: git push origin v2.5.1' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'En: /work/qdd' })).toBeDefined()
+  expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
+
+  await ui.press({ key: 'si' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'pedido:1', '--confirmado'])
+  expect(await ui.find({ type: 'Text', text: /new tag/ })).toBeDefined()
+})
+
+test('un comando pedido se puede descartar sin ejecutarlo (CCC-C19)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO] }), llamadas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'b-pedido:1' })
+  expect(await ui.find({ key: 'descartar' })).toMatchObject({ props: { hotkey: 'x' } })
+  await ui.press({ key: 'descartar' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'descartar', '1'])
+  expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
+})
+
+test('el panel se abre solo cuando llega un comando pedido, aunque no haya frentes (CCC-C20)', async ($, on) => {
+  const aperturas: unknown[] = []
+  const vacio = { formato: 1, estado: null, motivo: 'sin estado', acciones: [ACCIONES[2]] }
+  const salida = ok(vacio)
+  const clock = preparar(on, salida, [], undefined, aperturas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  expect(aperturas.length).toBe(0)
+  salida.stdout = JSON.stringify({ ...vacio, acciones: [PEDIDO, ACCIONES[2]] })
+  await clock.advance(2000)
+  expect(aperturas.length).toBe(1)
+  await clock.advance(2000)
+  expect(aperturas.length).toBe(1)
 })

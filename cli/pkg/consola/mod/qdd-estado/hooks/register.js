@@ -1,6 +1,6 @@
-// Mod de Claude Code para el estado por frente (QDD, RFC 0006 §3.4.1 y §3.7; blueprint consola-claude-code v3.0.0).
+// Mod de Claude Code para el estado por frente (QDD, RFC 0006 §3.4.1, §3.7 y §3.9; blueprint consola-claude-code).
 // Dibuja el panel en cuatro niveles (resumen en números grandes, títulos, texto y detalle atenuado) y los botones de
-// las acciones. La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
+// las acciones, empezando por los comandos que la IA dejó para la persona («Para ti»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
@@ -19,6 +19,8 @@ let firma = ''
 let confirmando = null // la acción que espera el segundo paso
 let resultado = null // { titulo, ok, texto }
 let ocupado = false
+let iniciado = false // ya pasó la primera lectura de session.start
+const pedidosVistos = new Set() // ids de los pedidos que ya abrieron el panel
 
 // Números de 3 filas con caracteres de bloque: la terminal tiene un solo tamaño de letra.
 const DIGITOS = {
@@ -62,6 +64,19 @@ async function leer($) {
   datos = nuevo
   falla = motivo
   $.ui.invalidate('ui.render')
+  await abrirSiLlegaUnPedido($)
+}
+
+// Un comando pedido por la IA abre el panel (sin quitarle el foco a la conversación), una vez por pedido.
+async function abrirSiLlegaUnPedido($) {
+  const nuevos = pedidos(datos?.acciones || []).filter((a) => !pedidosVistos.has(a.id))
+  for (const a of nuevos) pedidosVistos.add(a.id)
+  if (!iniciado || nuevos.length === 0) return
+  await $.ui.open({ id: PANE, title: TITULO })
+}
+
+function pedidos(lista) {
+  return lista.filter((a) => a.tipo === 'pedido')
 }
 
 function hora(iso) {
@@ -185,11 +200,16 @@ function seccion(Box, Text, key, nombre, color, items, conQuien) {
   ]
 }
 
-// tecla: 1…9 para las fichas en el orden en que qdd las entrega, c para revisar el estado y u para auditar.
+// tecla: la que qdd da a cada pedido (a, b, d…), 1…9 para las fichas en el orden en que qdd las entrega, c para
+// revisar el estado y u para auditar.
 function teclas(acciones) {
   const asignadas = {}
   let n = 0
   for (const a of acciones) {
+    if (a.tecla) {
+      asignadas[a.id] = a.tecla
+      continue
+    }
     if (a.tipo === 'aprobar') {
       n += 1
       asignadas[a.id] = String(n)
@@ -209,11 +229,28 @@ async function ejecutar($, a) {
   const bin = await binario($)
   const argv = [bin, 'consola', 'accion', a.id, ...(a.confirmar ? ['--confirmado'] : [])]
   try {
-    const r = await $.process.run(argv, { timeoutMs: a.id === 'auditar' ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
+    const largo = a.id === 'auditar' || a.tipo === 'pedido'
+    const r = await $.process.run(argv, { timeoutMs: largo ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
     const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
     resultado = { titulo: a.etiqueta, ok: r.exitCode === 0, texto: texto || 'sin salida' }
   } catch (err) {
     resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err) }
+  }
+  ocupado = false
+  await leer($)
+  $.ui.invalidate('ui.render')
+}
+
+// descartar quita un pedido de la cola sin ejecutarlo.
+async function descartar($, a) {
+  ocupado = true
+  confirmando = null
+  const bin = await binario($)
+  try {
+    const r = await $.process.run([bin, 'consola', 'descartar', a.id.slice('pedido:'.length)], { timeoutMs: TOPE_MS })
+    resultado = { titulo: 'Descartado: ' + a.etiqueta, ok: r.exitCode === 0, texto: ((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida' }
+  } catch (err) {
+    resultado = { titulo: 'Descartar ' + a.etiqueta, ok: false, texto: String(err?.message ?? err) }
   }
   ocupado = false
   await leer($)
@@ -240,7 +277,8 @@ function confirmacion(Box, Text, Button, $) {
     paddingX: 1,
     children: [
       Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
-      Text({ dimColor: true, size: 'caption', wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
+      Text({ dimColor: a.tipo !== 'pedido', size: 'caption', wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
+      ...(a.carpeta ? [Text({ dimColor: true, size: 'caption', wrap: 'wrap', children: ['En: ' + a.carpeta] })] : []),
       Box({
         flexDirection: 'row',
         columnGap: 2,
@@ -256,16 +294,36 @@ function confirmacion(Box, Text, Button, $) {
               $.ui.invalidate('ui.render')
             },
           }),
+          ...(a.tipo === 'pedido' ? [Button({ key: 'descartar', label: 'x  Descartar', hotkey: 'x', onPress: () => descartar($, a) })] : []),
         ],
       }),
     ],
   })
 }
 
+// paraTi lista los comandos que la IA dejó para la persona: motivo, comando exacto y carpeta.
+function paraTi(Box, Text, Button, $, lista, asignadas) {
+  if (lista.length === 0) return []
+  return [
+    titulo(Text, 't-pedidos', '▶ Para ti (' + lista.length + ')', 'yellow'),
+    ...lista.map((a) =>
+      Box({
+        key: 'pedido-' + a.id,
+        flexDirection: 'column',
+        children: [
+          Button({ key: 'b-' + a.id, label: asignadas[a.id] + '  ' + a.etiqueta, hotkey: asignadas[a.id], onPress: () => pedir($, a) }),
+          Text({ wrap: 'wrap', children: ['  $ ' + a.detalle] }),
+          Text({ dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['  en ' + a.carpeta] }),
+        ],
+      }),
+    ),
+  ]
+}
+
 function acciones(Box, Text, Button, $, lista) {
   if (lista.length === 0) return []
   const asignadas = teclas(lista)
-  const filas = lista.map((a) =>
+  const filas = lista.filter((a) => a.tipo !== 'pedido').map((a) =>
     Box({
       key: 'fila-' + a.id,
       flexDirection: 'row',
@@ -299,6 +357,7 @@ function acciones(Box, Text, Button, $, lista) {
       marginTop: 1,
       rowGap: 1,
       children: [
+        ...(confirmando ? [] : paraTi(Box, Text, Button, $, pedidos(lista), asignadas)),
         titulo(Text, 't-acciones', 'Acciones', 'magenta'),
         ...(confirmando ? [confirmacion(Box, Text, Button, $)] : filas),
         ...salida,
@@ -339,7 +398,7 @@ function dibujar($, Box, Text, Button, ancho) {
 function hayQueMostrar() {
   if (!datos) return false
   const frentes = datos.estado ? datos.estado.frentes.length : 0
-  const fichas = (datos.acciones || []).filter((a) => a.tipo === 'aprobar').length
+  const fichas = (datos.acciones || []).filter((a) => a.tipo === 'aprobar' || a.tipo === 'pedido').length
   return frentes + fichas > 0
 }
 
@@ -349,8 +408,9 @@ export function register(on) {
     $.clock.every(INTERVALO_MS, async () => {
       await leer($)
     })
-    // Se abre solo si hay frentes o fichas por aprobar; en una terminal angosta espera a que el usuario lo pida con /estado.
+    // Se abre solo si hay frentes, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
     if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
+    iniciado = true
     try {
       await $.command.register({ name: 'estado', description: 'Abre el panel de estado por frente (/estado cerrar lo cierra)', immediate: true })
     } catch (err) {

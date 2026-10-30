@@ -29,15 +29,19 @@ const (
 	prefijoAprobar = "aprobar:"
 )
 
-// Accion es un botón del panel. Args son los argumentos de qdd para un comando; no salen en el JSON.
+// Accion es un botón del panel. Args son los argumentos de qdd para un comando; no salen en el JSON. En un pedido,
+// Detalle es el comando exacto y Carpeta dónde corre.
 type Accion struct {
 	ID        string   `json:"id"`
 	Tipo      string   `json:"tipo"`
 	Etiqueta  string   `json:"etiqueta"`
 	Detalle   string   `json:"detalle"`
+	Carpeta   string   `json:"carpeta,omitempty"`
+	Tecla     string   `json:"tecla,omitempty"`
 	Confirmar bool     `json:"confirmar"`
 	Args      []string `json:"-"`
 	ficha     string
+	pedido    string
 }
 
 // DatosConsola es lo que 'qdd consola panel --json' entrega al panel en una sola lectura.
@@ -68,10 +72,11 @@ func Panel(root string, now time.Time) DatosConsola {
 	return d
 }
 
-// Acciones lista lo que el panel puede pedir: aprobar cada ficha en borrador (hasta MaxFichas, por id), revisar el
-// estado si hay estado.yaml, y auditar si la carpeta es un proyecto QDD (tiene .qdd/).
+// Acciones lista lo que el panel puede pedir: los comandos que la IA dejó para la persona (§3.9), aprobar cada ficha
+// en borrador (hasta MaxFichas, por id), revisar el estado si hay estado.yaml, y auditar si la carpeta es un proyecto
+// QDD (tiene .qdd/).
 func Acciones(root string, hayEstado bool) []Accion {
-	acciones := []Accion{}
+	acciones := append([]Accion{}, accionesDePedidos(root)...)
 	for _, m := range borradores(root) {
 		acciones = append(acciones, Accion{
 			ID: prefijoAprobar + m.ID, Tipo: TipoAprobar, Etiqueta: "Aprobar «" + m.Nombre + "»",
@@ -138,20 +143,14 @@ func (a Accion) Ejecutar(root, bin string, salida io.Writer) int {
 	if a.Tipo == TipoAprobar {
 		return aprobar(root, a.ficha, salida)
 	}
+	if a.Tipo == TipoPedido {
+		return ejecutarPedido(root, a, salida)
+	}
 	c := exec.Command(bin, a.Args...)
 	c.Dir = root
 	c.Stdout = salida
 	c.Stderr = salida
-	err := c.Run()
-	var salio *exec.ExitError
-	if errors.As(err, &salio) {
-		return salio.ExitCode()
-	}
-	if err != nil {
-		fmt.Fprintf(salida, "[!] no se pudo ejecutar %s: %v\n", a.Detalle, err)
-		return 1
-	}
-	return 0
+	return codigoDe(c.Run(), a, salida)
 }
 
 func aprobar(root, id string, salida io.Writer) int {
