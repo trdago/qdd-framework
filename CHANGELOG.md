@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.6.0] - 2026-10-30
+
+### ▶ Comandos para la persona, con un clic desde el panel (RFC 0006 §3.9, `consola-claude-code` v5.0.0)
+
+- **La IA deja el comando; tú lo ejecutas con un clic.** Cuando la IA no puede o no debe ejecutar un comando (no tiene permiso, se lo bloquearon, o publica algo, como el push del tag de una versión), ya no te pide que lo escribas con `!`: lo deja en tu panel con la tool MCP `qdd_consola_pedir` o con `qdd consola pedir -m <motivo> <comando…>`. QDD no lo ejecuta.
+- **«▶ Para ti» en el panel.** Cada comando aparece primero, con su motivo, el comando exacto y la carpeta, y una tecla (a, b, d…). Con «s  Sí» corre en su carpeta y el panel muestra la salida; si termina bien sale de la cola y si falla queda para reintentarlo. «x  Descartar» lo quita sin ejecutarlo. El panel se abre solo cuando llega un pedido nuevo.
+- **Cualquier comando, siempre confirmado.** La cola es de tu máquina (`<QDD_HOME>/claude/pedidos`, no se versiona), con tope de 9 y sin duplicados. `qdd consola pedidos` la lista y `qdd consola descartar <id>` quita uno.
+- Las instrucciones para la IA (AGENTS.md, CLAUDE.md…) le dicen que use `qdd_consola_pedir` y que nunca ejecute ella misma un pedido.
+
 ## [v2.5.1] - 2026-10-30
 
 ### 🌐 Repositorios de blueprints públicos, sin llave SSH
