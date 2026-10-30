@@ -82,3 +82,23 @@ func TestConsolaPedirTool_NuncaEjecutaYDiceQueEsperaALaPersona_CCC_C17(t *testin
 		t.Fatalf("queda en la cola del proyecto, sin ejecutarse: %+v", cola)
 	}
 }
+
+func TestConsolaPedidos_ListaCadaPedidoConSuEstado(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	hecho, _ := consola.Pedir(root, "exit 0", "Ya hecho", "", ahoraPrueba)
+	consola.Pedir(root, "exit 0; echo", "Por hacer", "", ahoraPrueba)
+	var salida, errores bytes.Buffer
+	consolaAccion(root, "pedido:"+hecho.ID, true, &salida, &errores)
+	salida.Reset()
+	listarPedidos(root, &salida)
+	texto := salida.String()
+	if !strings.Contains(texto, "[✓] Ya hecho · hecho") || !strings.Contains(texto, "[b] Por hacer · pendiente") {
+		t.Fatalf("cada pedido dice su tecla (o ✓) y su estado: %q", texto)
+	}
+	salida.Reset()
+	listarPedidos(t.TempDir(), &salida)
+	if !strings.Contains(salida.String(), "No hay comandos") {
+		t.Fatalf("sin pedidos lo dice: %q", salida.String())
+	}
+}

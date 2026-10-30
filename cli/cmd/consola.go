@@ -204,15 +204,41 @@ var consolaPedidosCmd = &cobra.Command{
 	Use:   "pedidos",
 	Short: "Lista los comandos que esperan a la persona en el panel",
 	Run: func(cmd *cobra.Command, args []string) {
-		cola := consola.Pedidos(estadoRaiz())
-		if len(cola) == 0 {
-			fmt.Println("No hay comandos esperando en el panel.")
-			return
-		}
-		for _, p := range cola {
-			fmt.Printf("[%s] %s\n    %s\n    en %s · %s\n", consola.TeclaDe(estadoRaiz(), p.ID), p.Motivo, p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
-		}
+		listarPedidos(estadoRaiz(), os.Stdout)
 	},
+}
+
+// listarPedidos muestra cada pedido con su tecla (✓ si ya está hecho, sin tecla si se está ejecutando) y su estado.
+func listarPedidos(root string, salida io.Writer) {
+	cola := consola.Pedidos(root)
+	if len(cola) == 0 {
+		fmt.Fprintln(salida, "No hay comandos esperando en el panel.")
+		return
+	}
+	for _, p := range cola {
+		fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n    en %s · %s\n", marcaPedido(p), p.Motivo, estadoPedido(p), p.Comando, p.Carpeta, p.Creado.Local().Format("2006-01-02 15:04"))
+	}
+}
+
+func marcaPedido(p consola.Pedido) string {
+	if p.Estado == consola.EstadoHecho {
+		return "✓"
+	}
+	if p.Estado == consola.EstadoEjecutando {
+		return "⟳"
+	}
+	return p.Tecla
+}
+
+func estadoPedido(p consola.Pedido) string {
+	cuando := ""
+	if p.Fin != nil {
+		cuando = " " + p.Fin.Local().Format("15:04")
+	}
+	if p.Estado == consola.EstadoFallo {
+		return fmt.Sprintf("falló (código %d)%s", p.Codigo, cuando)
+	}
+	return p.Estado + cuando
 }
 
 var consolaDescartarCmd = &cobra.Command{
