@@ -1,0 +1,9 @@
+id: "FND-082"
+title: "Un pedido que todavía no podía correr se veía en rojo, como una falla"
+description: "Los pedidos con una guarda (‘Espera: primero va el tag v2.7.0’) salían con código 1 y quedaban en fallo: rojo, con ✗, igual que un error de verdad. El 2026-10-30 el panel mostró cuatro pedidos en rojo que solo esperaban su turno, y la persona dijo «estoy súper perdido, veo que todo falla en el panel»."
+impact: "Las fallas reales no se distinguían de las esperas; la persona perdía la confianza en el panel."
+action_taken: "Un comando sale con el código 75 (EX_TEMPFAIL, consola.CodigoTodaviaNo) cuando su condición aún no se cumple: el pedido vuelve a pendiente con su tecla, con aviso y aviso_en. El panel dibuja «todavía no · hora — aviso» en gris bajo el botón, el recuadro del resultado en gris (◌) y no lo marca como falla localmente. Las instrucciones para la IA piden usar exit 75 en esas guardas, dejar solo lo que se puede ejecutar ahora y un pedido por paso."
+test_result: "TestEjecutar_TodaviaNoVuelveAPendienteConSuAviso_FND082 (consola) y, en el mod qdd-tareas, «un pedido que dijo todavía no…» y «si al ejecutarlo sale todavía no (código 75)…»: antes del arreglo el segundo mostraba «✗ Publicar v2.5.1» en rojo."
+status: resolved
+detectado_por: humano
+date: "2026-10-30"

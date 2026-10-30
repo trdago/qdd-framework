@@ -43,6 +43,10 @@ const (
 	// TopeEjecucion es cuánto puede estar ejecutándose un pedido antes de darlo por cortado.
 	TopeEjecucion = 15 * time.Minute
 
+	// CodigoTodaviaNo (EX_TEMPFAIL) es la salida de un comando cuya condición todavía no se cumple (falta un tag, un
+	// merge): el pedido vuelve a pendiente con el aviso, en gris, y no cuenta como falla (FND-082).
+	CodigoTodaviaNo = 75
+
 	prefijoPedido = "pedido:"
 	lineasSalida  = 4
 )
@@ -65,6 +69,8 @@ type Pedido struct {
 	Codigo  int        `json:"codigo,omitempty"`
 	Salida  string     `json:"salida,omitempty"`  // últimas líneas de la salida
 	Despues []string   `json:"despues,omitempty"` // ids de los pedidos que tienen que quedar hechos antes
+	Aviso   string     `json:"aviso,omitempty"`   // «todavía no»: lo que dijo la última vez que salió con CodigoTodaviaNo
+	AvisoEn *time.Time `json:"aviso_en,omitempty"`
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho.
@@ -78,7 +84,25 @@ func (p Pedido) Ejecutable() bool {
 }
 
 // RutaLocal es un archivo local del proyecto, fuera del repositorio: <QDD_HOME>/claude/<carpeta>/<slug>-<hash>.json.
+// Es uno por repositorio: un worktree usa el de su checkout principal (FND-081).
 var RutaLocal = estado.RutaLocal
+
+// RutaLocalSinRepositorio es la clave de qdd 2.7 y anteriores (un worktree tenía su propia cola).
+var RutaLocalSinRepositorio = estado.RutaLocalSinRepositorio
+
+// ColaDe dice en qué cola queda un pedido que corre en carpeta: la del repositorio (o proyecto) donde corre, aunque
+// lo pida una sesión de otro proyecto (FND-081). Si es el mismo proyecto que root, o la carpeta no está en ninguno,
+// es root.
+func ColaDe(root, carpeta string) string {
+	if strings.TrimSpace(carpeta) == "" {
+		return root
+	}
+	p := estado.ProyectoDe(carpeta)
+	if p == "" || estado.ClaveLocal(p) == estado.ClaveLocal(root) {
+		return root
+	}
+	return estado.ClaveLocal(p)
+}
 
 // colaPath es el archivo de la cola del proyecto: <QDD_HOME>/claude/pedidos/<slug>-<hash>.json.
 func colaPath(root string) (string, error) {
@@ -225,7 +249,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		return Pedido{}, err
 	}
 	var nuevo Pedido
-	err = conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
+	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
 		usadas := map[string]bool{}
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
@@ -308,7 +332,8 @@ func accionesDePedidos(root string) []Accion {
 	for _, p := range cola {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
-			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Confirmar: true, pedido: p.ID,
+			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
+			Confirmar: true, pedido: p.ID,
 		}
 		if faltan := esperaA(p, cola); p.Ejecutable() && len(faltan) > 0 {
 			a.Estado, a.Espera = EstadoEspera, faltan
@@ -394,7 +419,11 @@ func terminar(root, id string, codigo int, texto string) {
 			if cola[i].ID != id {
 				continue
 			}
-			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida = EstadoHecho, &fin, codigo, texto
+			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida, cola[i].Aviso, cola[i].AvisoEn = EstadoHecho, &fin, codigo, texto, "", nil
+			if codigo == CodigoTodaviaNo {
+				cola[i].Estado, cola[i].Fin, cola[i].Aviso, cola[i].AvisoEn = EstadoPendiente, nil, texto, &fin
+				continue
+			}
 			if codigo != 0 {
 				cola[i].Estado = EstadoFallo
 			}

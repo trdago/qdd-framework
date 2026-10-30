@@ -189,6 +189,20 @@ bloquearon, o el comando publica algo, como el push del tag de una versión), no
   con `estado: "espera"` y `espera: [teclas]`, sin tecla: el panel lo dibuja en gris («◌ … · espera a [a]»), sin botón,
   no lo cuenta en «▶ N para ti» y `qdd consola accion` lo rechaza. Una falla de lo que espera lo sigue bloqueando; un
   hecho que otro espera no sale de la cola a los 30 minutos; descartar algo libera a lo que lo esperaba.
+- Una cola por repositorio (qdd 2.8.0, FND-081): la cola se guarda con la clave del checkout principal, así la sesión
+  que trabaja en un worktree y la del checkout principal ven el mismo panel; se resuelve leyendo `.git` y `commondir`,
+  sin ejecutar git. Un pedido va a la cola del proyecto donde corre (el ancestro de su `carpeta` con `.qdd` o, si no,
+  la raíz de su repositorio), aunque lo pida una sesión de otro proyecto, y la salida dice en qué panel quedó.
+  `qdd doctor` (grupo 6, «Cola de pedidos del panel») avisa si un worktree conserva su cola de qdd 2.7 o si la cola
+  tiene pedidos que corren en otro repositorio; `--fix` los pasa a la cola que corresponde, con ids y teclas nuevos,
+  sin ejecutar nada y sin reactivar la consola.
+- «Todavía no» no es una falla (qdd 2.8.0, FND-082): un comando que depende de algo fuera de la cola (un tag, un CI,
+  el merge de otra sesión) lo revisa primero y sale con el código 75 (`EX_TEMPFAIL`) si aún no está. El pedido vuelve
+  a pendiente con su tecla y guarda `aviso` (la última línea) y `aviso_en`; el panel lo dibuja con el botón y debajo,
+  en gris, «todavía no · 14:02 — Falta el tag v2.7.0», y el recuadro del resultado va en gris (◌), no en rojo.
+- Lo que la IA deja (decisión del humano, 2026-10-30, «estoy súper perdido, veo que todo falla en el panel»): solo lo
+  que se puede ejecutar ahora o que declara a qué espera; un pedido por paso que tiene que dar la persona (una cadena
+  de merges es un solo comando que los hace en orden); y lo que depende de algo externo, con su guarda y `exit 75`.
 - Las instrucciones para la IA (bloque de AGENTS.md, CLAUDE.md…) le dicen que use `qdd_consola_pedir` y que nunca
   ejecute ella misma `qdd consola accion` sobre un pedido. QDD no puede impedirlo técnicamente a un agente con shell
   propia: lo que lo protege es que la confirmación está en la interfaz de la persona y los permisos del agente.

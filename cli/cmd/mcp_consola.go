@@ -34,7 +34,8 @@ func handleConsolaPedirTool(ctx context.Context, request mcp.CallToolRequest) (*
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Quedó en el panel de estado con la tecla %s: «%s»%s → %s (en %s).\nNo lo ejecutes tú: dile a la persona que lo ejecute desde el panel (clic en el panel, tecla %s y «s  Sí»). Puedes ver si quedó hecho o falló con 'qdd consola pedidos'.", p.Tecla, p.Motivo, conEspera(consola.EsperaDe(root, p.ID)), p.Comando, p.Carpeta, p.Tecla)), nil
+	cola := consola.ColaDe(root, p.Carpeta)
+	return mcp.NewToolResultText(fmt.Sprintf("Quedó en %s con la tecla %s: «%s»%s → %s (en %s).\nNo lo ejecutes tú: dile a la persona que lo ejecute desde ese panel (tecla %s y «s  Sí»). Puedes ver si quedó hecho o falló con 'qdd consola pedidos'.", panelDe(root, cola), p.Tecla, p.Motivo, conEspera(consola.EsperaDe(cola, p.ID)), p.Comando, p.Carpeta, p.Tecla)), nil
 }
 
 // listaDeComas separa «a, b» en [a b], sin vacíos.

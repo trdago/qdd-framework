@@ -2,8 +2,8 @@
 // consola-claude-code). Dibuja el panel liviano: una línea de resumen en color, la tabla de las 4 tareas pendientes más
 // nuevas con su ✕ para descartarlas y los botones de las acciones. Orden: tareas, Acciones, «▶ Para ti» (los comandos
 // que la IA dejó para la persona), ⏳ Esperando y ❌ Fallas. Cada pedido se ve en su estado: pendiente (botón con su
-// tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080) y con falla (en rojo, con
-// «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
+// tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080), «todavía no» (pendiente, con
+// su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
@@ -29,6 +29,8 @@ let confirmando = null // la acción que espera el segundo paso
 let resultado = null // { titulo, ok, texto }
 let ocupado = false
 let iniciado = false // ya pasó la primera lectura de session.start
+// CODIGO_TODAVIA_NO es la salida de un pedido cuya condición aún no se cumple (qdd: consola.CodigoTodaviaNo).
+const CODIGO_TODAVIA_NO = 75
 const pedidosVistos = new Set() // ids de los pedidos que ya abrieron el panel
 // locales: lo que el panel ya sabe de un pedido antes que qdd (o con un qdd anterior a 2.6.2, que no guarda el
 // estado): id → { estado, fin }. Así un pedido aceptado nunca vuelve a ofrecerse.
@@ -314,6 +316,7 @@ function teclas(acciones) {
 
 async function ejecutar($, a) {
   const esPedido = a.tipo === 'pedido'
+  let todaviaNo = false
   if (esPedido && !ejecutable(a)) return
   ocupado = true
   confirmando = null
@@ -327,10 +330,14 @@ async function ejecutar($, a) {
     const r = await $.process.run(argv, { timeoutMs: largo ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
     const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
     resultado = { titulo: a.etiqueta, ok: r.exitCode === 0, texto: texto || 'sin salida' }
+    todaviaNo = r.exitCode === CODIGO_TODAVIA_NO
+    if (todaviaNo) resultado = { ...resultado, todaviaNo: true }
   } catch (err) {
     resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err) }
   }
   if (esPedido) locales.set(a.id, { estado: resultado.ok ? 'hecho' : 'fallo', fin: new Date().toISOString(), resultado: resultado.texto })
+  // «todavía no» (código 75, FND-082): vuelve a pendiente; manda lo que diga qdd, con su aviso.
+  if (esPedido && todaviaNo) locales.delete(a.id)
   ocupado = false
   firma = ''
   await leer($)
@@ -425,7 +432,11 @@ function tarjeta(Box, Text, Button, $, a) {
       Box({ key: 'reintentar', paddingLeft: 3, children: [Button({ key: 'b-' + a.id, label: a.tecla + '  ↻ Reintentar', hotkey: a.tecla, onPress: () => pedir($, a) })] }),
     ])
   }
-  return caja(Button({ key: 'b-' + a.id, label: a.tecla + '  ' + a.etiqueta, hotkey: a.tecla, variant: 'primary', onPress: () => pedir($, a) }), [donde('')])
+  // «todavía no» (FND-082): el comando dijo que su condición aún no se cumple; se ve en gris y se puede volver a probar.
+  const aviso = a.aviso
+    ? [Text({ key: 'aviso', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   todavía no' + (hora(a.aviso_en) ? ' · ' + hora(a.aviso_en) : '') + ' — ' + a.aviso.trim().split('\n').slice(-1)[0]] })]
+    : []
+  return caja(Button({ key: 'b-' + a.id, label: a.tecla + '  ' + a.etiqueta, hotkey: a.tecla, variant: 'primary', onPress: () => pedir($, a) }), [...aviso, donde('')])
 }
 
 // paraTi lista los comandos que la IA dejó para la persona: primero los abiertos, en el orden que da qdd (cada uno
@@ -469,17 +480,20 @@ function acciones(Box, Text, Button, $, todas) {
       ],
     }),
   )
+  // El recuadro del último resultado: verde (✓), rojo (✗) o, si el comando dijo «todavía no», gris (◌, FND-082).
+  const marca = resultado?.todaviaNo ? '◌ ' : resultado?.ok ? '✓ ' : '✗ '
+  const tinte = resultado?.todaviaNo ? undefined : resultado?.ok ? 'green' : 'red'
   const salida = resultado
     ? [
         Box({
           key: 'resultado',
           flexDirection: 'column',
           borderStyle: 'single',
-          borderColor: resultado.ok ? 'green' : 'red',
+          borderColor: tinte,
           borderDimColor: true,
           paddingX: 1,
           children: [
-            Text({ color: resultado.ok ? 'green' : 'red', weight: 'semibold', wrap: 'wrap', children: [(resultado.ok ? '✓ ' : '✗ ') + resultado.titulo] }),
+            Text({ color: tinte, dimColor: !tinte, weight: 'semibold', wrap: 'wrap', children: [marca + resultado.titulo + (resultado.todaviaNo ? ' · todavía no' : '')] }),
             Text({ dimColor: true, size: 'caption', wrap: 'wrap', children: [resultado.texto] }),
           ],
         }),

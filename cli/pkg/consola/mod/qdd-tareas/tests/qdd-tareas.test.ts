@@ -412,3 +412,24 @@ test('un pedido en espera dice a quién espera, no tiene botón ni cuenta como p
   expect(comandoDe(/v2\.7\.0$/)).toBeLessThan(comandoDe(/gh pr merge 14/))
   expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
 })
+
+// FND-082: un comando que todavía no puede correr (falta un tag, un merge) no se ve como una falla.
+test('un pedido que dijo «todavía no» se ve pendiente con su aviso en gris, no en rojo (FND-082)', async ($, on) => {
+  const todaviaNo = { ...PEDIDO, estado: 'pendiente', aviso: 'Falta el tag v2.7.0', aviso_en: '2026-10-30T12:05:00-03:00' }
+  preparar(on, ok({ ...PANEL, acciones: [todaviaNo] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /todavía no .*Falta el tag v2\.7\.0/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: /✗/ })).toBeUndefined()
+  expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
+})
+
+test('si al ejecutarlo sale «todavía no» (código 75), el panel no lo marca como falla (FND-082)', async ($, on) => {
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO] }), [], { exitCode: 75, stdout: 'Falta el tag v2.7.0', stderr: '' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'b-pedido:1' })
+  await ui.press({ key: 'si' })
+  expect(await ui.find({ type: 'Text', text: /✗/ })).toBeUndefined()
+  expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
+})

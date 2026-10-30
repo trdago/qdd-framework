@@ -1,0 +1,9 @@
+id: "FND-081"
+title: "Los pedidos sobre un repositorio quedaban en el panel de la sesión que los pedía"
+description: "La cola de pedidos se guardaba con la ruta del proyecto de la sesión (y un worktree tenía la suya). El 2026-10-30, la sesión de notificador_de_ofertas dejó el merge de qdd #33 y el tag v2.7.0 en su propio panel, aunque corrían en un worktree de qdd; el panel de qdd mostraba los pasos siguientes sin el primero."
+impact: "La persona tenía que mirar dos paneles para seguir una sola cadena, no veía qué iba primero y pulsaba pasos que fallaban."
+action_taken: "estado.ClaveLocal resuelve un worktree a su checkout principal leyendo .git y commondir (sin ejecutar git): la cola y la actividad son una por repositorio. Pedir deja el pedido en la cola del proyecto donde corre (ColaDe: ancestro de la carpeta con .qdd o raíz del repositorio) y la salida dice en qué panel quedó. qdd doctor (grupo 6) avisa de una cola suelta de worktree o de pedidos de otro repositorio y --fix los junta en su cola."
+test_result: "TestClaveLocal_UnWorktreeUsaLaDelRepositorio y TestProyectoDe_EsLaCarpetaConQddOElRepositorio (estado), TestPedir_VaALaColaDelRepositorioDondeCorre_FND081 y TestDiagnosticarCola_JuntaLaColaSueltaDeUnWorktreeYLosPedidosDeOtroRepositorio_FND081 (consola), TestDoctor_RevisaLaColaDePedidosYLaRepara_FND081 y TestConsolaPedir_DiceEnQuePanelQuedo_FND081 (cmd)."
+status: resolved
+detectado_por: humano
+date: "2026-10-30"

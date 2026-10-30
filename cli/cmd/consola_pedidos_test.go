@@ -147,3 +147,18 @@ func TestConsolaPedirTool_AceptaDespuesYAntes_FND080(t *testing.T) {
 		t.Fatal("una referencia que no está se rechaza")
 	}
 }
+
+// FND-081: si el comando corre en otro proyecto, la salida dice en qué panel quedó.
+func TestConsolaPedir_DiceEnQuePanelQuedo_FND081(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root, otro := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(root, ".qdd"), 0755)
+	os.MkdirAll(filepath.Join(otro, ".qdd"), 0755)
+	var salida, errores bytes.Buffer
+	if codigo := consolaPedir(root, "Mergear", otro, consola.Orden{}, []string{"exit", "0"}, &salida, &errores); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, errores.String())
+	}
+	if !strings.Contains(salida.String(), "tecla a") || !strings.Contains(salida.String(), "panel de "+filepath.Base(otro)) {
+		t.Fatalf("la salida dice su tecla y el panel del otro proyecto: %q", salida.String())
+	}
+}
