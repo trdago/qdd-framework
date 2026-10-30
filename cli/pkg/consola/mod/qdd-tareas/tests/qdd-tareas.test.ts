@@ -394,3 +394,21 @@ test('el resumen cuenta «▶ N para ti» solo con los pedidos que se pueden eje
   await clock.advance(2000)
   expect(await ui.find({ type: 'Text', text: /para ti$/ })).toBeUndefined()
 })
+
+// FND-080: un pedido que espera a otro se muestra después de él, en gris, sin botón, y dice qué espera.
+test('un pedido en espera dice a quién espera, no tiene botón ni cuenta como por hacer, y va en el orden de qdd (FND-080)', async ($, on) => {
+  const tag = { ...PEDIDO, id: 'pedido:3', etiqueta: 'Publicar v2.7.0', detalle: 'git push origin v2.7.0', tecla: 'd' }
+  const merge = { ...PEDIDO, id: 'pedido:1', etiqueta: 'Mergear #14', detalle: 'gh pr merge 14', tecla: undefined, estado: 'espera', espera: ['d'] }
+  const llamadas: string[][] = []
+  preparar(on, ok({ ...PANEL, acciones: [tag, merge, ...ACCIONES] }), llamadas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-pedido:1' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Mergear #14 .*espera a \[d\]/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: '1 por hacer · 1 en espera' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '▶ 1 para ti' })).toBeDefined()
+  const textos = (await ui.findAll({ type: 'Text' })).map((n) => n.text)
+  const comandoDe = (re: RegExp) => textos.findIndex((t) => re.test(t))
+  expect(comandoDe(/v2\.7\.0$/)).toBeLessThan(comandoDe(/gh pr merge 14/))
+  expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
+})

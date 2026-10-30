@@ -2,7 +2,7 @@
 // consola-claude-code). Dibuja el panel liviano: una línea de resumen en color, la tabla de las 4 tareas pendientes más
 // nuevas con su ✕ para descartarlas y los botones de las acciones. Orden: tareas, Acciones, «▶ Para ti» (los comandos
 // que la IA dejó para la persona), ⏳ Esperando y ❌ Fallas. Cada pedido se ve en su estado: pendiente (botón con su
-// tecla), ejecutando o hecho (en gris, sin botón: no se acepta dos veces, FND-070) y con falla (en rojo, con
+// tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080) y con falla (en rojo, con
 // «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
@@ -400,13 +400,17 @@ function confirmacion(Box, Text, Button, $) {
 }
 
 // tarjeta dibuja un pedido en tres líneas iguales para todos los estados: qué (con su marca o su botón), el comando
-// exacto y dónde/cuándo. Solo pendiente y con falla tienen botón; ejecutando y hecho van en gris.
+// exacto y dónde/cuándo. Solo pendiente y con falla tienen botón; en espera, ejecutando y hecho van en gris.
 function tarjeta(Box, Text, Button, $, a) {
   const s = estadoDe(a)
-  const apagado = s.estado === 'ejecutando' || s.estado === 'hecho'
+  const apagado = s.estado === 'espera' || s.estado === 'ejecutando' || s.estado === 'hecho'
   const comando = Text({ key: 'cmd', mono: true, dimColor: apagado, wrap: 'wrap', children: ['   $ ' + a.detalle] })
   const donde = (extra) => Text({ key: 'en', dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['   en ' + a.carpeta + (extra ? ' · ' + extra : '')] })
   const caja = (cabeza, resto) => Box({ key: 'pedido-' + a.id, flexDirection: 'column', children: [cabeza, comando, ...resto] })
+  if (s.estado === 'espera') {
+    const de = (a.espera || []).map((t) => '[' + t + ']').join(' ')
+    return caja(Text({ key: 'que', dimColor: true, wrap: 'wrap', children: ['◌  ' + a.etiqueta + '  · espera a ' + (de || 'otro pedido')] }), [donde('')])
+  }
   if (s.estado === 'ejecutando') {
     return caja(Text({ key: 'que', dimColor: true, wrap: 'wrap', children: ['⟳  ' + a.etiqueta + '  · ejecutando…'] }), [donde(hora(s.inicio) ? 'desde ' + hora(s.inicio) : '')])
   }
@@ -424,14 +428,15 @@ function tarjeta(Box, Text, Button, $, a) {
   return caja(Button({ key: 'b-' + a.id, label: a.tecla + '  ' + a.etiqueta, hotkey: a.tecla, variant: 'primary', onPress: () => pedir($, a) }), [donde('')])
 }
 
-// paraTi lista los comandos que la IA dejó para la persona: primero los abiertos, en el orden en que se pidieron, y
-// al final los hechos. Mientras se confirma uno, en su lugar va la confirmación.
+// paraTi lista los comandos que la IA dejó para la persona: primero los abiertos, en el orden que da qdd (cada uno
+// después de lo que espera, FND-080), y al final los hechos. Mientras se confirma uno, en su lugar va la confirmación.
 function paraTi(Box, Text, Button, $, lista) {
   if (lista.length === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho')
   const porHacer = lista.filter(ejecutable).length
-  const resumen = [porHacer ? porHacer + ' por hacer' : 'nada por hacer', ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
+  const enEspera = lista.filter((a) => estadoDe(a).estado === 'espera').length
+  const resumen = [porHacer ? porHacer + ' por hacer' : 'nada por hacer', ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
   const cuerpo = confirmando
     ? confirmando.tipo === 'pedido'
       ? [confirmacion(Box, Text, Button, $)]

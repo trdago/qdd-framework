@@ -21,15 +21,29 @@ func registerConsolaTools(s *server.MCPServer) {
 		mcp.WithString("comando", mcp.Required(), mcp.Description("El comando exacto, como lo escribiría la persona en su shell (puede usar && o |).")),
 		mcp.WithString("motivo", mcp.Required(), mcp.Description("Por qué lo tiene que ejecutar la persona y qué hace; se lee en el panel antes de confirmar.")),
 		mcp.WithString("carpeta", mcp.Description("Dónde corre; por defecto, la raíz del proyecto.")),
+		mcp.WithString("despues", mcp.Description("Si depende de otros pedidos: sus ids o teclas, separados por coma. El panel lo muestra después de ellos y no lo deja ejecutar hasta que queden hechos. Úsalo siempre que el orden importe (un merge después de un tag, un release después de un merge).")),
+		mcp.WithString("antes", mcp.Description("Pedidos que ya están en la cola y tienen que esperar a este: sus ids o teclas, separados por coma. Pedir de nuevo un comando que ya está, con despues o antes, lo reordena sin duplicarlo.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleConsolaPedirTool)
 }
 
 func handleConsolaPedirTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	root := projectRootForMCP()
-	p, err := consola.Pedir(root, stringArg(request, "comando"), stringArg(request, "motivo"), strings.TrimSpace(stringArg(request, "carpeta")), time.Now())
+	orden := consola.Orden{Despues: listaDeComas(stringArg(request, "despues")), Antes: listaDeComas(stringArg(request, "antes"))}
+	p, err := consola.PedirEnOrden(root, stringArg(request, "comando"), stringArg(request, "motivo"), strings.TrimSpace(stringArg(request, "carpeta")), orden, time.Now())
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Quedó en el panel de estado con la tecla %s: «%s» → %s (en %s).\nNo lo ejecutes tú: dile a la persona que lo ejecute desde el panel (clic en el panel, tecla %s y «s  Sí»). Puedes ver si quedó hecho o falló con 'qdd consola pedidos'.", consola.TeclaDe(root, p.ID), p.Motivo, p.Comando, p.Carpeta, consola.TeclaDe(root, p.ID))), nil
+	return mcp.NewToolResultText(fmt.Sprintf("Quedó en el panel de estado con la tecla %s: «%s»%s → %s (en %s).\nNo lo ejecutes tú: dile a la persona que lo ejecute desde el panel (clic en el panel, tecla %s y «s  Sí»). Puedes ver si quedó hecho o falló con 'qdd consola pedidos'.", p.Tecla, p.Motivo, conEspera(consola.EsperaDe(root, p.ID)), p.Comando, p.Carpeta, p.Tecla)), nil
+}
+
+// listaDeComas separa «a, b» en [a b], sin vacíos.
+func listaDeComas(s string) []string {
+	var out []string
+	for _, x := range strings.Split(s, ",") {
+		if x = strings.TrimSpace(x); x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
 }

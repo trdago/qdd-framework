@@ -24,7 +24,8 @@ import (
 // La cola vive en la carpeta central de QDD, no en el proyecto: es de esta máquina y no se versiona.
 //
 // Un pedido pasa por pendiente → ejecutando → hecho o fallo. Solo uno pendiente o con fallo se puede ejecutar: uno
-// aceptado no vuelve a correr (FND-070). Cada pedido guarda su tecla desde que se pide (FND-071).
+// aceptado no vuelve a correr (FND-070). Cada pedido guarda su tecla desde que se pide (FND-071). Uno que espera a
+// otros (Despues) se muestra después de ellos y no corre hasta que estén hechos (FND-080, orden.go).
 
 const (
 	TipoPedido = "pedido"
@@ -62,7 +63,8 @@ type Pedido struct {
 	Inicio  *time.Time `json:"inicio,omitempty"`
 	Fin     *time.Time `json:"fin,omitempty"`
 	Codigo  int        `json:"codigo,omitempty"`
-	Salida  string     `json:"salida,omitempty"` // últimas líneas de la salida
+	Salida  string     `json:"salida,omitempty"`  // últimas líneas de la salida
+	Despues []string   `json:"despues,omitempty"` // ids de los pedidos que tienen que quedar hechos antes
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho.
@@ -83,7 +85,8 @@ func colaPath(root string) (string, error) {
 	return RutaLocal(root, "pedidos")
 }
 
-// Pedidos devuelve la cola del proyecto en el orden en que se pidió, ya normalizada a la hora now: los hechos de
+// Pedidos devuelve la cola del proyecto en orden (cada pedido después de lo que espera; si no, en el orden en que
+// se pidió), ya normalizada a la hora now: los hechos de
 // hace más de VidaHecho no aparecen y uno ejecutándose desde hace más de TopeEjecucion se da por cortado. Una cola
 // ilegible se trata como vacía.
 func Pedidos(root string) []Pedido {
@@ -92,7 +95,7 @@ func Pedidos(root string) []Pedido {
 
 // PedidosA es Pedidos a una hora dada.
 func PedidosA(root string, now time.Time) []Pedido {
-	return normalizar(leerCola(root), now)
+	return enOrden(normalizar(leerCola(root), now))
 }
 
 func leerCola(root string) []Pedido {
@@ -113,12 +116,12 @@ func leerCola(root string) []Pedido {
 
 func normalizar(cola []Pedido, now time.Time) []Pedido {
 	out := make([]Pedido, 0, len(cola))
-	usadas := map[string]bool{}
+	usadas, esperado := map[string]bool{}, esperados(cola)
 	for _, p := range cola {
 		if p.Estado == "" {
 			p.Estado = EstadoPendiente
 		}
-		if p.Estado == EstadoHecho && p.Fin != nil && now.Sub(*p.Fin) > VidaHecho {
+		if p.Estado == EstadoHecho && p.Fin != nil && now.Sub(*p.Fin) > VidaHecho && !esperado[p.ID] {
 			continue
 		}
 		if p.Estado == EstadoEjecutando && p.Inicio != nil && now.Sub(*p.Inicio) > TopeEjecucion {
@@ -204,6 +207,12 @@ func guardarCola(ruta string, cola []Pedido) error {
 // Pedir agrega un comando a la cola. Sin carpeta, corre en la raíz del proyecto. El mismo comando en la misma
 // carpeta, si sigue abierto, no se duplica: se devuelve el pedido que ya estaba.
 func Pedir(root, comando, motivo, carpeta string, now time.Time) (Pedido, error) {
+	return PedirEnOrden(root, comando, motivo, carpeta, Orden{}, now)
+}
+
+// PedirEnOrden es Pedir con su orden: a qué pedidos espera y cuáles lo esperan. Si el comando ya estaba abierto, le
+// suma ese orden (así se reordena un pedido sin descartarlo). Un orden que no se puede cumplir no cambia la cola.
+func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.Time) (Pedido, error) {
 	comando, motivo = strings.TrimSpace(comando), strings.TrimSpace(motivo)
 	if comando == "" {
 		return Pedido{}, errors.New("falta el comando que la persona debe ejecutar")
@@ -220,8 +229,7 @@ func Pedir(root, comando, motivo, carpeta string, now time.Time) (Pedido, error)
 		usadas := map[string]bool{}
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
-				nuevo = p
-				return cola, nil
+				return conOrden(cola, p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
@@ -230,10 +238,22 @@ func Pedir(root, comando, motivo, carpeta string, now time.Time) (Pedido, error)
 		if len(usadas) >= MaxPedidos {
 			return nil, fmt.Errorf("ya hay %d comandos esperando en el panel: que la persona los ejecute o descarte antes de pedir otro", MaxPedidos)
 		}
-		nuevo = Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: teclaLibre(usadas), Estado: EstadoPendiente}
-		return append(cola, nuevo), nil
+		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: teclaLibre(usadas), Estado: EstadoPendiente}
+		return conOrden(append(cola, p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
+}
+
+// conOrden aplica el orden al pedido id y deja en elegido cómo quedó.
+func conOrden(cola []Pedido, id string, orden Orden, elegido *Pedido) ([]Pedido, error) {
+	i, _ := resolver(cola, id)
+	if !orden.vacio() {
+		if err := ordenar(cola, i, orden); err != nil {
+			return nil, err
+		}
+	}
+	*elegido = cola[i]
+	return cola, nil
 }
 
 func carpetaDe(root, carpeta string) (string, error) {
@@ -278,18 +298,22 @@ func Descartar(root, id string) error {
 		if len(resto) == len(cola) {
 			return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
 		}
-		return resto, nil
+		return sinDependencia(resto, id), nil
 	})
 }
 
 func accionesDePedidos(root string) []Accion {
 	var acciones []Accion
-	for _, p := range Pedidos(root) {
+	cola := Pedidos(root)
+	for _, p := range cola {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Confirmar: true, pedido: p.ID,
 		}
-		if p.Ejecutable() {
+		if faltan := esperaA(p, cola); p.Ejecutable() && len(faltan) > 0 {
+			a.Estado, a.Espera = EstadoEspera, faltan
+		}
+		if p.Ejecutable() && len(a.Espera) == 0 {
 			a.Tecla = p.Tecla
 		}
 		acciones = append(acciones, a)
@@ -305,6 +329,16 @@ func TeclaDe(root, id string) string {
 		}
 	}
 	return ""
+}
+
+// EsperaDe dice a qué pedidos (por tecla) espera todavía un pedido; vacío si puede correr o no está en la cola.
+func EsperaDe(root, id string) []string {
+	for _, a := range accionesDePedidos(root) {
+		if a.pedido == id {
+			return a.Espera
+		}
+	}
+	return nil
 }
 
 // errNoEjecutable explica por qué un pedido no se puede ejecutar ahora.
@@ -326,6 +360,9 @@ func ejecutarPedido(root string, a Accion, salida io.Writer) int {
 			}
 			if !p.Ejecutable() {
 				return nil, errNoEjecutable(p.ID, p.Estado)
+			}
+			if faltan := esperaA(p, cola); len(faltan) > 0 {
+				return nil, errEspera(p.ID, faltan)
 			}
 			cola[i].Estado, cola[i].Inicio, cola[i].Fin, cola[i].Salida = EstadoEjecutando, &now, nil, ""
 			return cola, nil

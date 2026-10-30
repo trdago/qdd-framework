@@ -32,6 +32,7 @@ objetivo_tecnologico:
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
         - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta.'
         - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
+        - 'Orden de los pedidos (qdd 2.8.0, RFC 0006 §3.9): la IA declara dependencias al pedir (--despues/--antes, o despues/antes en qdd_consola_pedir); qdd las guarda por id, entrega la cola con cada pedido justo después de lo que espera (sin dependencias, en el orden en que se pidió) y marca en espera, sin tecla, al que espera algo que no está hecho. El orden no se adivina leyendo los comandos: lo declara quien los pide.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
         - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
     invariantes:
@@ -48,6 +49,7 @@ objetivo_tecnologico:
         - Pedir o descartar un comando no escribe nada en el proyecto.
         - 'Un pedido aceptado no se ejecuta dos veces: solo uno pendiente o con falla corre, y el cambio a ejecutando se hace con la cola bloqueada (FND-070).'
         - La tecla de un pedido no cambia mientras está abierto (FND-071).
+        - Un pedido que espera a otro no hecho no se ejecuta ni tiene botón (FND-080); un orden con ciclo, con una referencia que no está o que va antes de algo ya ejecutado se rechaza sin cambiar la cola.
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
         - 'La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive fuera del repositorio (<QDD_HOME>/claude/actividad/, misma clave por proyecto que la cola de pedidos: RutaLocal) y nunca cambia estado.yaml; no usa .qdd/working, que es el archivo del comando qdd en curso (FND-079).'
@@ -71,4 +73,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: 1f4a9adc7578
+revisado_en_commit: 26dab3ab2fdf

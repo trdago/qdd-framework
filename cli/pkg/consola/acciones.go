@@ -46,8 +46,9 @@ type Accion struct {
 	Detalle   string     `json:"detalle"`
 	Carpeta   string     `json:"carpeta,omitempty"`
 	Tecla     string     `json:"tecla,omitempty"`
-	Estado    string     `json:"estado,omitempty"`    // solo pedidos: pendiente, ejecutando, hecho o fallo
+	Estado    string     `json:"estado,omitempty"`    // solo pedidos: pendiente, espera, ejecutando, hecho o fallo
 	Resultado string     `json:"resultado,omitempty"` // solo pedidos: últimas líneas de la salida
+	Espera    []string   `json:"espera,omitempty"`    // solo pedidos en espera: las teclas de lo que espera
 	Inicio    *time.Time `json:"inicio,omitempty"`
 	Fin       *time.Time `json:"fin,omitempty"`
 	Confirmar bool       `json:"confirmar"`
