@@ -201,3 +201,14 @@ test('el panel se abre solo cuando llega un comando pedido, aunque no haya frent
   await clock.advance(2000)
   expect(aperturas.length).toBe(1)
 })
+
+test('las secciones van en orden: estado por frente, acciones, para ti, esperando y fallas', async ($, on) => {
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const textos = (await ui.findAll({ type: 'Text' })).map((n) => n.text)
+  const donde = (re: RegExp) => textos.findIndex((t) => re.test(t))
+  const orden = [/Estado por frente/, /^Frentes$/, /^Acciones$/, /Para ti/, /Esperando/, /Fallas/].map(donde)
+  expect(orden.every((i) => i >= 0)).toBe(true)
+  expect([...orden].sort((a, b) => a - b)).toEqual(orden)
+})

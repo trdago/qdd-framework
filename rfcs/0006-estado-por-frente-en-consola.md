@@ -161,8 +161,10 @@ bloquearon, o el comando publica algo, como el push del tag de una versión), no
 - La cola es de esta máquina y no se versiona: `<QDD_HOME>/claude/pedidos/<carpeta>-<hash>.json`, una por proyecto
   (privada, escritura atómica). El mismo comando en la misma carpeta no se duplica; el tope es 9.
 - `qdd consola panel --json` entrega cada pedido como una acción `pedido:<id>` con su motivo (`etiqueta`), el comando
-  exacto (`detalle`), la `carpeta` y la `tecla` (a, b, d…: no usan las de otros botones). El panel los muestra
-  primero, en «▶ Para ti», y se abre solo cuando llega uno nuevo.
+  exacto (`detalle`), la `carpeta` y la `tecla` (a, b, d…: no usan las de otros botones). El panel los muestra en
+  «▶ Para ti» y se abre solo cuando llega uno nuevo. Orden de las secciones (qdd 2.6.1, decisión del humano): estado
+  por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas. La confirmación aparece en la
+  sección del botón que se pulsó.
 - La confirmación muestra el motivo, «Ejecutará: <comando>» y «En: <carpeta>». Con «s  Sí» el panel pide
   `qdd consola accion pedido:<id> --confirmado`, que corre el comando con la shell del sistema (`sh -c`; en Windows,
   `cmd /C`) en su carpeta. Si termina bien sale de la cola; si falla queda para reintentarlo. «x  Descartar» lo quita

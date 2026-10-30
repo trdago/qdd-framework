@@ -1,6 +1,7 @@
 // Mod de Claude Code para el estado por frente (QDD, RFC 0006 §3.4.1, §3.7 y §3.9; blueprint consola-claude-code).
 // Dibuja el panel en cuatro niveles (resumen en números grandes, títulos, texto y detalle atenuado) y los botones de
-// las acciones, empezando por los comandos que la IA dejó para la persona («Para ti»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
+// las acciones. Orden: estado por frente, Acciones, «▶ Para ti» (los comandos que la IA dejó para la persona),
+// ⏳ Esperando y ❌ Fallas. La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
@@ -301,12 +302,15 @@ function confirmacion(Box, Text, Button, $) {
   })
 }
 
-// paraTi lista los comandos que la IA dejó para la persona: motivo, comando exacto y carpeta.
+// paraTi lista los comandos que la IA dejó para la persona: motivo, comando exacto y carpeta. Mientras se confirma
+// uno, en su lugar va la confirmación.
 function paraTi(Box, Text, Button, $, lista, asignadas) {
   if (lista.length === 0) return []
-  return [
-    titulo(Text, 't-pedidos', '▶ Para ti (' + lista.length + ')', 'yellow'),
-    ...lista.map((a) =>
+  const cuerpo = confirmando
+    ? confirmando.tipo === 'pedido'
+      ? [confirmacion(Box, Text, Button, $)]
+      : []
+    : lista.map((a) =>
       Box({
         key: 'pedido-' + a.id,
         flexDirection: 'column',
@@ -316,8 +320,8 @@ function paraTi(Box, Text, Button, $, lista, asignadas) {
           Text({ dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['  en ' + a.carpeta] }),
         ],
       }),
-    ),
-  ]
+    )
+  return [titulo(Text, 't-pedidos', '▶ Para ti (' + lista.length + ')', 'yellow'), ...cuerpo]
 }
 
 function acciones(Box, Text, Button, $, lista) {
@@ -357,9 +361,9 @@ function acciones(Box, Text, Button, $, lista) {
       marginTop: 1,
       rowGap: 1,
       children: [
-        ...(confirmando ? [] : paraTi(Box, Text, Button, $, pedidos(lista), asignadas)),
         titulo(Text, 't-acciones', 'Acciones', 'magenta'),
-        ...(confirmando ? [confirmacion(Box, Text, Button, $)] : filas),
+        ...(confirmando ? (confirmando.tipo === 'pedido' ? [] : [confirmacion(Box, Text, Button, $)]) : filas),
+        ...paraTi(Box, Text, Button, $, pedidos(lista), asignadas),
         ...salida,
         Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['Clic en el panel (o /estado) para darle el foco; luego la tecla de cada botón.'] }),
       ],
@@ -388,9 +392,9 @@ function dibujar($, Box, Text, Button, ancho) {
     children: [
       cabecera(Box, Text, e),
       tabla(Box, Text, e, ancho),
+      ...acciones(Box, Text, Button, $, lista),
       ...seccion(Box, Text, 's-esperas', '⏳ Esperando', 'yellow', e.esperas, true),
       ...seccion(Box, Text, 's-fallas', '❌ Fallas', 'red', e.fallas, false),
-      ...acciones(Box, Text, Button, $, lista),
     ],
   })
 }
