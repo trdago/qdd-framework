@@ -119,7 +119,13 @@ func Pedidos(root string) []Pedido {
 
 // PedidosA es Pedidos a una hora dada.
 func PedidosA(root string, now time.Time) []Pedido {
-	return enOrden(normalizar(leerCola(root), now))
+	return enOrden(normalizar(leerCola(root), now, cicloDe(root)))
+}
+
+// cicloDe es la hora del último mensaje de la persona (cero si no hay): lo hecho antes ya se vio.
+func cicloDe(root string) time.Time {
+	c, _ := UltimoCiclo(root)
+	return c.En
 }
 
 func leerCola(root string) []Pedido {
@@ -138,7 +144,10 @@ func leerCola(root string) []Pedido {
 	return cola
 }
 
-func normalizar(cola []Pedido, now time.Time) []Pedido {
+// normalizar deja la cola como se ve a la hora now: un hecho sale en el ciclo siguiente (ya se vio) o pasado VidaHecho
+// si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado. Lo que esperaba a un hecho
+// que salió ya no espera: una dependencia que no está en la cola no cuenta.
+func normalizar(cola []Pedido, now, ciclo time.Time) []Pedido {
 	out := make([]Pedido, 0, len(cola))
 	usadas, esperado := map[string]bool{}, esperados(cola)
 	for _, p := range cola {
@@ -146,6 +155,9 @@ func normalizar(cola []Pedido, now time.Time) []Pedido {
 			p.Estado = EstadoPendiente
 		}
 		if p.Estado == EstadoHecho && p.Fin != nil && now.Sub(*p.Fin) > VidaHecho && !esperado[p.ID] {
+			continue
+		}
+		if p.Estado == EstadoHecho && p.Fin != nil && p.Fin.Before(ciclo) {
 			continue
 		}
 		if p.Estado == EstadoEjecutando && p.Inicio != nil && now.Sub(*p.Inicio) > TopeEjecucion {
@@ -191,7 +203,7 @@ func conCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error
 		return err
 	}
 	defer soltar()
-	cola, err := cambiar(normalizar(leerCola(root), now))
+	cola, err := cambiar(normalizar(leerCola(root), now, cicloDe(root)))
 	if err != nil {
 		return err
 	}

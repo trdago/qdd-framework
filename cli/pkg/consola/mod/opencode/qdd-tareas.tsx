@@ -140,9 +140,6 @@ const tui = async (api: any) => {
               <Show when={v().ocultas > 0}>
                 <text fg={t().textMuted}>{"+" + v().ocultas + " más antiguas · qdd estado ver"}</text>
               </Show>
-              <For each={v().esperas}>
-                {(p: any) => <text fg={t().warning}>{"⏳ " + p.titulo + ": " + p.texto}</text>}
-              </For>
               <For each={v().fallas}>
                 {(p: any) => <text fg={t().error}>{"❌ " + p.titulo + ": " + p.texto}</text>}
               </For>

@@ -66,7 +66,6 @@ export function vista(datos, falla) {
     })),
     actual: e.actual || '',
     ocultas: e.ocultos || 0,
-    esperas: e.esperas.map((p) => ({ titulo: p.frente + ' › ' + p.etapa, texto: p.texto + ' · de ' + (p.de_quien || '¿?') })),
     fallas: e.fallas.map((p) => ({ titulo: p.frente + ' › ' + p.etapa, texto: p.texto })),
     fichas,
   }

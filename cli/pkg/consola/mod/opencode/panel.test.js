@@ -26,7 +26,7 @@ test('dibuja lo mismo que Claude Code, en lectura (CCC-C23)', () => {
   assert.deepEqual(v.resumen.map((r) => r.texto), ['2 de 7 tareas', '⏳ 1', '❌ 1'])
   assert.deepEqual(v.filas.map((f) => [f.nombre, f.celdas, f.tono]), [['Panel', '✅ ⏳', 'warning'], ['Ticket', '❌ —', 'error']])
   assert.equal(v.ocultas, 5)
-  assert.equal(v.esperas[0].texto, 'correr la suite · de CI')
+  assert.equal(v.esperas, undefined, 'sin lista de esperas: el ⏳ está en la tabla y en el resumen (2026-10-30)')
   assert.equal(v.fichas, 2)
   assert.equal(v.acciones, undefined, 'en OpenCode el panel no ofrece acciones')
 })

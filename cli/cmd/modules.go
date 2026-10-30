@@ -96,10 +96,13 @@ func runModulesApprove(cmd *cobra.Command, args []string) {
 
 func runModulesContext(cmd *cobra.Command, args []string) {
 	root := modulesRoot()
+	modo, visto := modoDeLaIA(root)
 	fmt.Print(modules.BuildContext(modules.ContextInput{
 		Root:         root,
 		Paths:        args,
 		TestCommands: audit.TestCommandLabels(root),
 		Estandares:   blueprints.Estandares(root),
+		Modo:         modo,
+		ModoVisto:    visto,
 	}))
 }

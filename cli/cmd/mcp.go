@@ -90,6 +90,8 @@ func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(
 		}()
 
 		recordMCPActivity("start", tool.Name, request.Params.Arguments)
+		cwd, _ := os.Getwd()
+		registrarUso(cwd)
 		res, err = handler(ctx, request)
 		if err != nil {
 			recordMCPActivity("error", tool.Name, map[string]interface{}{"error": err.Error()})

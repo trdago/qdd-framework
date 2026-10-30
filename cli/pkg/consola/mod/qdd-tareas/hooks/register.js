@@ -92,12 +92,14 @@ function latir($) {
 }
 
 // pulsar destella al instante la tarea actual y, como mucho cada PULSO_MIN_MS, deja el pulso en la CLI sin esperar:
-// la herramienta o el subagente siguen su curso aunque qdd tarde o falle.
+// la herramienta o el subagente siguen su curso aunque qdd tarde o falle. Sin tarea en curso el pulso igual va: qdd
+// no toca la actividad y lo anota como uso real (qdd uso).
 async function pulsar($, fuente) {
   const actual = datos?.estado?.actual
-  if (!actual) return
-  destellos[actual] = 2
-  $.ui.invalidate('ui.render')
+  if (actual) {
+    destellos[actual] = 2
+    $.ui.invalidate('ui.render')
+  }
   const ahora = await $.clock.now()
   if (ahora - ultimoEnvio < PULSO_MIN_MS) return
   ultimoEnvio = ahora
@@ -546,7 +548,6 @@ function dibujar($, Box, Text, Button, ancho) {
       cabecera(Box, Text, e, datos.version, lista),
       tabla(Box, Text, Button, $, e, lista, ancho),
       ...acciones(Box, Text, Button, $, lista),
-      ...seccion(Box, Text, 's-esperas', '⏳ Esperando', 'yellow', e.esperas, true),
       ...seccion(Box, Text, 's-fallas', '❌ Fallas', 'red', e.fallas, false),
     ],
   })
@@ -599,6 +600,17 @@ export function register(on) {
 
   on('agent.spawn', async ($, e, next) => {
     pulsar($, 'subagente')
+    return next(e)
+  })
+
+  // Un ciclo por mensaje (§3.9): lo que ya se vio (el resultado y los pedidos hechos) sale del tablero, y qdd anota el
+  // modo de permisos de la IA para decirle cuándo pedir autorización. next(e) no espera a qdd.
+  on('classic.UserPromptSubmit', async ($, e, next) => {
+    resultado = null
+    for (const [id, l] of locales) if (l.estado === 'hecho') locales.delete(id)
+    $.ui.invalidate('ui.render')
+    const bin = await binario($)
+    $.process.run([bin, 'consola', 'ciclo', '--modo', String(e.permission_mode || '')], { timeoutMs: TOPE_MS }).catch(() => {})
     return next(e)
   })
 

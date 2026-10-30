@@ -272,7 +272,10 @@ func runEstadoPulso(cmd *cobra.Command, args []string) {
 	if len(args) == 1 {
 		id = args[0]
 	}
-	if _, err := estado.Pulsar(estadoRaiz(), id, estadoFuente, time.Now()); err != nil {
+	root := estadoRaiz()
+	// Un pulso es el agente trabajando: es uso real de qdd aunque no haya tarea en curso.
+	registrarUso(root)
+	if _, err := estado.Pulsar(root, id, estadoFuente, time.Now()); err != nil {
 		salirCon("%v", err)
 	}
 }

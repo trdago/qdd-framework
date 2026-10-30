@@ -115,6 +115,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ./cli/qdd_${{ matrix.os }}_${{ matrix.arch }}.${{ matrix.ext }}
+          # vX.Y.Z-rc.N es una preview: pre-release en GitHub (latest es solo lo estable).
+          prerelease: ${{ contains(github.ref_name, '-') }}
 
   # Canal de distribución independiente del registro de npm: el instalador
   # empaquetado (.tgz) se adjunta a la GitHub Release, y se instala con
@@ -143,6 +145,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ./npm/qdd-framework-*.tgz
+          prerelease: ${{ contains(github.ref_name, '-') }}
 
   publish:
     name: Build, Validate and Publish
@@ -240,6 +243,12 @@ jobs:
         # Se ejecutará solo si TODAS las etapas anteriores fueron exitosas.
         # Autenticación vía Trusted Publishing (OIDC): sin NPM_TOKEN, nada que
         # caduque. npm genera la provenance automáticamente (repo público).
+        # Canal: una candidata (vX.Y.Z-rc.N) va a «preview» (npm i qdd-framework@preview); una estable, a «latest»,
+        # y llega ahí solo con sus horas de uso real medidas (VER-05).
         run: |
-          echo "Publicando paquete en NPM vía Trusted Publishing..."
-          npm publish --access public || (echo "::error::Fallo al publicar el paquete en NPM" && exit 1)
+          CANAL=latest
+          case "$GITHUB_REF_NAME" in
+            *-*) CANAL=preview ;;
+          esac
+          echo "Publicando paquete en NPM vía Trusted Publishing (canal $CANAL)..."
+          npm publish --access public --tag "$CANAL" || (echo "::error::Fallo al publicar el paquete en NPM" && exit 1)

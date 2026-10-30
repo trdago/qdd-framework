@@ -79,6 +79,7 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	}
 	if p.VersioningEnabled() {
 		*violations = append(*violations, RunVersioningCheck(e.cwd)...)
+		*violations = append(*violations, RunUsoReleaseCheck(e.cwd, p.UsoMinimoHoras)...)
 	}
 	*violations = append(*violations, RunModuleHeartCheck(e.cwd, p.ModuleHeart)...)
 	*violations = append(*violations, RunBlueprintCheck(e.cwd)...)

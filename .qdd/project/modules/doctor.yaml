@@ -15,6 +15,7 @@ objetivo_tecnologico:
         - Los blueprints se reparan una sola vez por ejecución aunque fallen varios de sus ítems.
         - Sin red, el acceso al repositorio de la organización no falla si la carpeta central ya tiene todo lo que el lockfile fija (degradación elegante).
         - 'Grupo de findings y certificaciones: un estado reconocido pero no canónico (RESOLVED, closed) → --fix escribe la forma canónica; un finding o una certificación del proyecto sin estado reconocido → doctor lo informa con el archivo y no lo repara, porque el estado lo decide una persona (FND-061).'
+        - 'Grupo de la consola, además (qdd 2.8.0): el uso real medido de la versión que corre (un registro ilegible es falla y --fix lo aparta) y el modo de permisos de la IA del último mensaje (informativo; sin medir no es falla).'
         - 'Grupo de la consola (RFC 0006 §3.6): solo existe si se usó qdd consola activar en esta máquina. Panel ausente, de otra versión que la CLI o desactivado, o barra que ya no es la de QDD → --fix vuelve a activar con lo que se eligió al activar.'
     invariantes:
         - Toda funcionalidad de QDD es determinista y doctor sabe diagnosticarla y repararla. Si doctor no puede definir cómo debería comportarse para repararla, la funcionalidad quedó ambigua y se completa antes de darla por terminada.
