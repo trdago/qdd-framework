@@ -133,6 +133,23 @@ dibujar a ofrecer botones, pero la lógica sigue en Go.
   «¿…?» con `s  Sí` y `n  No` dentro del mismo panel. El resultado (últimas líneas de la salida) queda en un recuadro
   verde o rojo, y el panel se vuelve a leer.
 
+### 3.8 Línea de recursos en la barra (`consola-claude-code` v4.0.0, pregunta `recursos`; qdd 2.4.0)
+
+Decisión del humano (2026-10-29): la barra muestra el uso del equipo con etiquetas de una letra para ahorrar espacio.
+Va en la barra, no en el panel. D es el disco de la carpeta del proyecto y G0…Gn el % de uso de cada GPU.
+
+- `qdd consola activar --recursos` lo guarda en `activo.json` (`--sin-recursos` lo quita). `actualizar` y
+  `doctor --fix` conservan la elección. La barra suma una segunda línea: `D 70% · G0 7% · G1 — · R 38% · C 12%`.
+- **D**: usado / (usado + disponible) del disco de `workspace.project_dir`, como `df` (statfs; en Windows,
+  `GetDiskFreeSpaceEx`). **R**: (total − disponible) / total (`/proc/meminfo`; `GlobalMemoryStatusEx`). **C**: uso
+  entre dos lecturas de la barra (`/proc/stat`; `GetSystemTimes`). La muestra anterior se guarda en
+  `<QDD_HOME>/claude/recursos.json`; en la primera lectura, o si la anterior tiene más de 1 min, C no aparece.
+- **G**: primero las NVIDIA (`nvidia-smi --query-gpu=utilization.gpu`, como mucho cada 5 s y con tope de 300 ms; entre
+  consultas se usa la caché), después las demás de `/sys/class/drm` en orden de tarjeta (`gpu_busy_percent`, que exponen
+  p. ej. las AMD). Una GPU que existe sin contador legible, como la integrada de Intel sin root, va con `—`.
+- macOS mide solo D (RAM, CPU y GPU necesitan APIs de Mach que Go no expone sin cgo); otros sistemas no muestran la línea.
+  Toda la medición tiene un tope de 400 ms: si se pasa, la barra sale sin la segunda línea.
+
 ### 3.5 Agnóstico al sistema operativo
 
 Todo en Go puro, sin cgo. La terminal se maneja con secuencias ANSI y `golang.org/x/term` (tamaño y modo crudo), que funcionan en Windows 10+, macOS y Linux. No hay dependencia de tmux; el panel dividido lo arma cada terminal.
