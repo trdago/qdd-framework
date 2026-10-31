@@ -29,7 +29,7 @@ objetivo_tecnologico:
         - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
-        - 'Orden de las secciones del panel: estado por tarea (cabecera y tabla), Acciones, «▶ Para ti» y ❌ Fallas; la confirmación va en la sección del botón pulsado. Sin sección «Esperando» (pedido del usuario, 2026-10-30): el ⏳ ya está en la tabla y en el resumen, y su detalle en qdd estado ver.'
+        - 'Orden de las secciones del panel (FND-090): estado por tarea (cabecera y tabla), «▶ Para ti», ❌ Fallas y Acciones en una fila de botones, separadas por una línea fina; la confirmación y el resultado van en la sección del botón pulsado. Del proyecto se ve solo el nombre de la carpeta; la de un pedido, desde la del proyecto. Sin sección «Esperando» (pedido del usuario, 2026-10-30): el ⏳ ya está en la tabla y en el resumen, y su detalle en qdd estado ver.'
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
         - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta.'
         - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
@@ -88,4 +88,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-31"
-revisado_en_commit: 2ad1266e58d0
+revisado_en_commit: 17781175d3b7

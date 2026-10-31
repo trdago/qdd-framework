@@ -188,11 +188,15 @@ test('se redibuja solo cuando el panel cambia', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /Esperando/ })).toBeUndefined()
   // 0 ⏳ y 0 ❌: el resumen cambia de 1 a 0.
-  expect(await ui.find({ type: 'Text', text: '⏳ 1 etapa espera' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '⏳ 0 etapas esperan' })).toMatchObject({ props: { color: 'yellow' } })
+  // FND-090: un conteo en cero no se muestra; sin esperas ni fallas, el resumen lo dice en verde.
+  expect(await ui.find({ type: 'Text', text: /etapas? esperan?$/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /etapas? fallan?$/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '✓ nada espera ni falla' })).toMatchObject({ props: { color: 'green' } })
 })
 
-test('muestra la carpeta del proyecto a la derecha y la abre con «o» sin confirmar (CCC-C21)', async ($, on) => {
+// FND-090 (captura del usuario, 2026-10-31): el panel mostraba «~/Documents/proyectos/qdd o: o Abrir carpeta». Del
+// proyecto se ve solo el nombre de la carpeta (blueprint consola-claude-code), y el botón sin la tecla repetida.
+test('muestra solo el nombre de la carpeta del proyecto y la abre con «o» sin confirmar (CCC-C21, FND-090)', async ($, on) => {
   const llamadas: string[][] = []
   const abrir = { id: 'abrir-carpeta', tipo: 'abrir', etiqueta: 'Abrir carpeta', detalle: 'xdg-open /home/ana/proyectos/tienda', confirmar: false }
   const conCarpeta = { ...PANEL, carpeta: '/home/ana/proyectos/tienda', acciones: [...ACCIONES, abrir] }
@@ -200,8 +204,9 @@ test('muestra la carpeta del proyecto a la derecha y la abre con «o» sin confi
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/ana/proyectos/tienda' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
-  expect(await ui.find({ type: 'Text', text: '📂 ~/proyectos/tienda' })).toBeDefined()
-  expect(await ui.find({ key: 'b-abrir-carpeta' })).toMatchObject({ props: { hotkey: 'o' } })
+  expect(await ui.find({ type: 'Text', text: '📂 tienda' })).toBeDefined()
+  expect((await ui.findAll({ type: 'Text' })).some((n) => /\/home|~\//.test(n.text))).toBe(false)
+  expect(await ui.find({ key: 'b-abrir-carpeta' })).toMatchObject({ props: { hotkey: 'o', plain: true, label: 'Abrir carpeta' } })
   // No se repite en la lista de acciones de abajo.
   expect(await ui.find({ key: 'fila-abrir-carpeta' })).toBeUndefined()
 
@@ -214,7 +219,7 @@ test('sin abridor en el sistema muestra la carpeta pero no el botón', async ($,
   preparar(on, ok({ ...PANEL, carpeta: '/srv/app' }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/srv/app' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '📂 /srv/app' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '📂 app' })).toBeDefined()
   expect(await ui.find({ key: 'b-abrir-carpeta' })).toBeUndefined()
 })
 
@@ -263,13 +268,14 @@ test('un comando pedido por la IA muestra su motivo, el comando exacto y la carp
   await ui.press({ key: 'b-pedido:1' })
   expect(await ui.find({ type: 'Text', text: '¿Publicar v2.5.1 (dispara npm y el binario)?' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Ejecutará: git push origin v2.5.1' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'En: /work/qdd' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'En: qdd' })).toBeDefined()
   expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
 
   await ui.press({ key: 'si' })
   expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'pedido:1', '--confirmado'])
   // FND-089: qdd lo lanza aparte y vuelve en el acto; la tarjeta dice que corre, sin recuadro de resultado.
-  expect(await ui.find({ type: 'Text', text: /⟳ .*Publicar v2\.5\.1.*ejecutando/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /⟳ .*Publicar v2\.5\.1/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^\s*ejecutando desde/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /En marcha/ })).toBeUndefined()
 })
 
@@ -299,15 +305,49 @@ test('el panel se abre solo cuando llega un comando pedido, aunque no haya frent
   expect(aperturas.length).toBe(1)
 })
 
-test('las secciones van en orden: tareas, acciones, para ti y fallas', async ($, on) => {
+// FND-090: primero lo que es de la persona (▶ Para ti), después lo que falla y al final las herramientas.
+test('las secciones van en orden: tareas, para ti, fallas y acciones, separadas por una línea (FND-090)', async ($, on) => {
   preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const textos = (await ui.findAll({ type: 'Text' })).map((n) => n.text)
   const donde = (re: RegExp) => textos.findIndex((t) => re.test(t))
-  const orden = [/^Tareas · /, /^Tarea$/, /^Acciones$/, /Para ti/, /Fallas/].map(donde)
+  const orden = [/^Tareas · /, /^Tarea$/, /Para ti/, /Fallas/, /^Acciones$/].map(donde)
   expect(orden.every((i) => i >= 0)).toBe(true)
   expect([...orden].sort((a, b) => a - b)).toEqual(orden)
+  expect(textos.filter((t) => /^─+$/.test(t)).length).toBe(3)
+})
+
+test('las acciones van en una sola fila de botones, sin repetir el comando (FND-090)', async ($, on) => {
+  preparar(on, ok(PANEL))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'botones' })).toMatchObject({ props: { flexDirection: 'row', flexWrap: 'wrap' } })
+  expect(await ui.find({ type: 'Text', text: /solo lectura/ })).toBeUndefined()
+  expect(await ui.find({ key: 'b-auditar' })).toMatchObject({ props: { label: 'u  Auditar' } })
+})
+
+test('la confirmación y el resultado van junto al botón pulsado (FND-090)', async ($, on) => {
+  const descartar = { id: 'descartar:ticket', tipo: 'descartar', etiqueta: 'Descartar «Ticket de MP en logs»', detalle: 'qdd estado cerrar ticket --descartado', confirmar: true }
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES, descartar] }), [], { exitCode: 1, stdout: '', stderr: '[!] el pedido 1 espera a [b]' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const donde = async (re: RegExp) => (await ui.findAll({ type: 'Text' })).map((n) => n.text).findIndex((t) => re.test(t))
+  await ui.press({ key: 'x-ticket' })
+  expect(await donde(/^¿Descartar «Ticket/)).toBeLessThan(await donde(/Para ti/))
+  await ui.press({ key: 'no' })
+  await ui.press({ key: 'b-pedido:1' })
+  await ui.press({ key: 'si' })
+  expect(await donde(/espera a \[b\]/)).toBeLessThan(await donde(/Fallas/))
+})
+
+test('un pedido en una subcarpeta la nombra desde el proyecto, sin la ruta completa (FND-090)', async ($, on) => {
+  const enNpm = { ...PEDIDO, carpeta: '/work/qdd/npm' }
+  preparar(on, ok({ ...PANEL, carpeta: '/work/qdd', acciones: [enNpm, { ...PEDIDO, id: 'pedido:2', tecla: 'b', carpeta: '/work/qdd' }] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/qdd' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /en qdd\/npm/ })).toBeDefined()
+  expect((await ui.findAll({ type: 'Text' })).some((n) => n.text.includes('/work'))).toBe(false)
 })
 
 // FND-070: un pedido aceptado no puede quedar para aceptarlo de nuevo: queda en gris y sin botón.
@@ -377,6 +417,8 @@ test('un pedido ejecutándose o hecho se ve en gris y no se puede clickear (FND-
   expect(await ui.find({ type: 'Text', text: /ejecutando/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /✓ .*Mergear #31/ })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: /hecho 12:05|hecho \d\d:05/ })).toBeDefined()
+  // FND-090: un hecho ocupa una línea; su comando ya no hace falta.
+  expect((await ui.findAll({ type: 'Text', text: /\$ git push/ })).length).toBe(1)
 })
 
 test('un pedido que falló muestra su error y se puede reintentar con su misma tecla', async ($, on) => {
@@ -494,7 +536,8 @@ test('un pedido en espera dice a quién espera, no tiene botón ni cuenta como p
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ key: 'b-pedido:1' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /Mergear #14 .*espera a \[d\]/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: /◌ .*Mergear #14/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: /espera a \[d\]/ })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: '1 por hacer · 1 en espera' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '▶ 1 para ti' })).toBeDefined()
   const textos = (await ui.findAll({ type: 'Text' })).map((n) => n.text)
