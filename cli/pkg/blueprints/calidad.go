@@ -29,6 +29,15 @@ const (
 	CalLargo             = "CAL-06" // mejora: una regla de más de maxRegla caracteres
 	CalRepetido          = "CAL-07" // mejora: una opción repite una regla de la base
 	CalTerminoSinUso     = "CAL-08" // mejora: un término del vocabulario que nada usa
+	CalSinAlcance        = "CAL-10" // defecto: no dice qué incluye y qué deja fuera
+	CalSinPasos          = "CAL-11" // defecto: no dice en qué orden construirla
+	CalPasoSinEscenario  = "CAL-12" // defecto: un paso sin el escenario que lo verifica
+	CalEscenarioSinPaso  = "CAL-13" // defecto: un escenario al que ningún paso lleva
+	CalValorFijo         = "CAL-14" // defecto: un valor escrito en una regla, sin decir si es de negocio o técnico
+	CalImplementacion    = "CAL-15" // defecto: un archivo de código o una función de una implementación
+	CalSinUso            = "CAL-16" // mejora: un parámetro o una constante que nada cita
+	CalRequiere          = "CAL-17" // defecto: usa la receta nueva sin pedir el qdd que la entiende
+	CalCitaSinValor      = "CAL-18" // defecto: con alguna combinación de respuestas, un {{id}} queda sin reemplazar
 
 	GravedadDefecto = "defecto"
 	GravedadMejora  = "mejora"
@@ -43,6 +52,9 @@ var gravedadDe = map[string]string{
 	CalEscenarioDeOpcion: GravedadDefecto, CalVersionMinima: GravedadDefecto, CalOpcionVacia: GravedadDefecto,
 	CalCodigo: GravedadDefecto, CalSinEscenario: GravedadDefecto, CalCondicion: GravedadDefecto,
 	CalLargo: GravedadMejora, CalRepetido: GravedadMejora, CalTerminoSinUso: GravedadMejora,
+	CalSinAlcance: GravedadDefecto, CalSinPasos: GravedadDefecto, CalPasoSinEscenario: GravedadDefecto,
+	CalEscenarioSinPaso: GravedadDefecto, CalValorFijo: GravedadDefecto, CalImplementacion: GravedadDefecto,
+	CalSinUso: GravedadMejora, CalRequiere: GravedadDefecto, CalCitaSinValor: GravedadDefecto,
 }
 
 // Calidad es la medición de un blueprint.
@@ -86,7 +98,8 @@ func (h HallazgoCalidad) Texto() string {
 // CalidadDe mide el blueprint.
 func CalidadDe(b Blueprint) Calidad {
 	c := Calidad{Ref: b.Ref()}
-	medidas := []func(Blueprint) []HallazgoCalidad{escenariosDeOpcion, versionesMinimas, opcionesVacias, conCodigo, sinEscenario, sinCondicion, largos, repetidos, terminosSinUso}
+	medidas := []func(Blueprint) []HallazgoCalidad{escenariosDeOpcion, versionesMinimas, opcionesVacias, conCodigo, sinEscenario, sinCondicion, largos, repetidos, terminosSinUso,
+		sinAlcance, sinPasos, pasosSinEscenario, escenariosSinPaso, valoresFijos, valoresDeclarados, implementacion, citasSinUso, requiereQDD, citasSinValor}
 	for _, medir := range medidas {
 		c.Hallazgos = append(c.Hallazgos, medir(b)...)
 	}
@@ -221,8 +234,10 @@ func menorVersion(a, b string) bool {
 	return false
 }
 
+// partesVersion lee x.y.z; una preview (2.8.0-rc.9) cuenta como su versión (2.8.0).
 func partesVersion(v string) [3]int {
 	var out [3]int
+	v, _, _ = strings.Cut(strings.TrimPrefix(strings.TrimSpace(v), "v"), "-")
 	for i, s := range strings.SplitN(v, ".", 3) {
 		out[i], _ = strconv.Atoi(s)
 	}
@@ -378,17 +393,30 @@ type textoUbicado struct {
 	donde string
 	texto string
 	prosa bool // descripción y objetivos: prosa que explica, no una regla
+	regla bool // decisión, invariante o paso: lo que se construye tal cual
 }
 
 // textosDe devuelve cada texto del blueprint con dónde está. Los del vocabulario van primero, en su orden.
 func textosDe(b Blueprint) []textoUbicado {
 	var out []textoUbicado
 	for _, t := range b.Vocabulario {
-		out = append(out, textoUbicado{donde: "vocabulario " + t.Termino, texto: t.Definicion})
+		out = append(out, textoUbicado{donde: "vocabulario " + t.Termino, texto: t.Definicion, regla: true}) // se copia a la ficha como decisión
 	}
 	f := b.Ficha
-	out = append(out, textoUbicado{"descripcion", b.Descripcion, true}, textoUbicado{"problema", f.ObjetivoOperativo.Problema, true},
-		textoUbicado{"criterio_de_exito", f.ObjetivoOperativo.CriterioDeExito, true}, textoUbicado{"arquitectura", f.ObjetivoTecnologico.Arquitectura, true})
+	out = append(out, textoUbicado{donde: "descripcion", texto: b.Descripcion, prosa: true}, textoUbicado{donde: "problema", texto: f.ObjetivoOperativo.Problema, prosa: true},
+		textoUbicado{donde: "criterio_de_exito", texto: f.ObjetivoOperativo.CriterioDeExito, prosa: true}, textoUbicado{donde: "arquitectura", texto: f.ObjetivoTecnologico.Arquitectura, prosa: true})
+	for _, l := range limitesDe(b) {
+		out = append(out, textoUbicado{donde: "alcance", texto: l}) // cada límite es una regla aparte
+	}
+	for _, p := range b.Parametros {
+		out = append(out, textoUbicado{donde: p.ID, texto: p.Pregunta}, textoUbicado{donde: p.ID + " ayuda", texto: p.Ayuda})
+	}
+	for _, c := range b.Constantes {
+		out = append(out, textoUbicado{donde: c.ID, texto: c.PorQue})
+	}
+	for _, p := range b.Pasos {
+		out = append(out, textoUbicado{donde: p.ID, texto: p.Accion, regla: true}, textoUbicado{donde: p.ID, texto: p.Produce, regla: true})
+	}
 	out = append(out, reglas("decisiones", f.ObjetivoTecnologico.Decisiones)...)
 	out = append(out, reglas("invariantes", f.ObjetivoTecnologico.Invariantes)...)
 	out = append(out, escenariosUbicados("", b.Conformidad)...)
@@ -408,7 +436,7 @@ func textosDe(b Blueprint) []textoUbicado {
 func reglas(donde string, items []string) []textoUbicado {
 	out := make([]textoUbicado, 0, len(items))
 	for _, x := range items {
-		out = append(out, textoUbicado{donde: donde, texto: x})
+		out = append(out, textoUbicado{donde: donde, texto: x, regla: true})
 	}
 	return out
 }
@@ -455,7 +483,7 @@ func tokensDeReceta(b Blueprint, respuestas map[string]string) int {
 }
 
 func respuestasPorDefecto(b Blueprint) map[string]string {
-	out := map[string]string{}
+	out := valoresSugeridos(b)
 	for _, p := range b.Preguntas {
 		out[p.ID] = primero(p.PorDefecto, primeraOpcion(p))
 	}
@@ -471,7 +499,7 @@ func primeraOpcion(p Pregunta) string {
 
 // respuestasMayores elige en cada pregunta la opción que más trae: la receta más grande que puede recibir un proyecto.
 func respuestasMayores(b Blueprint) map[string]string {
-	out := map[string]string{}
+	out := valoresSugeridos(b)
 	for _, p := range b.Preguntas {
 		mayor := -1
 		for _, o := range p.Opciones {
@@ -592,4 +620,245 @@ func textosDeHallazgos(hallazgos []HallazgoCalidad) string {
 		partes = append(partes, h.Texto())
 	}
 	return strings.Join(partes, "; ")
+}
+
+func valoresSugeridos(b Blueprint) map[string]string {
+	out := map[string]string{}
+	for _, p := range b.Parametros {
+		out[p.ID] = p.PorDefecto
+	}
+	return out
+}
+
+// limitesDe son todos los límites de la receta: los de la base y los de cada opción.
+func limitesDe(b Blueprint) []string {
+	out := append(append([]string{}, b.Alcance.Incluye...), b.Alcance.Excluye...)
+	for _, p := range b.Preguntas {
+		for _, o := range p.Opciones {
+			out = append(append(out, o.Alcance.Incluye...), o.Alcance.Excluye...)
+		}
+	}
+	return out
+}
+
+// sinAlcance: sin límites escritos, quien construye no sabe dónde parar ni qué quedó fuera a propósito.
+func sinAlcance(b Blueprint) []HallazgoCalidad {
+	if len(b.Alcance.Incluye) > 0 && len(b.Alcance.Excluye) > 0 {
+		return nil
+	}
+	return []HallazgoCalidad{{Codigo: CalSinAlcance, Donde: "alcance", Detalle: "no dice qué incluye y qué queda fuera",
+		Arreglo: "pregúntale a la persona hasta delimitarlo: alcance.incluye y alcance.excluye"}}
+}
+
+// sinPasos: sin pasos, la receta dice qué cumplir pero no en qué orden construirlo.
+func sinPasos(b Blueprint) []HallazgoCalidad {
+	if len(b.Pasos) > 0 {
+		return nil
+	}
+	return []HallazgoCalidad{{Codigo: CalSinPasos, Donde: "pasos", Detalle: "no dice en qué orden construirla",
+		Arreglo: "agrega pasos: acción → resultado, con los escenarios que verifica cada uno"}}
+}
+
+func pasosSinEscenario(b Blueprint) []HallazgoCalidad {
+	var out []HallazgoCalidad
+	for _, p := range b.Pasos {
+		if len(p.Verifica) > 0 {
+			continue
+		}
+		out = append(out, HallazgoCalidad{Codigo: CalPasoSinEscenario, Donde: p.ID, Detalle: "nada comprueba que el paso quedó bien",
+			Arreglo: "nombra en verifica el escenario que lo prueba (o agrégalo)"})
+	}
+	return out
+}
+
+// escenariosSinPaso: un escenario al que ningún paso lleva no se alcanza siguiendo la receta.
+func escenariosSinPaso(b Blueprint) []HallazgoCalidad {
+	if len(b.Pasos) == 0 {
+		return nil
+	}
+	verificados := map[string]bool{}
+	for _, p := range b.Pasos {
+		for _, id := range p.Verifica {
+			verificados[id] = true
+		}
+	}
+	var out []HallazgoCalidad
+	for _, e := range todosLosEscenarios(b) {
+		if verificados[e.ID] {
+			continue
+		}
+		verificados[e.ID] = true
+		out = append(out, HallazgoCalidad{Codigo: CalEscenarioSinPaso, Donde: e.ID, Detalle: "ningún paso lleva a cumplirlo",
+			Arreglo: "nómbralo en el verifica del paso que lo construye"})
+	}
+	return out
+}
+
+var valorConUnidad = regexp.MustCompile(`(?i)(^|[^\p{L}\p{N}_.{])(\d+(?:[.,]\d+)?)\s?(ms|s|seg|min|h|horas?|d[ií]as?|semanas?|%|caracteres|columnas|l[ií]neas|filas|tareas|intentos|KB|MB|GB|px)($|[^\p{L}\p{N}_])`)
+
+// valoresFijos: un número con unidad en una regla es de negocio (cada proyecto lo decide) o técnico (fijo con su
+// porqué). Escrito suelto, no se sabe cuál es ni se puede adaptar.
+func valoresFijos(b Blueprint) []HallazgoCalidad {
+	var out []HallazgoCalidad
+	for _, t := range textosDe(b) {
+		if !t.regla {
+			continue
+		}
+		for _, m := range valorConUnidad.FindAllStringSubmatch(sinEjemplos(t.texto), -1) {
+			if declarado(b, m[2]+" "+m[3]) {
+				continue // valoresDeclarados ya dice qué {{id}} escribir
+			}
+			out = append(out, HallazgoCalidad{Codigo: CalValorFijo, Donde: t.donde,
+				Detalle: fmt.Sprintf("«%s %s» escrito en la regla: «%s»", m[2], m[3], recortar(t.texto, 50)),
+				Arreglo: "pregúntale a la persona: si es de negocio, parámetro {{id}}; si es técnico, constante {{id}} con su porqué"})
+		}
+	}
+	return out
+}
+
+// valoresDeclarados: un valor que la receta ya declaró (el sugerido de un parámetro, el de una constante) y que sigue
+// escrito a mano en otra parte quedaría fijo cuando el proyecto elige otro.
+func valoresDeclarados(b Blueprint) []HallazgoCalidad {
+	declarados := map[string]string{}
+	for _, p := range b.Parametros {
+		declarados[strings.TrimSpace(p.PorDefecto)] = p.ID
+	}
+	for _, c := range b.Constantes {
+		declarados[strings.TrimSpace(c.Valor)] = c.ID
+	}
+	var out []HallazgoCalidad
+	for _, t := range textosDe(b) {
+		for valor, id := range declarados {
+			if !strings.ContainsAny(valor, "0123456789") || !strings.Contains(valor, " ") || !contieneValor(t.texto, valor) {
+				continue
+			}
+			out = append(out, HallazgoCalidad{Codigo: CalValorFijo, Donde: t.donde,
+				Detalle: fmt.Sprintf("«%s» escrito a mano: «%s»", valor, recortar(t.texto, 50)), Arreglo: "escribe {{" + id + "}}"})
+		}
+	}
+	return out
+}
+
+func declarado(b Blueprint, valor string) bool {
+	for _, p := range b.Parametros {
+		if strings.TrimSpace(p.PorDefecto) == valor {
+			return true
+		}
+	}
+	for _, c := range b.Constantes {
+		if strings.TrimSpace(c.Valor) == valor {
+			return true
+		}
+	}
+	return false
+}
+
+func contieneValor(texto, valor string) bool {
+	re := regexp.MustCompile(`(^|[^\p{L}\p{N}_.])` + regexp.QuoteMeta(valor) + `($|[^\p{L}\p{N}_])`)
+	return re.MatchString(texto)
+}
+
+var ejemplo = regexp.MustCompile(`«[^»]*»|\(p\. ?ej\.[^)]*\)`)
+
+// sinEjemplos quita lo citado entre «» y los «(p. ej. …)»: son muestras de una salida, no valores de la regla.
+func sinEjemplos(s string) string {
+	return ejemplo.ReplaceAllString(s, " ")
+}
+
+var (
+	archivoDeCodigo = regexp.MustCompile(`[\w./-]+\.(go|js|mjs|ts|tsx|jsx|py|rb|java|kt|rs|cs|php|vue|swift|cpp|hpp|c|h)\b`)
+	llamada         = regexp.MustCompile(`\b[A-Za-z_]\w*\(\)`)
+)
+
+// implementacion: la receta se construye en cualquier lenguaje; un archivo de código o una función son de una
+// implementación (van en referencias/, si sirven de ejemplo).
+func implementacion(b Blueprint) []HallazgoCalidad {
+	var out []HallazgoCalidad
+	for _, t := range textosDe(b) {
+		hallado := primero(archivoDeCodigo.FindString(t.texto), llamada.FindString(t.texto))
+		if hallado == "" || enReferencias(b, hallado) {
+			continue
+		}
+		out = append(out, HallazgoCalidad{Codigo: CalImplementacion, Donde: t.donde, Detalle: "«" + hallado + "» es de una implementación",
+			Arreglo: "descríbelo por lo que hace (acción y resultado); el código de ejemplo va en referencias/"})
+	}
+	return out
+}
+
+func enReferencias(b Blueprint, hallado string) bool {
+	for _, r := range b.Referencias {
+		if strings.HasSuffix(r, hallado) || strings.HasSuffix(hallado, r) {
+			return true
+		}
+	}
+	return false
+}
+
+// citasSinUso: un parámetro que nada cita le pregunta algo a la persona que no cambia nada.
+func citasSinUso(b Blueprint) []HallazgoCalidad {
+	citados := map[string]bool{}
+	for _, t := range textosDe(b) {
+		for _, m := range cita.FindAllStringSubmatch(t.texto, -1) {
+			citados[m[1]] = true
+		}
+	}
+	var out []HallazgoCalidad
+	for _, p := range b.Parametros {
+		if citados[p.ID] {
+			continue
+		}
+		out = append(out, HallazgoCalidad{Codigo: CalSinUso, Donde: p.ID, Detalle: "ninguna regla, paso ni escenario cita {{" + p.ID + "}}", Arreglo: "cítalo donde se usa, o quítalo"})
+	}
+	for _, c := range b.Constantes {
+		if citados[c.ID] {
+			continue
+		}
+		out = append(out, HallazgoCalidad{Codigo: CalSinUso, Donde: c.ID, Detalle: "ninguna regla, paso ni escenario cita {{" + c.ID + "}}", Arreglo: "cítala donde se usa, o quítala"})
+	}
+	return out
+}
+
+// requiereQDD: un qdd anterior no entiende parámetros ni pasos y dejaría {{id}} sin reemplazar en la ficha.
+func requiereQDD(b Blueprint) []HallazgoCalidad {
+	usa := len(b.Parametros)+len(b.Constantes)+len(b.Pasos)+len(b.Alcance.Incluye)+len(b.Alcance.Excluye) > 0
+	if !usa || (b.RequiereQDD != "" && !menorVersion(b.RequiereQDD, RequiereQDDReceta)) {
+		return nil
+	}
+	return []HallazgoCalidad{{Codigo: CalRequiere, Donde: "requiere_qdd", Detalle: "usa la receta con pasos y parámetros sin pedir el qdd que la entiende",
+		Arreglo: "requiere_qdd: " + RequiereQDDReceta}}
+}
+
+// citasSinValor arma la receta con las respuestas sugeridas, las adaptadas y las que más traen: si en alguna queda un
+// {{id}}, un proyecto con esas respuestas recibiría una regla a medio escribir (p. ej. una decisión de la base que
+// cita un parámetro que solo se pregunta con otra opción).
+func citasSinValor(b Blueprint) []HallazgoCalidad {
+	var out []HallazgoCalidad
+	vistas := map[string]bool{}
+	for _, respuestas := range []map[string]string{respuestasPorDefecto(b), respuestasAdaptadas(b), respuestasMayores(b)} {
+		aplicadas, _, _ := b.Resolver(respuestas)
+		gen, escenarios := b.componer(aplicadas)
+		textos := append(append([]string{}, gen.Decisiones...), gen.Invariantes...)
+		for _, e := range escenarios {
+			textos = append(textos, e.Titulo+" "+e.Dado+" "+e.Cuando+" "+e.Entonces)
+		}
+		for _, t := range textos {
+			m := cita.FindStringSubmatch(t)
+			if m == nil || vistas[m[1]] {
+				continue
+			}
+			vistas[m[1]] = true
+			out = append(out, HallazgoCalidad{Codigo: CalCitaSinValor, Donde: m[1],
+				Detalle: fmt.Sprintf("con %s queda {{%s}} sin valor: «%s»", respuestasEnTexto(aplicadas), m[1], recortar(t, 50)),
+				Arreglo: "lleva esa regla a la opción donde {{" + m[1] + "}} aplica, o quítale el si al parámetro"})
+		}
+	}
+	return out
+}
+
+func respuestasEnTexto(r map[string]string) string {
+	partes := make([]string, 0, len(r))
+	for _, k := range sortedKeys(r) {
+		partes = append(partes, k+"="+r[k])
+	}
+	return recortar(strings.Join(partes, " "), 60)
 }

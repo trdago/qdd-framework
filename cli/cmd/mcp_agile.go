@@ -88,8 +88,8 @@ func processSingleFinding(path string, out *string, total, resolved, pending *in
 func registerSprintTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_sprint",
 		mcp.WithDescription("Crea un sprint (QCS v1.1): exige al usuario Happy Path y Error Paths (Edge Cases opcionales); los tests NO se los preguntes, dedúcelos tú del stack."),
-		mcp.WithString("numero", mcp.Required(), mcp.Description("Número del sprint a crear (ej: 1, 2, 3)")),
-		mcp.WithString("goal", mcp.Required(), mcp.Description("Objetivo principal claro y sin ambigüedad")),
+		mcp.WithString("numero", mcp.Required(), mcp.Description("Número del sprint (1, 2, 3…)")),
+		mcp.WithString("goal", mcp.Required(), mcp.Description("Objetivo, sin ambigüedad")),
 		mcp.WithString("happy_path", mcp.Required(), mcp.Description("Camino feliz: Dado/Cuando/Entonces, por ;")),
 		mcp.WithString("error_paths", mcp.Required(), mcp.Description("Escenarios de error, por ;")),
 		mcp.WithString("edge_cases", mcp.Description("Opcionales (timeouts, concurrencia), por ;")),

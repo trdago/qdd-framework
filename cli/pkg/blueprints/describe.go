@@ -53,6 +53,9 @@ func DescribePregunta(p Pregunta) string {
 	if p.Ayuda != "" {
 		fmt.Fprintf(&s, "%s\n", strings.TrimSpace(p.Ayuda))
 	}
+	if p.abierta {
+		fmt.Fprintf(&s, "- valor de negocio, lo decide la persona: sugerido «%s»\n", p.PorDefecto)
+	}
 	for _, o := range p.Opciones {
 		marca := ""
 		if o.Valor == p.PorDefecto {
