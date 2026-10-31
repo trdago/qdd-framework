@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,49 +13,50 @@ import (
 
 func registerBlueprintTools(s *server.MCPServer) {
 	add := mcp.NewTool("qdd_blueprint_add",
-		mcp.WithDescription("Importa al proyecto estándares de módulo (blueprints) desde el repositorio de la organización registrado en .qdd/config.yaml, p. ej. cuando el humano pide 'agrega el blueprint de auth y auditoría'. Úsala solo con lo que el humano pidió. Si no hay repositorio registrado, pregúntale al humano la URL del repositorio de blueprints de su organización (nunca la inventes) y pásala en 'origen': QDD la recordará. Después aplica cada uno con qdd_blueprint_apply."),
-		mcp.WithString("blueprints", mcp.Description("Ids a importar, separados por comas (p. ej. 'auth, auditoria').")),
-		mcp.WithString("paquete", mcp.Description("Paquete del catalogo.yaml del repositorio (alternativa a 'blueprints').")),
-		mcp.WithBoolean("todos", mcp.Description("Importa todos los blueprints del repositorio.")),
-		mcp.WithString("origen", mcp.Description("Repositorio de blueprints, SOLO si el humano lo indicó: el de la organización cuando no hay uno registrado, u otra fuente suya (p. ej. su repositorio personal). Para actualizar un blueprint ya importado no hace falta: QDD usa la fuente del lockfile.")),
-		mcp.WithBoolean("reemplazar", mcp.Description("Reemplaza un blueprint ya importado desde otra fuente por el de 'origen'. SOLO si el humano lo pidió explícitamente.")),
-		mcp.WithString("ref", mcp.Description("Versión publicada (tag vX.Y.Z); por defecto, la última. Úsala solo si el humano pidió una versión.")),
+		mcp.WithDescription("Importa blueprints (estándares de módulo) de la organización: solo los que pidió el humano. Sin repositorio registrado, pregúntale la URL (nunca la inventes) y pásala en 'origen'; QDD la recuerda. Luego → qdd_blueprint_apply."),
+		mcp.WithString("blueprints", mcp.Description("Ids, por coma (p. ej. 'auth, auditoria').")),
+		mcp.WithString("paquete", mcp.Description("Paquete del catalogo.yaml (en vez de 'blueprints').")),
+		mcp.WithBoolean("todos", mcp.Description("Todos los del repositorio.")),
+		mcp.WithString("origen", mcp.Description("SOLO si el humano lo indicó (sin uno registrado, u otra fuente suya); al actualizar no hace falta.")),
+		mcp.WithBoolean("reemplazar", mcp.Description("Reemplaza uno importado de otra fuente por el de 'origen'. SOLO si el humano lo pidió.")),
+		mcp.WithString("ref", mcp.Description("Tag vX.Y.Z (por defecto, la última). Solo si el humano pidió una versión.")),
 	)
 	RegisterToolWithTelemetry(s, add, handleBlueprintAddTool)
 
 	list := mcp.NewTool("qdd_blueprint_list",
-		mcp.WithDescription("Lista los blueprints importados al proyecto (arquetipos de módulo de la organización: usuarios y roles, etc.) con su vocabulario, sus preguntas de diseño y sus invariantes. Úsala antes de construir un módulo que un blueprint ya define: el blueprint manda sobre tus preferencias."),
-		mcp.WithString("blueprint", mcp.Description("Id de un blueprint para ver solo ese (opcional).")),
+		mcp.WithDescription("Blueprints del proyecto, una línea c/u (❓preguntas 🔒invariantes ✓escenarios); detalle por sección a pedido. Antes de construir un módulo que uno define: manda sobre tus preferencias."),
+		mcp.WithString("blueprint", mcp.Description("Id: su índice en JSON.")),
+		mcp.WithString("seccion", mcp.Description("Con blueprint: preguntas|invariantes|decisiones|escenarios|vocabulario|todo.")),
 	)
 	RegisterToolWithTelemetry(s, list, handleBlueprintListTool)
 
 	apply := mcp.NewTool("qdd_blueprint_apply",
-		mcp.WithDescription("Genera la ficha de un módulo desde un blueprint importado: decisiones, invariantes, escenarios de conformidad y esqueleto. La ficha queda en BORRADOR (la aprueba un humano). Las preguntas del blueprint son decisiones del HUMANO: pregúntaselas tal cual y no las respondas tú. Si faltan respuestas, la tool las devuelve sin escribir nada."),
-		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint importado.")),
-		mcp.WithString("respuestas", mcp.Description("Respuestas del humano, una por línea o separadas por comas, como pregunta=valor.")),
-		mcp.WithString("modulo", mcp.Description("Id de la ficha a generar (por defecto, el id del blueprint).")),
-		mcp.WithString("rutas", mcp.Description("Carpetas del módulo, separadas por comas (por defecto, las que sugiere el blueprint).")),
-		mcp.WithString("pruebas", mcp.Description("Comandos que prueban el módulo, uno por línea.")),
+		mcp.WithDescription("Genera desde un blueprint la ficha de un módulo (BORRADOR: la aprueba un humano). Sus preguntas son del HUMANO: házselas tal cual, nunca las respondas tú; si faltan, las devuelve sin escribir nada."),
+		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint.")),
+		mcp.WithString("respuestas", mcp.Description("Del humano: pregunta=valor, por línea o coma.")),
+		mcp.WithString("modulo", mcp.Description("Id de la ficha (por defecto, el del blueprint).")),
+		mcp.WithString("rutas", mcp.Description("Carpetas, por coma (por defecto, las del blueprint).")),
+		mcp.WithString("pruebas", mcp.Description("Comandos que lo prueban, uno por línea.")),
 	)
 	RegisterToolWithTelemetry(s, apply, handleBlueprintApplyTool)
 
 	sync := mcp.NewTool("qdd_blueprint_sync",
-		mcp.WithDescription("Trae lo publicado en cada fuente de blueprints del proyecto (el repositorio de la organización y las demás del lockfile) y dice qué blueprints tienen una versión más nueva. Úsala cuando el gate reporte BP-06-BEHIND o el humano pregunte si hay estándares nuevos; luego actualiza con qdd_blueprint_add y vuelve a aplicar con qdd_blueprint_apply."),
+		mcp.WithDescription("Trae lo publicado en cada fuente de blueprints y dice cuáles tienen versión nueva. Úsala ante BP-06-BEHIND o si el humano pregunta; luego → qdd_blueprint_add y qdd_blueprint_apply."),
 	)
 	RegisterToolWithTelemetry(s, sync, handleBlueprintSyncTool)
 
 	contribute := mcp.NewTool("qdd_blueprint_contribute",
-		mcp.WithDescription("Prepara un cambio a un blueprint de la organización (o uno nuevo) en la carpeta central de QDD, nunca dentro del proyecto: devuelve la carpeta a editar, en la rama aporte/<id>. Úsala cuando el humano quiera mejorar un estándar o cuando una migración (BP-05-LEGACY) pida llevar cambios al repositorio de la organización."),
-		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint a cambiar o crear.")),
-		mcp.WithString("origen", mcp.Description("Fuente donde crear un blueprint NUEVO, SOLO si el humano la indicó (por defecto, el repositorio de la organización). Un blueprint importado va siempre a su propia fuente.")),
+		mcp.WithDescription("Prepara un cambio a un blueprint (o uno nuevo) en la carpeta central de QDD, nunca en el proyecto: da la carpeta, la rama aporte/<id> y la línea de cada sección. Úsala si el humano quiere mejorar un estándar o BP-05-LEGACY lo pide."),
+		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id a cambiar o crear.")),
+		mcp.WithString("origen", mcp.Description("Fuente de un blueprint NUEVO, SOLO si el humano la indicó. Uno importado va a su propia fuente.")),
 	)
 	RegisterToolWithTelemetry(s, contribute, handleBlueprintContributeTool)
 
 	propose := mcp.NewTool("qdd_blueprint_propose",
-		mcp.WithDescription("Publica el aporte preparado con qdd_blueprint_contribute como pull request al repositorio de la organización: QDD valida el blueprint, calcula el cambio semver y fija la versión (no la elijas tú), commitea, publica la rama y abre el PR. Publica fuera del proyecto: úsala SOLO con la confirmación explícita del humano."),
+		mcp.WithDescription("Publica el aporte como PR a la fuente del blueprint: QDD valida, calcula el semver y fija la versión (no la elijas tú). Publica fuera del proyecto: SOLO con confirmación explícita del humano."),
 		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint.")),
-		mcp.WithString("mensaje", mcp.Required(), mcp.Description("Qué cambia y por qué (va al commit y al PR).")),
-		mcp.WithString("origen", mcp.Description("La misma fuente que se usó en qdd_blueprint_contribute para un blueprint nuevo.")),
+		mcp.WithString("mensaje", mcp.Required(), mcp.Description("Qué cambia y por qué (commit y PR).")),
+		mcp.WithString("origen", mcp.Description("La misma de qdd_blueprint_contribute (blueprint nuevo).")),
 	)
 	RegisterToolWithTelemetry(s, propose, handleBlueprintProposeTool)
 }
@@ -94,7 +96,11 @@ func handleBlueprintContributeTool(ctx context.Context, request mcp.CallToolRequ
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Aporte listo en la rama %s de %s.\nEdita el blueprint en: %s\nNo cambies 'version:' (la fija QDD). Cuando termines, muéstrale el cambio al humano y, con su confirmación, llama a qdd_blueprint_propose (blueprint=%s).", ap.Rama, ap.Repo, ap.Carpeta, id)), nil
+	mapa := ""
+	if m := blueprints.MapaDeSecciones(ap.Carpeta); m != "" {
+		mapa = m + " (edita solo la sección que cambias; detalle: qdd_blueprint_list {blueprint, seccion}).\n"
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("Aporte listo: rama %s de %s.\nCarpeta: %s\n%sNo cambies 'version:' (la fija QDD). Al terminar, muéstrale el cambio al humano y, con su OK, qdd_blueprint_propose (blueprint=%s).", ap.Rama, ap.Repo, ap.Carpeta, mapa, id)), nil
 }
 
 func handleBlueprintProposeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -154,33 +160,77 @@ func boolArg(request mcp.CallToolRequest, name string) bool {
 	return value
 }
 
+// handleBlueprintListTool lista una línea por blueprint (su índice); con blueprint da su índice en JSON y con seccion
+// solo ese detalle: leer un blueprint no cuesta miles de tokens (pedido del usuario, 2026-10-31).
 func handleBlueprintListTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	root := projectRootForMCP()
 	if id := strings.TrimSpace(stringArg(request, "blueprint")); id != "" {
-		b, err := blueprints.Find(root, id)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-		return mcp.NewToolResultText(blueprints.Describe(b)), nil
+		return detalleDeBlueprint(root, id, strings.TrimSpace(stringArg(request, "seccion")))
 	}
-	bps, errs := blueprints.List(root)
+	ix, errs := indicesDelProyecto(root)
 	var s strings.Builder
 	for _, err := range errs {
 		fmt.Fprintf(&s, "⚠️ Blueprint ilegible: %v\n", err)
 	}
 	if reg, _ := blueprints.LoadRegistro(root); reg.Origen != "" {
-		fmt.Fprintf(&s, "Repositorio de la organización: %s (importa más con qdd_blueprint_add).\n\n", reg.Origen)
+		fmt.Fprintf(&s, "Fuente: %s (más con qdd_blueprint_add).\n", reg.Origen)
 	}
-	if len(bps) == 0 {
+	if len(ix) == 0 {
 		s.WriteString("No hay blueprints importados. Se importan con qdd_blueprint_add (o 'qdd blueprint add' en la terminal).\n")
 	}
-	for _, b := range bps {
-		s.WriteString(blueprints.Describe(b) + "\n")
+	for _, i := range ix {
+		s.WriteString("- " + blueprints.LineaIndice(i) + "\n")
+	}
+	if len(ix) > 0 {
+		fmt.Fprintf(&s, "Detalle: qdd_blueprint_list {blueprint, seccion: %s}. Para construir, la receta completa: qdd_blueprint_apply.\n", strings.Join(blueprints.SeccionesDeBlueprint, "|"))
 	}
 	for _, p := range blueprints.Check(root) {
 		fmt.Fprintf(&s, "⚠️ %s: %s\n", p.Regla, p.Descripcion)
 	}
 	return mcp.NewToolResultText(s.String()), nil
+}
+
+func detalleDeBlueprint(root, id, seccion string) (*mcp.CallToolResult, error) {
+	b, err := blueprints.Find(root, id)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if seccion != "" {
+		texto, err := blueprints.Seccion(b, seccion)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return mcp.NewToolResultText(texto), nil
+	}
+	i := blueprints.IndiceDe(b)
+	i.Modulos = modulosDe(root)[b.ID]
+	out, err := json.Marshal(i)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(string(out) + "\nEsto es el índice, para elegir. Detalle: seccion = " + strings.Join(blueprints.SeccionesDeBlueprint, "|") + " ('secciones': su línea en blueprint.yaml). Para construir, la receta completa (decisiones, invariantes y escenarios con su detalle): qdd_blueprint_apply."), nil
+}
+
+// indicesDelProyecto es el índice de cada blueprint importado, con los módulos generados con él.
+func indicesDelProyecto(root string) ([]blueprints.Indice, []error) {
+	bps, errs := blueprints.List(root)
+	mods := modulosDe(root)
+	out := make([]blueprints.Indice, 0, len(bps))
+	for _, b := range bps {
+		i := blueprints.IndiceDe(b)
+		i.Modulos = mods[b.ID]
+		out = append(out, i)
+	}
+	return out, errs
+}
+
+func modulosDe(root string) map[string][]string {
+	apps, _ := blueprints.LoadApplications(root)
+	out := map[string][]string{}
+	for _, a := range apps {
+		out[a.Blueprint] = append(out[a.Blueprint], a.Modulo)
+	}
+	return out
 }
 
 func handleBlueprintApplyTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

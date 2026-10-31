@@ -64,8 +64,8 @@ func pesoFoto(n int) string {
 
 func registerFotoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_foto",
-		mcp.WithDescription("Trae la imagen que la persona copió (portapapeles) o su última captura de pantalla, en Linux, Windows y macOS, y la entrega como imagen para que la veas. Úsala cuando la persona diga «mira la captura», «te copié una imagen» o cuando pegue bytes de una imagen como texto."),
-		mcp.WithString("de", mcp.Description("auto (por defecto: el portapapeles y, si no tiene imagen, la última captura) | portapapeles | captura")),
+		mcp.WithDescription("Trae la imagen copiada o la última captura (Linux, Windows, macOS) para que la veas. Úsala si la persona dice «mira la captura» / «te copié una imagen» o pega bytes de imagen como texto."),
+		mcp.WithString("de", mcp.Description("auto (def.: portapapeles; si no, la última captura) | portapapeles | captura")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleFotoTool)
 }

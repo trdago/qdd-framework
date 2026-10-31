@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -343,5 +344,44 @@ func TestPendingProblems_ConditionalQuestionSaysWhenItApplies(t *testing.T) {
 	}
 	if !strings.Contains(got[1], "solo si canales = whatsapp") {
 		t.Fatalf("la pregunta condicional debe decir de qué depende: %s", got[1])
+	}
+}
+
+func TestBlueprintListTool_UnaLineaPorBlueprintYDetalleAPedido(t *testing.T) {
+	root := chdirToTempRepo(t)
+	importTestBlueprint(t, root)
+	res, _ := handleBlueprintListTool(context.Background(), toolRequest(map[string]interface{}{}))
+	lista := resultText(t, res)
+	if !strings.Contains(lista, "auth@1.0.0 · Auth · ❓2") || !strings.Contains(lista, "seccion") || strings.Contains(lista, "¿Canal de recuperación?") || len(lista) > 600 {
+		t.Fatalf("sin id, una línea por blueprint y cómo pedir el detalle (no el blueprint entero): %q", lista)
+	}
+	res, _ = handleBlueprintListTool(context.Background(), toolRequest(map[string]interface{}{"blueprint": "auth"}))
+	indice := resultText(t, res)
+	var i blueprints.Indice
+	if !strings.Contains(lista, "qdd_blueprint_apply") || !strings.Contains(indice, "receta completa") {
+		t.Fatalf("el índice sirve para elegir; para construir, la receta completa con qdd_blueprint_apply: %q", indice)
+	}
+	if res.IsError || json.Unmarshal([]byte(indice[:strings.LastIndex(indice, "}")+1]), &i) != nil || i.Ref != "auth@1.0.0" || len(i.Preguntas) != 2 || i.Secciones["preguntas"] == 0 {
+		t.Fatalf("con id, el índice en JSON con la línea de cada sección: %q", indice)
+	}
+	res, _ = handleBlueprintListTool(context.Background(), toolRequest(map[string]interface{}{"blueprint": "auth", "seccion": "preguntas"}))
+	if res.IsError || !strings.Contains(resultText(t, res), "¿Canal de recuperación?") {
+		t.Fatalf("con seccion, solo ese detalle: %q", resultText(t, res))
+	}
+	res, _ = handleBlueprintListTool(context.Background(), toolRequest(map[string]interface{}{"blueprint": "auth", "seccion": "otra"}))
+	if !res.IsError {
+		t.Fatal("una sección desconocida es un error que dice cuáles hay")
+	}
+}
+
+func TestIndicesDelProyecto_DiceDondeSeAplico(t *testing.T) {
+	root := chdirToTempRepo(t)
+	importTestBlueprint(t, root)
+	if _, problems := blueprints.Apply(blueprints.ApplyInput{Root: root, Blueprint: "auth", Modulo: "acceso", Respuestas: map[string]string{"identificador": "rut", "recuperacion": "correo"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	ix, errs := indicesDelProyecto(root)
+	if len(errs) > 0 || len(ix) != 1 || len(ix[0].Modulos) != 1 || ix[0].Modulos[0] != "acceso" {
+		t.Fatalf("cada índice nombra los módulos generados con él: %+v %v", ix, errs)
 	}
 }

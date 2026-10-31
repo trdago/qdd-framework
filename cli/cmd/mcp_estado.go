@@ -18,26 +18,26 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea del proyecto (.qdd/project/estado.yaml, blueprint estado-por-tareas, antes estado-por-frente, con destino «archivo»). Al RETOMAR una sesión o empezar como agente nuevo, llama accion=ver y sigue desde los ⏳, sin rehacer lo hecho. Al AVANZAR, actualiza la celda con accion=set ANTES de reportar: un ✅ lleva evidencia (commit, versión, n/n pruebas o id de corrida), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Una tarea se cierra con accion=cerrar y su motivo; nunca se borra. accion=check aplica el lector automático (EPF-C01…C07 y, con 'respuesta', EPF-A01). Las escrituras se validan: si violan una regla, no se escribe nada."
+const descripcionEstadoMCP = "Estado por tarea (.qdd/project/estado.yaml). RETOMAR → accion=ver, sigue desde los ⏳. AVANZAR → accion=set ANTES de reportar (✅ evidencia · ⏳ qué espera y de quién · ❌ la falla). cerrar con motivo, nunca borrar. check: EPF-C01…C07 (+EPF-A01 con 'respuesta'). Escritura inválida → no escribe."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
 		mcp.WithDescription(descripcionEstadoMCP),
 		mcp.WithString("accion", mcp.Description("ver (por defecto) | set | cerrar | check | activar | pulso | terminar")),
-		mcp.WithString("fuente", mcp.Description("Quién deja el pulso: agente (por defecto) | subagente | comando (pulso).")),
-		mcp.WithString("frente", mcp.Description("Id de la tarea (set, cerrar, activar, pulso, terminar).")),
-		mcp.WithString("nombre", mcp.Description("Nombre de la tarea al crearla (set).")),
-		mcp.WithString("etapa", mcp.Description("Etapa (columna) tal como está en el archivo (set).")),
+		mcp.WithString("fuente", mcp.Description("agente (def.) | subagente | comando (pulso).")),
+		mcp.WithString("frente", mcp.Description("Id de la tarea.")),
+		mcp.WithString("nombre", mcp.Description("Al crearla (set).")),
+		mcp.WithString("etapa", mcp.Description("Columna, como en el archivo (set).")),
 		mcp.WithString("estado", mcp.Description("ok | espera | falla | na, o ✅ ⏳ ❌ — (set).")),
-		mcp.WithString("evidencia", mcp.Description("Evidencia del ✅.")),
+		mcp.WithString("evidencia", mcp.Description("Del ✅.")),
 		mcp.WithString("bloqueo", mcp.Description("Qué espera el ⏳.")),
-		mcp.WithString("de_quien", mcp.Description("De quién lo espera el ⏳.")),
-		mcp.WithString("falla", mcp.Description("La falla del ❌, nombrada.")),
-		mcp.WithString("requiere_aprobacion", mcp.Description("Quién debe aprobar antes de pasar a ✅.")),
-		mcp.WithBoolean("aprobado", mcp.Description("La aprobación ya la dio quien debía darla (nunca la marques por tu cuenta).")),
-		mcp.WithString("motivo", mcp.Description("Por qué se cierra la tarea (cerrar).")),
-		mcp.WithBoolean("descartado", mcp.Description("Se descarta en vez de cerrarse (cerrar).")),
-		mcp.WithString("respuesta", mcp.Description("Texto de la respuesta o el reporte a contrastar con el archivo (check, EPF-A01).")),
+		mcp.WithString("de_quien", mcp.Description("De quién espera el ⏳.")),
+		mcp.WithString("falla", mcp.Description("Del ❌, nombrada.")),
+		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba antes del ✅.")),
+		mcp.WithBoolean("aprobado", mcp.Description("Ya la dio quien debía (nunca la marques tú).")),
+		mcp.WithString("motivo", mcp.Description("Del cierre (cerrar).")),
+		mcp.WithBoolean("descartado", mcp.Description("Descartar en vez de cerrar.")),
+		mcp.WithString("respuesta", mcp.Description("Texto a contrastar con el archivo (check, EPF-A01).")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleEstadoTool)
 }

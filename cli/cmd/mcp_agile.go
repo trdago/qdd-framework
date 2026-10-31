@@ -18,7 +18,7 @@ import (
 
 func registerFindingsTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_findings",
-		mcp.WithDescription("Muestra todos los hallazgos técnicos (bugs, vulnerabilidades) del proyecto"),
+		mcp.WithDescription("Findings del proyecto (bugs, vulnerabilidades)."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		qddDir := filepath.Join(".", ".qdd", "project", "findings")
@@ -87,14 +87,14 @@ func processSingleFinding(path string, out *string, total, resolved, pending *in
 
 func registerSprintTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_sprint",
-		mcp.WithDescription("Inicializa un nuevo Sprint interactivo bajo QDD Certification Standard (QCS v1.1). IMPORTANTE: Debes exigir al usuario que defina el Happy Path y explícitamente los Error Paths. Los Edge Cases son opcionales. Para los tests ejecutables, NO se los preguntes al usuario; tú como IA debes deducir y generar los comandos de test adecuados (ej. go test, npm run build) basados en tu conocimiento del stack tecnológico."),
+		mcp.WithDescription("Crea un sprint (QCS v1.1): exige al usuario Happy Path y Error Paths (Edge Cases opcionales); los tests NO se los preguntes, dedúcelos tú del stack."),
 		mcp.WithString("numero", mcp.Required(), mcp.Description("Número del sprint a crear (ej: 1, 2, 3)")),
 		mcp.WithString("goal", mcp.Required(), mcp.Description("Objetivo principal claro y sin ambigüedad")),
-		mcp.WithString("happy_path", mcp.Required(), mcp.Description("Reglas del camino feliz (ej: Dado X, Cuando Y, Entonces Z) separadas por punto y coma (;)")),
-		mcp.WithString("error_paths", mcp.Required(), mcp.Description("Reglas para escenarios de error (ej: Dado un error de DB, Entonces...) separadas por punto y coma (;)")),
-		mcp.WithString("edge_cases", mcp.Description("Casos límite opcionales (ej: timeouts, concurrencia) separados por punto y coma (;)")),
-		mcp.WithString("technical_constraints", mcp.Required(), mcp.Description("Restricciones técnicas o de arquitectura separadas por punto y coma (;)")),
-		mcp.WithString("executable_tests", mcp.Required(), mcp.Description("Comandos de terminal generados POR LA IA (tú) para validar esto automáticamente separados por punto y coma (;). No pidas esto al usuario, genéralo tú.")),
+		mcp.WithString("happy_path", mcp.Required(), mcp.Description("Camino feliz: Dado/Cuando/Entonces, por ;")),
+		mcp.WithString("error_paths", mcp.Required(), mcp.Description("Escenarios de error, por ;")),
+		mcp.WithString("edge_cases", mcp.Description("Opcionales (timeouts, concurrencia), por ;")),
+		mcp.WithString("technical_constraints", mcp.Required(), mcp.Description("Restricciones técnicas, por ;")),
+		mcp.WithString("executable_tests", mcp.Required(), mcp.Description("Comandos de test que generas TÚ (no el usuario), por ;")),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		argsMap, ok := request.Params.Arguments.(map[string]interface{})
@@ -206,7 +206,7 @@ func appendRules(ruleString, prefix string) string {
 
 func registerSyncTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_sync",
-		mcp.WithDescription("Sincroniza las reglas nativas (QDD Protocol) con los asistentes de IA"),
+		mcp.WithDescription("Sincroniza las reglas de QDD con los asistentes de IA."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, err := os.Getwd()

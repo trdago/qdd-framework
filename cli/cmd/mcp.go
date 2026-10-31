@@ -80,7 +80,23 @@ func registerMCPTools(s *server.MCPServer) {
 	registerHumanCertifierTool(s)
 }
 
+// soloLeen son las tools que no cambian nada: llevan readOnlyHint. Las demás van sin anotaciones, que en MCP valen lo
+// mismo que las que mcp-go pone por defecto (pueden escribir), sin gastar tokens en cada sesión.
+var soloLeen = map[string]bool{
+	"qdd_project_context": true, "qdd_blueprint_list": true, "qdd_findings": true, "qdd_score": true, "qdd_status": true,
+	"qdd_evolution": true, "qdd_map": true, "qdd_local_llm_status": true, "qdd_foto": true,
+}
+
+func anotaciones(nombre string) mcp.ToolAnnotation {
+	if !soloLeen[nombre] {
+		return mcp.ToolAnnotation{}
+	}
+	si := true
+	return mcp.ToolAnnotation{ReadOnlyHint: &si}
+}
+
 func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)) {
+	tool.Annotations = anotaciones(tool.Name)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (res *mcp.CallToolResult, err error) {
 		defer func() {
 			if r := recover(); r != nil {

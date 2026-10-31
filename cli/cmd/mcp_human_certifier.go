@@ -13,8 +13,8 @@ import (
 
 func registerHumanCertifierTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_certify_human",
-		mcp.WithDescription("Ejecuta la certificación de comportamiento humano, accesibilidad (WCAG 2.2) y usabilidad (DAG Engine) sobre la aplicación web."),
-		mcp.WithString("target", mcp.Description("Objetivo a certificar: 'all', una categoría ('usability', 'accessibility', 'resilience', 'auth') o un nodo específico ('auth:login_nominal'). Por defecto: 'all'.")),
+		mcp.WithDescription("Certifica comportamiento humano, accesibilidad (WCAG 2.2) y usabilidad de la app web."),
+		mcp.WithString("target", mcp.Description("'all' (def.), una categoría (usability, accessibility, resilience, auth) o un nodo (auth:login_nominal).")),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
