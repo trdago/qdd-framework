@@ -3,7 +3,10 @@ package audit
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
 func TestRunCleanCodeCheck(t *testing.T) {
@@ -77,4 +80,22 @@ func assertViolationsFound(t *testing.T, foundNoElse int, foundTestImport, found
 	if !foundMockStruct {
 		t.Errorf("Expected CLEAN-02-NO-TEST-IN-PROD for Mock struct not found")
 	}
+}
+
+// El gate, al encontrar un 'else', dice cómo corregirlo y por qué: la IA lo lee justo cuando lo necesita.
+func TestCleanCode_ElseDiceComoYPorQue(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n\nfunc f(x bool) int {\n\tif x {\n\t\treturn 1\n\t} else {\n\t\treturn 2\n\t}\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range RunCleanCodeCheck(dir) {
+		if v.RuleID != "CLEAN-01-NO-ELSE" {
+			continue
+		}
+		if !strings.Contains(v.Description, "cláusula de guarda") || !strings.Contains(v.Description, modules.PorQueCeroElse) {
+			t.Fatalf("la violación dice cómo corregirla y por qué: %q", v.Description)
+		}
+		return
+	}
+	t.Fatal("no se detectó el else")
 }

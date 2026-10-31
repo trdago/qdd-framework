@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"github.com/qdd-framework/qdd/pkg/modules"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -56,7 +57,7 @@ func checkNodeForElse(node *ast.File, fset *token.FileSet, path string, violatio
 			*violations = append(*violations, Violation{
 				Category:    "CLEAN-CODE",
 				RuleID:      "CLEAN-01-NO-ELSE",
-				Description: "Uso de 'else' detectado. QDD exige Early Returns (Cláusulas de Guarda).",
+				Description: "Uso de 'else': resuélvelo con una cláusula de guarda (salida temprana). Por qué: " + modules.PorQueCeroElse + ".",
 				File:        path,
 				Line:        pos.Line,
 			})

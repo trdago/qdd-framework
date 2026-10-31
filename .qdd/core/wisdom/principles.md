@@ -2,7 +2,7 @@
 
 Estas reglas dictan el comportamiento estricto del Motor Cognitivo y de Ejecución de QDD. Toda planificación, auditoría y código generado debe obedecer incondicionalmente estos principios:
 
-1. **NO-ELSE**: El uso de 'else' está prohibido. Utiliza siempre retornos tempranos (early returns) o cláusulas de guarda.
+1. **NO-ELSE**: El uso de 'else' está prohibido, en cualquier lenguaje. Utiliza siempre retornos tempranos (early returns) o cláusulas de guarda. No es una moda, es estrategia: cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo: con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto, sin ramas que seguir ni estado que recordar.
 2. **Timeouts Obligatorios**: Toda integración o consulta a una fuente externa (API, BD, servicio) DEBE tener un control fijo de tiempo (timeout explícito). Nunca asumas que las fuentes externas siempre contestarán.
 3. **Trazabilidad de APIS**: Todas las solicitudes a APIs externas deben incluir trazabilidad para garantizar que se sepa exactamente qué pasó y cuándo.
 4. **Determinismo Estricto**: Los sistemas NUNCA deben improvisar ni usar caminos por default implícitos. Todos los caminos de ejecución deben ser deterministas y estar explícitamente pensados y codificados.
