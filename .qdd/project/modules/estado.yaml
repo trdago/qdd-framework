@@ -23,7 +23,7 @@ objetivo_tecnologico:
         - 'qdd estado tiene sus propios hooks vacíos: no escribe .qdd/working, no migra ni exige contexto, porque la barra lo ejecuta a cada rato.'
         - 'statusline nunca falla ni escribe en stderr y corta a los 50 ms: si algo sale mal, la barra no muestra el segmento.'
         - 'Una escritura solo se rechaza por violaciones del frente que toca: un error previo en otro frente no bloquea el trabajo, pero check y audit lo siguen reportando.'
-        - 'Las abreviaturas del panel son únicas: si dos etapas empiezan igual, se usa la primera letra más la siguiente que las distinga.'
+        - 'Las abreviaturas del panel son únicas: si dos etapas se leen igual (sin distinguir mayúsculas, FND-087), se usa la primera letra más la siguiente que las distinga y no repita otra columna.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
         - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
@@ -38,6 +38,7 @@ objetivo_tecnologico:
         - '«Todavía no» (qdd 2.8.0): un comando que sale con 75 (EX_TEMPFAIL) vuelve a pendiente con su aviso, en gris; no es una falla.'
         - 'Cinco estados cerrados (qdd 2.8.0): ✅ ⏳ ❌, — no aplica y · sin empezar. Una tarea nueva llena con «·» lo que no se tocó: no queda terminada ni sale del panel (FND-085).'
         - 'Una sola cuenta para los resúmenes (Estado.Totales): tareas pendientes y cada ⏳ y ❌ que tienen; la barra y el JSON del panel (tareas, esperan, fallan) dicen lo mismo (FND-086).'
+        - 'El panel dice hace cuánto se actualizó el tablero («Tareas · hace 9 h») y avisa en amarillo cuando quedó viejo: hay tareas pendientes y nadie lo tocó en TableroViejo (2 h). Los ⏳ y ❌ del resumen se nombran como etapas, no como tareas (FND-088).'
         - 'Un ciclo por mensaje (qdd 2.8.0, RFC 0006 §3.9): el mod llama qdd consola ciclo --modo <permission_mode> en cada mensaje de la persona. Un pedido hecho antes del último ciclo ya se vio y sale del tablero (y del resultado del panel); el modo queda para qdd_project_context y para doctor.'
         - 'La palabra visible es «tarea» (blueprint estado-por-tareas): ayuda, tabla, panel y errores. La clave frentes del YAML y el parámetro frente de qdd_estado se mantienen por compatibilidad.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
@@ -84,5 +85,5 @@ fuentes:
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
-ultima_revision: "2026-10-30"
-revisado_en_commit: f5a2abdb30b2
+ultima_revision: "2026-10-31"
+revisado_en_commit: c27e2279fb04

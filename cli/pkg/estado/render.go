@@ -260,7 +260,8 @@ func abreviar(etapa string) string {
 }
 
 // abreviaturas da a cada etapa 2 letras distintas: las 2 primeras si no chocan; si chocan (Pruebas y Producción), la
-// primera más la siguiente letra que las distinga (Pu, Po), y como último recurso la primera más un dígito.
+// primera más la siguiente letra que las distinga (Pu, Po), y como último recurso la primera más un dígito. Chocar es
+// leerse igual: «Pr» y «PR» chocan aunque cambie la mayúscula (FND-087), y la letra nueva no repite otra columna.
 func abreviaturas(etapas []string) []string {
 	out := make([]string, len(etapas))
 	for i, e := range etapas {
@@ -270,26 +271,43 @@ func abreviaturas(etapas []string) []string {
 		rep := repetidas(out)
 		for i, e := range etapas {
 			letras := []rune(strings.ReplaceAll(e, " ", ""))
-			if !rep[out[i]] || len(letras) <= j {
+			if !rep[clave(out[i])] || len(letras) <= j {
 				continue
 			}
-			out[i] = string(letras[0]) + string(letras[j])
+			candidata := string(letras[0]) + string(letras[j])
+			if usada(out, i, candidata) {
+				continue
+			}
+			out[i] = candidata
 		}
 	}
 	rep := repetidas(out)
 	for i, e := range etapas {
-		if rep[out[i]] && e != "" {
+		if rep[clave(out[i])] && e != "" {
 			out[i] = string([]rune(e)[0]) + strconv.Itoa(i%10)
 		}
 	}
 	return out
 }
 
-// repetidas devuelve las abreviaturas que aparecen más de una vez, o nil si no hay.
+// clave es cómo se lee una abreviatura: sin distinguir mayúsculas.
+func clave(a string) string { return strings.ToLower(a) }
+
+// usada dice si otra columna ya se lee como candidata.
+func usada(abrev []string, propia int, candidata string) bool {
+	for i, a := range abrev {
+		if i != propia && clave(a) == clave(candidata) {
+			return true
+		}
+	}
+	return false
+}
+
+// repetidas devuelve, por su clave, las abreviaturas que se leen igual más de una vez, o nil si no hay.
 func repetidas(abrev []string) map[string]bool {
 	cuenta := map[string]int{}
 	for _, a := range abrev {
-		cuenta[a]++
+		cuenta[clave(a)]++
 	}
 	var rep map[string]bool
 	for a, n := range cuenta {

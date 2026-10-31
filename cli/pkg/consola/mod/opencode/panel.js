@@ -39,15 +39,19 @@ export function cuantas(e) {
   return n + (n === 1 ? ' tarea' : ' tareas')
 }
 
+// AVISO_VIEJO: qdd marca viejo un tablero con tareas pendientes que nadie tocó en horas (FND-088).
+const AVISO_VIEJO = (hace) => '⚠ Sin actualizar ' + hace + ': lo que dice ⏳ puede haber cambiado'
+
 // vista arma lo que se dibuja; con datos nulos, el motivo (sin qdd, qdd antiguo o sin estado.yaml).
 export function vista(datos, falla) {
   if (!datos) return { motivo: falla || 'sin datos de qdd todavía' }
   const fichas = (datos.acciones || []).filter((a) => a.tipo === 'aprobar').length
   const e = datos.estado
   if (!e) return { motivo: datos.motivo || 'el proyecto no tiene estado por frente', fichas, version: datos.version || '' }
-  const cuando = hora(e.actualizado)
+  const cuando = e.hace || hora(e.actualizado)
   return {
     titulo: 'Tareas' + (cuando ? ' · ' + cuando : ''),
+    aviso: e.viejo ? AVISO_VIEJO(e.hace) : '',
     version: datos.version || '',
     resumen: [
       { texto: cuantas(e), tono: 'primary' },

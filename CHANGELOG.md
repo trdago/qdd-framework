@@ -6,6 +6,21 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.2] - 2026-10-31 (preview)
+
+Segunda **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Las horas de uso de rc.1 y rc.2 se suman para VER-05.
+
+### 🖼️ Imágenes a la consola
+
+- **`qdd foto`** trae la imagen del portapapeles con la herramienta del sistema: wl-paste o xclip en Linux, PowerShell en Windows y osascript en macOS. Si el portapapeles no tiene imagen, usa la última captura de pantalla. Deja la imagen en `tmp/fotos` (git no la ve) e imprime la ruta para decirle a la IA «mira <ruta>».
+- **`qdd_foto`** (MCP) entrega la imagen como imagen: la IA la ve directamente. Sirve cuando pegas una captura y llega como bytes de PNG.
+- **`qdd doctor`** dice con qué se lee el portapapeles y qué instalar si falta.
+
+### 🐛 Tablero
+
+- **El panel avisa si el tablero quedó viejo** (FND-088). El título dice «Tareas · hace 9 h» en vez de la hora sola, y si hay tareas pendientes sin tocar en 2 h avisa en amarillo «⚠ Sin actualizar…». Los ⏳ y ❌ del resumen se cuentan como etapas: «⏳ 10 etapas esperan».
+- **Pruebas y PR ya no se leen igual** (FND-087): las columnas eran «Pr» y «PR» y ahora son «Pe» y «PR».
+
 ## [2.8.0-rc.1] - 2026-10-30 (preview)
 
 Primera **preview**: `npm i -g qdd-framework@preview`. Pasa a `latest` como 2.8.0 con 5 h de uso real medido (VER-05).

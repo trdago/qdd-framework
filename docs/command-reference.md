@@ -124,6 +124,13 @@ Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qd
 | `qdd uso` | Lo medido de cada versión de qdd y cuánto le falta a la que corre para pasar a latest. Se mide solo en proyectos QDD: comandos, herramientas MCP, pulsos del agente y mensajes con el panel; dos eventos a menos de 5 min son uso continuo y uno aislado no suma. **Seguro.** (qdd 2.8.0) |
 | `qdd uso evidencia <versión>` | Deja en `.qdd/project/evidence/uso/vX.Y.Z.yaml` las horas medidas de la versión y sus previews, por proyecto, para commitearlas con la release (VER-05). (qdd 2.8.0) |
 
+### 🖼️ Imágenes a la consola
+Una captura pegada en la terminal (Ctrl+Shift+V) llega como bytes de PNG y la IA no la ve. En Claude Code, **Ctrl+V** pega la imagen del portapapeles como imagen; para todo lo demás está `qdd foto`.
+
+| Comando | Descripción |
+|---------|-------------|
+| `qdd foto [--de auto\|portapapeles\|captura]` | Trae la imagen del portapapeles (wl-paste o xclip en Linux, PowerShell en Windows, osascript en macOS) y la deja en `tmp/fotos` (git no la ve); sin imagen en el portapapeles, usa la última captura de pantalla. Imprime la ruta para decirle a la IA «mira <ruta>». Máximo 5 MB. **Seguro.** (qdd 2.8.0) |
+
 ### 🤖 Solo vía MCP — pedile a tu IDE con IA que las invoque
 Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP — tipear `qdd learn` (por ejemplo) en una terminal no hace nada útil:
 
@@ -145,6 +152,7 @@ Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP �
 
 | Tool MCP | Descripción |
 |---------|-------------|
+| `qdd_foto` | Lo mismo que `qdd foto`, pero entrega la imagen como imagen: la IA la ve sin abrir el archivo. Úsala cuando la persona diga «mira la captura» o pegue bytes de una imagen como texto. `de=auto` (por defecto), `portapapeles` o `captura`. (qdd 2.8.0) |
 | `qdd_estado` | Estado por frente: `accion=ver` al retomar una sesión (seguir desde los ⏳), `set` al avanzar (antes de reportar), `cerrar` con motivo y `check` para el lector automático; desde qdd 2.7.0, `activar`, `pulso` y `terminar` para la tarea en curso. Las escrituras se validan: si violan una regla, no se escribe nada. |
 | `qdd_consola_pedir` | Deja un comando en el panel para que la persona lo ejecute (comando, motivo y carpeta). Para lo que la IA no puede o no debe ejecutar, como publicar; la IA nunca lo ejecuta ella misma con `qdd consola accion`. |
 | `qdd_audit` | Lo mismo que `qdd audit`, para que la IA verifique su propio trabajo antes de proponer un commit. |

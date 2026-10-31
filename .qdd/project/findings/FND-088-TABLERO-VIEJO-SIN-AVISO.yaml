@@ -1,0 +1,9 @@
+id: "FND-088"
+title: "Un tablero sin actualizar se veía igual que uno al día"
+description: "La cabecera del panel decía «Tareas · 14:59» al día siguiente, sin la fecha; el tablero mostraba 7 tareas con ⏳ que ya estaban hechas, y nada avisaba que nadie lo tocaba hace 9 horas. Además «4 de 7 tareas · ⏳ 10 esperan» mezclaba unidades: 10 eran etapas, no tareas."
+impact: "La persona veía pendientes que ya no existían y no sabía si confiar en el panel."
+action_taken: "qdd entrega hace (cuánto pasó desde la última escritura) y viejo (hay tareas pendientes y nadie tocó el tablero en TableroViejo, 2 h). El título dice «Tareas · hace 9 h» y, si está viejo, el panel avisa en amarillo «⚠ Sin actualizar hace 9 h: lo que dice ⏳ puede haber cambiado». Los conteos dicen etapas: «⏳ 10 etapas esperan»."
+test_result: "TestDatos_DicenHaceCuantoSeActualizoYSiQuedoViejo_FND088, TestDatos_SinPendientesNuncaEsViejo y los tests de los dos mods (qdd-tareas y OpenCode)."
+status: resolved
+detectado_por: humano
+date: "2026-10-31"

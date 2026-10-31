@@ -1,6 +1,9 @@
 package estado
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // DatosPanel es lo que 'qdd estado ver --json' entrega a quien dibuja el estado fuera de la CLI (el mod de Claude Code,
 // RFC 0006 §3.4): ya resuelto, para que el que dibuja no interprete reglas ni lea el YAML.
@@ -19,6 +22,25 @@ type DatosPanel struct {
 	Esperas []Pendiente `json:"esperas"`
 	Fallas  []Pendiente `json:"fallas"`
 	Actual  string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
+	// Hace es cuánto pasó desde la última escritura («hace 9 h»); Viejo, que hay tareas pendientes y nadie tocó el
+	// tablero en TableroViejo (FND-088). Sin fecha legible van vacíos: no se inventan.
+	Hace  string `json:"hace,omitempty"`
+	Viejo bool   `json:"viejo,omitempty"`
+}
+
+// TableroViejo: con tareas pendientes y sin escrituras en este tiempo, el panel avisa que el tablero puede no estar al
+// día (lo que dice ⏳ ya pudo pasar).
+const TableroViejo = 2 * time.Hour
+
+// hace dice cuánto pasó, redondeado hacia abajo: «hace 20 min», «hace 9 h», «hace 2 d».
+func hace(d time.Duration) string {
+	if d < time.Hour {
+		return fmt.Sprintf("hace %d min", int(d.Minutes()))
+	}
+	if d < 48*time.Hour {
+		return fmt.Sprintf("hace %d h", int(d.Hours()))
+	}
+	return fmt.Sprintf("hace %d d", int(d.Hours()/24))
 }
 
 // FrentePanel es una fila: un símbolo por etapa, en el orden de Etapas.
@@ -138,6 +160,10 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 		Formato: e.Formato, Actualizado: e.Actualizado, Resumen: Statusline(e, now), Etapas: e.Etapas,
 		Tareas: t.Tareas, Esperan: t.Esperan, Fallan: t.Fallan,
 		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
+	}
+	if cuando, err := time.Parse(time.RFC3339, e.Actualizado); err == nil && !now.Before(cuando) {
+		d.Hace = hace(now.Sub(cuando))
+		d.Viejo = t.Tareas > 0 && now.Sub(cuando) > TableroViejo
 	}
 	for _, f := range e.Frentes {
 		if !incluir(f) {

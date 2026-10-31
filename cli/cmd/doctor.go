@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"os/exec"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/foto"
 	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/findings"
@@ -121,6 +124,7 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 	}
 	if activa {
 		g.Items = append(g.Items, checkModo(projectPath))
+		g.Items = append(g.Items, checkFoto())
 	}
 	return g
 }
@@ -146,12 +150,25 @@ func checkModo(projectPath string) *CheckItem {
 	return &CheckItem{Name: "Modo de permisos de la IA", Success: true, Error: modo + " (visto a las " + visto + ")"}
 }
 
+// nombreFoto es el nombre del check de qdd foto en doctor.
+const nombreFoto = "Imágenes a la consola (qdd foto)"
+
+// checkFoto dice con qué se lee el portapapeles en este sistema; si falta la herramienta, qué instalar.
+func checkFoto() *CheckItem {
+	ok, texto := foto.Diagnostico(foto.EntornoReal(runtime.GOOS), exec.LookPath)
+	return &CheckItem{Name: nombreFoto, Success: ok, Error: texto}
+}
+
 // repairConsola repara lo que falló: la cola se junta sin reactivar la consola, y la consola se reactiva solo si
 // falló algo de ella.
 func repairConsola(projectPath string, g *CheckGroup) {
 	consolaFalla := false
 	for _, item := range g.Items {
 		if item.Success {
+			continue
+		}
+		if item.Name == nombreFoto {
+			fmt.Println("  [i] " + item.Error + " (qdd no instala paquetes del sistema)")
 			continue
 		}
 		if item.Name == nombreUso {
