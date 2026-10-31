@@ -1,6 +1,6 @@
 id: mcp
 nombre: Servidor MCP de QDD (qdd mcp-server)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/cmd/mcp.go
 objetivo_operativo:
@@ -23,3 +23,5 @@ pruebas:
 fuentes:
     - cli/cmd/mcp.go
     - cli/cmd/mcp_presupuesto_test.go
+ultima_revision: "2026-10-31"
+revisado_en_commit: 42e76175a40d
