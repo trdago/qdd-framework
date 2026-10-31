@@ -91,4 +91,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-31"
-revisado_en_commit: f724e13e1bb9
+revisado_en_commit: 1600a39dae2f
