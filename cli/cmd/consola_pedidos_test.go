@@ -50,8 +50,8 @@ func TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18(t *testing.T) {
 	if len(consola.Pedidos(root)) != 1 {
 		t.Fatal("el pedido sigue en la cola")
 	}
-	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || consola.Pedidos(root)[0].Estado != consola.EstadoHecho {
-		t.Fatalf("confirmado corre y queda hecho: %d %q", codigo, salida.String())
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || esperarFin(t, root, p.ID).Estado != consola.EstadoHecho {
+		t.Fatalf("confirmado corre (aparte, FND-089) y queda hecho: %d %q", codigo, salida.String())
 	}
 	salida.Reset()
 	errores.Reset()
@@ -90,6 +90,7 @@ func TestConsolaPedidos_ListaCadaPedidoConSuEstado(t *testing.T) {
 	consola.Pedir(root, "exit 0; echo", "Por hacer", "", ahoraPrueba)
 	var salida, errores bytes.Buffer
 	consolaAccion(root, "pedido:"+hecho.ID, true, &salida, &errores)
+	esperarFin(t, root, hecho.ID)
 	salida.Reset()
 	listarPedidos(root, &salida)
 	texto := salida.String()
@@ -161,4 +162,20 @@ func TestConsolaPedir_DiceEnQuePanelQuedo_FND081(t *testing.T) {
 	if !strings.Contains(salida.String(), "tecla a") || !strings.Contains(salida.String(), "panel de "+filepath.Base(otro)) {
 		t.Fatalf("la salida dice su tecla y el panel del otro proyecto: %q", salida.String())
 	}
+}
+
+// esperarFin espera a que un pedido lanzado aparte (FND-089) termine: hecho o con falla.
+func esperarFin(t *testing.T, root, id string) consola.Pedido {
+	t.Helper()
+	tope := time.Now().Add(10 * time.Second)
+	for time.Now().Before(tope) {
+		for _, p := range consola.Pedidos(root) {
+			if p.ID == id && (p.Estado == consola.EstadoHecho || p.Estado == consola.EstadoFallo) {
+				return p
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("el pedido %s no terminó: %+v", id, consola.Pedidos(root))
+	return consola.Pedido{}
 }

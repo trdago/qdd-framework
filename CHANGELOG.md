@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.3] - 2026-10-31 (preview)
+
+Tercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### 🐛 Los pedidos del panel ya no se cortan ni lo bloquean (FND-089)
+
+- **Un pedido corre aparte del panel.** El panel lo lanza y queda libre al instante: recargarlo (`/reload-plugins`) o cerrar la terminal ya no lo corta, y los demás botones siguen respondiendo mientras corre.
+- **Si igual muere** (el PC se apaga, alguien lo mata), queda en rojo al instante con «↻ Reintentar», en vez de quedarse «ejecutando…» 15 minutos.
+- **El comando se ve en una línea** («… (+N líneas)»). Entero, solo al confirmarlo.
+- **«Para ti» cuenta lo que se está ejecutando:** ya no dice «nada por hacer» arriba de un pedido en marcha.
+- **La IA deja comandos más seguros:** la ayuda de `qdd consola pedir` y de `qdd_consola_pedir` pide comandos que se puedan repetir y que no esperen adentro (si falta algo, salen con `exit 75`).
+
 ## [2.8.0-rc.2] - 2026-10-31 (preview)
 
 Segunda **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Las horas de uso de rc.1 y rc.2 se suman para VER-05.

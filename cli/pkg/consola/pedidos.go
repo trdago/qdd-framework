@@ -71,6 +71,10 @@ type Pedido struct {
 	Despues []string   `json:"despues,omitempty"` // ids de los pedidos que tienen que quedar hechos antes
 	Aviso   string     `json:"aviso,omitempty"`   // «todavía no»: lo que dijo la última vez que salió con CodigoTodaviaNo
 	AvisoEn *time.Time `json:"aviso_en,omitempty"`
+	// PID es el qdd que lo ejecuta y Hijo, el comando; si los dos murieron sin anotar el resultado (un
+	// /reload-plugins, una terminal cerrada), el pedido se cortó (FND-089).
+	PID  int `json:"pid,omitempty"`
+	Hijo int `json:"hijo,omitempty"`
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho.
@@ -163,6 +167,10 @@ func normalizar(cola []Pedido, now, ciclo time.Time) []Pedido {
 		if p.Estado == EstadoEjecutando && p.Inicio != nil && now.Sub(*p.Inicio) > TopeEjecucion {
 			p.Estado, p.Codigo = EstadoFallo, -1
 			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: no terminó en " + TopeEjecucion.String())
+		}
+		if p.Estado == EstadoEjecutando && p.PID > 0 && !procesoVivo(p.PID) && !procesoVivo(p.Hijo) {
+			p.Estado, p.Codigo, p.PID, p.Hijo = EstadoFallo, -1, 0, 0
+			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: el proceso que lo ejecutaba terminó sin anotar el resultado (¿se recargó el panel?). Revisa qué alcanzó a hacer antes de reintentarlo.")
 		}
 		if p.Abierto() && p.Tecla != "" {
 			usadas[p.Tecla] = true
@@ -387,12 +395,22 @@ func errNoEjecutable(id, estado string) error {
 }
 
 // ejecutarPedido lo marca como ejecutando con la cola bloqueada (así no corre dos veces), lo corre con la shell
-// del sistema en su carpeta y guarda el resultado: hecho si sale con 0, fallo si no.
+// del sistema en su carpeta y guarda el resultado: hecho si sale con 0, fallo si no. Es el camino en el mismo proceso;
+// el panel usa Lanzar (FND-089).
 func ejecutarPedido(root string, a Accion, salida io.Writer) int {
-	now := time.Now()
-	err := conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
+	if err := marcarEjecutando(root, a.pedido, time.Now()); err != nil {
+		fmt.Fprintf(salida, "[!] %v\n", err)
+		return 1
+	}
+	return correrComando(root, a, salida)
+}
+
+// marcarEjecutando pasa el pedido a ejecutando con la cola bloqueada, a nombre de este proceso: solo uno pendiente o
+// con fallo, y sin pedidos que esperar (FND-070, FND-080).
+func marcarEjecutando(root, id string, now time.Time) error {
+	return conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
 		for i, p := range cola {
-			if p.ID != a.pedido {
+			if p.ID != id {
 				continue
 			}
 			if !p.Ejecutable() {
@@ -402,14 +420,15 @@ func ejecutarPedido(root string, a Accion, salida io.Writer) int {
 				return nil, errEspera(p.ID, faltan)
 			}
 			cola[i].Estado, cola[i].Inicio, cola[i].Fin, cola[i].Salida = EstadoEjecutando, &now, nil, ""
+			cola[i].PID, cola[i].Hijo = os.Getpid(), 0
 			return cola, nil
 		}
-		return nil, fmt.Errorf("no hay un pedido '%s' en la cola", a.pedido)
+		return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
 	})
-	if err != nil {
-		fmt.Fprintf(salida, "[!] %v\n", err)
-		return 1
-	}
+}
+
+// correrComando corre el comando de un pedido ya marcado, anota su PID y guarda el resultado.
+func correrComando(root string, a Accion, salida io.Writer) int {
 	shell, flag := "sh", "-c"
 	if runtime.GOOS == "windows" {
 		shell, flag = "cmd", "/C"
@@ -419,9 +438,26 @@ func ejecutarPedido(root string, a Accion, salida io.Writer) int {
 	c.Dir = a.Carpeta
 	c.Stdout = io.MultiWriter(salida, &copia)
 	c.Stderr = io.MultiWriter(salida, &copia)
-	codigo := codigoDe(c.Run(), a, io.MultiWriter(salida, &copia))
+	err := c.Start()
+	if err == nil {
+		anotarHijo(root, a.pedido, c.Process.Pid)
+		err = c.Wait()
+	}
+	codigo := codigoDe(err, a, io.MultiWriter(salida, &copia))
 	terminar(root, a.pedido, codigo, ultimasLineas(copia.String(), lineasSalida))
 	return codigo
+}
+
+// anotarHijo deja en la cola el PID del comando que corre: si qdd muere, el comando puede seguir vivo.
+func anotarHijo(root, id string, pid int) {
+	conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
+		for i := range cola {
+			if cola[i].ID == id && cola[i].Estado == EstadoEjecutando {
+				cola[i].Hijo = pid
+			}
+		}
+		return cola, nil
+	})
 }
 
 func terminar(root, id string, codigo int, texto string) {
@@ -432,6 +468,7 @@ func terminar(root, id string, codigo int, texto string) {
 				continue
 			}
 			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida, cola[i].Aviso, cola[i].AvisoEn = EstadoHecho, &fin, codigo, texto, "", nil
+			cola[i].PID, cola[i].Hijo = 0, 0
 			if codigo == CodigoTodaviaNo {
 				cola[i].Estado, cola[i].Fin, cola[i].Aviso, cola[i].AvisoEn = EstadoPendiente, nil, texto, &fin
 				continue

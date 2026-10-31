@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
@@ -38,6 +39,10 @@ ficha:
 // TestMain aísla la carpeta central de QDD: ninguna prueba toca
 // ~/.local/share/qdd del desarrollador.
 func TestMain(m *testing.M) {
+	// Un pedido lanzado desde una prueba (FND-089) relanza este binario como «qdd consola correr».
+	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
+		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
+	}
 	home, err := os.MkdirTemp("", "qdd-home-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)

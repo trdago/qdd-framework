@@ -63,6 +63,8 @@ async function leer($) {
   firma = huella
   datos = nuevo
   falla = motivo
+  // Lo aceptado que qdd ya anotó (ejecutando, hecho o con falla) deja de ser local.
+  for (const a of nuevo?.acciones || []) if (locales.has(a.id) && a.estado && a.estado !== 'pendiente') locales.delete(a.id)
   verPulsos()
   $.ui.invalidate('ui.render')
   await abrirSiLlegaUnPedido($)
@@ -131,10 +133,13 @@ function pedidos(lista) {
 }
 
 // estadoDe: el estado que manda es el de qdd, salvo mientras el panel lo ejecuta o cuando qdd aún lo da por pendiente.
+// estadoDe: lo que dice qdd, salvo justo después de aceptar un pedido, mientras qdd todavía lo muestra pendiente
+// (FND-070: nunca se ofrece dos veces). Un «todavía no» anotado después de aceptarlo manda: vuelve a tener botón.
 function estadoDe(a) {
   const local = locales.get(a.id)
   const remoto = a.estado || 'pendiente'
-  if (local && (local.estado === 'ejecutando' || remoto === 'pendiente')) return local
+  const avisoNuevo = local && a.aviso_en && new Date(a.aviso_en) >= new Date(local.inicio || 0)
+  if (local && remoto === 'pendiente' && !avisoNuevo) return local
   return { estado: remoto, inicio: a.inicio, fin: a.fin, resultado: a.resultado }
 }
 
@@ -342,19 +347,21 @@ async function ejecutar($, a) {
   $.ui.invalidate('ui.render')
   const bin = await binario($)
   const argv = [bin, 'consola', 'accion', a.id, ...(a.confirmar ? ['--confirmado'] : [])]
+  let lanzado = false
   try {
-    const largo = a.id === 'auditar' || a.tipo === 'pedido'
-    const r = await $.process.run(argv, { timeoutMs: largo ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
+    // Un pedido solo se lanza: qdd lo corre aparte y el panel queda libre (FND-089); el resultado llega por la cola.
+    const r = await $.process.run(argv, { timeoutMs: a.id === 'auditar' ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
     const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
     resultado = { titulo: a.etiqueta, ok: r.exitCode === 0, texto: texto || 'sin salida' }
     todaviaNo = r.exitCode === CODIGO_TODAVIA_NO
     if (todaviaNo) resultado = { ...resultado, todaviaNo: true }
+    lanzado = esPedido && r.exitCode === 0
   } catch (err) {
     resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err) }
   }
-  if (esPedido) locales.set(a.id, { estado: resultado.ok ? 'hecho' : 'fallo', fin: new Date().toISOString(), resultado: resultado.texto })
-  // «todavía no» (código 75, FND-082): vuelve a pendiente; manda lo que diga qdd, con su aviso.
-  if (esPedido && todaviaNo) locales.delete(a.id)
+  // Lanzado: la tarjeta del pedido dice cómo va; sin recuadro de resultado. Rechazado o «todavía no»: manda qdd.
+  if (lanzado) resultado = null
+  if (esPedido && !lanzado) locales.delete(a.id)
   ocupado = false
   firma = ''
   await leer($)
@@ -423,12 +430,17 @@ function confirmacion(Box, Text, Button, $) {
   })
 }
 
+// primeraLinea: un comando de varias líneas se ve en una, con cuántas faltan; entero solo al confirmarlo.
+function primeraLinea(comando) {
+  const lineas = String(comando || '').trim().split('\n')
+  return lineas.length > 1 ? lineas[0] + '  … (+' + (lineas.length - 1) + ' líneas)' : lineas[0]
+}
+
 // tarjeta dibuja un pedido en tres líneas iguales para todos los estados: qué (con su marca o su botón), el comando
 // exacto y dónde/cuándo. Solo pendiente y con falla tienen botón; en espera, ejecutando y hecho van en gris.
 function tarjeta(Box, Text, Button, $, a) {
   const s = estadoDe(a)
-  const apagado = s.estado === 'espera' || s.estado === 'ejecutando' || s.estado === 'hecho'
-  const comando = Text({ key: 'cmd', mono: true, dimColor: apagado, wrap: 'wrap', children: ['   $ ' + a.detalle] })
+  const comando = Text({ key: 'cmd', mono: true, dimColor: true, wrap: 'truncate-end', children: ['   $ ' + primeraLinea(a.detalle)] })
   const donde = (extra) => Text({ key: 'en', dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['   en ' + a.carpeta + (extra ? ' · ' + extra : '')] })
   const caja = (cabeza, resto) => Box({ key: 'pedido-' + a.id, flexDirection: 'column', children: [cabeza, comando, ...resto] })
   if (s.estado === 'espera') {
@@ -464,7 +476,9 @@ function paraTi(Box, Text, Button, $, lista) {
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho')
   const porHacer = lista.filter(ejecutable).length
   const enEspera = lista.filter((a) => estadoDe(a).estado === 'espera').length
-  const resumen = [porHacer ? porHacer + ' por hacer' : 'nada por hacer', ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
+  const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
+  const nada = corriendo ? [] : ['nada por hacer']
+  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
   const cuerpo = confirmando
     ? confirmando.tipo === 'pedido'
       ? [confirmacion(Box, Text, Button, $)]
