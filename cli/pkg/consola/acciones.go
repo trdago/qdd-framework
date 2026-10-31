@@ -103,6 +103,7 @@ func Acciones(root string, hayEstado bool) []Accion {
 		})
 	}
 	acciones = append(acciones, descartes(root)...)
+	acciones = append(acciones, atenciones(root)...)
 	if hayEstado {
 		acciones = append(acciones, Accion{
 			ID: "revisar-estado", Tipo: TipoComando, Etiqueta: "Revisar estado", Detalle: "qdd estado check",
@@ -192,6 +193,9 @@ func (a Accion) Ejecutar(root, bin string, salida io.Writer) int {
 	}
 	if a.Tipo == TipoDescartar {
 		return descartar(root, a, salida)
+	}
+	if a.Tipo == TipoAtender {
+		return atender(a, salida)
 	}
 	c := exec.Command(bin, a.Args...)
 	c.Dir = root

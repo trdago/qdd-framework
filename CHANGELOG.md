@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.6] - 2026-10-31 (preview)
+
+Sexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### ⏳ Pulsa una etapa y la IA la atiende
+
+- En la tabla del panel, cada etapa ⏳ o ❌ es un botón. Al pulsarla, la IA recibe un mensaje armado por qdd: qué etapa, qué espera (o qué falla) y de quién, y que intente completarla.
+- Si falta algo que tienes que hacer tú, la IA lo deja en «▶ Para ti» ligado a esa tarea; si falta una decisión, te pregunta; si todavía no se puede (p. ej. faltan horas de uso), te dice qué falta y cuándo.
+- qdd vuelve a calcular la etapa al pulsarla: si ya no espera, no se envía nada.
+
 ## [2.8.0-rc.5] - 2026-10-31 (preview)
 
 Quinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
