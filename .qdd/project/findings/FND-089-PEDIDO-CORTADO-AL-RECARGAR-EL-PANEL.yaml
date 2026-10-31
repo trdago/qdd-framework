@@ -1,0 +1,9 @@
+id: "FND-089"
+title: "Un pedido quedó «ejecutando» con el panel bloqueado después de recargarlo"
+description: "El panel corría el pedido como un hijo suyo y lo esperaba. Al publicar la preview v2.8.0-rc.2, la persona hizo /reload-plugins mientras corría: el proceso murió entre el merge del #39 y el git push del tag, nadie anotó el resultado y el panel lo mostró «ejecutando…» hasta el tope de 15 min, sin botón para reintentarlo y con los demás botones bloqueados. Además la tarjeta mostraba el script entero (20 líneas) y «nada por hacer» justo arriba de él (captura del 2026-10-31)."
+impact: "La publicación quedó a medias (tag local sin subir), el panel parecía colgado y no había cómo reintentar."
+action_taken: "qdd consola accion lanza el pedido con «qdd consola correr» en su propia sesión del sistema (Setsid; DETACHED_PROCESS en Windows) y vuelve en el acto: el panel no se bloquea y recargarlo no corta el pedido. La cola anota el PID de quien lo corre y el del comando; si los dos murieron sin anotar el resultado, el pedido queda con falla al instante, con ↻ Reintentar. La tarjeta muestra el comando en una línea y «Para ti» cuenta lo que se está ejecutando. La ayuda de qdd consola pedir y qdd_consola_pedir piden comandos que se puedan repetir y que no esperen adentro (exit 75)."
+test_result: "pedidos_vivos_test.go y lanzar_test.go (6 pruebas: lanzado aparte en otra sesión, vuelve en el acto, termina solo, no corre dos veces, sin proceso vivo queda para reintentar) y 4 tests del mod qdd-tareas."
+status: resolved
+detectado_por: humano
+date: "2026-10-31"

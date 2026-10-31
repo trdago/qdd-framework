@@ -253,7 +253,7 @@ const PEDIDO = {
 
 test('un comando pedido por la IA muestra su motivo, el comando exacto y la carpeta, y corre solo con «s  Sí» (CCC-C17, CCC-C18)', async ($, on) => {
   const llamadas: string[][] = []
-  preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }), llamadas, { exitCode: 0, stdout: 'To github.com:trdago/qdd-framework.git\n * [new tag] v2.5.1 -> v2.5.1', stderr: '' })
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }), llamadas, { exitCode: 0, stdout: '[+] En marcha: Publicar v2.5.1', stderr: '' })
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /Para ti/ })).toBeDefined()
@@ -268,7 +268,9 @@ test('un comando pedido por la IA muestra su motivo, el comando exacto y la carp
 
   await ui.press({ key: 'si' })
   expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'pedido:1', '--confirmado'])
-  expect(await ui.find({ type: 'Text', text: /new tag/ })).toBeDefined()
+  // FND-089: qdd lo lanza aparte y vuelve en el acto; la tarjeta dice que corre, sin recuadro de resultado.
+  expect(await ui.find({ type: 'Text', text: /⟳ .*Publicar v2\.5\.1.*ejecutando/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /En marcha/ })).toBeUndefined()
 })
 
 test('un comando pedido se puede descartar sin ejecutarlo (CCC-C19)', async ($, on) => {
@@ -317,8 +319,51 @@ test('un pedido aceptado queda en gris y sin botón aunque qdd todavía no lo ma
   await ui.press({ key: 'b-pedido:1' })
   await ui.press({ key: 'si' })
   expect(await ui.find({ key: 'b-pedido:1' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /✓ .*Publicar v2\.5\.1/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: /⟳ .*Publicar v2\.5\.1/ })).toMatchObject({ props: { dimColor: true } })
   expect(llamadas.filter((a) => a[2] === 'accion').length).toBe(1)
+})
+
+// FND-089 (captura del usuario, 2026-10-31): el pedido mostraba su script entero (20 líneas) y «nada por hacer»
+// justo arriba de uno que se estaba ejecutando.
+test('un comando de varias líneas se ve en una; entero solo al confirmarlo (FND-089)', async ($, on) => {
+  const largo = { ...PEDIDO, detalle: 'R=trdago/qdd-framework; T=v2.8.0-rc.2\ngit fetch -q origin main\ngit push origin $T' }
+  preparar(on, ok({ ...PANEL, acciones: [largo] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '   $ R=trdago/qdd-framework; T=v2.8.0-rc.2  … (+2 líneas)' })).toMatchObject({ props: { wrap: 'truncate-end' } })
+  expect(await ui.find({ type: 'Text', text: /git push origin/ })).toBeUndefined()
+  await ui.press({ key: 'b-pedido:1' })
+  expect(await ui.find({ type: 'Text', text: /Ejecutará: R=trdago[\s\S]*git push origin \$T/ })).toBeDefined()
+})
+
+test('«Para ti» cuenta lo que se está ejecutando: nunca dice «nada por hacer» arriba de un pedido en marcha (FND-089)', async ($, on) => {
+  const ejecutando = { ...PEDIDO, tecla: undefined, estado: 'ejecutando', inicio: '2026-10-30T12:00:00-03:00' }
+  preparar(on, ok({ ...PANEL, acciones: [ejecutando] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '1 ejecutando' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /nada por hacer/ })).toBeUndefined()
+})
+
+test('mientras un pedido corre, los demás botones responden (FND-089)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }), llamadas, { exitCode: 0, stdout: '[+] En marcha', stderr: '' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'b-pedido:1' })
+  await ui.press({ key: 'si' })
+  await ui.press({ key: 'b-revisar-estado' })
+  expect(llamadas.filter((a) => a[2] === 'accion').map((a) => a[3])).toEqual(['pedido:1', 'revisar-estado'])
+})
+
+test('si qdd rechaza el pedido al lanzarlo, se ve el motivo y el botón sigue (FND-089)', async ($, on) => {
+  preparar(on, ok({ ...PANEL, acciones: [PEDIDO] }), [], { exitCode: 1, stdout: '', stderr: '[!] el pedido 1 espera a [b]' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'b-pedido:1' })
+  await ui.press({ key: 'si' })
+  expect(await ui.find({ type: 'Text', text: /espera a \[b\]/ })).toBeDefined()
+  expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
 })
 
 test('un pedido ejecutándose o hecho se ve en gris y no se puede clickear (FND-070)', async ($, on) => {

@@ -185,8 +185,27 @@ func consolaAccion(root, id string, confirmado bool, salida, errores io.Writer) 
 	if err != nil {
 		bin = "qdd"
 	}
-	return a.Ejecutar(root, bin, salida)
+	// Un pedido se lanza aparte y el panel queda libre; el resultado llega por la cola (FND-089).
+	return a.Lanzar(root, bin, salida)
 }
+
+// qdd consola correr <id> (oculto): lo lanza 'qdd consola accion' en su propia sesión para correr un pedido que ya
+// marcó como ejecutando; no se llama a mano.
+var consolaCorrerCmd = &cobra.Command{
+	Use:    "correr <id>",
+	Short:  "Corre un pedido lanzado desde el panel (interno)",
+	Hidden: true,
+	Args:   cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		root := consolaRaiz
+		if root == "" {
+			root = estadoRaiz()
+		}
+		os.Exit(consola.CorrerLanzado(root, args[0], os.Stdout))
+	},
+}
+
+var consolaRaiz string
 
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
@@ -205,6 +224,11 @@ Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin
 Si depende de algo fuera de la cola (un tag, un CI, el merge de otra sesión), el comando lo revisa primero y sale con
 'exit 75' si todavía no está: el panel lo muestra en gris, «todavía no», no como falla. Un comando que corre en otro
 repositorio (--carpeta) queda en el panel de ese repositorio; los worktrees comparten el del checkout principal.
+
+El comando corre aparte del panel (FND-089): recargar el panel o cerrar la terminal no lo corta. Igual escríbelo
+para que se pueda repetir (si algo lo corta a medias, la persona lo reintenta): revisa lo ya hecho antes de hacerlo
+(un tag que ya existe se reusa, un PR ya mergeado no se vuelve a mergear). Y no esperes adentro: si falta algo, sal
+con 'exit 75' y la persona lo vuelve a apretar.
 
   qdd consola pedir -m "Publicar v2.5.1 (dispara npm y el binario)" -- git push origin v2.5.1
   qdd consola pedir -m "…" "git tag -a v2.5.1 -m v2.5.1 && git push origin v2.5.1"
@@ -277,7 +301,8 @@ func init() {
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
-	consolaCmd.AddCommand(consolaPedirCmd, consolaPedidosCmd, consolaDescartarCmd)
+	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")
+	consolaCmd.AddCommand(consolaPedirCmd, consolaPedidosCmd, consolaDescartarCmd, consolaCorrerCmd)
 }
 
 func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []string, salida, errores io.Writer) int {
