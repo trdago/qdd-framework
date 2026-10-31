@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+	"unicode/utf8"
 
 	"github.com/qdd-framework/qdd/pkg/estado"
 )
@@ -42,13 +44,17 @@ func TestAtender_ElMensajeDiceQueHacerYQuePedir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if espera.Confirmar || espera.Etiqueta != "Atender «Publicación» de «Barra ordenada»" {
+	if espera.Confirmar || espera.Etiqueta != "⏳ Publicación · Barra ordenada" {
 		t.Fatalf("no escribe nada por sí misma: no pide «s  Sí»; y dice qué atiende: %+v", espera)
 	}
-	for _, debe := range []string{"«Publicación»", "«Barra ordenada»", "5 h de uso medido", "uso real", "qdd_consola_pedir", "tarea: barra", "pregúntame", "qdd estado set"} {
+	for _, debe := range []string{"Publicación", "Barra ordenada", "5 h de uso medido", "uso real", "qdd_consola_pedir", "tarea barra", "pregúntame", "qdd estado set"} {
 		if !strings.Contains(espera.Detalle, debe) {
 			t.Fatalf("el mensaje a la IA dice %q: %s", debe, espera.Detalle)
 		}
+	}
+	// Pedido del usuario: los mensajes son resúmenes, estilo chat (símbolos, sin relleno), no párrafos.
+	if n := utf8.RuneCountInString(espera.Detalle); n > MaxMensajeAtender {
+		t.Fatalf("el mensaje mide %d caracteres; tope %d: %s", n, MaxMensajeAtender, espera.Detalle)
 	}
 	falla, _ := BuscarAccion(Acciones(root, true), "atender:barra:1")
 	if !strings.Contains(falla.Detalle, "❌") || !strings.Contains(falla.Detalle, "el CI falla en Windows") {
@@ -67,5 +73,31 @@ func TestAtender_EjecutarlaImprimeElMensajeParaLaIA(t *testing.T) {
 	escribirArchivo(t, filepath.Join(root, estado.Ruta), strings.Replace(estadoParaAtender, `Publicación: {estado: "⏳", bloqueo: 5 h de uso medido, de_quien: uso real}`, `Publicación: {estado: "✅", evidencia: v2.8.0}`, 1))
 	if _, err := BuscarAccion(Acciones(root, true), "atender:barra:2"); err == nil {
 		t.Fatal("una etapa que ya no espera no se ofrece: qdd lo vuelve a calcular")
+	}
+}
+
+// FND-092 (captura del usuario, 2026-10-31): con el mod anterior cargado y el qdd nuevo, el panel mostró 11 botones
+// «[ undefined  Atender …]» en Acciones: el mod viejo no conoce el tipo nuevo. qdd solo ofrece un tipo opcional al
+// panel que dice que lo dibuja.
+func TestPanel_UnTipoNuevoSoloParaElPanelQueLoPide_FND092(t *testing.T) {
+	root := proyectoConCola(t)
+	escribirArchivo(t, filepath.Join(root, estado.Ruta), estadoParaAtender)
+	cuenta := func(d DatosConsola) int {
+		n := 0
+		for _, a := range d.Acciones {
+			if a.Tipo == TipoAtender {
+				n++
+			}
+		}
+		return n
+	}
+	if n := cuenta(Panel(root, time.Now())); n != 0 {
+		t.Fatalf("un panel que no pide «atender» no lo recibe: %d", n)
+	}
+	if n := cuenta(Panel(root, time.Now(), TipoAtender)); n != 2 {
+		t.Fatalf("el que lo pide, sí: %d", n)
+	}
+	if _, err := BuscarAccion(Acciones(root, true), "atender:barra:2"); err != nil {
+		t.Fatal("qdd consola accion la sigue encontrando por id")
 	}
 }

@@ -34,6 +34,8 @@ const (
 
 	// MaxPedidos es el tope de pedidos abiertos (no hechos): una tecla por pedido en el panel.
 	MaxPedidos = 9
+	// MaxMotivo es el tope del motivo que se lee en el panel: un resumen estilo chat (pedido del usuario, 2026-10-31).
+	MaxMotivo = 60
 
 	EstadoPendiente  = "pendiente"
 	EstadoEjecutando = "ejecutando"
@@ -338,6 +340,9 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	}
 	if motivo == "" {
 		return Pedido{}, errors.New("falta el motivo: la persona lo lee en el panel antes de confirmar")
+	}
+	if n := len([]rune(motivo)); n > MaxMotivo {
+		return Pedido{}, fmt.Errorf("el motivo mide %d caracteres (tope %d): déjalo en un resumen estilo chat, con símbolos y sin relleno (p. ej. «Publicar v2.8.0-rc.6 → npm preview»)", n, MaxMotivo)
 	}
 	dir, err := carpetaDe(root, carpeta)
 	if err != nil {

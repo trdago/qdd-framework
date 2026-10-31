@@ -16,6 +16,11 @@ Sexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
 - Si falta algo que tienes que hacer tú, la IA lo deja en «▶ Para ti» ligado a esa tarea; si falta una decisión, te pregunta; si todavía no se puede (p. ej. faltan horas de uso), te dice qué falta y cuándo.
 - qdd vuelve a calcular la etapa al pulsarla: si ya no espera, no se envía nada.
 
+### ✂️ Textos cortos y sin botones «undefined» (FND-092)
+
+- **Sin botones «undefined»:** «atender» es un tipo opcional; qdd lo entrega solo al panel que lo pide (`qdd consola panel --con atender`). En «Acciones» el panel muestra solo lo que sabe dibujar.
+- **Mensajes estilo chat:** lo que recibe la IA al pulsar una etapa es una línea de 280 caracteres como mucho («⏳ Publicación · Barra… (tarea barra): espera … → ciérrala · ¿falta algo mío? …»), y el motivo de un pedido, 60 como mucho; uno más largo se rechaza pidiendo un resumen.
+
 ## [2.8.0-rc.5] - 2026-10-31 (preview)
 
 Quinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

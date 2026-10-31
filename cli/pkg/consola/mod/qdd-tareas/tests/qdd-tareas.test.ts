@@ -63,7 +63,7 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, version: 'v2.5.0' }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-  expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json'])
+  expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })
@@ -186,7 +186,7 @@ test('pulsar una etapa ⏳ le envía a la IA el mensaje que da qdd para atenderl
   await ui.press({ key: 'e-gemini-3' })
   expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'atender:gemini:3'])
   expect(enviados).toEqual([mensaje])
-  expect(await ui.find({ type: 'Text', text: /Enviado a la IA/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /→ enviado a la IA/ })).toBeDefined()
 })
 
 test('si qdd ya no ofrece la etapa, no se envía nada y se ve por qué', async ($, on) => {
@@ -606,4 +606,39 @@ test('si al ejecutarlo sale «todavía no» (código 75), el panel no lo marca c
   await ui.press({ key: 'si' })
   expect(await ui.find({ type: 'Text', text: /✗/ })).toBeUndefined()
   expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
+})
+
+test('un tipo de acción que el panel no conoce no sale como botón «undefined»; pide a qdd solo lo que dibuja (FND-092)', async ($, on) => {
+  const llamadas: string[][] = []
+  const raras = [
+    { id: 'nuevo:1', tipo: 'nuevo', etiqueta: 'Algo nuevo', detalle: 'x', confirmar: false },
+    { id: 'comando-sin-tecla', tipo: 'comando', etiqueta: 'Sin tecla', detalle: 'qdd x', confirmar: false },
+  ]
+  preparar(on, ok({ ...PANEL, acciones: [...PANEL.acciones, ...raras] }), llamadas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-auditar' })).toBeDefined()
+  expect(await ui.find({ key: 'b-nuevo:1' })).toBeUndefined()
+  expect(await ui.find({ key: 'b-comando-sin-tecla' })).toBeUndefined()
+  expect(await ui.find({ text: /undefined/ })).toBeUndefined()
+  const lectura = llamadas.find((a) => a[2] === 'panel')
+  expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender'])
+})
+
+test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND-092)', async ($, on) => {
+  const llamadas: string[][] = []
+  mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    llamadas.push([...e.argv])
+    if (e.argv.includes('--con')) return { value: { exitCode: 1, stdout: '', stderr: 'Error: unknown flag: --con' } }
+    return { value: ok(PANEL) }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-auditar' })).toBeDefined()
+  expect(llamadas.some((a) => a[2] === 'panel' && !a.includes('--con'))).toBe(true)
 })

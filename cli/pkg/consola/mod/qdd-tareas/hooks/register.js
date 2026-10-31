@@ -16,6 +16,8 @@ const TOPE_MS = 3000
 const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
+// OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
+const OPCIONALES = ['atender']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -52,7 +54,9 @@ async function leer($) {
   let nuevo = null
   let motivo = ''
   try {
-    const r = await $.process.run([bin, 'consola', 'panel', '--json'], { timeoutMs: TOPE_MS })
+    let r = await $.process.run([bin, 'consola', 'panel', '--json', '--con', OPCIONALES.join(',')], { timeoutMs: TOPE_MS })
+    // Un qdd anterior a --con no lo conoce: se lee sin los opcionales.
+    if (r.exitCode !== 0 && /unknown flag/.test(r.stderr || '')) r = await $.process.run([bin, 'consola', 'panel', '--json'], { timeoutMs: TOPE_MS })
     motivo = r.exitCode === 0 ? '' : (r.stderr || '').trim() || 'esta versión de qdd no trae «qdd consola panel»: actualiza qdd'
     nuevo = r.exitCode === 0 ? JSON.parse(r.stdout) : null
   } catch (err) {
@@ -415,7 +419,7 @@ async function atender($, a) {
     resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'tabla' }
   }
   if (texto) {
-    resultado = { titulo: a.etiqueta, ok: true, texto: 'Enviado a la IA: lo atiende en la conversación.', zona: 'tabla' }
+    resultado = { titulo: a.etiqueta, ok: true, texto: '→ enviado a la IA', zona: 'tabla' }
     $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
   }
   ocupado = false
@@ -584,8 +588,11 @@ function paraTi(Box, Text, Button, $, lista, ancho) {
 
 // acciones: las herramientas del proyecto en una fila de botones (FND-090); el comando que corre cada una se ve al
 // confirmarla. «Abrir carpeta» va arriba, junto a la carpeta, cada ✕ en la fila de su tarea y los pedidos en «Para ti».
+// Solo los tipos que se dibujan aquí y con tecla: uno que este panel no conoce no sale como «undefined» (FND-092).
 function acciones(Box, Text, Button, $, todas, ancho) {
-  const lista = todas.filter((a) => a.tipo !== 'abrir' && a.tipo !== 'descartar' && a.tipo !== 'pedido' && a.tipo !== 'atender')
+  const conocidas = todas.filter((a) => a.tipo === 'aprobar' || a.tipo === 'comando')
+  const todasTeclas = teclas(conocidas)
+  const lista = conocidas.filter((a) => todasTeclas[a.id])
   if (lista.length === 0) return []
   const asignadas = teclas(lista)
   const botones = lista.map((a) => Button({ key: 'b-' + a.id, label: asignadas[a.id] + '  ' + a.etiqueta, hotkey: asignadas[a.id], onPress: () => pedir($, a) }))
@@ -598,7 +605,7 @@ function acciones(Box, Text, Button, $, todas, ancho) {
 
 // pie: cómo se usa y la versión de qdd, en una línea atenuada.
 function pie(Text, version) {
-  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['Clic en un ⏳ o ❌ y la IA lo atiende · clic o la tecla de cada botón (foco: clic o /tareas)' + (version ? ' · ' + version : '')] })
+  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['⏳/❌ clic → la IA lo atiende · botones: clic o tecla · foco: /tareas' + (version ? ' · ' + version : '')] })
 }
 
 function sinEstado(Box, Text, motivo) {

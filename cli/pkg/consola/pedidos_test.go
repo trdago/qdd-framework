@@ -278,3 +278,15 @@ func TestDescartar_QuitaElPedidoSinEjecutarlo_CCC_C19(t *testing.T) {
 		t.Fatal("descartar un id que no está es un error")
 	}
 }
+
+// Pedido del usuario (2026-10-31): lo que se lee en el panel es un resumen, estilo chat; un motivo largo se rechaza.
+func TestPedir_ElMotivoEsUnResumenCorto(t *testing.T) {
+	root := proyectoConCola(t)
+	largo := strings.Repeat("x", MaxMotivo+1)
+	if _, err := Pedir(root, "git push origin v1", largo, "", enCola); err == nil || !strings.Contains(err.Error(), "resum") {
+		t.Fatalf("un motivo de más de %d caracteres se rechaza pidiendo un resumen: %v", MaxMotivo, err)
+	}
+	if _, err := Pedir(root, "git push origin v1", "Publicar v1 → npm preview", "", enCola); err != nil {
+		t.Fatal(err)
+	}
+}

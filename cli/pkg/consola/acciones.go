@@ -71,8 +71,30 @@ type DatosConsola struct {
 	Acciones []Accion           `json:"acciones"`
 }
 
-// Panel arma los datos del panel: el estado por frente (o el motivo por el que no hay) y las acciones de ahora.
-func Panel(root string, now time.Time) DatosConsola {
+// opcionales son los tipos de acción que un panel recibe solo si dice que los dibuja (FND-092): un mod anterior no los
+// conoce y los mostraría como botones sin tecla.
+var opcionales = map[string]bool{TipoAtender: true}
+
+// Panel es lo que dibuja el panel. con son los tipos opcionales que ese panel sabe dibujar (qdd consola panel --con).
+func Panel(root string, now time.Time, con ...string) DatosConsola {
+	d := panel(root, now)
+	pide := map[string]bool{}
+	for _, t := range con {
+		pide[t] = true
+	}
+	var acciones []Accion
+	for _, a := range d.Acciones {
+		if opcionales[a.Tipo] && !pide[a.Tipo] {
+			continue
+		}
+		acciones = append(acciones, a)
+	}
+	d.Acciones = acciones
+	return d
+}
+
+// panel arma los datos del panel: el estado por frente (o el motivo por el que no hay) y las acciones de ahora.
+func panel(root string, now time.Time) DatosConsola {
 	d := DatosConsola{Formato: 1, Carpeta: root}
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
