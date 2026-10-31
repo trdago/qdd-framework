@@ -108,6 +108,9 @@ const tui = async (api: any) => {
             <Show when={v().motivo}>
               <text fg={t().textMuted}>{v().motivo}</text>
             </Show>
+            <Show when={v().aviso}>
+              <text fg={t().warning}>{v().aviso}</text>
+            </Show>
             <Show when={v().filas}>
               <text>
                 <For each={v().resumen}>

@@ -50,6 +50,15 @@ test('el resumen usa los totales de qdd, los mismos que la barra (FND-086)', () 
   assert.deepEqual(viejo.resumen.map((r) => r.texto).slice(1), ['⏳ 1', '❌ 1'], 'con un qdd anterior, cuenta las listas')
 })
 
+test('el título dice hace cuánto se actualizó y avisa si el tablero quedó viejo (FND-088)', () => {
+  const v = vista({ estado: { ...ESTADO, hace: 'hace 9 h', viejo: true }, acciones: [] }, '')
+  assert.equal(v.titulo, 'Tareas · hace 9 h')
+  assert.match(v.aviso, /^⚠ Sin actualizar hace 9 h/)
+  const alDia = vista({ estado: { ...ESTADO, hace: 'hace 3 min' }, acciones: [] }, '')
+  assert.equal(alDia.titulo, 'Tareas · hace 3 min')
+  assert.equal(alDia.aviso, '')
+})
+
 test('la tarea en curso: running, destello con un pulso nuevo y latido de 1 s (EPT-C11)', () => {
   const conPulso = (pulso) => ({ ...ESTADO, actual: 'a', frentes: [{ ...ESTADO.frentes[0], actividad: { running: true, pulso, fuente: 'agente' } }, ESTADO.frentes[1]] })
   const v = vista({ estado: conPulso('10:00:00'), acciones: [] }, '')

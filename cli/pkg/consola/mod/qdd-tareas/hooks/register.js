@@ -196,6 +196,11 @@ function carpeta(Box, Text, Button, $, ruta, abrirla, ancho) {
   ]
 }
 
+// etapas: los ⏳ y ❌ son etapas, no tareas (FND-088): «1 etapa espera», «10 etapas esperan».
+function etapas(n, uno, varios) {
+  return n + (n === 1 ? ' etapa ' + uno : ' etapas ' + varios)
+}
+
 // cuantas: «4 tareas», o «4 de 9 tareas» si hay pendientes más antiguas que no entran.
 function cuantas(e) {
   const n = e.frentes.length
@@ -204,7 +209,10 @@ function cuantas(e) {
 
 // cabecera: título con la hora y la versión de qdd a la derecha, y el resumen en una línea con el color de cada conteo.
 function cabecera(Box, Text, e, version, lista = []) {
-  const cuando = hora(e.actualizado)
+  const cuando = e.hace || hora(e.actualizado)
+  const aviso = e.viejo
+    ? [Text({ key: 'viejo', color: 'yellow', wrap: 'wrap', children: ['⚠ Sin actualizar ' + e.hace + ': lo que dice ⏳ puede haber cambiado'] })]
+    : []
   const paraTiN = lista.filter((a) => a.tipo === 'pedido' && ejecutable(a)).length
   const paraTiTexto = paraTiN > 0
     ? [Text({ dimColor: true, children: ['·'] }), Text({ key: 'r-para-ti', color: 'yellow', weight: 'semibold', children: ['▶ ' + paraTiN + ' para ti'] })]
@@ -229,12 +237,13 @@ function cabecera(Box, Text, e, version, lista = []) {
         children: [
           Text({ key: 'r-tareas', color: 'cyan', weight: 'semibold', children: [cuantas(e)] }),
           Text({ dimColor: true, children: ['·'] }),
-          Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + total(e.esperan, e.esperas) + ' esperan'] }),
+          Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + etapas(total(e.esperan, e.esperas), 'espera', 'esperan')] }),
           Text({ dimColor: true, children: ['·'] }),
-          Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + total(e.fallan, e.fallas) + ' fallan'] }),
+          Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + etapas(total(e.fallan, e.fallas), 'falla', 'fallan')] }),
           ...paraTiTexto,
         ],
       }),
+      ...aviso,
     ],
   })
 }

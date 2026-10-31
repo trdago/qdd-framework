@@ -1,0 +1,9 @@
+id: "FND-087"
+title: "Las columnas Pruebas y PR se abreviaban «Pr» y «PR»"
+description: "abreviaturas comparaba distinguiendo mayúsculas: «Pr» y «PR» no chocaban para el código, pero en el panel se leían igual. La persona no sabía qué columna era cuál (captura del 2026-10-31)."
+impact: "La tabla del panel parecía tener dos columnas iguales; había que leer la leyenda para distinguirlas."
+action_taken: "Chocar es leerse igual: abreviaturas compara sin mayúsculas y la letra nueva no repite otra columna. Código, Pruebas, PR, Publicación queda Có, Pe, PR, Pu."
+test_result: "TestAbreviaturas_NoChocanAunqueSoloCambieLaMayuscula_FND087: antes del arreglo devolvía Có, Pr, PR, Pu."
+status: resolved
+detectado_por: humano
+date: "2026-10-31"

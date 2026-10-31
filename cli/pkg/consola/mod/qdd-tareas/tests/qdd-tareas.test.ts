@@ -69,8 +69,8 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })
   expect(await ui.find({ type: 'Text', text: 'v2.5.0' })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: '2 tareas' })).toMatchObject({ props: { color: 'cyan' } })
-  expect(await ui.find({ type: 'Text', text: '⏳ 1 esperan' })).toMatchObject({ props: { color: 'yellow' } })
-  expect(await ui.find({ type: 'Text', text: '❌ 1 fallan' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: '⏳ 1 etapa espera' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: 'red' } })
   // Sin números grandes ni recuadro en la cabecera.
   expect(await ui.find({ type: 'Text', text: '▀▀█' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /Có Pu Po Va/ })).toBeDefined()
@@ -158,9 +158,25 @@ test('el resumen usa los totales de qdd, los mismos que la barra, y «·» es si
   preparar(on, ok({ ...PANEL, estado: { ...ESTADO, frentes: [...ESTADO.frentes, nuevo], tareas: 3, esperan: 2, fallan: 1 } }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '⏳ 2 esperan' })).toMatchObject({ props: { color: 'yellow' } })
-  expect(await ui.find({ type: 'Text', text: '❌ 1 fallan' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: '⏳ 2 etapas esperan' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: 'red' } })
   expect(await ui.find({ type: 'Text', text: /✅ ·  ·  ·/ })).toBeDefined()
+})
+
+test('la cabecera dice hace cuánto se actualizó y avisa si el tablero quedó viejo (FND-088)', async ($, on) => {
+  preparar(on, ok({ ...PANEL, estado: { ...ESTADO, hace: 'hace 9 h', viejo: true } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Tareas · hace 9 h' })).toMatchObject({ props: { color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: /^⚠ Sin actualizar hace 9 h/ })).toMatchObject({ props: { color: 'yellow' } })
+})
+
+test('un tablero al día no avisa nada (FND-088)', async ($, on) => {
+  preparar(on, ok({ ...PANEL, estado: { ...ESTADO, hace: 'hace 3 min' } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Tareas · hace 3 min' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Sin actualizar/ })).toBeUndefined()
 })
 
 test('se redibuja solo cuando el panel cambia', async ($, on) => {
@@ -172,8 +188,8 @@ test('se redibuja solo cuando el panel cambia', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /Esperando/ })).toBeUndefined()
   // 0 ⏳ y 0 ❌: el resumen cambia de 1 a 0.
-  expect(await ui.find({ type: 'Text', text: '⏳ 1 esperan' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '⏳ 0 esperan' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '⏳ 1 etapa espera' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '⏳ 0 etapas esperan' })).toMatchObject({ props: { color: 'yellow' } })
 })
 
 test('muestra la carpeta del proyecto a la derecha y la abre con «o» sin confirmar (CCC-C21)', async ($, on) => {
