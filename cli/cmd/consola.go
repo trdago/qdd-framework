@@ -212,9 +212,10 @@ var consolaRaiz string
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
+var consolaTarea string
 
 var consolaPedirCmd = &cobra.Command{
-	Use:   "pedir -m <motivo> [--carpeta <dir>] [--despues <id>] [--antes <id>] <comando…>",
+	Use:   "pedir -m <motivo> [--tarea <id>] [--carpeta <dir>] [--despues <id>] [--antes <id>] <comando…>",
 	Short: "Deja un comando en el panel para que la persona lo ejecute con un clic (no lo ejecuta)",
 	Long: `Deja un comando en la cola del panel del proyecto. No lo ejecuta: corre solo cuando la persona lo confirma
 en el panel («s  Sí»), que muestra el motivo, el comando exacto y la carpeta. Si termina bien queda hecho (en gris, no
@@ -223,6 +224,9 @@ se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para c
 Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
 sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+--tarea <id> dice qué tarea del estado extiende el pedido (sin él, la tarea en curso). Si después de un mensaje de la
+persona esa tarea sigue cambiando (la persona prefirió seguir trabajando en vez de ejecutarlo), el pedido sale de
+«▶ Para ti». Cuando la tarea vuelva a estar lista, pídelo de nuevo con la misma --tarea: vuelve con su tecla.
 Si depende de algo fuera de la cola (un tag, un CI, el merge de otra sesión), el comando lo revisa primero y sale con
 'exit 75' si todavía no está: el panel lo muestra en gris, «todavía no», no como falla. Un comando que corre en otro
 repositorio (--carpeta) queda en el panel de ese repositorio; los worktrees comparten el del checkout principal.
@@ -237,7 +241,7 @@ con 'exit 75' y la persona lo vuelve a apretar.
   qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes}
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea}
 		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
@@ -269,6 +273,9 @@ func marcaPedido(p consola.Pedido) string {
 	if p.Estado == consola.EstadoEjecutando {
 		return "⟳"
 	}
+	if p.Estado == consola.EstadoRetirado {
+		return "–"
+	}
 	return p.Tecla
 }
 
@@ -282,6 +289,9 @@ func estadoPedido(p consola.Pedido, espera []string) string {
 	}
 	if p.Estado == consola.EstadoFallo {
 		return fmt.Sprintf("falló (código %d)%s", p.Codigo, cuando)
+	}
+	if p.Estado == consola.EstadoRetirado {
+		return fmt.Sprintf("retirado%s: la tarea «%s» siguió cambiando; pídelo de nuevo con --tarea %s cuando esté lista", cuando, p.Tarea, p.Tarea)
 	}
 	return p.Estado + cuando
 }
@@ -301,6 +311,7 @@ var consolaDescartarCmd = &cobra.Command{
 func init() {
 	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "por qué lo tiene que ejecutar la persona (se lee en el panel)")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
+	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")

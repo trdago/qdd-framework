@@ -2,6 +2,8 @@ package consola
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,11 +39,16 @@ const (
 	EstadoEjecutando = "ejecutando"
 	EstadoHecho      = "hecho"
 	EstadoFallo      = "fallo"
+	// EstadoRetirado: la tarea que el pedido extiende siguió cambiando después de un mensaje de la persona; sale de
+	// «▶ Para ti» hasta que la IA lo pide de nuevo (pedido del usuario, 2026-10-31).
+	EstadoRetirado = "retirado"
 
 	// VidaHecho es cuánto se sigue viendo, en gris, un pedido hecho.
 	VidaHecho = 30 * time.Minute
 	// TopeEjecucion es cuánto puede estar ejecutándose un pedido antes de darlo por cortado.
 	TopeEjecucion = 15 * time.Minute
+	// VidaRetirado es cuánto queda en la cola un pedido retirado, por si la IA lo pide de nuevo.
+	VidaRetirado = 24 * time.Hour
 
 	// CodigoTodaviaNo (EX_TEMPFAIL) es la salida de un comando cuya condición todavía no se cumple (falta un tag, un
 	// merge): el pedido vuelve a pendiente con el aviso, en gris, y no cuenta como falla (FND-082).
@@ -75,11 +82,15 @@ type Pedido struct {
 	// /reload-plugins, una terminal cerrada), el pedido se cortó (FND-089).
 	PID  int `json:"pid,omitempty"`
 	Hijo int `json:"hijo,omitempty"`
+	// Tarea es la tarea del estado que el pedido extiende, y Huella cómo estaba en el último mensaje de la persona: si
+	// cambia después, la persona siguió trabajando en vez de ejecutarlo y el pedido se retira.
+	Tarea  string `json:"tarea,omitempty"`
+	Huella string `json:"huella,omitempty"`
 }
 
-// Abierto dice si el pedido todavía cuenta en la cola: no está hecho.
+// Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
 func (p Pedido) Abierto() bool {
-	return p.Estado != EstadoHecho
+	return p.Estado != EstadoHecho && p.Estado != EstadoRetirado
 }
 
 // Ejecutable dice si la persona lo puede ejecutar: pendiente o con fallo (para reintentarlo).
@@ -123,7 +134,63 @@ func Pedidos(root string) []Pedido {
 
 // PedidosA es Pedidos a una hora dada.
 func PedidosA(root string, now time.Time) []Pedido {
-	return enOrden(normalizar(leerCola(root), now, cicloDe(root)))
+	return enOrden(normalizar(leerCola(root), now, cicloDe(root), huellas(root)))
+}
+
+// huellas devuelve cómo está cada tarea del estado del proyecto (un resumen de su fila); "" si no se puede leer el
+// estado o la tarea no está, y entonces no se sabe si cambió.
+func huellas(root string) func(string) string {
+	var leido bool
+	var e estado.Estado
+	return func(tarea string) string {
+		if !leido {
+			e, _ = estado.Load(root)
+			leido = true
+		}
+		for _, f := range e.Frentes {
+			if f.ID != tarea {
+				continue
+			}
+			b, err := json.Marshal(f)
+			if err != nil {
+				return ""
+			}
+			suma := sha256.Sum256(b)
+			return hex.EncodeToString(suma[:8])
+		}
+		return ""
+	}
+}
+
+// AnotarHuellas guarda, en cada pedido que espera a la persona, cómo está su tarea en este mensaje. Antes, retira los
+// que su tarea cambió desde el mensaje anterior (lo hace normalizar al leer la cola).
+func AnotarHuellas(root string, now time.Time) error {
+	cola := leerCola(root)
+	conTarea := false
+	for _, p := range cola {
+		conTarea = conTarea || (p.Tarea != "" && p.Ejecutable())
+	}
+	if !conTarea {
+		return nil
+	}
+	h := huellas(root)
+	return conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
+		for i, p := range cola {
+			if p.Tarea != "" && p.Ejecutable() {
+				cola[i].Huella = h(p.Tarea)
+			}
+		}
+		return cola, nil
+	})
+}
+
+// tareaEnCurso es la tarea que la IA tiene activa ahora (qdd estado activar), o "".
+func tareaEnCurso(root string, now time.Time) string {
+	act := estado.LeerActividad(root)
+	if _, ok := estado.EnCurso(act, now)[act.Ultima]; ok {
+		return act.Ultima
+	}
+	return ""
 }
 
 // cicloDe es la hora del último mensaje de la persona (cero si no hay): lo hecho antes ya se vio.
@@ -149,9 +216,10 @@ func leerCola(root string) []Pedido {
 }
 
 // normalizar deja la cola como se ve a la hora now: un hecho sale en el ciclo siguiente (ya se vio) o pasado VidaHecho
-// si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado. Lo que esperaba a un hecho
-// que salió ya no espera: una dependencia que no está en la cola no cuenta.
-func normalizar(cola []Pedido, now, ciclo time.Time) []Pedido {
+// si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado; uno que espera a la persona
+// se retira si su tarea cambió desde el último mensaje (huella da cómo está ahora). Lo que esperaba a un hecho que
+// salió ya no espera: una dependencia que no está en la cola no cuenta.
+func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string) []Pedido {
 	out := make([]Pedido, 0, len(cola))
 	usadas, esperado := map[string]bool{}, esperados(cola)
 	for _, p := range cola {
@@ -163,6 +231,13 @@ func normalizar(cola []Pedido, now, ciclo time.Time) []Pedido {
 		}
 		if p.Estado == EstadoHecho && p.Fin != nil && p.Fin.Before(ciclo) {
 			continue
+		}
+		if p.Estado == EstadoRetirado && p.Fin != nil && now.Sub(*p.Fin) > VidaRetirado {
+			continue
+		}
+		if ahora := huella(p.Tarea); p.Ejecutable() && p.Tarea != "" && p.Huella != "" && ahora != "" && ahora != p.Huella {
+			retirado := now
+			p.Estado, p.Fin, p.Huella = EstadoRetirado, &retirado, ""
 		}
 		if p.Estado == EstadoEjecutando && p.Inicio != nil && now.Sub(*p.Inicio) > TopeEjecucion {
 			p.Estado, p.Codigo = EstadoFallo, -1
@@ -211,7 +286,7 @@ func conCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error
 		return err
 	}
 	defer soltar()
-	cola, err := cambiar(normalizar(leerCola(root), now, cicloDe(root)))
+	cola, err := cambiar(normalizar(leerCola(root), now, cicloDe(root), huellas(root)))
 	if err != nil {
 		return err
 	}
@@ -268,8 +343,13 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	if err != nil {
 		return Pedido{}, err
 	}
+	tarea := orden.Tarea
+	if tarea == "" {
+		tarea = tareaEnCurso(root, now)
+	}
 	var nuevo Pedido
 	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
+		cola, preferida := sinRetirados(cola, tarea)
 		usadas := map[string]bool{}
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
@@ -282,10 +362,32 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if len(usadas) >= MaxPedidos {
 			return nil, fmt.Errorf("ya hay %d comandos esperando en el panel: que la persona los ejecute o descarte antes de pedir otro", MaxPedidos)
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: teclaLibre(usadas), Estado: EstadoPendiente}
+		tecla := teclaLibre(usadas)
+		if preferida != "" && !usadas[preferida] {
+			tecla = preferida
+		}
+		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea}
 		return conOrden(append(cola, p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
+}
+
+// sinRetirados quita los pedidos retirados de la tarea (el nuevo los reemplaza: es la misma tarea que se extiende) y
+// devuelve la tecla del primero, para que vuelva con la misma.
+func sinRetirados(cola []Pedido, tarea string) ([]Pedido, string) {
+	if tarea == "" {
+		return cola, ""
+	}
+	var queda []Pedido
+	preferida := ""
+	for _, p := range cola {
+		if p.Estado == EstadoRetirado && p.Tarea == tarea {
+			preferida = primero(preferida, p.Tecla)
+			continue
+		}
+		queda = append(queda, p)
+	}
+	return queda, preferida
 }
 
 // conOrden aplica el orden al pedido id y deja en elegido cómo quedó.
@@ -350,6 +452,9 @@ func accionesDePedidos(root string) []Accion {
 	var acciones []Accion
 	cola := Pedidos(root)
 	for _, p := range cola {
+		if p.Estado == EstadoRetirado {
+			continue
+		}
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,

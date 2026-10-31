@@ -50,7 +50,10 @@ func MarcarCiclo(root, modo string, now time.Time) error {
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, ruta)
+	if err := os.Rename(tmp, ruta); err != nil {
+		return err
+	}
+	return AnotarHuellas(root, now)
 }
 
 // UltimoCiclo devuelve el último ciclo del proyecto; ok falso si nunca hubo uno.
