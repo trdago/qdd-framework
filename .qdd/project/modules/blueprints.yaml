@@ -6,6 +6,7 @@ rutas:
     - cli/cmd/blueprints.go
     - cli/cmd/mcp_blueprints.go
     - cli/cmd/blueprints_calidad.go
+    - cli/cmd/blueprints_receta.go
     - cli/pkg/audit/blueprint_check.go
 objetivo_operativo:
     problema: Cada organización mantiene sus estándares de módulo (auth, auditoría…) en su propio repositorio, privado si quiere, y todos sus proyectos deben usarlos, mantenerlos al día y aportar mejoras sin que cada proyecto cargue con una copia del repositorio. Una persona puede además sumar estándares de otras fuentes (p. ej. su repositorio público) sin mezclarlos con los de la organización.
@@ -24,7 +25,9 @@ objetivo_tecnologico:
         - 'La migración del esquema anterior (.qdd/blueprints/<id>) es automática y ocurre una vez: mueve al store las copias íntegras y deja las alteradas como BP-05-LEGACY para que una IA lleve sus cambios al repositorio de la organización.'
         - 'Índice de un blueprint (pedido del usuario, 2026-10-31): leer blueprints no cuesta miles de tokens. IndiceDe resume cada uno (identidad, preguntas con sus opciones, cuántas invariantes, qué escenarios y la línea de cada sección en blueprint.yaml); se calcula del contenido ya verificado por su sha256, sin archivos extra en el store que se puedan desactualizar. qdd_blueprint_list lista una línea por blueprint y da el detalle por sección (seccion); qdd blueprint list --json y show --json/--seccion lo mismo en la terminal; contribute dice en qué línea está cada sección para editar sin leer el archivo entero. El índice es para elegir; para construir, la receta completa (qdd_blueprint_apply deja en la ficha cada decisión, invariante y escenario con su detalle), que la salida siempre nombra.'
         - 'Calidad de la receta (pedido del usuario, 2026-10-31: «mide la calidad de los que ya existen y si se pueden optimizar, sin perder calidad»): un blueprint es como el plano de un arma en el juego Rust, con él se construye la pieza entera en cualquier lenguaje. CalidadDe lo mide de forma determinista (calidad.go): defectos de la receta (CAL-01 a CAL-05 y CAL-09, −10) y mejoras que la acortan sin quitarle nada (CAL-06 a CAL-08, −3), cada uno con su arreglo, y los tokens del índice y de la receta (por defecto y máxima, con el mismo componer de apply). qdd blueprint quality y qdd_blueprint_list {seccion: calidad} lo muestran; sin importados, miden lo publicado en la fuente.'
+        - 'Receta reproducible (pedido del usuario, 2026-10-31: «el encargado de generar los blueprints es el mismo QDD… separando los detalles técnicos de los del negocio que deben ser adaptativos» y «preguntar hasta estar seguro… pruebas de generación ciega»): un blueprint declara alcance (incluye/excluye), parámetros de negocio {{id}} que la persona decide al aplicar (como las preguntas), constantes técnicas {{id}} con su porqué, pasos en orden (acción → resultado, con los escenarios que verifica) y requiere_qdd. qdd blueprint distill destila un borrador desde una ficha aprobada y da la entrevista (Entrevista: lo que solo la persona resuelve); qdd blueprint certify prepara una carpeta por variante (sugerida y adaptada) con solo RECETA.md fuera del proyecto, un agente nuevo la construye, y --verificar corre sus pruebas y exige cada escenario: certificacion.yaml queda atada a la huella de la receta (sin su versión).'
     invariantes:
+        - Una receta con pasos no se propone sin una certificación ciega vigente (aprobada y de esa misma receta); los valores de negocio los decide la persona al aplicar, nunca la IA, y una ficha generada nunca queda con un {{id}} sin reemplazar.
         - 'Una versión nueva de un blueprint nunca empeora su receta: qdd blueprint propose rechaza un aporte que agrega defectos (los que ya tenía no bloquean) y un blueprint nuevo nace sin defectos; ningún arreglo de calidad quita una regla, opción ni escenario.'
         - Ningún proyecto contiene una copia ni un clon del repositorio de blueprints (salvo copias legadas pendientes de migrar, que el gate reporta).
         - Lo que se usa de un blueprint siempre coincide con el sha256 del lockfile; si no, BP-02-ALTERED.
@@ -44,4 +47,4 @@ fuentes:
     - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
 ultima_revision: "2026-10-31"
-revisado_en_commit: 9d03e78e3096
+revisado_en_commit: b1642565cdda
