@@ -108,7 +108,7 @@ var blueprintListCmd = &cobra.Command{
 
 var blueprintShowCmd = &cobra.Command{
 	Use:   "show <id>",
-	Short: "Muestra el vocabulario, las preguntas y las invariantes de un blueprint",
+	Short: "Muestra un blueprint completo, su índice (--json) o una sección (--seccion)",
 	Args:  cobra.ExactArgs(1),
 	Run:   runBlueprintShow,
 }
@@ -131,9 +131,14 @@ var (
 	blueprintRutas      []string
 	blueprintRespuestas []string
 	blueprintPruebas    []string
+	blueprintJSON       bool
+	blueprintSeccion    string
 )
 
 func init() {
+	blueprintListCmd.Flags().BoolVar(&blueprintJSON, "json", false, "el índice de cada blueprint en JSON (lo que lee una IA)")
+	blueprintShowCmd.Flags().BoolVar(&blueprintJSON, "json", false, "su índice en JSON")
+	blueprintShowCmd.Flags().StringVar(&blueprintSeccion, "seccion", "", "solo una sección: "+strings.Join(blueprints.SeccionesDeBlueprint, ", "))
 	blueprintAddCmd.Flags().StringVar(&blueprintRef, "ref", "", "versión publicada (tag vX.Y.Z); por defecto, la última")
 	blueprintProposeCmd.Flags().StringVarP(&blueprintMensaje, "mensaje", "m", "", "qué cambia y por qué (va al commit y al pull request)")
 	blueprintAddCmd.Flags().StringVar(&blueprintPaquete, "paquete", "", "importa un paquete declarado en el catalogo.yaml del repositorio")
@@ -195,6 +200,14 @@ func printAddResult(res blueprints.AddResult, warnings []string) {
 
 func runBlueprintList(cmd *cobra.Command, args []string) {
 	root := modulesRoot()
+	if blueprintJSON {
+		ix, errs := indicesDelProyecto(root)
+		for _, err := range errs {
+			fmt.Fprintf(os.Stderr, "[!] Blueprint ilegible: %v\n", err)
+		}
+		imprimirJSON(ix)
+		return
+	}
 	if reg, _ := blueprints.LoadRegistro(root); reg.Origen != "" {
 		fmt.Printf("Repositorio de la organización: %s%s\n", reg.Origen, origenDelRegistro(reg))
 	}
@@ -210,9 +223,12 @@ func runBlueprintList(cmd *cobra.Command, args []string) {
 		return
 	}
 	lock, _ := blueprints.LoadLock(root)
+	mods := modulosDe(root)
 	for _, b := range bps {
 		e, _ := lock.Entry(b.ID)
-		fmt.Printf("- %-24s %-10s %s %s\n", b.ID, b.Version, e.Ref, e.Origen)
+		i := blueprints.IndiceDe(b)
+		i.Modulos = mods[b.ID]
+		fmt.Printf("- %s (%s %s)\n", blueprints.LineaIndice(i), e.Ref, e.Origen)
 	}
 	apps, _ := blueprints.LoadApplications(root)
 	if len(apps) > 0 {
@@ -232,7 +248,30 @@ func runBlueprintShow(cmd *cobra.Command, args []string) {
 		fmt.Printf("[!] %v\n", err)
 		os.Exit(1)
 	}
+	if blueprintSeccion != "" {
+		texto, err := blueprints.Seccion(b, blueprintSeccion)
+		if err != nil {
+			fmt.Printf("[!] %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(texto)
+		return
+	}
+	if blueprintJSON {
+		i := blueprints.IndiceDe(b)
+		i.Modulos = modulosDe(modulesRoot())[b.ID]
+		imprimirJSON(i)
+		return
+	}
 	fmt.Print(blueprints.Describe(b))
+}
+
+func imprimirJSON(v interface{}) {
+	out, err := json.Marshal(v)
+	if err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Println(string(out))
 }
 
 func runBlueprintApply(cmd *cobra.Command, args []string) {
@@ -467,6 +506,9 @@ func runBlueprintContribute(cmd *cobra.Command, args []string) {
 	}
 	fmt.Printf("[+] Aporte listo en la rama %s de %s.\n", ap.Rama, ap.Repo)
 	fmt.Printf("    Edita el blueprint aquí: %s\n", ap.Carpeta)
+	if m := blueprints.MapaDeSecciones(ap.Carpeta); m != "" {
+		fmt.Printf("    %s\n", m)
+	}
 	fmt.Printf("    Después: qdd blueprint propose %s%s -m \"qué cambia y por qué\" (QDD fija la versión y abre el PR).\n", args[0], conOrigen())
 }
 

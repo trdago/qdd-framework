@@ -170,7 +170,7 @@ El framework soporta y obliga comportamientos avanzados tanto para humanos como 
 
 1. **Intelligent Certification Tags:** Los certificados (`CERT-*.yaml`) ahora declaran `tags`. QDD asocia certificados automáticamente según los tags inferidos del código (ej. `.vue` hereda certificados con tags de `frontend`).
 2. **Layered Certifications (Certificaciones Anidadas):** El motor exige que toda funcionalidad pase un nivel mínimo global (`core`) **Y** obligatoriamente al menos un certificado de negocio del proyecto (`isCore: false`). Si no existen certificados de negocio, la funcionalidad falla con la alerta `MISSING-PROJECT-CERT`.
-3. **Zero-Else Enforcement Nativo:** El framework predica con el ejemplo; no utiliza la cláusula `else` ni `v-else` internamente, apoyándose 100% en *Guard Clauses* y retornos tempranos para bajar la complejidad cognitiva.
+3. **Zero-Else Enforcement Nativo:** El framework predica con el ejemplo; no utiliza la cláusula `else` ni `v-else` internamente, apoyándose 100% en *Guard Clauses* y retornos tempranos. No es una moda: cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo. Con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto. QDD se lo dice a la IA donde lee la regla: en la forma de trabajo de `qdd_project_context`, en el mensaje del gate y en las instrucciones que deja en el proyecto.
 4. **Command Pipelining (`qdd run`):** QDD soporta encadenamiento secuencial nativo de comandos. Puedes ejecutar múltiples fases interdependientes como una tubería, aislando estado:
    ```bash
    qdd run audit certify

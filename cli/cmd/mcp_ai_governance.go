@@ -27,11 +27,11 @@ type AIRiskAssessment struct {
 
 func registerAIRiskAssessTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_ai_risk_assess",
-		mcp.WithDescription("Evalúa los riesgos de un modelo o prompt bajo ISO/IEC 23894:2023 e ISO/IEC 42001."),
-		mcp.WithString("model_target", mcp.Required(), mcp.Description("Nombre del modelo o función de IA (ej: gpt-4o, claude-3-5-sonnet, deep_evaluator)")),
-		mcp.WithString("prompt_text", mcp.Required(), mcp.Description("El prompt del sistema o plantilla a evaluar")),
-		mcp.WithBoolean("has_grounding", mcp.Required(), mcp.Description("Indica si el prompt usa fuentes de datos fundamentadas (RAG / Knowledge Graph)")),
-		mcp.WithBoolean("has_human_oversight", mcp.Required(), mcp.Description("Indica si las acciones críticas requieren confirmación humana")),
+		mcp.WithDescription("Riesgos de un modelo o prompt (ISO/IEC 23894, 42001)."),
+		mcp.WithString("model_target", mcp.Required(), mcp.Description("Modelo o función de IA (ej: gpt-4o)")),
+		mcp.WithString("prompt_text", mcp.Required(), mcp.Description("Prompt o plantilla a evaluar")),
+		mcp.WithBoolean("has_grounding", mcp.Required(), mcp.Description("¿Usa fuentes fundamentadas (RAG, grafo)?")),
+		mcp.WithBoolean("has_human_oversight", mcp.Required(), mcp.Description("¿Lo crítico requiere confirmación humana?")),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -125,10 +125,10 @@ func evaluateAIRisks(modelTarget, promptText string, hasGrounding, hasHumanOvers
 
 func registerAITestIntegrityTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_ai_test_integrity",
-		mcp.WithDescription("Valida la integridad de una respuesta generativa contra Ground Truth y esquema JSON (ISO 29119-11 & SOC 2)."),
-		mcp.WithString("model_output_json", mcp.Required(), mcp.Description("El JSON emitido por la IA a validar")),
-		mcp.WithString("expected_schema_fields", mcp.Required(), mcp.Description("Campos requeridos en el JSON separados por punto y coma (;)")),
-		mcp.WithString("ground_truth_context", mcp.Required(), mcp.Description("Contexto de hechos verificados para contrastar alucinaciones")),
+		mcp.WithDescription("Valida una respuesta de IA contra Ground Truth y un esquema JSON (ISO 29119-11, SOC 2)."),
+		mcp.WithString("model_output_json", mcp.Required(), mcp.Description("JSON emitido por la IA")),
+		mcp.WithString("expected_schema_fields", mcp.Required(), mcp.Description("Campos requeridos, por ;")),
+		mcp.WithString("ground_truth_context", mcp.Required(), mcp.Description("Hechos verificados para contrastar")),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

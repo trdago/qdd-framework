@@ -1,0 +1,27 @@
+id: mcp
+nombre: Servidor MCP de QDD (qdd mcp-server)
+estado: aprobado
+rutas:
+    - cli/cmd/mcp.go
+objetivo_operativo:
+    problema: 'Las IAs (Claude Code, OpenCode, Cursor…) usan QDD por sus tools MCP: cada sesión carga la lista completa de tools, así que lo que dicen sus descripciones es un costo fijo en tokens, y una tool que cae no puede tumbar la sesión.'
+    usuarios: Las IAs que trabajan en un proyecto con QDD y las personas que pagan sus tokens y esperan sus respuestas.
+    criterio_de_exito: qdd mcp-server registra todas las tools de QDD, ninguna cae con un panic, y la lista completa (tools/list) cabe en el presupuesto de mcp_presupuesto_test.go sin perder ninguna regla que la IA no pueda adivinar.
+    caso_real: '2026-10-31: tools/list medía 23.815 caracteres (~6.400 tokens por sesión), con descripciones de párrafo y cuatro anotaciones por defecto en cada tool que además decían «destructiva» de qdd_audit o qdd_blueprint_list.'
+objetivo_tecnologico:
+    arquitectura: registerMCPTools registra las tools de cada módulo (mcp_*.go); RegisterToolWithTelemetry envuelve cada handler con la guarda Zero-Panic, el registro de actividad y el uso real, y fija sus anotaciones.
+    decisiones:
+        - 'Descripciones estilo chat (pedido del usuario, 2026-10-31): qué hace, cuándo usarla y las reglas que la IA no puede adivinar (preguntas del humano, confirmaciones, nunca ejecutar por la persona); topes de 400 caracteres por tool, 260 por parámetro y 16.000 para tools/list (~4.500 son la estructura JSON).'
+        - 'Anotaciones verdaderas y sin relleno: readOnlyHint solo en las tools que no cambian nada (soloLeen); las demás van sin anotaciones, que en MCP valen lo mismo que los valores por defecto de mcp-go.'
+    invariantes:
+        - Toda tool se registra con RegisterToolWithTelemetry; un panic en un handler vuelve como un error de la tool, nunca tumba el servidor.
+        - Acortar una descripción nunca quita una regla de seguridad (quién responde, quién confirma, qué no ejecuta la IA).
+        - docs/command-reference.md documenta exactamente las tools que registra el servidor (FND-072).
+pruebas:
+    comandos:
+        - cd cli && go test ./cmd/ -run 'TestMCP_|TestDocs_ReferenciaYServidorMCPCoinciden|ZeroPanic'
+fuentes:
+    - cli/cmd/mcp.go
+    - cli/cmd/mcp_presupuesto_test.go
+ultima_revision: "2026-10-31"
+revisado_en_commit: 42e76175a40d

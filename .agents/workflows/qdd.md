@@ -67,7 +67,7 @@ El usuario invocará comandos (o intenciones auto-asociadas) que insertarán al 
 ---
 
 ## REGLAS GLOBALES INQUEBRANTABLES (QDD PHILOSOPHY)
-1. **Zero-Else & Guard Clauses:** Nunca uses la sentencia `else`. Usa `return` o `continue` tempranos para manejar flujos alternativos o de error.
+1. **Zero-Else & Guard Clauses:** Nunca uses la sentencia `else`. Usa `return` o `continue` tempranos para manejar flujos alternativos o de error. Por qué: cada vez menos personas leen el código línea a línea, así que el que sí se lee tiene que entenderse de un vistazo.
 2. **Zero-Mocks (Real Infrastructure):** Nunca hacemos mocks de dependencias. Si se requiere probar lógica de persistencia, el Agente debe levantar una base de datos SQLite real. Las pruebas deben ser deterministas contra infraestructuras reales.
 3. **UI Predictiva:** Al requerir decisión del usuario, usa modales interactivos (`ask_question`), opciones estructuradas o comandos sugeridos antes que pedir input libre.
 4. **Casos de Borde Obligatorios:** Todos los tests en Fase 3 deben evaluar timeouts, nulls y límites lógicos, no solo el "camino feliz". TODO bug genera un test.

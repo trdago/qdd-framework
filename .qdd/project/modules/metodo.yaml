@@ -1,0 +1,30 @@
+id: metodo
+nombre: Método de trabajo QDD (lo que la IA lee como reglas)
+estado: aprobado
+rutas:
+    - cli/pkg/modules/context.go
+    - cli/pkg/integration/types.go
+    - cli/pkg/audit/clean_code.go
+    - cli/cmd/core_assets/core/wisdom
+    - cli/cmd/core_assets/core/certification
+objetivo_operativo:
+    problema: 'Una IA sigue mejor una regla si sabe por qué existe: sin la razón, la trata como estilo y la negocia o la aplica a medias. Las reglas de QDD llegan a la IA por varios lados (la forma de trabajo de qdd_project_context, las instrucciones que QDD deja en AGENTS.md / CLAUDE.md, el mensaje del gate y el núcleo que se instala en cada proyecto), y la razón tiene que estar en todos.'
+    usuarios: Las IAs que trabajan con QDD en cualquier proyecto y las personas que leen el código que esas IAs escriben.
+    criterio_de_exito: Donde una IA lee el cero 'else' (forma de trabajo, instrucciones del proyecto, violación del gate, principios y certificaciones del núcleo) encuentra también su razón de fondo, con las mismas palabras.
+    caso_real: '2026-10-31: el usuario pidió que se entienda que el cero else no es una moda sino una mirada estratégica: cada vez se lee menos código a mano, así que el código tiene que ser lo más legible posible, y la IA tiene que encontrar esa razón en el núcleo de QDD, no solo en la documentación.'
+objetivo_tecnologico:
+    arquitectura: modules.PorQueCeroElse es la razón, escrita una vez; la usan workingMethod (context.go) y la violación CLEAN-01-NO-ELSE (clean_code.go). El bloque de instrucciones (integration.QDDCommandProtocol) la dice en inglés, y los principios y certificaciones del núcleo (core_assets/core, que init instala en .qdd/core) con las mismas palabras.
+    decisiones:
+        - 'La razón del cero else (pedido del usuario, 2026-10-31): cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo; con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto. Vale en cualquier lenguaje.'
+    invariantes:
+        - Toda superficie donde una IA lee el cero 'else' dice también su razón (pruebas TestMetodoDeTrabajo_CeroElseDiceElPorQue, TestProtocol_CeroElseConSuRazon, TestCleanCode_ElseDiceComoYPorQue y TestCore_CeroElseConSuRazon).
+        - La razón se escribe una vez en Go (modules.PorQueCeroElse); el núcleo la repite con las mismas palabras.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/modules/ ./pkg/integration/ ./pkg/audit/ ./cmd/ -run 'CeroElse|ElseDiceComoYPorQue'
+fuentes:
+    - cli/pkg/modules/context.go
+    - cli/pkg/integration/types.go
+    - cli/pkg/audit/clean_code.go
+ultima_revision: "2026-10-31"
+revisado_en_commit: a99c2eb818a8

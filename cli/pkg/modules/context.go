@@ -8,12 +8,16 @@ import (
 	"strings"
 )
 
+// PorQueCeroElse es la razón de fondo del cero 'else', la misma en cada lugar donde una IA lee la regla (la forma de
+// trabajo, el gate y las instrucciones del proyecto): no es estilo, es para quién se escribe el código.
+const PorQueCeroElse = "cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo: con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto, sin ramas que seguir ni estado que recordar"
+
 // Principios de trabajo QDD que toda IA debe seguir. Se entregan junto con el
 // contexto para que la forma de trabajo no dependa de qué asistente se use.
 var workingMethod = []string{
 	"Antes de tocar un módulo, lee su ficha y respeta su objetivo operativo, su objetivo tecnológico y sus invariantes. Si tu cambio altera alguno, actualiza la ficha con qdd_module_save (queda en borrador) y avísale al humano para que la apruebe.",
 	"Pruebas primero: escribe o ajusta la prueba que expresa el cambio, comprueba que falla y recién entonces implementa.",
-	"Cero 'else' y salida temprana (cláusulas de guarda) en todas las funciones.",
+	"Cero 'else' y salida temprana (cláusulas de guarda) en todas las funciones, en cualquier lenguaje. No es una moda: " + PorQueCeroElse + ".",
 	"Todo bug se documenta como finding en .qdd/project/findings/ con su prueba de regresión.",
 	"No se commitea ni se despliega sin pasar el gate (qdd_audit): pruebas del proyecto + reglas QDD.",
 	"Si un módulo tiene un estándar de la organización (blueprint), se construye aplicándolo con qdd_blueprint_apply: sus preguntas las responde el humano (nunca tú) y sus invariantes no se discuten.",

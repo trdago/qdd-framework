@@ -5,7 +5,8 @@ You MUST adhere to the following strict architectural and behavioral rules at al
 
 ## 1. Zero 'Else' Policy (FND-002)
 - NEVER use the 'else' keyword in any programming language.
-- Use early returns and guard clauses instead to handle edge cases and reduce cyclomatic complexity.
+- Use early returns and guard clauses instead to handle edge cases.
+- Why: fewer people read code line by line (AIs write and review it), so the code a person does read must be understood at a glance; guard clauses keep the main path straight.
 
 ## 2. Early Return (Salida Más Rápida Primero)
 - Always handle errors and negative conditions at the very beginning of a function.

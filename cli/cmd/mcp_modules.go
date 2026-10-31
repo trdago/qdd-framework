@@ -16,8 +16,8 @@ import (
 
 func registerProjectContextTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_project_context",
-		mcp.WithDescription("PRIMERA llamada de toda tarea. Devuelve la abstracción del proyecto según QDD: propósito, forma de trabajo obligatoria, cómo se prueba, la ficha completa (objetivo operativo, objetivo tecnológico, invariantes, pruebas, ADRs) de los módulos que vas a tocar, el mapa de módulos y las zonas de código sin ficha."),
-		mcp.WithString("paths", mcp.Description("Archivos o carpetas que vas a modificar, separados por comas o saltos de línea (relativos a la raíz del proyecto). Opcional: sin rutas devuelve el mapa general.")),
+		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo obligatoria, cómo se prueba, la ficha de los módulos que vas a tocar (objetivos, invariantes, pruebas), el mapa de módulos y las zonas sin ficha."),
+		mcp.WithString("paths", mcp.Description("Archivos o carpetas a modificar, por coma o línea (relativos a la raíz). Sin rutas: el mapa general.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleProjectContextTool)
 }
@@ -42,8 +42,8 @@ func handleProjectContextTool(ctx context.Context, request mcp.CallToolRequest) 
 
 func registerModuleSaveTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_module_save",
-		mcp.WithDescription("Crea o actualiza la ficha de un módulo en .qdd/project/modules/<id>.yaml. Se valida contra el esquema QDD y SIEMPRE queda en 'borrador': solo un humano la aprueba (qdd modules approve <id>). Basa el contenido en el código y la documentación existente (docs/, ADRs, README) y cita esas fuentes en 'fuentes'; no inventes objetivos."),
-		mcp.WithString("ficha_yaml", mcp.Required(), mcp.Description("Ficha en YAML con: id, nombre, rutas[], objetivo_operativo{problema, usuarios, criterio_de_exito, caso_real}, objetivo_tecnologico{arquitectura, decisiones[], invariantes[]}, pruebas{comandos[], goldensets[]}, adrs[], findings[], fuentes[]. Plantilla: .qdd/core/templates/module.yaml")),
+		mcp.WithDescription("Crea o actualiza una ficha (.qdd/project/modules/<id>.yaml); se valida y SIEMPRE queda en borrador: la aprueba un humano (qdd modules approve <id>). Básala en el código y las docs, cítalos en 'fuentes'; no inventes objetivos."),
+		mcp.WithString("ficha_yaml", mcp.Required(), mcp.Description("YAML: id, nombre, rutas[], objetivo_operativo{problema, usuarios, criterio_de_exito, caso_real}, objetivo_tecnologico{arquitectura, decisiones[], invariantes[]}, pruebas{comandos[]}, fuentes[] (plantilla: .qdd/core/templates/module.yaml).")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleModuleSaveTool)
 }

@@ -17,13 +17,13 @@ import (
 
 func registerConsolaTools(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_consola_pedir",
-		mcp.WithDescription("Deja un comando en el panel de estado de la persona para que lo ejecute con un clic. Úsalo cuando un comando lo tiene que ejecutar la persona: no tienes permiso para correrlo, te lo bloquearon, o publica algo (git push de un tag, npm publish, gh pr merge…). En vez de pedirle que lo escriba con '!', déjalo aquí con su motivo. QDD NO lo ejecuta: corre solo cuando la persona lo confirma en el panel, que muestra el motivo, el comando exacto y la carpeta. Nunca lo ejecutes tú con 'qdd consola accion'. El comando tiene que poder repetirse (revisa lo ya hecho: un tag que ya existe se reusa, un PR mergeado no se vuelve a mergear) y no esperar adentro: si falta algo (un CI, un tag), sale con 'exit 75' y la persona lo vuelve a apretar. Si la persona prefiere seguir trabajando en la tarea en vez de ejecutarlo, el pedido sale solo del panel cuando la tarea cambia; cuando vuelva a estar lista, pídelo de nuevo con la misma tarea."),
-		mcp.WithString("comando", mcp.Required(), mcp.Description("El comando exacto, como lo escribiría la persona en su shell (puede usar && o |).")),
-		mcp.WithString("motivo", mcp.Required(), mcp.Description("Resumen estilo chat, ≤ 60 caracteres, con símbolos y sin relleno (p. ej. «Publicar v2.8.0-rc.6 → npm preview»): qué hace y por qué lo ejecuta la persona. Se lee en el panel antes de confirmar; el comando exacto ya se muestra aparte.")),
-		mcp.WithString("carpeta", mcp.Description("Dónde corre; por defecto, la raíz del proyecto.")),
-		mcp.WithString("tarea", mcp.Description("Id de la tarea del estado que el pedido extiende (por defecto, la tarea en curso). Si después de un mensaje de la persona la tarea sigue cambiando, el pedido sale del panel hasta que lo pidas de nuevo con la misma tarea.")),
-		mcp.WithString("despues", mcp.Description("Si depende de otros pedidos: sus ids o teclas, separados por coma. El panel lo muestra después de ellos y no lo deja ejecutar hasta que queden hechos. Úsalo siempre que el orden importe (un merge después de un tag, un release después de un merge).")),
-		mcp.WithString("antes", mcp.Description("Pedidos que ya están en la cola y tienen que esperar a este: sus ids o teclas, separados por coma. Pedir de nuevo un comando que ya está, con despues o antes, lo reordena sin duplicarlo.")),
+		mcp.WithDescription("Deja en el panel un comando que la persona ejecuta con un clic (sin permiso, bloqueado o publica: push de tag, npm publish, gh pr merge) en vez de pedirle '!'. Corre solo si confirma; nunca lo ejecutes tú. Repetible y sin esperar: falta algo (CI, tag) → exit 75. Si la tarea sigue cambiando sale del panel; pídelo de nuevo cuando esté lista."),
+		mcp.WithString("comando", mcp.Required(), mcp.Description("Exacto, como en su shell (&& y | valen).")),
+		mcp.WithString("motivo", mcp.Required(), mcp.Description("Resumen estilo chat ≤ 60 car., con símbolos (p. ej. «Publicar v2.8.0-rc.6 → npm preview»); el comando ya se ve aparte.")),
+		mcp.WithString("carpeta", mcp.Description("Dónde corre (por defecto, la raíz).")),
+		mcp.WithString("tarea", mcp.Description("Tarea del estado que extiende (por defecto, la en curso): si sigue cambiando tras un mensaje de la persona, sale del panel hasta que lo pidas de nuevo.")),
+		mcp.WithString("despues", mcp.Description("Ids o teclas que deben quedar hechos antes, por coma. Úsalo si el orden importa (merge → tag → release).")),
+		mcp.WithString("antes", mcp.Description("Ids o teclas en la cola que esperan a este, por coma. Repetir un pedido con despues/antes lo reordena sin duplicar.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleConsolaPedirTool)
 }

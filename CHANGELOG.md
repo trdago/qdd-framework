@@ -6,6 +6,27 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.7] - 2026-10-31 (preview)
+
+Séptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### ⚡ Blueprints con índice: leerlos cuesta casi nada
+
+- **Una línea por blueprint:** `qdd_blueprint_list` (y `qdd blueprint list`) muestra `consola-claude-code@7.1.0 · Consola de Claude Code · ❓6 🔒14 ✓26 · en estado`. En un proyecto con dos blueprints, la lista pasó de ~2.700 a ~200 tokens.
+- **Detalle a pedido:** con `blueprint`, el índice en JSON (preguntas con sus opciones, escenarios y la línea de cada sección en blueprint.yaml); con `seccion`, solo `preguntas`, `invariantes`, `decisiones`, `escenarios`, `vocabulario` o `todo`. En la terminal: `qdd blueprint list --json`, `qdd blueprint show <id> --json` y `--seccion`.
+- **Aportar sin leer el archivo entero:** `qdd blueprint contribute` dice en qué línea está cada sección.
+- El índice se calcula del contenido verificado por su sha256: no hay un archivo extra que se pueda desactualizar.
+
+### 🧭 La IA sabe por qué cero `else`
+
+- No es una moda: cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo. Con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto.
+- La razón aparece donde la IA lee la regla: en la forma de trabajo de `qdd_project_context`, en el mensaje del gate cuando encuentra un `else`, en las instrucciones que QDD deja en AGENTS.md / CLAUDE.md y en el núcleo que se instala en cada proyecto (principios, CERT-040, CERT-005).
+
+### ✂️ Tools MCP más livianas en cada sesión
+
+- Las descripciones de las 35 tools quedan en estilo chat, sin quitar ninguna regla (quién responde las preguntas, quién confirma, qué no ejecuta la IA). `tools/list` pasó de 23.815 a ~15.800 caracteres (de ~6.400 a ~4.000 tokens por sesión), con una prueba que no lo deja crecer.
+- Las anotaciones dicen la verdad: `readOnlyHint` en las tools que solo leen (contexto, blueprints, findings, puntaje…), y ya no se marca como «destructiva» cada tool.
+
 ## [2.8.0-rc.6] - 2026-10-31 (preview)
 
 Sexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

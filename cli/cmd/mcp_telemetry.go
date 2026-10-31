@@ -26,7 +26,7 @@ import (
 
 func registerEvolutionTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_evolution",
-		mcp.WithDescription("Estudia findings, certificaciones, violaciones de auditoría e historial de score para recomendar la siguiente mejora del proyecto. Solo lectura: nunca crea certificaciones por sí sola, propone en Modo Consultivo."),
+		mcp.WithDescription("Recomienda la siguiente mejora según findings, certificaciones, auditoría y score. Solo lectura: propone, nunca crea certificaciones."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, err := os.Getwd()
@@ -66,7 +66,7 @@ func registerScoreTool(s *server.MCPServer) {
 	registerGraphQueryTool(s)
 	registerHarnessTool(s)
 	tool := mcp.NewTool("qdd_score",
-		mcp.WithDescription("Calcula el puntaje de calidad del proyecto (el mismo de qdd audit, certify, evolution y report) y resume certificaciones y findings."),
+		mcp.WithDescription("Puntaje de calidad (el mismo de audit, certify, evolution y report) con certificaciones y findings."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
@@ -331,8 +331,8 @@ func isUIComponentFile(d os.DirEntry, uiExtensions map[string]bool) bool {
 
 func registerGraphQueryTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_graph_query",
-		mcp.WithDescription("Consultar el Grafo de Conocimiento (Knowledge Graph) mediante consultas SQLite (Pure-Go) embebidas."),
-		mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL a ejecutar sobre las tablas 'nodes' y 'edges'.")),
+		mcp.WithDescription("Consulta SQL (SQLite) al grafo de conocimiento."),
+		mcp.WithString("query", mcp.Required(), mcp.Description("SQL sobre 'nodes' y 'edges'.")),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args, ok := request.Params.Arguments.(map[string]interface{})
@@ -356,7 +356,7 @@ func registerGraphQueryTool(s *server.MCPServer) {
 
 func registerHarnessTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_harness_generate",
-		mcp.WithDescription("Genera el QDD Agentic Harness (System Prompt) combinando Claude, Antigravity, Cursor y Hermes."),
+		mcp.WithDescription("Genera el harness de QDD (system prompt) para Claude, Antigravity, Cursor y Hermes."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
@@ -389,8 +389,8 @@ func registerMapTool(s *server.MCPServer) {
 
 func registerReportTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_report",
-		mcp.WithDescription("Genera el reporte integral y consolidado de gobernanza, auditoría, certificaciones, findings y evolución."),
-		mcp.WithString("format", mcp.Description("Formato del reporte: text, md, json (default: md)")),
+		mcp.WithDescription("Reporte integral: gobernanza, auditoría, certificaciones, findings y evolución."),
+		mcp.WithString("format", mcp.Description("text | md (def.) | json")),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, err := os.Getwd()
@@ -415,7 +415,7 @@ func registerReportTool(s *server.MCPServer) {
 
 func registerLocalLLMTools(s *server.MCPServer) {
 	statusTool := mcp.NewTool("qdd_local_llm_status",
-		mcp.WithDescription("Detecta y reporta el estado de APIs locales de LLM activas (Antigravity, Ollama, LM Studio, Claude)."),
+		mcp.WithDescription("Estado de las APIs locales de LLM (Antigravity, Ollama, LM Studio, Claude)."),
 	)
 	RegisterToolWithTelemetry(s, statusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		info := cognitive.DetectLocalLLM()
@@ -424,7 +424,7 @@ func registerLocalLLMTools(s *server.MCPServer) {
 	})
 
 	execTool := mcp.NewTool("qdd_local_llm_exec",
-		mcp.WithDescription("Ejecuta una instrucción en el motor LLM local descubierto bajo las directivas de gobernanza QDD."),
+		mcp.WithDescription("Ejecuta una instrucción en el LLM local, bajo la gobernanza de QDD."),
 		mcp.WithString("prompt", mcp.Required(), mcp.Description("Instrucción o tarea a ejecutar")),
 	)
 	RegisterToolWithTelemetry(s, execTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

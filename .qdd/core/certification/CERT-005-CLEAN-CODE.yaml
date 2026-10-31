@@ -9,7 +9,7 @@ related_feature: "Industry Standard Baseline"
 description: "Valida las reglas globales de código definidas por el framework y el Project Charter."
 rules:
     - id: CLEAN-01-NO-ELSE
-      description: "Está prohibido el uso de la palabra reservada 'else' en todo el código base."
+      description: "Está prohibido el uso de la palabra reservada 'else' en todo el código base. Razón: cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo: con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto, sin ramas que seguir ni estado que recordar."
       method: "Static Code Analysis (AST Verification)"
     - id: CLEAN-02-EARLY-RETURNS
       description: "Toda función debe priorizar la salida más rápida (early returns), validando errores y casos borde al inicio de la función."

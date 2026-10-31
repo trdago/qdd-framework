@@ -25,12 +25,12 @@ type DiagnosisPayload struct {
 
 func registerResolveDiagnoseTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_resolve_diagnose",
-		mcp.WithDescription("Registra el diagnóstico formal del Analista Integral en el Equipo Resolutor."),
-		mcp.WithString("issue_type", mcp.Required(), mcp.Description("Tipo de problema: bug, refactor, feature, security")),
-		mcp.WithString("title", mcp.Required(), mcp.Description("Título conciso del problema diagnosticado")),
-		mcp.WithString("root_cause", mcp.Required(), mcp.Description("Causa raíz identificada tras el análisis forense")),
-		mcp.WithString("impact_analysis", mcp.Required(), mcp.Description("Análisis de impacto en dependencias adyacentes")),
-		mcp.WithString("affected_files", mcp.Required(), mcp.Description("Rutas de archivos afectados separadas por punto y coma (;)")),
+		mcp.WithDescription("Registra el diagnóstico del Analista (Equipo Resolutor)."),
+		mcp.WithString("issue_type", mcp.Required(), mcp.Description("bug | refactor | feature | security")),
+		mcp.WithString("title", mcp.Required(), mcp.Description("Título corto")),
+		mcp.WithString("root_cause", mcp.Required(), mcp.Description("Causa raíz")),
+		mcp.WithString("impact_analysis", mcp.Required(), mcp.Description("Impacto en dependencias vecinas")),
+		mcp.WithString("affected_files", mcp.Required(), mcp.Description("Archivos afectados, por ;")),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -90,13 +90,13 @@ func registerResolveDiagnoseTool(s *server.MCPServer) {
 
 func registerResolveCertifyTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_resolve_certify",
-		mcp.WithDescription("Firma y certifica la resolución de un problema tras la validación de QA y DevOps."),
-		mcp.WithString("resolution_id", mcp.Required(), mcp.Description("ID o nombre de la resolución")),
-		mcp.WithString("golden_set_path", mcp.Required(), mcp.Description("Ruta al archivo Golden Set de prueba unitaria")),
-		mcp.WithBoolean("qa_approved", mcp.Required(), mcp.Description("Aprobación explícita de QA")),
-		mcp.WithString("qa_notes", mcp.Required(), mcp.Description("Notas de auditoría de QA (Zero-Mocks, casos de borde)")),
-		mcp.WithBoolean("devops_approved", mcp.Required(), mcp.Description("Aprobación explícita de DevOps/SRE")),
-		mcp.WithString("devops_notes", mcp.Required(), mcp.Description("Notas de despliegue de DevOps (CI/CD, impacto)")),
+		mcp.WithDescription("Firma una resolución validada por QA y DevOps."),
+		mcp.WithString("resolution_id", mcp.Required(), mcp.Description("Id de la resolución")),
+		mcp.WithString("golden_set_path", mcp.Required(), mcp.Description("Ruta del Golden Set")),
+		mcp.WithBoolean("qa_approved", mcp.Required(), mcp.Description("Aprobación de QA")),
+		mcp.WithString("qa_notes", mcp.Required(), mcp.Description("Notas de QA (zero-mocks, bordes)")),
+		mcp.WithBoolean("devops_approved", mcp.Required(), mcp.Description("Aprobación de DevOps/SRE")),
+		mcp.WithString("devops_notes", mcp.Required(), mcp.Description("Notas de despliegue (CI/CD, impacto)")),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

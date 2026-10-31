@@ -4,13 +4,14 @@ active: true
 id: CERT-040-EARLY-RETURN
 name: Early Return and Guard Clauses Enforcement
 description: |
-    QDD Philosophy dictates that the 'else' keyword is strictly prohibited across the codebase to reduce cyclomatic complexity.
-    All alternative flows and error handling MUST use guard clauses (early returns) at the top of the execution block.
+    QDD prohíbe la palabra 'else' en todo el código, en cualquier lenguaje. No es una moda, es estrategia:
+    cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo: con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto, sin ramas que seguir ni estado que recordar.
+    Todo flujo alternativo y todo error se resuelve con cláusulas de guarda (salida temprana) al inicio del bloque.
 severity: CRITICAL
 rules:
     - id: zero_else_policy
       regex: '\belse\b'
-      message: "Zero-Else Rule Violation: Found 'else' keyword. Refactor using early return or guard clauses."
+      message: "Uso de 'else': resuélvelo con una cláusula de guarda (salida temprana); el código tiene que entenderse de un vistazo, porque cada vez menos personas lo leen línea a línea."
       level: ERROR
       type: STRUCTURAL
       applies_to: ["*.go", "*.ts", "*.js", "*.py"]

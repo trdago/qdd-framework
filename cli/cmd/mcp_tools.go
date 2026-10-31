@@ -17,7 +17,7 @@ import (
 
 func registerAuditTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_audit",
-		mcp.WithDescription("Ejecuta la auditoría estricta de QDD en el proyecto y devuelve las violaciones."),
+		mcp.WithDescription("Gate de QDD (pruebas + reglas): devuelve las violaciones."),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -31,7 +31,7 @@ func registerAuditTool(s *server.MCPServer) {
 
 func registerCertifyTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_certify",
-		mcp.WithDescription("Certifica que el código cumple con los estándares listos para release."),
+		mcp.WithDescription("Certifica el código para release."),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -49,8 +49,8 @@ func registerCertifyTool(s *server.MCPServer) {
 
 func registerQueryGraphTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_query_graph",
-		mcp.WithDescription("Ejecuta consultas SQL directamente en la base de datos de grafos de QDD (.qdd/knowledge.db)."),
-		mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL a ejecutar (SELECT ... FROM nodes/edges).")),
+		mcp.WithDescription("SQL directo en .qdd/knowledge.db."),
+		mcp.WithString("query", mcp.Required(), mcp.Description("SELECT … FROM nodes/edges.")),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -141,7 +141,7 @@ func scanSingleRow(rows *sql.Rows, columns []string) (map[string]interface{}, er
 
 func registerSyncGraphTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_sync_graph",
-		mcp.WithDescription("Fuerza la sincronización y actualización del motor GraphRAG (Knowledge.db)."),
+		mcp.WithDescription("Sincroniza el grafo de conocimiento (knowledge.db)."),
 	)
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -162,8 +162,8 @@ func registerSyncGraphTool(s *server.MCPServer) {
 
 func registerPostgresTunerTool(s *server.MCPServer) {
         tool := mcp.NewTool("qdd_postgres_tuner",
-                mcp.WithDescription("Especialista en tuning de base de datos PostgreSQL. Analiza consultas lentas (SQL) y propone optimizaciones (índices, pg_class, parámetros de BD)."),
-                mcp.WithString("query", mcp.Required(), mcp.Description("La consulta SQL que presenta problemas de rendimiento.")),
+                mcp.WithDescription("Analiza una consulta PostgreSQL lenta y propone optimizaciones (índices, parámetros)."),
+                mcp.WithString("query", mcp.Required(), mcp.Description("Consulta SQL lenta.")),
         )
 
         RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

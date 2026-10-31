@@ -6,7 +6,7 @@
 
 Antes de enviar código, asegúrate de comprender y aplicar los principios de nuestro marco de trabajo:
 
-1. **Zero-Else & Guard Clauses**: Está prohibido el uso de la palabra clave `else`. Utiliza siempre *Early Returns* (Retornos tempranos) para manejar flujos alternativos o errores. Esto reduce la complejidad cognitiva.
+1. **Zero-Else & Guard Clauses**: Está prohibido el uso de la palabra clave `else`. Utiliza siempre *Early Returns* (Retornos tempranos) para manejar flujos alternativos o errores. La razón de fondo: cada vez menos personas leen el código línea a línea, así que el que sí se lee tiene que entenderse de un vistazo; con guardas, el camino principal queda recto.
 2. **Casos de Borde (Edge Cases)**: Los tests no solo deben probar el "camino feliz". Se deben simular escenarios de fallo (timeouts, valores nulos, estados corruptos). **Todo bug encontrado genera un test unitario obligatorio.**
 3. **Pipelining**: QDD Framework soporta comandos en tubería. Si construyes una nueva herramienta, asegúrate de que sea componible de forma secuencial y atómica.
 4. **UI Predictiva**: En el Dashboard o interacciones del CLI, evita pedir texto libre al usuario. Usa modales, opciones estructuradas o menús selectivos para evitar ambigüedades.
