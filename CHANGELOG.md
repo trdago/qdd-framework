@@ -23,9 +23,9 @@ Octava **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
 
 - El índice contaba dos veces las invariantes que comparten dos opciones (FND-093): estado-por-tareas decía 🔒25 y tiene 18.
 
-## [2.8.0-rc.7] - 2026-10-31 (preview)
+## [2.8.0-rc.7] - 2026-10-31 (sin publicar)
 
-Séptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+No se etiquetó por separado: se publica dentro de la rc.8.
 
 ### ⚡ Blueprints con índice: leerlos cuesta casi nada
 
