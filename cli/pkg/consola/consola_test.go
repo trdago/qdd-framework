@@ -10,63 +10,112 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 var ahora = time.Date(2026, 10, 29, 15, 0, 0, 0, time.Local)
 
-func TestBarra_Completa_CCC_C01(t *testing.T) {
+// Barra v7 del blueprint consola-claude-code (pedido del usuario, 2026-10-31): a la izquierda solo el modelo y el modo
+// de la IA; a la derecha, en lista y pegados al borde, el contexto, el uso de 5 h y el de la semana. Sin carpeta ni
+// segmento de tareas (eso está en el panel).
+
+// derecha devuelve la línea sin el relleno de la izquierda y comprueba que termina a MargenBarra del borde.
+func derecha(t *testing.T, linea string, ancho int) string {
+	t.Helper()
+	if n := utf8.RuneCountInString(linea); n != ancho-MargenBarra {
+		t.Fatalf("la línea %q mide %d; pegada a la derecha mide %d", linea, n, ancho-MargenBarra)
+	}
+	return strings.TrimLeft(linea, " "+Relleno)
+}
+
+// FND-091 (captura del usuario, 2026-10-31): Claude Code quita los espacios al inicio de cada línea de la barra (5h y
+// semana quedaron a la izquierda) y corta con «…» la que llega casi al borde («contexto …»).
+func TestBarra_LaListaNoEmpiezaConEspaciosYDejaMargen_FND091(t *testing.T) {
+	in := `{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":12}}}`
+	got := strings.Split(Barra([]byte(in), ahora, "auto", 70), "\n")
+	if len(got) != 2 || !strings.HasPrefix(got[1], Relleno) || strings.TrimLeft(got[1], " "+Relleno) != "5h 12%" {
+		t.Fatalf("una línea de la lista empieza con un blanco que Claude Code no borra: %q", got)
+	}
+	if MargenBarra < 6 {
+		t.Fatalf("Claude Code deja menos ancho que la terminal: el margen derecho es de al menos 6 columnas, no %d", MargenBarra)
+	}
+}
+
+func TestBarra_ModeloYModoALaIzquierdaUsosEnListaALaDerecha_CCC_C01(t *testing.T) {
 	resets5h := time.Date(2026, 10, 29, 18, 30, 0, 0, time.Local).Unix()
 	in := fmt.Sprintf(`{"workspace":{"project_dir":"/home/a/proyectos/notificador"},"model":{"display_name":"Opus 5.5"},
 "context_window":{"used_percentage":37.6},
 "rate_limits":{"five_hour":{"used_percentage":12.2,"resets_at":%d},"seven_day":{"used_percentage":40,"resets_at":"2026-10-31T09:00:00-03:00"}}}`, resets5h)
-	got := Barra([]byte(in), ahora, false)
+	got := strings.Split(Barra([]byte(in), ahora, "auto", 70), "\n")
 	sabado := time.Date(2026, 10, 31, 9, 0, 0, 0, time.FixedZone("", -3*3600)).In(time.Local)
-	want := "📁 notificador · Opus 5.5 · contexto 38% · 5h 12% (↻ 18:30) · semana 40% (↻ " + dias[sabado.Weekday()] + " " + sabado.Format("15:04") + ")"
-	if got != want {
-		t.Fatalf("barra completa:\n got %q\nwant %q", got, want)
+	if len(got) != 3 {
+		t.Fatalf("tres líneas: %q", got)
+	}
+	derecha(t, got[0], 70)
+	if !strings.HasPrefix(got[0], "Opus 5.5 · auto ") || !strings.HasSuffix(got[0], " contexto 38%") {
+		t.Fatalf("modelo y modo a la izquierda, contexto a la derecha: %q", got[0])
+	}
+	if derecha(t, got[1], 70) != "5h 12% ↻ 18:30" {
+		t.Fatalf("5 h debajo, a la derecha: %q", got[1])
+	}
+	if want := "semana 40% ↻ " + dias[sabado.Weekday()] + " " + sabado.Format("15:04"); derecha(t, got[2], 70) != want {
+		t.Fatalf("semana al final, a la derecha: %q, quiero %q", got[2], want)
+	}
+	for _, l := range got {
+		if strings.Contains(l, "notificador") || strings.Contains(l, "📁") {
+			t.Fatalf("la barra ya no muestra la carpeta: %q", l)
+		}
 	}
 }
 
 func TestBarra_CamposAusentesSeOmiten_CCC_C02(t *testing.T) {
-	got := Barra([]byte(`{"workspace":{"current_dir":"/x/y/proyecto"},"model":{"display_name":"Sonnet"}}`), ahora, false)
-	if got != "📁 proyecto · Sonnet" {
-		t.Fatalf("sin contexto ni tramos y sin ceros inventados: %q", got)
+	if got := Barra([]byte(`{"workspace":{"current_dir":"/x/y/proyecto"},"model":{"display_name":"Sonnet"}}`), ahora, "", 70); got != "Sonnet" {
+		t.Fatalf("sin modo, contexto ni tramos y sin ceros inventados: %q", got)
+	}
+	if got := Barra([]byte(`no es json`), ahora, "auto", 70); got != "" {
+		t.Fatalf("JSON ilegible no muestra nada: %q", got)
 	}
 }
 
 func TestBarra_RenovacionEpochTextoOISO_CCC_C03(t *testing.T) {
 	epoch := time.Date(2026, 10, 29, 18, 30, 0, 0, time.Local).Unix()
 	for _, r := range []string{fmt.Sprint(epoch), fmt.Sprintf("%q", fmt.Sprint(epoch)), `"` + time.Unix(epoch, 0).UTC().Format(time.RFC3339) + `"`} {
-		got := Barra([]byte(`{"cwd":"/p","rate_limits":{"five_hour":{"used_percentage":5,"resets_at":`+r+`}}}`), ahora, false)
-		if !strings.HasSuffix(got, "5h 5% (↻ 18:30)") {
+		got := Barra([]byte(`{"cwd":"/p","rate_limits":{"five_hour":{"used_percentage":5,"resets_at":`+r+`}}}`), ahora, "", 0)
+		if !strings.HasSuffix(got, "5h 5% ↻ 18:30") {
 			t.Fatalf("resets_at=%s: %q", r, got)
 		}
 	}
 }
 
-func TestBarra_SoloNombreDeCarpetaYSinJSONNoMuestraNada_CCC_C04(t *testing.T) {
-	if got := Barra([]byte(`{"cwd":"C:\\Users\\a\\proyectos\\qdd"}`), ahora, false); got != "📁 qdd" {
-		t.Fatalf("ruta de Windows: %q", got)
-	}
-	if got := Barra([]byte(`no es json`), ahora, true); got != "" {
-		t.Fatalf("JSON ilegible no muestra nada: %q", got)
+func TestBarra_ElModoSeNombraEnEspañol_CCC_C01(t *testing.T) {
+	for modo, want := range map[string]string{"auto": "auto", "plan": "plan", "acceptEdits": "acepta ediciones", "default": "normal", "bypassPermissions": "sin permisos", "dontAsk": "no pregunta"} {
+		if got := Barra([]byte(`{"model":{"display_name":"Opus"}}`), ahora, modo, 0); got != "Opus · "+want {
+			t.Fatalf("modo %s: %q", modo, got)
+		}
 	}
 }
 
-func TestBarra_SegmentoDeEstado_CCC_C06_C07(t *testing.T) {
+func TestBarra_SinCarpetaNiSegmentoDeTareas_CCC_C04(t *testing.T) {
 	dir := t.TempDir()
-	in := `{"workspace":{"project_dir":` + jsonStr(dir) + `}}`
-	if got := Barra([]byte(in), ahora, true); got != "📁 "+filepath.Base(dir) {
-		t.Fatalf("sin estado.yaml la barra queda igual: %q", got)
-	}
 	escribirArchivo(t, filepath.Join(dir, ".qdd", "project", "estado.yaml"), `formato: 1
 etapas: [Código]
 frentes:
   - {id: a, nombre: A, estado: abierto, celdas: {Código: {estado: "⏳", bloqueo: b, de_quien: c}}}
-  - {id: b, nombre: B, estado: abierto, celdas: {Código: {estado: "❌", falla: f}}}
 `)
-	if got := Barra([]byte(in), ahora, true); !strings.HasSuffix(got, " · ◧ 2 tareas · ⏳1 ❌1") {
-		t.Fatalf("segmento de estado al final: %q", got)
+	got := Barra([]byte(`{"workspace":{"project_dir":`+jsonStr(dir)+`},"model":{"display_name":"Opus"}}`), ahora, "auto", 70)
+	if got != "Opus · auto" {
+		t.Fatalf("ni la carpeta ni «◧ tareas»: el panel ya los muestra: %q", got)
+	}
+}
+
+func TestBarra_SinAnchoOAngostaNoSeDesordena_CCC_C24(t *testing.T) {
+	in := `{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":12}}}`
+	if got := Barra([]byte(in), ahora, "auto", 0); got != "Opus 5.5 · auto · contexto 38%\n5h 12%" {
+		t.Fatalf("sin el ancho de la terminal, la lista va sin relleno: %q", got)
+	}
+	got := strings.Split(Barra([]byte(in), ahora, "auto", 24), "\n")
+	if len(got) != 3 || got[0] != "Opus 5.5 · auto" || derecha(t, got[1], 24) != "contexto 38%" || derecha(t, got[2], 24) != "5h 12%" {
+		t.Fatalf("si el contexto no cabe junto al modelo, baja a la lista: %q", got)
 	}
 }
 

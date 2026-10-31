@@ -75,7 +75,7 @@ func colaSuelta(root string) []Pedido {
 	if json.Unmarshal(b, &cola) != nil {
 		return nil
 	}
-	return abiertos(normalizar(cola, time.Now(), time.Time{}))
+	return abiertos(normalizar(cola, time.Now(), time.Time{}, sinHuella))
 }
 
 // ajenos son los pedidos abiertos de la cola que corren en otro repositorio.
@@ -151,4 +151,9 @@ func quitar(root string, lista []Pedido) error {
 		}
 		return resto, nil
 	})
+}
+
+// sinHuella es para una cola que no es de este proyecto: no se sabe cómo está su tarea, así que nada se retira.
+func sinHuella(string) string {
+	return ""
 }

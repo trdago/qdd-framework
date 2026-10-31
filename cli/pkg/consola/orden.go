@@ -18,6 +18,9 @@ const EstadoEspera = "espera"
 type Orden struct {
 	Despues []string
 	Antes   []string
+	// Tarea es la tarea del estado que el pedido extiende (sin ella, la tarea en curso): si sigue cambiando después
+	// de un mensaje de la persona, el pedido sale del panel hasta que se pide de nuevo.
+	Tarea string
 }
 
 func (o Orden) vacio() bool {

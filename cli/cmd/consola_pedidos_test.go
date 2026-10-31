@@ -179,3 +179,24 @@ func esperarFin(t *testing.T, root, id string) consola.Pedido {
 	t.Fatalf("el pedido %s no terminó: %+v", id, consola.Pedidos(root))
 	return consola.Pedido{}
 }
+
+// Pedido del usuario (2026-10-31): un pedido cuya tarea siguió cambiando sale del panel; la lista dice por qué y que
+// hay que pedirlo de nuevo.
+func TestConsolaPedidos_UnRetiradoDiceQuePidasDeNuevo(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	ruta := filepath.Join(root, ".qdd", "project", "estado.yaml")
+	os.MkdirAll(filepath.Dir(ruta), 0o755)
+	os.WriteFile(ruta, []byte("formato: 1\netapas: [Código]\nfrentes:\n  - {id: barra, nombre: Barra, estado: abierto, celdas: {Código: {estado: \"⏳\", bloqueo: b, de_quien: c}}}\n"), 0o644)
+	var salida, errores bytes.Buffer
+	if codigo := consolaPedir(root, "Publicar", "", consola.Orden{Tarea: "barra"}, []string{"git", "push"}, &salida, &errores); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, errores.String())
+	}
+	consola.MarcarCiclo(root, "auto", time.Now())
+	os.WriteFile(ruta, []byte("formato: 1\netapas: [Código]\nfrentes:\n  - {id: barra, nombre: Barra, estado: abierto, celdas: {Código: {estado: \"✅\", evidencia: commit b2}}}\n"), 0o644)
+	salida.Reset()
+	listarPedidos(root, &salida)
+	if !strings.Contains(salida.String(), "retirado") || !strings.Contains(salida.String(), "barra") || !strings.Contains(salida.String(), "pídelo de nuevo") {
+		t.Fatalf("la lista dice que salió del panel y qué hacer: %q", salida.String())
+	}
+}

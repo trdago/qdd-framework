@@ -1,0 +1,9 @@
+id: "FND-091"
+title: "La lista de la barra no quedaba a la derecha: Claude Code borra los espacios iniciales y corta la línea larga"
+description: "Captura del 2026-10-31, con la barra v7 recién instalada: «5h 6% ↻ 04:50» y «semana 45% ↻ sáb 16:00» salieron pegadas a la izquierda, y la primera línea terminaba en «contexto …». Claude Code borra los espacios al inicio de cada línea de la barra y la dibuja con un margen propio, menor que el ancho de la terminal; el relleno con espacios y el margen de 2 columnas suponían lo contrario. Los tests solo medían el texto, no cómo lo dibuja Claude Code."
+impact: "La barra se veía peor que antes: la lista a la izquierda, mezclada con el modelo, y el contexto cortado."
+action_taken: "Cada línea de la lista empieza con un blanco que Claude Code no borra (U+2800, braille en blanco) seguido de espacios, y el margen derecho sube a 6 columnas (MargenBarra). La decisión de la ficha estado y el blueprint consola-claude-code v7 lo dicen."
+test_result: "TestBarra_LaListaNoEmpiezaConEspaciosYDejaMargen_FND091 (pkg/consola): antes del arreglo la línea de 5h empezaba con espacios y el margen era 2."
+status: resolved
+detectado_por: humano
+date: "2026-10-31"
