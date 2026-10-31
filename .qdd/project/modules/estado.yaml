@@ -85,5 +85,5 @@ fuentes:
     - cli/pkg/estado/set.go
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
-ultima_revision: "2026-10-30"
-revisado_en_commit: f5a2abdb30b2
+ultima_revision: "2026-10-31"
+revisado_en_commit: c27e2279fb04
