@@ -1,0 +1,9 @@
+id: "FND-093"
+title: "El índice de un blueprint contaba dos veces las invariantes que comparten dos opciones"
+description: "Al medir la calidad de los blueprints publicados (2026-10-31), el índice de estado-por-tareas decía 🔒25: sus opciones en_curso=todos y en_curso=solo-agente comparten las mismas 7 invariantes (ancla YAML) y IndiceDe las sumaba por opción. La receta tiene 18 invariantes distintas."
+impact: "La línea de cada blueprint (qdd_blueprint_list) exageraba cuánto pide; una IA que elige por el índice veía una receta más grande de lo que es."
+action_taken: "IndiceDe cuenta las invariantes distintas (base y opciones, sin repetir el mismo texto), igual que apply las deja en la ficha (dedupe)."
+test_result: "TestIndice_NoCuentaDosVecesLaMismaInvariante (pkg/blueprints): con el ancla compartida contaba 6; ahora 3."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

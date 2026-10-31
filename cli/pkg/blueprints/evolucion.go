@@ -406,6 +406,9 @@ type Propuesta struct {
 	PR      string // URL del pull request; vacío si no se pudo abrir
 	Aviso   string // por qué no se abrió el PR y cómo abrirlo
 	Via     string // cómo se publicó la rama, si no fue por el origin (FND-063)
+
+	CalidadAntes string // la línea de calidad de lo publicado; vacía si el blueprint es nuevo
+	Calidad      string // la línea de calidad del aporte
 }
 
 // abrirPR abre el pull request de la rama con la CLI de GitHub.
@@ -508,15 +511,25 @@ func versionar(espacio, carpeta, subdir, id string) (Propuesta, error) {
 		return Propuesta{}, fmt.Errorf("'%s' no tiene cambios respecto de lo publicado", id)
 	}
 	p := Propuesta{Cambio: CambioNuevo, Version: "1.0.0", Razones: []string{"blueprint nuevo"}}
+	antes := Calidad{}
 	if base, ok := blueprintEn(espacio, "origin/HEAD", subdir); ok {
 		p.Cambio, p.Razones = Clasificar(base, nuevo)
 		p.Cambio = firstNonEmpty(p.Cambio, CambioPatch)
 		p.Version = subirVersion(base.Version, p.Cambio)
+		antes = CalidadDe(base)
+		p.CalidadAntes = LineaCalidad(antes)
+	}
+	// La receta nunca empeora: un defecto que el cambio agrega se arregla antes de proponerlo (los que ya tenía, no bloquean).
+	despues := CalidadDe(nuevo)
+	if nuevos := DefectosNuevos(antes, despues); len(nuevos) > 0 {
+		return Propuesta{}, fmt.Errorf("el aporte empeora la receta de '%s': %s", id, textosDeHallazgos(nuevos))
 	}
 	if err := fijarVersion(filepath.Join(carpeta, ManifestName), p.Version); err != nil {
 		return Propuesta{}, err
 	}
 	nuevo.Version = p.Version
+	despues.Ref = nuevo.Ref()
+	p.Calidad = LineaCalidad(despues)
 	if problems := nuevo.Validate(); len(problems) > 0 {
 		return Propuesta{}, fmt.Errorf("el blueprint '%s' no es válido: %s", id, strings.Join(problems, "; "))
 	}
@@ -560,6 +573,7 @@ func cuerpoPR(id string, p Propuesta) string {
 	for _, r := range p.Razones {
 		fmt.Fprintf(&b, "- %s\n", r)
 	}
+	fmt.Fprintf(&b, "\n**Calidad de la receta** (qdd blueprint quality): %s\n", calidadAntesYDespues(p))
 	b.WriteString("\nTras el merge, un mantenedor publica la versión con `qdd blueprint release`; cada proyecto la recibe con `qdd blueprint sync`.\n")
 	return b.String()
 }
@@ -693,4 +707,11 @@ func leerBlueprints(espacio, ref string) (map[string]Blueprint, error) {
 		out[b.ID] = b
 	}
 	return out, nil
+}
+
+func calidadAntesYDespues(p Propuesta) string {
+	if p.CalidadAntes == "" {
+		return "`" + p.Calidad + "`"
+	}
+	return "`" + p.CalidadAntes + "` → `" + p.Calidad + "`"
 }

@@ -385,3 +385,25 @@ func TestIndicesDelProyecto_DiceDondeSeAplico(t *testing.T) {
 		t.Fatalf("cada índice nombra los módulos generados con él: %+v %v", ix, errs)
 	}
 }
+
+func TestBlueprintListTool_CalidadDeLaReceta(t *testing.T) {
+	root := chdirToTempRepo(t)
+	importTestBlueprint(t, root)
+	for _, args := range []map[string]interface{}{{"seccion": "calidad"}, {"blueprint": "auth", "seccion": "calidad"}} {
+		res, _ := handleBlueprintListTool(context.Background(), toolRequest(args))
+		texto := resultText(t, res)
+		if res.IsError || !strings.Contains(texto, "auth@1.0.0 · calidad ") || !strings.Contains(texto, "tokens") {
+			t.Fatalf("con seccion calidad, la nota de la receta y lo que cuesta (con o sin blueprint) %v: %q", args, texto)
+		}
+		if strings.Contains(texto, "⚠") && !strings.Contains(texto, "qdd_blueprint_contribute") {
+			t.Fatalf("con defectos, dice cómo arreglarlos: %q", texto)
+		}
+	}
+}
+
+func TestInformeDeCalidad_SinHallazgosNoPideNada(t *testing.T) {
+	informe := informeDeCalidad([]blueprints.Calidad{{Ref: "x@1.0.0", Nota: 100}}, "importados", "a", "b")
+	if !strings.Contains(informe, "✅") || strings.Contains(informe, "Arreglo") {
+		t.Fatalf("una receta completa no tiene arreglos: %q", informe)
+	}
+}

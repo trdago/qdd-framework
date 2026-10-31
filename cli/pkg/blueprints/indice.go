@@ -52,15 +52,16 @@ type IndicePregunta struct {
 // IndiceDe resume el blueprint. Si se leyó de una carpeta, anota la línea de cada sección de su manifiesto.
 func IndiceDe(b Blueprint) Indice {
 	i := Indice{Ref: b.Ref(), ID: b.ID, Version: b.Version, Nombre: b.Nombre, Resumen: recortar(primeraFrase(primero(b.Descripcion, b.Ficha.ObjetivoOperativo.Problema)), maxResumen)}
-	i.Invariantes = len(b.Ficha.ObjetivoTecnologico.Invariantes)
+	invariantes := dedupe(b.Ficha.ObjetivoTecnologico.Invariantes)
 	i.Escenarios = idsDe(b.Conformidad, nil)
 	for _, p := range b.Preguntas {
 		i.Preguntas = append(i.Preguntas, IndicePregunta{ID: p.ID, Pregunta: recortar(p.Pregunta, maxPregunta), Opciones: p.Valores(), PorDefecto: p.PorDefecto, Si: describeSi(p)})
 		for _, o := range p.Opciones {
-			i.Invariantes += len(o.Invariantes)
+			invariantes = dedupe(append(invariantes, o.Invariantes...)) // una invariante compartida (ancla YAML) cuenta una vez (FND-093)
 			i.Escenarios = idsDe(o.Conformidad, i.Escenarios)
 		}
 	}
+	i.Invariantes = len(invariantes)
 	i.Secciones = lineasDeSecciones(b.Dir)
 	return i
 }
