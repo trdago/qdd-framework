@@ -7,7 +7,7 @@ rutas:
 objetivo_operativo:
     problema: 'Una captura pegada en la terminal (Ctrl+Shift+V) llega a la IA como los bytes del PNG en texto: no la puede ver, y la persona tiene que explicar con palabras lo que ya capturó.'
     usuarios: Quien trabaja con una IA en la consola (Claude Code, OpenCode u otra con MCP) en Linux, Windows o macOS, y la IA que necesita ver lo que la persona ve.
-    criterio_de_exito: 'Con una imagen copiada o una captura recién hecha, qdd foto deja la imagen en tmp/fotos (o dice cuál es la captura) y qdd_foto se la entrega a la IA como imagen, en los tres sistemas, sin instalar nada aparte de la herramienta del portapapeles del sistema.'
+    criterio_de_exito: Con una imagen copiada o una captura recién hecha, qdd foto deja la imagen en tmp/fotos (o dice cuál es la captura) y qdd_foto se la entrega a la IA como imagen, en los tres sistemas, sin instalar nada aparte de la herramienta del portapapeles del sistema.
     caso_real: '2026-10-31: el usuario pegó la captura del tablero en Claude Code y llegó como bytes de PNG; la IA tuvo que buscarla en ~/Pictures para verla.'
 objetivo_tecnologico:
     arquitectura: pkg/foto elige el lector del portapapeles por sistema (wl-paste con Wayland y xclip con X11, PowerShell -STA con System.Windows.Forms en Windows, osascript en macOS), lo ejecuta con un tope de 10 s, valida que sea una imagen de hasta 5 MB y la guarda en tmp/fotos con un .gitignore propio. Sin imagen en el portapapeles, toma la imagen más nueva de las carpetas de capturas del sistema. cmd/foto.go expone qdd foto (imprime la ruta) y la tool MCP qdd_foto (entrega la imagen como contenido de imagen).
@@ -16,7 +16,7 @@ objetivo_tecnologico:
         - En Windows y macOS la ruta de destino va en la variable QDD_FOTO y nunca dentro del script, para no escapar comillas.
         - 'De dónde: auto (portapapeles y, si no tiene una imagen, la última captura), portapapeles o captura. La salida siempre dice de dónde salió la imagen y, si es una captura, hace cuánto.'
         - Una captura se usa en su lugar, sin copiarla; solo lo del portapapeles se guarda en tmp/fotos.
-        - 'doctor (grupo de la consola) dice con qué se lee el portapapeles; si falta la herramienta, qué instalar. qdd no instala paquetes del sistema.'
+        - doctor (grupo de la consola) dice con qué se lee el portapapeles; si falta la herramienta, qué instalar. qdd no instala paquetes del sistema.
     invariantes:
         - Nada que no sea una imagen (PNG, JPEG, GIF o WebP) ni de más de 5 MB se entrega a la IA.
         - Lo que se pega nunca entra al repositorio - tmp/fotos tiene su .gitignore.
@@ -31,3 +31,4 @@ fuentes:
     - cli/pkg/foto/foto.go
     - docs/command-reference.md
 ultima_revision: "2026-10-31"
+revisado_en_commit: 2b2e4c60af01
