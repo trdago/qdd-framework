@@ -17,6 +17,11 @@ Séptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
 - **Aportar sin leer el archivo entero:** `qdd blueprint contribute` dice en qué línea está cada sección.
 - El índice se calcula del contenido verificado por su sha256: no hay un archivo extra que se pueda desactualizar.
 
+### 🧭 La IA sabe por qué cero `else`
+
+- No es una moda: cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo. Con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto.
+- La razón aparece donde la IA lee la regla: en la forma de trabajo de `qdd_project_context`, en el mensaje del gate cuando encuentra un `else`, en las instrucciones que QDD deja en AGENTS.md / CLAUDE.md y en el núcleo que se instala en cada proyecto (principios, CERT-040, CERT-005).
+
 ### ✂️ Tools MCP más livianas en cada sesión
 
 - Las descripciones de las 35 tools quedan en estilo chat, sin quitar ninguna regla (quién responde las preguntas, quién confirma, qué no ejecuta la IA). `tools/list` pasó de 23.815 a ~15.800 caracteres (de ~6.400 a ~4.000 tokens por sesión), con una prueba que no lo deja crecer.
