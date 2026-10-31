@@ -80,8 +80,12 @@ const (
 func (b Blueprint) resolverParametros(respuestas, aplicadas map[string]string, conocidas map[string]bool, pendientes []Pregunta, problems []string) ([]Pregunta, []string) {
 	for _, p := range b.Parametros {
 		conocidas[p.ID] = true
+		estado := condicion(Pregunta{Si: p.Si}, aplicadas, pendientes)
+		if estado == condicionNoCumple {
+			continue
+		}
 		valor, ok := respuestas[p.ID]
-		if !ok {
+		if !ok || estado == condicionPendiente {
 			pendientes = append(pendientes, p.comoPregunta())
 			continue
 		}

@@ -94,13 +94,17 @@ var preguntaDe = map[string]func(HallazgoCalidad) string{
 }
 
 // Entrevista son las preguntas que quedan para la persona; vacía, la receta está delimitada.
+// Un mismo valor escrito en varias reglas se pregunta una vez.
 func Entrevista(c Calidad) []string {
 	var out []string
+	vistas := map[string]bool{}
 	for _, h := range c.Hallazgos {
 		pregunta, ok := preguntaDe[h.Codigo]
-		if !ok {
+		clave := h.Codigo + " " + strings.SplitN(h.Detalle, "»", 2)[0]
+		if !ok || vistas[clave] {
 			continue
 		}
+		vistas[clave] = true
 		out = append(out, pregunta(h))
 	}
 	return out

@@ -34,7 +34,8 @@ type Alcance struct {
 // Parametro es un valor de negocio que cada proyecto adapta (p. ej. cuántas tareas se ven): lo decide la persona al
 // aplicar, con un valor sugerido; las reglas lo citan como {{id}}.
 type Parametro struct {
-	ID         string   `yaml:"id"`
+	ID         string             `yaml:"id"`
+	Si         map[string]Valores `yaml:"si,omitempty"` // solo se pregunta con esas respuestas
 	Pregunta   string   `yaml:"pregunta"`
 	Ayuda      string   `yaml:"ayuda,omitempty"`
 	Tipo       string   `yaml:"tipo,omitempty"` // numero | texto (por defecto)
@@ -99,6 +100,7 @@ func (b Blueprint) validateReceta() []string {
 		if p.PorDefecto != "" && !p.valorValido(p.PorDefecto) {
 			problems = append(problems, fmt.Sprintf("%s: por_defecto '%s' no es un número", label, p.PorDefecto))
 		}
+		problems = append(problems, validateCondicion(label, Pregunta{Si: p.Si}, preguntasPorID(b))...)
 	}
 	for i, c := range b.Constantes {
 		label := fmt.Sprintf("constantes[%d] (%s)", i, c.ID)
@@ -112,6 +114,14 @@ func (b Blueprint) validateReceta() []string {
 		problems = append(problems, "requiere_qdd: en semver (p. ej. 2.8.0)")
 	}
 	return append(problems, b.validateCitas(ids)...)
+}
+
+func preguntasPorID(b Blueprint) map[string]Pregunta {
+	out := map[string]Pregunta{}
+	for _, p := range b.Preguntas {
+		out[p.ID] = p
+	}
+	return out
 }
 
 func validarID(label, id, que string, ids map[string]string) []string {

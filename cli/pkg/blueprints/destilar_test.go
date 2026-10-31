@@ -83,3 +83,10 @@ func TestEntrevista_TerminaCuandoTodoEstaDelimitado(t *testing.T) {
 		t.Fatalf("con límites y cada valor clasificado no queda nada que preguntar: %v", e)
 	}
 }
+
+func TestEntrevista_UnValorRepetidoSePreguntaUnaVez(t *testing.T) {
+	b := mustParse(t, strings.Replace(recetaConLimites, `invariantes: ["Una tarea nunca desaparece sin cierre"]`, `invariantes: ["Se apaga a los 120 s", "Sin pulsos por 120 s, se apaga"]`, 1))
+	if e := Entrevista(CalidadDe(b)); len(e) != 1 {
+		t.Fatalf("una pregunta por valor: %v", e)
+	}
+}

@@ -1,0 +1,9 @@
+id: "FND-094"
+title: "La calidad medía el largo del alcance sumando todos sus límites"
+description: "Al migrar estado-por-tareas a receta (2026-10-31), qdd blueprint quality marcó CAL-06 «alcance: 352 caracteres» aunque cada uno de sus seis límites es corto: textosDe unía incluye y excluye en un solo texto y lo medía como una regla."
+impact: "Un alcance bien delimitado (muchos límites cortos) bajaba la nota y pedía «dividir» algo que ya está dividido: empujaba a escribir menos límites, lo contrario de lo que pide la receta."
+action_taken: "textosDe ubica cada límite del alcance como un texto aparte, igual que cada decisión o invariante."
+test_result: "TestCalidad_CadaLimiteSeMideSolo (pkg/blueprints): dos límites de ≈160 caracteres daban CAL-06; ahora ninguno."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

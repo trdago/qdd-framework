@@ -243,3 +243,40 @@ func TestCalidad_CadaValorFijoSuPreguntaYLosEjemplosNoCuentan(t *testing.T) {
 		t.Fatalf("una pregunta por valor; un ejemplo entre «» o tras «p. ej.» no es una regla: %v", valores)
 	}
 }
+
+func TestCalidad_UnValorDeclaradoSeCitaEnTodaLaReceta(t *testing.T) {
+	b := mustParse(t, strings.NewReplacer(
+		"definicion: Una fila de la tabla.", "definicion: Una fila de la tabla; se ven 4 a la vez, cada 2 s.",
+		"entonces: se ven las {{visibles}} más nuevas, cada una con su tecla", "entonces: se ven las {{visibles}} más nuevas cada 2 s",
+	).Replace(recetaConLimites))
+	var donde []string
+	for _, h := range CalidadDe(b).Hallazgos {
+		if h.Codigo == CalValorFijo {
+			donde = append(donde, h.Donde+": "+h.Arreglo)
+		}
+	}
+	got := strings.Join(donde, "\n")
+	if !strings.Contains(got, "vocabulario tarea") || !strings.Contains(got, "P-01: escribe {{refresco}}") {
+		t.Fatalf("el vocabulario es regla, y un valor ya declarado se cita con {{id}} también en los escenarios:\n%s", got)
+	}
+}
+
+func TestParametro_SoloSePreguntaCuandoAplica(t *testing.T) {
+	conSi := strings.Replace(recetaConLimites, "  - id: visibles\n", "  - id: visibles\n    si: {avisos: si}\n", 1)
+	b := mustParse(t, conSi)
+	_, pendientes, _ := b.Resolver(map[string]string{"avisos": "no"})
+	if len(pendientes) != 0 {
+		t.Fatalf("sin avisos, no se pregunta cuántas tareas: %+v", pendientes)
+	}
+	if _, ok := codigos(CalidadDe(b))[CalCitaSinValor]; !ok {
+		t.Fatal("con avisos=no, la decisión base quedaría con {{visibles}} sin reemplazar: es un defecto")
+	}
+}
+
+func TestCalidad_CadaLimiteSeMideSolo(t *testing.T) {
+	largo := strings.Repeat("Ver las tareas una por una ", 6) // ≈160 caracteres cada límite: juntos pasan de 280
+	b := mustParse(t, strings.Replace(recetaConLimites, `incluye: ["Ver las tareas y avisar cuando llega una"]`, `incluye: ["`+largo+`", "`+largo+`avisar"]`, 1))
+	if got := codigos(CalidadDe(b)); len(got[CalLargo]) > 0 {
+		t.Fatalf("cada límite del alcance es una regla aparte: no se suman sus largos: %v", got)
+	}
+}

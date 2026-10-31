@@ -37,6 +37,7 @@ const (
 	CalImplementacion    = "CAL-15" // defecto: un archivo de código o una función de una implementación
 	CalSinUso            = "CAL-16" // mejora: un parámetro o una constante que nada cita
 	CalRequiere          = "CAL-17" // defecto: usa la receta nueva sin pedir el qdd que la entiende
+	CalCitaSinValor      = "CAL-18" // defecto: con alguna combinación de respuestas, un {{id}} queda sin reemplazar
 
 	GravedadDefecto = "defecto"
 	GravedadMejora  = "mejora"
@@ -53,7 +54,7 @@ var gravedadDe = map[string]string{
 	CalLargo: GravedadMejora, CalRepetido: GravedadMejora, CalTerminoSinUso: GravedadMejora,
 	CalSinAlcance: GravedadDefecto, CalSinPasos: GravedadDefecto, CalPasoSinEscenario: GravedadDefecto,
 	CalEscenarioSinPaso: GravedadDefecto, CalValorFijo: GravedadDefecto, CalImplementacion: GravedadDefecto,
-	CalSinUso: GravedadMejora, CalRequiere: GravedadDefecto,
+	CalSinUso: GravedadMejora, CalRequiere: GravedadDefecto, CalCitaSinValor: GravedadDefecto,
 }
 
 // Calidad es la medición de un blueprint.
@@ -98,7 +99,7 @@ func (h HallazgoCalidad) Texto() string {
 func CalidadDe(b Blueprint) Calidad {
 	c := Calidad{Ref: b.Ref()}
 	medidas := []func(Blueprint) []HallazgoCalidad{escenariosDeOpcion, versionesMinimas, opcionesVacias, conCodigo, sinEscenario, sinCondicion, largos, repetidos, terminosSinUso,
-		sinAlcance, sinPasos, pasosSinEscenario, escenariosSinPaso, valoresFijos, implementacion, citasSinUso, requiereQDD}
+		sinAlcance, sinPasos, pasosSinEscenario, escenariosSinPaso, valoresFijos, valoresDeclarados, implementacion, citasSinUso, requiereQDD, citasSinValor}
 	for _, medir := range medidas {
 		c.Hallazgos = append(c.Hallazgos, medir(b)...)
 	}
@@ -399,12 +400,14 @@ type textoUbicado struct {
 func textosDe(b Blueprint) []textoUbicado {
 	var out []textoUbicado
 	for _, t := range b.Vocabulario {
-		out = append(out, textoUbicado{donde: "vocabulario " + t.Termino, texto: t.Definicion})
+		out = append(out, textoUbicado{donde: "vocabulario " + t.Termino, texto: t.Definicion, regla: true}) // se copia a la ficha como decisión
 	}
 	f := b.Ficha
 	out = append(out, textoUbicado{donde: "descripcion", texto: b.Descripcion, prosa: true}, textoUbicado{donde: "problema", texto: f.ObjetivoOperativo.Problema, prosa: true},
 		textoUbicado{donde: "criterio_de_exito", texto: f.ObjetivoOperativo.CriterioDeExito, prosa: true}, textoUbicado{donde: "arquitectura", texto: f.ObjetivoTecnologico.Arquitectura, prosa: true})
-	out = append(out, textoUbicado{donde: "alcance", texto: strings.Join(append(append([]string{}, b.Alcance.Incluye...), b.Alcance.Excluye...), " · ")})
+	for _, l := range append(append([]string{}, b.Alcance.Incluye...), b.Alcance.Excluye...) {
+		out = append(out, textoUbicado{donde: "alcance", texto: l}) // cada límite es una regla aparte
+	}
 	for _, p := range b.Parametros {
 		out = append(out, textoUbicado{donde: p.ID, texto: p.Pregunta}, textoUbicado{donde: p.ID + " ayuda", texto: p.Ayuda})
 	}
@@ -691,12 +694,57 @@ func valoresFijos(b Blueprint) []HallazgoCalidad {
 			continue
 		}
 		for _, m := range valorConUnidad.FindAllStringSubmatch(sinEjemplos(t.texto), -1) {
+			if declarado(b, m[2]+" "+m[3]) {
+				continue // valoresDeclarados ya dice qué {{id}} escribir
+			}
 			out = append(out, HallazgoCalidad{Codigo: CalValorFijo, Donde: t.donde,
 				Detalle: fmt.Sprintf("«%s %s» escrito en la regla: «%s»", m[2], m[3], recortar(t.texto, 50)),
 				Arreglo: "pregúntale a la persona: si es de negocio, parámetro {{id}}; si es técnico, constante {{id}} con su porqué"})
 		}
 	}
 	return out
+}
+
+// valoresDeclarados: un valor que la receta ya declaró (el sugerido de un parámetro, el de una constante) y que sigue
+// escrito a mano en otra parte quedaría fijo cuando el proyecto elige otro.
+func valoresDeclarados(b Blueprint) []HallazgoCalidad {
+	declarados := map[string]string{}
+	for _, p := range b.Parametros {
+		declarados[strings.TrimSpace(p.PorDefecto)] = p.ID
+	}
+	for _, c := range b.Constantes {
+		declarados[strings.TrimSpace(c.Valor)] = c.ID
+	}
+	var out []HallazgoCalidad
+	for _, t := range textosDe(b) {
+		for valor, id := range declarados {
+			if !strings.ContainsAny(valor, "0123456789") || !strings.Contains(valor, " ") || !contieneValor(t.texto, valor) {
+				continue
+			}
+			out = append(out, HallazgoCalidad{Codigo: CalValorFijo, Donde: t.donde,
+				Detalle: fmt.Sprintf("«%s» escrito a mano: «%s»", valor, recortar(t.texto, 50)), Arreglo: "escribe {{" + id + "}}"})
+		}
+	}
+	return out
+}
+
+func declarado(b Blueprint, valor string) bool {
+	for _, p := range b.Parametros {
+		if strings.TrimSpace(p.PorDefecto) == valor {
+			return true
+		}
+	}
+	for _, c := range b.Constantes {
+		if strings.TrimSpace(c.Valor) == valor {
+			return true
+		}
+	}
+	return false
+}
+
+func contieneValor(texto, valor string) bool {
+	re := regexp.MustCompile(`(^|[^\p{L}\p{N}_.])` + regexp.QuoteMeta(valor) + `($|[^\p{L}\p{N}_])`)
+	return re.MatchString(texto)
 }
 
 var ejemplo = regexp.MustCompile(`«[^»]*»|\(p\. ?ej\.[^)]*\)`)
@@ -767,4 +815,39 @@ func requiereQDD(b Blueprint) []HallazgoCalidad {
 	}
 	return []HallazgoCalidad{{Codigo: CalRequiere, Donde: "requiere_qdd", Detalle: "usa la receta con pasos y parámetros sin pedir el qdd que la entiende",
 		Arreglo: "requiere_qdd: " + RequiereQDDReceta}}
+}
+
+// citasSinValor arma la receta con las respuestas sugeridas, las adaptadas y las que más traen: si en alguna queda un
+// {{id}}, un proyecto con esas respuestas recibiría una regla a medio escribir (p. ej. una decisión de la base que
+// cita un parámetro que solo se pregunta con otra opción).
+func citasSinValor(b Blueprint) []HallazgoCalidad {
+	var out []HallazgoCalidad
+	vistas := map[string]bool{}
+	for _, respuestas := range []map[string]string{respuestasPorDefecto(b), respuestasAdaptadas(b), respuestasMayores(b)} {
+		aplicadas, _, _ := b.Resolver(respuestas)
+		gen, escenarios := b.componer(aplicadas)
+		textos := append(append([]string{}, gen.Decisiones...), gen.Invariantes...)
+		for _, e := range escenarios {
+			textos = append(textos, e.Titulo+" "+e.Dado+" "+e.Cuando+" "+e.Entonces)
+		}
+		for _, t := range textos {
+			m := cita.FindStringSubmatch(t)
+			if m == nil || vistas[m[1]] {
+				continue
+			}
+			vistas[m[1]] = true
+			out = append(out, HallazgoCalidad{Codigo: CalCitaSinValor, Donde: m[1],
+				Detalle: fmt.Sprintf("con %s queda {{%s}} sin valor: «%s»", respuestasEnTexto(aplicadas), m[1], recortar(t, 50)),
+				Arreglo: "lleva esa regla a la opción donde {{" + m[1] + "}} aplica, o quítale el si al parámetro"})
+		}
+	}
+	return out
+}
+
+func respuestasEnTexto(r map[string]string) string {
+	partes := make([]string, 0, len(r))
+	for _, k := range sortedKeys(r) {
+		partes = append(partes, k+"="+r[k])
+	}
+	return recortar(strings.Join(partes, " "), 60)
 }
