@@ -63,7 +63,7 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, version: 'v2.5.0' }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-  expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json'])
+  expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })
@@ -160,7 +160,48 @@ test('el resumen usa los totales de qdd, los mismos que la barra, y «·» es si
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: '⏳ 2 etapas esperan' })).toMatchObject({ props: { color: 'yellow' } })
   expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: 'red' } })
-  expect(await ui.find({ type: 'Text', text: /✅ ·  ·  ·/ })).toBeDefined()
+  // Cada etapa es una celda propia: las tres «·» de Login, alineadas con su abreviatura (2 columnas).
+  expect((await ui.findAll({ type: 'Text', text: /^·\s*$/ })).map((n) => n.props.children?.[0] ?? n.text).filter((t) => t === '· ')).toHaveLength(3)
+})
+
+// Pedido del usuario (2026-10-31): al pulsar una etapa ⏳ o ❌, la IA se pronuncia: intenta completarla y, si falta
+// algo, deja un pedido o pregunta. qdd da el mensaje exacto (consola accion atender:<tarea>:<etapa>) y el panel lo
+// envía a la conversación.
+test('pulsar una etapa ⏳ le envía a la IA el mensaje que da qdd para atenderla', async ($, on) => {
+  const llamadas: string[][] = []
+  const enviados: string[] = []
+  const atender = { id: 'atender:gemini:3', tipo: 'atender', etiqueta: 'Atender «Validación real» de «Gemini retirado»', detalle: 'Atiende la etapa…', confirmar: false }
+  const mensaje = 'Atiende la etapa «Validación real» de la tarea «Gemini retirado» (id gemini). Intenta completarla ahora.'
+  preparar(on, ok({ ...PANEL, acciones: [...ACCIONES, atender] }), llamadas, { exitCode: 0, stdout: mensaje + '\n', stderr: '' })
+  on('prompt.submit', ($, e) => {
+    enviados.push(e.text)
+    return { text: e.text }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'e-gemini-3' })).toMatchObject({ props: { label: '⏳', plain: true } })
+  // Una etapa sin acción (✅, o una ⏳ que qdd no ofrece) no es un botón.
+  expect(await ui.find({ key: 'e-gemini-0' })).toBeUndefined()
+  expect(await ui.find({ key: 'e-ticket-0' })).toBeUndefined()
+  await ui.press({ key: 'e-gemini-3' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'atender:gemini:3'])
+  expect(enviados).toEqual([mensaje])
+  expect(await ui.find({ type: 'Text', text: /→ enviado a la IA/ })).toBeDefined()
+})
+
+test('si qdd ya no ofrece la etapa, no se envía nada y se ve por qué', async ($, on) => {
+  const enviados: string[] = []
+  const atender = { id: 'atender:gemini:3', tipo: 'atender', etiqueta: 'Atender «Validación real» de «Gemini retirado»', detalle: '…', confirmar: false }
+  preparar(on, ok({ ...PANEL, acciones: [atender] }), [], { exitCode: 1, stdout: '', stderr: "[!] la acción 'atender:gemini:3' no está entre las que ofrece" })
+  on('prompt.submit', ($, e) => {
+    enviados.push(e.text)
+    return { text: e.text }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'e-gemini-3' })
+  expect(enviados).toEqual([])
+  expect(await ui.find({ type: 'Text', text: /no está entre las que ofrece/ })).toBeDefined()
 })
 
 test('la cabecera dice hace cuánto se actualizó y avisa si el tablero quedó viejo (FND-088)', async ($, on) => {
@@ -565,4 +606,39 @@ test('si al ejecutarlo sale «todavía no» (código 75), el panel no lo marca c
   await ui.press({ key: 'si' })
   expect(await ui.find({ type: 'Text', text: /✗/ })).toBeUndefined()
   expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
+})
+
+test('un tipo de acción que el panel no conoce no sale como botón «undefined»; pide a qdd solo lo que dibuja (FND-092)', async ($, on) => {
+  const llamadas: string[][] = []
+  const raras = [
+    { id: 'nuevo:1', tipo: 'nuevo', etiqueta: 'Algo nuevo', detalle: 'x', confirmar: false },
+    { id: 'comando-sin-tecla', tipo: 'comando', etiqueta: 'Sin tecla', detalle: 'qdd x', confirmar: false },
+  ]
+  preparar(on, ok({ ...PANEL, acciones: [...PANEL.acciones, ...raras] }), llamadas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-auditar' })).toBeDefined()
+  expect(await ui.find({ key: 'b-nuevo:1' })).toBeUndefined()
+  expect(await ui.find({ key: 'b-comando-sin-tecla' })).toBeUndefined()
+  expect(await ui.find({ text: /undefined/ })).toBeUndefined()
+  const lectura = llamadas.find((a) => a[2] === 'panel')
+  expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender'])
+})
+
+test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND-092)', async ($, on) => {
+  const llamadas: string[][] = []
+  mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    llamadas.push([...e.argv])
+    if (e.argv.includes('--con')) return { value: { exitCode: 1, stdout: '', stderr: 'Error: unknown flag: --con' } }
+    return { value: ok(PANEL) }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-auditar' })).toBeDefined()
+  expect(llamadas.some((a) => a[2] === 'panel' && !a.includes('--con'))).toBe(true)
 })

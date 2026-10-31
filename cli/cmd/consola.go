@@ -74,6 +74,7 @@ func init() {
 	consolaActivarCmd.MarkFlagsMutuallyExclusive("recursos", "sin-recursos")
 	consolaActualizarCmd.Flags().BoolVar(&consolaSiActivo, "si-activo", false, "no hace nada si la consola no se activó (para instaladores)")
 	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
+	consolaPanelCmd.Flags().StringSliceVar(&consolaCon, "con", nil, "tipos de acción opcionales que este panel sabe dibujar (atender); sin esto no se ofrecen (FND-092)")
 	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
 	consolaCmd.AddCommand(consolaActivarCmd, consolaDesactivarCmd, consolaEstadoCmd, consolaActualizarCmd, consolaStatuslineCmd,
 		consolaPanelCmd, consolaAccionCmd)
@@ -159,7 +160,7 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 
 // runConsolaPanel siempre imprime un JSON: sin estado.yaml, el estado es null y el motivo dice cómo crearlo.
 func runConsolaPanel(cmd *cobra.Command, args []string) {
-	datos := consola.Panel(estadoRaiz(), time.Now())
+	datos := consola.Panel(estadoRaiz(), time.Now(), consolaCon...)
 	datos.Version = Version
 	out, err := json.Marshal(datos)
 	if err != nil {
@@ -213,6 +214,9 @@ var consolaRaiz string
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
 var consolaTarea string
+
+// consolaCon son los tipos opcionales que pide el panel (qdd consola panel --con atender).
+var consolaCon []string
 
 var consolaPedirCmd = &cobra.Command{
 	Use:   "pedir -m <motivo> [--tarea <id>] [--carpeta <dir>] [--despues <id>] [--antes <id>] <comando…>",
@@ -309,7 +313,7 @@ var consolaDescartarCmd = &cobra.Command{
 }
 
 func init() {
-	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "por qué lo tiene que ejecutar la persona (se lee en el panel)")
+	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "resumen estilo chat (≤ 60 caracteres, con símbolos): qué hace y por qué lo ejecuta la persona")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")

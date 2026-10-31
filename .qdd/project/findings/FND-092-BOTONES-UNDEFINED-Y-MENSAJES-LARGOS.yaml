@@ -1,0 +1,9 @@
+id: "FND-092"
+title: "Botones «undefined» en Acciones: qdd ofrecía un tipo nuevo (atender) a un panel que no lo conocía"
+description: "Captura del 2026-10-31: con qdd rc.6 instalado y la sesión todavía con el mod rc.5, «Acciones» mostró una fila de botones «undefined  Atender «…» de «…»». qdd entregaba las acciones atender a cualquier panel; el mod anterior ponía en Acciones todo tipo que no conocía (lista negra) y no tenía tecla para él. En la misma captura, el mensaje de atender y los motivos de los pedidos eran párrafos: la persona pidió resúmenes estilo chat, con símbolos."
+impact: "El panel se veía roto (decenas de botones «undefined») y lo que lee la persona o la IA era más largo que lo necesario."
+action_taken: "Los tipos opcionales (atender) se ofrecen solo al panel que los pide: 'qdd consola panel --con atender'; el mod los pide y, con un qdd anterior a --con, lee sin ellos. «Acciones» del mod usa una lista blanca (aprobar y comando con tecla): un tipo desconocido nunca sale como botón. El mensaje de atender queda en una línea comprimida de 280 caracteres como mucho (se acortan el nombre y lo citado, nunca las instrucciones), y el motivo de un pedido tiene un tope de 60 caracteres: qdd rechaza uno más largo pidiendo un resumen estilo chat."
+test_result: "TestPanel_UnTipoNuevoSoloParaElPanelQueLoPide_FND092, TestAtenciones_* (tope MaxMensajeAtender) y TestPedir_ElMotivoEsUnResumenCorto (pkg/consola); en el mod, «un tipo de acción que el panel no conoce no sale como botón «undefined»» y «con un qdd anterior a --con, el panel se lee igual». Antes del arreglo el mod dibujaba «undefined  Algo nuevo»."
+status: resolved
+detectado_por: humano
+date: "2026-10-31"

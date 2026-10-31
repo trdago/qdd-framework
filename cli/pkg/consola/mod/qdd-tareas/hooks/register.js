@@ -16,6 +16,8 @@ const TOPE_MS = 3000
 const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
+// OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
+const OPCIONALES = ['atender']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -52,7 +54,9 @@ async function leer($) {
   let nuevo = null
   let motivo = ''
   try {
-    const r = await $.process.run([bin, 'consola', 'panel', '--json'], { timeoutMs: TOPE_MS })
+    let r = await $.process.run([bin, 'consola', 'panel', '--json', '--con', OPCIONALES.join(',')], { timeoutMs: TOPE_MS })
+    // Un qdd anterior a --con no lo conoce: se lee sin los opcionales.
+    if (r.exitCode !== 0 && /unknown flag/.test(r.stderr || '')) r = await $.process.run([bin, 'consola', 'panel', '--json'], { timeoutMs: TOPE_MS })
     motivo = r.exitCode === 0 ? '' : (r.stderr || '').trim() || 'esta versión de qdd no trae «qdd consola panel»: actualiza qdd'
     nuevo = r.exitCode === 0 ? JSON.parse(r.stdout) : null
   } catch (err) {
@@ -155,10 +159,10 @@ function hora(iso) {
   return dos(t.getHours()) + ':' + dos(t.getMinutes())
 }
 
-// celdas alinea los símbolos con las abreviaturas: ✅ ⏳ ❌ ocupan 2 columnas; — (no aplica), · (sin empezar) y ? una.
+// celda alinea un símbolo con su abreviatura: ✅ ⏳ ❌ ocupan 2 columnas; — (no aplica), · (sin empezar) y ? una.
 const ANGOSTOS = new Set(['—', '·', '?'])
-function celdas(simbolos) {
-  return simbolos.map((s) => (ANGOSTOS.has(s) ? s + ' ' : s)).join(' ')
+function celda(s) {
+  return ANGOSTOS.has(s) ? s + ' ' : s
 }
 
 // total: el de qdd (el mismo que la barra, FND-086); un qdd anterior no lo trae y se cuenta la lista.
@@ -284,7 +288,8 @@ function cabecera(Box, Text, Button, $, e, lista) {
 }
 
 // tabla: una fila por tarea con sus etapas y, al final, la ✕ que la descarta (pide «s  Sí»: escribe en estado.yaml).
-// La ✕ se pulsa con el mouse; las tareas más antiguas que no entran se cuentan debajo.
+// Cada etapa ⏳ o ❌ que qdd ofrece atender es un botón: le envía a la IA el mensaje de qdd para que se pronuncie.
+// La ✕ y las etapas se pulsan con el mouse; las tareas más antiguas que no entran se cuentan debajo.
 function tabla(Box, Text, Button, $, e, lista, ancho) {
   const columnas = 3 * e.etapas.length + 2
   const largo = Math.max('Tarea'.length, ...e.frentes.map((f) => f.nombre.length))
@@ -296,9 +301,15 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       columnGap: 1,
       children: [
         Box({ width: nombreAncho, children: [Text({ ...estilo, wrap: 'truncate-end', children: [nombre] })] }),
-        Text({ ...estilo, children: [derecha] }),
+        ...derecha,
         ...cierre,
       ],
+    })
+  const etapasDe = (f) =>
+    f.simbolos.map((s, i) => {
+      const a = lista.find((x) => x.id === 'atender:' + f.id + ':' + i)
+      if (a) return Button({ key: 'e-' + f.id + '-' + i, label: s, plain: true, onPress: () => atender($, a) })
+      return Text({ key: 'c-' + f.id + '-' + i, color: colorFrente(f), children: [celda(s)] })
     })
   const equis = (f) => {
     const a = lista.find((x) => x.id === 'descartar:' + f.id)
@@ -311,8 +322,8 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     flexDirection: 'column',
     marginTop: 1,
     children: [
-      fila('cab', 'Tarea', e.abreviaturas.join(' '), { dimColor: true, size: 'caption' }, []),
-      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, celdas(f.simbolos), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])),
+      fila('cab', 'Tarea', [Text({ dimColor: true, size: 'caption', children: [e.abreviaturas.join(' ')] })], { dimColor: true, size: 'caption' }, []),
+      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])),
       ...antiguas,
       Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [leyenda] }),
       ...enZona(Box, Text, Button, $, 'tabla'),
@@ -389,6 +400,29 @@ async function ejecutar($, a) {
   ocupado = false
   firma = ''
   await leer($)
+  $.ui.invalidate('ui.render')
+}
+
+// atender pide a qdd el mensaje de una etapa (qdd lo vuelve a calcular: si ya no espera, no hay nada que enviar) y lo
+// envía a la conversación como un mensaje de la persona; la IA lo atiende en cuanto queda libre.
+async function atender($, a) {
+  if (ocupado) return
+  ocupado = true
+  confirmando = null
+  const bin = await binario($)
+  let texto = ''
+  try {
+    const r = await $.process.run([bin, 'consola', 'accion', a.id], { timeoutMs: TOPE_MS })
+    texto = r.exitCode === 0 ? (r.stdout || '').trim() : ''
+    resultado = { titulo: a.etiqueta, ok: false, texto: ((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida', zona: 'tabla' }
+  } catch (err) {
+    resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'tabla' }
+  }
+  if (texto) {
+    resultado = { titulo: a.etiqueta, ok: true, texto: '→ enviado a la IA', zona: 'tabla' }
+    $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  }
+  ocupado = false
   $.ui.invalidate('ui.render')
 }
 
@@ -554,8 +588,11 @@ function paraTi(Box, Text, Button, $, lista, ancho) {
 
 // acciones: las herramientas del proyecto en una fila de botones (FND-090); el comando que corre cada una se ve al
 // confirmarla. «Abrir carpeta» va arriba, junto a la carpeta, cada ✕ en la fila de su tarea y los pedidos en «Para ti».
+// Solo los tipos que se dibujan aquí y con tecla: uno que este panel no conoce no sale como «undefined» (FND-092).
 function acciones(Box, Text, Button, $, todas, ancho) {
-  const lista = todas.filter((a) => a.tipo !== 'abrir' && a.tipo !== 'descartar' && a.tipo !== 'pedido')
+  const conocidas = todas.filter((a) => a.tipo === 'aprobar' || a.tipo === 'comando')
+  const todasTeclas = teclas(conocidas)
+  const lista = conocidas.filter((a) => todasTeclas[a.id])
   if (lista.length === 0) return []
   const asignadas = teclas(lista)
   const botones = lista.map((a) => Button({ key: 'b-' + a.id, label: asignadas[a.id] + '  ' + a.etiqueta, hotkey: asignadas[a.id], onPress: () => pedir($, a) }))
@@ -568,7 +605,7 @@ function acciones(Box, Text, Button, $, todas, ancho) {
 
 // pie: cómo se usa y la versión de qdd, en una línea atenuada.
 function pie(Text, version) {
-  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['Clic o la tecla de cada botón (con el foco en el panel: clic o /tareas)' + (version ? ' · ' + version : '')] })
+  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['⏳/❌ clic → la IA lo atiende · botones: clic o tecla · foco: /tareas' + (version ? ' · ' + version : '')] })
 }
 
 function sinEstado(Box, Text, motivo) {
