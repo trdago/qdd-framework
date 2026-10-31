@@ -26,7 +26,7 @@ func registerBlueprintTools(s *server.MCPServer) {
 	list := mcp.NewTool("qdd_blueprint_list",
 		mcp.WithDescription("Blueprints del proyecto, una línea c/u (❓preguntas 🔒invariantes ✓escenarios); detalle por sección a pedido. Antes de construir un módulo que uno define: manda sobre tus preferencias."),
 		mcp.WithString("blueprint", mcp.Description("Id: su índice en JSON.")),
-		mcp.WithString("seccion", mcp.Description("Con blueprint: preguntas|invariantes|decisiones|escenarios|vocabulario|todo.")),
+		mcp.WithString("seccion", mcp.Description("Con blueprint: preguntas|invariantes|decisiones|escenarios|vocabulario|todo. calidad (con o sin blueprint): mide la receta, ⚠ defectos y ✂ lo que se acorta sin perder nada.")),
 	)
 	RegisterToolWithTelemetry(s, list, handleBlueprintListTool)
 
@@ -164,8 +164,12 @@ func boolArg(request mcp.CallToolRequest, name string) bool {
 // solo ese detalle: leer un blueprint no cuesta miles de tokens (pedido del usuario, 2026-10-31).
 func handleBlueprintListTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	root := projectRootForMCP()
-	if id := strings.TrimSpace(stringArg(request, "blueprint")); id != "" {
-		return detalleDeBlueprint(root, id, strings.TrimSpace(stringArg(request, "seccion")))
+	id, seccion := strings.TrimSpace(stringArg(request, "blueprint")), strings.TrimSpace(stringArg(request, "seccion"))
+	if seccion == seccionCalidad {
+		return calidadDeBlueprints(root, id)
+	}
+	if id != "" {
+		return detalleDeBlueprint(root, id, seccion)
 	}
 	ix, errs := indicesDelProyecto(root)
 	var s strings.Builder
@@ -188,6 +192,21 @@ func handleBlueprintListTool(ctx context.Context, request mcp.CallToolRequest) (
 		fmt.Fprintf(&s, "⚠️ %s: %s\n", p.Regla, p.Descripcion)
 	}
 	return mcp.NewToolResultText(s.String()), nil
+}
+
+// seccionCalidad mide la receta en vez de mostrar una sección: de un blueprint, o de todos sin blueprint.
+const seccionCalidad = "calidad"
+
+func calidadDeBlueprints(root, id string) (*mcp.CallToolResult, error) {
+	var pedidos []string
+	if id != "" {
+		pedidos = []string{id}
+	}
+	medidas, fuente, err := blueprints.Medir(root, pedidos)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(informeDeCalidad(medidas, fuente, "qdd_blueprint_contribute", "qdd_blueprint_propose")), nil
 }
 
 func detalleDeBlueprint(root, id, seccion string) (*mcp.CallToolResult, error) {

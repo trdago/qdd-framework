@@ -143,7 +143,7 @@ func TestPublicar_TagsTheRepositoryFromTheChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), strings.Replace(authBlueprint, "        invariantes: [\"El correo se normaliza a minúsculas\"]\n", "", 1))
+	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), strings.Replace(authBlueprint, "        invariantes: [\"El correo se normaliza a minúsculas\"]\n", "        descripcion: Inicia sesión con su correo, tal como lo escribe.\n", 1))
 	if _, err := Proponer(root, "auth", "el correo ya no se normaliza", ""); err != nil {
 		t.Fatal(err)
 	}
