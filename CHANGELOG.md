@@ -6,6 +6,29 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.9] - 2026-10-31 (preview)
+
+Novena **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### 🧪 QDD genera blueprints reproducibles y los certifica a ciegas
+
+- **La receta separa lo técnico de lo de negocio.** Un blueprint declara:
+  - `alcance` (qué incluye y qué queda fuera);
+  - **parámetros** de negocio `{{id}}` (nombres, textos, idioma, umbrales, cantidades), que la persona decide al aplicar, igual que las preguntas, con un valor sugerido;
+  - **constantes** técnicas `{{id}}`, fijas y con su porqué;
+  - **pasos** en orden (acción → resultado, con el escenario que verifica cada uno), que quedan en la ficha como «Paso N · …»;
+  - `requiere_qdd`: un qdd anterior no aplica a medias una receta que no entiende.
+- **`qdd blueprint distill <modulo> --id <blueprint>`** (o `qdd_blueprint_contribute {modulo}`): QDD destila el borrador desde la ficha aprobada (nunca copia las rutas ni el caso real del proyecto) y entrevista a la persona hasta delimitarlo. Pregunta qué incluye y qué no, si cada valor escrito en una regla es de negocio o técnico, y qué hace cada detalle de la implementación. Los ejemplos entre «» o tras «p. ej.» no cuentan.
+- **`qdd blueprint certify`** (o `qdd_blueprint_contribute {certificar}`):
+  - Prepara, fuera del proyecto, una carpeta por variante (valores sugeridos y otros valores de negocio) con solo `RECETA.md`.
+  - Un agente nuevo, sin el original, la construye en el lenguaje que elija.
+  - `--verificar` corre sus pruebas y exige una por escenario. Así lo técnico se replica al 100 % y lo de negocio se adapta.
+  - Queda `certificacion.yaml`, atada a la huella de la receta, y `propose` la exige para una receta con pasos.
+- **Calidad nueva**:
+  - **defectos:** sin límites (CAL-10), sin pasos (CAL-11), un paso sin escenario (CAL-12), un escenario al que ningún paso lleva (CAL-13), un valor fijo sin clasificar (CAL-14), un detalle de implementación (CAL-15), una receta nueva sin `requiere_qdd` (CAL-17);
+  - **mejora:** un parámetro o una constante sin uso (CAL-16).
+- `qdd_blueprint_list` cuenta ▶pasos y ⚙parámetros y da las secciones `alcance`, `pasos` y `parametros`. La leyenda de los símbolos pasó de la descripción de la tool a su salida, y tools/list sigue bajo 16.000 caracteres.
+
 ## [2.8.0-rc.8] - 2026-10-31 (preview)
 
 Octava **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

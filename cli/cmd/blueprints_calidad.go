@@ -50,6 +50,7 @@ func informeDeCalidad(medidas []blueprints.Calidad, fuente, aportar, proponer st
 		for _, h := range c.Hallazgos {
 			s.WriteString("  " + h.Texto() + "\n")
 		}
+		s.WriteString(textoDeEntrevista(c))
 		pendientes += len(c.Hallazgos)
 	}
 	if pendientes == 0 {

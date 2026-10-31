@@ -59,6 +59,7 @@ func (b Blueprint) Resolver(respuestas map[string]string) (map[string]string, []
 		}
 		aplicadas[p.ID] = valor
 	}
+	pendientes, problems = b.resolverParametros(respuestas, aplicadas, conocidas, pendientes, problems)
 	for id := range respuestas {
 		if conocidas[id] {
 			continue
@@ -74,6 +75,24 @@ const (
 	condicionNoCumple
 	condicionPendiente
 )
+
+// resolverParametros suma los parámetros de negocio: van después de las preguntas y la persona decide cada valor.
+func (b Blueprint) resolverParametros(respuestas, aplicadas map[string]string, conocidas map[string]bool, pendientes []Pregunta, problems []string) ([]Pregunta, []string) {
+	for _, p := range b.Parametros {
+		conocidas[p.ID] = true
+		valor, ok := respuestas[p.ID]
+		if !ok {
+			pendientes = append(pendientes, p.comoPregunta())
+			continue
+		}
+		if !p.valorValido(valor) {
+			problems = append(problems, fmt.Sprintf("'%s=%s' no es válido: se espera un %s", p.ID, valor, firstNonEmpty(p.Tipo, "texto")))
+			continue
+		}
+		aplicadas[p.ID] = strings.TrimSpace(valor)
+	}
+	return pendientes, problems
+}
 
 func condicion(p Pregunta, aplicadas map[string]string, pendientes []Pregunta) int {
 	for id, valores := range p.Si {
@@ -116,6 +135,9 @@ func (b Blueprint) componer(respuestas map[string]string) (Generado, []Escenario
 		gen.Decisiones = append(gen.Decisiones, fmt.Sprintf("Vocabulario «%s»: %s", t.Termino, strings.TrimSpace(t.Definicion)))
 	}
 	escenarios := append([]Escenario{}, b.Conformidad...)
+	for n, paso := range b.pasosAplicables(respuestas) {
+		gen.Decisiones = append(gen.Decisiones, lineaDePaso(n+1, paso))
+	}
 	for _, p := range b.Preguntas {
 		valor, ok := respuestas[p.ID]
 		if !ok {
@@ -127,14 +149,15 @@ func (b Blueprint) componer(respuestas map[string]string) (Generado, []Escenario
 		gen.Invariantes = append(gen.Invariantes, o.Invariantes...)
 		escenarios = append(escenarios, o.Conformidad...)
 	}
-	gen.Decisiones = expandAll(dedupe(gen.Decisiones), respuestas)
-	gen.Invariantes = expandAll(dedupe(gen.Invariantes), respuestas)
+	valores := b.valores(respuestas)
+	gen.Decisiones = expandAll(dedupe(gen.Decisiones), valores)
+	gen.Invariantes = expandAll(dedupe(gen.Invariantes), valores)
 	escenarios = dedupeEscenarios(escenarios)
 	for i := range escenarios {
-		escenarios[i].Titulo = expand(escenarios[i].Titulo, respuestas)
-		escenarios[i].Dado = expand(escenarios[i].Dado, respuestas)
-		escenarios[i].Cuando = expand(escenarios[i].Cuando, respuestas)
-		escenarios[i].Entonces = expand(escenarios[i].Entonces, respuestas)
+		escenarios[i].Titulo = expand(escenarios[i].Titulo, valores)
+		escenarios[i].Dado = expand(escenarios[i].Dado, valores)
+		escenarios[i].Cuando = expand(escenarios[i].Cuando, valores)
+		escenarios[i].Entonces = expand(escenarios[i].Entonces, valores)
 	}
 	return gen, escenarios
 }
@@ -211,6 +234,9 @@ func Apply(in ApplyInput) (ApplyResult, []string) {
 	}
 	if problems := b.Validate(); len(problems) > 0 {
 		return ApplyResult{}, prefix("blueprint inválido: ", problems)
+	}
+	if b.RequiereQDD != "" && VersionQDD != "" && menorVersion(VersionQDD, b.RequiereQDD) {
+		return ApplyResult{}, []string{fmt.Sprintf("'%s' pide qdd ≥ %s y esta CLI es %s: actualiza qdd antes de aplicarlo (un qdd anterior no entiende toda la receta)", b.Ref(), b.RequiereQDD, VersionQDD)}
 	}
 	modulo := firstNonEmpty(in.Modulo, b.ID)
 	if !idPattern.MatchString(modulo) {

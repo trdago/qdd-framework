@@ -83,6 +83,8 @@ type Pregunta struct {
 	PorDefecto string             `yaml:"por_defecto,omitempty"`
 	Si         map[string]Valores `yaml:"si,omitempty"`
 	Opciones   []Opcion           `yaml:"opciones"`
+
+	abierta bool // un parámetro de negocio: se responde con un valor, no con una opción
 }
 
 // FichaBase es el punto de partida de la ficha de módulo que genera el blueprint.
@@ -99,10 +101,15 @@ type Blueprint struct {
 	Nombre       string      `yaml:"nombre"`
 	Version      string      `yaml:"version"`
 	Organizacion string      `yaml:"organizacion,omitempty"`
+	RequiereQDD  string      `yaml:"requiere_qdd,omitempty"` // versión mínima de qdd que entiende la receta
 	Licencia     string      `yaml:"licencia,omitempty"`
 	Descripcion  string      `yaml:"descripcion,omitempty"`
+	Alcance      Alcance     `yaml:"alcance,omitempty"`
 	Vocabulario  []Termino   `yaml:"vocabulario,omitempty"`
+	Parametros   []Parametro `yaml:"parametros,omitempty"`
+	Constantes   []Constante `yaml:"constantes,omitempty"`
 	Preguntas    []Pregunta  `yaml:"preguntas,omitempty"`
+	Pasos        []Paso      `yaml:"pasos,omitempty"`
 	Ficha        FichaBase   `yaml:"ficha"`
 	Conformidad  []Escenario `yaml:"conformidad,omitempty"`
 	Referencias  []string    `yaml:"referencias,omitempty"`
@@ -161,6 +168,7 @@ func (b Blueprint) Validate() []string {
 	problems = append(problems, b.validatePreguntas()...)
 	problems = append(problems, b.validateEscenarios()...)
 	problems = append(problems, b.validateReemplaza()...)
+	problems = append(problems, b.validateReceta()...)
 	return append(problems, b.validateReferencias()...)
 }
 
