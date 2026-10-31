@@ -206,16 +206,25 @@ func VerificarCertificacion(b Blueprint) (Certificacion, error) {
 
 func verificarVariante(v Variante) Variante {
 	var hecho struct {
-		Lenguaje  string   `yaml:"lenguaje"`
-		Comando   string   `yaml:"comando"`
-		Supuestos []string `yaml:"supuestos"`
+		Lenguaje  string     `yaml:"lenguaje"`
+		Comando   string     `yaml:"comando"`
+		Supuestos []supuesto `yaml:"supuestos"`
 	}
 	data, err := os.ReadFile(filepath.Join(v.Carpeta, ConstruccionFile))
-	if err != nil || yaml.Unmarshal(data, &hecho) != nil || strings.TrimSpace(hecho.Comando) == "" {
+	if err == nil {
+		if err = yaml.Unmarshal(data, &hecho); err != nil {
+			v.Resultado = ConstruccionFile + " no se lee: " + recortar(err.Error(), 80)
+			return v
+		}
+	}
+	if err != nil || strings.TrimSpace(hecho.Comando) == "" {
 		v.Resultado = "sin construir: falta " + ConstruccionFile + " con su comando"
 		return v
 	}
-	v.Lenguaje, v.Comando, v.Supuestos = hecho.Lenguaje, hecho.Comando, hecho.Supuestos
+	v.Lenguaje, v.Comando = hecho.Lenguaje, hecho.Comando
+	for _, s := range hecho.Supuestos {
+		v.Supuestos = append(v.Supuestos, string(s))
+	}
 	v.Faltan = escenariosSinPrueba(v)
 	codigo, salida := correrPruebas(v.Carpeta, hecho.Comando)
 	v.Aprobada = codigo == 0 && len(v.Faltan) == 0
@@ -291,6 +300,36 @@ func CertificacionVigente(b Blueprint) (Certificacion, bool) {
 }
 
 // LineaCertificacion resume la certificación: ✅/❌ y cada variante con su lenguaje y lo que le falta.
+// supuesto acepta un texto o, como lo escriben los constructores a ciegas, {paso, escenario, supuesto}.
+type supuesto string
+
+func (s *supuesto) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		*s = supuesto(node.Value)
+		return nil
+	}
+	var m struct{ Paso, Escenario, Supuesto string }
+	if err := node.Decode(&m); err != nil {
+		return err
+	}
+	donde := strings.Join(noVacios(m.Paso, m.Escenario), " · ")
+	if donde != "" {
+		donde += ": "
+	}
+	*s = supuesto(donde + strings.TrimSpace(m.Supuesto))
+	return nil
+}
+
+func noVacios(xs ...string) []string {
+	var out []string
+	for _, x := range xs {
+		if x = strings.TrimSpace(x); x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
 // SupuestosDe son lo que cada constructor a ciegas tuvo que suponer: la siguiente entrevista. La persona decide si
 // cada uno se fija en la receta (una decisión, un parámetro o una constante) o queda libre a quien construye.
 func SupuestosDe(c Certificacion) []string {

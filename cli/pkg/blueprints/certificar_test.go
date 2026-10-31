@@ -189,3 +189,23 @@ func TestCertificar_LoQueQuienConstruyeSupusoVuelveALaPersona(t *testing.T) {
 		t.Fatalf("lo supuesto queda en la certificación para preguntárselo a la persona: %v %q", s, LineaCertificacion(c))
 	}
 }
+
+func TestCertificar_UnSupuestoConSuPasoYEscenarioSeLeeIgual(t *testing.T) {
+	b := recetaEnCarpeta(t, recetaConLimites)
+	k, _ := PrepararCertificacion(b)
+	for _, v := range k.Variantes {
+		construir(t, v, "true", v.Escenarios...)
+	}
+	writeFile(t, filepath.Join(k.Variantes[0].Carpeta, ConstruccionFile), "lenguaje: shell\ncomando: \"true\"\nsupuestos:\n  - paso: \"Paso 1\"\n    escenario: P-01\n    supuesto: qué es una tarea nueva\n")
+	c, err := VerificarCertificacion(b)
+	if err != nil || !c.Aprobada {
+		t.Fatalf("dos constructores a ciegas los escribieron así: no es «sin construir»: %+v %v", c, err)
+	}
+	if s := SupuestosDe(c); len(s) != 1 || !strings.Contains(s[0], "Paso 1 · P-01: qué es una tarea nueva") {
+		t.Fatalf("el supuesto conserva su paso y su escenario: %v", s)
+	}
+	writeFile(t, filepath.Join(k.Variantes[0].Carpeta, ConstruccionFile), "comando: [roto\n")
+	if c, _ = VerificarCertificacion(b); !strings.Contains(c.Variantes[0].Resultado, "no se lee") {
+		t.Fatalf("un construccion.yaml que no se lee lo dice, no «falta»: %q", c.Variantes[0].Resultado)
+	}
+}
