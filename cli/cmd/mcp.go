@@ -49,6 +49,7 @@ func registerMCPTools(s *server.MCPServer) {
 	registerModuleSaveTool(s)
 	registerBlueprintTools(s)
 	registerEstadoTool(s)
+	registerFotoTool(s)
 	registerConsolaTools(s)
 	registerAuditTool(s)
 	registerCertifyTool(s)
