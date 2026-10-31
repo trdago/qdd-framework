@@ -1,0 +1,9 @@
+id: "FND-090"
+title: "El panel se veía desordenado y mostraba la ruta completa del proyecto"
+description: "Captura del 2026-10-31: arriba «📂 ~/Documents/proyectos/qdd o: o Abrir carpeta» (la ruta completa, que el blueprint consola-claude-code prohíbe, y la tecla repetida porque el botón sin marco ya la dibuja); «✕ 0 etapas fallan» en rojo; «Acciones» en magenta con una línea en blanco entre cada botón y su comando; «▶ Para ti» debajo de las herramientas; la confirmación de la ✕ de una tarea aparecía lejos de la tabla, y un pedido rechazado mostraba su resultado en la sección de Acciones."
+impact: "Lo que la persona tenía que hacer quedaba abajo, mezclado con herramientas, y el panel mostraba datos de la máquina que el blueprint pide no mostrar."
+action_taken: "Del proyecto se ve solo el nombre de la carpeta, y la de un pedido se nombra desde la del proyecto (qdd/npm). La cabecera lleva el título y, a la derecha, «📂 qdd  o: Abrir carpeta»; el resumen omite los conteos en cero y, sin esperas ni fallas, dice «✓ nada espera ni falla». Debajo de la tabla, separadas por una línea fina: «▶ Para ti», ❌ Fallas y Acciones en una sola fila de botones. La confirmación y el resultado van en la sección del botón pulsado. Un pedido hecho ocupa una línea; uno en espera o ejecutándose dice cómo va en una línea atenuada. La versión pasa al pie."
+test_result: "5 tests nuevos del mod qdd-tareas (carpeta, orden con separadores, fila de acciones, confirmación y resultado en su sección, carpeta de un pedido) y 6 ajustados; 37/37 con claude plugin test."
+status: resolved
+detectado_por: humano
+date: "2026-10-31"

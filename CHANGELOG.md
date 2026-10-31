@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.4] - 2026-10-31 (preview)
+
+Cuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### 🎨 Panel de tareas ordenado (FND-090)
+
+- **Solo el nombre de la carpeta.** Arriba dice «📂 qdd  o: Abrir carpeta», sin la ruta completa (blueprint consola-claude-code) ni la tecla repetida. La carpeta de un pedido se nombra desde la del proyecto (`qdd/npm`).
+- **Lo tuyo primero.** Debajo de la tabla, separadas por una línea fina: «▶ Para ti», ❌ Fallas y, al final, las Acciones en una sola fila de botones.
+- **Sin ceros en rojo.** El resumen omite los conteos en cero; sin esperas ni fallas dice «✓ nada espera ni falla».
+- **Cada respuesta junto a su botón.** La confirmación de la ✕ de una tarea aparece bajo la tabla, y el resultado de un pedido en «Para ti».
+- **Tarjetas más cortas.** Un pedido hecho ocupa una línea; uno en espera o en marcha dice cómo va en una línea atenuada. La versión de qdd pasa al pie.
+
 ## [2.8.0-rc.3] - 2026-10-31 (preview)
 
 Tercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
