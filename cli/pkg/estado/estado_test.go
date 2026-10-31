@@ -206,7 +206,7 @@ func TestStatuslineDir_SinArchivoODanadoNoMuestraNada(t *testing.T) {
 func TestMarkdown_AlcanceAbiertosYRecienCerrados(t *testing.T) {
 	e := mustParse(t, valido)
 	md := Markdown(e, ahora, AlcanceAbiertos)
-	if !strings.Contains(md, "| Frente | Código | Pruebas | Producción | Validación real |") {
+	if !strings.Contains(md, "| Tarea | Código | Pruebas | Producción | Validación real |") {
 		t.Fatalf("encabezado: %s", md)
 	}
 	if !strings.Contains(md, "✅ commit e29393e6") || !strings.Contains(md, "⏳ ver un análisis con imagen (uso real)") {
@@ -277,8 +277,8 @@ func TestSet_FrenteNuevoYCerrar(t *testing.T) {
 		t.Fatalf("frente nuevo: %v", err)
 	}
 	e, _ := Load(dir)
-	if len(e.Frentes) != 1 || e.Frentes[0].Celdas["Pruebas"].Estado != NoAplica {
-		t.Fatalf("un frente nuevo completa sus otras celdas con —: %+v", e.Frentes)
+	if len(e.Frentes) != 1 || e.Frentes[0].Celdas["Pruebas"].Estado != SinEmpezar {
+		t.Fatalf("un frente nuevo completa sus otras celdas con «·» (sin empezar): %+v", e.Frentes)
 	}
 	if err := Cerrar(dir, "nuevo", "", false, ahora); err == nil {
 		t.Fatal("cerrar sin motivo se rechaza")

@@ -18,6 +18,8 @@ import (
 //     que el declarado (feat → minor, cambio incompatible → major).
 //   - VER-04-CHANGELOG-MISSING: el CHANGELOG lleva entradas por versión y falta
 //     la de la versión que se va a publicar.
+//   - VER-05-UNPROVEN-RELEASE (uso_release.go): con uso_minimo_horas, una minor o
+//     una major pasa de preview a latest solo con sus horas de uso real medidas.
 // Sin tags alcanzables (repo nuevo o clon superficial) solo se valida VER-01.
 
 var semverPattern = regexp.MustCompile(`^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$`)

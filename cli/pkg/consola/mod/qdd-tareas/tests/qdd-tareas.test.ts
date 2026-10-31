@@ -76,8 +76,9 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   expect(await ui.find({ type: 'Text', text: /Có Pu Po Va/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: 'yellow' } })
   expect(await ui.find({ type: 'Text', text: 'Ticket de MP en logs' })).toMatchObject({ props: { color: 'red' } })
-  expect(await ui.find({ type: 'Text', text: '• Gemini retirado › Validación real' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '  → ver un análisis con imagen · de uso real' })).toMatchObject({ props: { dimColor: true } })
+  // Sin sección «Esperando» (pedido del usuario, 2026-10-30): el ⏳ ya está en la tabla y en el resumen.
+  expect(await ui.find({ type: 'Text', text: /Esperando/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '• Gemini retirado › Validación real' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /la URL con el ticket se imprime/ })).toBeDefined()
   expect(await ui.find({ key: 'b-aprobar:pagos' })).toMatchObject({ props: { hotkey: '1' } })
   expect(await ui.find({ key: 'b-revisar-estado' })).toMatchObject({ props: { hotkey: 'c' } })
@@ -121,6 +122,21 @@ test('revisar el estado corre sin confirmación y muestra el resultado (CCC-C12)
   expect(await ui.find({ type: 'Text', text: /EPF-C03: falta la evidencia/ })).toBeDefined()
 })
 
+// RFC 0006 §3.9 (pedidos del usuario, 2026-10-30): cada mensaje de la persona es un ciclo. Lo que ya se vio sale del
+// tablero y qdd anota el modo de permisos de la IA (qdd consola ciclo --modo).
+test('cada mensaje marca un ciclo con el modo de la IA y lo ya visto sale del tablero', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas, { exitCode: 0, stdout: '[✓] cumple', stderr: '' })
+  on('classic.UserPromptSubmit', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'b-revisar-estado' })
+  expect(await ui.find({ type: 'Text', text: '✓ Revisar estado' })).toBeDefined()
+  await $.classic.UserPromptSubmit({ prompt: 'sigue', permission_mode: 'auto' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto'])
+  expect(await ui.find({ type: 'Text', text: '✓ Revisar estado' })).toBeUndefined()
+})
+
 test('sin estado.yaml dice cómo crearlo y sigue ofreciendo las fichas por aprobar', async ($, on) => {
   const sinEstado = { formato: 1, estado: null, motivo: "el proyecto no tiene .qdd/project/estado.yaml: créalo con 'qdd estado init'", acciones: [ACCIONES[0]] }
   preparar(on, ok(sinEstado))
@@ -135,6 +151,16 @@ test('sin qdd o con un qdd antiguo no falla', async ($, on) => {
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /actualiza qdd/ })).toBeDefined()
+})
+
+test('el resumen usa los totales de qdd, los mismos que la barra, y «·» es sin empezar (FND-085, FND-086)', async ($, on) => {
+  const nuevo = { id: 'login', nombre: 'Login', estado: 'abierto', simbolos: ['✅', '·', '·', '·'] }
+  preparar(on, ok({ ...PANEL, estado: { ...ESTADO, frentes: [...ESTADO.frentes, nuevo], tareas: 3, esperan: 2, fallan: 1 } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '⏳ 2 esperan' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 fallan' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: /✅ ·  ·  ·/ })).toBeDefined()
 })
 
 test('se redibuja solo cuando el panel cambia', async ($, on) => {
@@ -255,13 +281,13 @@ test('el panel se abre solo cuando llega un comando pedido, aunque no haya frent
   expect(aperturas.length).toBe(1)
 })
 
-test('las secciones van en orden: tareas, acciones, para ti, esperando y fallas', async ($, on) => {
+test('las secciones van en orden: tareas, acciones, para ti y fallas', async ($, on) => {
   preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const textos = (await ui.findAll({ type: 'Text' })).map((n) => n.text)
   const donde = (re: RegExp) => textos.findIndex((t) => re.test(t))
-  const orden = [/^Tareas · /, /^Tarea$/, /^Acciones$/, /Para ti/, /Esperando/, /Fallas/].map(donde)
+  const orden = [/^Tareas · /, /^Tarea$/, /^Acciones$/, /Para ti/, /Fallas/].map(donde)
   expect(orden.every((i) => i >= 0)).toBe(true)
   expect([...orden].sort((a, b) => a - b)).toEqual(orden)
 })
@@ -374,13 +400,16 @@ test('cada herramienta del agente late la tarea sin demorarla, con un pulso a la
   expect(pulsos().length).toBe(2)
 })
 
-test('sin tarea en curso, las herramientas no envían pulsos', async ($, on) => {
+// Uso medido (2026-10-30): sin tarea en curso el pulso igual va, sin destello; qdd no toca la actividad y lo anota
+// como uso real.
+test('sin tarea en curso, las herramientas igual envían el pulso (uso real), sin destello', async ($, on) => {
   const llamadas: string[][] = []
-  preparar(on, ok(PANEL), llamadas)
+  const clock = preparar(on, ok(PANEL), llamadas)
   on('tool.call', () => ({ result: 'hecho' }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await $.tool.call({ tool: 'Bash', command: 'ls' })
-  expect(llamadas.some((a) => a[2] === 'pulso')).toBe(false)
+  await clock.advance(10)
+  expect(llamadas).toContainEqual(['qdd', 'estado', 'pulso', '--fuente', 'agente'])
 })
 
 test('el resumen cuenta «▶ N para ti» solo con los pedidos que se pueden ejecutar', async ($, on) => {

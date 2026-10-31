@@ -17,13 +17,16 @@ import (
 // Tool MCP qdd_estado (RFC 0006 §3.3): la misma tabla que 'qdd estado', con las mismas validaciones, para que un
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
+// descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
+const descripcionEstadoMCP = "Estado por tarea del proyecto (.qdd/project/estado.yaml, blueprint estado-por-tareas, antes estado-por-frente, con destino «archivo»). Al RETOMAR una sesión o empezar como agente nuevo, llama accion=ver y sigue desde los ⏳, sin rehacer lo hecho. Al AVANZAR, actualiza la celda con accion=set ANTES de reportar: un ✅ lleva evidencia (commit, versión, n/n pruebas o id de corrida), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Una tarea se cierra con accion=cerrar y su motivo; nunca se borra. accion=check aplica el lector automático (EPF-C01…C07 y, con 'respuesta', EPF-A01). Las escrituras se validan: si violan una regla, no se escribe nada."
+
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
-		mcp.WithDescription("Estado por frente del proyecto (.qdd/project/estado.yaml, blueprint estado-por-tareas, antes estado-por-frente, con destino «archivo»). Al RETOMAR una sesión o empezar como agente nuevo, llama accion=ver y sigue desde los ⏳, sin rehacer lo hecho. Al AVANZAR, actualiza la celda con accion=set ANTES de reportar: un ✅ lleva evidencia (commit, versión, n/n pruebas o id de corrida), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Un frente se cierra con accion=cerrar y su motivo; nunca se borra. accion=check aplica el lector automático (EPF-C01…C07 y, con 'respuesta', EPF-A01). Las escrituras se validan: si violan una regla, no se escribe nada."),
+		mcp.WithDescription(descripcionEstadoMCP),
 		mcp.WithString("accion", mcp.Description("ver (por defecto) | set | cerrar | check | activar | pulso | terminar")),
 		mcp.WithString("fuente", mcp.Description("Quién deja el pulso: agente (por defecto) | subagente | comando (pulso).")),
-		mcp.WithString("frente", mcp.Description("Id del frente (set, cerrar).")),
-		mcp.WithString("nombre", mcp.Description("Nombre del frente al crearlo (set).")),
+		mcp.WithString("frente", mcp.Description("Id de la tarea (set, cerrar, activar, pulso, terminar).")),
+		mcp.WithString("nombre", mcp.Description("Nombre de la tarea al crearla (set).")),
 		mcp.WithString("etapa", mcp.Description("Etapa (columna) tal como está en el archivo (set).")),
 		mcp.WithString("estado", mcp.Description("ok | espera | falla | na, o ✅ ⏳ ❌ — (set).")),
 		mcp.WithString("evidencia", mcp.Description("Evidencia del ✅.")),
@@ -32,7 +35,7 @@ func registerEstadoTool(s *server.MCPServer) {
 		mcp.WithString("falla", mcp.Description("La falla del ❌, nombrada.")),
 		mcp.WithString("requiere_aprobacion", mcp.Description("Quién debe aprobar antes de pasar a ✅.")),
 		mcp.WithBoolean("aprobado", mcp.Description("La aprobación ya la dio quien debía darla (nunca la marques por tu cuenta).")),
-		mcp.WithString("motivo", mcp.Description("Por qué se cierra el frente (cerrar).")),
+		mcp.WithString("motivo", mcp.Description("Por qué se cierra la tarea (cerrar).")),
 		mcp.WithBoolean("descartado", mcp.Description("Se descarta en vez de cerrarse (cerrar).")),
 		mcp.WithString("respuesta", mcp.Description("Texto de la respuesta o el reporte a contrastar con el archivo (check, EPF-A01).")),
 	)
@@ -48,7 +51,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 	if accion == "cerrar" {
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
-		return resultadoEscritura(err, "frente cerrado")
+		return resultadoEscritura(err, "tarea cerrada")
 	}
 	if accion == "activar" {
 		return resultadoEscritura(estado.Activar(root, stringArg(request, "frente"), "mcp", now), "tarea en curso: el panel la muestra «● running» y se apaga sola a los 120 s sin pulsos")

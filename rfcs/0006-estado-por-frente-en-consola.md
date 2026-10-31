@@ -70,10 +70,10 @@ Reglas del archivo:
 | Comando | Qué hace |
 |---|---|
 | `qdd estado` (= `ver`) | Imprime la tabla en markdown (o `--formato mensajeria`) con el alcance de la ficha. |
-| `qdd estado set <frente> <etapa> <✅\|⏳\|❌\|—> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]` | Crea o actualiza una celda (y el frente, con `--nombre`). Valida antes de escribir. Acepta `ok`, `espera`, `falla` y `na` como alias para no escribir emojis. |
+| `qdd estado set <tarea> <etapa> <✅\|⏳\|❌\|—\|·> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]` | Crea o actualiza una celda (y la tarea, con `--nombre`). Valida antes de escribir. Acepta `ok`, `espera`, `falla`, `na` y `sin-empezar` como alias para no escribir emojis. Una tarea nueva llena con `·` (sin empezar) las etapas que no se tocaron; `—` es solo «no aplica» (qdd 2.8.0, FND-085). |
 | `qdd estado cerrar <frente> --motivo … [--descartado]` | Cierra un frente con su motivo. |
 | `qdd estado check [--respuesta archivo.md] [--json]` | Comprueba EPF-C01…C07. Con `--respuesta`, también EPF-A01: la tabla de la respuesta coincide con el archivo. EPF-C08 (texto y tabla) no se puede automatizar y se informa como revisión humana. Sale con código 1 si hay violaciones. |
-| `qdd estado statusline [--dir <ruta>]` | Una línea corta para la barra: `◧ 3 frentes · ⏳2 ❌1`. Nunca falla ni escribe en stderr. Sin archivo, no imprime nada. Tope de 50 ms. |
+| `qdd estado statusline [--dir <ruta>]` | Una línea corta para la barra: `◧ 3 tareas · ⏳2 ❌1`: las tareas pendientes y cada ⏳ y ❌ que tienen, la misma cuenta que el panel (`tareas`, `esperan`, `fallan` en el JSON; qdd 2.8.0, FND-086). Nunca falla ni escribe en stderr. Sin archivo, no imprime nada. Tope de 50 ms. |
 | `qdd estado watch [--intervalo 1s]` | Panel en vivo en pantalla alternativa: se redibuja cuando cambia el archivo (sondeo del mtime, sin dependencias de inotify), se ajusta al ancho y muestra la tabla compacta más los ⏳ (qué espera y de quién) y los ❌. `q` o Ctrl-C salen y restauran la terminal. |
 
 **C05 entre versiones.** `check` compara con la versión del archivo en `git HEAD`. Si un frente que estaba ya no aparece, es violación: hay que cerrarlo, no borrarlo.
@@ -225,7 +225,7 @@ confirmación y el recuadro del resultado no cambian.
 **Solo lo pendiente, 4 tareas.** El panel usa `estado.DatosPendientes(e, now, 4)`: de los frentes `abierto` con alguna
 etapa que no esté en ✅ ni en —, los 4 más nuevos (los últimos del archivo, que es donde `qdd estado set` agrega uno
 nuevo). `ocultos` cuenta los pendientes más antiguos, y el panel los resume en «+5 más antiguas · qdd estado ver». Los
-⏳ y ❌ que se listan son solo los de esas 4 tareas. Un frente terminado (todo ✅ o —), cerrado o descartado sale en el
+⏳ y ❌ que se listan son solo los de esas 4 tareas; los totales del resumen (`esperan`, `fallan`) cuentan todas las pendientes, como la barra. Un frente terminado (todo ✅ o —; una etapa en `·` todavía está por hacer), cerrado o descartado sale en el
 acto, sin los 7 días de `RecienCerrado`. Sigue en `estado.yaml` y en `qdd estado ver --todos`; `qdd estado ver`, la barra
 y el archivo (`frentes:`) no cambian de nombre.
 

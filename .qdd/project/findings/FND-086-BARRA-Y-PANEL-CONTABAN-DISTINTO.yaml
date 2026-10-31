@@ -1,0 +1,9 @@
+id: "FND-086"
+title: "La barra y el panel contaban distinto los ⏳ y los ❌"
+description: "La barra contaba tareas abiertas con algún ⏳ o ❌ («◧ 1 tarea · ⏳1») y el panel contaba cada ⏳ y cada ❌ de las tareas visibles («⏳ 2 esperan»); la barra además contaba como tarea una ya terminada. La persona veía dos números distintos para lo mismo."
+impact: "No se sabía cuántas cosas esperaban o fallaban; parecía que una de las dos vistas fallaba."
+action_taken: "Una sola cuenta, Estado.Totales: las tareas pendientes (abiertas y no terminadas) y cada ⏳ y cada ❌ que tienen. La barra la usa y el JSON del panel la entrega (tareas, esperan, fallan), entren o no todas las tareas en el panel; los mods dibujan esos totales (con un qdd anterior cuentan las listas)."
+test_result: "TestResumen_LaBarraYElPanelCuentanLoMismo_FND086 (estado) y los tests de los mods: antes del arreglo la barra decía ⏳1 donde el panel decía 2."
+status: resolved
+detectado_por: ia
+date: "2026-10-30"

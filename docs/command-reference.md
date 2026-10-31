@@ -111,9 +111,18 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd consola panel` | Lo que dibuja el panel, en JSON (estado por frente y acciones). Nunca falla. **Seguro.** |
 | `qdd consola accion <id> [--confirmado]` | Ejecuta una acción que ofrece el panel (aprobar una ficha, revisar el estado, auditar, un comando pedido). Lo que escribe corre solo con `--confirmado`, que el panel pasa después de «s  Sí». |
 | `qdd consola statusline` | La barra de estado de Claude Code (lee su JSON por la entrada estándar). Nunca falla. **Seguro.** |
-| `qdd consola pedir -m <motivo> [--carpeta dir] <comando…>` | Deja en «▶ Para ti» del panel un comando para que **la persona** lo ejecute con un clic (p. ej. el push de un tag). QDD no lo ejecuta: corre solo después de «s  Sí», en su carpeta. Un pedido aceptado queda en gris y no se acepta dos veces. |
+| `qdd consola pedir -m <motivo> [--carpeta dir] [--despues <tecla\|id>] [--antes <tecla\|id>] <comando…>` | Deja en «▶ Para ti» del panel un comando para que **la persona** lo ejecute con un clic (p. ej. el push de un tag). QDD no lo ejecuta: corre solo después de «s  Sí», en su carpeta. Un pedido aceptado queda en gris y no se acepta dos veces. Con `--despues`/`--antes` declara el orden: el que espera va justo después y queda «en espera», sin botón, hasta que lo otro esté hecho (qdd 2.8.0). Un comando que sale con **75** («todavía no»: falta un tag, un merge) vuelve a pendiente, en gris, con su aviso; no es una falla. Una cola por repositorio: un worktree usa la de su checkout principal. |
 | `qdd consola pedidos` | Lista los comandos pedidos con su tecla y su estado (pendiente, ⟳ ejecutando, ✓ hecho, falló). **Seguro.** |
 | `qdd consola descartar <id>` | Quita un comando pedido sin ejecutarlo. |
+| `qdd consola ciclo [--modo <permission_mode>]` | Lo llama el panel con cada mensaje de la persona: lo hecho antes sale del tablero y queda anotado el modo de permisos de la IA, que `qdd_project_context` usa para decir cuándo pedir autorización (RFC 0010). Nunca falla ni imprime. **Seguro.** (qdd 2.8.0) |
+
+### 📏 Uso real medido y canal preview (RFC 0010)
+Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
+
+| Comando | Descripción |
+|---------|-------------|
+| `qdd uso` | Lo medido de cada versión de qdd y cuánto le falta a la que corre para pasar a latest. Se mide solo en proyectos QDD: comandos, herramientas MCP, pulsos del agente y mensajes con el panel; dos eventos a menos de 5 min son uso continuo y uno aislado no suma. **Seguro.** (qdd 2.8.0) |
+| `qdd uso evidencia <versión>` | Deja en `.qdd/project/evidence/uso/vX.Y.Z.yaml` las horas medidas de la versión y sus previews, por proyecto, para commitearlas con la release (VER-05). (qdd 2.8.0) |
 
 ### 🤖 Solo vía MCP — pedile a tu IDE con IA que las invoque
 Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP — tipear `qdd learn` (por ejemplo) en una terminal no hace nada útil:
@@ -212,6 +221,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `VER-02-VERSION-REGRESSION` | La versión declarada es menor que un tag ya publicado. | `versioning` |
 | `VER-03-UNDERSIZED-BUMP` | El salto no cubre los cambios desde el último tag (Conventional Commits): un `feat` exige MINOR; `!` o `BREAKING CHANGE:`, MAJOR (MINOR en `0.y.z`). Dice la versión que corresponde. | `versioning` |
 | `VER-04-CHANGELOG-MISSING` | El CHANGELOG documenta versiones y le falta la entrada de la nueva. | `versioning` |
+| `VER-05-UNPROVEN-RELEASE` | Una versión estable que sube minor o major no tiene la evidencia de sus horas de uso real medidas (`qdd uso evidencia`). Una preview (`-rc.N`) y un fix no esperan. | `uso_minimo_horas: N` (qdd usa 5) |
 
 Las políticas se configuran en `.qdd/policies.yaml`. Con `adopcion: gradual` (lo que deja `qdd init` en un proyecto nuevo), las prácticas de madurez se muestran como recomendaciones: restan 2 puntos y no bloquean. Cada problema que bloquea resta 10. Para exigirlo todo: `adopcion: estricta`.
 

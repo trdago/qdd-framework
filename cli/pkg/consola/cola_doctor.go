@@ -75,7 +75,7 @@ func colaSuelta(root string) []Pedido {
 	if json.Unmarshal(b, &cola) != nil {
 		return nil
 	}
-	return abiertos(normalizar(cola, time.Now()))
+	return abiertos(normalizar(cola, time.Now(), time.Time{}))
 }
 
 // ajenos son los pedidos abiertos de la cola que corren en otro repositorio.

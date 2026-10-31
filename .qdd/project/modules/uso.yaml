@@ -1,0 +1,35 @@
+id: uso
+nombre: Uso real medido y canal preview (qdd uso, VER-05)
+estado: aprobado
+rutas:
+    - cli/pkg/uso
+    - cli/cmd/uso.go
+    - cli/pkg/audit/uso_release.go
+objetivo_operativo:
+    problema: Una versión de qdd con funciones nuevas se publicaba como latest apenas pasaba las pruebas, sin haberse usado en un proyecto real; los defectos que solo aparecen con el uso (panel, colas, blueprints) llegaban a todos.
+    usuarios: Quien publica qdd (la persona y la IA que prepara la release), quien prueba una preview en su máquina u otro PC, y el gate de qdd audit.
+    criterio_de_exito: Una minor o una major sale primero como preview (vX.Y.Z-rc.N, npm --tag preview) y pasa a latest solo con la evidencia de las horas de uso real medidas que pide uso_minimo_horas (5 en qdd). Un fix sale directo. Las horas se miden, nunca se estiman.
+    caso_real: '2026-10-30: el usuario pidió que una versión que no es un fix tenga al menos 5 horas reales de uso medidas antes de desplegarse, y que las candidatas salgan como preview (v2.8.0-rc.1).'
+objetivo_tecnologico:
+    arquitectura: pkg/uso anota eventos de uso real por versión en <QDD_HOME>/uso/<versión>.json (fuera de los proyectos, con bloqueo y escritura atómica) y cuenta el tiempo entre eventos seguidos. cmd registra un evento en cada comando de qdd (PersistentPreRunE), en cada herramienta MCP, en cada pulso del agente (qdd estado pulso) y en cada mensaje con el panel (qdd consola ciclo), solo dentro de un proyecto QDD. 'qdd uso evidencia <versión>' deja lo medido de la versión y sus candidatas en .qdd/project/evidence/uso/vX.Y.Z.yaml; VER-05 (pkg/audit) lo lee.
+    decisiones:
+        - Dos eventos separados por menos de 5 minutos son uso continuo y se suma el tiempo entre ellos; un evento aislado no suma (conservador, nunca inventa).
+        - Una compilación sin versión (dev) no se mide; el sondeo del panel (qdd consola panel, statusline) no cuenta como uso.
+        - Las horas de una versión juntan las de sus candidatas (2.8.0 suma 2.8.0-rc.1, rc.2…), por proyecto (nombre de la carpeta, sin rutas).
+        - VER-05 es opt-in por proyecto (uso_minimo_horas en .qdd/policies.yaml) y solo mira una versión estable que es minor o major respecto del último tag estable; una preview y un fix no esperan.
+        - El canal lo decide el tag en publish.yml - vX.Y.Z-rc.N va a npm preview y a una pre-release de GitHub; vX.Y.Z, a latest.
+    invariantes:
+        - El uso se mide, nunca se estima ni se completa a mano desde qdd.
+        - Registrar uso nunca falla ni demora el comando, la herramienta o el pulso que lo produce.
+        - Sin la evidencia con las horas pedidas, una minor o una major no pasa el gate como latest.
+        - Un registro ilegible no se borra - doctor --fix lo aparta (<archivo>.ilegible).
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/uso/ ./pkg/audit/ -run 'Uso|Registrar|Total|Evidencia'
+        - cd cli && go test ./cmd/ -run 'RegistrarUso|Doctor_UnRegistro|PublishYml'
+fuentes:
+    - rfcs/0010-uso-medido-y-preview.md
+    - cli/pkg/uso/uso.go
+    - .github/workflows/publish.yml
+ultima_revision: "2026-10-30"
+revisado_en_commit: f5a2abdb30b2

@@ -42,6 +42,32 @@ type ContextInput struct {
 	Paths        []string // rutas que la IA va a tocar (opcional)
 	TestCommands []string
 	Estandares   []Estandar
+	Modo         string // modo de permisos de la IA principal en el último mensaje; vacío = sin medir
+	ModoVisto    string // a qué hora se vio (HH:MM)
+}
+
+// lineaDelProyecto es lo que se hace sin pedir autorización cuando la IA puede actuar sola.
+const lineaDelProyecto = "Sigue sin pedir autorización todo lo que continúa la línea del proyecto: las tareas abiertas del estado, " +
+	"las pruebas, los findings y lo que se implementa dentro de lo que ya dicen las fichas y los blueprints."
+
+// loDefinido es lo que el proyecto ya decidió: cambiarlo siempre lo autoriza la persona.
+const loDefinido = "Pide autorización (una pregunta o un pedido en el panel) solo antes de cambiar algo ya definido: el objetivo, " +
+	"las decisiones o las invariantes de una ficha aprobada; una decisión o una invariante de un blueprint (eso va al " +
+	"repositorio de la organización); la versión, un tag, una publicación o un despliegue; o algo que borra datos o no se " +
+	"puede deshacer. Las preguntas de diseño de un blueprint siguen siendo de la persona."
+
+// ReglaDeAutorizacion dice, según el modo de permisos de la IA principal (permission_mode de Claude Code), cuándo
+// pedir autorización. Es la misma regla para todo proyecto: lo que cambia es quién ya está revisando cada acción.
+func ReglaDeAutorizacion(modo string) []string {
+	switch modo {
+	case "auto", "acceptEdits", "bypassPermissions", "dontAsk":
+		return []string{"La IA actúa sola en este modo. " + lineaDelProyecto, loDefinido}
+	case "default":
+		return []string{"La consola ya le pide permiso a la persona por cada acción: no sumes preguntas para lo que continúa la línea del proyecto.", loDefinido}
+	case "plan":
+		return []string{"Modo plan: investiga y propone; no ejecutes cambios hasta que la persona apruebe el plan."}
+	}
+	return []string{"Modo sin medir (no hay un mensaje reciente con el panel de qdd): pide autorización como lo pida la consola.", loDefinido}
 }
 
 // BuildContext arma la abstracción del proyecto para una IA: propósito, forma
@@ -57,6 +83,7 @@ func BuildContext(in ContextInput) string {
 	for i, rule := range workingMethod {
 		fmt.Fprintf(&b, "%d. %s\n", i+1, rule)
 	}
+	writeAutorizacion(&b, in)
 	b.WriteString("\n## Cómo se prueba el proyecto\n")
 	writeList(&b, in.TestCommands, "No hay comandos de prueba detectables: decláralos en .qdd/config.yaml (test_commands) antes de cambiar código.")
 	writeEstandares(&b, in.Estandares)
@@ -71,6 +98,14 @@ func BuildContext(in ContextInput) string {
 	writeIndex(&b, in.Root, mods)
 	writeUncovered(&b, in.Root, mods)
 	return b.String()
+}
+
+func writeAutorizacion(b *strings.Builder, in ContextInput) {
+	b.WriteString("\n## Autorización según el modo de la IA\n")
+	if in.Modo != "" {
+		fmt.Fprintf(b, "Modo «%s» (visto a las %s).\n", in.Modo, in.ModoVisto)
+	}
+	writeList(b, ReglaDeAutorizacion(in.Modo), "")
 }
 
 func writePurpose(b *strings.Builder, root string) {

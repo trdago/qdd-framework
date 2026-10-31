@@ -1,5 +1,5 @@
 id: estado
-nombre: Estado por frente (qdd estado)
+nombre: Estado por tarea (qdd estado)
 estado: aprobado
 rutas:
     - cli/pkg/estado
@@ -11,6 +11,7 @@ rutas:
     - cli/pkg/audit/estado_check.go
     - cli/pkg/consola
     - cli/cmd/consola.go
+    - cli/cmd/consola_ciclo.go
 objetivo_operativo:
     problema: El blueprint estado-por-frente con destino «archivo» pide una tabla de frentes × etapas que sobreviva a una sesión cortada y que un lector automático pueda revisar. Sin herramienta, la tabla se escribe a mano, sin validar, y nadie la ve mientras trabaja.
     usuarios: Las personas que siguen el avance desde la consola (barra de estado y panel) y los agentes que retoman o reportan trabajo (CLI y tool MCP qdd_estado).
@@ -28,13 +29,17 @@ objetivo_tecnologico:
         - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
         - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - 'Línea de recursos de la barra (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
-        - 'Orden de las secciones del panel: estado por frente (cabecera y tabla), Acciones, «▶ Para ti», ⏳ Esperando y ❌ Fallas; la confirmación va en la sección del botón pulsado.'
+        - 'Orden de las secciones del panel: estado por tarea (cabecera y tabla), Acciones, «▶ Para ti» y ❌ Fallas; la confirmación va en la sección del botón pulsado. Sin sección «Esperando» (pedido del usuario, 2026-10-30): el ⏳ ya está en la tabla y en el resumen, y su detalle en qdd estado ver.'
         - 'El panel dibuja cuatro niveles: números grandes de 3 filas en la cabecera, títulos en negrita, texto y detalle atenuado; cada frente toma el color de su peor etapa.'
         - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta.'
         - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
         - 'Orden de los pedidos (qdd 2.8.0, RFC 0006 §3.9): la IA declara dependencias al pedir (--despues/--antes, o despues/antes en qdd_consola_pedir); qdd las guarda por id, entrega la cola con cada pedido justo después de lo que espera (sin dependencias, en el orden en que se pidió) y marca en espera, sin tecla, al que espera algo que no está hecho. El orden no se adivina leyendo los comandos: lo declara quien los pide.'
         - 'Una cola por repositorio (qdd 2.8.0): la cola y la actividad usan estado.ClaveLocal (un worktree es su checkout principal, leyendo .git y commondir sin ejecutar git), y un pedido va a la cola del proyecto donde corre; doctor (grupo 6) junta lo que quedó fuera de lugar.'
         - '«Todavía no» (qdd 2.8.0): un comando que sale con 75 (EX_TEMPFAIL) vuelve a pendiente con su aviso, en gris; no es una falla.'
+        - 'Cinco estados cerrados (qdd 2.8.0): ✅ ⏳ ❌, — no aplica y · sin empezar. Una tarea nueva llena con «·» lo que no se tocó: no queda terminada ni sale del panel (FND-085).'
+        - 'Una sola cuenta para los resúmenes (Estado.Totales): tareas pendientes y cada ⏳ y ❌ que tienen; la barra y el JSON del panel (tareas, esperan, fallan) dicen lo mismo (FND-086).'
+        - 'Un ciclo por mensaje (qdd 2.8.0, RFC 0006 §3.9): el mod llama qdd consola ciclo --modo <permission_mode> en cada mensaje de la persona. Un pedido hecho antes del último ciclo ya se vio y sale del tablero (y del resultado del panel); el modo queda para qdd_project_context y para doctor.'
+        - 'La palabra visible es «tarea» (blueprint estado-por-tareas): ayuda, tabla, panel y errores. La clave frentes del YAML y el parámetro frente de qdd_estado se mantienen por compatibilidad.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
         - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
     invariantes:
@@ -43,6 +48,9 @@ objetivo_tecnologico:
         - statusline no imprime nada si no hay archivo o está ilegible, y nunca sale con error.
         - Sin estado.yaml, qdd audit no reporta EPF-01-CHECK.
         - Ninguna línea del panel es más ancha que la terminal.
+        - 'Una etapa que no se tocó nunca se muestra como «no aplica»: es «·» hasta que alguien la marque.'
+        - La barra y el panel nunca muestran totales distintos de ⏳ y ❌.
+        - Un modo de permisos que no es de Claude Code no se anota, y uno de hace más de 12 h ya no se sabe (sin medir).
         - Una barra propia (statusLine) nunca se reemplaza; antes de cambiar settings.json queda una copia.
         - Sin activar la consola, doctor no revisa nada de Claude Code.
         - qdd consola accion vuelve a calcular las acciones y rechaza un id que no ofrece, sin ejecutar nada.
@@ -77,4 +85,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-30"
-revisado_en_commit: c074c3edbffe
+revisado_en_commit: f5a2abdb30b2

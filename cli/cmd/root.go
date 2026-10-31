@@ -85,6 +85,7 @@ Para encadenar comandos con rollback automático si uno falla:
 		}
 
 		cwd, _ := os.Getwd()
+		registrarUso(cwd)
 		workingPath := filepath.Join(cwd, ".qdd", "working")
 		os.WriteFile(workingPath, []byte(name), 0644)
 

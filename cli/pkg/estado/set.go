@@ -61,7 +61,7 @@ func Set(root string, c Cambio, now time.Time) error {
 	}
 	estado := NormalizarEstado(c.Estado)
 	if estado == "" {
-		return fmt.Errorf("estado %q: usa ✅ ⏳ ❌ — (o ok, espera, falla, na)", c.Estado)
+		return fmt.Errorf("estado %q: usa ✅ ⏳ ❌ — · (o ok, espera, falla, na, sin-empezar)", c.Estado)
 	}
 	i := e.buscar(c.Frente)
 	if i < 0 {
@@ -88,7 +88,7 @@ func frenteNuevo(e Estado, c Cambio) Frente {
 	}
 	f := Frente{ID: c.Frente, Nombre: nombre, Estado: EstadoAbierto, Celdas: map[string]Celda{}}
 	for _, etapa := range e.Etapas {
-		f.Celdas[etapa] = Celda{Estado: NoAplica}
+		f.Celdas[etapa] = Celda{Estado: SinEmpezar}
 	}
 	return f
 }
@@ -96,7 +96,7 @@ func frenteNuevo(e Estado, c Cambio) Frente {
 // Cerrar cierra (o descarta) un frente con su motivo (EPF-C05).
 func Cerrar(root, frente, motivo string, descartado bool, now time.Time) error {
 	if strings.TrimSpace(motivo) == "" {
-		return errors.New("cerrar un frente exige su motivo (--motivo)")
+		return errors.New("cerrar una tarea exige su motivo (--motivo)")
 	}
 	e, err := cargarParaEscribir(root)
 	if err != nil {
@@ -104,7 +104,7 @@ func Cerrar(root, frente, motivo string, descartado bool, now time.Time) error {
 	}
 	i := e.buscar(frente)
 	if i < 0 {
-		return fmt.Errorf("no hay un frente %q", frente)
+		return fmt.Errorf("no hay una tarea %q", frente)
 	}
 	e.Frentes[i].Estado = EstadoCerrado
 	if descartado {

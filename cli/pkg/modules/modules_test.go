@@ -215,3 +215,27 @@ func TestValidateRutas_ElEstadoDeQDDNoTieneQueExistirTodavia_FND084(t *testing.T
 		t.Fatal("cualquier otra ruta tiene que existir")
 	}
 }
+
+// Pedido del usuario (2026-10-30): según el modo de la IA principal, qdd dice cuándo pedir autorización. En auto, solo
+// para cambiar lo que el proyecto ya definió; seguir la línea del proyecto no se pregunta.
+func TestAutorizacion_SegunElModoDeLaIA(t *testing.T) {
+	auto := strings.Join(ReglaDeAutorizacion("auto"), "\n")
+	for _, s := range []string{"sin pedir autorización", "ficha aprobada", "blueprint", "tag", "no se puede deshacer"} {
+		if !strings.Contains(auto, s) {
+			t.Fatalf("auto dice %q: %s", s, auto)
+		}
+	}
+	if strings.Join(ReglaDeAutorizacion("acceptEdits"), "") != strings.Join(ReglaDeAutorizacion("auto"), "") {
+		t.Fatal("acceptEdits, bypassPermissions y dontAsk siguen la regla de auto")
+	}
+	if !strings.Contains(strings.Join(ReglaDeAutorizacion("plan"), ""), "no ejecutes") {
+		t.Fatal("en plan solo se planifica")
+	}
+	if !strings.Contains(strings.Join(ReglaDeAutorizacion(""), ""), "sin medir") {
+		t.Fatal("sin modo conocido lo dice")
+	}
+	ctx := BuildContext(ContextInput{Root: t.TempDir(), Modo: "auto", ModoVisto: "18:02"})
+	if !strings.Contains(ctx, "## Autorización según el modo de la IA") || !strings.Contains(ctx, "«auto» (visto a las 18:02)") {
+		t.Fatalf("el contexto trae la regla del modo: %s", ctx)
+	}
+}

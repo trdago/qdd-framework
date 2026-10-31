@@ -25,6 +25,9 @@ type QDDPolicies struct {
 	Versioning *bool `yaml:"versioning,omitempty" json:"versioning,omitempty"`
 	// ModuleHeart exige ficha vigente para cada zona de código (opt-in).
 	ModuleHeart bool `yaml:"module_heart,omitempty" json:"module_heart,omitempty"`
+	// UsoMinimoHoras (VER-05): horas de uso real medido que necesita una minor o una major antes de salir como
+	// latest. 0 (o sin la clave) no lo exige.
+	UsoMinimoHoras float64 `yaml:"uso_minimo_horas,omitempty" json:"uso_minimo_horas,omitempty"`
 	// Adopcion "gradual" convierte las reglas de madurez en recomendaciones.
 	// Vacío (proyectos anteriores) = estricto.
 	Adopcion string `yaml:"adopcion,omitempty" json:"adopcion,omitempty"`

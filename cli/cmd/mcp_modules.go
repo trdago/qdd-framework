@@ -25,11 +25,14 @@ func registerProjectContextTool(s *server.MCPServer) {
 func handleProjectContextTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	root := projectRootForMCP()
 	notice := migrationNotice(root)
+	modo, visto := modoDeLaIA(root)
 	text := modules.BuildContext(modules.ContextInput{
 		Root:         root,
 		Paths:        splitPaths(stringArg(request, "paths")),
 		TestCommands: audit.TestCommandLabels(root),
 		Estandares:   blueprints.Estandares(root),
+		Modo:         modo,
+		ModoVisto:    visto,
 	})
 	if notice != "" {
 		text = notice + "\n" + text

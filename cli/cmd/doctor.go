@@ -12,6 +12,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/integration"
@@ -107,13 +108,42 @@ const grupoConsola = "6. Consola de Claude Code (qdd consola)"
 // La cola de pedidos se revisa con la consola activa o si tiene pedidos fuera de lugar (FND-081).
 func buildConsolaChecks(projectPath string) *CheckGroup {
 	g := &CheckGroup{Name: grupoConsola}
-	for _, d := range consolaActual().Diagnosticar() {
+	diagnostico := consolaActual().Diagnosticar()
+	for _, d := range diagnostico {
 		g.Items = append(g.Items, &CheckItem{Name: d.Nombre, Success: d.OK, Error: d.Detalle})
 	}
 	if cola := consola.DiagnosticarCola(projectPath); len(g.Items) > 0 || !cola.OK {
 		g.Items = append(g.Items, &CheckItem{Name: cola.Nombre, Success: cola.OK, Error: cola.Detalle})
 	}
+	activa := len(diagnostico) > 0
+	if item := checkUso(); activa || !item.Success {
+		g.Items = append(g.Items, item)
+	}
+	if activa {
+		g.Items = append(g.Items, checkModo(projectPath))
+	}
 	return g
+}
+
+const nombreUso = "Uso real medido de qdd (VER-05)"
+
+// checkUso dice cuánto se usó la versión que corre; un registro ilegible es una falla que --fix aparta.
+func checkUso() *CheckItem {
+	_, ilegibles := uso.Todas()
+	if len(ilegibles) > 0 {
+		return &CheckItem{Name: nombreUso, Error: "registro ilegible (no suma): " + strings.Join(ilegibles, ", ")}
+	}
+	total, _ := uso.Total(Version)
+	return &CheckItem{Name: nombreUso, Success: true, Error: strings.TrimPrefix(Version, "v") + ": " + duracion(total) + " de uso real (qdd uso)"}
+}
+
+// checkModo muestra el modo de permisos de la IA del último mensaje (qdd consola ciclo); sin medir no es una falla.
+func checkModo(projectPath string) *CheckItem {
+	modo, visto := modoDeLaIA(projectPath)
+	if modo == "" {
+		return &CheckItem{Name: "Modo de permisos de la IA", Success: true, Error: "sin medir: el panel lo anota con cada mensaje"}
+	}
+	return &CheckItem{Name: "Modo de permisos de la IA", Success: true, Error: modo + " (visto a las " + visto + ")"}
 }
 
 // repairConsola repara lo que falló: la cola se junta sin reactivar la consola, y la consola se reactiva solo si
@@ -122,6 +152,11 @@ func repairConsola(projectPath string, g *CheckGroup) {
 	consolaFalla := false
 	for _, item := range g.Items {
 		if item.Success {
+			continue
+		}
+		if item.Name == nombreUso {
+			fmt.Println("  [~] Apartando los registros de uso ilegibles...")
+			imprimirReparado(uso.ApartarIlegibles())
 			continue
 		}
 		if item.Name == consola.DiagnosticarCola(projectPath).Nombre {
