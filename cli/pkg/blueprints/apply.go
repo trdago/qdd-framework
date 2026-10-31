@@ -128,6 +128,28 @@ func inList(list []string, v string) bool {
 	return false
 }
 
+// lineaDeRespuesta deja lo que significa la opción: sin ella, «etapas → software» no dice qué construir.
+func lineaDeRespuesta(id, valor, descripcion string) string {
+	if descripcion = strings.TrimSpace(descripcion); descripcion != "" {
+		return fmt.Sprintf("%s → %s: %s", id, valor, descripcion)
+	}
+	return fmt.Sprintf("%s → %s", id, valor)
+}
+
+// alcanceDe son los límites de la receta con estas respuestas: los de la base y los de cada opción elegida.
+func (b Blueprint) alcanceDe(respuestas map[string]string) Alcance {
+	a := Alcance{Incluye: append([]string{}, b.Alcance.Incluye...), Excluye: append([]string{}, b.Alcance.Excluye...)}
+	for _, p := range b.Preguntas {
+		if valor, ok := respuestas[p.ID]; ok {
+			o, _ := p.opcion(valor)
+			a.Incluye = append(a.Incluye, o.Alcance.Incluye...)
+			a.Excluye = append(a.Excluye, o.Alcance.Excluye...)
+		}
+	}
+	valores := b.valores(respuestas)
+	return Alcance{Incluye: expandAll(dedupe(a.Incluye), valores), Excluye: expandAll(dedupe(a.Excluye), valores)}
+}
+
 // componer reúne lo que implican las respuestas: decisiones, invariantes y
 // escenarios de conformidad, con los {{id}} reemplazados por la respuesta.
 func (b Blueprint) componer(respuestas map[string]string) (Generado, []Escenario) {
@@ -148,7 +170,7 @@ func (b Blueprint) componer(respuestas map[string]string) (Generado, []Escenario
 			continue
 		}
 		o, _ := p.opcion(valor)
-		gen.Decisiones = append(gen.Decisiones, fmt.Sprintf("%s → %s", p.ID, valor))
+		gen.Decisiones = append(gen.Decisiones, lineaDeRespuesta(p.ID, valor, o.Descripcion))
 		gen.Decisiones = append(gen.Decisiones, o.Decisiones...)
 		gen.Invariantes = append(gen.Invariantes, o.Invariantes...)
 		escenarios = append(escenarios, o.Conformidad...)

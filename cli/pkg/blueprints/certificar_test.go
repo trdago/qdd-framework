@@ -145,3 +145,47 @@ func certificarParaPrueba(t *testing.T, carpeta string) {
 		t.Fatalf("certificación de prueba: %+v %v", c, err)
 	}
 }
+
+func TestCertificar_LaRecetaDiceQueSignificaCadaRespuesta(t *testing.T) {
+	k, _ := PrepararCertificacion(recetaEnCarpeta(t, recetaConLimites))
+	if receta := leer(t, filepath.Join(varianteDe(t, k, VarianteAdaptada).Carpeta, RecetaFile)); !strings.Contains(receta, "avisos → si: Avisa cuando llega una tarea.") {
+		t.Fatalf("quien construye a ciegas no sabe qué significa «si» sin la descripción de la opción:\n%s", receta)
+	}
+}
+
+func TestCertificar_UnLimiteDeUnaOpcionSoloConEsaOpcion(t *testing.T) {
+	conLimite := strings.Replace(strings.Replace(recetaConLimites, `incluye: ["Ver las tareas y avisar cuando llega una"]`, `incluye: ["Ver las tareas"]`, 1),
+		"        descripcion: Avisa cuando llega una tarea.\n", "        descripcion: Avisa cuando llega una tarea.\n        alcance: {incluye: [\"Avisar cuando llega una tarea\"]}\n", 1)
+	conLimite = strings.Replace(conLimite, "        descripcion: Sin avisos.\n", "        descripcion: Sin avisos.\n        alcance: {excluye: [\"Avisos\"]}\n", 1)
+	b := recetaEnCarpeta(t, conLimite)
+	k, err := PrepararCertificacion(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sugerida, otra := leer(t, filepath.Join(varianteDe(t, k, VarianteSugerida).Carpeta, RecetaFile)), leer(t, filepath.Join(varianteDe(t, k, VarianteAdaptada).Carpeta, RecetaFile))
+	if strings.Contains(sugerida, "✓ Avisar") || !strings.Contains(sugerida, "✗ Avisos") || !strings.Contains(otra, "✓ Avisar cuando llega una tarea") || strings.Contains(otra, "✗ Avisos") {
+		t.Fatalf("el alcance de cada variante es el suyo:\n%s\n---\n%s", sugerida, otra)
+	}
+	if s, _ := Seccion(b, "alcance"); !strings.Contains(s, "Avisar cuando llega una tarea") || !strings.Contains(s, "avisos=si") {
+		t.Fatalf("la sección alcance muestra los límites de cada opción y cuándo: %q", s)
+	}
+}
+
+func TestCertificar_LoQueQuienConstruyeSupusoVuelveALaPersona(t *testing.T) {
+	b := recetaEnCarpeta(t, recetaConLimites)
+	k, _ := PrepararCertificacion(b)
+	if receta := leer(t, filepath.Join(k.Variantes[0].Carpeta, RecetaFile)); !strings.Contains(receta, "supuestos:") {
+		t.Fatalf("la receta pide dejar lo que hubo que suponer:\n%s", receta)
+	}
+	for _, v := range k.Variantes {
+		construir(t, v, "true", v.Escenarios...)
+	}
+	writeFile(t, filepath.Join(k.Variantes[1].Carpeta, ConstruccionFile), "lenguaje: shell\ncomando: \"true\"\nsupuestos: [\"P-01: qué es una tarea nueva\"]\n")
+	c, err := VerificarCertificacion(b)
+	if err != nil || !c.Aprobada {
+		t.Fatalf("un supuesto no rompe lo construido: %+v %v", c, err)
+	}
+	if s := SupuestosDe(c); len(s) != 1 || !strings.Contains(s[0], "P-01: qué es una tarea nueva") || !strings.Contains(LineaCertificacion(c), "1 supuesto") {
+		t.Fatalf("lo supuesto queda en la certificación para preguntárselo a la persona: %v %q", s, LineaCertificacion(c))
+	}
+}

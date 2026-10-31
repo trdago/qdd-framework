@@ -50,6 +50,7 @@ type Variante struct {
 	Comando    string            `yaml:"comando,omitempty"`
 	Resultado  string            `yaml:"resultado"`
 	Faltan     []string          `yaml:"faltan,omitempty"`
+	Supuestos  []string          `yaml:"supuestos,omitempty"` // lo que la receta no decía y quien construyó tuvo que suponer
 	Aprobada   bool              `yaml:"aprobada"`
 }
 
@@ -161,11 +162,12 @@ func recetaParaConstruir(b Blueprint, v Variante) string {
 	fmt.Fprintf(&s, "# Receta: %s (%s) · variante %s\n\n", b.Nombre, b.Ref(), v.Nombre)
 	s.WriteString("Construye esto desde cero en esta carpeta, en el lenguaje que elijas, solo con esta receta (no busques otra implementación).\n")
 	s.WriteString("1. Sigue los pasos en orden.\n2. Por cada escenario, una prueba automática que lleve su id en el nombre (p. ej. `" + primero(append(v.Escenarios, "X-01")...) + "`).\n")
-	fmt.Fprintf(&s, "3. Deja en `%s` el lenguaje y el comando que corre todas las pruebas:\n\n```yaml\nlenguaje: <el que elegiste>\ncomando: \"<p. ej. go test ./...>\"\n```\n", ConstruccionFile)
+	fmt.Fprintf(&s, "3. Deja en `%s` el lenguaje y el comando que corre todas las pruebas:\n\n```yaml\nlenguaje: <el que elegiste>\ncomando: \"<p. ej. go test ./...>\"\nsupuestos: [\"<paso o escenario>: lo que la receta no decía y tuviste que suponer\"]\n```\n", ConstruccionFile)
 	fmt.Fprintf(&s, "\n## Problema\n%s\n\n**Criterio de éxito:** %s\n", strings.TrimSpace(b.Ficha.ObjetivoOperativo.Problema), strings.TrimSpace(b.Ficha.ObjetivoOperativo.CriterioDeExito))
 	fmt.Fprintf(&s, "\n## Alcance\n")
-	escribirLista(&s, "- ✓ ", b.Alcance.Incluye)
-	escribirLista(&s, "- ✗ ", b.Alcance.Excluye)
+	alcance := b.alcanceDe(v.Respuestas)
+	escribirLista(&s, "- ✓ ", alcance.Incluye)
+	escribirLista(&s, "- ✗ ", alcance.Excluye)
 	fmt.Fprintf(&s, "\n## Arquitectura\n%s\n", strings.TrimSpace(b.Ficha.ObjetivoTecnologico.Arquitectura))
 	s.WriteString("\n## Pasos, decisiones y vocabulario\n")
 	escribirLista(&s, "- ", gen.Decisiones)
@@ -204,15 +206,16 @@ func VerificarCertificacion(b Blueprint) (Certificacion, error) {
 
 func verificarVariante(v Variante) Variante {
 	var hecho struct {
-		Lenguaje string `yaml:"lenguaje"`
-		Comando  string `yaml:"comando"`
+		Lenguaje  string   `yaml:"lenguaje"`
+		Comando   string   `yaml:"comando"`
+		Supuestos []string `yaml:"supuestos"`
 	}
 	data, err := os.ReadFile(filepath.Join(v.Carpeta, ConstruccionFile))
 	if err != nil || yaml.Unmarshal(data, &hecho) != nil || strings.TrimSpace(hecho.Comando) == "" {
 		v.Resultado = "sin construir: falta " + ConstruccionFile + " con su comando"
 		return v
 	}
-	v.Lenguaje, v.Comando = hecho.Lenguaje, hecho.Comando
+	v.Lenguaje, v.Comando, v.Supuestos = hecho.Lenguaje, hecho.Comando, hecho.Supuestos
 	v.Faltan = escenariosSinPrueba(v)
 	codigo, salida := correrPruebas(v.Carpeta, hecho.Comando)
 	v.Aprobada = codigo == 0 && len(v.Faltan) == 0
@@ -288,6 +291,18 @@ func CertificacionVigente(b Blueprint) (Certificacion, bool) {
 }
 
 // LineaCertificacion resume la certificación: ✅/❌ y cada variante con su lenguaje y lo que le falta.
+// SupuestosDe son lo que cada constructor a ciegas tuvo que suponer: la siguiente entrevista. La persona decide si
+// cada uno se fija en la receta (una decisión, un parámetro o una constante) o queda libre a quien construye.
+func SupuestosDe(c Certificacion) []string {
+	var out []string
+	for _, v := range c.Variantes {
+		for _, s := range v.Supuestos {
+			out = append(out, v.Nombre+" · "+strings.TrimSpace(s))
+		}
+	}
+	return out
+}
+
 func LineaCertificacion(c Certificacion) string {
 	partes := make([]string, 0, len(c.Variantes))
 	aprobadas := 0
@@ -303,6 +318,9 @@ func LineaCertificacion(c Certificacion) string {
 		parte += ": " + v.Resultado
 		if len(v.Faltan) > 0 {
 			parte += " · sin prueba " + strings.Join(v.Faltan, ", ")
+		}
+		if n := len(v.Supuestos); n > 0 {
+			parte += fmt.Sprintf(" · %d supuesto(s)", n)
 		}
 		partes = append(partes, parte)
 	}

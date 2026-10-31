@@ -36,11 +36,11 @@ type Alcance struct {
 type Parametro struct {
 	ID         string             `yaml:"id"`
 	Si         map[string]Valores `yaml:"si,omitempty"` // solo se pregunta con esas respuestas
-	Pregunta   string   `yaml:"pregunta"`
-	Ayuda      string   `yaml:"ayuda,omitempty"`
-	Tipo       string   `yaml:"tipo,omitempty"` // numero | texto (por defecto)
-	PorDefecto string   `yaml:"por_defecto"`
-	Ejemplos   []string `yaml:"ejemplos,omitempty"`
+	Pregunta   string             `yaml:"pregunta"`
+	Ayuda      string             `yaml:"ayuda,omitempty"`
+	Tipo       string             `yaml:"tipo,omitempty"` // numero | texto (por defecto)
+	PorDefecto string             `yaml:"por_defecto"`
+	Ejemplos   []string           `yaml:"ejemplos,omitempty"`
 }
 
 // Constante es un valor técnico fijo de la receta, igual en todo proyecto, con la razón de ese valor.

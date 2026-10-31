@@ -405,7 +405,7 @@ func textosDe(b Blueprint) []textoUbicado {
 	f := b.Ficha
 	out = append(out, textoUbicado{donde: "descripcion", texto: b.Descripcion, prosa: true}, textoUbicado{donde: "problema", texto: f.ObjetivoOperativo.Problema, prosa: true},
 		textoUbicado{donde: "criterio_de_exito", texto: f.ObjetivoOperativo.CriterioDeExito, prosa: true}, textoUbicado{donde: "arquitectura", texto: f.ObjetivoTecnologico.Arquitectura, prosa: true})
-	for _, l := range append(append([]string{}, b.Alcance.Incluye...), b.Alcance.Excluye...) {
+	for _, l := range limitesDe(b) {
 		out = append(out, textoUbicado{donde: "alcance", texto: l}) // cada límite es una regla aparte
 	}
 	for _, p := range b.Parametros {
@@ -626,6 +626,17 @@ func valoresSugeridos(b Blueprint) map[string]string {
 	out := map[string]string{}
 	for _, p := range b.Parametros {
 		out[p.ID] = p.PorDefecto
+	}
+	return out
+}
+
+// limitesDe son todos los límites de la receta: los de la base y los de cada opción.
+func limitesDe(b Blueprint) []string {
+	out := append(append([]string{}, b.Alcance.Incluye...), b.Alcance.Excluye...)
+	for _, p := range b.Preguntas {
+		for _, o := range p.Opciones {
+			out = append(append(out, o.Alcance.Incluye...), o.Alcance.Excluye...)
+		}
 	}
 	return out
 }

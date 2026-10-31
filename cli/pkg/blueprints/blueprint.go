@@ -54,6 +54,7 @@ type Opcion struct {
 	Decisiones  []string    `yaml:"decisiones,omitempty"`
 	Invariantes []string    `yaml:"invariantes,omitempty"`
 	Conformidad []Escenario `yaml:"conformidad,omitempty"`
+	Alcance     Alcance     `yaml:"alcance,omitempty"` // límites que solo valen con esta opción
 }
 
 // Valores acepta en YAML un valor suelto o una lista.

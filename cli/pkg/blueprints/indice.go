@@ -113,6 +113,12 @@ func Seccion(b Blueprint, nombre string) (string, error) {
 	case "alcance":
 		escribirLista(&s, "✓ ", b.Alcance.Incluye)
 		escribirLista(&s, "✗ ", b.Alcance.Excluye)
+		for _, p := range b.Preguntas {
+			for _, o := range p.Opciones {
+				escribirLista(&s, "("+p.ID+"="+o.Valor+") ✓ ", o.Alcance.Incluye)
+				escribirLista(&s, "("+p.ID+"="+o.Valor+") ✗ ", o.Alcance.Excluye)
+			}
+		}
 	case "pasos":
 		for n, p := range b.Pasos {
 			fmt.Fprintf(&s, "%d. %s → %s%s%s\n", n+1, strings.TrimSpace(p.Accion), strings.TrimSpace(p.Produce), verificaDe(p), condicionDe(p))

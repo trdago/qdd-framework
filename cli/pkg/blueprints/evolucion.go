@@ -168,6 +168,7 @@ func aspectos(b Blueprint) map[string]string {
 			m["opción '"+p.ID+"="+o.Valor+"'"] = strings.Join(o.DependeDe, "\n")
 			agregarFicha(m, " (si "+p.ID+"="+o.Valor+")", o.Decisiones, o.Invariantes)
 			agregarEscenarios(m, o.Conformidad)
+			agregarAlcance(m, " (si "+p.ID+"="+o.Valor+")", o.Alcance)
 		}
 	}
 	return m
@@ -177,12 +178,7 @@ func aspectos(b Blueprint) map[string]string {
 // límite que cambia cambia lo que se construye.
 func agregarReceta(m map[string]string, b Blueprint) {
 	m["requiere qdd"] = b.RequiereQDD
-	for _, x := range b.Alcance.Incluye {
-		m["el alcance incluye \""+x+"\""] = ""
-	}
-	for _, x := range b.Alcance.Excluye {
-		m["el alcance excluye \""+x+"\""] = ""
-	}
+	agregarAlcance(m, "", b.Alcance)
 	for _, p := range b.Parametros {
 		m["parámetro '"+p.ID+"'"] = strings.Join([]string{p.Pregunta, p.Tipo, p.PorDefecto}, "\n")
 	}
@@ -191,6 +187,15 @@ func agregarReceta(m map[string]string, b Blueprint) {
 	}
 	for _, p := range b.Pasos {
 		m["paso '"+p.ID+"'"] = strings.Join([]string{p.Accion, p.Produce, strings.Join(p.Verifica, ","), fmt.Sprint(p.Si)}, "\n")
+	}
+}
+
+func agregarAlcance(m map[string]string, sufijo string, a Alcance) {
+	for _, x := range a.Incluye {
+		m["el alcance incluye \""+x+"\""+sufijo] = ""
+	}
+	for _, x := range a.Excluye {
+		m["el alcance excluye \""+x+"\""+sufijo] = ""
 	}
 }
 
@@ -429,9 +434,10 @@ type Propuesta struct {
 	Aviso   string // por qué no se abrió el PR y cómo abrirlo
 	Via     string // cómo se publicó la rama, si no fue por el origin (FND-063)
 
-	CalidadAntes  string // la línea de calidad de lo publicado; vacía si el blueprint es nuevo
-	Calidad       string // la línea de calidad del aporte
-	Certificacion string // la línea de la certificación ciega; vacía si la receta no tiene pasos
+	CalidadAntes  string   // la línea de calidad de lo publicado; vacía si el blueprint es nuevo
+	Calidad       string   // la línea de calidad del aporte
+	Certificacion string   // la línea de la certificación ciega; vacía si la receta no tiene pasos
+	Supuestos     []string // lo que quien construyó a ciegas tuvo que suponer
 }
 
 // abrirPR abre el pull request de la rama con la CLI de GitHub.
@@ -553,7 +559,7 @@ func versionar(espacio, carpeta, subdir, id string) (Propuesta, error) {
 		if !vigente {
 			return Propuesta{}, fmt.Errorf("'%s' no tiene una certificación ciega vigente de esta receta: qdd blueprint certify %s (prepara las variantes; un agente nuevo las construye; luego --verificar)", id, id)
 		}
-		p.Certificacion = LineaCertificacion(cert)
+		p.Certificacion, p.Supuestos = LineaCertificacion(cert), SupuestosDe(cert)
 	}
 	if err := fijarVersion(filepath.Join(carpeta, ManifestName), p.Version); err != nil {
 		return Propuesta{}, err
@@ -607,6 +613,9 @@ func cuerpoPR(id string, p Propuesta) string {
 	fmt.Fprintf(&b, "\n**Calidad de la receta** (qdd blueprint quality): %s\n", calidadAntesYDespues(p))
 	if p.Certificacion != "" {
 		fmt.Fprintf(&b, "\n**Certificación ciega** (qdd blueprint certify): %s\n", p.Certificacion)
+		for _, s := range p.Supuestos {
+			fmt.Fprintf(&b, "- supuesto: %s\n", s)
+		}
 	}
 	b.WriteString("\nTras el merge, un mantenedor publica la versión con `qdd blueprint release`; cada proyecto la recibe con `qdd blueprint sync`.\n")
 	return b.String()

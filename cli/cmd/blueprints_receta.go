@@ -84,7 +84,11 @@ func certificar(root, pedido string, verificar bool) (string, bool, error) {
 	}
 	if verificar {
 		c, err := blueprints.VerificarCertificacion(b)
-		return blueprints.LineaCertificacion(c) + "\n", c.Aprobada, err
+		texto := blueprints.LineaCertificacion(c) + "\n"
+		if s := blueprints.SupuestosDe(c); len(s) > 0 {
+			texto += "Lo que la receta no decía y se supuso. Pregúntale a la persona, uno por uno, si se fija en la receta (decisión, parámetro o constante) o queda libre a quien construye:\n  ❓ " + strings.Join(s, "\n  ❓ ") + "\n"
+		}
+		return texto, c.Aprobada, err
 	}
 	k, err := blueprints.PrepararCertificacion(b)
 	if err != nil {
