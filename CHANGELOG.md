@@ -12,8 +12,8 @@ Octava **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
 
 ### 📐 QDD mide la calidad de cada blueprint como receta
 
-- **`qdd blueprint quality`** (y `qdd_blueprint_list {seccion: calidad}`): un blueprint es como el plano de un arma en el juego Rust, con él se construye la pieza entera en cualquier lenguaje. QDD lo mide de forma determinista en una línea: `consola-claude-code@7.1.0 · calidad 22/100 · ⚠6 ✂6 · receta ≈3.4k (−293)–4.0k tokens · índice ≈355`.
-- **⚠ Defectos** (lo que falta o está mal puesto para construirla tal cual): un escenario de la base que solo vale con una opción, una opción que usa una versión mayor que la que pide, una opción que no dice qué implica, código en la receta, invariantes de una opción sin un escenario que las verifique.
+- **`qdd blueprint quality`** (y `qdd_blueprint_list {seccion: calidad}`): un blueprint es como el plano de un arma en el juego Rust, con él se construye la pieza entera en cualquier lenguaje. QDD lo mide de forma determinista en una línea: `consola-claude-code@7.1.0 · calidad 12/100 · ⚠7 ✂6 · receta ≈3.4k (−293)–4.0k tokens · índice ≈355`.
+- **⚠ Defectos** (lo que falta o está mal puesto para construirla tal cual): un escenario de la base que solo vale con una opción, una opción que usa una versión mayor que la que pide, una opción que no dice qué implica, código en la receta, invariantes de una opción sin un escenario que las verifique, una opción que depende de otra respuesta en una pregunta que se hace sin ella (admitiría una combinación imposible).
 - **✂ Mejoras sin perder calidad**: una regla de más de 280 caracteres, una opción que repite la base, un término que nada usa. Ningún arreglo quita una regla, opción ni escenario.
 - **Tokens:** cuánto cuesta el índice y la receta que recibe un proyecto (con las respuestas por defecto y con las que más traen), y cuánto ahorra cada arreglo.
 - **La receta nunca empeora:** `qdd blueprint propose` rechaza un aporte que agrega defectos (los que ya tenía no bloquean) y un blueprint nuevo nace sin defectos. El PR dice la calidad antes → después.

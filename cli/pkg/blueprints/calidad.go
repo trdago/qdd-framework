@@ -25,6 +25,7 @@ const (
 	CalOpcionVacia       = "CAL-03" // defecto: una opción que no dice qué implica
 	CalCodigo            = "CAL-04" // defecto: código en la receta (no sería de cualquier lenguaje)
 	CalSinEscenario      = "CAL-05" // defecto: una opción con invariantes y sin un escenario que las verifique
+	CalCondicion         = "CAL-09" // defecto: una opción depende de otra respuesta y su pregunta se hace sin ella
 	CalLargo             = "CAL-06" // mejora: una regla de más de maxRegla caracteres
 	CalRepetido          = "CAL-07" // mejora: una opción repite una regla de la base
 	CalTerminoSinUso     = "CAL-08" // mejora: un término del vocabulario que nada usa
@@ -40,7 +41,7 @@ const (
 
 var gravedadDe = map[string]string{
 	CalEscenarioDeOpcion: GravedadDefecto, CalVersionMinima: GravedadDefecto, CalOpcionVacia: GravedadDefecto,
-	CalCodigo: GravedadDefecto, CalSinEscenario: GravedadDefecto,
+	CalCodigo: GravedadDefecto, CalSinEscenario: GravedadDefecto, CalCondicion: GravedadDefecto,
 	CalLargo: GravedadMejora, CalRepetido: GravedadMejora, CalTerminoSinUso: GravedadMejora,
 }
 
@@ -85,7 +86,7 @@ func (h HallazgoCalidad) Texto() string {
 // CalidadDe mide el blueprint.
 func CalidadDe(b Blueprint) Calidad {
 	c := Calidad{Ref: b.Ref()}
-	medidas := []func(Blueprint) []HallazgoCalidad{escenariosDeOpcion, versionesMinimas, opcionesVacias, conCodigo, sinEscenario, largos, repetidos, terminosSinUso}
+	medidas := []func(Blueprint) []HallazgoCalidad{escenariosDeOpcion, versionesMinimas, opcionesVacias, conCodigo, sinEscenario, sinCondicion, largos, repetidos, terminosSinUso}
 	for _, medir := range medidas {
 		c.Hallazgos = append(c.Hallazgos, medir(b)...)
 	}
@@ -273,6 +274,24 @@ func sinEscenario(b Blueprint) []HallazgoCalidad {
 	return out
 }
 
+// sinCondicion: si una opción depende de otra respuesta («depende_de: [consola_qdd=si]») y su pregunta se hace sin
+// ella, la receta admite una combinación imposible. La pregunta va con 'si', y solo se hace cuando aplica.
+func sinCondicion(b Blueprint) []HallazgoCalidad {
+	var out []HallazgoCalidad
+	for _, p := range b.Preguntas {
+		for _, o := range p.Opciones {
+			q, valor, ok := respuestaCitada(b, strings.Join(o.DependeDe, " "))
+			if !ok || q == p.ID || inList(p.Si[q], valor) {
+				continue
+			}
+			out = append(out, HallazgoCalidad{Codigo: CalCondicion, Donde: p.ID + "=" + o.Valor,
+				Detalle: "depende de " + q + "=" + valor + ", pero la pregunta se hace sin esa respuesta",
+				Arreglo: "en la pregunta " + p.ID + ": si: {" + q + ": " + valor + "}"})
+		}
+	}
+	return out
+}
+
 // largos: una regla de más de maxRegla caracteres suele ser varias; dividida, cada una se verifica sola.
 func largos(b Blueprint) []HallazgoCalidad {
 	var out []HallazgoCalidad
@@ -374,7 +393,7 @@ func textosDe(b Blueprint) []textoUbicado {
 	out = append(out, reglas("invariantes", f.ObjetivoTecnologico.Invariantes)...)
 	out = append(out, escenariosUbicados("", b.Conformidad)...)
 	for _, p := range b.Preguntas {
-		out = append(out, textoUbicado{donde: p.ID + " ayuda", texto: p.Pregunta + " " + p.Ayuda})
+		out = append(out, textoUbicado{donde: p.ID, texto: p.Pregunta}, textoUbicado{donde: p.ID + " ayuda", texto: p.Ayuda})
 		for _, o := range p.Opciones {
 			donde := p.ID + "=" + o.Valor
 			out = append(out, textoUbicado{donde: donde, texto: o.Descripcion})

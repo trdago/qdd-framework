@@ -305,3 +305,16 @@ func TestCalidad_UnTerminoEnPluralSeUsa(t *testing.T) {
 		t.Fatal("el término se reconoce por la raíz de sus palabras")
 	}
 }
+
+func TestCalidad_UnaOpcionQueDependeDeOtraRespuestaVaConSi(t *testing.T) {
+	b := mustParse(t, strings.Replace(recetaLimpia, "  - id: color\n    pregunta: ¿Con color?\n    opciones:\n      - valor: si\n        descripcion: Con color.",
+		"  - id: color\n    pregunta: ¿Con color?\n    opciones:\n      - valor: si\n        descripcion: Con color.\n        depende_de: [\"avisos=si\"]", 1))
+	got := codigos(CalidadDe(b))[CalCondicion]
+	if len(got) != 1 || got[0] != "color=si" {
+		t.Fatalf("con avisos=no se podría elegir color=si: la pregunta va con si: {avisos: si}: %v", got)
+	}
+	condicional := strings.Replace(recetaLimpia, "  - id: color\n    pregunta: ¿Con color?\n", "  - id: color\n    pregunta: ¿Con color?\n    si: {avisos: si}\n", 1)
+	if n := len(codigos(CalidadDe(mustParse(t, condicional)))[CalCondicion]); n != 0 {
+		t.Fatalf("una pregunta con si ya no se hace sin esa respuesta: %d", n)
+	}
+}
