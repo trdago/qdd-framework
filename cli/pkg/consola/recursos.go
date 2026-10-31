@@ -255,10 +255,10 @@ func porcentajeUsado(total, libre, disponible uint64) (float64, bool) {
 	return float64(usado) / float64(usado+disponible) * 100, true
 }
 
-// barraCon agrega a la barra la línea de recursos si s no es nil. La medición tiene un tope total: si se pasa, la barra
+// barraCon agrega a la barra la línea de recursos, pegada a la derecha, si s no es nil. La medición tiene un tope total: si se pasa, la barra
 // sale sin la segunda línea.
-func barraCon(datos []byte, now time.Time, conEstado bool, s *sensores, ruta string) string {
-	linea := Barra(datos, now, conEstado)
+func barraCon(datos []byte, now time.Time, modo string, ancho int, s *sensores, ruta string) string {
+	linea := Barra(datos, now, modo, ancho)
 	if linea == "" || s == nil {
 		return linea
 	}
@@ -275,14 +275,14 @@ func barraCon(datos []byte, now time.Time, conEstado bool, s *sensores, ruta str
 		if r == "" {
 			return linea
 		}
-		return linea + "\n" + r
+		return linea + "\n" + aLaDerecha(r, ancho)
 	case <-time.After(topeLinea):
 		return linea
 	}
 }
 
-// BarraConRecursos es la barra con la segunda línea de recursos del sistema; la caché va en dirCache.
-func BarraConRecursos(datos []byte, now time.Time, conEstado bool, dirCache string) string {
+// BarraConRecursos es la barra con la línea de recursos del sistema abajo, a la derecha; la caché va en dirCache.
+func BarraConRecursos(datos []byte, now time.Time, modo string, ancho int, dirCache string) string {
 	s := sensoresDelSistema()
-	return barraCon(datos, now, conEstado, &s, filepath.Join(dirCache, "recursos.json"))
+	return barraCon(datos, now, modo, ancho, &s, filepath.Join(dirCache, "recursos.json"))
 }

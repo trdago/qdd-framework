@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.5] - 2026-10-31 (preview)
+
+Quinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### 🎨 Barra de abajo ordenada (blueprint consola-claude-code v7)
+
+- **A la izquierda, solo el modelo y el modo de la IA** («Opus 5.5 · auto»). El modo es el que qdd anota con cada mensaje; Claude Code no se lo entrega a la barra.
+- **A la derecha, en lista:** «contexto 38%», «5h 12% ↻ 02:00» y «semana 40% ↻ mar 12:00», uno por línea y pegados al borde. El ancho sale de la terminal; si no se sabe, van sin relleno, y si el contexto no cabe junto al modelo, baja a la lista.
+- **Fuera de la barra:** la carpeta del proyecto y «◧ N tareas · ⏳ ❌»; los dos están en el panel. La línea de recursos (opcional) va al final, a la derecha.
+
 ## [2.8.0-rc.4] - 2026-10-31 (preview)
 
 Cuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
