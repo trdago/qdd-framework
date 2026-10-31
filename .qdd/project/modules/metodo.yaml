@@ -1,6 +1,6 @@
 id: metodo
 nombre: Método de trabajo QDD (lo que la IA lee como reglas)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/modules/context.go
     - cli/pkg/integration/types.go
@@ -26,3 +26,5 @@ fuentes:
     - cli/pkg/modules/context.go
     - cli/pkg/integration/types.go
     - cli/pkg/audit/clean_code.go
+ultima_revision: "2026-10-31"
+revisado_en_commit: a99c2eb818a8
