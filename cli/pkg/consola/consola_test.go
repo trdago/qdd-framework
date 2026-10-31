@@ -25,7 +25,20 @@ func derecha(t *testing.T, linea string, ancho int) string {
 	if n := utf8.RuneCountInString(linea); n != ancho-MargenBarra {
 		t.Fatalf("la línea %q mide %d; pegada a la derecha mide %d", linea, n, ancho-MargenBarra)
 	}
-	return strings.TrimLeft(linea, " ")
+	return strings.TrimLeft(linea, " "+Relleno)
+}
+
+// FND-091 (captura del usuario, 2026-10-31): Claude Code quita los espacios al inicio de cada línea de la barra (5h y
+// semana quedaron a la izquierda) y corta con «…» la que llega casi al borde («contexto …»).
+func TestBarra_LaListaNoEmpiezaConEspaciosYDejaMargen_FND091(t *testing.T) {
+	in := `{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":12}}}`
+	got := strings.Split(Barra([]byte(in), ahora, "auto", 70), "\n")
+	if len(got) != 2 || !strings.HasPrefix(got[1], Relleno) || strings.TrimLeft(got[1], " "+Relleno) != "5h 12%" {
+		t.Fatalf("una línea de la lista empieza con un blanco que Claude Code no borra: %q", got)
+	}
+	if MargenBarra < 6 {
+		t.Fatalf("Claude Code deja menos ancho que la terminal: el margen derecho es de al menos 6 columnas, no %d", MargenBarra)
+	}
 }
 
 func TestBarra_ModeloYModoALaIzquierdaUsosEnListaALaDerecha_CCC_C01(t *testing.T) {

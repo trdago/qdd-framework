@@ -20,9 +20,13 @@ import (
 // pegados al borde, el contexto, el uso de 5 h y el de la semana («contexto 38%», «5h 12% ↻ 18:30», «semana 40% ↻ sáb
 // 09:00»). Sin carpeta ni segmento de tareas: eso lo muestra el panel (pedido del usuario, 2026-10-31).
 
-// MargenBarra son las columnas que la barra deja libres a la derecha, para que una línea pegada al borde no salte de
-// renglón dentro del margen que Claude Code pone a la barra.
-const MargenBarra = 2
+// MargenBarra son las columnas que la barra deja libres a la derecha: Claude Code dibuja la barra con su propio margen
+// y corta con «…» la línea que no cabe (FND-091).
+const MargenBarra = 6
+
+// Relleno es el primer carácter del relleno de una línea de la lista: un blanco (U+2800) que Claude Code no borra,
+// porque sí borra los espacios al inicio de cada línea de la barra (FND-091).
+const Relleno = "\u2800"
 
 // nombresModo: el modo de permisos de la IA tal como lo lee la persona. Un modo desconocido no se muestra.
 var nombresModo = map[string]string{"default": "normal", "acceptEdits": "acepta ediciones", "plan": "plan", "auto": "auto", "dontAsk": "no pregunta", "bypassPermissions": "sin permisos"}
@@ -120,7 +124,7 @@ func aLaDerecha(l string, ancho int) string {
 	if ancho <= 0 || largo(l) >= util(ancho) {
 		return l
 	}
-	return strings.Repeat(" ", util(ancho)-largo(l)) + l
+	return Relleno + strings.Repeat(" ", util(ancho)-largo(l)-1) + l
 }
 
 func unir(sep string, partes ...string) string {
