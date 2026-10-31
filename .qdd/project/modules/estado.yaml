@@ -60,7 +60,7 @@ objetivo_tecnologico:
         - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí».'
         - Pedir o descartar un comando no escribe nada en el proyecto.
         - 'Un pedido aceptado no se ejecuta dos veces: solo uno pendiente o con falla corre, y el cambio a ejecutando se hace con la cola bloqueada (FND-070).'
-        - 'Ningún pedido queda «ejecutando» sin un proceso vivo que lo corra (FND-089), y mientras corre el panel sigue respondiendo.'
+        - Ningún pedido queda «ejecutando» sin un proceso vivo que lo corra (FND-089), y mientras corre el panel sigue respondiendo.
         - La tecla de un pedido no cambia mientras está abierto (FND-071).
         - Un pedido que espera a otro no hecho no se ejecuta ni tiene botón (FND-080); un orden con ciclo, con una referencia que no está o que va antes de algo ya ejecutado se rechaza sin cambiar la cola.
         - Todas las sesiones de un mismo repositorio (checkout principal y worktrees) ven la misma cola de pedidos (FND-081).
@@ -88,4 +88,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-31"
-revisado_en_commit: c27e2279fb04
+revisado_en_commit: 2ad1266e58d0
