@@ -65,3 +65,20 @@ func TestConformar_LoAplicadoYLoQueUnaFichaImplementa(t *testing.T) {
 		t.Fatalf("la implementación de origen cubre todas las opciones: le falta RUT-01: %+v", c)
 	}
 }
+
+func TestConformidad_UnEscenarioFueraDelCodigoSeDiceConSuMotivo(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "panel", "panel_test.go"), "func TestPanel_P_01(t *testing.T) {}\n")
+	b, rutas := mustParse(t, recetaConLimites), []string{"src/panel"}
+	impl := modules.Implementacion{Blueprint: "panel", Fuera: map[string]string{"P-02": "el aviso lo da el sistema operativo"}}
+	c := ConformidadDe(root, "panel", b, impl, rutas)
+	linea := LineaConformidad(c)
+	if len(c.Faltan) != 0 || !strings.HasPrefix(linea, "✅") || !strings.Contains(linea, "1/1") || !strings.Contains(linea, "fuera P-02 (el aviso lo da el sistema operativo)") {
+		t.Fatalf("lo que no hace este código no falta, pero siempre se ve con su motivo: %+v %q", c, linea)
+	}
+	impl.Fuera = map[string]string{"P-02": " ", "X-99": "no existe"}
+	c = ConformidadDe(root, "panel", b, impl, rutas)
+	if strings.Join(c.Faltan, ",") != "P-02,X-99" {
+		t.Fatalf("sin motivo, o de un escenario que no existe, no vale: %+v", c)
+	}
+}

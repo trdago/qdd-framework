@@ -22,17 +22,32 @@ type Conformidad struct {
 	Blueprint  string // id@versión
 	Escenarios []string
 	Faltan     []string // escenarios sin una prueba que lleve su id
+	Fuera      []string // «id (motivo)»: lo que este código no hace, dicho en la ficha
 }
 
 // ConformidadDe mide un módulo contra un blueprint: busca el id de cada escenario en los archivos de prueba de rutas.
+// Un escenario que la ficha declara fuera, con su motivo, no se exige pero siempre se muestra; uno fuera sin motivo, o
+// que el blueprint no tiene, falta.
 func ConformidadDe(root, modulo string, b Blueprint, impl modules.Implementacion, rutas []string) Conformidad {
-	c := Conformidad{Modulo: modulo, Blueprint: b.Ref(), Escenarios: escenariosQueDebe(b, impl.Respuestas)}
+	c := Conformidad{Modulo: modulo, Blueprint: b.Ref()}
+	todos := escenariosQueDebe(b, impl.Respuestas)
 	pruebas := textoDePruebas(root, rutas)
-	for _, id := range c.Escenarios {
+	for _, id := range todos {
+		if motivo := strings.TrimSpace(impl.Fuera[id]); motivo != "" {
+			c.Fuera = append(c.Fuera, id+" ("+motivo+")")
+			continue
+		}
+		c.Escenarios = append(c.Escenarios, id)
 		if !nombraEscenario(pruebas, id) {
 			c.Faltan = append(c.Faltan, id)
 		}
 	}
+	for id := range impl.Fuera {
+		if !inList(todos, id) {
+			c.Faltan = append(c.Faltan, id)
+		}
+	}
+	sort.Strings(c.Faltan)
 	return c
 }
 
@@ -149,7 +164,16 @@ func blueprintParaConformar(root, id string) (Blueprint, error) {
 
 // LineaConformidad: «estado · estado-por-tareas@1.1.0 · escenarios con prueba 23/25 · faltan EPT-C11, EPT-C12».
 func LineaConformidad(c Conformidad) string {
-	linea := fmt.Sprintf("%s · %s · escenarios con prueba %d/%d", c.Modulo, c.Blueprint, len(c.Escenarios)-len(c.Faltan), len(c.Escenarios))
+	conPrueba := 0
+	for _, id := range c.Escenarios {
+		if !inList(c.Faltan, id) {
+			conPrueba++
+		}
+	}
+	linea := fmt.Sprintf("%s · %s · escenarios con prueba %d/%d", c.Modulo, c.Blueprint, conPrueba, len(c.Escenarios))
+	if len(c.Fuera) > 0 {
+		linea += " · fuera " + strings.Join(c.Fuera, ", ")
+	}
 	if len(c.Faltan) == 0 {
 		return "✅ " + linea
 	}

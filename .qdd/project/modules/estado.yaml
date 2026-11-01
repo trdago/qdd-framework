@@ -1,6 +1,6 @@
 id: estado
 nombre: Estado por tarea (qdd estado)
-estado: aprobado
+estado: borrador
 rutas:
     - cli/pkg/estado
     - cli/pkg/candado
@@ -13,6 +13,11 @@ rutas:
     - cli/pkg/consola
     - cli/cmd/consola.go
     - cli/cmd/consola_ciclo.go
+implementa:
+    - blueprint: estado-por-tareas
+    - blueprint: consola-claude-code
+      fuera:
+        CCC-C05: la compacta Claude Code con el autoCompactWindow que la persona fija en su configuración; qdd no lo escribe
 objetivo_operativo:
     problema: El blueprint estado-por-frente con destino «archivo» pide una tabla de frentes × etapas que sobreviva a una sesión cortada y que un lector automático pueda revisar. Sin herramienta, la tabla se escribe a mano, sin validar, y nadie la ve mientras trabaja.
     usuarios: Las personas que siguen el avance desde la consola (barra de estado y panel) y los agentes que retoman o reportan trabajo (CLI y tool MCP qdd_estado).
@@ -49,6 +54,7 @@ objetivo_tecnologico:
         - 'La palabra visible es «tarea» (blueprint estado-por-tareas): ayuda, tabla, panel y errores. La clave frentes del YAML y el parámetro frente de qdd_estado se mantienen por compatibilidad.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
         - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
+        - 'EPF-C08 lo revisa qdd estado check --respuesta: cada «<tarea> · <etapa>: <estado>» del texto es el de la tabla, y una afirmación sobre una tarea o etapa que no está en ella la contradice (blueprint estado-por-tareas 2.0.0).'
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
         - Un frente nunca se borra; se cierra o se descarta con motivo.
