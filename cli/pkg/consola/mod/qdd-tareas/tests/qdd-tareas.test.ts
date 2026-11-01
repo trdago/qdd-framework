@@ -750,3 +750,29 @@ test('una tool de qdd o un comando qdd releen el panel en el acto (CCC-C31)', as
   await $.tool.call({ tool: 'Bash', command: 'cd cli && qdd consola descartar a' })
   expect(lecturas()).toBe(antes + 2)
 })
+
+test('un qdd con ruta o con sufijo también relee el panel; una carpeta llamada qdd no (FND-106, CCC-C31)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const lecturas = () => llamadas.filter((a) => a[2] === 'panel').length
+  const releen = [
+    '/tmp/scratchpad/qdd-rc10 consola pedir -m x -- echo',
+    'S=/tmp/s; $S/qdd-main consola pedir -m x -- echo',
+    './qdd consola descartar a',
+    'cd x && ~/.local/bin/qdd estado set barra',
+    'git status | qdd.exe consola panel',
+  ]
+  for (const command of releen) {
+    const antes = lecturas()
+    await $.tool.call({ tool: 'Bash', command })
+    expect(lecturas()).toBe(antes + 1)
+  }
+  const noReleen = ['cd /home/x/qdd && ls', 'ls proyectos/qdd ', 'cat qdd-notas.txt', 'echo qdd']
+  for (const command of noReleen) {
+    const antes = lecturas()
+    await $.tool.call({ tool: 'Bash', command })
+    expect(lecturas()).toBe(antes)
+  }
+})

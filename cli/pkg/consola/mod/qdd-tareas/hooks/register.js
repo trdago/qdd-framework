@@ -1100,10 +1100,15 @@ function vistaConfig($, Box, Text, Button, Input, ancho) {
   ]
 }
 
+// COMANDO_QDD: qdd en posición de comando (al inicio o tras ; & | ( ` o un salto de línea), con asignaciones VAR=…
+// delante, con o sin ruta (./qdd, $S/qdd, ~/.local/bin/qdd) y con o sin sufijo (qdd-rc10, qdd.exe). Una carpeta o un
+// archivo llamado qdd en los argumentos no cuenta (FND-106).
+const COMANDO_QDD = /(?:^|[;&|(\n`])\s*(?:\w+=\S*\s+)*(?:\S*\/)?qdd(?:[-.][\w.-]*)?(?=\s|$)/
+
 // cambiaElPanel: una tool MCP de qdd o un comando de shell que corre qdd.
 function cambiaElPanel(e) {
   if (/__qdd_/.test(String(e.tool || ''))) return true
-  return e.tool === 'Bash' && /(^|[\s;&|(])qdd\s/.test(String(e.command || ''))
+  return e.tool === 'Bash' && COMANDO_QDD.test(String(e.command || ''))
 }
 
 // cicloConContexto marca el ciclo y devuelve lo que el panel espera de la persona ('' si nada cambió). Un qdd anterior

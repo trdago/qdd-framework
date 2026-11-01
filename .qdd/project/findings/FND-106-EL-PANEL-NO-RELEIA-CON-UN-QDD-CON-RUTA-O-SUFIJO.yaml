@@ -1,0 +1,9 @@
+id: "FND-106"
+title: "El panel no releía en el acto cuando la IA corría qdd con una ruta o un sufijo (…/qdd-rc10, ./qdd, ~/.local/bin/qdd)"
+description: "La relectura inmediata del panel tras un comando qdd (CCC-C31) reconocía qdd solo si iba precedido de un espacio o de ; & | ( y seguido de un espacio. En qdd (2026-11-01) la IA dejó pedidos con el binario de la rama ($S/qdd-rc10 consola pedir …): el '/' delante y el sufijo '-rc10' hacían que no calzara."
+impact: "El pedido aparecía en «▶ Para ti» con la lectura periódica (hasta 2 s después) en vez de al terminar el comando. Lo mismo con ./qdd, ~/.local/bin/qdd, qdd.exe o VAR=x qdd."
+action_taken: "cambiaElPanel reconoce qdd en posición de comando (al inicio o tras ; & | ( ` o un salto de línea), con asignaciones VAR=… delante, con o sin ruta y con o sin sufijo (-rc10, .exe). Una carpeta o un archivo llamado qdd en los argumentos (cd …/qdd, cat qdd-notas.txt, echo qdd) no cuenta."
+test_result: "«un qdd con ruta o con sufijo también relee el panel; una carpeta llamada qdd no (FND-106, CCC-C31)» falla antes del arreglo (Expected: 2, Received: 1) y pasa después; claude plugin validate . y claude plugin test pasan (57/57)."
+status: resolved
+detectado_por: ia
+date: "2026-11-01"

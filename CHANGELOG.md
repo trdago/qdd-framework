@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🐛 Corregido
+
+- **El panel relee en el acto con cualquier qdd** (FND-106): un comando como `…/qdd-rc10 consola pedir`, `./qdd` o `~/.local/bin/qdd` ahora hace que el pedido aparezca en «▶ Para ti» al terminar, sin esperar la lectura de cada 2 s. Una carpeta o un archivo llamado qdd en los argumentos no cuenta.
+
 ## [2.8.0-rc.10] - 2026-11-01 (preview)
 
 Décima **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
