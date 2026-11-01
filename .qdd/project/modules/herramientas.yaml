@@ -19,7 +19,7 @@ objetivo_tecnologico:
         - 'Sin tool MCP propia: tools/list estaba en 15.997 de 16.000 caracteres. La IA usa la CLI (qdd herramienta ayuda/guardar), que el panel le nombra al pedirle que la configure; no cuesta tokens fijos en cada sesión.'
         - El gate (HER-01) valida la definición sin correr nada ni exigir el ejecutable, porque el CI puede no compilarlo; eso lo diagnostica doctor.
         - Una acción con confirmar y quitar piden --si en la CLI; el panel lo pasa después del «¿seguro?» de la persona.
-        - 'El panel (mod de Claude Code, ficha estado) abre una pestaña por herramienta al empezar la sesión, sin quitarle el foco a la conversación. Agregar le envía a la IA el mensaje de qdd herramienta configurar y sigue qdd herramienta listar hasta que aparece guardada. ■ Detener corta qdd herramienta correr, que detiene el grupo de procesos de la herramienta.'
+        - El panel (mod de Claude Code, ficha estado) abre una pestaña por herramienta al empezar la sesión, sin quitarle el foco a la conversación. Agregar le envía a la IA el mensaje de qdd herramienta configurar y sigue qdd herramienta listar hasta que aparece guardada. ■ Detener corta qdd herramienta correr, que detiene el grupo de procesos de la herramienta.
     invariantes:
         - Ningún valor de un secreto se guarda en una definición ni se repite en un mensaje; solo el nombre de su variable.
         - Lo que escribe la persona llega al ejecutable como un argumento, sin shell.
@@ -32,5 +32,5 @@ pruebas:
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
 fuentes:
     - rfcs/0011-herramientas-en-el-panel.md
-ultima_revision: "2026-10-31"
-revisado_en_commit: 266c4e3c44b9
+ultima_revision: "2026-11-01"
+revisado_en_commit: c45381cffa8b
