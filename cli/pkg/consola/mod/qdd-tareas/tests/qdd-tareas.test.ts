@@ -660,7 +660,7 @@ const ARBOL = {
   ],
 }
 
-test('dibuja el árbol: el foco primero, cada objetivo con su estado y sus tareas con prefijo y espera (EPT-A02)', async ($, on) => {
+test('dibuja el árbol: el foco primero, cada objetivo con su estado y sus tareas con prefijo y espera (EPT-A02, CCC-C27)', async ($, on) => {
   preparar(on, ok({ ...PANEL, estado: ARBOL }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
@@ -673,7 +673,7 @@ test('dibuja el árbol: el foco primero, cada objetivo con su estado y sus tarea
   expect(await ui.find({ type: 'Text', text: '🎯 sin objetivo' })).toBeDefined()
 })
 
-test('pinchar el nombre de una tarea o de un objetivo le pregunta a la IA cómo vamos (EPT-A03)', async ($, on) => {
+test('pinchar el nombre de una tarea o de un objetivo le pregunta a la IA cómo vamos (EPT-A03, CCC-C28)', async ($, on) => {
   const enviados: string[] = []
   preparar(on, ok({ ...PANEL, estado: ARBOL }))
   on('prompt.submit', ($, e) => {
@@ -688,7 +688,7 @@ test('pinchar el nombre de una tarea o de un objetivo le pregunta a la IA cómo 
   expect(await ui.find({ type: 'Text', text: /→ enviado a la IA/ })).toBeDefined()
 })
 
-test('«l ↻» vuelve a leer el tablero en el acto', async ($, on) => {
+test('«l ↻» vuelve a leer el tablero en el acto (CCC-C29)', async ($, on) => {
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, estado: ARBOL }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
