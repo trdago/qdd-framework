@@ -3,7 +3,7 @@ nombre: Estado por tareas
 estado: aprobado
 rutas:
     - .qdd/project/estado.yaml
-blueprint: estado-por-tareas@1.1.0
+blueprint: estado-por-tareas@2.0.0
 objetivo_operativo:
     problema: |
         Los reportes de avance en prosa no se pueden auditar ni comparar entre proyectos: un «listo» sin evidencia, un desplegado presentado como validado o una tarea que desaparece en silencio se descubren tarde. Y aunque la tabla diga cómo va cada tarea, no dice cuál se está trabajando ahora ni si el agente sigue vivo.
@@ -15,10 +15,19 @@ objetivo_tecnologico:
     decisiones:
         - 'Los estados son cerrados: ✅ ⏳ ❌ —'
         - La prosa acompaña a la tabla; no la reemplaza
-        - La tarea en curso la declara el agente al empezar a trabajarla; puede haber varias (sesiones distintas)
-        - Un pulso sin tarea late la última activada; un pulso con tarea la enciende si estaba apagada
-        - La vida es de 120 s sin pulsos; el panel envía como mucho un pulso cada 5 s
-        - 'Se ve como «● running»: el ● alterna tenue y brillante cada 1 s y destella en acento con cada pulso'
+        - 'La tabla del reporte es su primera tabla: la tarea en la primera columna y una etapa por columna'
+        - 'Una celda empieza por su estado y sigue con una nota libre; la «—» es estado solo al comienzo, y otro ✅ ⏳ ❌ en la nota es un segundo estado: la celda no vale'
+        - La evidencia de un ✅ es un commit (de 7 a 40 caracteres hexadecimales, con al menos un dígito), una versión semver (con o sin «v»), «n/n pruebas» con las dos cifras iguales y mayores que cero, o «corrida <id>» con al menos un dígito en el id
+        - El «de quién» de un ⏳ es un rol de una lista base (la persona, QA, el CI, producción) que el proyecto puede ampliar; nunca el nombre de alguien
+        - Un ❌ nombra en su nota lo que falta o falla
+        - 'Requieren aprobación antes de pasar a ✅: Producción'
+        - La aprobación dada se escribe «✅ … aprobado por <rol>»; la que falta, «⏳ espera aprobación de <rol>»
+        - 'Un cierre se escribe en el reporte como «<tarea>: cerrada — <motivo>» o «<tarea>: descartada — <motivo>»'
+        - 'El texto afirma un estado con «<tarea> · <etapa>: <estado>»; solo esas afirmaciones se comparan con la tabla, y una sobre una tarea o etapa que no está en ella también la contradice'
+        - Una tarea puede depender de otras (por su id); mientras una no termine, su última etapa que aplica no pasa a ✅ ni se cierra, y la tabla la nombra «<tarea> (espera a X, Y)»
+        - Una dependencia que no existe, la de una tarea consigo misma o una que cierra un ciclo no vale
+        - 'Descartar una dependencia no libera a quien la espera: hay que quitarla de sus dependencias'
+        - 'Credenciales y datos personales, como mínimo: correos, teléfonos, RUT u otro identificador nacional, tokens con prefijo conocido (sk-, ghp_, AKIA, xox, npm_), claves privadas, «clave=», «token=», «password=» y «Bearer …»; un proyecto puede agregar, nunca quitar'
         - 'Vocabulario «tarea»: Una línea de trabajo del proyecto; es una fila de la tabla (antes «frente»).'
         - 'Vocabulario «etapa»: Un paso por el que pasa toda tarea; es una columna de la tabla.'
         - 'Vocabulario «estado»: El valor de una celda, uno de cuatro: ✅ hecho, ⏳ en curso o esperando, ❌ falta o falla, — no aplica.'
@@ -28,27 +37,64 @@ objetivo_tecnologico:
         - 'Vocabulario «en curso»: Una tarea que el agente declaró y que latió hace menos de la vida; el panel la muestra «● running».'
         - 'Vocabulario «pulso»: Una señal de vida de la tarea en curso: una herramienta del agente, un subagente o un comando externo (script, test, deploy o worker) que trabaja en ella.'
         - 'Vocabulario «fuente»: De dónde viene un pulso, una de tres: agente, subagente o comando.'
-        - 'Vocabulario «vida»: Cuánto sigue en curso una tarea sin pulsos antes de apagarse sola (120 s).'
+        - 'Vocabulario «vida»: Cuánto sigue en curso una tarea sin pulsos antes de apagarse sola; la elige cada proyecto.'
+        - 'Vocabulario «dependencia»: Una tarea que otra espera; la que espera no termina antes que ella.'
+        - 'Vocabulario «terminada»: Una tarea cerrada, o abierta con todas sus etapas en ✅ o —. Una descartada no termina.'
+        - 'Vocabulario «objetivo»: Para qué se hacen unas tareas y cuándo se cumple (su criterio de éxito).'
+        - 'Vocabulario «foco»: El objetivo abierto en el que se trabaja ahora; a lo más uno, y se muestra primero.'
         - 'Vocabulario «actividad»: El registro de las tareas en curso y sus pulsos. Es de la máquina, vive fuera del proyecto (en la carpeta central de QDD), no es estado y no se commitea.'
-        - etapas → propias
-        - 'Las etapas del proyecto, en orden: Código · Pruebas · PR · Publicación (pedido del usuario, 2026-11-01: las que ya usa .qdd/project/estado.yaml)'
-        - cuando → cada-avance
-        - alcance → abiertos
-        - destino → archivo
+        - Paso 1 · Armar la tabla de tareas (filas) por las etapas elegidas (columnas), con un estado cerrado por celda (✅ ⏳ ❌ —) → una tabla en la que cada celda tiene exactamente un estado (verifica EPF-C01)
+        - Paso 2 · Exigir a cada ✅ su evidencia y a cada ⏳ qué espera y de quién; nombrar cada ❌ → celdas que un lector automático acepta o rechaza (verifica EPF-C02, EPF-C03, EPF-C09)
+        - Paso 3 · Separar desplegado de validado y dejar en la celda la aprobación que falta, sin avanzar sin ella → ninguna etapa en ✅ que no lo esté de verdad (verifica EPF-C04, EPF-C06)
+        - Paso 4 · Guardar de qué tareas depende cada una y rechazar la última etapa en ✅ o el cierre mientras una no termine → ninguna tarea termina antes que sus dependencias y ninguna dependencia rota o en ciclo (verifica EPT-D01, EPT-D02)
+        - "Paso 5 · Agrupar las tareas bajo objetivos con su criterio, a lo más un foco, y cumplirlos solo con evidencia → una tabla con una fila \U0001F3AF por objetivo antes de sus tareas, el foco primero y las sin objetivo al final (verifica EPT-O01, EPT-O02, EPT-O03, EPT-O04, EPT-O05, EPT-O06)"
+        - Paso 6 · Comparar cada reporte con el anterior y con su texto, y revisar que no lleve secretos → ninguna tarea desaparece sin cierre o descarte con motivo, el texto coincide con la tabla y no hay datos personales (verifica EPF-C05, EPF-C07, EPF-C08)
+        - Paso 7 · Guardar la misma tabla en .qdd/project/estado.yaml en cada reporte → un archivo desde el que otro agente retoma por los ⏳, y un JSON del panel con el árbol y la pregunta de cada fila (verifica EPF-A01, EPT-A02, EPT-A03)
+        - Paso 8 · Registrar la tarea en curso fuera del proyecto, activando solo tareas abiertas y recibiendo pulsos con su fuente → una actividad que se apaga sola tras 120 s sin pulsos, al terminar o al cerrar la tarea (verifica EPT-C01, EPT-C02, EPT-C03, EPT-C05, EPT-C06)
+        - Paso 9 · Aceptar los pulsos de los comandos externos que trabajan en una tarea → la tarea en curso con fuente comando (verifica EPT-C04)
+        - Paso 10 · Mostrar la tarea en curso en el panel, aunque no esté entre las más nuevas → «● running» que alterna cada 1 s y destella con cada pulso, también en un panel de solo lectura (verifica EPT-C07, EPT-C08, EPT-C09, EPT-C11)
+        - Paso 11 · Hacer latir las herramientas del agente y sus subagentes sin demorarlas → como mucho un pulso cada 5 s por panel, sin esperar a la CLI (verifica EPT-C10, EPT-C12)
+        - 'etapas → propias: Etapas definidas por el proyecto, que nombra cuál de ellas cumple el rol de Validación real.'
+        - 'cuando → cada-avance: En cada respuesta o reporte que trae avance.'
+        - 'alcance → abiertos: Las tareas abiertas y las recién cerradas.'
+        - 'objetivos → si: Sí. Cada objetivo tiene un criterio de éxito, uno puede ser el foco y una tarea puede no tener objetivo.'
+        - Un objetivo tiene id, nombre y criterio de éxito; cada tarea dice a qué objetivo sirve, o a ninguno
+        - Pueden estar abiertos varios objetivos; a lo más uno es el foco, y marcar uno desmarca al anterior
+        - Un objetivo se cumple ✅ solo con evidencia de su criterio; con todas sus tareas terminadas y sin esa evidencia queda ⏳ «tareas listas, falta verificar el criterio»
+        - Un objetivo abierto con tareas pendientes queda ⏳ «n/m tareas listas» (las descartadas no cuentan)
+        - Un objetivo se cierra cumplido (con su evidencia) o descartado (con su motivo); sus tareas siguen en la tabla
+        - "En la tabla, antes de las tareas de cada objetivo va su fila: «\U0001F3AF <objetivo>» (con «· foco» si lo es) en la primera columna, «—» en cada etapa salvo la última, que lleva su estado y su criterio"
+        - "Los objetivos van con el foco primero y después en orden; las tareas sin objetivo van al final bajo una fila «\U0001F3AF sin objetivo», con todas sus etapas en «—»"
+        - Una tarea que depende de otra de otro objetivo queda bajo su propio objetivo y dice «espera a X (otro objetivo)»
+        - 'destino → archivo: Además en el archivo .qdd/project/estado.yaml del proyecto.'
         - Una sesión cortada o un agente nuevo retoma desde los ⏳ del archivo, sin rehacer lo hecho
-        - formato → mensajeria
-        - en_curso → todos
+        - 'El JSON del panel trae el árbol resuelto: las filas en orden (por objetivo si los hay, el foco primero), cada una con su prefijo de dibujo («├─ », «│  └─ »), sus notas «espera a X» y la pregunta para el agente; los paneles solo lo dibujan'
+        - Cada tarea cuelga de su primera dependencia visible del mismo objetivo; sin ella es raíz. Bajo un objetivo las raíces llevan conector; sin objetivos, no
+        - La pregunta de una tarea es «¿Cómo vamos con «<tarea>»? Avance, bloqueos y siguiente paso; actualiza sus celdas con evidencia.»; la de un objetivo nombra también su criterio
+        - 'formato → mensajeria: Texto apto para aplicaciones de mensajería.'
+        - 'en_curso → todos: Sí. Laten las herramientas del agente, sus subagentes y los comandos externos que llaman a ''qdd estado pulso <tarea> --fuente comando'' (scripts, tests, deploys, workers).'
         - Los scripts largos del proyecto (tests, deploys, workers) llaman a 'qdd estado pulso <tarea> --fuente comando'
+        - La tarea en curso la declara el agente al empezar a trabajarla; puede haber varias (sesiones distintas)
+        - Un pulso sin tarea late la última activada; un pulso con tarea la enciende si estaba apagada
+        - La vida es de 120 s sin pulsos; el panel envía como mucho un pulso cada 5 s
+        - 'Se ve como «● running»: el ● alterna tenue y brillante cada 1 s y destella en acento durante un 1 s con cada pulso'
+        - 'Las etapas del proyecto, en orden: Código · Pruebas · PR · Publicación (pedido del usuario, 2026-11-01: las que ya usa .qdd/project/estado.yaml)'
     invariantes:
         - Cada celda tiene exactamente un estado
         - 'Un ✅ lleva evidencia: commit, versión, n/n pruebas o id de corrida'
         - Un ⏳ dice qué espera y de quién
         - Una falla conocida se reporta igual como ❌ y se nombra
-        - 'Desplegado no es validado: «✅ v1.2.0 · ⏳ falta ver un uso real»'
+        - 'Desplegado no es validado: «Producción ✅ v1.2.0 y Validación real ⏳ espera ver un uso real de la persona»'
         - Lo que requiere aprobación lo dice en la celda y nunca avanza sin ella
         - Una tarea no desaparece en silencio
-        - No hay credenciales ni datos personales en la tabla
+        - 'No hay credenciales ni datos personales en el reporte: ni en la tabla ni en el texto'
         - El texto y la tabla no se contradicen
+        - Una tarea no termina antes que sus dependencias
+        - Las dependencias no hacen ciclos
+        - Un objetivo cumplido lleva evidencia de su criterio; terminar sus tareas no basta
+        - A lo más un objetivo abierto es el foco
+        - Una tarea sirve a un objetivo que existe, o a ninguno
+        - Un objetivo no desaparece en silencio
         - 'La actividad no es estado: no cambia la tabla y no se commitea'
         - Solo una tarea abierta puede estar en curso; cerrarla o descartarla la apaga
         - 'Una tarea sin pulsos durante la vida deja de estar en curso: nunca queda encendida para siempre'
@@ -64,4 +110,4 @@ fuentes:
     - .qdd/blueprints.lock.yaml
     - .qdd/project/blueprints/estado-por-tareas.yaml
 ultima_revision: "2026-11-01"
-revisado_en_commit: db9596a19306
+revisado_en_commit: 7a83fa608c72
