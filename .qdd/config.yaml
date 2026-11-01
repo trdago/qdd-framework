@@ -21,3 +21,6 @@ project: auto-detected
 test_commands:
     - cd cli && go test ./...
     - cd npm && npm test
+    - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
+    - comando: cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
+      requiere: [claude]

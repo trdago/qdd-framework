@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/candado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -17,7 +19,7 @@ import (
 
 const (
 	CarpetaActividad = "actividad"
-	VidaActividad = 120 * time.Second
+	VidaActividad    = 120 * time.Second
 
 	FuenteAgente    = "agente"
 	FuenteSubagente = "subagente"
@@ -93,6 +95,11 @@ func tareaAbierta(root, id string) error {
 
 // Activar deja la tarea en curso: la declara el agente al empezar a trabajarla.
 func Activar(root, id, quien string, now time.Time) error {
+	soltar, err := bloquearActividad(root)
+	if err != nil {
+		return err
+	}
+	defer soltar()
 	if err := tareaAbierta(root, id); err != nil {
 		return err
 	}
@@ -105,6 +112,11 @@ func Activar(root, id, quien string, now time.Time) error {
 
 // Terminar apaga la tarea; si no estaba en curso no hace nada.
 func Terminar(root, id string) error {
+	soltar, err := bloquearActividad(root)
+	if err != nil {
+		return err
+	}
+	defer soltar()
 	a := LeerActividad(root)
 	if _, ok := a.Tareas[id]; !ok {
 		return nil
@@ -123,6 +135,11 @@ func Pulsar(root, id, fuente string, now time.Time) (string, error) {
 	if fuente != FuenteAgente && fuente != FuenteSubagente && fuente != FuenteComando {
 		return "", fmt.Errorf("fuente %q: debe ser %s, %s o %s", fuente, FuenteAgente, FuenteSubagente, FuenteComando)
 	}
+	soltar, err := bloquearActividad(root)
+	if err != nil {
+		return "", err
+	}
+	defer soltar()
 	a := LeerActividad(root)
 	hora := now.Format(time.RFC3339)
 	if id == "" {
@@ -144,6 +161,19 @@ func Pulsar(root, id, fuente string, now time.Time) (string, error) {
 	act.Pulso, act.Fuente = hora, fuente
 	a.Tareas[id] = act
 	return id, guardarActividad(root, a, now)
+}
+
+// bloquearActividad: leer, cambiar y escribir la actividad es uno a la vez entre procesos; los pulsos corren en
+// segundo plano, uno por herramienta, y sin esto uno que leyó antes borraba lo que otro escribió (FND-097).
+func bloquearActividad(root string) (func(), error) {
+	dest, err := RutaLocal(root, CarpetaActividad)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return nil, err
+	}
+	return candado.Tomar(dest+".lock", 2*time.Second, "la actividad")
 }
 
 // guardarActividad limpia las tareas vencidas (con now cero no limpia) y escribe de forma atómica.

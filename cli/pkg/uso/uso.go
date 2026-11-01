@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/candado"
 	"gopkg.in/yaml.v3"
 )
 
@@ -263,21 +264,9 @@ func guardar(dest string, u Uso) error {
 	return os.Rename(tmp, dest)
 }
 
-// bloquear toma un archivo de bloqueo exclusivo; uno de más de 10 s es de un proceso que murió y se descarta.
+// bloquear toma el bloqueo exclusivo de el registro de uso (pkg/candado).
 func bloquear(lock string) (func(), error) {
-	for intento := 0; intento < 200; intento++ {
-		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-		if err == nil {
-			f.Close()
-			return func() { os.Remove(lock) }, nil
-		}
-		if info, errStat := os.Stat(lock); errStat == nil && time.Since(info.ModTime()) > 10*time.Second {
-			os.Remove(lock)
-			continue
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	return nil, fmt.Errorf("el registro de uso está ocupado (%s)", lock)
+	return candado.Tomar(lock, 2*time.Second, "el registro de uso")
 }
 
 // ApartarIlegibles renombra cada registro ilegible a <archivo>.ilegible: deja de estorbar sin perderse.

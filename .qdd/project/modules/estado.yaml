@@ -1,8 +1,9 @@
 id: estado
 nombre: Estado por tarea (qdd estado)
-estado: aprobado
+estado: borrador
 rutas:
     - cli/pkg/estado
+    - cli/pkg/candado
     - cli/cmd/estado.go
     - cli/cmd/estado_watch.go
     - cli/cmd/estado_vt_windows.go
@@ -71,6 +72,7 @@ objetivo_tecnologico:
         - Un pedido que sale con 75 nunca queda como falla ni pierde su tecla (FND-082).
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
         - 'La línea de recursos no demora la barra: si la medición pasa de 400 ms, la barra sale sin ella.'
+        - 'Leer, cambiar y escribir la actividad, la cola de pedidos y el registro de uso es uno a la vez entre procesos con un archivo de bloqueo (pkg/candado; uno de más de 10 s es de un proceso que murió): los pulsos corren en segundo plano, uno por herramienta, y sin bloqueo uno que leyó antes borraba lo que otro escribió (FND-097).'
         - 'La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive fuera del repositorio (<QDD_HOME>/claude/actividad/, misma clave por proyecto que la cola de pedidos: RutaLocal) y nunca cambia estado.yaml; no usa .qdd/working, que es el archivo del comando qdd en curso (FND-079).'
         - Una tarea sin pulsos durante 120 s deja de estar en curso; cerrarla o descartarla la apaga.
         - Un pulso nunca demora la herramienta, el subagente ni el comando que lo produce; sin tarea en curso no hace nada.
