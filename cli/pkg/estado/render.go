@@ -38,43 +38,88 @@ func pendienteDeAprobacion(c Celda) string {
 
 func escaparMD(s string) string { return strings.ReplaceAll(s, "|", "\\|") }
 
-func etiquetaFrente(f Frente) string {
-	if f.Estado == EstadoAbierto {
-		return f.Nombre
+// etiquetaFrente es el nombre de la tarea en la tabla: con su cierre, o con «(espera a X, Y)» si una dependencia no
+// terminó (EPT-D02).
+func etiquetaFrente(e Estado, f Frente) string {
+	if f.Estado != EstadoAbierto {
+		return fmt.Sprintf("%s (%s: %s)", f.Nombre, f.Estado, f.MotivoCierre)
 	}
-	return fmt.Sprintf("%s (%s: %s)", f.Nombre, f.Estado, f.MotivoCierre)
+	if pend := e.pendientesDe(f); len(pend) > 0 {
+		return f.Nombre + " (espera a " + nombresDe(pend) + ")"
+	}
+	return f.Nombre
 }
 
-// Markdown arma la tabla de la respuesta con el alcance pedido.
+// etiquetaObjetivo es la primera columna de la fila de un objetivo: «🎯 <objetivo>», con «· foco» si lo es (EPT-O06).
+func etiquetaObjetivo(o *Objetivo) string {
+	if o == nil {
+		return "🎯 sin objetivo"
+	}
+	if o.Foco && o.Estado == ObjetivoAbierto {
+		return "🎯 " + o.Nombre + " · foco"
+	}
+	return "🎯 " + o.Nombre
+}
+
+// textoObjetivo es su estado con el criterio: «⏳ 1/3 tareas listas · criterio: …».
+func (e Estado) textoObjetivo(o Objetivo) string {
+	simbolo, texto := e.EstadoObjetivo(o)
+	return strings.TrimSpace(simbolo+" "+texto) + " · criterio: " + o.Criterio
+}
+
+// Markdown arma la tabla de la respuesta con el alcance pedido. Con objetivos, cada uno lleva su fila antes de sus
+// tareas: «—» en cada etapa salvo la última, que dice su estado (EPT-O06).
 func Markdown(e Estado, now time.Time, alcance Alcance) string {
 	var b strings.Builder
 	b.WriteString("| Tarea | " + strings.Join(e.Etapas, " | ") + " |\n")
 	b.WriteString("|---" + strings.Repeat("|---", len(e.Etapas)) + "|\n")
-	for _, f := range e.Frentes {
-		if !f.EnAlcance(alcance, now) {
-			continue
+	conObjetivos := len(e.Objetivos) > 0
+	for _, g := range e.Arbol(func(f Frente) bool { return f.EnAlcance(alcance, now) }) {
+		if conObjetivos {
+			ultima := NoAplica
+			if g.Objetivo != nil {
+				ultima = e.textoObjetivo(*g.Objetivo)
+			}
+			celdas := append(repetir(NoAplica, len(e.Etapas)-1), escaparMD(ultima))
+			b.WriteString("| " + escaparMD(etiquetaObjetivo(g.Objetivo)) + " | " + strings.Join(celdas, " | ") + " |\n")
 		}
-		celdas := make([]string, 0, len(e.Etapas))
-		for _, etapa := range e.Etapas {
-			c := f.Celdas[etapa]
-			celdas = append(celdas, escaparMD(celdaTexto(c)+pendienteDeAprobacion(c)))
+		for _, fa := range g.Filas {
+			celdas := make([]string, 0, len(e.Etapas))
+			for _, etapa := range e.Etapas {
+				c := fa.Frente.Celdas[etapa]
+				celdas = append(celdas, escaparMD(celdaTexto(c)+pendienteDeAprobacion(c)))
+			}
+			b.WriteString("| " + escaparMD(etiquetaFrente(e, fa.Frente)) + " | " + strings.Join(celdas, " | ") + " |\n")
 		}
-		b.WriteString("| " + escaparMD(etiquetaFrente(f)) + " | " + strings.Join(celdas, " | ") + " |\n")
 	}
 	return b.String()
 }
 
-// Mensajeria arma la tabla como texto para aplicaciones de mensajería (sin tablas markdown).
+func repetir(s string, n int) []string {
+	out := make([]string, 0, n+1)
+	for range n {
+		out = append(out, s)
+	}
+	return out
+}
+
+// Mensajeria arma la tabla como texto para aplicaciones de mensajería (sin tablas markdown), agrupada como Markdown.
 func Mensajeria(e Estado, now time.Time, alcance Alcance) string {
 	var b strings.Builder
-	for _, f := range e.Frentes {
-		if !f.EnAlcance(alcance, now) {
-			continue
+	conObjetivos := len(e.Objetivos) > 0
+	for _, g := range e.Arbol(func(f Frente) bool { return f.EnAlcance(alcance, now) }) {
+		if conObjetivos && g.Objetivo != nil {
+			b.WriteString(etiquetaObjetivo(g.Objetivo) + " — " + e.textoObjetivo(*g.Objetivo) + "\n")
 		}
-		b.WriteString("*" + etiquetaFrente(f) + "*\n")
-		for _, etapa := range e.Etapas {
-			c := f.Celdas[etapa]
-			b.WriteString("  " + etapa + ": " + celdaTexto(c) + pendienteDeAprobacion(c) + "\n")
+		if conObjetivos && g.Objetivo == nil {
+			b.WriteString(etiquetaObjetivo(nil) + "\n")
+		}
+		for _, fa := range g.Filas {
+			b.WriteString("*" + etiquetaFrente(e, fa.Frente) + "*\n")
+			for _, etapa := range e.Etapas {
+				c := fa.Frente.Celdas[etapa]
+				b.WriteString("  " + etapa + ": " + celdaTexto(c) + pendienteDeAprobacion(c) + "\n")
+			}
 		}
 	}
 	return b.String()
@@ -92,7 +137,7 @@ func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
 		if !f.EnAlcance(AlcanceAbiertos, now) {
 			continue
 		}
-		etiqueta := etiquetaFrente(f)
+		etiqueta := etiquetaFrente(e, f)
 		esperados[etiqueta] = true
 		celdas, hay := filas[etiqueta]
 		if !hay {
@@ -107,7 +152,7 @@ func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
 		}
 	}
 	for etiqueta := range filas {
-		if !esperados[etiqueta] {
+		if !esperados[etiqueta] && !strings.HasPrefix(etiqueta, "🎯") { // la fila de un objetivo no es una tarea (EPT-O06)
 			vs = append(vs, Violacion{ID: "EPF-A01", Frente: etiqueta, Mensaje: "está en la respuesta y no en el archivo"})
 		}
 	}

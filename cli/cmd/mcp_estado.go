@@ -18,26 +18,31 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea (.qdd/project/estado.yaml). RETOMAR → accion=ver, sigue desde los ⏳. AVANZAR → accion=set ANTES de reportar (✅ evidencia · ⏳ qué espera y de quién · ❌ la falla). cerrar con motivo, nunca borrar. check: EPF-C01…C07 (+EPF-A01 con 'respuesta'). Escritura inválida → no escribe."
+const descripcionEstadoMCP = "Estado por tarea (.qdd/project/estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). cerrar con motivo. objetivo: criterio y foco; se cumple con evidencia. tarea: objetivo y depende_de. Inválido → no escribe."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
 		mcp.WithDescription(descripcionEstadoMCP),
-		mcp.WithString("accion", mcp.Description("ver (por defecto) | set | cerrar | check | activar | pulso | terminar")),
-		mcp.WithString("fuente", mcp.Description("agente (def.) | subagente | comando (pulso).")),
+		mcp.WithString("accion", mcp.Description("ver|set|cerrar|check|activar|pulso|terminar|objetivo|tarea")),
+		mcp.WithString("fuente", mcp.Description("agente | subagente | comando")),
 		mcp.WithString("frente", mcp.Description("Id de la tarea.")),
-		mcp.WithString("nombre", mcp.Description("Al crearla (set).")),
-		mcp.WithString("etapa", mcp.Description("Columna, como en el archivo (set).")),
-		mcp.WithString("estado", mcp.Description("ok | espera | falla | na, o ✅ ⏳ ❌ — (set).")),
-		mcp.WithString("evidencia", mcp.Description("Del ✅.")),
-		mcp.WithString("bloqueo", mcp.Description("Qué espera el ⏳.")),
-		mcp.WithString("de_quien", mcp.Description("De quién espera el ⏳.")),
-		mcp.WithString("falla", mcp.Description("Del ❌, nombrada.")),
+		mcp.WithString("nombre", mcp.Description("Al crearla.")),
+		mcp.WithString("etapa", mcp.Description("Columna.")),
+		mcp.WithString("estado", mcp.Description("ok|espera|falla|na")),
+		mcp.WithString("evidencia"),
+		mcp.WithString("bloqueo", mcp.Description("Qué espera.")),
+		mcp.WithString("de_quien", mcp.Description("De quién.")),
+		mcp.WithString("falla"),
 		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba antes del ✅.")),
-		mcp.WithBoolean("aprobado", mcp.Description("Ya la dio quien debía (nunca la marques tú).")),
-		mcp.WithString("motivo", mcp.Description("Del cierre (cerrar).")),
-		mcp.WithBoolean("descartado", mcp.Description("Descartar en vez de cerrar.")),
-		mcp.WithString("respuesta", mcp.Description("Texto a contrastar con el archivo (check, EPF-A01).")),
+		mcp.WithBoolean("aprobado", mcp.Description("Dada por quien debía; nunca tú.")),
+		mcp.WithString("motivo", mcp.Description("Del cierre.")),
+		mcp.WithBoolean("descartado", mcp.Description("En vez de cerrar.")),
+		mcp.WithString("respuesta", mcp.Description("Texto a contrastar (check).")),
+		mcp.WithString("objetivo", mcp.Description("Id; «-» ninguno.")),
+		mcp.WithString("criterio"),
+		mcp.WithBoolean("foco"),
+		mcp.WithBoolean("reabrir"),
+		mcp.WithString("depende_de", mcp.Description("Ids con coma; «-» ninguna.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleEstadoTool)
 }
@@ -52,6 +57,14 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	if accion == "cerrar" {
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
 		return resultadoEscritura(err, "tarea cerrada")
+	}
+	if accion == "objetivo" {
+		c := estado.CambioObjetivo{Nombre: stringArg(request, "nombre"), Criterio: stringArg(request, "criterio"), Foco: boolArg(request, "foco")}
+		err := aplicarObjetivo(root, stringArg(request, "objetivo"), c, stringArg(request, "evidencia"), stringArg(request, "motivo"), boolArg(request, "descartado"), boolArg(request, "reabrir"), now)
+		return resultadoEscritura(err, "objetivo actualizado")
+	}
+	if accion == "tarea" {
+		return resultadoEscritura(estado.GuardarTarea(root, cambioTareaDesde(request), now), "tarea actualizada")
 	}
 	if accion == "activar" {
 		return resultadoEscritura(estado.Activar(root, stringArg(request, "frente"), "mcp", now), "tarea en curso: el panel la muestra «● running» y se apaga sola a los 120 s sin pulsos")
@@ -81,7 +94,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoCheck(e, root, stringArg(request, "respuesta"), now), nil
 	}
 	if accion != "" && accion != "ver" {
-		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar, check, activar, pulso o terminar", accion)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar, check, activar, pulso, terminar, objetivo o tarea", accion)), nil
 	}
 	return mcp.NewToolResultText(estado.Markdown(e, now, estado.AlcanceAbiertos)), nil
 }
@@ -99,6 +112,20 @@ func cambioDesde(request mcp.CallToolRequest) estado.Cambio {
 		RequiereAprobacion: stringArg(request, "requiere_aprobacion"),
 		Aprobado:           boolArg(request, "aprobado"),
 	}
+}
+
+// cambioTareaDesde: un argumento ausente no cambia nada; «-» lo deja vacío.
+func cambioTareaDesde(request mcp.CallToolRequest) estado.CambioTarea {
+	c := estado.CambioTarea{ID: stringArg(request, "frente"), Nombre: stringArg(request, "nombre")}
+	if o := strings.TrimSpace(stringArg(request, "objetivo")); o != "" {
+		c.CambiaObjetivo = true
+		c.Objetivo = strings.TrimPrefix(o, "-")
+	}
+	if d := strings.TrimSpace(stringArg(request, "depende_de")); d != "" {
+		c.CambiaDependencias = true
+		c.DependeDe = listaDeIDs(strings.TrimPrefix(d, "-"))
+	}
+	return c
 }
 
 func resultadoEscritura(err error, ok string) (*mcp.CallToolResult, error) {

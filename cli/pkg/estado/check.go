@@ -38,8 +38,10 @@ func Check(e Estado, prev *Estado) []Violacion {
 	vistos := map[string]bool{}
 	for _, f := range e.Frentes {
 		vs = append(vs, checkFrente(e, f, vistos)...)
+		vs = append(vs, e.checkDependencias(f)...)
 		vistos[f.ID] = true
 	}
+	vs = append(vs, e.checkObjetivos(prev)...)
 	if prev == nil {
 		return vs
 	}

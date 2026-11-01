@@ -26,6 +26,21 @@ type DatosPanel struct {
 	// tablero en TableroViejo (FND-088). Sin fecha legible van vacíos: no se inventan.
 	Hace  string `json:"hace,omitempty"`
 	Viejo bool   `json:"viejo,omitempty"`
+	// Objetivos en el orden en que se dibujan (el foco primero); Frentes viene en orden de árbol y cada fila dice su
+	// Objetivo ("" son las tareas sin objetivo, al final). Vacío si el tablero no usa objetivos.
+	Objetivos []ObjetivoPanel `json:"objetivos,omitempty"`
+}
+
+// ObjetivoPanel es la cabecera de un grupo del árbol, ya resuelta: su estado (Simbolo y Resumen) y la pregunta que el
+// panel le envía al agente al pincharlo (EPT-A03).
+type ObjetivoPanel struct {
+	ID       string `json:"id"`
+	Nombre   string `json:"nombre"`
+	Criterio string `json:"criterio"`
+	Foco     bool   `json:"foco,omitempty"`
+	Simbolo  string `json:"simbolo"`
+	Resumen  string `json:"resumen"`
+	Pregunta string `json:"pregunta"`
 }
 
 // TableroViejo: con tareas pendientes y sin escrituras en este tiempo, el panel avisa que el tablero puede no estar al
@@ -49,6 +64,12 @@ type FrentePanel struct {
 	Nombre   string   `json:"nombre"`
 	Estado   string   `json:"estado"`
 	Simbolos []string `json:"simbolos"`
+	// Objetivo, Prefijo («│  └─ ») y Notas («espera a X») dibujan el árbol tal cual (EPT-A02); Pregunta es lo que el
+	// panel le envía al agente al pinchar la tarea (EPT-A03).
+	Objetivo string   `json:"objetivo,omitempty"`
+	Prefijo  string   `json:"prefijo,omitempty"`
+	Notas    []string `json:"notas,omitempty"`
+	Pregunta string   `json:"pregunta"`
 	// Actividad solo va en una tarea en curso (§3.13): el panel muestra «● running» y destella cuando cambia Pulso.
 	Actividad *ActividadPanel `json:"actividad,omitempty"`
 }
@@ -165,22 +186,34 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 		d.Hace = hace(now.Sub(cuando))
 		d.Viejo = t.Tareas > 0 && now.Sub(cuando) > TableroViejo
 	}
-	for _, f := range e.Frentes {
-		if !incluir(f) {
-			continue
+	for _, g := range e.Arbol(incluir) {
+		objetivo := ""
+		if g.Objetivo != nil {
+			o := *g.Objetivo
+			simbolo, resumen := e.EstadoObjetivo(o)
+			d.Objetivos = append(d.Objetivos, ObjetivoPanel{ID: o.ID, Nombre: o.Nombre, Criterio: o.Criterio, Foco: o.Foco && o.Estado == ObjetivoAbierto, Simbolo: simbolo, Resumen: resumen, Pregunta: PreguntaObjetivo(o)})
+			objetivo = o.ID
 		}
-		fila := FrentePanel{ID: f.ID, Nombre: f.Nombre, Estado: f.Estado, Simbolos: make([]string, 0, len(e.Etapas))}
-		for _, etapa := range e.Etapas {
-			c := f.Celdas[etapa]
-			fila.Simbolos = append(fila.Simbolos, simbolo(c))
-			switch NormalizarEstado(c.Estado) {
-			case Espera:
-				d.Esperas = append(d.Esperas, Pendiente{Frente: f.Nombre, Etapa: etapa, Texto: c.Bloqueo, DeQuien: c.DeQuien})
-			case Falla:
-				d.Fallas = append(d.Fallas, Pendiente{Frente: f.Nombre, Etapa: etapa, Texto: c.Falla})
-			}
+		for _, fa := range g.Filas {
+			d.Frentes = append(d.Frentes, filaPanel(e, fa, objetivo, &d))
 		}
-		d.Frentes = append(d.Frentes, fila)
 	}
 	return d
+}
+
+func filaPanel(e Estado, fa FilaArbol, objetivo string, d *DatosPanel) FrentePanel {
+	f := fa.Frente
+	fila := FrentePanel{ID: f.ID, Nombre: f.Nombre, Estado: f.Estado, Simbolos: make([]string, 0, len(e.Etapas)),
+		Objetivo: objetivo, Prefijo: fa.Prefijo, Notas: fa.Notas, Pregunta: PreguntaTarea(f)}
+	for _, etapa := range e.Etapas {
+		c := f.Celdas[etapa]
+		fila.Simbolos = append(fila.Simbolos, simbolo(c))
+		switch NormalizarEstado(c.Estado) {
+		case Espera:
+			d.Esperas = append(d.Esperas, Pendiente{Frente: f.Nombre, Etapa: etapa, Texto: c.Bloqueo, DeQuien: c.DeQuien})
+		case Falla:
+			d.Fallas = append(d.Fallas, Pendiente{Frente: f.Nombre, Etapa: etapa, Texto: c.Falla})
+		}
+	}
+	return fila
 }

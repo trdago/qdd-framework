@@ -642,3 +642,58 @@ test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND
   expect(await ui.find({ key: 'b-auditar' })).toBeDefined()
   expect(llamadas.some((a) => a[2] === 'panel' && !a.includes('--con'))).toBe(true)
 })
+
+// Pedido del usuario (2026-11-01, «qdd sprint»): el tablero dice para qué se hace cada tarea. qdd entrega el árbol
+// resuelto (objetivos en orden, cada fila con su prefijo y a quién espera, y la pregunta para la IA); el panel lo
+// dibuja con las etapas a la derecha. Pinchar un nombre pregunta cómo vamos; «l ↻» vuelve a leer.
+const ARBOL = {
+  ...ESTADO,
+  formato: 2,
+  objetivos: [
+    { id: 'arbol', nombre: 'Objetivos y árbol', criterio: 'el panel dibuja el árbol', foco: true, simbolo: '⏳', resumen: '0/2 tareas listas', pregunta: '¿Cómo vamos con el objetivo «Objetivos y árbol» (criterio: el panel dibuja el árbol)?' },
+    { id: 'rel', nombre: 'Publicar 2.8.0', criterio: '5 h de uso', simbolo: '⏳', resumen: 'tareas listas, falta verificar el criterio', pregunta: '¿Cómo vamos con el objetivo «Publicar 2.8.0»?' },
+  ],
+  frentes: [
+    { id: 'modelo', nombre: 'modelo', estado: 'abierto', simbolos: ['⏳', '·', '·', '·'], objetivo: 'arbol', prefijo: '└─ ', pregunta: '¿Cómo vamos con «modelo»?' },
+    { id: 'dibujo', nombre: 'dibujo', estado: 'abierto', simbolos: ['·', '·', '·', '·'], objetivo: 'arbol', prefijo: '   └─ ', notas: ['espera a modelo'], pregunta: '¿Cómo vamos con «dibujo»?' },
+    { id: 'limpiar', nombre: 'limpiar', estado: 'abierto', simbolos: ['·', '·', '·', '·'], prefijo: '└─ ', pregunta: '¿Cómo vamos con «limpiar»?' },
+  ],
+}
+
+test('dibuja el árbol: el foco primero, cada objetivo con su estado y sus tareas con prefijo y espera (EPT-A02)', async ($, on) => {
+  preparar(on, ok({ ...PANEL, estado: ARBOL }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: '🎯 Objetivos y árbol · foco' })).toMatchObject({ props: { weight: 'bold', color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '⏳ 0/2 tareas listas' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '🎯 Publicar 2.8.0' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '⏳ tareas listas, falta verificar el criterio' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '   └─ ' })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: ' · espera a modelo' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '🎯 sin objetivo' })).toBeDefined()
+})
+
+test('pinchar el nombre de una tarea o de un objetivo le pregunta a la IA cómo vamos (EPT-A03)', async ($, on) => {
+  const enviados: string[] = []
+  preparar(on, ok({ ...PANEL, estado: ARBOL }))
+  on('prompt.submit', ($, e) => {
+    enviados.push(e.text)
+    return { text: e.text }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'n-dibujo' })
+  await ui.press({ key: 'o-rel-nombre' })
+  expect(enviados).toEqual(['¿Cómo vamos con «dibujo»?', '¿Cómo vamos con el objetivo «Publicar 2.8.0»?'])
+  expect(await ui.find({ type: 'Text', text: /→ enviado a la IA/ })).toBeDefined()
+})
+
+test('«l ↻» vuelve a leer el tablero en el acto', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok({ ...PANEL, estado: ARBOL }), llamadas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const antes = llamadas.filter((a) => a[2] === 'panel').length
+  await ui.press({ key: 'leer' })
+  expect(llamadas.filter((a) => a[2] === 'panel').length).toBe(antes + 1)
+})

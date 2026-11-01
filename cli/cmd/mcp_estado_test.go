@@ -85,3 +85,35 @@ func TestEstadoTool_ActivarPulsoYTerminar_EPT_C01(t *testing.T) {
 		t.Fatalf("terminar la apaga: %q", resultText(t, res))
 	}
 }
+
+// Objetivos y dependencias por la tool (blueprint estado-por-tareas, pregunta «objetivos»).
+func TestEstadoTool_ObjetivoYTarea_EPT_O01_EPT_D02(t *testing.T) {
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	call := func(args map[string]interface{}) (bool, string) {
+		res, _ := handleEstadoTool(context.Background(), toolRequest(args))
+		return res.IsError, resultText(t, res)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "objetivo", "objetivo": "rel", "nombre": "Publicar"}); !bad {
+		t.Fatalf("un objetivo sin criterio no se escribe: %q", txt)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "objetivo", "objetivo": "rel", "nombre": "Publicar", "criterio": "5 h de uso", "foco": true}); bad {
+		t.Fatalf("con criterio sí: %q", txt)
+	}
+	call(map[string]interface{}{"accion": "tarea", "frente": "a", "objetivo": "rel"})
+	if bad, txt := call(map[string]interface{}{"accion": "tarea", "frente": "b", "objetivo": "rel", "depende_de": "a"}); bad {
+		t.Fatalf("una tarea que depende de otra: %q", txt)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "set", "frente": "b", "etapa": "Código", "estado": "ok", "evidencia": "abc1234"}); !bad || !strings.Contains(txt, "EPT-D02") {
+		t.Fatalf("b no termina antes que a: %q", txt)
+	}
+	_, txt := call(map[string]interface{}{"accion": "ver"})
+	if !strings.Contains(txt, "| 🎯 Publicar · foco |") || !strings.Contains(txt, "| b (espera a a) |") {
+		t.Fatalf("ver agrupa por objetivo y dice a quién espera: %q", txt)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "objetivo", "objetivo": "rel", "evidencia": "corrida uso-5"}); bad {
+		t.Fatalf("se cumple con evidencia: %q", txt)
+	}
+}
