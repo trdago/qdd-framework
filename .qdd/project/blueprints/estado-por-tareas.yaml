@@ -1,0 +1,55 @@
+blueprint: estado-por-tareas
+version: 1.1.0
+modulo: estado-por-tareas
+respuestas:
+    alcance: abiertos
+    cuando: cada-avance
+    destino: archivo
+    en_curso: todos
+    etapas: propias
+    formato: mensajeria
+generado:
+    decisiones:
+        - 'Los estados son cerrados: ✅ ⏳ ❌ —'
+        - La prosa acompaña a la tabla; no la reemplaza
+        - La tarea en curso la declara el agente al empezar a trabajarla; puede haber varias (sesiones distintas)
+        - Un pulso sin tarea late la última activada; un pulso con tarea la enciende si estaba apagada
+        - La vida es de 120 s sin pulsos; el panel envía como mucho un pulso cada 5 s
+        - 'Se ve como «● running»: el ● alterna tenue y brillante cada 1 s y destella en acento con cada pulso'
+        - 'Vocabulario «tarea»: Una línea de trabajo del proyecto; es una fila de la tabla (antes «frente»).'
+        - 'Vocabulario «etapa»: Un paso por el que pasa toda tarea; es una columna de la tabla.'
+        - 'Vocabulario «estado»: El valor de una celda, uno de cuatro: ✅ hecho, ⏳ en curso o esperando, ❌ falta o falla, — no aplica.'
+        - 'Vocabulario «evidencia»: Lo que respalda un ✅ (commit, versión, n/n pruebas o id de corrida).'
+        - 'Vocabulario «bloqueo»: Lo que espera un ⏳ y de quién.'
+        - 'Vocabulario «validación real»: Ver el resultado funcionando en un uso real; no es lo mismo que desplegado.'
+        - 'Vocabulario «en curso»: Una tarea que el agente declaró y que latió hace menos de la vida; el panel la muestra «● running».'
+        - 'Vocabulario «pulso»: Una señal de vida de la tarea en curso: una herramienta del agente, un subagente o un comando externo (script, test, deploy o worker) que trabaja en ella.'
+        - 'Vocabulario «fuente»: De dónde viene un pulso, una de tres: agente, subagente o comando.'
+        - 'Vocabulario «vida»: Cuánto sigue en curso una tarea sin pulsos antes de apagarse sola (120 s).'
+        - 'Vocabulario «actividad»: El registro de las tareas en curso y sus pulsos. Es de la máquina, vive fuera del proyecto (en la carpeta central de QDD), no es estado y no se commitea.'
+        - etapas → propias
+        - cuando → cada-avance
+        - alcance → abiertos
+        - destino → archivo
+        - Una sesión cortada o un agente nuevo retoma desde los ⏳ del archivo, sin rehacer lo hecho
+        - formato → mensajeria
+        - en_curso → todos
+        - Los scripts largos del proyecto (tests, deploys, workers) llaman a 'qdd estado pulso <tarea> --fuente comando'
+    invariantes:
+        - Cada celda tiene exactamente un estado
+        - 'Un ✅ lleva evidencia: commit, versión, n/n pruebas o id de corrida'
+        - Un ⏳ dice qué espera y de quién
+        - Una falla conocida se reporta igual como ❌ y se nombra
+        - 'Desplegado no es validado: «✅ v1.2.0 · ⏳ falta ver un uso real»'
+        - Lo que requiere aprobación lo dice en la celda y nunca avanza sin ella
+        - Una tarea no desaparece en silencio
+        - No hay credenciales ni datos personales en la tabla
+        - El texto y la tabla no se contradicen
+        - 'La actividad no es estado: no cambia la tabla y no se commitea'
+        - Solo una tarea abierta puede estar en curso; cerrarla o descartarla la apaga
+        - 'Una tarea sin pulsos durante la vida deja de estar en curso: nunca queda encendida para siempre'
+        - Un pulso nunca demora ni bloquea la herramienta, el subagente o el comando que lo produjo
+        - Una tarea en curso siempre se ve en el panel, aunque no esté entre las más nuevas
+        - 'El latido es sutil: un destello por pulso, sin abrir ni enfocar el panel ni sonar'
+        - 'La actividad no guarda credenciales ni datos personales: «quién» es una herramienta, no una persona'
+aplicado_el: "2026-11-01"
