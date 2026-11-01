@@ -254,7 +254,10 @@ function cabecera(Box, Text, Button, $, e, lista) {
     flexDirection: 'row',
     justifyContent: 'space-between',
     columnGap: 2,
-    children: [Box({ flexShrink: 0, children: [Text({ key: 'titulo', color: 'cyan', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] })] }), ...carpeta],
+    children: [
+      Box({ flexShrink: 0, children: [Text({ key: 'titulo', color: 'cyan', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] })] }),
+      Box({ flexDirection: 'row', flexShrink: 1, columnGap: 2, children: [...carpeta, Button({ key: 'config', label: '⚙ Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) })] }),
+    ],
   })
   if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila] })
   const aviso = e.viejo
@@ -619,10 +622,11 @@ function sinEstado(Box, Text, motivo) {
   })
 }
 
-function dibujar($, Box, Text, Button, ancho) {
+function dibujar($, Box, Text, Button, Input, ancho) {
   if (!datos) return sinEstado(Box, Text, falla)
   const e = datos.estado
   const lista = datos.acciones || []
+  if (config) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaConfig($, Box, Text, Button, Input, ancho)] })
   const cuerpo = e ? [tabla(Box, Text, Button, $, e, lista, ancho)] : [sinEstado(Box, Text, datos.motivo)]
   return Box({
     flexDirection: 'column',
@@ -637,6 +641,409 @@ function dibujar($, Box, Text, Button, ancho) {
   })
 }
 
+// ── Herramientas del proyecto (RFC 0011) ──────────────────────────────────────────────────────────────────────────
+// Cada herramienta guardada (.qdd/herramientas/<id>.yaml) es su propio panel, 'qdd-herr-<id>', con su nombre como
+// pestaña. Sus acciones son botones; cada una abre sus campos y ▶ Correr, que pide 'qdd herramienta correr' (sin shell:
+// cada campo llega como un argumento). La salida va debajo: completa al terminar (una-vez) o mientras corre, hasta
+// ■ Detener (en-vivo). Usarla no le pide nada a la IA. ⚙ Config, en el panel de tareas, las lista para abrirlas o
+// quitarlas y guía para agregar una: la IA arma su definición una vez, con el mensaje que da qdd, y QDD la valida, la
+// prueba y la guarda. La lógica vive en la CLI; el panel solo dibuja y pide.
+const PANE_HERRAMIENTA = 'qdd-herr-'
+const TOPE_HERRAMIENTA_MS = 600000
+const LINEAS_SALIDA = 2000
+const CADA_LECTURAS = 5 // las herramientas se releen cada 5 lecturas del panel (10 s)
+let herramientas = []
+let firmaHerramientas = ''
+let lecturas = 0
+let config = null // null | { vista: 'lista' | 'agregar' | 'ia', candidatos, elegido, quitando, guardada, aviso }
+const sesionesHerr = {} // id → { accion, valores, confirmando, aviso, corrida, salida, fin }
+
+function sesionHerr(id) {
+  if (!sesionesHerr[id]) sesionesHerr[id] = { accion: '', valores: {}, confirmando: false, aviso: '', corrida: null, salida: '', fin: null }
+  return sesionesHerr[id]
+}
+
+// leerHerramientas pide el listado a qdd. Una que apareció mientras la IA la configuraba cierra el paso 5 y queda como
+// pestaña; una que ya no está cierra su pestaña. Un qdd sin 'herramienta' deja la lista vacía.
+async function leerHerramientas($) {
+  const bin = await binario($)
+  let lista = herramientas
+  try {
+    const r = await $.process.run([bin, 'herramienta', 'listar', '--json'], { timeoutMs: TOPE_MS })
+    lista = r.exitCode === 0 ? JSON.parse(r.stdout).herramientas || [] : []
+  } catch {
+    lista = []
+  }
+  const huella = JSON.stringify(lista)
+  if (huella === firmaHerramientas) return
+  firmaHerramientas = huella
+  const antes = herramientas
+  herramientas = lista
+  const nuevas = lista.filter((h) => !antes.some((x) => x.id === h.id))
+  if (config?.vista === 'ia' && nuevas.length > 0) {
+    const guardada = nuevas.find((h) => h.comando.join(' ') === config.elegido) || nuevas[0]
+    config = { vista: 'lista', guardada: guardada.nombre }
+    await abrirHerramienta($, guardada)
+  }
+  for (const h of antes) {
+    if (lista.some((x) => x.id === h.id)) continue
+    delete sesionesHerr[h.id]
+    await $.ui.close({ id: PANE_HERRAMIENTA + h.id }).catch(() => {})
+  }
+  $.ui.invalidate('ui.render')
+}
+
+async function abrirHerramienta($, h) {
+  await $.ui.open({ id: PANE_HERRAMIENTA + h.id, title: h.nombre })
+}
+
+async function abrirHerramientas($) {
+  for (const h of herramientas) await abrirHerramienta($, h)
+}
+
+function valorDe(s, c) {
+  const v = s.valores[c.id]
+  return v === undefined || v === '' ? c.por_defecto || '' : v
+}
+
+function elegirAccion($, id, accion) {
+  const s = sesionHerr(id)
+  if (s.corrida) return
+  s.accion = accion
+  s.valores = {}
+  s.confirmando = false
+  s.aviso = ''
+  $.ui.invalidate('ui.render')
+}
+
+// correrHerramienta: lo requerido primero; lo que pide confirmar, después del «s  Sí». Solo van los campos con valor:
+// qdd pone los por_defecto y vuelve a validar todo.
+async function correrHerramienta($, id, confirmado) {
+  const h = herramientas.find((x) => x.id === id)
+  const s = sesionHerr(id)
+  const a = h?.acciones.find((x) => x.id === s.accion)
+  if (!a || s.corrida || h.aviso) return
+  const falta = (a.campos || []).find((c) => c.requerido && !valorDe(s, c))
+  s.aviso = falta ? 'falta «' + (falta.nombre || falta.id) + '»' : ''
+  s.confirmando = !falta && a.confirmar && !confirmado
+  $.ui.invalidate('ui.render')
+  if (falta || s.confirmando) return
+  const valores = (a.campos || []).filter((c) => (s.valores[c.id] ?? '') !== '').map((c) => c.id + '=' + s.valores[c.id])
+  const argv = [await binario($), 'herramienta', 'correr', h.id, a.id, ...valores, ...(a.confirmar ? ['--si'] : [])]
+  const corrida = { nombre: a.nombre, enVivo: a.modo === 'en-vivo', detenida: false, stream: null }
+  s.corrida = corrida
+  s.salida = ''
+  s.fin = null
+  $.ui.invalidate('ui.render')
+  if (corrida.enVivo) {
+    void enVivo($, s, corrida, argv)
+    return
+  }
+  let fin = { ok: false }
+  try {
+    const r = await $.process.run(argv, { timeoutMs: TOPE_HERRAMIENTA_MS })
+    s.salida = recortar((r.stdout || '') + (r.stderr || ''))
+    fin = { ok: r.exitCode === 0, codigo: r.exitCode }
+  } catch (err) {
+    s.salida = String(err?.message ?? err)
+  }
+  terminar($, s, corrida, fin)
+}
+
+// enVivo lee la salida mientras corre; ■ Detener corta el proceso (qdd detiene la herramienta y lo que lanzó).
+async function enVivo($, s, corrida, argv) {
+  let fin = { ok: false }
+  try {
+    const stream = $.process.spawn({ argv })
+    corrida.stream = stream
+    for await (const { text } of stream) {
+      if (corrida.detenida) break
+      s.salida = recortar(s.salida + text)
+      $.ui.invalidate('ui.render')
+    }
+    if (!corrida.detenida) {
+      const r = await stream.result
+      fin = { ok: r.code === 0, codigo: r.code }
+    }
+  } catch (err) {
+    if (!corrida.detenida) s.salida = recortar(s.salida + String(err?.message ?? err))
+  }
+  terminar($, s, corrida, fin)
+}
+
+function detener($, s) {
+  const corrida = s.corrida
+  if (!corrida?.enVivo) return
+  corrida.detenida = true
+  corrida.stream?.return(undefined).catch(() => {})
+  terminar($, s, corrida, { detenida: true })
+}
+
+// terminar cierra la corrida, salvo que ya la haya cerrado ■ o que otra la haya reemplazado.
+function terminar($, s, corrida, fin) {
+  if (s.corrida !== corrida) return
+  s.corrida = null
+  s.fin = { ...fin, nombre: corrida.nombre }
+  $.ui.invalidate('ui.render')
+}
+
+// recortar deja las últimas LINEAS_SALIDA líneas: la salida no se guarda en disco.
+function recortar(texto) {
+  const lineas = texto.split('\n')
+  return lineas.length > LINEAS_SALIDA ? lineas.slice(-LINEAS_SALIDA).join('\n') : texto
+}
+
+function campoDe($, Input, Select, s, c) {
+  const etiqueta = (c.nombre || c.id) + (c.requerido ? ' *' : '')
+  const guardar = (v) => {
+    s.valores[c.id] = v
+    $.ui.invalidate('ui.render')
+  }
+  if (c.tipo === 'opcion' || c.tipo === 'si-no') {
+    const opciones = c.tipo === 'si-no' ? [{ value: 'no', label: 'no' }, { value: 'si', label: 'sí' }] : c.opciones.map((o) => ({ value: o, label: o }))
+    const vacia = c.tipo === 'opcion' && !c.por_defecto ? [{ value: '', label: '—' }] : []
+    return Select({ key: 'h-campo-' + c.id, label: etiqueta, options: [...vacia, ...opciones], value: valorDe(s, c) || (c.tipo === 'si-no' ? 'no' : ''), onSelect: guardar })
+  }
+  return Input({ key: 'h-campo-' + c.id, label: etiqueta, placeholder: c.tipo === 'numero' ? 'un número' : c.por_defecto || '', value: s.valores[c.id] ?? '', submitLabel: 'listo', onInput: guardar, onSubmit: guardar })
+}
+
+// formulario: los campos de la acción elegida, ▶ Correr o su «¿Seguro?», y lo que falta.
+function formulario($, Box, Text, Button, Input, Select, h, s, a) {
+  const campos = (a.campos || []).map((c) => campoDe($, Input, Select, s, c))
+  const aviso = s.aviso ? [Text({ key: 'h-aviso', color: 'yellow', wrap: 'wrap', children: [s.aviso] })] : []
+  const no = () => {
+    s.confirmando = false
+    $.ui.invalidate('ui.render')
+  }
+  const confirmar = Box({
+    key: 'h-confirmar',
+    flexDirection: 'column',
+    borderStyle: 'single',
+    borderColor: 'yellow',
+    paddingX: 1,
+    children: [
+      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿Seguro? ' + a.nombre] }),
+      Box({
+        flexDirection: 'row',
+        columnGap: 2,
+        children: [
+          Button({ key: 'h-si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => correrHerramienta($, h.id, true) }),
+          Button({ key: 'h-no', label: 'n  No', hotkey: 'n', onPress: no }),
+        ],
+      }),
+    ],
+  })
+  const boton = h.aviso || s.corrida ? [] : [Button({ key: 'h-correr', label: 'r  ▶ Correr', hotkey: 'r', variant: 'primary', onPress: () => correrHerramienta($, h.id, false) })]
+  return [Box({ key: 'h-form', flexDirection: 'column', rowGap: 1, marginTop: 1, children: [...campos, ...aviso, ...(s.confirmando ? [confirmar] : boton)] })]
+}
+
+// salidaDe: la corrida en curso o la última, con su salida debajo.
+function salidaDe($, Box, Text, Button, s) {
+  if (!s.corrida && !s.fin) return []
+  const cabeza = s.corrida
+    ? Text({ key: 'h-estado', dimColor: true, children: ['⟳ ' + s.corrida.nombre + ' · corriendo…'] })
+    : s.fin.detenida
+      ? Text({ key: 'h-estado', dimColor: true, children: ['■ ' + s.fin.nombre + ' · detenida'] })
+      : Text({ key: 'h-estado', color: s.fin.ok ? 'green' : 'red', weight: 'semibold', children: [(s.fin.ok ? '✓ ' : '✗ ') + s.fin.nombre + (s.fin.ok || s.fin.codigo === undefined ? '' : ' · salió con ' + s.fin.codigo)] })
+  const detenerla = s.corrida?.enVivo ? [Button({ key: 'h-detener', label: 'd  ■ Detener', hotkey: 'd', onPress: () => detener($, s) })] : []
+  const texto = s.salida.replace(/\n+$/, '')
+  return [
+    Box({ key: 'h-cabeza-salida', flexDirection: 'row', justifyContent: 'space-between', columnGap: 2, marginTop: 1, children: [cabeza, ...detenerla] }),
+    ...(texto ? [Box({ key: 'h-salida', borderStyle: 'single', borderDimColor: true, paddingX: 1, children: [Text({ key: 'h-salida-texto', mono: true, wrap: 'wrap', children: [texto] })] })] : []),
+  ]
+}
+
+function dibujarHerramienta($, Box, Text, Button, Input, Select, id) {
+  const h = herramientas.find((x) => x.id === id)
+  if (!h) return Text({ dimColor: true, wrap: 'wrap', children: ['Esta herramienta ya no está en el proyecto. ⚙ Config, en el panel de tareas, lista las que hay.'] })
+  const s = sesionHerr(id)
+  const a = h.acciones.find((x) => x.id === s.accion)
+  const botones = h.acciones.map((x, i) =>
+    Button({ key: 'h-accion-' + x.id, label: (i < 9 ? i + 1 + '  ' : '') + x.nombre, ...(i < 9 ? { hotkey: String(i + 1) } : {}), variant: x.id === s.accion ? 'primary' : undefined, onPress: () => elegirAccion($, id, x.id) }),
+  )
+  return Box({
+    flexDirection: 'column',
+    children: [
+      Text({ key: 'h-nombre', color: 'cyan', weight: 'bold', size: 'title', children: [h.nombre] }),
+      ...(h.descripcion ? [Text({ key: 'h-desc', dimColor: true, wrap: 'wrap', children: [h.descripcion] })] : []),
+      ...(h.aviso ? [Text({ key: 'h-falta', color: 'yellow', wrap: 'wrap', children: ['⚠ ' + h.aviso] })] : []),
+      Box({ key: 'h-acciones', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, marginTop: 1, children: botones }),
+      ...(a ? formulario($, Box, Text, Button, Input, Select, h, s, a) : [Text({ key: 'h-elige', dimColor: true, size: 'caption', children: ['Elige una acción.'] })]),
+      ...salidaDe($, Box, Text, Button, s),
+      Box({ marginTop: 1, children: [Text({ key: 'h-pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['corre en el proyecto, sin IA · ' + h.comando.join(' ')] })] }),
+    ],
+  })
+}
+
+// ⚙ Config (en el panel de tareas): las herramientas del proyecto y el paso a paso para agregar una.
+async function abrirConfig($) {
+  config = config ? null : { vista: 'lista' }
+  if (config) await leerHerramientas($)
+  $.ui.invalidate('ui.render')
+}
+
+async function agregar($) {
+  const bin = await binario($)
+  let candidatos = []
+  try {
+    const r = await $.process.run([bin, 'herramienta', 'candidatos', '--json'], { timeoutMs: TOPE_MS })
+    candidatos = r.exitCode === 0 ? JSON.parse(r.stdout) || [] : []
+  } catch {
+    candidatos = []
+  }
+  config = { vista: 'agregar', candidatos: candidatos.filter((c) => !c.agregada) }
+  $.ui.invalidate('ui.render')
+}
+
+// partir lee lo que la persona escribió como argumentos: separados por espacios, con comillas para juntar.
+function partir(texto) {
+  return (String(texto).match(/"[^"]*"|'[^']*'|\S+/g) || []).map((p) => p.replace(/^(["'])(.*)\1$/, '$2'))
+}
+
+// elegir pide a qdd el mensaje para la IA (paso 2) y se lo envía: la IA lee su ayuda, propone sus acciones a la
+// persona y la guarda con qdd. El panel sigue el listado hasta que aparece (paso 5).
+async function elegir($, argv) {
+  if (argv.length === 0) return
+  const bin = await binario($)
+  let texto = ''
+  let aviso = ''
+  try {
+    const r = await $.process.run([bin, 'herramienta', 'configurar', ...argv], { timeoutMs: TOPE_MS })
+    texto = r.exitCode === 0 ? (r.stdout || '').trim() : ''
+    aviso = r.exitCode === 0 ? '' : (r.stderr || '').trim() || 'esta versión de qdd no trae «qdd herramienta»: actualiza qdd'
+  } catch (err) {
+    aviso = String(err?.message ?? err)
+  }
+  config = { vista: texto ? 'ia' : 'agregar', candidatos: config?.candidatos || [], elegido: argv.join(' '), aviso }
+  if (texto) $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  $.ui.invalidate('ui.render')
+}
+
+async function quitar($, h) {
+  const bin = await binario($)
+  let aviso = ''
+  try {
+    const r = await $.process.run([bin, 'herramienta', 'quitar', h.id, '--si'], { timeoutMs: TOPE_MS })
+    aviso = r.exitCode === 0 ? '' : ((r.stdout || '') + (r.stderr || '')).trim()
+  } catch (err) {
+    aviso = String(err?.message ?? err)
+  }
+  config = { vista: 'lista', aviso }
+  await leerHerramientas($)
+  $.ui.invalidate('ui.render')
+}
+
+function filaHerramienta($, Box, Text, Button, h) {
+  return Box({
+    key: 'h-fila-' + h.id,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    columnGap: 2,
+    children: [
+      Box({
+        flexDirection: 'column',
+        flexShrink: 1,
+        children: [
+          Text({ key: 'h-n-' + h.id, color: h.aviso ? 'yellow' : undefined, weight: 'semibold', wrap: 'truncate-end', children: [h.nombre] }),
+          Text({ key: 'h-d-' + h.id, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [h.aviso ? '⚠ ' + h.aviso : h.acciones.length + (h.acciones.length === 1 ? ' acción' : ' acciones') + ' · ' + h.comando.join(' ')] }),
+        ],
+      }),
+      Box({
+        flexDirection: 'row',
+        flexShrink: 0,
+        columnGap: 2,
+        children: [
+          Button({ key: 'h-abrir-' + h.id, label: 'Abrir', plain: true, onPress: () => $.ui.open({ id: PANE_HERRAMIENTA + h.id, title: h.nombre, focus: true }) }),
+          Button({
+            key: 'h-quitar-' + h.id,
+            label: 'Quitar',
+            plain: true,
+            onPress: () => {
+              config = { vista: 'lista', quitando: h.id }
+              $.ui.invalidate('ui.render')
+            },
+          }),
+        ],
+      }),
+    ],
+  })
+}
+
+function confirmarQuitar($, Box, Text, Button, h) {
+  return Box({
+    key: 'h-confirmar-quitar',
+    flexDirection: 'column',
+    borderStyle: 'single',
+    borderColor: 'yellow',
+    paddingX: 1,
+    children: [
+      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿Quitar «' + h.nombre + '»?'] }),
+      Text({ dimColor: true, wrap: 'wrap', children: ['Borra ' + h.archivo + ' y cierra su pestaña.'] }),
+      Box({
+        flexDirection: 'row',
+        columnGap: 2,
+        marginTop: 1,
+        children: [
+          Button({ key: 'h-si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => quitar($, h) }),
+          Button({
+            key: 'h-no',
+            label: 'n  No',
+            hotkey: 'n',
+            onPress: () => {
+              config = { vista: 'lista' }
+              $.ui.invalidate('ui.render')
+            },
+          }),
+        ],
+      }),
+    ],
+  })
+}
+
+const PASOS = ['La IA lee su ayuda y propone sus acciones', 'Las aceptas o pides cambios, en la conversación', 'QDD la valida y corre su prueba de humo', 'Queda guardada como pestaña']
+
+function vistaConfig($, Box, Text, Button, Input, ancho) {
+  const cancelar = Button({
+    key: 'h-cancelar',
+    label: 'Cancelar',
+    plain: true,
+    onPress: () => {
+      config = { vista: 'lista' }
+      $.ui.invalidate('ui.render')
+    },
+  })
+  const aviso = config.aviso ? [Text({ key: 'h-config-aviso', color: 'red', wrap: 'wrap', children: [config.aviso] })] : []
+  let cuerpo = []
+  if (config.vista === 'lista') {
+    const filas = herramientas.map((h) => (config.quitando === h.id ? confirmarQuitar($, Box, Text, Button, h) : filaHerramienta($, Box, Text, Button, h)))
+    cuerpo = [
+      ...(config.guardada ? [Text({ key: 'h-guardada', color: 'green', wrap: 'wrap', children: ['✓ ' + config.guardada + ' quedó guardada: ya es una pestaña'] })] : []),
+      ...(filas.length ? filas : [Text({ key: 'h-vacio', dimColor: true, wrap: 'wrap', children: ['No hay herramientas. Agrega un ejecutable del proyecto (un simulador, un visor de logs, un migrador) y queda como pestaña.'] })]),
+      Box({ key: 'h-agregar-fila', children: [Button({ key: 'h-agregar', label: '+ Agregar herramienta', variant: 'primary', onPress: () => agregar($) })] }),
+    ]
+  }
+  if (config.vista === 'agregar') {
+    const cands = (config.candidatos || []).map((c, i) => Button({ key: 'h-cand-' + i, label: c.comando.join(' ') + ' · ' + c.origen, plain: true, onPress: () => elegir($, c.comando) }))
+    cuerpo = [
+      Text({ key: 'h-paso-1', weight: 'semibold', wrap: 'wrap', children: ['1 · Elige un ejecutable del proyecto o escribe su ruta'] }),
+      ...(cands.length ? [Box({ key: 'h-cands', flexDirection: 'column', children: cands })] : [Text({ key: 'h-sin-cands', dimColor: true, wrap: 'wrap', children: ['No encontré ejecutables en bin/, scripts/, cmd/*, target/release, package.json ni el Makefile.'] })]),
+      Input({ key: 'h-ruta', label: 'Ruta', placeholder: './bin/mi-herramienta --flag', submitLabel: 'agregar', onSubmit: (v) => elegir($, partir(v)) }),
+      cancelar,
+    ]
+  }
+  if (config.vista === 'ia') {
+    cuerpo = [
+      Text({ key: 'h-paso-1', color: 'green', wrap: 'truncate-end', children: ['✓ 1 · ' + config.elegido] }),
+      ...PASOS.map((p, i) => Text({ key: 'h-paso-' + (i + 2), dimColor: i > 0, color: i === 0 ? 'yellow' : undefined, wrap: 'wrap', children: [(i === 0 ? '⟳ ' : '· ') + (i + 2) + ' · ' + p] })),
+      cancelar,
+    ]
+  }
+  return [
+    separador(Box, Text, 't-config', '⚙ Herramientas del proyecto', undefined, 'k cierra', ancho),
+    Box({ key: 'h-config', flexDirection: 'column', rowGap: 1, children: [...aviso, ...cuerpo] }),
+  ]
+}
+
 function hayQueMostrar() {
   if (!datos) return false
   const frentes = datos.estado ? datos.estado.frentes.length : 0
@@ -647,14 +1054,19 @@ function hayQueMostrar() {
 export function register(on) {
   on('session.start', async ($, e, next) => {
     await leer($)
+    await leerHerramientas($)
     $.clock.every(INTERVALO_MS, async () => {
       await leer($)
+      lecturas += 1
+      if (lecturas % CADA_LECTURAS === 0) await leerHerramientas($)
     })
     $.clock.every(LATIDO_MS, async () => {
       latir($)
     })
     // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
     if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
+    // Cada herramienta guardada es una pestaña, sin quitarle el foco a la conversación (RFC 0011).
+    await abrirHerramientas($)
     iniciado = true
     try {
       await $.command.register({ name: 'tareas', description: 'Abre el panel de tareas (/tareas cerrar lo cierra)', immediate: true })
@@ -671,6 +1083,8 @@ export function register(on) {
     }
     await leer($)
     await $.ui.open({ id: PANE, title: TITULO, focus: true })
+    await leerHerramientas($)
+    await abrirHerramientas($)
     return {}
   })
 
@@ -698,8 +1112,9 @@ export function register(on) {
   })
 
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
+    const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
+    if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length))
     if (e.requestId !== PANE) return next(e)
-    const { Box, Text, Button } = $.ui.resolve(e)
-    return dibujar($, Box, Text, Button, e.props.bodyColumns || 40)
+    return dibujar($, Box, Text, Button, Input, e.props.bodyColumns || 40)
   })
 }

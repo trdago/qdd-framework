@@ -12,6 +12,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   - La IA arma una vez su definición con `candidatos`, `ayuda` y `guardar`. QDD la valida, corre su prueba de humo y la versiona en `.qdd/herramientas/<id>.yaml`.
   - Desde ahí se corre con un clic, sin IA y sin tokens: `correr` la ejecuta sin shell y cada campo llega como un solo argumento.
   - Los secretos nunca van en la definición: solo el nombre de su variable de entorno. Si falta, dice cuál y no corre.
+- **En el panel de Claude Code**:
+  - **⚙ Config**, a la derecha de la primera fila, lista las herramientas para abrirlas o quitarlas. «+ Agregar herramienta» ofrece los ejecutables que detecta o una ruta escrita a mano, y guía los 5 pasos.
+  - Cada herramienta es su propia pestaña: sus acciones son botones, cada una con sus campos, y ▶ Correr muestra la salida al terminar (una-vez) o mientras corre, hasta ■ Detener (en-vivo).
 - **El gate valida las definiciones** (`HER-01-DEFINICION`) y **`qdd doctor`** dice qué le falta a cada una en esta máquina, con el comando para arreglarlo.
 
 ### 🧪 El panel se prueba en el gate y se mide contra su receta

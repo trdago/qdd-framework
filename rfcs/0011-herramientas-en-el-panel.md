@@ -94,6 +94,12 @@ prueba: {args: [--help]}          # la prueba de humo: debe salir con 0
   con su nombre. La pestaña muestra sus acciones como botones. Cada acción abre sus campos (Input y Select) y **▶ Correr**.
   La salida va debajo: completa en `una-vez`, en vivo en `en-vivo`, con **■ Detener**.
 - Correr es siempre un clic de la persona; la IA nunca corre una herramienta sola desde el panel.
+- Al implementar (2026-10-31):
+  - las pestañas se abren al empezar la sesión, sin quitarle el foco a la conversación;
+  - ⚙ Config se abre con un clic o con `k`, y en cada fila tiene **Abrir** y **Quitar**;
+  - las acciones son `1`…`9`, ▶ Correr es `r` y ■ Detener es `d`;
+  - el mensaje que recibe la IA lo da `qdd herramienta configurar <comando>`, y el paso 5 se cierra cuando la herramienta aparece en `qdd herramienta listar`;
+  - ■ Detener corta `qdd herramienta correr`, que detiene la herramienta y lo que ella lanzó (su grupo de procesos).
 
 ### Límites (del motor)
 

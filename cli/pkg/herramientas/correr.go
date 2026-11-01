@@ -206,6 +206,7 @@ func comando(ctx context.Context, root string, argv []string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, rutaDe(root, argv[0]), argv[1:]...)
 	cmd.Dir = root
 	cmd.WaitDelay = time.Second
+	enGrupo(cmd)
 	return cmd
 }
 

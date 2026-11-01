@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func escribir(t *testing.T, path, contenido string, modo os.FileMode) {
@@ -243,4 +244,54 @@ func TestDiagnosticar_CadaHerramientaDiceQueLeFaltaYComoSeArregla(t *testing.T) 
 	if ds = Diagnosticar(root); len(ds) != 2 || ds[1].OK || !strings.Contains(ds[1].Nombre, "rota.yaml") {
 		t.Fatalf("una definición que no se lee también se ve: %+v", ds)
 	}
+}
+
+func TestMensajeParaConfigurar_LeDiceALaIACadaPasoYLasReglas(t *testing.T) {
+	m := MensajeParaConfigurar([]string{"./bin/simulador ws"})
+	for _, debe := range []string{"qdd herramienta ayuda './bin/simulador ws'", "qdd herramienta guardar", "id: simulador-ws", "muéstramelas", "interactivo", "{{campo}}", "confirmar: true", "entorno", "nunca su valor", "No la corras"} {
+		if !strings.Contains(m, debe) {
+			t.Errorf("el mensaje debe decir %q:\n%s", debe, m)
+		}
+	}
+	if !strings.Contains(MensajeParaConfigurar([]string{"npm", "run", "seed"}), "id: seed") {
+		t.Error("el id sugerido sale del último argumento")
+	}
+}
+
+func TestCorrer_DetenerlaCortaTambienLoQueLanzo_HER_C05(t *testing.T) {
+	conShell(t)
+	root := t.TempDir()
+	escribir(t, filepath.Join(root, "bin", "vigia"), "#!/bin/sh\n[ \"$1\" = --help ] && exit 0\n(sleep 2; touch \"$0.sigue\") &\necho mirando\nwait\n", 0755)
+	h := parsear(t, "id: vigia\nnombre: Vigía\ncomando: [./bin/vigia]\nacciones:\n  - {id: ver, nombre: Ver, args: [ver], modo: en-vivo}\nprueba: {args: [--help]}\n")
+	ctx, detener := context.WithCancel(context.Background())
+	salida := &esperaLinea{linea: "mirando", vista: make(chan struct{})}
+	hecho := make(chan struct{})
+	go func() {
+		Correr(ctx, root, h, "ver", nil, Opciones{Salida: salida, Errores: salida})
+		close(hecho)
+	}()
+	<-salida.vista
+	detener()
+	<-hecho
+	time.Sleep(2500 * time.Millisecond)
+	if _, err := os.Stat(filepath.Join(root, "bin", "vigia.sigue")); !os.IsNotExist(err) {
+		t.Fatal("■ detiene la herramienta y lo que lanzó: nada sigue corriendo")
+	}
+}
+
+// esperaLinea avisa cuando la salida trae una línea.
+type esperaLinea struct {
+	linea string
+	vista chan struct{}
+	buf   bytes.Buffer
+	listo bool
+}
+
+func (e *esperaLinea) Write(p []byte) (int, error) {
+	e.buf.Write(p)
+	if !e.listo && strings.Contains(e.buf.String(), e.linea) {
+		e.listo = true
+		close(e.vista)
+	}
+	return len(p), nil
 }

@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/qdd-framework/qdd/pkg/herramientas"
 	"github.com/spf13/cobra"
@@ -29,6 +30,7 @@ Desde ahí el panel la dibuja y la corre sin IA. Los secretos nunca van en la de
 
   qdd herramienta candidatos [--json]          los ejecutables del proyecto (bin/, scripts/, cmd/*, npm, make…)
   qdd herramienta ayuda <comando…>             su --help (o -h, help), sin entrada y con tiempo límite
+  qdd herramienta configurar <comando…>        el mensaje con que la IA la arma (lo envía el panel)
   qdd herramienta guardar <archivo.yaml>       valida, prueba y guarda la definición
   qdd herramienta listar [--json]              las guardadas y lo que les falta en esta máquina
   qdd herramienta correr <id> <acción> [campo=valor…] [--si]
@@ -69,6 +71,15 @@ var herramientaAyudaCmd = &cobra.Command{
 		if err != nil {
 			salirCon("%v", err)
 		}
+	},
+}
+
+var herramientaConfigurarCmd = &cobra.Command{
+	Use:   "configurar <comando…>",
+	Short: "El mensaje con que la IA arma la definición (lo que el panel le envía al agregar)",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(herramientas.MensajeParaConfigurar(args))
 	},
 }
 
@@ -166,7 +177,7 @@ var herramientaCorrerCmd = &cobra.Command{
 		if err != nil {
 			salirCon("%v", err)
 		}
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		code, err := herramientas.Correr(ctx, root, h, args[1], valores, herramientas.Opciones{Confirmado: herramientaSi, Salida: os.Stdout, Errores: os.Stderr})
 		if err != nil {
@@ -197,6 +208,6 @@ func init() {
 	}
 	herramientaCorrerCmd.Flags().BoolVar(&herramientaSi, "si", false, "la persona confirmó una acción que lo pide")
 	herramientaQuitarCmd.Flags().BoolVar(&herramientaSi, "si", false, "la persona confirmó que la quita")
-	herramientaCmd.AddCommand(herramientaCandidatosCmd, herramientaAyudaCmd, herramientaGuardarCmd, herramientaListarCmd, herramientaCorrerCmd, herramientaQuitarCmd)
+	herramientaCmd.AddCommand(herramientaCandidatosCmd, herramientaAyudaCmd, herramientaConfigurarCmd, herramientaGuardarCmd, herramientaListarCmd, herramientaCorrerCmd, herramientaQuitarCmd)
 	rootCmd.AddCommand(herramientaCmd)
 }

@@ -55,6 +55,7 @@ objetivo_tecnologico:
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
         - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
         - 'EPF-C08 lo revisa qdd estado check --respuesta: cada «<tarea> · <etapa>: <estado>» del texto es el de la tabla, y una afirmación sobre una tarea o etapa que no está en ella la contradice (blueprint estado-por-tareas 2.0.0).'
+        - 'El panel de Claude Code también dibuja las herramientas del proyecto (ficha herramientas, RFC 0011): ⚙ Config a la derecha de la primera fila, con su lista y el paso a paso para agregar una, y una pestaña (qdd-herr-<id>) por herramienta. Su lógica vive en qdd herramienta; el panel solo dibuja, pide y nunca le pide nada a la IA al usarlas.'
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
         - Un frente nunca se borra; se cierra o se descarta con motivo.
