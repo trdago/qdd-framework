@@ -20,6 +20,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Pinchar el nombre** de una tarea o de un objetivo en el panel le pregunta a la IA «¿Cómo vamos con…?»: avance, bloqueos y siguiente paso. `l ↻` vuelve a leer el tablero.
 - **La barra muestra la carpeta del proyecto** (solo su nombre, «📂 qdd») debajo del modelo, a la izquierda.
 - El archivo pasa a `formato: 2` solo si usa objetivos o dependencias. Un qdd anterior lo rechaza en vez de perderlos al escribir; un tablero plano sigue en formato 1.
+- El repositorio de qdd aplica `estado-por-tareas` 2.0.0, con objetivos, `Producción` como la etapa que requiere aprobación y vida de 120 s. Este qdd declara que implementa la 2.0.0. Un ❌ sin nombrar su falla se informa como EPF-C09, su escenario propio.
 
 ### 🧰 Las herramientas del proyecto en el panel (RFC 0011)
 

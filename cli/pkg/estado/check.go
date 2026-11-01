@@ -108,7 +108,7 @@ func checkCelda(frente, etapa string, c Celda) []Violacion {
 		}
 	case Falla:
 		if strings.TrimSpace(c.Falla) == "" {
-			vs = append(vs, Violacion{ID: "EPF-C01", Frente: frente, Etapa: etapa, Mensaje: "❌ sin nombrar la falla"})
+			vs = append(vs, Violacion{ID: "EPF-C09", Frente: frente, Etapa: etapa, Mensaje: "❌ sin nombrar la falla"})
 		}
 	case NoAplica, SinEmpezar:
 	default:

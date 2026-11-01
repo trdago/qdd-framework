@@ -111,9 +111,9 @@ func TestCheck_EPFC03_EsperaSinBloqueoODeQuien(t *testing.T) {
 	}
 }
 
-func TestCheck_FallaSinNombrar(t *testing.T) {
+func TestCheck_EPFC09_FallaSinNombrar(t *testing.T) {
 	s := strings.Replace(valido, `falla: "la URL con el ticket se imprime"`, `falla: ""`, 1)
-	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C01") {
+	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C09") {
 		t.Fatalf("❌ sin nombrar la falla: %s", ids(vs))
 	}
 }
