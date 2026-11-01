@@ -1,9 +1,9 @@
 id: "FND-105"
 title: "propose decía «no hay un aporte en curso» cuando la organización estaba escrita por SSH en un lado y por HTTPS en otro"
 description: "El espacio de trabajo de un aporte se ubicaba por la URL del repositorio tal cual. En qdd (2026-11-01) config.yaml dice git@github.com:trdago/qdd-blueprints.git y, desde el PR #49, el lockfile dice https://github.com/trdago/qdd-blueprints.git: el aporte se abrió con una forma y 'qdd blueprint propose estado-por-tareas' lo buscó con la otra."
-impact: "Un aporte certificado no se podía proponer sin volver a abrirlo; volver a abrirlo con contribute dejaba dos espacios de trabajo para la misma organización."
-action_taken: "El espacio de trabajo se ubica por la forma canónica del repositorio (la HTTPS sin .git ni / final), así que SSH, ssh:// y HTTPS son el mismo aporte; un aporte abierto con la clave antigua (la URL tal cual, en cualquiera de sus formas) se sigue encontrando."
-test_result: "TestEspacioPath_LaMismaOrganizacionPorSSHOHTTPSEsElMismoAporte_FND105 y TestEspacioPath_UnAporteAbiertoConLaClaveAntiguaSeSigueEncontrando_FND105 fallan antes del arreglo y pasan después; go test ./pkg/blueprints/ pasa."
+impact: "Un aporte certificado no se podía proponer sin volver a abrirlo; volver a abrirlo con contribute dejaba dos espacios de trabajo para la misma organización; y con el origen en HTTPS el push no reintentaba si el remoto del aporte (SSH, con una deploy key de solo lectura) lo rechazaba."
+action_taken: "El espacio de trabajo se ubica por la forma canónica del repositorio (la HTTPS sin .git ni / final), así que SSH, ssh:// y HTTPS son el mismo aporte; un aporte abierto con la clave antigua (la URL tal cual, en cualquiera de sus formas) se sigue encontrando. Si el push por el remoto del aporte falla y el lockfile da otra URL (la HTTPS), se reintenta por esa: antes solo se reintentaba cuando el origen era SSH."
+test_result: "TestEspacioPath_LaMismaOrganizacionPorSSHOHTTPSEsElMismoAporte_FND105 y TestEspacioPath_UnAporteAbiertoConLaClaveAntiguaSeSigueEncontrando_FND105 y TestProponer_ConElOrigenEnHTTPSReintentaPorEseOrigen_FND105 fallan antes del arreglo y pasan después; go test ./pkg/blueprints/ pasa."
 status: resolved
 detectado_por: ia
 date: "2026-11-01"

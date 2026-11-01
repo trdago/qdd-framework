@@ -76,7 +76,7 @@ func empujar(espacio, repo, ref string, flags ...string) (string, error) {
 	if errSSH == nil {
 		return "", nil
 	}
-	url, ok := httpsEquivalente(repo)
+	url, ok := reintentoDePush(espacio, repo)
 	if !ok {
 		return "", errSSH
 	}
@@ -84,6 +84,19 @@ func empujar(espacio, repo, ref string, flags ...string) (string, error) {
 		return "", fmt.Errorf("%v (por HTTPS, %s, tampoco: %v)", errSSH, url, err)
 	}
 	return fmt.Sprintf("se publicó por HTTPS (%s) porque por SSH no hubo permiso: %s", url, primeraLinea(errSSH.Error())), nil
+}
+
+// reintentoDePush es a dónde se reintenta: la HTTPS del origen si es SSH, o el origen mismo si el aporte se clonó
+// con otra URL (p. ej. por SSH, y el lockfile ya dice HTTPS: FND-105).
+func reintentoDePush(espacio, repo string) (string, bool) {
+	if url, ok := httpsEquivalente(repo); ok {
+		return url, true
+	}
+	push, err := git(espacio, "remote", "get-url", "--push", "origin")
+	if err != nil || strings.TrimSpace(push) == repo {
+		return "", false
+	}
+	return repo, true
 }
 
 func primeraLinea(s string) string {

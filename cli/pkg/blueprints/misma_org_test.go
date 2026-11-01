@@ -3,6 +3,7 @@ package blueprints
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -38,5 +39,31 @@ func TestEspacioPath_UnAporteAbiertoConLaClaveAntiguaSeSigueEncontrando_FND105(t
 	got, err := espacioPath("https://github.com/org/blueprints.git")
 	if err != nil || got != antiguo {
 		t.Fatalf("espacioPath = %q, %v; quiere el aporte en curso %q", got, err, antiguo)
+	}
+}
+
+// FND-105: con el origen ya en HTTPS en el lockfile y el aporte clonado por SSH con una deploy key de solo lectura,
+// el push fallaba sin reintentar: solo se reintentaba si el origen era SSH.
+func TestProponer_ConElOrigenEnHTTPSReintentaPorEseOrigen_FND105(t *testing.T) {
+	sinGH(t)
+	repo := gitOrgRepo(t)
+	root := t.TempDir()
+	mustAddManaged(t, AddInput{Root: root, Origen: repo, Blueprints: []string{"auth"}})
+	ap, err := Aportar(root, "auth", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	espacio, err := espacioPath(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, espacio, "remote", "set-url", "--push", "origin", filepath.Join(t.TempDir(), "sin-permiso.git"))
+	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), strings.Replace(authBlueprint, "¿Con qué inicia sesión el usuario?", "¿Con qué dato inicia sesión?", 1))
+
+	if _, err := Proponer(root, "auth", "redacción", ""); err != nil {
+		t.Fatalf("el push reintenta por el origen del lockfile: %v", err)
+	}
+	if got := versionEn(repo, "aporte/auth", "auth"); got != "1.0.1" {
+		t.Fatalf("la rama llegó al repositorio: %q", got)
 	}
 }
