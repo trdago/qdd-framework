@@ -1,6 +1,6 @@
 id: herramientas
 nombre: Herramientas del proyecto en el panel
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/herramientas
     - cli/cmd/herramienta.go
@@ -30,3 +30,5 @@ pruebas:
         - cd cli && go test ./pkg/audit/ -run HER
 fuentes:
     - rfcs/0011-herramientas-en-el-panel.md
+ultima_revision: "2026-10-31"
+revisado_en_commit: 266c4e3c44b9
