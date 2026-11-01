@@ -39,7 +39,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   - guardar o aprobar una ficha con un qdd más viejo ya no borra los campos que no conoce (FND-099);
   - las pruebas llevan el id de su escenario actual: una con el id de otro hacía ver cubierto lo que no lo estaba (FND-100);
   - en adopción gradual, una recomendación como `QA-03-SIN-MEDIR` ya no vuelve a bloquear el gate (FND-101);
-  - sin llave SSH (p. ej. en el CI), un repositorio de blueprints público se lee por HTTPS: `add`, `sync`, el gate y `doctor` reintentan por la URL HTTPS equivalente, como ya lo hacían `propose` y `release` (FND-104).
+  - sin llave SSH (p. ej. en el CI), un repositorio de blueprints público se lee por HTTPS: `add`, `sync`, el gate y `doctor` reintentan por la URL HTTPS equivalente, como ya lo hacían `propose` y `release` (FND-104);
+  - `propose` encuentra el aporte aunque la organización esté escrita por SSH en `config.yaml` y por HTTPS en el lockfile: es el mismo aporte (FND-105).
 
 ## [2.8.0-rc.9] - 2026-10-31 (preview)
 

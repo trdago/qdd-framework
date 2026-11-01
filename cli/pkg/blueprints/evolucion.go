@@ -391,7 +391,34 @@ func espacioPath(repo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, repoKey(repo)), nil
+	for _, forma := range formasDelRepo(repo) {
+		if p := filepath.Join(dir, repoKey(forma)); exists(p) {
+			return p, nil
+		}
+	}
+	return filepath.Join(dir, repoKey(repoCanonico(repo))), nil
+}
+
+// repoCanonico es la misma organización escrita de una sola forma: la URL SSH (usuario@host:ruta o ssh://) pasa a
+// la HTTPS, sin «.git» ni «/» al final. Con SSH en config.yaml y HTTPS en el lockfile (FND-104), el aporte es uno
+// solo (FND-105).
+func repoCanonico(repo string) string {
+	if host, ruta, ok := partesSSH(repo); ok {
+		repo = "https://" + host + "/" + ruta
+	}
+	return strings.TrimSuffix(strings.TrimRight(repo, "/"), ".git")
+}
+
+// formasDelRepo son las formas con que pudo abrirse un aporte antes de FND-105 (la clave era la URL tal cual): la
+// dada, la HTTPS con y sin «.git» y la SSH git@host:ruta.git.
+func formasDelRepo(repo string) []string {
+	canon := repoCanonico(repo)
+	formas := []string{repo, canon, canon + ".git"}
+	host, ruta, ok := strings.Cut(strings.TrimPrefix(canon, "https://"), "/")
+	if !ok || !strings.HasPrefix(canon, "https://") {
+		return formas
+	}
+	return append(formas, "git@"+host+":"+ruta+".git", "git@"+host+":"+ruta)
 }
 
 func espacioDeTrabajo(repo string) (string, error) {
