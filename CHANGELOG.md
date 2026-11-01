@@ -31,6 +31,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   - Se mide sin red: el blueprint sale de lo importado o de la última versión de la copia local del repositorio de la organización.
   - Sin ninguno de los dos (p. ej. en el CI) queda **sin medir** (`BP-08-SIN-MEDIR`): no bloquea y nunca cuenta como cumplida.
   - Un proyecto que solo usa un blueprint que implementa qdd (`estado-por-tareas`, `consola-claude-code`) no necesita sus pruebas: lo cumple el qdd instalado si lo implementa en la misma versión mayor y no más vieja; si no, el gate dice si actualizar qdd o el blueprint (FND-102).
+  - Una prueba de Go que lleva el id pegado al prefijo (`TestCVA_C01_…`) cuenta para su escenario (FND-103).
 - **`qdd estado check --respuesta` revisa EPF-C08**: lo que el texto afirma con «<tarea> · <etapa>: <estado>» es lo que dice la tabla, y una afirmación sobre una tarea o etapa que no está en ella la contradice.
 - **Arreglos:**
   - pulsos simultáneos ya no borran la activación de una tarea (FND-097): la actividad, la cola de pedidos y el registro de uso se escriben uno a la vez entre procesos (`pkg/candado`);
