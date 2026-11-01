@@ -21,4 +21,4 @@ pruebas:
     comandos:
         - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones'
 ultima_revision: "2026-10-31"
-revisado_en_commit: fd4fcf71bcf4
+revisado_en_commit: 92afc0ab8c09
