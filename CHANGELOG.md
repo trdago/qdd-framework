@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.10] - 2026-11-01 (preview)
+
+Décima **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
 ### 🔁 Sincronía panel–chat
 
 - Lo que el panel espera de la persona puede resolverse en el chat: «ya lo mergeé», «eso no va», «hazlo distinto». Puede ser un pedido, una ficha en borrador o un ⏳ suyo.
