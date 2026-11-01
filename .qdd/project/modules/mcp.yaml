@@ -1,6 +1,6 @@
 id: mcp
 nombre: Servidor MCP de QDD (qdd mcp-server)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/cmd/mcp.go
 objetivo_operativo:
@@ -13,7 +13,7 @@ objetivo_tecnologico:
     decisiones:
         - 'Descripciones estilo chat (pedido del usuario, 2026-10-31): qué hace, cuándo usarla y las reglas que la IA no puede adivinar (preguntas del humano, confirmaciones, nunca ejecutar por la persona); topes de 400 caracteres por tool, 260 por parámetro y 16.000 para tools/list (~4.500 son la estructura JSON).'
         - 'Anotaciones verdaderas y sin relleno: readOnlyHint solo en las tools que no cambian nada (soloLeen); las demás van sin anotaciones, que en MCP valen lo mismo que los valores por defecto de mcp-go.'
-        - 'Un pánico atrapado por la guarda Zero-Panic también se registra como incidente de QDD (mcp:<tool>), anonimizado; el registro nunca cambia la respuesta de la tool.'
+        - Un pánico atrapado por la guarda Zero-Panic también se registra como incidente de QDD (mcp:<tool>), anonimizado; el registro nunca cambia la respuesta de la tool.
     invariantes:
         - Toda tool se registra con RegisterToolWithTelemetry; un panic en un handler vuelve como un error de la tool, nunca tumba el servidor.
         - Acortar una descripción nunca quita una regla de seguridad (quién responde, quién confirma, qué no ejecuta la IA).
@@ -24,5 +24,5 @@ pruebas:
 fuentes:
     - cli/cmd/mcp.go
     - cli/cmd/mcp_presupuesto_test.go
-ultima_revision: "2026-10-31"
-revisado_en_commit: 42e76175a40d
+ultima_revision: "2026-11-01"
+revisado_en_commit: bbecb4430d50

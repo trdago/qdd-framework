@@ -1,6 +1,6 @@
 id: incidentes
 nombre: Incidentes de QDD (issues automáticos)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/incidentes
     - cli/cmd/incidentes.go
@@ -30,3 +30,5 @@ fuentes:
     - cli/pkg/incidentes/incidentes.go
     - cli/pkg/incidentes/sanitizar.go
     - cli/cmd/incidentes.go
+ultima_revision: "2026-11-01"
+revisado_en_commit: bbecb4430d50
