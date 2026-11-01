@@ -108,7 +108,7 @@ frentes:
 	}
 }
 
-func TestBarra_SinAnchoOAngostaNoSeDesordena_CCC_C24(t *testing.T) {
+func TestBarra_SinAnchoOAngostaNoSeDesordena_CCC_C07(t *testing.T) {
 	in := `{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":12}}}`
 	if got := Barra([]byte(in), ahora, "auto", 0); got != "Opus 5.5 · auto · contexto 38%\n5h 12%" {
 		t.Fatalf("sin el ancho de la terminal, la lista va sin relleno: %q", got)
@@ -188,7 +188,7 @@ func nuevaConsola(t *testing.T, version string, f *claudeFalso) Consola {
 		BuscarOpenCode: func() (string, bool) { return "", false }}
 }
 
-func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente(t *testing.T) {
+func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente_CCC_C08(t *testing.T) {
 	f := &claudeFalso{}
 	c := nuevaConsola(t, "2.2.0", f)
 	if _, err := c.Activar(false); err != nil {
@@ -219,7 +219,7 @@ func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente(t *testing.T) {
 	}
 }
 
-func TestActivar_ConCLINuevaActualizaElPanelYDoctorLoDetecta(t *testing.T) {
+func TestActivar_ConCLINuevaActualizaElPanelYDoctorLoDetecta_CCC_C09(t *testing.T) {
 	f := &claudeFalso{}
 	vieja := nuevaConsola(t, "2.2.0", f)
 	if _, err := vieja.Activar(false); err != nil {
@@ -280,7 +280,7 @@ func TestActivar_BarraSoloReemplazaLaReferenciaYDesactivarLaRestaura(t *testing.
 	}
 }
 
-func TestActivar_UnaBarraPropiaNoSeToca(t *testing.T) {
+func TestActivar_UnaBarraPropiaNoSeToca_CCC_C08(t *testing.T) {
 	c := nuevaConsola(t, "2.2.0", &claudeFalso{})
 	propia := `{"statusLine":{"type":"command","command":"mi-barra --linda"}}`
 	escribirArchivo(t, filepath.Join(c.ClaudeDir, "settings.json"), propia)
@@ -359,5 +359,21 @@ func TestActivar_RenombraElPanelAQddTareasYQuitaElAnterior(t *testing.T) {
 	}
 	if _, err := c.Activar(false); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBarra_ElModoDeLaIAVieneDelUltimoMensaje_CCC_C06(t *testing.T) {
+	root := proyectoConCola(t)
+	if err := MarcarCiclo(root, "plan", ahora); err != nil {
+		t.Fatal(err)
+	}
+	datos := []byte(`{"workspace":{"project_dir":"` + root + `"},"model":{"display_name":"Opus"}}`)
+	luego := ahora.Add(time.Hour)
+	if got := Barra(datos, luego, ModoDeLaBarra(datos, luego), 0); got != "Opus · plan" {
+		t.Fatalf("el último mensaje fue en modo plan: %q", got)
+	}
+	tarde := ahora.Add(VidaModo + time.Minute)
+	if got := Barra(datos, tarde, ModoDeLaBarra(datos, tarde), 0); got != "Opus" {
+		t.Fatalf("sin un modo anotado en las últimas %v, solo el modelo: %q", VidaModo, got)
 	}
 }

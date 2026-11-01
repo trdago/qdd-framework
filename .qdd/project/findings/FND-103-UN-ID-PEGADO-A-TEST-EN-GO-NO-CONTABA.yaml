@@ -1,0 +1,9 @@
+id: "FND-103"
+title: "La conformidad no reconocía el id de un escenario pegado al prefijo de una prueba de Go (TestCVA_C01)"
+description: "nombraEscenario exigía que antes del id no hubiera ninguna letra. En Go el nombre de una prueba empieza siempre pegado a Test (TestCVA_C01_…), así que una construcción en Go con una prueba por escenario daba 0/22. Se encontró en la tercera ronda de la certificación ciega de ciclo-de-vida-agentico (2026-11-01): 26 pruebas en verde y ninguna contada."
+impact: "Una receta construida en Go no se podía certificar, y un módulo en Go con todas sus pruebas no pasaba BP-08, salvo con nombres poco naturales (Test_CVA_C01)."
+action_taken: "Antes del id puede ir una minúscula (el final del prefijo Test); una mayúscula o un dígito no, porque sería otra palabra (OAUTH_01 no es AUTH-01). El límite derecho no cambia (P-020 no es P-02, FND-100)."
+test_result: "TestNombraEscenario_ElIdPegadoATestEnGoCuenta_FND103 falla antes del arreglo y pasa después; las pruebas de FND-100 siguen pasando; go test ./... pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-01"

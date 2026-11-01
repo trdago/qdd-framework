@@ -1,0 +1,23 @@
+id: fichas
+nombre: Fichas de módulo (el contrato de cada módulo)
+estado: aprobado
+rutas:
+    - cli/pkg/modules/modules.go
+objetivo_operativo:
+    problema: 'Una IA que cambia un módulo sin conocer su objetivo, sus decisiones y sus invariantes los rompe sin saberlo. La ficha es el contrato del módulo: la escribe una IA, la aprueba una persona y la lee la próxima IA antes de tocar código.'
+    usuarios: Las IAs que trabajan con QDD (vía qdd_project_context) y las personas que aprueban cada ficha.
+    criterio_de_exito: Cada módulo con código tiene una ficha válida y aprobada; la ficha dice qué blueprint lo generó o qué blueprint implementa, y el gate avisa cuando el código cambió desde su última revisión.
+    caso_real: '2026-10-31: para medir el panel contra su receta, la ficha tenía que decir qué blueprints implementa QDD como origen (estado-por-tareas y consola-claude-code), algo que no tenía dónde escribirse.'
+objetivo_tecnologico:
+    arquitectura: 'Module es la ficha en .qdd/project/modules/<id>.yaml: rutas, objetivo operativo y tecnológico, pruebas, y blueprint (el que la generó) o implementa (los que implementa como origen). Load, Save, Approve y Find la leen y la escriben; Drift cuenta los commits desde su revisión.'
+    decisiones:
+        - 'implementa (2026-10-31): [{blueprint, respuestas}]. Sin respuestas, el módulo es la implementación de origen y cubre todas las opciones del blueprint; con respuestas, solo esa variante. Lo usa qdd blueprint conformance.'
+        - 'Reescribir una ficha (guardar, aprobar) conserva las claves de la ficha en disco que este qdd no conoce (FND-099): un qdd más viejo nunca borra lo que escribió uno más nuevo.'
+        - 'implementa admite fuera: {ID: motivo}, un escenario que hace otro y no este código; la conformidad no lo exige y siempre lo muestra.'
+    invariantes:
+        - Una ficha guardada por una IA queda en borrador; solo una persona (o quien tenga la aprobación delegada) la aprueba.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
+ultima_revision: "2026-10-31"
+revisado_en_commit: 2406f3e2c0a2

@@ -1,0 +1,9 @@
+id: "FND-101"
+title: "En adopción gradual, una recomendación de la propia regla volvía a bloquear el gate"
+description: "marcarRecomendaciones asignaba Recomendacion = reglasDeMadurez[regla] a cada violación. Así pisaba la marca que la regla ya había puesto: QA-03-SIN-MEDIR (una suite que no se puede correr en esta máquina, p. ej. sin la CLI de Claude en el CI) pasaba a bloquear en cualquier proyecto con adopcion: gradual. Se encontró al sumar BP-08-SIN-MEDIR, que también es una recomendación (2026-10-31)."
+impact: "Un proyecto con adopción gradual y una suite con requiere fallaba el gate donde faltaba el programa, justo lo que QA-03 debía evitar."
+action_taken: "La adopción gradual solo suma recomendaciones: Recomendacion = Recomendacion || reglasDeMadurez[regla]. Queda como decisión en la ficha gate-pruebas, que ahora incluye adopcion.go."
+test_result: "TestMarcarRecomendaciones_GradualNoVuelveBloqueanteLoQueYaEraRecomendacion falla antes del arreglo y pasa después; go test ./... pasa."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

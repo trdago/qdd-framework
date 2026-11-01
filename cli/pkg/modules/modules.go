@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -44,12 +45,21 @@ type Pruebas struct {
 }
 
 // Module es una ficha de módulo.
+// Implementacion dice qué blueprint implementa un módulo. Sin respuestas, es la implementación de origen y cubre
+// todas las opciones que el blueprint ofrece; con respuestas, solo esa variante (qdd blueprint conformance).
+type Implementacion struct {
+	Blueprint  string            `yaml:"blueprint"`
+	Respuestas map[string]string `yaml:"respuestas,omitempty"`
+	Fuera      map[string]string `yaml:"fuera,omitempty"` // escenario → por qué no lo cumple este código (lo hace otro)
+}
+
 type Module struct {
 	ID                  string              `yaml:"id"`
 	Nombre              string              `yaml:"nombre"`
 	Estado              string              `yaml:"estado"`
 	Rutas               []string            `yaml:"rutas"`
-	Blueprint           string              `yaml:"blueprint,omitempty"` // p. ej. "auth@1.2.0", si se generó desde un blueprint
+	Blueprint           string              `yaml:"blueprint,omitempty"`  // p. ej. "auth@1.2.0", si se generó desde un blueprint
+	Implementa          []Implementacion    `yaml:"implementa,omitempty"` // blueprints de los que este módulo es la implementación de origen
 	ObjetivoOperativo   ObjetivoOperativo   `yaml:"objetivo_operativo"`
 	ObjetivoTecnologico ObjetivoTecnologico `yaml:"objetivo_tecnologico"`
 	Pruebas             Pruebas             `yaml:"pruebas"`
@@ -198,16 +208,55 @@ func Find(root, id string) (Module, bool) {
 	return Module{}, false
 }
 
+// conCamposDesconocidos serializa la ficha conservando los campos de la que ya está en disco que este qdd no conoce
+// (FND-099): un qdd más viejo, al aprobar o guardar, nunca borra lo que escribió uno más nuevo.
+func conCamposDesconocidos(m Module, path string) ([]byte, error) {
+	var nueva yaml.Node
+	if err := nueva.Encode(m); err != nil {
+		return nil, err
+	}
+	anterior, err := os.ReadFile(path)
+	if err != nil {
+		return yaml.Marshal(&nueva)
+	}
+	var vieja yaml.Node
+	if yaml.Unmarshal(anterior, &vieja) != nil || len(vieja.Content) == 0 || vieja.Content[0].Kind != yaml.MappingNode {
+		return yaml.Marshal(&nueva)
+	}
+	conocidos := map[string]bool{}
+	for i := 0; i+1 < len(nueva.Content); i += 2 {
+		conocidos[nueva.Content[i].Value] = true
+	}
+	campos := vieja.Content[0].Content
+	for i := 0; i+1 < len(campos); i += 2 {
+		if !conocidos[campos[i].Value] && !campoDeModule(campos[i].Value) {
+			nueva.Content = append(nueva.Content, campos[i], campos[i+1])
+		}
+	}
+	return yaml.Marshal(&nueva)
+}
+
+// campoDeModule: la clave es de Module (vacía en la ficha nueva, omitempty): no se conserva, se quitó a propósito.
+func campoDeModule(clave string) bool {
+	t := reflect.TypeOf(Module{})
+	for i := 0; i < t.NumField(); i++ {
+		if strings.Split(t.Field(i).Tag.Get("yaml"), ",")[0] == clave {
+			return true
+		}
+	}
+	return false
+}
+
 func write(root string, m Module) (string, []string) {
 	dir := filepath.Join(root, Dir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", []string{err.Error()}
 	}
-	data, err := yaml.Marshal(m)
+	path := filepath.Join(dir, m.ID+".yaml")
+	data, err := conCamposDesconocidos(m, path)
 	if err != nil {
 		return "", []string{err.Error()}
 	}
-	path := filepath.Join(dir, m.ID+".yaml")
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		return "", []string{err.Error()}
 	}

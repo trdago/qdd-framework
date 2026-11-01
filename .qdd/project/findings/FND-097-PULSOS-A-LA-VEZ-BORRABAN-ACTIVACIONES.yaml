@@ -1,0 +1,9 @@
+id: "FND-097"
+title: "Pulsos simultáneos borraban la activación de una tarea"
+description: "En la certificación ciega de estado-por-tareas (2026-10-31), el constructor en Go encontró con -race que un pulso que llegaba tarde pisaba uno más nuevo. La CLI real tenía la misma forma: Activar, Terminar y Pulsar leían la actividad, la cambiaban y la reescribían sin bloqueo entre procesos, y los pulsos corren en segundo plano, uno por herramienta."
+impact: "Con varias herramientas a la vez, un pulso que leyó antes borraba al escribir la tarea que el agente acababa de activar: el panel dejaba de mostrarla «● running» sin motivo. En la prueba, de 24 activaciones con pulsos simultáneos sobrevivían 10."
+action_taken: "Leer, cambiar y escribir la actividad es uno a la vez entre procesos (bloquearActividad, con un archivo de bloqueo). El bloqueo vive en pkg/candado y lo usan también la cola de pedidos y el registro de uso, que tenían su propia copia."
+test_result: "TestActividad_PulsosALaVezNoBorranUnaActivacion (pkg/estado): 10/24 antes, 24/24 ahora, también con -race; pkg/candado 2 pruebas."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"
