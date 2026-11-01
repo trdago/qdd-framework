@@ -1,6 +1,6 @@
 id: estado-por-tareas
 nombre: Estado por tareas
-estado: borrador
+estado: aprobado
 rutas:
     - .qdd/project/estado.yaml
 blueprint: estado-por-tareas@1.1.0
@@ -63,3 +63,5 @@ pruebas:
 fuentes:
     - .qdd/blueprints.lock.yaml
     - .qdd/project/blueprints/estado-por-tareas.yaml
+ultima_revision: "2026-11-01"
+revisado_en_commit: db9596a19306
