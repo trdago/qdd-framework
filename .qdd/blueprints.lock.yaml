@@ -1,0 +1,12 @@
+# Blueprints importados con 'qdd blueprint add'. Lo administra QDD: no se edita a mano.
+# El contenido vive en la carpeta central de QDD (RFC 0004), no en el proyecto.
+formato: 2
+blueprints:
+    - id: estado-por-tareas
+      version: 1.1.0
+      origen: git@github.com:trdago/qdd-blueprints.git
+      subdir: estado-por-tareas
+      ref: v7.0.0
+      commit: 1707059118ea63928a183c5e6c5d49d8a53b4790
+      sha256: 4719d91ea5796dfa116ee5414c3cb3f230a86c67c8148ddd388a96aef633593f
+      agregado_el: "2026-11-01"

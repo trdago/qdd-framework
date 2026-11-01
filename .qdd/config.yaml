@@ -21,3 +21,6 @@ project: auto-detected
 test_commands:
     - cd cli && go test ./...
     - cd npm && npm test
+# Repositorio de blueprints de la organización (lo administra 'qdd blueprint add').
+blueprints:
+    origen: git@github.com:trdago/qdd-blueprints.git
