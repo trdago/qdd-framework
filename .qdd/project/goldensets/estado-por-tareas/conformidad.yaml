@@ -1,0 +1,95 @@
+# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@1.1.0.
+# No se editan a mano: cambian al volver a aplicar el blueprint.
+blueprint: estado-por-tareas@1.1.0
+escenarios:
+    - id: EPF-C01
+      titulo: Un estado por celda
+      cuando: se revisa una tabla
+      entonces: cada celda tiene exactamente uno de ✅ ⏳ ❌ —
+    - id: EPF-C02
+      titulo: ✅ con evidencia
+      cuando: una celda está en ✅
+      entonces: nombra su evidencia (commit, versión, n/n pruebas o id de corrida)
+    - id: EPF-C03
+      titulo: ⏳ con bloqueo
+      cuando: una celda está en ⏳
+      entonces: dice qué espera y de quién
+    - id: EPF-C04
+      titulo: Desplegado no es validado
+      dado: una tarea desplegada sin uso real observado
+      cuando: se reporta
+      entonces: la validación real queda ⏳ (o ❌), nunca ✅
+    - id: EPF-C05
+      titulo: Ninguna tarea desaparece
+      dado: una tarea presente en el reporte anterior
+      cuando: no figura en el nuevo
+      entonces: el reporte dice que se cerró o se descartó, y por qué
+    - id: EPF-C06
+      titulo: Aprobación pendiente
+      cuando: una etapa requiere aprobación que aún no existe
+      entonces: la celda lo dice y la etapa no pasa a ✅
+    - id: EPF-C07
+      titulo: Sin secretos ni datos personales
+      cuando: se revisa una tabla
+      entonces: no contiene credenciales ni datos personales
+    - id: EPF-C08
+      titulo: Texto y tabla coinciden
+      cuando: el texto del reporte afirma un estado
+      entonces: la tabla muestra ese mismo estado
+    - id: EPF-A01
+      titulo: El archivo y la respuesta coinciden
+      cuando: se entrega una tabla y se actualiza .qdd/project/estado.yaml
+      entonces: ambos tienen las mismas tareas, etapas y estados
+    - id: EPT-C01
+      titulo: El agente declara la tarea en curso
+      cuando: el agente activa una tarea abierta
+      entonces: queda en curso en la actividad y la tabla de estado no cambia
+    - id: EPT-C02
+      titulo: Solo tareas abiertas que existen
+      cuando: se activa o se pulsa una tarea que no existe, o con una fuente que no es agente, subagente ni comando
+      entonces: es un error y no se escribe nada
+    - id: EPT-C03
+      titulo: Un pulso sin tarea late la última activada
+      dado: dos tareas activadas
+      cuando: llega un pulso sin tarea
+      entonces: late la última activada, con su hora y su fuente; sin tarea en curso no hace nada y no falla
+    - id: EPT-C04
+      titulo: Un comando externo late su tarea
+      cuando: un comando deja un pulso con la tarea
+      entonces: la tarea queda en curso con fuente comando
+    - id: EPT-C05
+      titulo: Se apaga sola
+      dado: una tarea en curso
+      cuando: pasa la vida sin pulsos
+      entonces: deja de estar en curso y un pulso sin tarea no la revive
+    - id: EPT-C06
+      titulo: Terminar, cerrar o descartar la apagan
+      cuando: se termina, se cierra o se descarta una tarea en curso
+      entonces: deja de estar en curso; terminar una que no lo estaba no es un error
+    - id: EPT-C07
+      titulo: La tarea en curso siempre se ve
+      dado: una tarea en curso que no está entre las más nuevas
+      cuando: se arma el panel
+      entonces: se ve con su actividad, las demás no la llevan y «actual» es la última activada
+    - id: EPT-C08
+      titulo: «● running» con latido
+      dado: una tarea en curso en el panel
+      cuando: pasa el tiempo
+      entonces: dice «running» atenuado y el ● alterna tenue y brillante cada 1 s
+    - id: EPT-C09
+      titulo: Destello con cada pulso
+      cuando: el pulso de la tarea cambia entre dos lecturas
+      entonces: el ● destella en el color de acento por un instante y vuelve a su latido
+    - id: EPT-C10
+      titulo: Las herramientas del agente laten sin demorarse
+      dado: una tarea en curso
+      cuando: el agente ejecuta herramientas o lanza un subagente
+      entonces: la herramienta sigue sin esperar, el panel destella y la CLI recibe como mucho un pulso cada 5 s
+    - id: EPT-C11
+      titulo: Lo mismo en un panel de solo lectura
+      cuando: otro panel (p. ej. OpenCode) lee el mismo JSON
+      entonces: muestra «● running», el latido y el destello igual
+    - id: EPT-C12
+      titulo: El agente de otro panel también late
+      cuando: el agente de ese panel ejecuta una herramienta (subagente si es la de tareas)
+      entonces: deja su pulso con el mismo tope de 5 s
