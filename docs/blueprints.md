@@ -152,7 +152,7 @@ qdd blueprint add                       # lista lo disponible
 - El contenido vive en la **carpeta central** de QDD (`~/.local/share/qdd/blueprints`, o `$QDD_HOME`), nunca en el proyecto. El proyecto solo versiona `.qdd/blueprints.lock.yaml`, con la fuente, la versión, el commit y la huella de cada blueprint. Commitéalo.
 - **Todo o nada:** si uno de los pedidos es inválido, no se importa ninguno, y si una fuente falla el lockfile queda como estaba.
 - **Varias fuentes:** puedes sumar tus propios estándares con la URL de otro repositorio (`qdd blueprint add git@github.com:yo/mis-blueprints.git mi-estandar`). El lockfile recuerda la fuente de cada uno y `qdd blueprint add <id>` lo actualiza desde ahí. Un id ya importado desde otra fuente se rechaza, salvo con `--reemplazar`.
-- **Repositorios públicos:** se leen por HTTPS sin cuenta ni llave. Si no tienes acceso a una URL SSH, el error te dice su URL HTTPS.
+- **Repositorios públicos:** se leen por HTTPS sin cuenta ni llave. Si una URL SSH falla (p. ej. en el CI, sin deploy key), QDD reintenta por su URL HTTPS; si tampoco funciona, el error te la dice.
 - **La protección es el acceso al repositorio:** quien no tiene acceso no puede importar. QDD bloquea transportes `ext::` e inyección de opciones en git.
 - **Otro PC:** `qdd doctor --fix` reconstruye la carpeta central desde el lockfile. Un proyecto con copias del esquema anterior (`.qdd/blueprints/`) se migra igual.
 

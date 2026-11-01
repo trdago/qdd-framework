@@ -117,7 +117,10 @@ func ensureMirror(repo string, actualizar bool) (string, error) {
 	}
 	if exists(mirror) {
 		if _, err := git(mirror, "fetch", "--quiet", "--prune", "origin"); err != nil {
-			return "", sinAcceso("actualizar", repo, err)
+			return "", leerPorHTTPS(repo, err, func(url string) error {
+				_, err := git(mirror, "fetch", "--quiet", "--prune", url, "+refs/*:refs/*")
+				return err
+			}, "actualizar")
 		}
 		return mirror, nil
 	}
@@ -133,8 +136,15 @@ func clonarAtomico(repo, dest string, flags ...string) error {
 	}
 	args := append(append([]string{"clone", "--quiet"}, flags...), "--", repo, tmp)
 	if _, err := git("", args...); err != nil {
-		os.RemoveAll(tmp)
-		return sinAcceso("clonar", repo, err)
+		err = leerPorHTTPS(repo, err, func(url string) error {
+			os.RemoveAll(tmp)
+			_, err := git("", append(append([]string{"clone", "--quiet"}, flags...), "--", url, tmp)...)
+			return err
+		}, "clonar")
+		if err != nil {
+			os.RemoveAll(tmp)
+			return err
+		}
 	}
 	if err := os.Rename(tmp, dest); err != nil {
 		os.RemoveAll(tmp)
