@@ -46,7 +46,7 @@ func TestContextoCiclo_SinNadaQueEsperarNoDiceNada(t *testing.T) {
 	}
 }
 
-func TestResolverEnElChat_HechoPorLaPersonaLiberaAlQueEspera(t *testing.T) {
+func TestResolverEnElChat_HechoPorLaPersonaLiberaAlQueEspera_CCC_C32(t *testing.T) {
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # merge", Orden{})
 	segundo := mustPedirEnOrden(t, root, "exit 0 # tag", Orden{Despues: []string{primero.ID}})
