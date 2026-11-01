@@ -193,6 +193,8 @@ func Execute() {
 func handlePanicRecovery(r interface{}) {
 	fmt.Printf("\n[🛑 RECOVERY - ZERO PANIC] Se interceptó una excepción no controlada: %v\n", r)
 	fmt.Printf("El QDD Framework previno la caída abrupta del proceso y documentó el incidente.\n")
+	origen, comando := origenCLI(os.Args[1:])
+	registrarPanico(origen, comando, r)
 
 	cwd, err := os.Getwd()
 	if err != nil {

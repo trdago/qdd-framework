@@ -22,6 +22,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - El archivo pasa a `formato: 2` solo si usa objetivos o dependencias. Un qdd anterior lo rechaza en vez de perderlos al escribir; un tablero plano sigue en formato 1.
 - El repositorio de qdd aplica `estado-por-tareas` 2.0.0, con objetivos, `Producción` como la etapa que requiere aprobación y vida de 120 s. Este qdd declara que implementa la 2.0.0. Un ❌ sin nombrar su falla se informa como EPF-C09, su escenario propio.
 
+### 🛰️ Las fallas de QDD se publican solas como issue (incidentes)
+
+- **`qdd incidentes`**: un pánico de la CLI o de una tool MCP y cada autorreparación de `qdd doctor --fix` sobre datos que QDD escribió quedan en un registro local y se publican solos, en segundo plano, como issue del repositorio de QDD.
+  - Formato estándar `qdd-incidente/1`: qué pasó, dónde en el código de QDD, cómo reproducirlo y un bloque YAML para que una IA lo reproduzca y lo repare con su prueba de regresión.
+  - Sin duplicar: la misma firma (tipo, origen, mensaje sin números y las primeras funciones de la traza) suma una ocurrencia y comenta el issue que ya existe, también si lo abrió otra máquina. Tope de 5 publicaciones por día.
+  - Solo datos de QDD: versión, sistema, el comando con sus valores como `<marcador>` y la traza dentro del código de QDD. Rutas, nombres de archivo, valores entre comillas, correos, URLs y credenciales se reemplazan; el nombre de la carpeta del proyecto y el del usuario también.
+  - `qdd incidentes ver <firma>` muestra el issue exactamente como sale; `QDD_INCIDENTES=off` los apaga; `qdd doctor` revisa el registro y aparta un archivo ilegible.
+
 ### 🧰 Las herramientas del proyecto en el panel (RFC 0011)
 
 - **`qdd herramienta`**: un ejecutable del proyecto (un simulador, un visor de logs, un migrador) queda como pestaña del panel, con sus acciones como botones.
@@ -55,7 +63,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   - guardar o aprobar una ficha con un qdd más viejo ya no borra los campos que no conoce (FND-099);
   - las pruebas llevan el id de su escenario actual: una con el id de otro hacía ver cubierto lo que no lo estaba (FND-100);
   - en adopción gradual, una recomendación como `QA-03-SIN-MEDIR` ya no vuelve a bloquear el gate (FND-101);
-  - sin llave SSH (p. ej. en el CI), un repositorio de blueprints público se lee por HTTPS: `add`, `sync`, el gate y `doctor` reintentan por la URL HTTPS equivalente, como ya lo hacían `propose` y `release` (FND-104).
+  - sin llave SSH (p. ej. en el CI), un repositorio de blueprints público se lee por HTTPS: `add`, `sync`, el gate y `doctor` reintentan por la URL HTTPS equivalente, como ya lo hacían `propose` y `release` (FND-104);
+  - `propose` encuentra el aporte aunque la organización esté escrita por SSH en `config.yaml` y por HTTPS en el lockfile: es el mismo aporte (FND-105).
 
 ## [2.8.0-rc.9] - 2026-10-31 (preview)
 
