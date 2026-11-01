@@ -60,18 +60,22 @@ const loDefinido = "Pide autorización (una pregunta o un pedido en el panel) so
 	"repositorio de la organización); la versión, un tag, una publicación o un despliegue; o algo que borra datos o no se " +
 	"puede deshacer. Las preguntas de diseño de un blueprint siguen siendo de la persona."
 
+// loDelChat (sincronía panel–chat, 2026-11-01): lo que el panel espera de la persona puede resolverse en el chat.
+const loDelChat = "Si la persona resuelve en el chat algo que el panel espera (un pedido, una ficha, un ⏳ suyo), refléjalo en el acto: " +
+	"qdd_consola_pedir con resuelto (hecho si lo hizo ella), qdd_estado set; una ficha, solo si ella la aprueba."
+
 // ReglaDeAutorizacion dice, según el modo de permisos de la IA principal (permission_mode de Claude Code), cuándo
 // pedir autorización. Es la misma regla para todo proyecto: lo que cambia es quién ya está revisando cada acción.
 func ReglaDeAutorizacion(modo string) []string {
 	switch modo {
 	case "auto", "acceptEdits", "bypassPermissions", "dontAsk":
-		return []string{"La IA actúa sola en este modo. " + lineaDelProyecto, loDefinido}
+		return []string{"La IA actúa sola en este modo. " + lineaDelProyecto, loDefinido, loDelChat}
 	case "default":
-		return []string{"La consola ya le pide permiso a la persona por cada acción: no sumes preguntas para lo que continúa la línea del proyecto.", loDefinido}
+		return []string{"La consola ya le pide permiso a la persona por cada acción: no sumes preguntas para lo que continúa la línea del proyecto.", loDefinido, loDelChat}
 	case "plan":
 		return []string{"Modo plan: investiga y propone; no ejecutes cambios hasta que la persona apruebe el plan."}
 	}
-	return []string{"Modo sin medir (no hay un mensaje reciente con el panel de qdd): pide autorización como lo pida la consola.", loDefinido}
+	return []string{"Modo sin medir (no hay un mensaje reciente con el panel de qdd): pide autorización como lo pida la consola.", loDefinido, loDelChat}
 }
 
 // BuildContext arma la abstracción del proyecto para una IA: propósito, forma

@@ -13,6 +13,8 @@ const PANE = 'qdd-tareas'
 const TITULO = 'Tareas'
 const INTERVALO_MS = 2000
 const TOPE_MS = 3000
+// TOPE_CICLO_MS: el mensaje de la persona espera al ciclo (con lo que el panel espera de ella) a lo más esto.
+const TOPE_CICLO_MS = 1500
 const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
@@ -1098,6 +1100,25 @@ function vistaConfig($, Box, Text, Button, Input, ancho) {
   ]
 }
 
+// cambiaElPanel: una tool MCP de qdd o un comando de shell que corre qdd.
+function cambiaElPanel(e) {
+  if (/__qdd_/.test(String(e.tool || ''))) return true
+  return e.tool === 'Bash' && /(^|[\s;&|(])qdd\s/.test(String(e.command || ''))
+}
+
+// cicloConContexto marca el ciclo y devuelve lo que el panel espera de la persona ('' si nada cambió). Un qdd anterior
+// a --contexto igual marca el ciclo.
+async function cicloConContexto($, bin, modo) {
+  try {
+    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto'], { timeoutMs: TOPE_CICLO_MS })
+    if (r.exitCode === 0) return (r.stdout || '').trim()
+    if (/unknown flag/.test(r.stderr || '')) await $.process.run([bin, 'consola', 'ciclo', '--modo', modo], { timeoutMs: TOPE_MS })
+  } catch (err) {
+    $.ui.log('no se marcó el ciclo: ' + String(err?.message ?? err))
+  }
+  return ''
+}
+
 function hayQueMostrar() {
   if (!datos) return false
   const frentes = datos.estado ? datos.estado.frentes.length : 0
@@ -1144,9 +1165,14 @@ export function register(on) {
 
   // Pulsos de vida (§3.13): cada herramienta del agente y cada subagente laten la tarea en curso. next(e) va primero
   // y sin esperar al pulso.
+  // Una tool de qdd o un comando qdd cambian lo que el panel muestra: se relee en el acto, sin esperar a la próxima
+  // lectura (sincronía panel–chat, 2026-11-01).
   on('tool.call', async ($, e, next) => {
     pulsar($, 'agente')
-    return next(e)
+    if (!cambiaElPanel(e)) return next(e)
+    const r = await next(e)
+    await leer($)
+    return r
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -1155,14 +1181,17 @@ export function register(on) {
   })
 
   // Un ciclo por mensaje (§3.9): lo que ya se vio (el resultado y los pedidos hechos) sale del tablero, y qdd anota el
-  // modo de permisos de la IA para decirle cuándo pedir autorización. next(e) no espera a qdd.
+  // modo de permisos de la IA para decirle cuándo pedir autorización. Con --contexto, qdd dice además qué espera el
+  // panel de la persona (solo si cambió) y va a la IA con el mensaje: si ella lo resolvió en el chat, la IA lo refleja.
   on('classic.UserPromptSubmit', async ($, e, next) => {
     resultado = null
     for (const [id, l] of locales) if (l.estado === 'hecho') locales.delete(id)
     $.ui.invalidate('ui.render')
     const bin = await binario($)
-    $.process.run([bin, 'consola', 'ciclo', '--modo', String(e.permission_mode || '')], { timeoutMs: TOPE_MS }).catch(() => {})
-    return next(e)
+    const contexto = await cicloConContexto($, bin, String(e.permission_mode || ''))
+    const r = await next(e)
+    if (!contexto) return r
+    return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), contexto] }
   })
 
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
