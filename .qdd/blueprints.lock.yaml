@@ -4,7 +4,7 @@ formato: 2
 blueprints:
     - id: estado-por-tareas
       version: 1.1.0
-      origen: git@github.com:trdago/qdd-blueprints.git
+      origen: https://github.com/trdago/qdd-blueprints.git
       subdir: estado-por-tareas
       ref: v7.0.0
       commit: 1707059118ea63928a183c5e6c5d49d8a53b4790
