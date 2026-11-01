@@ -228,6 +228,8 @@ No hace falta usar la CLI. Las reglas que `qdd init` deja en tu IDE (`AGENTS.md`
 | `BP-05-LEGACY` | Queda una copia del esquema anterior dentro del proyecto (`.qdd/blueprints/`). | `qdd doctor --fix` la migra a la carpeta central; commitea el resultado. |
 | `BP-06-BEHIND` | Su fuente publicó una versión más nueva. | `qdd blueprint add <id>` y vuelve a aplicarlo con `qdd blueprint apply`. |
 | `BP-07-REPLACED` | Su fuente publicó otro blueprint que lo reemplaza (`reemplaza: [id]`). | `qdd blueprint add <nuevo>`: saca el viejo del lockfile y pasa tus módulos al nuevo, con su id y sus respuestas. Después `qdd blueprint apply <nuevo> --modulo <módulo>` para responder lo nuevo. |
+| `BP-08-CONFORMIDAD` | A un módulo que aplica o implementa el blueprint le falta la prueba de un escenario que debe cumplir. Se mide sin red: con lo importado o con la última versión de la copia local del repositorio. | Escribe una prueba que lleve el id del escenario (con «-» o «_») en las rutas de su ficha, o déjalo en `implementa: fuera` con su motivo si lo hace otro. `qdd blueprint conformance` muestra qué falta. |
+| `BP-08-SIN-MEDIR` | Recomendación, no bloquea: el blueprint no está importado ni en la copia local de esta máquina (p. ej. en el CI). | `qdd blueprint conformance` lo trae y lo mide. |
 
 Las reglas `HEART-*` siguen vigilando que la ficha no quede atrás del código (ver [Reglas del gate](command-reference.md#reglas-del-gate)).
 
