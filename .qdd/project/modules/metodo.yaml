@@ -1,6 +1,6 @@
 id: metodo
 nombre: Método de trabajo QDD (lo que la IA lee como reglas)
-estado: aprobado
+estado: borrador
 rutas:
     - cli/pkg/modules/context.go
     - cli/pkg/integration/types.go
@@ -16,6 +16,7 @@ objetivo_tecnologico:
     arquitectura: modules.PorQueCeroElse es la razón, escrita una vez; la usan workingMethod (context.go) y la violación CLEAN-01-NO-ELSE (clean_code.go). El bloque de instrucciones (integration.QDDCommandProtocol) la dice en inglés, y los principios y certificaciones del núcleo (core_assets/core, que init instala en .qdd/core) con las mismas palabras.
     decisiones:
         - 'La razón del cero else (pedido del usuario, 2026-10-31): cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo; con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto. Vale en cualquier lenguaje.'
+        - 'La regla de autorización suma la sincronía con el panel: lo que el panel espera y la persona resuelve en el chat se refleja en el acto (2026-11-01).'
     invariantes:
         - Toda superficie donde una IA lee el cero 'else' dice también su razón (pruebas TestMetodoDeTrabajo_CeroElseDiceElPorQue, TestProtocol_CeroElseConSuRazon, TestCleanCode_ElseDiceComoYPorQue y TestCore_CeroElseConSuRazon).
         - La razón se escribe una vez en Go (modules.PorQueCeroElse); el núcleo la repite con las mismas palabras.

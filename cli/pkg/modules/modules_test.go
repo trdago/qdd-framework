@@ -220,6 +220,9 @@ func TestValidateRutas_ElEstadoDeQDDNoTieneQueExistirTodavia_FND084(t *testing.T
 // para cambiar lo que el proyecto ya definió; seguir la línea del proyecto no se pregunta.
 func TestAutorizacion_SegunElModoDeLaIA(t *testing.T) {
 	auto := strings.Join(ReglaDeAutorizacion("auto"), "\n")
+	if !strings.Contains(auto, "en el chat") || !strings.Contains(auto, "resuelto") {
+		t.Errorf("lo que el panel espera y la persona resuelve en el chat se refleja (sincronía panel–chat): %s", auto)
+	}
 	for _, s := range []string{"sin pedir autorización", "ficha aprobada", "blueprint", "tag", "no se puede deshacer"} {
 		if !strings.Contains(auto, s) {
 			t.Fatalf("auto dice %q: %s", s, auto)

@@ -300,11 +300,23 @@ func estadoPedido(p consola.Pedido, espera []string) string {
 	return p.Estado + cuando
 }
 
+var (
+	consolaHecho bool
+	consolaNota  string
+)
+
 var consolaDescartarCmd = &cobra.Command{
-	Use:   "descartar <id>",
-	Short: "Quita un comando de la cola del panel sin ejecutarlo",
+	Use:   "descartar <id|tecla>",
+	Short: "Quita un comando de la cola del panel sin ejecutarlo; con --hecho, la persona ya lo hizo (lo dijo en el chat)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if consolaHecho {
+			if err := consola.HechoPorLaPersona(estadoRaiz(), args[0], consolaNota, time.Now()); err != nil {
+				salirCon("%v", err)
+			}
+			fmt.Printf("[+] Pedido %s hecho por la persona: sale del panel y libera a los que lo esperan.\n", args[0])
+			return
+		}
 		if err := consola.Descartar(estadoRaiz(), args[0]); err != nil {
 			salirCon("%v", err)
 		}
@@ -319,6 +331,8 @@ func init() {
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")
+	consolaDescartarCmd.Flags().BoolVar(&consolaHecho, "hecho", false, "la persona ya lo hizo fuera del panel: queda hecho (no descartado) y libera a los que lo esperan")
+	consolaDescartarCmd.Flags().StringVar(&consolaNota, "nota", "", "con --hecho: lo que dijo la persona («lo mergeé en GitHub»)")
 	consolaCmd.AddCommand(consolaPedirCmd, consolaPedidosCmd, consolaDescartarCmd, consolaCorrerCmd)
 }
 

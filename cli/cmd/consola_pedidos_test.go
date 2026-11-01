@@ -200,3 +200,30 @@ func TestConsolaPedidos_UnRetiradoDiceQuePidasDeNuevo(t *testing.T) {
 		t.Fatalf("la lista dice que salió del panel y qué hacer: %q", salida.String())
 	}
 }
+
+// Sincronía panel–chat (2026-11-01): la persona resolvió en el chat lo que el panel esperaba; la IA lo refleja.
+func TestConsolaPedirTool_ResueltoEnElChat(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	t.Chdir(root)
+	root, _ = os.Getwd()
+	merge, _ := consola.Pedir(root, "exit 0 # merge", "Merge #7", "", ahoraPrueba)
+	tag, _ := consola.Pedir(root, "exit 0 # tag", "Tag v1", "", ahoraPrueba)
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]any{"resuelto": merge.Tecla, "hecho": true}
+	if res, err := handleConsolaPedirTool(context.Background(), req); err != nil || res.IsError {
+		t.Fatalf("hecho por la persona: %v %+v", err, res)
+	}
+	req.Params.Arguments = map[string]any{"resuelto": tag.Tecla}
+	if res, err := handleConsolaPedirTool(context.Background(), req); err != nil || res.IsError {
+		t.Fatalf("ya no va: %v %+v", err, res)
+	}
+	cola := consola.Pedidos(root)
+	if len(cola) != 1 || cola[0].ID != merge.ID || cola[0].Estado != consola.EstadoHecho {
+		t.Fatalf("el merge queda hecho y el tag sale: %+v", cola)
+	}
+	req.Params.Arguments = map[string]any{"motivo": "sin comando"}
+	if res, _ := handleConsolaPedirTool(context.Background(), req); !res.IsError {
+		t.Fatal("sin comando ni resuelto es error")
+	}
+}

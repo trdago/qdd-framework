@@ -423,9 +423,14 @@ func siguienteID(cola []Pedido) string {
 	return strconv.Itoa(mayor + 1)
 }
 
-// Descartar quita un pedido de la cola sin ejecutarlo. Uno que se está ejecutando no se descarta.
-func Descartar(root, id string) error {
+// Descartar quita un pedido de la cola sin ejecutarlo, por su id o por su tecla. Uno que se está ejecutando no se
+// descarta.
+func Descartar(root, idOTecla string) error {
 	return conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
+		id := idOTecla
+		if i := indiceDe(cola, idOTecla); i >= 0 {
+			id = cola[i].ID
+		}
 		resto := make([]Pedido, 0, len(cola))
 		for _, p := range cola {
 			if p.ID == id && p.Estado == EstadoEjecutando {

@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🔁 Sincronía panel–chat
+
+- Lo que el panel espera de la persona puede resolverse en el chat: «ya lo mergeé», «eso no va», «hazlo distinto». Puede ser un pedido, una ficha en borrador o un ⏳ suyo.
+  - **Con cada mensaje:** `qdd consola ciclo --contexto` le dice a la IA qué espera el panel, en una línea y solo si cambió desde el último mensaje. Sin cambios no gasta tokens.
+  - **La IA lo refleja en el acto:** con `qdd_consola_pedir` y `resuelto` (`hecho` si lo hizo la persona, lo que libera a los pedidos que esperaban) o con `qdd_estado set`. Una ficha solo se aprueba si la persona lo dice.
+  - **El panel se relee en el acto** después de cada tool de qdd o comando `qdd`, sin esperar a la próxima lectura.
+- `qdd consola descartar` acepta la tecla que ve la persona, y `--hecho` marca el pedido como hecho por ella.
+
 ### 🎯 Objetivos, dependencias y árbol en el tablero
 
 - **Objetivos** (`qdd estado objetivo`): cada objetivo dice para qué se hacen sus tareas y cuándo se cumple (su criterio de éxito).

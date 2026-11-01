@@ -133,7 +133,7 @@ test('cada mensaje marca un ciclo con el modo de la IA y lo ya visto sale del ta
   await ui.press({ key: 'b-revisar-estado' })
   expect(await ui.find({ type: 'Text', text: '✓ Revisar estado' })).toBeDefined()
   await $.classic.UserPromptSubmit({ prompt: 'sigue', permission_mode: 'auto' })
-  expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto'])
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto', '--contexto'])
   expect(await ui.find({ type: 'Text', text: '✓ Revisar estado' })).toBeUndefined()
 })
 
@@ -696,4 +696,57 @@ test('«l ↻» vuelve a leer el tablero en el acto (CCC-C29)', async ($, on) =>
   const antes = llamadas.filter((a) => a[2] === 'panel').length
   await ui.press({ key: 'leer' })
   expect(llamadas.filter((a) => a[2] === 'panel').length).toBe(antes + 1)
+})
+
+
+// prepararCiclo es preparar con lo que responde 'qdd consola ciclo' (el resto, el panel).
+function prepararCiclo(on, llamadas: string[][], ciclo: (argv: string[]) => Salida) {
+  mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    llamadas.push([...e.argv])
+    if (e.argv[2] === 'ciclo') return { value: ciclo(e.argv) }
+    return { value: { ...ok(PANEL) } }
+  })
+}
+
+// Sincronía panel–chat (pedido del usuario, 2026-11-01): con cada mensaje, lo que el panel espera de la persona llega a
+// la IA (solo si cambió: qdd decide), para que refleje lo que ella resuelva en el chat.
+test('el mensaje de la persona lleva a la IA lo que el panel espera de ella (CCC-C30)', async ($, on) => {
+  const llamadas: string[][] = []
+  prepararCiclo(on, llamadas, () => ({ exitCode: 0, stdout: '[qdd · panel] Espera a la persona: pedido a «Merge #7».', stderr: '' }))
+  on('classic.UserPromptSubmit', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const r = await $.classic.UserPromptSubmit({ prompt: 'ya lo mergeé', permission_mode: 'auto' })
+  expect(r.additionalContext).toEqual(['[qdd · panel] Espera a la persona: pedido a «Merge #7».'])
+})
+
+test('sin nada nuevo que esperar el mensaje va sin contexto extra, y un qdd viejo igual marca el ciclo (CCC-C30)', async ($, on) => {
+  const llamadas: string[][] = []
+  prepararCiclo(on, llamadas, (argv) =>
+    argv.includes('--contexto') ? { exitCode: 1, stdout: '', stderr: 'Error: unknown flag: --contexto' } : { exitCode: 0, stdout: '', stderr: '' },
+  )
+  on('classic.UserPromptSubmit', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const r = await $.classic.UserPromptSubmit({ prompt: 'sigue', permission_mode: 'auto' })
+  expect(r.additionalContext).toBeUndefined()
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto'])
+})
+
+test('una tool de qdd o un comando qdd releen el panel en el acto (CCC-C31)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const lecturas = () => llamadas.filter((a) => a[2] === 'panel').length
+  const antes = lecturas()
+  await $.tool.call({ tool: 'Read', file_path: '/work/a' })
+  expect(lecturas()).toBe(antes)
+  await $.tool.call({ tool: 'mcp__qdd__qdd_estado', accion: 'set' })
+  expect(lecturas()).toBe(antes + 1)
+  await $.tool.call({ tool: 'Bash', command: 'cd cli && qdd consola descartar a' })
+  expect(lecturas()).toBe(antes + 2)
 })
