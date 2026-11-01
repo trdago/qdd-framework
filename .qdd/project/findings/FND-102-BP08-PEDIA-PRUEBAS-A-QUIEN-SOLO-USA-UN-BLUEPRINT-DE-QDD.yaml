@@ -1,0 +1,9 @@
+id: "FND-102"
+title: "BP-08 pedía las pruebas de qdd a un proyecto que solo usa un blueprint que implementa qdd"
+description: "BP-08-CONFORMIDAD buscaba una prueba por escenario en las rutas de cada módulo que aplicó un blueprint. estado-por-tareas y consola-claude-code los implementa el propio qdd (qdd estado, el panel): un proyecto que solo los usa no tiene ese código, y su ficha (p. ej. con ruta .qdd/project/estado.yaml) quedaba en 0/21 y bloqueaba el gate. Se encontró al instalar estado-por-tareas 1.1.0 en el tablero del propio repositorio de qdd (2026-11-01)."
+impact: "Cualquier proyecto que aplicara estado-por-tareas o consola-claude-code habría fallado qdd audit al publicarse BP-08, sin nada que pudiera arreglar en su código."
+action_taken: "El binario declara los blueprints que implementa con su versión (implementadosPorQDD; decisión de la persona). Un módulo que aplica uno de ellos se cumple con el qdd instalado si lo implementa en la misma versión mayor y no más vieja; si no, BP-08 bloquea y dice qué actualizar (qdd o el blueprint). La implementación de origen (implementa: en la ficha) se sigue midiendo con sus pruebas, y una prueba exige que la tabla coincida con las fichas de qdd que implementan."
+test_result: "TestCheckConformidad_UnBlueprintQueImplementaQDDNoPidePruebasAlProyecto_FND102, …QueNoCubreLaVersionAplicadaBloquea_FND102, …LaImplementacionDeOrigenSiempreSeMideConSusPruebas_FND102 y TestImplementadosPorQDD_SonLosQueImplementanSusFichas_FND102 fallan antes del arreglo y pasan después; go test ./... pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-01"
