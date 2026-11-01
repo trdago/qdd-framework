@@ -106,6 +106,9 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	if g := buildHerramientasChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
+	if g := buildIncidentesChecks(); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	return list
 }
 
@@ -189,13 +192,16 @@ func repairConsola(projectPath string, g *CheckGroup) {
 		}
 		if item.Name == nombreUso {
 			fmt.Println("  [~] Apartando los registros de uso ilegibles...")
-			imprimirReparado(uso.ApartarIlegibles())
+			hecho, err := uso.ApartarIlegibles()
+			imprimirReparado(hecho, err)
+			registrarAutorreparacion("doctor: "+nombreUso, "un registro de uso que escribió QDD estaba ilegible", hecho)
 			continue
 		}
 		if item.Name == consola.DiagnosticarCola(projectPath).Nombre {
 			fmt.Println("  [~] Juntando la cola de pedidos del panel...")
 			hecho, err := consola.RepararCola(projectPath)
 			imprimirReparado(hecho, err)
+			registrarAutorreparacion("doctor: cola de pedidos del panel", "la cola de pedidos del panel estaba partida o ilegible", hecho)
 			continue
 		}
 		consolaFalla = true
@@ -471,6 +477,12 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 			continue
 		}
 		if g.Name == grupoHerramientas {
+			continue
+		}
+		if g.Name == grupoIncidentes {
+			if groupHasFailures(g) {
+				repairIncidentes()
+			}
 			continue
 		}
 		for _, item := range g.Items {
