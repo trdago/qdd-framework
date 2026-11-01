@@ -21,7 +21,7 @@ func registerConsolaTools(s *server.MCPServer) {
 		mcp.WithString("comando", mcp.Required(), mcp.Description("Exacto, como en su shell (&& y | valen).")),
 		mcp.WithString("motivo", mcp.Required(), mcp.Description("Resumen estilo chat ≤ 60 car., con símbolos (p. ej. «Publicar v2.8.0-rc.6 → npm preview»); el comando ya se ve aparte.")),
 		mcp.WithString("carpeta", mcp.Description("Dónde corre (por defecto, la raíz).")),
-		mcp.WithString("tarea", mcp.Description("Tarea del estado que extiende (por defecto, la en curso): si sigue cambiando tras un mensaje de la persona, sale del panel hasta que lo pidas de nuevo.")),
+		mcp.WithString("tarea", mcp.Description("Tarea del estado que extiende (por defecto, la en curso).")),
 		mcp.WithString("despues", mcp.Description("Ids o teclas que deben quedar hechos antes, por coma. Úsalo si el orden importa (merge → tag → release).")),
 		mcp.WithString("antes", mcp.Description("Ids o teclas en la cola que esperan a este, por coma. Repetir un pedido con despues/antes lo reordena sin duplicar.")),
 	)

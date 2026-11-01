@@ -1,0 +1,9 @@
+id: "FND-096"
+title: "Un construccion.yaml con supuestos por paso y escenario se daba por «sin construir»"
+description: "En la segunda certificación ciega de estado-por-tareas (2026-10-31), los dos constructores (Python y Go), cada uno por su cuenta, escribieron cada supuesto como {paso, escenario, supuesto}. El lector esperaba una lista de textos, el YAML no se leía y la certificación decía «sin construir: falta construccion.yaml», aunque el archivo existía y sus 31 pruebas pasaban."
+impact: "Una construcción correcta quedaba 0/2 con un motivo falso, y se perdían justo los supuestos que vuelven a la persona."
+action_taken: "Un supuesto acepta un texto o {paso, escenario, supuesto} (queda «paso · escenario: supuesto»); un construccion.yaml que no se lee lo dice con su error, en vez de «falta»."
+test_result: "TestCertificar_UnSupuestoConSuPasoYEscenarioSeLeeIgual (pkg/blueprints); verificada otra vez la certificación real: 2/2, 25 supuestos."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

@@ -24,7 +24,7 @@ const (
 )
 
 // SeccionesDeBlueprint son las secciones que se piden por separado (qdd_blueprint_list con seccion).
-var SeccionesDeBlueprint = []string{"preguntas", "invariantes", "decisiones", "escenarios", "vocabulario", "todo"}
+var SeccionesDeBlueprint = []string{"alcance", "pasos", "parametros", "preguntas", "invariantes", "decisiones", "escenarios", "vocabulario", "todo"}
 
 // Indice es el resumen de un blueprint que lee una IA antes de pedir detalle.
 type Indice struct {
@@ -36,8 +36,16 @@ type Indice struct {
 	Preguntas   []IndicePregunta `json:"preguntas,omitempty"`
 	Invariantes int              `json:"invariantes"`
 	Escenarios  []string         `json:"escenarios,omitempty"`
-	Modulos     []string         `json:"modulos,omitempty"`   // módulos del proyecto generados con él
-	Secciones   map[string]int   `json:"secciones,omitempty"` // línea de cada sección en blueprint.yaml
+	Pasos       int              `json:"pasos,omitempty"`
+	Parametros  []IndiceParam    `json:"parametros,omitempty"` // lo de negocio que adapta cada proyecto
+	Modulos     []string         `json:"modulos,omitempty"`    // módulos del proyecto generados con él
+	Secciones   map[string]int   `json:"secciones,omitempty"`  // línea de cada sección en blueprint.yaml
+}
+
+// IndiceParam es un parámetro de negocio con su valor sugerido.
+type IndiceParam struct {
+	ID         string `json:"id"`
+	PorDefecto string `json:"por_defecto"`
 }
 
 // IndicePregunta es una pregunta de diseño sin su ayuda ni lo que implica cada opción.
@@ -62,17 +70,22 @@ func IndiceDe(b Blueprint) Indice {
 		}
 	}
 	i.Invariantes = len(invariantes)
+	i.Pasos = len(b.Pasos)
+	for _, p := range b.Parametros {
+		i.Parametros = append(i.Parametros, IndiceParam{ID: p.ID, PorDefecto: p.PorDefecto})
+	}
 	i.Secciones = lineasDeSecciones(b.Dir)
 	return i
 }
 
-// LineaIndice lista un blueprint en una línea: ref · nombre · ❓preguntas 🔒invariantes ✓escenarios · dónde se aplicó.
+// LineaIndice lista un blueprint en una línea: ref · nombre · ❓preguntas 🔒invariantes ✓escenarios ▶pasos ⚙parámetros
+// · dónde se aplicó.
 func LineaIndice(i Indice) string {
 	donde := "sin aplicar"
 	if len(i.Modulos) > 0 {
 		donde = "en " + strings.Join(i.Modulos, ", ")
 	}
-	l := fmt.Sprintf("%s · %s · ❓%d 🔒%d ✓%d · %s", i.Ref, recortar(i.Nombre, 40), len(i.Preguntas), i.Invariantes, len(i.Escenarios), donde)
+	l := fmt.Sprintf("%s · %s · ❓%d 🔒%d ✓%d ▶%d ⚙%d · %s", i.Ref, recortar(i.Nombre, 40), len(i.Preguntas), i.Invariantes, len(i.Escenarios), i.Pasos, len(i.Parametros), donde)
 	return recortar(l, MaxLineaIndice)
 }
 
@@ -97,6 +110,26 @@ func Seccion(b Blueprint, nombre string) (string, error) {
 				escribirEscenarios(&s, p.ID+"="+o.Valor+" → ", o.Conformidad)
 			}
 		}
+	case "alcance":
+		escribirLista(&s, "✓ ", b.Alcance.Incluye)
+		escribirLista(&s, "✗ ", b.Alcance.Excluye)
+		for _, p := range b.Preguntas {
+			for _, o := range p.Opciones {
+				escribirLista(&s, "("+p.ID+"="+o.Valor+") ✓ ", o.Alcance.Incluye)
+				escribirLista(&s, "("+p.ID+"="+o.Valor+") ✗ ", o.Alcance.Excluye)
+			}
+		}
+	case "pasos":
+		for n, p := range b.Pasos {
+			fmt.Fprintf(&s, "%d. %s → %s%s%s\n", n+1, strings.TrimSpace(p.Accion), strings.TrimSpace(p.Produce), verificaDe(p), condicionDe(p))
+		}
+	case "parametros":
+		for _, p := range b.Parametros {
+			fmt.Fprintf(&s, "- ⚙ %s: %s (sugerido «%s»)\n", p.ID, p.Pregunta, p.PorDefecto)
+		}
+		for _, c := range b.Constantes {
+			fmt.Fprintf(&s, "- 🔧 %s = %s: %s\n", c.ID, c.Valor, c.PorQue)
+		}
 	case "vocabulario":
 		for _, t := range b.Vocabulario {
 			fmt.Fprintf(&s, "- %s: %s\n", t.Termino, strings.TrimSpace(t.Definicion))
@@ -108,6 +141,26 @@ func Seccion(b Blueprint, nombre string) (string, error) {
 		return "(" + nombre + ": vacío)\n", nil
 	}
 	return s.String(), nil
+}
+
+func escribirLista(s *strings.Builder, marca string, items []string) {
+	for _, x := range items {
+		s.WriteString(marca + x + "\n")
+	}
+}
+
+func verificaDe(p Paso) string {
+	if len(p.Verifica) == 0 {
+		return ""
+	}
+	return " (verifica " + strings.Join(p.Verifica, ", ") + ")"
+}
+
+func condicionDe(p Paso) string {
+	if len(p.Si) == 0 {
+		return ""
+	}
+	return " · si " + describeSi(Pregunta{Si: p.Si})
 }
 
 func escribirPorOpcion(s *strings.Builder, base []string, preguntas []Pregunta, de func(Opcion) []string) {
