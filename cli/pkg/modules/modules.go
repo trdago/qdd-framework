@@ -44,12 +44,20 @@ type Pruebas struct {
 }
 
 // Module es una ficha de módulo.
+// Implementacion dice qué blueprint implementa un módulo. Sin respuestas, es la implementación de origen y cubre
+// todas las opciones que el blueprint ofrece; con respuestas, solo esa variante (qdd blueprint conformance).
+type Implementacion struct {
+	Blueprint  string            `yaml:"blueprint"`
+	Respuestas map[string]string `yaml:"respuestas,omitempty"`
+}
+
 type Module struct {
 	ID                  string              `yaml:"id"`
 	Nombre              string              `yaml:"nombre"`
 	Estado              string              `yaml:"estado"`
 	Rutas               []string            `yaml:"rutas"`
-	Blueprint           string              `yaml:"blueprint,omitempty"` // p. ej. "auth@1.2.0", si se generó desde un blueprint
+	Blueprint           string              `yaml:"blueprint,omitempty"`  // p. ej. "auth@1.2.0", si se generó desde un blueprint
+	Implementa          []Implementacion    `yaml:"implementa,omitempty"` // blueprints de los que este módulo es la implementación de origen
 	ObjetivoOperativo   ObjetivoOperativo   `yaml:"objetivo_operativo"`
 	ObjetivoTecnologico ObjetivoTecnologico `yaml:"objetivo_tecnologico"`
 	Pruebas             Pruebas             `yaml:"pruebas"`

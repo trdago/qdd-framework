@@ -22,7 +22,10 @@ func TestActividad_PulsosALaVezNoBorranUnaActivacion(t *testing.T) {
 	for i, id := range ids[1:] {
 		wg.Add(2)
 		go func(id string) { defer wg.Done(); _ = Activar(root, id, "claude-code", ahora) }(id)
-		go func(n int) { defer wg.Done(); _, _ = Pulsar(root, "", FuenteAgente, ahora.Add(time.Duration(n)*time.Millisecond)) }(i)
+		go func(n int) {
+			defer wg.Done()
+			_, _ = Pulsar(root, "", FuenteAgente, ahora.Add(time.Duration(n)*time.Millisecond))
+		}(i)
 	}
 	wg.Wait()
 	if en := EnCurso(LeerActividad(root), ahora.Add(time.Second)); len(en) != len(ids) {

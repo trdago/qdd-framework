@@ -209,3 +209,13 @@ func TestCertificar_UnSupuestoConSuPasoYEscenarioSeLeeIgual(t *testing.T) {
 		t.Fatalf("un construccion.yaml que no se lee lo dice, no «falta»: %q", c.Variantes[0].Resultado)
 	}
 }
+
+func TestCertificar_UnIdLargoNoEsLaPruebaDeOtroYUnNombreConGuionBajoSi(t *testing.T) {
+	b := recetaEnCarpeta(t, recetaConLimites)
+	k, _ := PrepararCertificacion(b)
+	otra := varianteDe(t, k, VarianteAdaptada)
+	construir(t, otra, "true", "P_01", "P-020")
+	if faltan := escenariosSinPrueba(otra); strings.Join(faltan, ",") != "P-02" {
+		t.Fatalf("P-020 no prueba P-02; test_P_01 sí prueba P-01: %v", faltan)
+	}
+}

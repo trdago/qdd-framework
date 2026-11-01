@@ -279,7 +279,7 @@ func escenariosSinPrueba(v Variante) []string {
 	texto := construido.String()
 	var faltan []string
 	for _, id := range v.Escenarios {
-		if strings.Contains(texto, id) {
+		if nombraEscenario(texto, id) {
 			continue
 		}
 		faltan = append(faltan, id)

@@ -561,6 +561,16 @@ func medirTodos(root string) ([]Calidad, string, error) {
 
 // medirPublicados mide la última versión publicada en la fuente de la organización (todos, o los ids pedidos).
 func medirPublicados(root string, ids []string) ([]Calidad, string, error) {
+	bps, fuente, err := publicados(root, ids)
+	var out []Calidad
+	for _, b := range bps {
+		out = append(out, CalidadDe(b))
+	}
+	return out, fuente, err
+}
+
+// publicados lee de la fuente de la organización los blueprints pedidos (todos, sin ids), sin importarlos.
+func publicados(root string, ids []string) ([]Blueprint, string, error) {
 	reg, err := LoadRegistro(root)
 	if err != nil {
 		return nil, "", err
@@ -578,7 +588,7 @@ func medirPublicados(root string, ids []string) ([]Calidad, string, error) {
 		return nil, "", err
 	}
 	fuente := reg.Origen + " " + entry.Ref
-	var out []Calidad
+	var out []Blueprint
 	for _, id := range sortedKeys(disponibles) {
 		if len(ids) > 0 && !inList(ids, id) {
 			continue
@@ -587,7 +597,7 @@ func medirPublicados(root string, ids []string) ([]Calidad, string, error) {
 		if err != nil {
 			return nil, fuente, err
 		}
-		out = append(out, CalidadDe(b))
+		out = append(out, b)
 	}
 	for _, id := range ids {
 		if _, ok := disponibles[id]; !ok {

@@ -1,6 +1,6 @@
 id: estado
 nombre: Estado por tarea (qdd estado)
-estado: aprobado
+estado: borrador
 rutas:
     - cli/pkg/estado
     - cli/pkg/candado
@@ -13,6 +13,9 @@ rutas:
     - cli/pkg/consola
     - cli/cmd/consola.go
     - cli/cmd/consola_ciclo.go
+implementa:
+    - blueprint: estado-por-tareas
+    - blueprint: consola-claude-code
 objetivo_operativo:
     problema: El blueprint estado-por-frente con destino «archivo» pide una tabla de frentes × etapas que sobreviva a una sesión cortada y que un lector automático pueda revisar. Sin herramienta, la tabla se escribe a mano, sin validar, y nadie la ve mientras trabaja.
     usuarios: Las personas que siguen el avance desde la consola (barra de estado y panel) y los agentes que retoman o reportan trabajo (CLI y tool MCP qdd_estado).

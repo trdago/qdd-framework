@@ -6,6 +6,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🧪 El panel se prueba en el gate y se mide contra su receta
+
+- **Las pruebas del panel corren en `qdd audit`**: las de OpenCode (`node --test`) y las del mod de Claude Code (`claude plugin test`).
+  - Un `test_commands` puede ser `{comando, requiere: [programas]}`. Sin el programa en esta máquina (p. ej. la CLI de Claude en el CI), la suite queda **sin medir** (`QA-03-SIN-MEDIR`): no bloquea y nunca cuenta como aprobada.
+- **`qdd blueprint conformance`**: cada escenario que un módulo debe cumplir tiene una prueba que lleva su id (con «-» o «_»), en los archivos de prueba de su ficha.
+  - Un módulo que aplicó un blueprint se mide con sus respuestas.
+  - Uno que lo implementa como origen (`implementa:` en su ficha) cubre todas las opciones que el blueprint ofrece.
+  - El blueprint sale de lo importado o, si el proyecto no lo importa, de lo publicado.
+  - En QDD mide el panel y el estado contra estado-por-tareas y consola-claude-code: hoy 39 de 49 escenarios con prueba.
+- **Arreglos:**
+  - pulsos simultáneos ya no borran la activación de una tarea (FND-097): la actividad, la cola de pedidos y el registro de uso se escriben uno a la vez entre procesos (`pkg/candado`);
+  - la certificación ciega ya no toma «P-020» como prueba de P-02 y acepta `test_P_01` como prueba de P-01 (FND-098).
+
 ## [2.8.0-rc.9] - 2026-10-31 (preview)
 
 Novena **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

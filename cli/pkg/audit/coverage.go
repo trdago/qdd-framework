@@ -13,9 +13,9 @@ import (
 
 // testCommand es un comando de pruebas que QDD ejecuta como parte del gate.
 type testCommand struct {
-	Label string // lo que se muestra al usuario, p. ej. "go test ./..."
-	Dir   string // carpeta donde se ejecuta
-	Args  []string
+	Label    string // lo que se muestra al usuario, p. ej. "go test ./..."
+	Dir      string // carpeta donde se ejecuta
+	Args     []string
 	Env      []string // variables extra (ver sinCacheEnElProyecto)
 	Requiere []string // programas que la suite necesita; sin ellos queda sin medir
 }
