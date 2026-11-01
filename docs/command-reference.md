@@ -120,6 +120,13 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd consola pedidos` | Lista los comandos pedidos con su tecla y su estado (pendiente, ⟳ ejecutando, ✓ hecho, falló). **Seguro.** |
 | `qdd consola descartar <id>` | Quita un comando pedido sin ejecutarlo. |
 | `qdd consola ciclo [--modo <permission_mode>]` | Lo llama el panel con cada mensaje de la persona: lo hecho antes sale del tablero y queda anotado el modo de permisos de la IA, que `qdd_project_context` usa para decir cuándo pedir autorización (RFC 0010). Nunca falla ni imprime. **Seguro.** (qdd 2.8.0) |
+| `qdd herramienta candidatos [--json]` | Los ejecutables del proyecto que se pueden agregar como pestaña del panel: `bin/`, `scripts/`, `cmd/*` de Go, `target/release` de Rust, los scripts de `package.json` y los objetivos del `Makefile`; marca los ya agregados. **Seguro.** (RFC 0011) |
+| `qdd herramienta ayuda <comando…>` | Corre su `--help` (si no, `-h` y `help`), sin entrada y con 5 s por intento, para que la IA arme la definición. |
+| `qdd herramienta configurar <comando…>` | Imprime el mensaje con que la IA arma la definición: leer su ayuda, proponerle las acciones a la persona y guardarla con `qdd herramienta guardar`, con el formato y las reglas. Es lo que el panel le envía a la conversación desde ⚙ Config → + Agregar herramienta. **Seguro.** |
+| `qdd herramienta guardar <archivo.yaml>` | Valida la definición (cada `{{campo}}` declarado y como argumento entero, sin secretos, modos válidos, ejecutable dentro del proyecto o en su ruta absoluta), corre su prueba de humo y, si sale con 0, la guarda tal como vino en `.qdd/herramientas/<id>.yaml`. Si no, dice por qué y no guarda nada. |
+| `qdd herramienta listar [--json]` | Las herramientas guardadas y lo que les falta en esta máquina (el ejecutable o una variable de entorno, por su nombre). Es lo que lee el panel. **Seguro.** |
+| `qdd herramienta correr <id> <acción> [campo=valor…] [--si]` | Corre una acción sin shell, en la raíz del proyecto, con el entorno de la máquina: lo escrito en un campo llega como un solo argumento. Si falta una variable de `entorno`, dice cuál (nunca su valor) y no corre. Una acción con `confirmar` pide `--si`. Sale con el código del ejecutable. |
+| `qdd herramienta quitar <id> --si` | Borra su definición; su pestaña se cierra. |
 
 ### 📏 Uso real medido y canal preview (RFC 0010)
 Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
@@ -233,6 +240,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `BP-07-REPLACED` | La fuente publicó un blueprint que reemplaza al importado (`reemplaza: [id]`); `qdd blueprint add <nuevo>` lo migra y el módulo conserva su id y sus respuestas (RFC 0009). | con blueprints |
 | `BP-08-CONFORMIDAD` | A un módulo que aplica o implementa un blueprint le falta la prueba de un escenario (`qdd blueprint conformance` muestra cuáles). Se mide sin red, con lo importado o con la copia local del repositorio. Un módulo que solo usa un blueprint que implementa qdd (`estado-por-tareas`, `consola-claude-code`) lo cumple con el qdd instalado si este lo implementa en la misma versión mayor y no más vieja; si no, dice qué actualizar. | siempre |
 | `BP-08-SIN-MEDIR` | La conformidad no se pudo medir: el blueprint no está importado ni en la copia local de esta máquina (p. ej. el CI). | recomendación (no bloquea) |
+| `HER-01-DEFINICION` | Una definición de `.qdd/herramientas/` no se lee, no es válida o trae un secreto. No corre nada ni exige el ejecutable (el CI puede no compilarlo; eso lo revisa `qdd doctor`). | siempre |
 | `VER-01-INVALID-SEMVER` | La versión declarada (`package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION`) no es `MAJOR.MINOR.PATCH`. | `versioning` (activa por defecto) |
 | `VER-02-VERSION-REGRESSION` | La versión declarada es menor que un tag ya publicado. | `versioning` |
 | `VER-03-UNDERSIZED-BUMP` | El salto no cubre los cambios desde el último tag (Conventional Commits): un `feat` exige MINOR; `!` o `BREAKING CHANGE:`, MAJOR (MINOR en `0.y.z`). Dice la versión que corresponde. | `versioning` |
