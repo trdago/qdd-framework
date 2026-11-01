@@ -1,6 +1,6 @@
 id: estado
 nombre: Estado por tarea (qdd estado)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/estado
     - cli/pkg/candado
@@ -100,4 +100,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-10-31"
-revisado_en_commit: 457619c63925
+revisado_en_commit: 2406f3e2c0a2
