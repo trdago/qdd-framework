@@ -72,9 +72,11 @@ func escenariosQueDebe(b Blueprint, respuestas map[string]string) []string {
 }
 
 // nombraEscenario: el id aparece entero, con «-» o con «_» (un nombre de prueba no admite «-» en muchos lenguajes).
+// Antes del id puede ir una minúscula: en Go va pegado al prefijo (TestCVA_C01, FND-103); una mayúscula o un dígito,
+// no, porque sería otra palabra (OAUTH_01 no es AUTH-01).
 func nombraEscenario(texto, id string) bool {
 	partes := strings.Split(regexp.QuoteMeta(id), "-")
-	return regexp.MustCompile(`(^|[^A-Za-z0-9])` + strings.Join(partes, "[-_]") + `([^A-Za-z0-9]|$)`).MatchString(texto)
+	return regexp.MustCompile(`(^|[^A-Z0-9])` + strings.Join(partes, "[-_]") + `([^A-Za-z0-9]|$)`).MatchString(texto)
 }
 
 // textoDePruebas junta los archivos de prueba de las rutas (archivos o carpetas).

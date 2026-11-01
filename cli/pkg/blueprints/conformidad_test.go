@@ -238,3 +238,22 @@ func TestImplementadosPorQDD_SonLosQueImplementanSusFichas_FND102(t *testing.T) 
 		}
 	}
 }
+
+func TestNombraEscenario_ElIdPegadoATestEnGoCuenta_FND103(t *testing.T) {
+	for _, texto := range []string{"func TestCVA_C01_LasFases(t *testing.T) {}", "func TestCVAC01(t *testing.T) {}", "def test_CVA_C01(): pass", "test('CVA-C01 las fases', () => {})"} {
+		if texto == "func TestCVAC01(t *testing.T) {}" {
+			if nombraEscenario(texto, "CVA-C01") {
+				t.Fatalf("sin separador entre las partes del id no es el id: %q", texto)
+			}
+			continue
+		}
+		if !nombraEscenario(texto, "CVA-C01") {
+			t.Fatalf("el id del escenario va pegado al prefijo de la prueba (TestCVA_C01, la convención de Go): %q", texto)
+		}
+	}
+	for _, texto := range []string{"func TestXCVA_C01(t *testing.T) {}", "func TestCVA_C010(t *testing.T) {}", "func TestOAUTH_01(t *testing.T) {}"} {
+		if nombraEscenario(texto, "CVA-C01") || nombraEscenario(texto, "AUTH-01") {
+			t.Fatalf("otra palabra en mayúsculas pegada al id, o un id más largo, no es este escenario: %q", texto)
+		}
+	}
+}
