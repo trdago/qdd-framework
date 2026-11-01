@@ -47,6 +47,7 @@ func TestHTTPSEquivalente(t *testing.T) {
 func TestAdd_WithoutSSHAccessSuggestsHTTPS(t *testing.T) {
 	freshHome(t)
 	t.Setenv("GIT_SSH_COMMAND", "false")
+	sinHTTPS(t)
 	_, problems := Add(AddInput{Root: t.TempDir(), Origen: "git@github.com:acme/qdd-blueprints.git", Blueprints: []string{"auth"}})
 	if !hasProblem(problems, "https://github.com/acme/qdd-blueprints.git") {
 		t.Fatalf("el error sugiere la URL HTTPS equivalente: %v", problems)
@@ -55,6 +56,7 @@ func TestAdd_WithoutSSHAccessSuggestsHTTPS(t *testing.T) {
 
 func TestDoctor_WithoutSSHAccessSuggestsHTTPS(t *testing.T) {
 	t.Setenv("GIT_SSH_COMMAND", "false")
+	sinHTTPS(t)
 	lock := Lock{Blueprints: []LockEntry{{ID: "auth", Origen: "git@github.com:acme/qdd-blueprints.git"}}}
 	d := diagAcceso(lock, []string{"auth"})
 	if d.OK || !strings.Contains(d.Detalle, "https://github.com/acme/qdd-blueprints.git") {
@@ -127,5 +129,71 @@ func TestPublicar_TagsOverHTTPSWhenSSHCannotPush(t *testing.T) {
 	}
 	if !strings.Contains(pub.Via, "HTTPS") {
 		t.Fatalf("la salida dice que se publicó por HTTPS: %+v", pub)
+	}
+}
+
+// publicoSinLlave: el origen es SSH y esta máquina (o el CI) no tiene llave, pero el repositorio es público: su «URL
+// HTTPS» es el repositorio real.
+func publicoSinLlave(t *testing.T, ssh, repo string) {
+	t.Helper()
+	t.Setenv("GIT_SSH_COMMAND", "false")
+	previo := httpsEquivalente
+	httpsEquivalente = func(r string) (string, bool) { return repo, r == ssh }
+	t.Cleanup(func() { httpsEquivalente = previo })
+}
+
+// sinHTTPS: tampoco hay acceso por HTTPS (repositorio privado o inexistente). git lleva github.com a una carpeta que no
+// existe: la prueba no sale a la red y la sugerencia sigue nombrando la URL real.
+func sinHTTPS(t *testing.T) {
+	t.Helper()
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "url."+filepath.Join(t.TempDir(), "no-existe")+"/.insteadOf")
+	t.Setenv("GIT_CONFIG_VALUE_0", "https://github.com/")
+}
+
+// FND-104: la lectura (add, sync y el gate) solo probaba SSH. En el CI, sin llave, un repositorio público bloqueaba el
+// gate con BP-01-INVALID aunque se leyera por HTTPS; propose y release ya reintentaban (FND-063).
+func TestAdd_ReadsAPublicRepositoryOverHTTPSWithoutSSHKey_FND104(t *testing.T) {
+	freshHome(t)
+	ssh := "git@github.com:acme/qdd-blueprints.git"
+	publicoSinLlave(t, ssh, gitOrgRepo(t))
+	root := t.TempDir()
+
+	if _, problems := Add(AddInput{Root: root, Origen: ssh, Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatalf("sin llave SSH, un repositorio público se lee por HTTPS: %v", problems)
+	}
+	if e := lockEntry(t, root, "auth"); e.Origen != ssh {
+		t.Fatalf("el lockfile guarda el origen tal como se indicó, igual en todas las máquinas: %+v", e)
+	}
+}
+
+func TestEnsureMirror_UpdatesOverHTTPSWhenSSHFails_FND104(t *testing.T) {
+	freshHome(t)
+	ssh := "git@github.com:acme/qdd-blueprints.git"
+	repo := gitOrgRepo(t)
+	mirror, err := mirrorPath(ssh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, "", "clone", "-q", "--mirror", repo, mirror)
+	gitIn(t, mirror, "remote", "set-url", "origin", ssh) // el espejo se clonó por SSH en otra sesión
+	publicar(t, repo, "1.1.0", "v1.1.0")
+	publicoSinLlave(t, ssh, repo)
+
+	if _, err := ensureMirror(ssh, true); err != nil {
+		t.Fatalf("sin llave SSH, el espejo se actualiza por HTTPS: %v", err)
+	}
+	if _, err := git(mirror, "rev-parse", "--verify", "--quiet", "refs/tags/v1.1.0"); err != nil {
+		t.Fatal("el espejo trae la versión nueva")
+	}
+}
+
+func TestDoctor_PublicRepositoryWithoutSSHKeyHasAccess_FND104(t *testing.T) {
+	ssh := "git@github.com:acme/qdd-blueprints.git"
+	publicoSinLlave(t, ssh, gitOrgRepo(t))
+	lock := Lock{Blueprints: []LockEntry{{ID: "auth", Origen: ssh}}}
+	d := diagAcceso(lock, []string{"auth"})
+	if !d.OK || !strings.Contains(d.Detalle, "HTTPS") {
+		t.Fatalf("doctor dice que hay acceso, por HTTPS: %+v", d)
 	}
 }

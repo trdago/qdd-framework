@@ -6,8 +6,8 @@ import (
 )
 
 // Un repositorio de blueprints público lo usa cualquiera: por HTTPS no hace
-// falta llave SSH. QDD lo sugiere cuando el acceso por SSH falla y, al
-// publicar, reintenta por HTTPS si SSH no tiene permiso de escritura.
+// falta llave SSH. Si el acceso por SSH falla, QDD reintenta por HTTPS, al
+// leer y al publicar, y si tampoco funciona sugiere la URL HTTPS.
 
 // httpsEquivalente traduce una URL SSH de git (usuario@host:ruta o
 // ssh://usuario@host[:puerto]/ruta) a la HTTPS del mismo repositorio. Es una
@@ -53,6 +53,17 @@ func sugerenciaHTTPS(repo string) string {
 // sinAcceso es el error de no poder clonar o actualizar un repositorio.
 func sinAcceso(accion, repo string, err error) error {
 	return fmt.Errorf("no se pudo %s '%s' (¿tienes acceso al repositorio?): %v%s", accion, repo, err, sugerenciaHTTPS(repo))
+}
+
+// leerPorHTTPS reintenta una lectura (clonar, actualizar) por la URL HTTPS del mismo repositorio cuando por SSH falló:
+// un repositorio público se lee sin llave, como en el CI (FND-104). Sin equivalente HTTPS, o si tampoco funciona, el
+// error es el de SSH, con la sugerencia.
+func leerPorHTTPS(repo string, errSSH error, leer func(url string) error, accion string) error {
+	url, ok := httpsEquivalente(repo)
+	if !ok || leer(url) != nil {
+		return sinAcceso(accion, repo, errSSH)
+	}
+	return nil
 }
 
 // empujar publica ref en el origin del clon. Si el origin es SSH y el push

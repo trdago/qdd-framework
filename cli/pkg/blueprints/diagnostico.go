@@ -84,15 +84,25 @@ func diagAcceso(lock Lock, faltan []string) Diagnostico {
 	if len(repos) == 0 {
 		return Diagnostico{DiagAcceso, true, "sin blueprints: no hay repositorio que verificar"}
 	}
+	var porHTTPS []string
 	for _, repo := range repos {
 		_, err := git("", "ls-remote", "--quiet", "--", repo, "HEAD")
 		if err == nil {
 			continue
 		}
+		if url, ok := httpsEquivalente(repo); ok {
+			if _, errHTTPS := git("", "ls-remote", "--quiet", "--", url, "HEAD"); errHTTPS == nil {
+				porHTTPS = append(porHTTPS, fmt.Sprintf("%s por HTTPS (%s), sin llave SSH", repo, url))
+				continue
+			}
+		}
 		if len(faltan) == 0 {
 			return Diagnostico{DiagAcceso, true, fmt.Sprintf("sin conexión con %s; la carpeta central tiene todo lo que fija el lockfile", repo)}
 		}
 		return Diagnostico{DiagAcceso, false, fmt.Sprintf("no hay acceso a %s (%v). Esta máquina (o el CI) necesita acceso de solo lectura al repositorio: tu llave SSH o credencial git, o una deploy key / token en el CI.%s", repo, err, sugerenciaHTTPS(repo))}
+	}
+	if len(porHTTPS) > 0 {
+		return Diagnostico{DiagAcceso, true, "acceso a " + strings.Join(porHTTPS, ", ")}
 	}
 	return Diagnostico{DiagAcceso, true, "acceso a " + strings.Join(repos, ", ")}
 }

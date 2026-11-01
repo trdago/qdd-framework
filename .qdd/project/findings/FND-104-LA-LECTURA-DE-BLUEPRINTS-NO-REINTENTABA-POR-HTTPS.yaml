@@ -1,0 +1,9 @@
+id: "FND-104"
+title: "La lectura de blueprints (add, sync, el gate) no reintentaba por HTTPS: sin llave SSH, un repositorio público bloqueaba el CI"
+description: "propose y release reintentaban el push por HTTPS cuando SSH fallaba (FND-063), pero clonar y actualizar la copia local solo probaban el origen tal como está en el lockfile. En el CI del PR #49 (2026-11-01), con origen git@github.com:trdago/qdd-blueprints.git, público, el runner sin llave SSH no pudo leerlo y el gate bloqueó con BP-01-INVALID y BP-04-MISSING; doctor también decía que no había acceso."
+impact: "Un proyecto que importa blueprints por SSH no pasaba el gate del CI sin una deploy key, aunque el repositorio fuera público; la salida era cambiar el origen a mano en cada proyecto."
+action_taken: "Clonar y actualizar la copia local reintentan por la URL HTTPS equivalente cuando SSH falla (leerPorHTTPS); si tampoco funciona, el error es el de SSH con la sugerencia (FND-068). doctor da acceso por HTTPS y lo dice. El lockfile guarda el origen tal como se indicó, igual en todas las máquinas."
+test_result: "TestAdd_ReadsAPublicRepositoryOverHTTPSWithoutSSHKey_FND104, TestEnsureMirror_UpdatesOverHTTPSWhenSSHFails_FND104 y TestDoctor_PublicRepositoryWithoutSSHKeyHasAccess_FND104 fallan antes del arreglo y pasan después; las de FND-068 ya no salen a la red; go test ./... pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-01"
