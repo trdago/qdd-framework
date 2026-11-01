@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🛰️ Las fallas de QDD se publican solas como issue (incidentes)
+
+- **`qdd incidentes`**: un pánico de la CLI o de una tool MCP y cada autorreparación de `qdd doctor --fix` sobre datos que QDD escribió quedan en un registro local y se publican solos, en segundo plano, como issue del repositorio de QDD.
+  - Formato estándar `qdd-incidente/1`: qué pasó, dónde en el código de QDD, cómo reproducirlo y un bloque YAML para que una IA lo reproduzca y lo repare con su prueba de regresión.
+  - Sin duplicar: la misma firma (tipo, origen, mensaje sin números y las primeras funciones de la traza) suma una ocurrencia y comenta el issue que ya existe, también si lo abrió otra máquina. Tope de 5 publicaciones por día.
+  - Solo datos de QDD: versión, sistema, el comando con sus valores como `<marcador>` y la traza dentro del código de QDD. Rutas, nombres de archivo, valores entre comillas, correos, URLs y credenciales se reemplazan; el nombre de la carpeta del proyecto y el del usuario también.
+  - `qdd incidentes ver <firma>` muestra el issue exactamente como sale; `QDD_INCIDENTES=off` los apaga; `qdd doctor` revisa el registro y aparta un archivo ilegible.
+
 ### 🧰 Las herramientas del proyecto en el panel (RFC 0011)
 
 - **`qdd herramienta`**: un ejecutable del proyecto (un simulador, un visor de logs, un migrador) queda como pestaña del panel, con sus acciones como botones.

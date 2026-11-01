@@ -101,6 +101,7 @@ func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(
 		defer func() {
 			if r := recover(); r != nil {
 				recordMCPActivity("panic_recovered", tool.Name, map[string]interface{}{"panic": fmt.Sprintf("%v", r)})
+				registrarPanico("mcp:"+tool.Name, "mcp:"+tool.Name, r)
 				res = mcp.NewToolResultError(fmt.Sprintf("Zero-Panic Guard: Excepción recuperada de forma segura en herramienta '%s': %v", tool.Name, r))
 				err = nil
 			}

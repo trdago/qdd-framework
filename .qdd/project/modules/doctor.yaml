@@ -1,6 +1,6 @@
 id: doctor
 nombre: QDD Doctor (diagnóstico y autorreparación)
-estado: aprobado
+estado: borrador
 rutas:
     - cli/cmd/doctor.go
 objetivo_operativo:
@@ -19,6 +19,7 @@ objetivo_tecnologico:
         - 'Grupo de la consola, además (qdd 2.8.0): el uso real medido de la versión que corre (un registro ilegible es falla y --fix lo aparta) y el modo de permisos de la IA del último mensaje (informativo; sin medir no es falla).'
         - 'Grupo de la consola (RFC 0006 §3.6): solo existe si se usó qdd consola activar en esta máquina. Panel ausente, de otra versión que la CLI o desactivado, o barra que ya no es la de QDD → --fix vuelve a activar con lo que se eligió al activar.'
         - 'Grupo de las herramientas del panel (RFC 0011): definición que no se lee o inválida, ejecutable que no está, variable de entorno que falta o prueba de humo que no sale con 0. --fix no las repara: un ejecutable ausente puede no estar compilado o ya no existir, y eso lo decide la persona; el detalle dice el comando (compilarlo, o qdd herramienta quitar <id> --si).'
+        - 'Grupo 8 (incidentes de QDD, qdd 2.8.0): aparece solo si existe el registro de esta máquina; un archivo ilegible es falla y --fix lo aparta como .ilegible; lo pendiente de publicar se informa. Apartar un registro de uso ilegible o juntar la cola del panel son autorreparaciones de datos que QDD escribió: se registran como incidente.'
     invariantes:
         - Toda funcionalidad de QDD es determinista y doctor sabe diagnosticarla y repararla. Si doctor no puede definir cómo debería comportarse para repararla, la funcionalidad quedó ambigua y se completa antes de darla por terminada.
         - 'Lo que necesita una decisión humana (preguntas de diseño, actualizar de versión, publicar en el repositorio de la organización) doctor no lo decide: dice exactamente qué decidir y con qué comando.'

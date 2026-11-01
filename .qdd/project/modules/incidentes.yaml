@@ -1,0 +1,32 @@
+id: incidentes
+nombre: Incidentes de QDD (issues automáticos)
+estado: borrador
+rutas:
+    - cli/pkg/incidentes
+    - cli/cmd/incidentes.go
+objetivo_operativo:
+    problema: Las fallas de QDD mismo (un pánico de la CLI o de una tool MCP, una autorreparación de doctor) se perdían en la máquina de quien las sufría; tienen que llegar al repositorio de QDD con lo justo para que una IA las reproduzca y las repare, sin sacar nada del proyecto.
+    usuarios: Quien usa QDD (no hace nada; puede ver y apagar) y la IA que mantiene QDD, que lee el issue, lo reproduce y lo repara.
+    criterio_de_exito: Cada falla de QDD queda como un issue del repositorio de QDD en formato qdd-incidente/1, uno por firma, con sus ocurrencias, y ningún dato del proyecto viaja (rutas, nombres de archivo, valores, correos, URLs, credenciales, el nombre de la carpeta ni el del usuario).
+    caso_real: 'Pedido del usuario (2026-11-01): que las fallas se detecten y publiquen solas como issue, en un estándar que la misma IA pueda leer, reproducir y reparar, siempre generalizado y sin información sensible del proyecto.'
+objetivo_tecnologico:
+    arquitectura: registrarIncidente (cmd) anonimiza con Sanitizar y la Traza (solo funciones de QDD), Registrar guarda un archivo por firma en <QDD_HOME>/incidentes y Lanzar deja «qdd incidentes publicar --silencioso» corriendo aparte. Publicar busca el issue por la firma, comenta o crea con gh, y respeta el tope diario.
+    decisiones:
+        - 'Alcance (decisión del usuario): solo las fallas de QDD, en el repositorio de QDD (trdago/qdd-framework, QDD_INCIDENTES_REPO lo cambia); las del proyecto siguen como findings locales (qdd bug).'
+        - 'Publicación (decisión del usuario): automática y sin duplicar; la misma firma suma una ocurrencia y comenta el issue que ya existe (también uno de otra máquina); tope de 5 publicaciones por día y por máquina.'
+        - 'Privacidad (decisión del usuario): solo datos de QDD, generalizados: versión, sistema, el comando con sus valores como <marcador> y la traza dentro del código de QDD. Ante la duda se reemplaza.'
+        - La firma es tipo, origen, el mensaje sin números y las tres primeras funciones de la traza sin archivo ni línea, para que el mismo defecto sea un issue entre versiones; el comando con marcadores no entra en la firma.
+        - Una autorreparación se registra solo cuando doctor reparó datos que QDD escribió y quedaron mal (un registro de uso ilegible, la cola del panel); lo esperable del entorno (primer init, otra máquina, una versión nueva) no es incidente.
+        - Los errores de uso de la CLI y de las tools no son incidentes; solo los pánicos atrapados.
+        - QDD_INCIDENTES=off los apaga; en las pruebas solo funcionan con un QDD_HOME explícito y nunca lanzan la publicación.
+    invariantes:
+        - Nada del proyecto sale de la máquina; el issue es exactamente lo que muestra qdd incidentes ver.
+        - Registrar o publicar nunca hace fallar ni demora a quien falló; la publicación corre aparte.
+        - Un registro ilegible nunca se borra; doctor --fix lo aparta como .ilegible.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/incidentes/ ./cmd/ -run 'Incidentes|ZeroPanic'
+fuentes:
+    - cli/pkg/incidentes/incidentes.go
+    - cli/pkg/incidentes/sanitizar.go
+    - cli/cmd/incidentes.go
