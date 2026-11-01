@@ -1,6 +1,6 @@
 # RFC 0011: Herramientas del proyecto en el panel
 
-- Estado: propuesto (decisiones del usuario, 2026-10-31)
+- Estado: aceptado (decisiones del usuario, 2026-10-31)
 - Versión: qdd 2.9.0 (después de 2.8.0)
 
 ## Problema
