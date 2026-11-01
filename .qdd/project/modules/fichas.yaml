@@ -1,6 +1,6 @@
 id: fichas
 nombre: Fichas de módulo (el contrato de cada módulo)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/modules/modules.go
 objetivo_operativo:
@@ -17,3 +17,5 @@ objetivo_tecnologico:
 pruebas:
     comandos:
         - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
+ultima_revision: "2026-10-31"
+revisado_en_commit: 457619c63925

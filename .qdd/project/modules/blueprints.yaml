@@ -1,6 +1,6 @@
 id: blueprints
 nombre: Blueprints de la organización
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/blueprints
     - cli/cmd/blueprints.go
@@ -49,4 +49,4 @@ fuentes:
     - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
 ultima_revision: "2026-10-31"
-revisado_en_commit: b1642565cdda
+revisado_en_commit: 457619c63925
