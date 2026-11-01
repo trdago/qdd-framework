@@ -9,7 +9,7 @@ import "fmt"
 // ese código: su conformidad es la del qdd instalado (FND-102). Implementar una versión nueva incluye subirla aquí.
 var implementadosPorQDD = map[string]string{
 	"estado-por-tareas":   "2.0.0",
-	"consola-claude-code": "9.0.0",
+	"consola-claude-code": "10.0.0",
 }
 
 // cubiertoPorQDD dice si el qdd instalado cumple el blueprint en la versión aplicada: lo implementa en la misma
