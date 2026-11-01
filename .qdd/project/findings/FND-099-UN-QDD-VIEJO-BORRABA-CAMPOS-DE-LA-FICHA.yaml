@@ -1,0 +1,9 @@
+id: "FND-099"
+title: "Aprobar una ficha con un qdd más viejo borraba los campos que no conocía"
+description: "Al medir la conformidad del panel (2026-10-31), la ficha estado perdió su campo implementa: se aprobó con el qdd instalado (v2.8.0-rc.6), que no lo conoce, y Approve reescribe la ficha entera desde su struct. El commit de aprobación 2f7963f quedó sin el campo y la conformidad pasó a decir que ningún módulo implementa un blueprint."
+impact: "Cualquier campo nuevo de una ficha (implementa, fuera y los que vengan) desaparecía en silencio si alguien guardaba o aprobaba la ficha con una versión anterior de qdd, p. ej. en otra máquina del equipo."
+action_taken: "Al reescribir una ficha, modules conserva las claves de la ficha en disco que su struct no conoce; las que sí conoce y quedaron vacías se quitan como siempre. La ficha estado recuperó implementa."
+test_result: "TestAprobar_ConservaLosCamposQueEsteQDDNoConoce (pkg/modules): antes se perdían; ahora quedan."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

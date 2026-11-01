@@ -14,10 +14,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   - Un módulo que aplicó un blueprint se mide con sus respuestas.
   - Uno que lo implementa como origen (`implementa:` en su ficha) cubre todas las opciones que el blueprint ofrece.
   - El blueprint sale de lo importado o, si el proyecto no lo importa, de lo publicado.
-  - En QDD mide el panel y el estado contra estado-por-tareas y consola-claude-code: hoy 39 de 49 escenarios con prueba.
+  - Una ficha puede dejar un escenario `fuera`, con su motivo (lo hace otro, no este código): no se exige, pero siempre se ve.
+  - En QDD el panel y el estado quedan conformes: estado-por-tareas 23/23 y consola-claude-code 25/25 (CCC-C05 fuera: la compactación la hace Claude Code).
+- **`qdd audit` exige la conformidad** (`BP-08-CONFORMIDAD`): un módulo que aplica o implementa un blueprint no pasa el gate si a un escenario le falta su prueba.
+  - Se mide sin red: el blueprint sale de lo importado o de la última versión de la copia local del repositorio de la organización.
+  - Sin ninguno de los dos (p. ej. en el CI) queda **sin medir** (`BP-08-SIN-MEDIR`): no bloquea y nunca cuenta como cumplida.
+- **`qdd estado check --respuesta` revisa EPF-C08**: lo que el texto afirma con «<tarea> · <etapa>: <estado>» es lo que dice la tabla, y una afirmación sobre una tarea o etapa que no está en ella la contradice.
 - **Arreglos:**
   - pulsos simultáneos ya no borran la activación de una tarea (FND-097): la actividad, la cola de pedidos y el registro de uso se escriben uno a la vez entre procesos (`pkg/candado`);
-  - la certificación ciega ya no toma «P-020» como prueba de P-02 y acepta `test_P_01` como prueba de P-01 (FND-098).
+  - la certificación ciega ya no toma «P-020» como prueba de P-02 y acepta `test_P_01` como prueba de P-01 (FND-098);
+  - guardar o aprobar una ficha con un qdd más viejo ya no borra los campos que no conoce (FND-099);
+  - las pruebas llevan el id de su escenario actual: una con el id de otro hacía ver cubierto lo que no lo estaba (FND-100);
+  - en adopción gradual, una recomendación como `QA-03-SIN-MEDIR` ya no vuelve a bloquear el gate (FND-101).
 
 ## [2.8.0-rc.9] - 2026-10-31 (preview)
 

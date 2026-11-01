@@ -94,3 +94,14 @@ func TestGrado(t *testing.T) {
 		}
 	}
 }
+
+// FND-101: en adopción gradual, marcarRecomendaciones pisaba la marca que la
+// regla misma ya había puesto, y una recomendación como QA-03-SIN-MEDIR (falta
+// el programa para medir una suite) pasaba a bloquear el gate.
+func TestMarcarRecomendaciones_GradualNoVuelveBloqueanteLoQueYaEraRecomendacion(t *testing.T) {
+	v := []Violation{{RuleID: "QA-03-SIN-MEDIR", Recomendacion: true}}
+	marcarRecomendaciones(QDDPolicies{Adopcion: AdopcionGradual}, v)
+	if !v[0].Recomendacion || len(Bloqueantes(v)) != 0 {
+		t.Fatal("lo que la regla marca como recomendación sigue siéndolo en adopción gradual")
+	}
+}

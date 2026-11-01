@@ -118,7 +118,7 @@ func TestCheck_FallaSinNombrar(t *testing.T) {
 	}
 }
 
-func TestCheck_EPFC04_DesplegadoNoEsValidado(t *testing.T) {
+func TestCheck_DesplegadoNoEsValidado_EPF_C04_EPT_S01(t *testing.T) {
 	s := strings.Replace(valido, `Validación real: {estado: "⏳", bloqueo: "ver un análisis con imagen", de_quien: "uso real"}`,
 		`Validación real: {estado: "✅", evidencia: "run 40828808431"}`, 1)
 	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C04") {
@@ -126,7 +126,7 @@ func TestCheck_EPFC04_DesplegadoNoEsValidado(t *testing.T) {
 	}
 }
 
-func TestCheck_EPFC04_ModelosProduccionSinPuerta(t *testing.T) {
+func TestCheck_ModelosProduccionSinPuerta_EPT_M01(t *testing.T) {
 	s := `formato: 1
 etapas: [Datos, Entreno, Puerta, Producción]
 frentes:
@@ -417,5 +417,23 @@ func TestDatosPendientes_TopeDeLasMasNuevas(t *testing.T) {
 	}
 	if strings.Join(ids, ",") != "t3,t4,t5,t6" || d.Ocultos != 2 || len(d.Fallas) != 4 {
 		t.Fatalf("las 4 más nuevas, 2 ocultas y solo sus ❌: %v ocultos=%d fallas=%d", ids, d.Ocultos, len(d.Fallas))
+	}
+}
+
+func TestCheckRespuesta_ElTextoYLaTablaCoinciden_EPF_C08(t *testing.T) {
+	e := mustParse(t, valido)
+	md := Markdown(e, ahora, AlcanceAbiertos)
+	bien := md + "\nAvance: Gemini retirado · Producción: ✅ y gemini · Validación real: ⏳.\nEl modelo · plan: lo que sigue.\n"
+	if vs := CheckRespuesta(e, bien, ahora); len(vs) != 0 {
+		t.Fatalf("lo que el texto afirma (por nombre o por id) es lo que dice la tabla; lo que no es un estado no se compara: %v", vs)
+	}
+	for _, mal := range []string{
+		"- Gemini retirado · Validación real: ✅",
+		"- Tarea inventada · Producción: ✅",
+		"- gemini · Etapa inventada: ✅",
+	} {
+		if vs := CheckRespuesta(e, md+"\n"+mal+"\n", ahora); !tieneViolacion(vs, "EPF-C08") {
+			t.Fatalf("%q contradice la tabla: %s", mal, ids(vs))
+		}
 	}
 }

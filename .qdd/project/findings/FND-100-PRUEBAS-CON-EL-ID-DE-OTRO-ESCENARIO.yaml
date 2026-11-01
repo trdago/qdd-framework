@@ -1,0 +1,9 @@
+id: "FND-100"
+title: "Pruebas con el id de otro escenario hacían ver cubierto lo que no lo estaba"
+description: "La primera medida de conformidad (2026-10-31) contó CCC-C24 («Seguir trabajando en vez de ejecutar») como probado: la prueba que lo llevaba, TestBarra_SinAnchoOAngostaNoSeDesordena_CCC_C24, prueba CCC-C07 de consola-claude-code 8.0.0, que renumeró sus escenarios. Además TestCheck_EPFC04_* no llevaba el id en una forma reconocible, así que EPT-S01 y EPT-M01 se veían sin prueba aunque la tenían."
+impact: "Un escenario sin su prueba se informaba como cumplido, y otros cumplidos como faltantes: la conformidad decía 39/49 cuando lo real era 38 probados de 49."
+action_taken: "Cada prueba lleva el id del escenario que verifica en consola-claude-code 8.0.0 y estado-por-tareas 1.1.0 (C07, C08, C09, C24, C25, C26, EPT-S01 y EPT-M01). Se escribieron las que faltaban: CCC-C06 (el modo de la IA en la barra) y EPF-C08 (qdd estado check --respuesta compara lo que el texto afirma con la tabla). CCC-C05 queda fuera, con su motivo, en la ficha estado."
+test_result: "qdd blueprint conformance: estado-por-tareas 23/23 y consola-claude-code 25/25 (CCC-C05 fuera)."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

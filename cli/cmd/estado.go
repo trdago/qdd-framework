@@ -90,7 +90,7 @@ var estadoPulsoCmd = &cobra.Command{
 }
 var estadoCheckCmd = &cobra.Command{
 	Use:   "check",
-	Short: "Lector automático: escenarios EPF-C01…C07 (y EPF-A01 con --respuesta); sale con 1 si hay violaciones",
+	Short: "Lector automático: escenarios EPF-C01…C07 (y EPF-A01 y EPF-C08 con --respuesta); sale con 1 si hay violaciones",
 	Run:   runEstadoCheck,
 }
 
@@ -127,7 +127,7 @@ func init() {
 	estadoActivaCmd.Flags().BoolVar(&estadoFin, "fin", false, "apaga la tarea en vez de declararla en curso")
 	estadoActivaCmd.Flags().StringVar(&estadoQuien, "quien", "", "quién la trabaja (opcional, p. ej. claude-code)")
 	estadoPulsoCmd.Flags().StringVar(&estadoFuente, "fuente", estado.FuenteComando, "agente | subagente | comando")
-	estadoCheckCmd.Flags().StringVar(&estadoResp, "respuesta", "", "archivo con la respuesta o el reporte (EPF-A01)")
+	estadoCheckCmd.Flags().StringVar(&estadoResp, "respuesta", "", "archivo con la respuesta o el reporte (EPF-A01 y EPF-C08)")
 	estadoCheckCmd.Flags().BoolVar(&estadoJSON, "json", false, "salida JSON")
 	estadoWatchCmd.Flags().DurationVar(&estadoIntervalo, "intervalo", time.Second, "cada cuánto revisa si el archivo cambió")
 
@@ -292,7 +292,11 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		vs = append(vs, estado.CheckRespuesta(e, string(data), time.Now())...)
 	}
 	if estadoJSON {
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": []string{"EPF-C08"}}, "", "  ")
+		revision := []string{}
+		if estadoResp == "" {
+			revision = []string{"EPF-C08"}
+		}
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -303,9 +307,11 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 	if len(vs) == 0 {
 		fmt.Printf("[✓] %s cumple EPF-C01…C07", estado.Ruta)
 		if estadoResp != "" {
-			fmt.Print(" y EPF-A01")
+			fmt.Println(", EPF-A01 y EPF-C08 (el texto afirma lo mismo que la tabla).")
+			salirSiHay(vs)
+			return
 		}
-		fmt.Println(". EPF-C08 (texto y tabla no se contradicen) queda para revisión humana.")
+		fmt.Println(". EPF-C08 (texto y tabla no se contradicen) se revisa con --respuesta <reporte>.")
 	}
 	salirSiHay(vs)
 }

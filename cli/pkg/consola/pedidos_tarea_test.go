@@ -45,7 +45,7 @@ func pedidoDe(t *testing.T, root, id string, now time.Time) Pedido {
 	return Pedido{}
 }
 
-func TestPedido_SaleDePara_TiSiSuTareaSigueDespuesDeUnMensaje(t *testing.T) {
+func TestPedido_SaleDePara_TiSiSuTareaSigueDespuesDeUnMensaje_CCC_C24(t *testing.T) {
 	root := proyectoConTareas(t)
 	p := mustPedirEnOrden(t, root, "gh pr merge 42", Orden{Tarea: "barra"})
 	if p.Tarea != "barra" {
@@ -69,7 +69,7 @@ func TestPedido_SaleDePara_TiSiSuTareaSigueDespuesDeUnMensaje(t *testing.T) {
 	}
 }
 
-func TestPedido_LoQueCambiaLaIAEnElMismoTurnoNoLoSaca(t *testing.T) {
+func TestPedido_LoQueCambiaLaIAEnElMismoTurnoNoLoSaca_CCC_C24(t *testing.T) {
 	root := proyectoConTareas(t)
 	p := mustPedirEnOrden(t, root, "gh pr merge 42", Orden{Tarea: "barra"})
 	cambiarTarea(t, root, "barra", "commit b2 (anotado junto con el pedido)")
@@ -78,7 +78,7 @@ func TestPedido_LoQueCambiaLaIAEnElMismoTurnoNoLoSaca(t *testing.T) {
 	}
 }
 
-func TestPedido_OtraTareaNoLoSaca(t *testing.T) {
+func TestPedido_OtraTareaNoLoSaca_CCC_C24(t *testing.T) {
 	root := proyectoConTareas(t)
 	p := mustPedirEnOrden(t, root, "gh pr merge 42", Orden{Tarea: "barra"})
 	MarcarCiclo(root, "auto", enCola.Add(time.Minute))
@@ -88,7 +88,7 @@ func TestPedido_OtraTareaNoLoSaca(t *testing.T) {
 	}
 }
 
-func TestPedido_VuelveConSuTeclaCuandoLaIALoPideDeNuevo(t *testing.T) {
+func TestPedido_VuelveConSuTeclaCuandoLaIALoPideDeNuevo_CCC_C24(t *testing.T) {
 	root := proyectoConTareas(t)
 	mustPedirEnOrden(t, root, "echo otro", Orden{})
 	p := mustPedirEnOrden(t, root, "gh pr merge 42", Orden{Tarea: "barra"})

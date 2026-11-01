@@ -12,10 +12,12 @@ objetivo_tecnologico:
     arquitectura: 'Module es la ficha en .qdd/project/modules/<id>.yaml: rutas, objetivo operativo y tecnológico, pruebas, y blueprint (el que la generó) o implementa (los que implementa como origen). Load, Save, Approve y Find la leen y la escriben; Drift cuenta los commits desde su revisión.'
     decisiones:
         - 'implementa (2026-10-31): [{blueprint, respuestas}]. Sin respuestas, el módulo es la implementación de origen y cubre todas las opciones del blueprint; con respuestas, solo esa variante. Lo usa qdd blueprint conformance.'
+        - 'Reescribir una ficha (guardar, aprobar) conserva las claves de la ficha en disco que este qdd no conoce (FND-099): un qdd más viejo nunca borra lo que escribió uno más nuevo.'
+        - 'implementa admite fuera: {ID: motivo}, un escenario que hace otro y no este código; la conformidad no lo exige y siempre lo muestra.'
     invariantes:
         - Una ficha guardada por una IA queda en borrador; solo una persona (o quien tenga la aprobación delegada) la aprueba.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
 ultima_revision: "2026-10-31"
-revisado_en_commit: 457619c63925
+revisado_en_commit: 2406f3e2c0a2

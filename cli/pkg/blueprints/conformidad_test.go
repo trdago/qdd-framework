@@ -1,6 +1,7 @@
 package blueprints
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,5 +64,79 @@ func TestConformar_LoAplicadoYLoQueUnaFichaImplementa(t *testing.T) {
 	}
 	if c := porModulo["origen"]; !strings.Contains(strings.Join(c.Faltan, ","), "RUT-01") {
 		t.Fatalf("la implementación de origen cubre todas las opciones: le falta RUT-01: %+v", c)
+	}
+}
+
+func TestConformidad_UnEscenarioFueraDelCodigoSeDiceConSuMotivo(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "panel", "panel_test.go"), "func TestPanel_P_01(t *testing.T) {}\n")
+	b, rutas := mustParse(t, recetaConLimites), []string{"src/panel"}
+	impl := modules.Implementacion{Blueprint: "panel", Fuera: map[string]string{"P-02": "el aviso lo da el sistema operativo"}}
+	c := ConformidadDe(root, "panel", b, impl, rutas)
+	linea := LineaConformidad(c)
+	if len(c.Faltan) != 0 || !strings.HasPrefix(linea, "✅") || !strings.Contains(linea, "1/1") || !strings.Contains(linea, "fuera P-02 (el aviso lo da el sistema operativo)") {
+		t.Fatalf("lo que no hace este código no falta, pero siempre se ve con su motivo: %+v %q", c, linea)
+	}
+	impl.Fuera = map[string]string{"P-02": " ", "X-99": "no existe"}
+	c = ConformidadDe(root, "panel", b, impl, rutas)
+	if strings.Join(c.Faltan, ",") != "P-02,X-99" {
+		t.Fatalf("sin motivo, o de un escenario que no existe, no vale: %+v", c)
+	}
+}
+
+// fichaQueImplementa guarda la ficha de un módulo que declara implementar el blueprint.
+func fichaQueImplementa(t *testing.T, root, id, blueprint string) {
+	t.Helper()
+	m := modules.Module{ID: id, Nombre: id, Rutas: []string{"internal/" + id},
+		ObjetivoOperativo:   modules.ObjetivoOperativo{Problema: "Entrar.", CriterioDeExito: "Entra."},
+		ObjetivoTecnologico: modules.ObjetivoTecnologico{Arquitectura: "Un login."},
+		Pruebas:             modules.Pruebas{Comandos: []string{"go test ./internal/..."}},
+		Implementa:          []modules.Implementacion{{Blueprint: blueprint}}}
+	if _, problems := modules.Save(root, m); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+}
+
+func TestCheckConformidad_UnEscenarioSinPruebaNoPasaElGate_BP08(t *testing.T) {
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	writeFile(t, filepath.Join(root, "internal", "acceso", "auth_test.go"), "func TestLogin_AUTH_01(t *testing.T) {}\n")
+	fichaQueImplementa(t, root, "acceso", "auth")
+
+	bloquean, sinMedir := CheckConformidad(root)
+	if len(bloquean) != 1 || bloquean[0].Regla != "BP-08-CONFORMIDAD" || len(sinMedir) != 0 {
+		t.Fatalf("al módulo le falta la prueba de RUT-01: un problema que bloquea: %+v %+v", bloquean, sinMedir)
+	}
+	if p := bloquean[0]; !strings.Contains(p.Descripcion, "acceso") || !strings.Contains(p.Descripcion, "RUT-01") || !strings.Contains(p.Descripcion, "auth@1.0.0") || !strings.HasPrefix(p.Archivo, modules.Dir) {
+		t.Fatalf("dice qué módulo, qué blueprint y qué escenario, y apunta a su ficha: %+v", p)
+	}
+	writeFile(t, filepath.Join(root, "internal", "acceso", "rut_test.go"), "func TestLogin_ConRut_RUT_01(t *testing.T) {}\n")
+	if bloquean, sinMedir = CheckConformidad(root); len(bloquean)+len(sinMedir) != 0 {
+		t.Fatalf("con todas sus pruebas, pasa: %+v %+v", bloquean, sinMedir)
+	}
+}
+
+func TestCheckConformidad_SinElBlueprintEnLaMaquinaNoSeMideNiUsaLaRed_BP08(t *testing.T) {
+	home := freshHome(t)
+	repo := gitOrgRepo(t)
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, configFile), "blueprints:\n  origen: "+repo+"\n")
+	writeFile(t, filepath.Join(root, "internal", "acceso", "auth_test.go"), "func TestLogin_AUTH_01(t *testing.T) {}\n")
+	fichaQueImplementa(t, root, "acceso", "auth")
+
+	bloquean, sinMedir := CheckConformidad(root)
+	if len(bloquean) != 0 || len(sinMedir) != 1 || sinMedir[0].Regla != "BP-08-SIN-MEDIR" || !strings.Contains(sinMedir[0].Descripcion, "auth") {
+		t.Fatalf("ni importado ni con la copia local del repositorio (el CI): sin medir, sin bloquear: %+v %+v", bloquean, sinMedir)
+	}
+	if entradas, _ := os.ReadDir(filepath.Join(home, "blueprints", "mirrors")); len(entradas) != 0 {
+		t.Fatalf("el gate no trae nada de la red: %v", entradas)
+	}
+	if _, _, err := publicados(root, []string{"auth"}); err != nil {
+		t.Fatal(err)
+	}
+	if bloquean, sinMedir = CheckConformidad(root); len(bloquean) != 1 || !strings.Contains(bloquean[0].Descripcion, "RUT-01") || len(sinMedir) != 0 {
+		t.Fatalf("con la copia local del repositorio, se mide contra lo último publicado ahí: %+v %+v", bloquean, sinMedir)
 	}
 }
