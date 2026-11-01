@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🧰 Las herramientas del proyecto en el panel (RFC 0011)
+
+- **`qdd herramienta`**: un ejecutable del proyecto (un simulador, un visor de logs, un migrador) queda como pestaña del panel, con sus acciones como botones.
+  - La IA arma una vez su definición con `candidatos`, `ayuda` y `guardar`. QDD la valida, corre su prueba de humo y la versiona en `.qdd/herramientas/<id>.yaml`.
+  - Desde ahí se corre con un clic, sin IA y sin tokens: `correr` la ejecuta sin shell y cada campo llega como un solo argumento.
+  - Los secretos nunca van en la definición: solo el nombre de su variable de entorno. Si falta, dice cuál y no corre.
+- **El gate valida las definiciones** (`HER-01-DEFINICION`) y **`qdd doctor`** dice qué le falta a cada una en esta máquina, con el comando para arreglarlo.
+
 ### 🧪 El panel se prueba en el gate y se mide contra su receta
 
 - **Las pruebas del panel corren en `qdd audit`**: las de OpenCode (`node --test`) y las del mod de Claude Code (`claude plugin test`).

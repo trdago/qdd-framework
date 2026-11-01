@@ -53,6 +53,8 @@ prueba: {args: [--help]}          # la prueba de humo: debe salir con 0
 
 - Cada `{{campo}}` es **un argumento entero**: lo que la persona escribe nunca se parte ni pasa por una shell, así que no
   puede inyectar otro comando.
+- Un grupo (`[--chat, "{{chat}}"]`) va solo si todos sus campos tienen valor. Un `si-no` va siempre en un grupo y solo
+  decide si el grupo va (`[--seco, "{{seco}}"]` pasa `--seco` cuando dice «si»).
 - Tipos de campo: `texto`, `numero`, `opcion` (con `opciones`) y `si-no`.
 - `confirmar: true` para lo que borra o cambia datos.
 
@@ -60,20 +62,22 @@ prueba: {args: [--help]}          # la prueba de humo: debe salir con 0
 
 - `qdd herramienta candidatos`: los ejecutables del proyecto. Mira `bin/` y `scripts/`, `cmd/*` de Go, `target/release`
   de Rust, los scripts de `package.json` y los objetivos del `Makefile`.
-- `qdd herramienta ayuda <ruta>`: corre `<ruta> --help` (y `-h`, `help`) con un tiempo límite, sin red ni entrada, para
-  que la IA lea qué pide.
+- `qdd herramienta ayuda <ruta>`: corre `<ruta> --help` (y `-h`, `help`) con un tiempo límite y sin entrada, para que
+  la IA lea qué pide. No puede quitarle la red a un ejecutable: es el que la persona eligió.
 - `qdd herramienta guardar <archivo>`: valida la definición y corre su prueba de humo antes de guardarla.
   - La validación revisa que el comando exista y esté dentro del proyecto o en la ruta que la persona eligió, que cada
     `{{campo}}` esté declarado, que no haya valores de secretos y que los modos sean válidos.
-- `qdd herramienta listar | quitar <id>`.
-- `qdd herramienta correr <id> <accion> [campo=valor…]`: lo que usa el panel. Corre sin shell, en la raíz del proyecto,
+- `qdd herramienta listar [--json] | quitar <id> --si`. `listar` dice lo que le falta a cada una en esta máquina.
+- `qdd herramienta correr <id> <accion> [campo=valor…] [--si]`: lo que usa el panel; una acción con `confirmar` pide `--si`. Corre sin shell, en la raíz del proyecto,
   con el entorno de la máquina. Si falta una variable de `entorno`, dice cuál y no corre.
-- En la MCP, una sola tool `qdd_herramienta {accion: candidatos|ayuda|guardar|probar|quitar}`, para no pasar el
-  presupuesto de tools/list.
-- `qdd doctor` diagnostica cada definición: el ejecutable no existe, falta una variable o la prueba de humo falla. Lo
-  repara cuando es determinista (p. ej. quitar una herramienta cuyo ejecutable ya no está, con la confirmación de la
-  persona).
-- `qdd audit` valida `.qdd/herramientas/*.yaml` (`HER-01`): una definición inválida o con un secreto no pasa el gate.
+- **Sin tool MCP** (cambio al implementar, 2026-10-31): `tools/list` estaba en 15.997 de 16.000 caracteres. La IA usa
+  la CLI (`qdd herramienta ayuda` y `guardar`), que el panel le nombra al pedirle que la configure. Así no cuesta
+  tokens fijos en cada sesión, solo cuando se agrega una.
+- `qdd doctor` diagnostica cada definición: no se lee o no es válida, el ejecutable no existe, falta una variable o la
+  prueba de humo falla. `--fix` no las repara: un ejecutable ausente puede no estar compilado o ya no existir, y eso lo
+  decide la persona. El detalle dice el comando (compilarlo, o `qdd herramienta quitar <id> --si`).
+- `qdd audit` valida `.qdd/herramientas/*.yaml` (`HER-01-DEFINICION`): una definición inválida o con un secreto no pasa
+  el gate. No corre nada ni exige el ejecutable, porque el CI puede no compilarlo.
 
 ### El panel (Claude Code)
 
@@ -81,7 +85,7 @@ prueba: {args: [--help]}          # la prueba de humo: debe salir con 0
 - **Config** lista las herramientas, cada una con **Quitar** (con confirmación), y **+ Agregar herramienta**. Agregar
   guía en pasos que se ven en el panel:
   1. Elegir un candidato de la lista o escribir una ruta.
-  2. El panel le pide a la IA, en la sesión, que la configure con `qdd_herramienta`. La IA lee su ayuda y propone las
+  2. El panel le pide a la IA, en la sesión, que la configure con `qdd herramienta ayuda` y `guardar`. La IA lee su ayuda y propone las
      acciones con sus campos.
   3. La persona ve las acciones propuestas y las acepta o pide cambios.
   4. QDD la valida y corre la prueba de humo (✅ o qué falló).
@@ -120,3 +124,4 @@ prueba: {args: [--help]}          # la prueba de humo: debe salir con 0
 - `go test ./...` (pkg/herramientas: candidatos, validación, argumentos, entorno; cmd: CLI y tool MCP).
 - `claude plugin test` del mod: Config, agregar en pasos, pestañas, correr, detener y quitar.
 - `qdd blueprint conformance`, cuando la consola lo incluya en su blueprint.
+- Sin `qdd_herramienta` en la MCP, `TestMCP_DescripcionesDentroDelPresupuesto` sigue igual.

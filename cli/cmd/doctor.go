@@ -18,6 +18,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/herramientas"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 	"github.com/qdd-framework/qdd/ui"
@@ -102,7 +103,22 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	if g := buildConsolaChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
+	if g := buildHerramientasChecks(projectPath); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	return list
+}
+
+// grupoHerramientas revisa las herramientas del panel (RFC 0011), si el proyecto tiene alguna. No se reparan solas:
+// cada falla dice qué hacer.
+const grupoHerramientas = "7. Herramientas del panel (qdd herramienta)"
+
+func buildHerramientasChecks(projectPath string) *CheckGroup {
+	g := &CheckGroup{Name: grupoHerramientas}
+	for _, d := range herramientas.Diagnosticar(projectPath) {
+		g.Items = append(g.Items, &CheckItem{Name: d.Nombre, Success: d.OK, Error: d.Detalle})
+	}
+	return g
 }
 
 // grupoConsola revisa el panel y la barra de QDD en Claude Code, solo si se activaron en esta máquina (RFC 0006 §3.6).
@@ -452,6 +468,9 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 		}
 		if g.Name == grupoConsola {
 			repairConsola(projectPath, g)
+			continue
+		}
+		if g.Name == grupoHerramientas {
 			continue
 		}
 		for _, item := range g.Items {
