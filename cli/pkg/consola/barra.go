@@ -18,7 +18,8 @@ import (
 // Barra de estado de Claude Code en Go (blueprint consola-claude-code v7, RFC 0006 §3.6), sin bash, jq ni date, para
 // que funcione igual en Linux, macOS y Windows. A la izquierda, el modelo y el modo de la IA; a la derecha, en lista y
 // pegados al borde, el contexto, el uso de 5 h y el de la semana («contexto 38%», «5h 12% ↻ 18:30», «semana 40% ↻ sáb
-// 09:00»). Sin carpeta ni segmento de tareas: eso lo muestra el panel (pedido del usuario, 2026-10-31).
+// 09:00»). Debajo del modelo, la carpeta del proyecto, solo su nombre («📂 qdd»): en qué proyecto se trabaja (pedido del
+// usuario, 2026-11-01). Sin segmento de tareas: eso lo muestra el panel.
 
 // MargenBarra son las columnas que la barra deja libres a la derecha: Claude Code dibuja la barra con su propio margen
 // y corta con «…» la línea que no cabe (FND-091).
@@ -75,21 +76,42 @@ func Barra(datos []byte, now time.Time, modo string, ancho int) string {
 	if t := tramo("semana", in.RateLimits.SevenDay, now, true); t != "" {
 		lista = append(lista, t)
 	}
-	return componer(unir(" · ", in.Model.DisplayName, nombresModo[modo]), lista, ancho)
+	var izquierda []string
+	for _, l := range []string{unir(" · ", in.Model.DisplayName, nombresModo[modo]), carpeta(in)} {
+		if l != "" {
+			izquierda = append(izquierda, l)
+		}
+	}
+	return componer(izquierda, lista, ancho)
 }
 
-// componer pone la izquierda y el primero de la lista en la misma línea si caben; el resto, uno por línea a la derecha.
-func componer(izquierda string, lista []string, ancho int) string {
+// carpeta es «📂 <nombre>» de la carpeta del proyecto (o la actual, o el cwd); nunca la ruta completa (FND-090).
+func carpeta(in entrada) string {
+	for _, d := range []string{in.Workspace.ProjectDir, in.Workspace.CurrentDir, in.Cwd} {
+		if d = strings.TrimRight(filepath.ToSlash(d), "/"); d != "" {
+			return "📂 " + d[strings.LastIndex(d, "/")+1:]
+		}
+	}
+	return ""
+}
+
+// componer va línea por línea: la siguiente de la izquierda con la siguiente de la lista, si caben juntas; si no, la
+// de la izquierda sola. Lo que queda de la lista va uno por línea a la derecha.
+func componer(izquierda []string, lista []string, ancho int) string {
 	var lineas []string
-	if len(lista) > 0 && cabe(izquierda, lista[0], ancho) {
-		lineas = append(lineas, juntar(izquierda, lista[0], ancho))
-		izquierda, lista = "", lista[1:]
-	}
-	if izquierda != "" {
-		lineas = append(lineas, izquierda)
-	}
-	for _, l := range lista {
-		lineas = append(lineas, aLaDerecha(l, ancho))
+	for len(izquierda) > 0 || len(lista) > 0 {
+		if len(izquierda) > 0 && len(lista) > 0 && cabe(izquierda[0], lista[0], ancho) {
+			lineas = append(lineas, juntar(izquierda[0], lista[0], ancho))
+			izquierda, lista = izquierda[1:], lista[1:]
+			continue
+		}
+		if len(izquierda) > 0 {
+			lineas = append(lineas, izquierda[0])
+			izquierda = izquierda[1:]
+			continue
+		}
+		lineas = append(lineas, aLaDerecha(lista[0], ancho))
+		lista = lista[1:]
 	}
 	return strings.Join(lineas, "\n")
 }
@@ -98,8 +120,9 @@ func util(ancho int) int {
 	return ancho - MargenBarra
 }
 
+// largo son las columnas que ocupa s: 📂 ocupa 2.
 func largo(s string) int {
-	return utf8.RuneCountInString(s)
+	return utf8.RuneCountInString(s) + strings.Count(s, "📂")
 }
 
 func cabe(izquierda, derecha string, ancho int) bool {

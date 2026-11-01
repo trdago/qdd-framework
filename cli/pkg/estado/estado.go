@@ -17,8 +17,12 @@ import (
 // Ruta del archivo de estado, relativa a la raíz del proyecto.
 const Ruta = ".qdd/project/estado.yaml"
 
-// Formato vigente del archivo.
-const Formato = 1
+// Formato del archivo: 1 es la tabla plana; 2 suma objetivos y dependencias (lo escribe Save solo si los hay, para que
+// un qdd anterior lea igual un tablero plano y rechace uno que no sabría guardar sin perderlos).
+const (
+	Formato             = 1
+	FormatoConObjetivos = 2
+)
 
 // Estados cerrados de una celda. SinEmpezar es una etapa que todavía no se toca; NoAplica, una que esta tarea no
 // necesita (FND-085).
@@ -58,6 +62,8 @@ type Frente struct {
 	Estado       string           `yaml:"estado"`
 	CerradoEl    string           `yaml:"cerrado_el,omitempty"`
 	MotivoCierre string           `yaml:"motivo_cierre,omitempty"`
+	Objetivo     string           `yaml:"objetivo,omitempty"`
+	DependeDe    []string         `yaml:"depende_de,omitempty"`
 	Celdas       map[string]Celda `yaml:"celdas"`
 }
 
@@ -65,8 +71,9 @@ type Frente struct {
 type Estado struct {
 	Formato     int      `yaml:"formato"`
 	Etapas      []string `yaml:"etapas"`
-	Actualizado string   `yaml:"actualizado,omitempty"`
-	Frentes     []Frente `yaml:"frentes"`
+	Actualizado string     `yaml:"actualizado,omitempty"`
+	Objetivos   []Objetivo `yaml:"objetivos,omitempty"`
+	Frentes     []Frente   `yaml:"frentes"`
 }
 
 // NormalizarEstado acepta el emoji o un alias escribible (ok, espera, falla, na, sin-empezar) y devuelve el estado cerrado; "" si no
@@ -94,8 +101,8 @@ func Parse(data []byte) (Estado, error) {
 	if err := yaml.Unmarshal(data, &e); err != nil {
 		return Estado{}, fmt.Errorf("estado.yaml ilegible: %w", err)
 	}
-	if e.Formato != Formato {
-		return Estado{}, fmt.Errorf("estado.yaml: formato %d no soportado (se espera %d)", e.Formato, Formato)
+	if e.Formato != Formato && e.Formato != FormatoConObjetivos {
+		return Estado{}, fmt.Errorf("estado.yaml: formato %d no soportado (se espera %d o %d; uno más nuevo pide actualizar qdd)", e.Formato, Formato, FormatoConObjetivos)
 	}
 	return e, nil
 }
@@ -111,6 +118,10 @@ func Load(root string) (Estado, error) {
 
 // Save escribe el archivo de forma atómica (temporal + rename): nunca queda a medias.
 func Save(root string, e Estado) error {
+	e.Formato = Formato
+	if e.usaFormato2() {
+		e.Formato = FormatoConObjetivos
+	}
 	data, err := yaml.Marshal(e)
 	if err != nil {
 		return err

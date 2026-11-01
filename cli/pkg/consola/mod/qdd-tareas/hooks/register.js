@@ -256,7 +256,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
     columnGap: 2,
     children: [
       Box({ flexShrink: 0, children: [Text({ key: 'titulo', color: 'cyan', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] })] }),
-      Box({ flexDirection: 'row', flexShrink: 1, columnGap: 2, children: [...carpeta, Button({ key: 'config', label: '⚙ Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) })] }),
+      Box({ flexDirection: 'row', flexShrink: 1, columnGap: 2, children: [...carpeta, Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }), Button({ key: 'config', label: '⚙ Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) })] }),
     ],
   })
   if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila] })
@@ -293,9 +293,15 @@ function cabecera(Box, Text, Button, $, e, lista) {
 // tabla: una fila por tarea con sus etapas y, al final, la ✕ que la descarta (pide «s  Sí»: escribe en estado.yaml).
 // Cada etapa ⏳ o ❌ que qdd ofrece atender es un botón: le envía a la IA el mensaje de qdd para que se pronuncie.
 // La ✕ y las etapas se pulsan con el mouse; las tareas más antiguas que no entran se cuentan debajo.
+// Árbol (blueprint estado-por-tareas, objetivos y dependencias): qdd entrega las filas en orden, cada una con su
+// prefijo («│  └─ »), su objetivo y a quién espera; el panel pone la cabecera de cada objetivo (el foco primero) y
+// deja las etapas en columnas a la derecha. Pinchar el nombre de una tarea o de un objetivo le envía a la IA la
+// pregunta que trae qdd («¿Cómo vamos con…?»).
 function tabla(Box, Text, Button, $, e, lista, ancho) {
   const columnas = 3 * e.etapas.length + 2
-  const largo = Math.max('Tarea'.length, ...e.frentes.map((f) => f.nombre.length))
+  const etiqueta = (f) => (f.prefijo || '') + f.nombre + (f.notas?.length ? ' · ' + f.notas.join(' · ') : '')
+  const objetivos = e.objetivos || []
+  const largo = Math.max('Tarea'.length, ...e.frentes.map((f) => etiqueta(f).length), ...objetivos.map((o) => o.nombre.length + 10))
   const nombreAncho = Math.max(8, Math.min(largo, ancho - columnas - 3))
   const fila = (key, nombre, derecha, estilo, cierre) =>
     Box({
@@ -303,7 +309,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       flexDirection: 'row',
       columnGap: 1,
       children: [
-        Box({ width: nombreAncho, children: [Text({ ...estilo, wrap: 'truncate-end', children: [nombre] })] }),
+        Box({ width: nombreAncho, children: [nombre === null ? Text({ children: [''] }) : typeof nombre === 'string' ? Text({ ...estilo, wrap: 'truncate-end', children: [nombre] }) : nombre] }),
         ...derecha,
         ...cierre,
       ],
@@ -318,6 +324,39 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     const a = lista.find((x) => x.id === 'descartar:' + f.id)
     return a ? [Button({ key: 'x-' + f.id, label: '✕', plain: true, dimColor: true, onPress: () => pedir($, a) })] : []
   }
+  // nombreDe: el prefijo atenuado, el nombre con su color y a quién espera; con pregunta de qdd, todo es un botón.
+  const nombreDe = (f) => {
+    const partes = [
+      ...(f.prefijo ? [Text({ key: 'pre', dimColor: true, children: [f.prefijo] })] : []),
+      Text({ key: 'nom', color: colorFrente(f), children: [f.nombre] }),
+      ...(f.notas?.length ? [Text({ key: 'notas', color: 'yellow', dimColor: true, children: [' · ' + f.notas.join(' · ')] })] : []),
+    ]
+    if (!f.pregunta) return f.prefijo || f.notas?.length ? Text({ wrap: 'truncate-end', children: partes }) : f.nombre
+    return Button({ key: 'n-' + f.id, plain: true, onPress: () => preguntar($, f.pregunta), children: partes })
+  }
+  const filaTarea = (f) => fila('f-' + f.id, nombreDe(f), etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])
+  const cabeceraObjetivo = (o) =>
+    Box({
+      key: 'o-' + o.id,
+      flexDirection: 'row',
+      columnGap: 1,
+      marginTop: 1,
+      children: [
+        Button({ key: 'o-' + o.id + '-nombre', plain: true, onPress: () => preguntar($, o.pregunta), children: [Text({ key: 'o', weight: 'bold', color: o.foco ? ACENTO : undefined, children: ['🎯 ' + o.nombre + (o.foco ? ' · foco' : '')] })] }),
+        Text({ key: 'o-estado', dimColor: true, wrap: 'truncate-end', children: [o.simbolo + ' ' + o.resumen] }),
+      ],
+    })
+  const filas = []
+  if (objetivos.length === 0) filas.push(...e.frentes.map(filaTarea))
+  for (const o of objetivos) {
+    filas.push(cabeceraObjetivo(o))
+    filas.push(...e.frentes.filter((f) => f.objetivo === o.id).map(filaTarea))
+  }
+  const sueltas = objetivos.length ? e.frentes.filter((f) => !f.objetivo) : []
+  if (sueltas.length) {
+    filas.push(Box({ key: 'o-sin', marginTop: 1, children: [Text({ dimColor: true, weight: 'bold', children: ['🎯 sin objetivo'] })] }))
+    filas.push(...sueltas.map(filaTarea))
+  }
   const leyenda = e.etapas.map((etapa, i) => e.abreviaturas[i] + ' ' + etapa).join(' · ')
   const antiguas = e.ocultos > 0 ? [Text({ key: 'ocultas', dimColor: true, size: 'caption', children: ['+' + e.ocultos + ' más antiguas · qdd estado ver'] })] : []
   return Box({
@@ -326,12 +365,27 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     marginTop: 1,
     children: [
       fila('cab', 'Tarea', [Text({ dimColor: true, size: 'caption', children: [e.abreviaturas.join(' ')] })], { dimColor: true, size: 'caption' }, []),
-      ...e.frentes.map((f) => fila('f-' + f.id, f.nombre, etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])),
+      ...filas,
       ...antiguas,
       Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [leyenda] }),
       ...enZona(Box, Text, Button, $, 'tabla'),
     ],
   })
+}
+
+// preguntar envía a la conversación la pregunta que qdd da para una tarea u objetivo: la IA responde avance, bloqueos
+// y siguiente paso, y actualiza el estado con evidencia.
+function preguntar($, texto) {
+  if (!texto) return
+  resultado = { titulo: '¿Cómo vamos?', ok: true, texto: '→ enviado a la IA', zona: 'tabla' }
+  $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  $.ui.invalidate('ui.render')
+}
+
+// releer: «l ↻» vuelve a leer el tablero en el acto, sin esperar a la próxima lectura.
+async function releer($) {
+  await leer($)
+  $.ui.invalidate('ui.render')
 }
 
 // fallas: cada etapa en ❌ como «• tarea › etapa» y debajo, atenuado, qué falla.
@@ -608,7 +662,7 @@ function acciones(Box, Text, Button, $, todas, ancho) {
 
 // pie: cómo se usa y la versión de qdd, en una línea atenuada.
 function pie(Text, version) {
-  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['⏳/❌ clic → la IA lo atiende · botones: clic o tecla · foco: /tareas' + (version ? ' · ' + version : '')] })
+  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['nombre → ¿cómo vamos? · ⏳/❌ clic → la IA lo atiende · l ↻ · botones: clic o tecla · foco: /tareas' + (version ? ' · ' + version : '')] })
 }
 
 function sinEstado(Box, Text, motivo) {

@@ -122,11 +122,11 @@ func TestBarraConRecursos_SegundaLinea(t *testing.T) {
 	s := sensores{disco: func(string) (float64, bool) { return 70, true }, ram: func() (float64, bool) { return 38, true }}
 	got := barraCon([]byte(in), time.Now(), "", 40, &s, filepath.Join(dir, "r.json"))
 	lineas := strings.Split(got, "\n")
-	if len(lineas) != 2 || strings.TrimLeft(lineas[1], " "+Relleno) != "D 70% · R 38%" || utf8.RuneCountInString(lineas[1]) != 40-MargenBarra || lineas[0] != "Opus 5.5" {
+	if len(lineas) != 3 || strings.TrimLeft(lineas[2], " "+Relleno) != "D 70% · R 38%" || utf8.RuneCountInString(lineas[2]) != 40-MargenBarra || lineas[0] != "Opus 5.5" || lineas[1] != "📂 "+filepath.Base(dir) {
 		t.Fatalf("barra con recursos: la línea va abajo, pegada a la derecha: %q", got)
 	}
-	if got := barraCon([]byte(in), time.Now(), "", 40, nil, ""); strings.Contains(got, "\n") {
-		t.Fatalf("sin recursos la barra es de una línea: %q", got)
+	if got := barraCon([]byte(in), time.Now(), "", 40, nil, ""); strings.Count(got, "\n") != 1 {
+		t.Fatalf("sin recursos la barra es el modelo y la carpeta: %q", got)
 	}
 }
 

@@ -6,6 +6,22 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🎯 Objetivos, dependencias y árbol en el tablero
+
+- **Objetivos** (`qdd estado objetivo`): cada objetivo dice para qué se hacen sus tareas y cuándo se cumple (su criterio de éxito).
+  - A lo más uno abierto es el **foco** y se muestra primero.
+  - Se cumple solo con evidencia de su criterio; con todas sus tareas terminadas dice «tareas listas, falta verificar el criterio».
+  - Se cierra cumplido o descartado, con su motivo, y nunca desaparece en silencio.
+  - Una tarea puede no tener objetivo: se ve al final, bajo «sin objetivo».
+- **Dependencias** (`qdd estado tarea --depende-de`): una tarea no termina antes que las tareas de las que depende. Su última etapa no pasa a ✅ y la tabla dice «(espera a X)». No se admiten ciclos.
+- **El tablero es un árbol:** objetivo → tareas → dependientes, con las etapas en columnas a la derecha.
+  - qdd entrega el árbol resuelto en el JSON del panel (prefijos, notas «espera a X», el estado de cada objetivo).
+  - La tabla de la respuesta lleva una fila 🎯 por objetivo antes de sus tareas.
+- **Pinchar el nombre** de una tarea o de un objetivo en el panel le pregunta a la IA «¿Cómo vamos con…?»: avance, bloqueos y siguiente paso. `l ↻` vuelve a leer el tablero.
+- **La barra muestra la carpeta del proyecto** (solo su nombre, «📂 qdd») debajo del modelo, a la izquierda.
+- El archivo pasa a `formato: 2` solo si usa objetivos o dependencias. Un qdd anterior lo rechaza en vez de perderlos al escribir; un tablero plano sigue en formato 1.
+- El repositorio de qdd aplica `estado-por-tareas` 2.0.0, con objetivos, `Producción` como la etapa que requiere aprobación y vida de 120 s. Este qdd declara que implementa la 2.0.0. Un ❌ sin nombrar su falla se informa como EPF-C09, su escenario propio.
+
 ### 🛰️ Las fallas de QDD se publican solas como issue (incidentes)
 
 - **`qdd incidentes`**: un pánico de la CLI o de una tool MCP y cada autorreparación de `qdd doctor --fix` sobre datos que QDD escribió quedan en un registro local y se publican solos, en segundo plano, como issue del repositorio de QDD.

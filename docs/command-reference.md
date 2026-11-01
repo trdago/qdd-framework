@@ -107,6 +107,8 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd estado ver` | Imprime la tabla. **Seguro.** |
 | `qdd estado set <frente> <etapa> <estado>` | Crea o actualiza una celda y valida antes de escribir: un ✅ lleva evidencia (commit, versión, n/n pruebas), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. |
 | `qdd estado cerrar <frente>` | Cierra (o descarta) un frente con su motivo. Un frente nunca se borra en silencio. |
+| `qdd estado objetivo <id> [--nombre …] [--criterio …] [--foco]` | Crea o cambia un objetivo: para qué se hacen sus tareas y cuándo se cumple. A lo más uno abierto es el foco. Con `--evidencia` se cumple (terminar sus tareas no basta), con `--descartado --motivo` se descarta y con `--reabrir` vuelve a abrirse; nunca desaparece en silencio. |
+| `qdd estado tarea <id> [--objetivo id] [--depende-de a,b]` | Cambia a qué objetivo sirve una tarea y de cuáles depende (`""` lo deja vacío); la crea si no existe. Una tarea no termina antes que sus dependencias: su última etapa no pasa a ✅ mientras una no termine. |
 | `qdd estado check [--respuesta r.md] [--json]` | Lector automático de los escenarios EPF-C01…C07 (y, con `--respuesta`, EPF-A01 y EPF-C08: lo que el texto afirma con «<tarea> · <etapa>: <estado>» es lo de la tabla); compara contra git HEAD para detectar frentes que desaparecen. Sale con 1 si hay violaciones. **Seguro.** |
 | `qdd estado watch` | Panel en vivo en la terminal, con la tabla, lo que espera cada ⏳ y las fallas (`q` o Ctrl-C para salir). **Seguro.** |
 | `qdd estado activa <tarea> [--fin] [--quien texto]` | Declara la tarea en curso (el panel la marca «● running»); con `--fin` la apaga. Se apaga sola a los 120 s sin pulsos. (qdd 2.7.0) |

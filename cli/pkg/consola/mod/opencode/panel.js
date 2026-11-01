@@ -42,6 +42,34 @@ export function cuantas(e) {
 // AVISO_VIEJO: qdd marca viejo un tablero con tareas pendientes que nadie tocó en horas (FND-088).
 const AVISO_VIEJO = (hace) => '⚠ Sin actualizar ' + hace + ': lo que dice ⏳ puede haber cambiado'
 
+// fila es una tarea: el prefijo del árbol y a quién espera van en el nombre (blueprint estado-por-tareas, EPT-A02).
+function fila(f) {
+  return {
+    id: f.id,
+    nombre: (f.prefijo || '') + f.nombre + (f.notas?.length ? ' · ' + f.notas.join(' · ') : ''),
+    celdas: celdas(f.simbolos),
+    tono: tono(f.simbolos),
+    running: !!f.actividad?.running,
+    pulso: f.actividad?.pulso || '',
+  }
+}
+
+// arbol: con objetivos, cada uno es una fila de cabecera (el foco primero, como los entrega qdd) antes de sus tareas, y
+// las tareas sin objetivo van al final bajo «🎯 sin objetivo». Sin objetivos, las tareas tal cual.
+export function arbol(e) {
+  const objetivos = e.objetivos || []
+  if (objetivos.length === 0) return e.frentes.map(fila)
+  const cabecera = (id, nombre, celdasTexto) => ({ id: 'objetivo:' + id, nombre, celdas: celdasTexto, tono: 'primary', running: false, pulso: '', objetivo: true })
+  const filas = []
+  for (const o of objetivos) {
+    filas.push(cabecera(o.id, '🎯 ' + o.nombre + (o.foco ? ' · foco' : ''), o.simbolo + ' ' + o.resumen))
+    filas.push(...e.frentes.filter((f) => f.objetivo === o.id).map(fila))
+  }
+  const sueltas = e.frentes.filter((f) => !f.objetivo)
+  if (sueltas.length) filas.push(cabecera('', '🎯 sin objetivo', ''), ...sueltas.map(fila))
+  return filas
+}
+
 // vista arma lo que se dibuja; con datos nulos, el motivo (sin qdd, qdd antiguo o sin estado.yaml).
 export function vista(datos, falla) {
   if (!datos) return { motivo: falla || 'sin datos de qdd todavía' }
@@ -60,14 +88,7 @@ export function vista(datos, falla) {
       ...(paraTi(datos.acciones) > 0 ? [{ texto: '▶ ' + paraTi(datos.acciones) + ' para ti', tono: 'warning' }] : []),
     ],
     cabecera: e.abreviaturas.join(' '),
-    filas: e.frentes.map((f) => ({
-      id: f.id,
-      nombre: f.nombre,
-      celdas: celdas(f.simbolos),
-      tono: tono(f.simbolos),
-      running: !!f.actividad?.running,
-      pulso: f.actividad?.pulso || '',
-    })),
+    filas: arbol(e),
     actual: e.actual || '',
     ocultas: e.ocultos || 0,
     fallas: e.fallas.map((p) => ({ titulo: p.frente + ' › ' + p.etapa, texto: p.texto })),

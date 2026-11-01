@@ -55,21 +55,19 @@ func TestBarra_ModeloYModoALaIzquierdaUsosEnListaALaDerecha_CCC_C01(t *testing.T
 	if !strings.HasPrefix(got[0], "Opus 5.5 · auto ") || !strings.HasSuffix(got[0], " contexto 38%") {
 		t.Fatalf("modelo y modo a la izquierda, contexto a la derecha: %q", got[0])
 	}
-	if derecha(t, got[1], 70) != "5h 12% ↻ 18:30" {
-		t.Fatalf("5 h debajo, a la derecha: %q", got[1])
+	if largo(got[1]) != 70-MargenBarra || !strings.HasPrefix(got[1], "📂 notificador ") || !strings.HasSuffix(got[1], " 5h 12% ↻ 18:30") {
+		t.Fatalf("la carpeta debajo del modelo, 5 h a la derecha: %q", got[1])
 	}
 	if want := "semana 40% ↻ " + dias[sabado.Weekday()] + " " + sabado.Format("15:04"); derecha(t, got[2], 70) != want {
 		t.Fatalf("semana al final, a la derecha: %q, quiero %q", got[2], want)
 	}
-	for _, l := range got {
-		if strings.Contains(l, "notificador") || strings.Contains(l, "📁") {
-			t.Fatalf("la barra ya no muestra la carpeta: %q", l)
-		}
+	if strings.Contains(strings.Join(got, "\n"), "/home/") {
+		t.Fatalf("de la carpeta, solo su nombre: %q", got)
 	}
 }
 
 func TestBarra_CamposAusentesSeOmiten_CCC_C02(t *testing.T) {
-	if got := Barra([]byte(`{"workspace":{"current_dir":"/x/y/proyecto"},"model":{"display_name":"Sonnet"}}`), ahora, "", 70); got != "Sonnet" {
+	if got := Barra([]byte(`{"workspace":{"current_dir":"/x/y/proyecto"},"model":{"display_name":"Sonnet"}}`), ahora, "", 70); got != "Sonnet\n📂 proyecto" {
 		t.Fatalf("sin modo, contexto ni tramos y sin ceros inventados: %q", got)
 	}
 	if got := Barra([]byte(`no es json`), ahora, "auto", 70); got != "" {
@@ -95,7 +93,8 @@ func TestBarra_ElModoSeNombraEnEspañol_CCC_C01(t *testing.T) {
 	}
 }
 
-func TestBarra_SinCarpetaNiSegmentoDeTareas_CCC_C04(t *testing.T) {
+// Pedido del usuario (2026-11-01): la barra dice en qué proyecto se trabaja, debajo del modelo, a la izquierda.
+func TestBarra_LaCarpetaDelProyectoBajoElModeloSinTareas_CCC_C04(t *testing.T) {
 	dir := t.TempDir()
 	escribirArchivo(t, filepath.Join(dir, ".qdd", "project", "estado.yaml"), `formato: 1
 etapas: [Código]
@@ -103,8 +102,8 @@ frentes:
   - {id: a, nombre: A, estado: abierto, celdas: {Código: {estado: "⏳", bloqueo: b, de_quien: c}}}
 `)
 	got := Barra([]byte(`{"workspace":{"project_dir":`+jsonStr(dir)+`},"model":{"display_name":"Opus"}}`), ahora, "auto", 70)
-	if got != "Opus · auto" {
-		t.Fatalf("ni la carpeta ni «◧ tareas»: el panel ya los muestra: %q", got)
+	if got != "Opus · auto\n📂 "+filepath.Base(dir) {
+		t.Fatalf("la carpeta debajo del modelo, solo su nombre, y sin «◧ tareas» (eso está en el panel): %q", got)
 	}
 }
 
@@ -369,11 +368,11 @@ func TestBarra_ElModoDeLaIAVieneDelUltimoMensaje_CCC_C06(t *testing.T) {
 	}
 	datos := []byte(`{"workspace":{"project_dir":"` + root + `"},"model":{"display_name":"Opus"}}`)
 	luego := ahora.Add(time.Hour)
-	if got := Barra(datos, luego, ModoDeLaBarra(datos, luego), 0); got != "Opus · plan" {
+	if got := Barra(datos, luego, ModoDeLaBarra(datos, luego), 0); got != "Opus · plan\n📂 "+filepath.Base(root) {
 		t.Fatalf("el último mensaje fue en modo plan: %q", got)
 	}
 	tarde := ahora.Add(VidaModo + time.Minute)
-	if got := Barra(datos, tarde, ModoDeLaBarra(datos, tarde), 0); got != "Opus" {
+	if got := Barra(datos, tarde, ModoDeLaBarra(datos, tarde), 0); got != "Opus\n📂 "+filepath.Base(root) {
 		t.Fatalf("sin un modo anotado en las últimas %v, solo el modelo: %q", VidaModo, got)
 	}
 }

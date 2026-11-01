@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { vista, motivoDeSalida, celdas, destellosNuevos, brillo, fuenteDePulso, tocaEnviar, paraTi } from './panel.js'
+import { arbol, vista, motivoDeSalida, celdas, destellosNuevos, brillo, fuenteDePulso, tocaEnviar, paraTi } from './panel.js'
 
 const ESTADO = {
   actualizado: '2026-10-30T02:40:00-03:00',
@@ -95,4 +95,21 @@ test('paraTi no cuenta los pedidos en espera (FND-080)', () => {
     { tipo: 'pedido', estado: 'espera', espera: ['a'] },
   ]
   assert.equal(paraTi(acciones), 1)
+})
+
+test('dibuja el árbol de objetivos igual que Claude Code, en lectura (EPT-A02)', () => {
+  const e = {
+    etapas: ['Código'], abreviaturas: ['Có'], esperas: [], fallas: [],
+    objetivos: [{ id: 'rel', nombre: 'Publicar', foco: true, simbolo: '⏳', resumen: '0/1 tareas listas' }],
+    frentes: [
+      { id: 'a', nombre: 'a', simbolos: ['⏳'], objetivo: 'rel', prefijo: '└─ ' },
+      { id: 'b', nombre: 'b', simbolos: ['·'], prefijo: '└─ ', notas: ['espera a a (otro objetivo)'] },
+    ],
+  }
+  assert.deepEqual(arbol(e).map((f) => [f.nombre, f.celdas]), [
+    ['🎯 Publicar · foco', '⏳ 0/1 tareas listas'],
+    ['└─ a', '⏳'],
+    ['🎯 sin objetivo', ''],
+    ['└─ b · espera a a (otro objetivo)', '·'],
+  ])
 })
