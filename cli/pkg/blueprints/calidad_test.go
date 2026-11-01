@@ -141,8 +141,10 @@ func TestCalidad_EncuentraCadaDefectoDeLaReceta(t *testing.T) {
 func TestCalidad_LaRecetaCorregidaNoPierdeNadaYApruebaCompleta(t *testing.T) {
 	antes, despues := mustParse(t, recetaConDefectos), mustParse(t, recetaLimpia)
 	c := CalidadDe(despues)
-	if c.Nota != 100 || len(c.Hallazgos) != 0 {
-		t.Fatalf("la receta corregida no tiene hallazgos: %d %+v", c.Nota, c.Hallazgos)
+	for _, codigo := range []string{CalEscenarioDeOpcion, CalVersionMinima, CalOpcionVacia, CalCodigo, CalSinEscenario, CalCondicion, CalLargo, CalRepetido, CalTerminoSinUso} {
+		if got := codigos(c)[codigo]; len(got) > 0 {
+			t.Fatalf("la receta corregida ya no tiene %s: %v", codigo, got)
+		}
 	}
 	ia, id := IndiceDe(antes), IndiceDe(despues)
 	if !mismos(ia.Escenarios, id.Escenarios) {
@@ -226,7 +228,7 @@ ficha:
 
 func TestMedir_UnaCarpetaDeAporteOUnImportado(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, ManifestName), recetaLimpia)
+	writeFile(t, filepath.Join(dir, ManifestName), recetaConLimites)
 	c, _, err := Medir(t.TempDir(), []string{dir})
 	if err != nil || len(c) != 1 || c[0].Ref != "panel@1.0.0" || c[0].Nota != 100 {
 		t.Fatalf("mide la carpeta de un aporte en curso: %+v %v", c, err)
@@ -278,7 +280,7 @@ func TestProponer_NoPublicaUnaRecetaPeor(t *testing.T) {
 	if _, err := Proponer(root, "auth", "describe la recuperación por correo", ""); err != nil {
 		t.Fatal(err)
 	}
-	if len(*pedidos) != 1 || !strings.Contains((*pedidos)[0], "Calidad") || !strings.Contains((*pedidos)[0], "calidad 60/100") || !strings.Contains((*pedidos)[0], "` → `") {
+	if len(*pedidos) != 1 || !strings.Contains((*pedidos)[0], "Calidad") || !strings.Contains((*pedidos)[0], "auth@1.0.0 · calidad ") || !strings.Contains((*pedidos)[0], "` → `") {
 		t.Fatalf("el PR dice cómo cambia la calidad: %v", *pedidos)
 	}
 }

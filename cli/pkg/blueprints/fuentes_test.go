@@ -198,7 +198,8 @@ func TestAportar_NewBlueprintGoesToTheChosenSource(t *testing.T) {
 	if ap.Repo != fuente(t, personal) || filepath.Base(ap.Carpeta) != "nuevo" {
 		t.Fatalf("el blueprint nuevo se prepara en la fuente elegida: %+v", ap)
 	}
-	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), strings.Replace(recetaLimpia, "id: panel", "id: nuevo", 1)) // un blueprint nuevo nace sin defectos
+	writeFile(t, filepath.Join(ap.Carpeta, ManifestName), strings.Replace(recetaConLimites, "id: panel", "id: nuevo", 1)) // un blueprint nuevo nace sin defectos
+	certificarParaPrueba(t, ap.Carpeta)
 	if _, err := Proponer(root, "nuevo", "mi estándar", personal); err != nil {
 		t.Fatal(err)
 	}

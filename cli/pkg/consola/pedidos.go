@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/candado"
 	"github.com/qdd-framework/qdd/pkg/estado"
 )
 
@@ -295,21 +296,9 @@ func conCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error
 	return guardarCola(ruta, cola)
 }
 
-// bloquear toma un archivo de bloqueo exclusivo; uno de más de 10 s es de un proceso que murió y se descarta.
+// bloquear toma el bloqueo exclusivo de la cola de pedidos (pkg/candado).
 func bloquear(lock string) (func(), error) {
-	for intento := 0; intento < 200; intento++ {
-		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-		if err == nil {
-			f.Close()
-			return func() { os.Remove(lock) }, nil
-		}
-		if info, errStat := os.Stat(lock); errStat == nil && time.Since(info.ModTime()) > 10*time.Second {
-			os.Remove(lock)
-			continue
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	return nil, fmt.Errorf("la cola de pedidos está ocupada (%s)", lock)
+	return candado.Tomar(lock, 2*time.Second, "la cola de pedidos")
 }
 
 // guardarCola escribe la cola de forma atómica (archivo temporal y rename), privada para el usuario.

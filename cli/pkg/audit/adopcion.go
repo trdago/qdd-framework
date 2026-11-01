@@ -21,7 +21,7 @@ func marcarRecomendaciones(p QDDPolicies, violations []Violation) {
 		return
 	}
 	for i := range violations {
-		violations[i].Recomendacion = reglasDeMadurez[violations[i].RuleID]
+		violations[i].Recomendacion = violations[i].Recomendacion || reglasDeMadurez[violations[i].RuleID]
 	}
 }
 

@@ -167,7 +167,7 @@ test('el resumen usa los totales de qdd, los mismos que la barra, y «·» es si
 // Pedido del usuario (2026-10-31): al pulsar una etapa ⏳ o ❌, la IA se pronuncia: intenta completarla y, si falta
 // algo, deja un pedido o pregunta. qdd da el mensaje exacto (consola accion atender:<tarea>:<etapa>) y el panel lo
 // envía a la conversación.
-test('pulsar una etapa ⏳ le envía a la IA el mensaje que da qdd para atenderla', async ($, on) => {
+test('pulsar una etapa ⏳ le envía a la IA el mensaje que da qdd para atenderla (CCC-C25)', async ($, on) => {
   const llamadas: string[][] = []
   const enviados: string[] = []
   const atender = { id: 'atender:gemini:3', tipo: 'atender', etiqueta: 'Atender «Validación real» de «Gemini retirado»', detalle: 'Atiende la etapa…', confirmar: false }
@@ -189,7 +189,7 @@ test('pulsar una etapa ⏳ le envía a la IA el mensaje que da qdd para atenderl
   expect(await ui.find({ type: 'Text', text: /→ enviado a la IA/ })).toBeDefined()
 })
 
-test('si qdd ya no ofrece la etapa, no se envía nada y se ve por qué', async ($, on) => {
+test('si qdd ya no ofrece la etapa, no se envía nada y se ve por qué (CCC-C25)', async ($, on) => {
   const enviados: string[] = []
   const atender = { id: 'atender:gemini:3', tipo: 'atender', etiqueta: 'Atender «Validación real» de «Gemini retirado»', detalle: '…', confirmar: false }
   preparar(on, ok({ ...PANEL, acciones: [atender] }), [], { exitCode: 1, stdout: '', stderr: "[!] la acción 'atender:gemini:3' no está entre las que ofrece" })
@@ -608,7 +608,7 @@ test('si al ejecutarlo sale «todavía no» (código 75), el panel no lo marca c
   expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
 })
 
-test('un tipo de acción que el panel no conoce no sale como botón «undefined»; pide a qdd solo lo que dibuja (FND-092)', async ($, on) => {
+test('un tipo de acción que el panel no conoce no sale como botón «undefined»; pide a qdd solo lo que dibuja (FND-092, CCC-C26)', async ($, on) => {
   const llamadas: string[][] = []
   const raras = [
     { id: 'nuevo:1', tipo: 'nuevo', etiqueta: 'Algo nuevo', detalle: 'x', confirmar: false },
@@ -625,7 +625,7 @@ test('un tipo de acción que el panel no conoce no sale como botón «undefined�
   expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender'])
 })
 
-test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND-092)', async ($, on) => {
+test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND-092, CCC-C26)', async ($, on) => {
   const llamadas: string[][] = []
   mock.clock(on)
   mock.env(on, {})

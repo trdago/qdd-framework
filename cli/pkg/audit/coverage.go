@@ -13,14 +13,30 @@ import (
 
 // testCommand es un comando de pruebas que QDD ejecuta como parte del gate.
 type testCommand struct {
-	Label string // lo que se muestra al usuario, p. ej. "go test ./..."
-	Dir   string // carpeta donde se ejecuta
-	Args  []string
-	Env   []string // variables extra (ver sinCacheEnElProyecto)
+	Label    string // lo que se muestra al usuario, p. ej. "go test ./..."
+	Dir      string // carpeta donde se ejecuta
+	Args     []string
+	Env      []string // variables extra (ver sinCacheEnElProyecto)
+	Requiere []string // programas que la suite necesita; sin ellos queda sin medir
 }
 
 type qddTestConfig struct {
-	TestCommands []string `yaml:"test_commands"`
+	TestCommands []comandoDePrueba `yaml:"test_commands"`
+}
+
+// comandoDePrueba es un texto o {comando, requiere: [programas]} en test_commands.
+type comandoDePrueba struct {
+	Comando  string   `yaml:"comando"`
+	Requiere []string `yaml:"requiere"`
+}
+
+func (c *comandoDePrueba) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		c.Comando = node.Value
+		return nil
+	}
+	type plano comandoDePrueba
+	return node.Decode((*plano)(c))
 }
 
 // resolveTestCommands decide qué pruebas corre el gate. Si el proyecto declara
@@ -61,12 +77,12 @@ func declaredTestCommands(cwd string) []testCommand {
 		return nil
 	}
 	var cmds []testCommand
-	for _, c := range cfg.TestCommands {
-		c = strings.TrimSpace(c)
+	for _, tc := range cfg.TestCommands {
+		c := strings.TrimSpace(tc.Comando)
 		if c == "" {
 			continue
 		}
-		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}})
+		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}, Requiere: tc.Requiere})
 	}
 	return cmds
 }
@@ -288,6 +304,16 @@ func RunCoverageCheck(cwd string) []Violation {
 	}
 
 	for _, tc := range cmds {
+		if falta := programasQueFaltan(tc.Requiere); len(falta) > 0 {
+			fmt.Fprintf(os.Stderr, "[QA] SIN MEDIR: %s (falta %s)\n", tc.Label, strings.Join(falta, ", "))
+			violations = append(violations, Violation{
+				Category:      "COVERAGE",
+				RuleID:        "QA-03-SIN-MEDIR",
+				Description:   fmt.Sprintf("No se corrió la suite '%s': falta %s en esta máquina. Queda sin medir (ni aprobada ni fallida); córrela donde esté.", tc.Label, strings.Join(falta, ", ")),
+				Recomendacion: true,
+			})
+			continue
+		}
 		fmt.Fprintf(os.Stderr, "[QA] Ejecutando pruebas: %s (en %s)\n", tc.Label, tc.Dir)
 		if salida, err := runTestCommand(tc); err != nil {
 			fmt.Fprintf(os.Stderr, "[QA] FALLÓ: %s\n", tc.Label)
@@ -320,6 +346,17 @@ func RunCoverageCheck(cwd string) []Violation {
 	}
 
 	return violations
+}
+
+// programasQueFaltan devuelve los programas requeridos que no están en el PATH.
+func programasQueFaltan(requiere []string) []string {
+	var falta []string
+	for _, p := range requiere {
+		if _, err := exec.LookPath(p); err != nil {
+			falta = append(falta, p)
+		}
+	}
+	return falta
 }
 
 func pathExists(path string) bool {

@@ -1,0 +1,9 @@
+id: "FND-098"
+title: "La certificación ciega confundía ids de escenarios"
+description: "Al escribir qdd blueprint conformance (2026-10-31), la prueba de regresión mostró que escenariosSinPrueba buscaba cada id con strings.Contains sobre todo lo construido: «P-020» contaba como prueba de P-02, y un nombre de prueba como test_P_01 (Python, Go y otros no admiten «-» en un nombre) no contaba para P-01."
+impact: "Una variante podía certificarse sin la prueba de un escenario si otro id lo contenía, y un constructor que seguía la convención de su lenguaje quedaba obligado a repetir el id con guion en un comentario."
+action_taken: "nombraEscenario busca el id entero (sin letras ni dígitos pegados) con «-» o «_»; lo usan la certificación ciega y qdd blueprint conformance."
+test_result: "TestCertificar_UnIdLargoNoEsLaPruebaDeOtroYUnNombreConGuionBajoSi y TestConformidad_CadaEscenarioDeLaVarianteTieneSuPrueba (pkg/blueprints)."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

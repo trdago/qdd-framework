@@ -24,9 +24,9 @@ func registerBlueprintTools(s *server.MCPServer) {
 	RegisterToolWithTelemetry(s, add, handleBlueprintAddTool)
 
 	list := mcp.NewTool("qdd_blueprint_list",
-		mcp.WithDescription("Blueprints del proyecto, una línea c/u (❓preguntas 🔒invariantes ✓escenarios); detalle por sección a pedido. Antes de construir un módulo que uno define: manda sobre tus preferencias."),
+		mcp.WithDescription("Blueprints del proyecto, una línea c/u; detalle por sección a pedido. Antes de construir un módulo que uno define: manda sobre tus preferencias."),
 		mcp.WithString("blueprint", mcp.Description("Id: su índice en JSON.")),
-		mcp.WithString("seccion", mcp.Description("Con blueprint: preguntas|invariantes|decisiones|escenarios|vocabulario|todo. calidad (con o sin blueprint): mide la receta, ⚠ defectos y ✂ lo que se acorta sin perder nada.")),
+		mcp.WithString("seccion", mcp.Description("Con blueprint: alcance|pasos|parametros|preguntas|invariantes|decisiones|escenarios|vocabulario|todo. calidad (con o sin blueprint): ⚠ defectos, ✂ qué acortar.")),
 	)
 	RegisterToolWithTelemetry(s, list, handleBlueprintListTool)
 
@@ -46,14 +46,16 @@ func registerBlueprintTools(s *server.MCPServer) {
 	RegisterToolWithTelemetry(s, sync, handleBlueprintSyncTool)
 
 	contribute := mcp.NewTool("qdd_blueprint_contribute",
-		mcp.WithDescription("Prepara un cambio a un blueprint (o uno nuevo) en la carpeta central de QDD, nunca en el proyecto: da la carpeta, la rama aporte/<id> y la línea de cada sección. Úsala si el humano quiere mejorar un estándar o BP-05-LEGACY lo pide."),
+		mcp.WithDescription("Crea o cambia un blueprint en la carpeta central de QDD (nunca en el proyecto): carpeta, rama aporte/<id>, calidad y qué preguntarle a la persona. Si el humano quiere mejorar un estándar o BP-05-LEGACY lo pide."),
 		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id a cambiar o crear.")),
 		mcp.WithString("origen", mcp.Description("Fuente de un blueprint NUEVO, SOLO si el humano la indicó. Uno importado va a su propia fuente.")),
+		mcp.WithString("modulo", mcp.Description("Destila uno NUEVO desde la ficha aprobada de este módulo.")),
+		mcp.WithString("certificar", mcp.Description("Antes de propose. preparar: una carpeta por variante, solo con la receta, para un agente NUEVO; verificar: prueba cada escenario.")),
 	)
 	RegisterToolWithTelemetry(s, contribute, handleBlueprintContributeTool)
 
 	propose := mcp.NewTool("qdd_blueprint_propose",
-		mcp.WithDescription("Publica el aporte como PR a la fuente del blueprint: QDD valida, calcula el semver y fija la versión (no la elijas tú). Publica fuera del proyecto: SOLO con confirmación explícita del humano."),
+		mcp.WithDescription("Publica el aporte como PR a su fuente: QDD valida, exige la certificación y fija el semver (no lo elijas tú). Sale del proyecto: SOLO con confirmación explícita del humano."),
 		mcp.WithString("blueprint", mcp.Required(), mcp.Description("Id del blueprint.")),
 		mcp.WithString("mensaje", mcp.Required(), mcp.Description("Qué cambia y por qué (commit y PR).")),
 		mcp.WithString("origen", mcp.Description("La misma de qdd_blueprint_contribute (blueprint nuevo).")),
@@ -92,15 +94,41 @@ func handleBlueprintSyncTool(ctx context.Context, request mcp.CallToolRequest) (
 
 func handleBlueprintContributeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	id := strings.TrimSpace(stringArg(request, "blueprint"))
+	if modo := strings.TrimSpace(stringArg(request, "certificar")); modo != "" {
+		return handleBlueprintCertify(id, modo)
+	}
+	if modulo := strings.TrimSpace(stringArg(request, "modulo")); modulo != "" {
+		d, err := blueprints.Destilar(projectRootForMCP(), modulo, id, strings.TrimSpace(stringArg(request, "origen")))
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return mcp.NewToolResultText(textoDeDestilado(d)), nil
+	}
 	ap, err := blueprints.Aportar(projectRootForMCP(), id, strings.TrimSpace(stringArg(request, "origen")))
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
+	}
+	guia := blueprints.ReglasDeReceta + "\n"
+	if b, err := blueprints.ParseDir(ap.Carpeta); err == nil {
+		c := blueprints.CalidadDe(b)
+		guia += "- " + blueprints.LineaCalidad(c) + "\n" + textoDeEntrevista(c) + blueprints.SiguientePaso(c, id) + "\n"
 	}
 	mapa := ""
 	if m := blueprints.MapaDeSecciones(ap.Carpeta); m != "" {
 		mapa = m + " (edita solo la sección que cambias; detalle: qdd_blueprint_list {blueprint, seccion}).\n"
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Aporte listo: rama %s de %s.\nCarpeta: %s\n%sNo cambies 'version:' (la fija QDD). Al terminar, muéstrale el cambio al humano y, con su OK, qdd_blueprint_propose (blueprint=%s).", ap.Rama, ap.Repo, ap.Carpeta, mapa, id)), nil
+	return mcp.NewToolResultText(fmt.Sprintf("Aporte listo: rama %s de %s.\nCarpeta: %s\n%s%sNo cambies 'version:' (la fija QDD). Al terminar, muéstrale el cambio al humano y, con su OK, qdd_blueprint_propose (blueprint=%s).", ap.Rama, ap.Repo, ap.Carpeta, mapa, guia, id)), nil
+}
+
+func handleBlueprintCertify(id, modo string) (*mcp.CallToolResult, error) {
+	if modo != "preparar" && modo != "verificar" {
+		return mcp.NewToolResultError("certificar: preparar o verificar"), nil
+	}
+	texto, _, err := certificar(projectRootForMCP(), id, modo == "verificar")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(texto), nil
 }
 
 func handleBlueprintProposeTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -181,6 +209,9 @@ func handleBlueprintListTool(ctx context.Context, request mcp.CallToolRequest) (
 	}
 	if len(ix) == 0 {
 		s.WriteString("No hay blueprints importados. Se importan con qdd_blueprint_add (o 'qdd blueprint add' en la terminal).\n")
+	}
+	if len(ix) > 0 {
+		s.WriteString("❓preguntas 🔒invariantes ✓escenarios ▶pasos ⚙parámetros de negocio\n")
 	}
 	for _, i := range ix {
 		s.WriteString("- " + blueprints.LineaIndice(i) + "\n")

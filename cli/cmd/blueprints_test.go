@@ -407,3 +407,30 @@ func TestInformeDeCalidad_SinHallazgosNoPideNada(t *testing.T) {
 		t.Fatalf("una receta completa no tiene arreglos: %q", informe)
 	}
 }
+
+func TestBlueprintContributeTool_CertificarSoloPrepararOVerificar(t *testing.T) {
+	chdirToTempRepo(t)
+	res, _ := handleBlueprintContributeTool(context.Background(), toolRequest(map[string]interface{}{"blueprint": "auth", "certificar": "ya"}))
+	if !res.IsError || !strings.Contains(resultText(t, res), "preparar o verificar") {
+		t.Fatalf("certificar es preparar o verificar: %q", resultText(t, res))
+	}
+}
+
+func TestBlueprintListTool_LeyendaEnLaSalidaNoEnLaDescripcion(t *testing.T) {
+	root := chdirToTempRepo(t)
+	importTestBlueprint(t, root)
+	res, _ := handleBlueprintListTool(context.Background(), toolRequest(map[string]interface{}{}))
+	if !strings.Contains(resultText(t, res), "▶pasos ⚙parámetros") {
+		t.Fatalf("la leyenda de los símbolos va con la lista (cuesta solo al pedirla): %q", resultText(t, res))
+	}
+}
+
+func TestTextoDeEntrevista_SoloCuandoHayAlgoQuePreguntar(t *testing.T) {
+	if textoDeEntrevista(blueprints.Calidad{}) != "" {
+		t.Fatal("sin nada que delimitar no hay entrevista")
+	}
+	c := blueprints.Calidad{Hallazgos: []blueprints.HallazgoCalidad{{Codigo: blueprints.CalSinAlcance, Donde: "alcance"}}}
+	if e := textoDeEntrevista(c); !strings.Contains(e, "no lo respondas tú") || !strings.Contains(e, "incluye") {
+		t.Fatalf("la entrevista es de la persona: %q", e)
+	}
+}

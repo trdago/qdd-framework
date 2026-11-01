@@ -111,7 +111,62 @@ func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
 			vs = append(vs, Violacion{ID: "EPF-A01", Frente: etiqueta, Mensaje: "está en la respuesta y no en el archivo"})
 		}
 	}
+	return append(vs, checkAfirmaciones(e, respuesta)...)
+}
+
+// afirmacion es «<tarea> · <etapa>: <estado>» en el texto del reporte (blueprint estado-por-tareas 2.0.0).
+var afirmacion = regexp.MustCompile(`([^·|\n]+?)\s+·\s+([^:·|\n]+?):\s*(\S+)`)
+
+// checkAfirmaciones (EPF-C08): cada estado que el texto afirma, fuera de la tabla, es el de la tabla; una afirmación
+// sobre una tarea o una etapa que no está en ella también la contradice. Lo que no es un estado no es una afirmación.
+func checkAfirmaciones(e Estado, respuesta string) []Violacion {
+	var vs []Violacion
+	for _, linea := range strings.Split(respuesta, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(linea), "|") {
+			continue
+		}
+		for _, m := range afirmacion.FindAllStringSubmatch(linea, -1) {
+			dice := NormalizarEstado(strings.TrimRight(m[3], ".,;"))
+			if dice == "" {
+				continue
+			}
+			vs = append(vs, checkAfirmacion(e, m[1], strings.TrimSpace(m[2]), dice)...)
+		}
+	}
 	return vs
+}
+
+func checkAfirmacion(e Estado, antes, etapa, dice string) []Violacion {
+	f, ok := tareaNombrada(e, antes)
+	if !ok {
+		return []Violacion{{ID: "EPF-C08", Mensaje: fmt.Sprintf("el texto afirma «%s · %s: %s» de una tarea que no está en la tabla", strings.TrimSpace(antes), etapa, dice)}}
+	}
+	for _, et := range e.Etapas {
+		if !strings.EqualFold(et, etapa) {
+			continue
+		}
+		if tabla := NormalizarEstado(f.Celdas[et].Estado); tabla != dice {
+			return []Violacion{{ID: "EPF-C08", Frente: f.ID, Etapa: et, Mensaje: fmt.Sprintf("el texto dice %s y la tabla %s", dice, tabla)}}
+		}
+		return nil
+	}
+	return []Violacion{{ID: "EPF-C08", Frente: f.ID, Etapa: etapa, Mensaje: "el texto afirma el estado de una etapa que no está en la tabla"}}
+}
+
+// tareaNombrada: la tarea cuyo id o nombre termina el texto antes de « · » (el más largo gana).
+func tareaNombrada(e Estado, antes string) (Frente, bool) {
+	texto := strings.ToLower(strings.TrimSpace(antes))
+	var mejor Frente
+	largo := 0
+	for _, f := range e.Frentes {
+		for _, n := range []string{f.ID, f.Nombre} {
+			n = strings.ToLower(strings.TrimSpace(n))
+			if n != "" && strings.HasSuffix(texto, n) && len(n) > largo {
+				mejor, largo = f, len(n)
+			}
+		}
+	}
+	return mejor, largo > 0
 }
 
 func primerEstado(celda string) string {

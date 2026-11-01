@@ -6,6 +6,72 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🧰 Las herramientas del proyecto en el panel (RFC 0011)
+
+- **`qdd herramienta`**: un ejecutable del proyecto (un simulador, un visor de logs, un migrador) queda como pestaña del panel, con sus acciones como botones.
+  - La IA arma una vez su definición con `candidatos`, `ayuda` y `guardar`. QDD la valida, corre su prueba de humo y la versiona en `.qdd/herramientas/<id>.yaml`.
+  - Desde ahí se corre con un clic, sin IA y sin tokens: `correr` la ejecuta sin shell y cada campo llega como un solo argumento.
+  - Los secretos nunca van en la definición: solo el nombre de su variable de entorno. Si falta, dice cuál y no corre.
+- **En el panel de Claude Code**:
+  - **⚙ Config**, a la derecha de la primera fila, lista las herramientas para abrirlas o quitarlas. «+ Agregar herramienta» ofrece los ejecutables que detecta o una ruta escrita a mano, y guía los 5 pasos.
+  - Cada herramienta es su propia pestaña: sus acciones son botones, cada una con sus campos, y ▶ Correr muestra la salida al terminar (una-vez) o mientras corre, hasta ■ Detener (en-vivo).
+- **El gate valida las definiciones** (`HER-01-DEFINICION`) y **`qdd doctor`** dice qué le falta a cada una en esta máquina, con el comando para arreglarlo.
+
+### 🧪 El panel se prueba en el gate y se mide contra su receta
+
+- **Las pruebas del panel corren en `qdd audit`**: las de OpenCode (`node --test`) y las del mod de Claude Code (`claude plugin test`).
+  - Un `test_commands` puede ser `{comando, requiere: [programas]}`. Sin el programa en esta máquina (p. ej. la CLI de Claude en el CI), la suite queda **sin medir** (`QA-03-SIN-MEDIR`): no bloquea y nunca cuenta como aprobada.
+- **`qdd blueprint conformance`**: cada escenario que un módulo debe cumplir tiene una prueba que lleva su id (con «-» o «_»), en los archivos de prueba de su ficha.
+  - Un módulo que aplicó un blueprint se mide con sus respuestas.
+  - Uno que lo implementa como origen (`implementa:` en su ficha) cubre todas las opciones que el blueprint ofrece.
+  - El blueprint sale de lo importado o, si el proyecto no lo importa, de lo publicado.
+  - Una ficha puede dejar un escenario `fuera`, con su motivo (lo hace otro, no este código): no se exige, pero siempre se ve.
+  - En QDD el panel y el estado quedan conformes: estado-por-tareas 23/23 y consola-claude-code 25/25 (CCC-C05 fuera: la compactación la hace Claude Code).
+- **`qdd audit` exige la conformidad** (`BP-08-CONFORMIDAD`): un módulo que aplica o implementa un blueprint no pasa el gate si a un escenario le falta su prueba.
+  - Se mide sin red: el blueprint sale de lo importado o de la última versión de la copia local del repositorio de la organización.
+  - Sin ninguno de los dos (p. ej. en el CI) queda **sin medir** (`BP-08-SIN-MEDIR`): no bloquea y nunca cuenta como cumplida.
+  - Un proyecto que solo usa un blueprint que implementa qdd (`estado-por-tareas`, `consola-claude-code`) no necesita sus pruebas: lo cumple el qdd instalado si lo implementa en la misma versión mayor y no más vieja; si no, el gate dice si actualizar qdd o el blueprint (FND-102).
+  - Una prueba de Go que lleva el id pegado al prefijo (`TestCVA_C01_…`) cuenta para su escenario (FND-103).
+- **`qdd estado check --respuesta` revisa EPF-C08**: lo que el texto afirma con «<tarea> · <etapa>: <estado>» es lo que dice la tabla, y una afirmación sobre una tarea o etapa que no está en ella la contradice.
+- **Arreglos:**
+  - pulsos simultáneos ya no borran la activación de una tarea (FND-097): la actividad, la cola de pedidos y el registro de uso se escriben uno a la vez entre procesos (`pkg/candado`);
+  - la certificación ciega ya no toma «P-020» como prueba de P-02 y acepta `test_P_01` como prueba de P-01 (FND-098);
+  - guardar o aprobar una ficha con un qdd más viejo ya no borra los campos que no conoce (FND-099);
+  - las pruebas llevan el id de su escenario actual: una con el id de otro hacía ver cubierto lo que no lo estaba (FND-100);
+  - en adopción gradual, una recomendación como `QA-03-SIN-MEDIR` ya no vuelve a bloquear el gate (FND-101);
+  - sin llave SSH (p. ej. en el CI), un repositorio de blueprints público se lee por HTTPS: `add`, `sync`, el gate y `doctor` reintentan por la URL HTTPS equivalente, como ya lo hacían `propose` y `release` (FND-104).
+
+## [2.8.0-rc.9] - 2026-10-31 (preview)
+
+Novena **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### 🧪 QDD genera blueprints reproducibles y los certifica a ciegas
+
+- **La receta separa lo técnico de lo de negocio.** Un blueprint declara:
+  - `alcance` (qué incluye y qué queda fuera);
+  - **parámetros** de negocio `{{id}}` (nombres, textos, idioma, umbrales, cantidades), que la persona decide al aplicar, igual que las preguntas, con un valor sugerido;
+  - **constantes** técnicas `{{id}}`, fijas y con su porqué;
+  - **pasos** en orden (acción → resultado, con el escenario que verifica cada uno), que quedan en la ficha como «Paso N · …»;
+  - un parámetro con `si` (como una opción) solo se pregunta con esas respuestas: sin la tarea en curso, nadie pregunta cuánto vive;
+  - una opción puede traer su propio `alcance`: la receta de cada variante lleva solo los límites de sus respuestas;
+  - cada respuesta queda con lo que significa («etapas → software: Código · Pruebas · …»), no solo su valor (FND-095);
+  - `requiere_qdd`: un qdd anterior no aplica a medias una receta que no entiende.
+- **`qdd blueprint distill <modulo> --id <blueprint>`** (o `qdd_blueprint_contribute {modulo}`): QDD destila el borrador desde la ficha aprobada (nunca copia las rutas ni el caso real del proyecto) y entrevista a la persona hasta delimitarlo. Pregunta qué incluye y qué no, si cada valor escrito en una regla es de negocio o técnico, y qué hace cada detalle de la implementación. Los ejemplos entre «» o tras «p. ej.» no cuentan.
+- **`qdd blueprint certify`** (o `qdd_blueprint_contribute {certificar}`):
+  - Prepara, fuera del proyecto, una carpeta por variante (valores sugeridos y otros valores de negocio) con solo `RECETA.md`.
+  - Un agente nuevo, sin el original, la construye en el lenguaje que elija.
+  - `--verificar` corre sus pruebas y exige una por escenario. Así lo técnico se replica al 100 % y lo de negocio se adapta.
+  - Quien construye deja en `construccion.yaml` sus `supuestos`: lo que la receta no decía. La certificación los guarda, el comando los convierte en preguntas para la persona (¿se fija en la receta o queda libre?) y el PR los lista.
+  - Queda `certificacion.yaml`, atada a la huella de la receta, y `propose` la exige para una receta con pasos.
+- **Calidad nueva**:
+  - **defectos:** sin límites (CAL-10), sin pasos (CAL-11), un paso sin escenario (CAL-12), un escenario al que ningún paso lleva (CAL-13), un valor fijo sin clasificar (CAL-14), un detalle de implementación (CAL-15), una receta nueva sin `requiere_qdd` (CAL-17), un `{{id}}` sin valor con alguna combinación de respuestas (CAL-18);
+  - **mejora:** un parámetro o una constante sin uso (CAL-16).
+- **Arreglos de la medición** al migrar estado-por-tareas:
+  - un valor repetido se pregunta una vez;
+  - el vocabulario cuenta como regla, y un valor ya declarado escrito a mano pide «escribe {{id}}»;
+  - cada límite del alcance se mide solo (FND-094).
+- `qdd_blueprint_list` cuenta ▶pasos y ⚙parámetros y da las secciones `alcance`, `pasos` y `parametros`. La leyenda de los símbolos pasó de la descripción de la tool a su salida, y tools/list sigue bajo 16.000 caracteres.
+
 ## [2.8.0-rc.8] - 2026-10-31 (preview)
 
 Octava **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

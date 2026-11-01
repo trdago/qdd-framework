@@ -1,0 +1,9 @@
+id: "FND-095"
+title: "La receta de una variante decía la respuesta elegida pero no lo que significa"
+description: "En la primera certificación ciega real (estado-por-tareas, 2026-10-31) los dos constructores, en Go y en Python, recibieron «etapas → software» y «etapas → modelos» sin las columnas que esa opción define, y las inventaron. componer escribía «id → valor» y dejaba fuera la descripción de la opción; tampoco separaba los límites que solo valen con una opción."
+impact: "Quien construye (o aplica) una receta no sabía qué implica cada respuesta: lo técnico no se replicaba igual, y una variante sin tarea en curso recibía en su alcance la tarea en curso."
+action_taken: "componer escribe «id → valor: descripción»; una opción puede declarar su propio alcance, y la receta de cada variante lleva solo los límites de sus respuestas. La certificación recoge además los supuestos de cada constructor (construccion.yaml) y los devuelve a la persona y al PR."
+test_result: "TestCertificar_LaRecetaDiceQueSignificaCadaRespuesta, TestCertificar_UnLimiteDeUnaOpcionSoloConEsaOpcion y TestCertificar_LoQueQuienConstruyeSupusoVuelveALaPersona (pkg/blueprints)."
+status: resolved
+detectado_por: ia
+date: "2026-10-31"

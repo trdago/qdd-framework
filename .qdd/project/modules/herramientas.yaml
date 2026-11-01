@@ -1,0 +1,36 @@
+id: herramientas
+nombre: Herramientas del proyecto en el panel
+estado: aprobado
+rutas:
+    - cli/pkg/herramientas
+    - cli/cmd/herramienta.go
+    - cli/pkg/audit/herramientas_check.go
+objetivo_operativo:
+    problema: 'Muchos proyectos traen ejecutables para trabajar con ellos (un simulador de lo que manda un usuario por WebSocket, un visor de lo que pasa tras bambalinas, migradores, sembradores). Hoy cada uno se usa a mano en otra terminal: hay que acordarse de que existe, de sus flags y de qué variables necesita.'
+    usuarios: Las personas que trabajan en un proyecto con QDD desde el panel de su consola, y la IA que arma la definición una vez.
+    criterio_de_exito: Un ejecutable del proyecto queda como pestaña del panel con sus acciones como botones; la persona lo corre con un clic, siempre igual, sin IA y sin tokens; todo el equipo ve la misma definición.
+    caso_real: '2026-10-31: el usuario pidió cargar los binarios de un bot (simular lo que manda un usuario por WebSocket, mirar lo que pasa tras bambalinas) como pestañas del panel, con ⚙ Config para agregarlos y quitarlos.'
+objetivo_tecnologico:
+    arquitectura: 'Cada herramienta es .qdd/herramientas/<id>.yaml (versionada): comando (argv base), entorno (solo nombres), acciones (args con {{campo}}, campos texto/numero/opcion/si-no, modo una-vez o en-vivo, confirmar) y prueba de humo. pkg/herramientas la lee, la valida, lista candidatos del proyecto, lee la ayuda de un ejecutable y corre una acción sin shell. qdd herramienta (candidatos, ayuda, guardar, listar, correr, quitar) es lo que usan la IA y el panel; HER-01 la valida en el gate y doctor la diagnostica.'
+    decisiones:
+        - 'Decisiones del usuario (2026-10-31): agregar lista los ejecutables del proyecto y deja escribir una ruta; la interfaz la arma la IA una vez y QDD la guarda; se versiona en el proyecto; Claude Code primero.'
+        - 'Cada {{campo}} es un argumento entero y se corre sin shell: lo escrito nunca se parte ni se interpreta. Un grupo [--chat, "{{chat}}"] va solo si sus campos tienen valor; un si-no solo decide si su grupo va.'
+        - Guardar valida, corre la prueba de humo (10 s, sin entrada) y escribe el archivo tal como vino, con sus comentarios.
+        - 'Sin tool MCP propia: tools/list estaba en 15.997 de 16.000 caracteres. La IA usa la CLI (qdd herramienta ayuda/guardar), que el panel le nombra al pedirle que la configure; no cuesta tokens fijos en cada sesión.'
+        - El gate (HER-01) valida la definición sin correr nada ni exigir el ejecutable, porque el CI puede no compilarlo; eso lo diagnostica doctor.
+        - Una acción con confirmar y quitar piden --si en la CLI; el panel lo pasa después del «¿seguro?» de la persona.
+        - El panel (mod de Claude Code, ficha estado) abre una pestaña por herramienta al empezar la sesión, sin quitarle el foco a la conversación. Agregar le envía a la IA el mensaje de qdd herramienta configurar y sigue qdd herramienta listar hasta que aparece guardada. ■ Detener corta qdd herramienta correr, que detiene el grupo de procesos de la herramienta.
+    invariantes:
+        - Ningún valor de un secreto se guarda en una definición ni se repite en un mensaje; solo el nombre de su variable.
+        - Lo que escribe la persona llega al ejecutable como un argumento, sin shell.
+        - Una definición inválida o cuya prueba de humo no sale con 0 no se guarda.
+        - Una herramienta nunca corre sin un clic de la persona; la IA no la corre desde el panel.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/herramientas/ ./cmd/ -run 'Herramienta|Doctor_LasHerramientas'
+        - cd cli && go test ./pkg/audit/ -run HER
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
+fuentes:
+    - rfcs/0011-herramientas-en-el-panel.md
+ultima_revision: "2026-11-01"
+revisado_en_commit: c45381cffa8b
