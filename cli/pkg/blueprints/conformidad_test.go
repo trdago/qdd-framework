@@ -140,3 +140,101 @@ func TestCheckConformidad_SinElBlueprintEnLaMaquinaNoSeMideNiUsaLaRed_BP08(t *te
 		t.Fatalf("con la copia local del repositorio, se mide contra lo último publicado ahí: %+v %+v", bloquean, sinMedir)
 	}
 }
+
+// conImplementados reemplaza, durante la prueba, lo que este binario declara implementar.
+func conImplementados(t *testing.T, tabla map[string]string) {
+	t.Helper()
+	antes := implementadosPorQDD
+	implementadosPorQDD = tabla
+	t.Cleanup(func() { implementadosPorQDD = antes })
+}
+
+// proyectoQueAplicaAuth importa auth@1.0.0 y lo aplica a un módulo que solo lo usa: en sus rutas no hay pruebas.
+func proyectoQueAplicaAuth(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	m := modules.Module{ID: "tablero", Nombre: "tablero", Rutas: []string{".qdd/project/estado.yaml"},
+		ObjetivoOperativo:   modules.ObjetivoOperativo{Problema: "Entrar.", CriterioDeExito: "Entra."},
+		ObjetivoTecnologico: modules.ObjetivoTecnologico{Arquitectura: "Lo hace qdd."},
+		Pruebas:             modules.Pruebas{Comandos: []string{"qdd estado check"}}}
+	if _, problems := modules.Save(root, m); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if _, err := saveApplication(root, Aplicacion{Blueprint: "auth", Version: "1.0.0", Modulo: "tablero", Respuestas: map[string]string{"identificador": "correo", "recuperacion": "correo"}}); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func TestCheckConformidad_UnBlueprintQueImplementaQDDNoPidePruebasAlProyecto_FND102(t *testing.T) {
+	root := proyectoQueAplicaAuth(t)
+	conImplementados(t, map[string]string{})
+	if bloquean, _ := CheckConformidad(root); len(bloquean) != 1 {
+		t.Fatalf("sin que QDD lo implemente, al módulo le faltan sus pruebas: %+v", bloquean)
+	}
+
+	conImplementados(t, map[string]string{"auth": "1.2.0"})
+	bloquean, sinMedir := CheckConformidad(root)
+	if len(bloquean)+len(sinMedir) != 0 {
+		t.Fatalf("lo implementa el qdd instalado (1.2.0 cubre 1.0.0): no se le piden pruebas al proyecto: %+v %+v", bloquean, sinMedir)
+	}
+	cs, err := Conformar(root)
+	if err != nil || len(cs) != 1 || !strings.HasPrefix(LineaConformidad(cs[0]), "✅") || !strings.Contains(LineaConformidad(cs[0]), "lo implementa qdd (auth@1.2.0)") {
+		t.Fatalf("la conformidad dice que la cumple qdd y en qué versión: %+v %v", cs, err)
+	}
+}
+
+func TestCheckConformidad_UnQDDQueNoCubreLaVersionAplicadaBloquea_FND102(t *testing.T) {
+	root := proyectoQueAplicaAuth(t)
+	for implementa, pista := range map[string]string{"0.9.0": "actualiza qdd", "2.0.0": "qdd blueprint add auth"} {
+		conImplementados(t, map[string]string{"auth": implementa})
+		bloquean, _ := CheckConformidad(root)
+		if len(bloquean) != 1 || bloquean[0].Regla != "BP-08-CONFORMIDAD" || !strings.Contains(bloquean[0].Descripcion, "auth@1.0.0") ||
+			!strings.Contains(bloquean[0].Descripcion, "auth@"+implementa) || !strings.Contains(bloquean[0].Descripcion, pista) {
+			t.Fatalf("qdd implementa auth@%s y el módulo aplica 1.0.0: bloquea y dice qué actualizar (%s): %+v", implementa, pista, bloquean)
+		}
+	}
+}
+
+func TestCheckConformidad_LaImplementacionDeOrigenSiempreSeMideConSusPruebas_FND102(t *testing.T) {
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	writeFile(t, filepath.Join(root, "internal", "acceso", "auth_test.go"), "func TestLogin_AUTH_01(t *testing.T) {}\n")
+	fichaQueImplementa(t, root, "acceso", "auth")
+	conImplementados(t, map[string]string{"auth": "1.0.0"})
+	if bloquean, _ := CheckConformidad(root); len(bloquean) != 1 || !strings.Contains(bloquean[0].Descripcion, "RUT-01") {
+		t.Fatalf("el código que lo implementa (el repositorio de qdd) prueba cada escenario aunque esté en la tabla: %+v", bloquean)
+	}
+}
+
+func TestImplementadosPorQDD_SonLosQueImplementanSusFichas_FND102(t *testing.T) {
+	repo := filepath.Join("..", "..", "..")
+	if _, err := os.Stat(filepath.Join(repo, ".qdd", "project", "modules")); err != nil {
+		t.Skip("fuera del repositorio de qdd")
+	}
+	fichas, _ := modules.Load(repo)
+	implementan := map[string]bool{}
+	for _, m := range fichas {
+		for _, impl := range m.Implementa {
+			implementan[impl.Blueprint] = true
+		}
+	}
+	for id := range implementan {
+		if _, ok := implementadosPorQDD[id]; !ok {
+			t.Errorf("una ficha de qdd implementa %s, pero el binario no lo declara en implementadosPorQDD", id)
+		}
+	}
+	for id, v := range implementadosPorQDD {
+		if !implementan[id] {
+			t.Errorf("implementadosPorQDD declara %s@%s, pero ninguna ficha de qdd lo implementa", id, v)
+		}
+		if _, ok := parseVersion(v); !ok {
+			t.Errorf("%s: «%s» no es una versión semver", id, v)
+		}
+	}
+}

@@ -23,6 +23,8 @@ type Conformidad struct {
 	Escenarios []string
 	Faltan     []string // escenarios sin una prueba que lleve su id
 	Fuera      []string // «id (motivo)»: lo que este código no hace, dicho en la ficha
+	PorQDD     string   // id@versión que implementa el qdd instalado, si el módulo solo usa un blueprint de qdd
+	Motivo     string   // por qué falla, cuando no es por pruebas (p. ej. el qdd instalado no cubre la versión)
 }
 
 // ConformidadDe mide un módulo contra un blueprint: busca el id de cada escenario en los archivos de prueba de rutas.
@@ -120,10 +122,21 @@ func esArchivoDePrueba(path string) bool {
 
 // pedidoDeConformidad es un módulo y el blueprint que aplicó (su registro de aplicación) o implementa (su ficha).
 type pedidoDeConformidad struct {
-	modulo  string
-	impl    modules.Implementacion
-	rutas   []string
-	archivo string // dónde se declara: el registro de aplicación o la ficha
+	modulo   string
+	impl     modules.Implementacion
+	rutas    []string
+	archivo  string // dónde se declara: el registro de aplicación o la ficha
+	aplicado bool   // lo usa (registro de aplicación); si no, es la implementación de origen
+}
+
+// conformidadDe mide un pedido. Un módulo que aplica un blueprint que implementa qdd no lleva su código: lo cumple
+// el qdd instalado si cubre la versión aplicada (FND-102). La implementación de origen siempre se mide con sus pruebas.
+func conformidadDe(root string, p pedidoDeConformidad, b Blueprint) Conformidad {
+	implementa, esDeQDD, motivo := cubiertoPorQDD(b.ID, b.Version)
+	if !p.aplicado || !esDeQDD {
+		return ConformidadDe(root, p.modulo, b, p.impl, p.rutas)
+	}
+	return Conformidad{Modulo: p.modulo, Blueprint: b.Ref(), PorQDD: b.ID + "@" + implementa, Motivo: motivo}
 }
 
 func pedidosDeConformidad(root string) []pedidoDeConformidad {
@@ -136,11 +149,11 @@ func pedidosDeConformidad(root string) []pedidoDeConformidad {
 	apps, _ := LoadApplications(root)
 	for _, a := range apps {
 		impl := modules.Implementacion{Blueprint: a.Blueprint, Respuestas: a.Respuestas}
-		pedidos = append(pedidos, pedidoDeConformidad{a.Modulo, impl, porID[a.Modulo].Rutas, filepath.ToSlash(filepath.Join(ApplicationsDir, a.Modulo+".yaml"))})
+		pedidos = append(pedidos, pedidoDeConformidad{a.Modulo, impl, porID[a.Modulo].Rutas, filepath.ToSlash(filepath.Join(ApplicationsDir, a.Modulo+".yaml")), true})
 	}
 	for _, m := range fichas {
 		for _, impl := range m.Implementa {
-			pedidos = append(pedidos, pedidoDeConformidad{m.ID, impl, m.Rutas, filepath.ToSlash(filepath.Join(modules.Dir, m.ID+".yaml"))})
+			pedidos = append(pedidos, pedidoDeConformidad{m.ID, impl, m.Rutas, filepath.ToSlash(filepath.Join(modules.Dir, m.ID+".yaml")), false})
 		}
 	}
 	return pedidos
@@ -155,7 +168,7 @@ func Conformar(root string) ([]Conformidad, error) {
 		if err != nil {
 			return out, err
 		}
-		out = append(out, ConformidadDe(root, p.modulo, b, p.impl, p.rutas))
+		out = append(out, conformidadDe(root, p, b))
 	}
 	return out, nil
 }
@@ -173,7 +186,12 @@ func CheckConformidad(root string) (bloquean, sinMedir []Problema) {
 			sinMedir = append(sinMedir, Problema{"BP-08-SIN-MEDIR", p.archivo, fmt.Sprintf("%s · %s: sin medir, %v. Mídelo con qdd blueprint conformance.", p.modulo, p.impl.Blueprint, err)})
 			continue
 		}
-		if c := ConformidadDe(root, p.modulo, b, p.impl, p.rutas); len(c.Faltan) > 0 {
+		c := conformidadDe(root, p, b)
+		if c.Motivo != "" {
+			bloquean = append(bloquean, Problema{"BP-08-CONFORMIDAD", p.archivo, LineaConformidad(c) + "."})
+			continue
+		}
+		if len(c.Faltan) > 0 {
 			bloquean = append(bloquean, Problema{"BP-08-CONFORMIDAD", p.archivo, LineaConformidad(c) + ". Escribe una prueba que lleve el id de cada escenario que falta, o declara en la ficha, con su motivo, lo que este código no hace (implementa: fuera)."})
 		}
 	}
@@ -230,6 +248,13 @@ func blueprintSinRed(root, id string) (Blueprint, error) {
 
 // LineaConformidad: «estado · estado-por-tareas@1.1.0 · escenarios con prueba 23/25 · faltan EPT-C11, EPT-C12».
 func LineaConformidad(c Conformidad) string {
+	if c.PorQDD != "" {
+		linea := fmt.Sprintf("%s · %s · lo implementa qdd (%s)", c.Modulo, c.Blueprint, c.PorQDD)
+		if c.Motivo != "" {
+			return "❌ " + linea + " · " + c.Motivo
+		}
+		return "✅ " + linea
+	}
 	conPrueba := 0
 	for _, id := range c.Escenarios {
 		if !inList(c.Faltan, id) {
