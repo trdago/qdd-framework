@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.16] - 2026-11-02 (preview)
+
+Decimosexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae los ciclos con nombre (blueprint `estado-por-tareas` 2.1.0).
+
 ### 🔁 Ciclos con nombre: cada objetivo puede tener sus propias etapas
 
 - **Qué cambia:** las etapas del estado eran una sola lista para todo el proyecto. Ahora esas etapas son el ciclo «proyecto» y puedes declarar otros ciclos, cada uno con sus etapas. Un objetivo sigue un ciclo, y sus tareas toman esas etapas sin cambiar las del proyecto.
