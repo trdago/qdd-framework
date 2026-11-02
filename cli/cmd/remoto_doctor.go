@@ -1,0 +1,61 @@
+package cmd
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/qdd-framework/qdd/pkg/remoto/registro"
+)
+
+// Rule: Prohibido usar 'else'
+// RFC 0013: doctor revisa el registro de proyectos de la máquina (lo que publica qdd remoto), solo si existe. REM-02:
+// un registro ilegible es falla y --fix lo aparta (no lo borra; se vuelve a anotar solo). REM-01: una ruta que ya no
+// existe se publicaría con error para siempre; --fix la quita.
+
+const grupoRemoto = "9. Consola remota (qdd remoto)"
+
+const (
+	itemRemotoLegible = "Registro de proyectos legible (REM-02)"
+	itemRemotoRutas   = "Proyectos del registro que existen (REM-01)"
+)
+
+func buildRemotoChecks() *CheckGroup {
+	g := &CheckGroup{Name: grupoRemoto}
+	if !registro.Existe() {
+		return g
+	}
+	reg, err := registro.Leer()
+	if err != nil {
+		g.Items = append(g.Items, &CheckItem{Name: itemRemotoLegible, Error: err.Error()})
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemRemotoLegible, Success: true, Error: fmt.Sprintf("%d proyecto(s)", len(reg.Proyectos))})
+	muertas := registro.Muertas(reg)
+	if len(muertas) == 0 {
+		g.Items = append(g.Items, &CheckItem{Name: itemRemotoRutas, Success: true})
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemRemotoRutas, Error: "ya no existen (qdd doctor --fix las quita): " + strings.Join(muertas, ", ")})
+	return g
+}
+
+// repairRemoto aparta un registro ilegible o quita las rutas que ya no existen.
+func repairRemoto(g *CheckGroup) {
+	for _, item := range g.Items {
+		if item.Success {
+			continue
+		}
+		if item.Name == itemRemotoLegible {
+			fmt.Println("  [~] Apartando el registro de proyectos ilegible...")
+			apartado, err := registro.Apartar()
+			imprimirReparado([]string{"quedó en " + apartado + "; los proyectos se vuelven a anotar con su próximo mensaje"}, err)
+			registrarAutorreparacion("doctor: registro de proyectos", "el registro de proyectos que escribió QDD estaba ilegible", []string{apartado})
+			continue
+		}
+		if item.Name == itemRemotoRutas {
+			fmt.Println("  [~] Quitando del registro los proyectos que ya no existen...")
+			quitadas, err := registro.QuitarMuertas()
+			imprimirReparado(quitadas, err)
+		}
+	}
+}

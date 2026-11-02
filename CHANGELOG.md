@@ -12,6 +12,23 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - Una referencia a 2 letras de un id de largo impar (como `barra`) también se sugiere.
 - Un ciclo nuevo lleva un id de QDD; los que ya existían siguen valiendo.
 
+## [2.8.0-rc.19] - 2026-11-02 (preview)
+
+Decimonovena **preview** de 2.8.0: `npm i -g qdd-framework@preview`. El lado PC de QDD Móvil: ver y aprobar lo de todos
+tus proyectos desde el teléfono.
+
+### 📱 Consola remota: QDD Móvil (RFC 0013)
+
+- **Registro de proyectos de la máquina:** `<QDD_HOME>/proyectos.json` (0600) guarda los proyectos de este PC. Lo anotan `qdd init` y cada mensaje con el panel; un worktree cuenta como su checkout principal. `qdd doctor` señala las rutas que ya no existen (REM-01) y un registro ilegible (REM-02); `--fix` las quita o lo aparta.
+- **`qdd remoto estado [--json]`:** lo que este PC publicaría en QDD Móvil, sin red: el panel de cada proyecto (el mismo de `qdd consola panel --json`), o el error si la carpeta ya no está.
+- **`qdd remoto activar` / `emparejar` / `desactivar`:** guarda el relay (solo la clave publicable; una secreta se rechaza), empareja el PC con un QR en la terminal y deja un servicio del usuario (systemd, launchd o una tarea de Windows) que lo publica. Con teléfonos conectados, el PC manda el estado y luego solo lo que cambió, agrupado cada 300 ms; sin teléfonos, solo dice que está encendido. Un latido por minuto informa las tareas en curso y respeta el límite de proyectos del plan. Un pedido o una ficha nueva avisa por push, solo con el tipo y el proyecto.
+- **Aprobar desde el teléfono:** una acción llega firmada por el relay; el PC la verifica, vuelve a calcular el panel y la ejecuta como el panel, una sola vez aunque llegue repetida. Responde recibida → ejecutando → hecha o fallo; un pedido ya aprobado en el PC u otro teléfono responde «ya aprobado» con el lugar. Todo queda en `<QDD_HOME>/remoto/log.jsonl`, nunca en el relay. Al terminar un pedido aprobado desde el teléfono, llega un push con cómo terminó.
+- **Dos teléfonos a la vez:** el segundo que abre una consola recibe lo último y, si está pausada, el motivo (FND-110). Un teléfono que vuelve se entera de cómo terminó lo que aprobó mientras no estaba (FND-111).
+- **Rechazar desde el teléfono:** un pedido que nadie aprobó sale de la cola sin ejecutarse; uno ya aprobado dice dónde.
+- **`qdd remoto dispositivos` y `qdd remoto revocar <id>`:** los teléfonos de tu cuenta; revocar uno lo saca al instante, en el relay y en este PC.
+- **La consola en el teléfono:** mientras miras un proyecto, ves la conversación con la IA (los turnos y el nombre de cada herramienta, sin sus resultados) y los pedidos que terminan, con como mucho dos mensajes por segundo. Al dejar de mirar se corta. Si el plan no la permite, el teléfono dice por qué y el resto sigue.
+- **Sin secretos:** todo lo que sale del PC pasa por un ocultador de claves, tokens, JWT, cadenas de conexión, llaves privadas y los valores de los `.env` del proyecto.
+
 ## [2.8.0-rc.18] - 2026-11-02 (preview)
 
 Decimoctava **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Los ids de las tareas los da o valida qdd.

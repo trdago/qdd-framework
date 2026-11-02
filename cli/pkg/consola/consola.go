@@ -113,6 +113,12 @@ func (c Consola) completar() (Consola, error) {
 	return c, nil
 }
 
+// ClaudeDir es la carpeta de configuración de Claude Code (CLAUDE_CONFIG_DIR o ~/.claude); qdd remoto lee ahí los
+// transcripts de las sesiones.
+func ClaudeDir() string {
+	return claudeDir()
+}
+
 func claudeDir() string {
 	if d := strings.TrimSpace(os.Getenv("CLAUDE_CONFIG_DIR")); d != "" {
 		return d
