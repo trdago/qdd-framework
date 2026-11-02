@@ -100,7 +100,7 @@ function seVan($, Text, ids) {
 // lineasDeTarjeta: lo que se ve de un pedido, como líneas para materializar.
 function lineasDeTarjeta(a) {
   const s = estadoDe(a)
-  const marca = { espera: '◌', ejecutando: '⟳', hecho: '✓', fallo: '✗' }[s.estado]
+  const marca = { espera: '◌', ejecutando: '⟳', hecho: '✓', fallo: '✗', armado: '◷' }[s.estado]
   const cabeza = marca ? [{ texto: marca + '  ' + a.etiqueta, tenue: s.estado !== 'fallo', color: s.estado === 'fallo' ? 'red' : undefined }] : [{ texto: a.tecla + '  ' + a.etiqueta, negrita: true }]
   return [cabeza, [{ texto: '   $ ' + primeraLinea(a.detalle), tenue: true }]]
 }
@@ -227,9 +227,11 @@ function estadoDe(a) {
   return { estado: remoto, inicio: a.inicio, fin: a.fin, resultado: a.resultado }
 }
 
+// ejecutable: se puede confirmar. Uno que espera a otro también (con su tecla): queda armado y corre cuando el otro
+// termine (armado.go).
 function ejecutable(a) {
   const { estado } = estadoDe(a)
-  return estado === 'pendiente' || estado === 'fallo'
+  return estado === 'pendiente' || estado === 'fallo' || (estado === 'espera' && Boolean(a.tecla))
 }
 
 function hora(iso) {
@@ -611,6 +613,7 @@ function confirmacion(Box, Text, Button, $) {
       Text({ color: 'yellow', dimColor: true, size: 'caption', children: [a.tipo === 'pedido' ? 'Confirma antes de ejecutar' : 'Escribe en el proyecto'] }),
       Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
       Text({ dimColor: a.tipo !== 'pedido', mono: a.tipo === 'pedido', wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
+      ...(a.tipo === 'pedido' && a.estado === 'espera' ? [Text({ color: 'yellow', wrap: 'wrap', children: ['◷ Corre solo cuando ' + esperaDe(a) + ' termine: tu intención queda tomada.'] })] : []),
       ...(a.carpeta ? [Text({ dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['En: ' + enProyecto(a.carpeta)] })] : []),
       Box({
         flexDirection: 'row',
@@ -634,6 +637,28 @@ function confirmacion(Box, Text, Button, $) {
   })
 }
 
+function esperaDe(a) {
+  return (a.espera || []).map((t) => '[' + t + ']').join(' ') || 'otro pedido'
+}
+
+// desarmar es «✕ Dejar de esperar»: el pedido armado vuelve a pendiente (qdd consola desarmar).
+async function desarmar($, a) {
+  if (ocupado) return
+  ocupado = true
+  const bin = await binario($)
+  try {
+    const r = await $.process.run([bin, 'consola', 'desarmar', a.id.slice('pedido:'.length)], { timeoutMs: TOPE_MS })
+    resultado = r.exitCode === 0 ? null : { titulo: 'Dejar de esperar ' + a.etiqueta, ok: false, texto: ((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida', zona: 'pedidos' }
+  } catch (err) {
+    resultado = { titulo: 'Dejar de esperar ' + a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'pedidos' }
+  }
+  locales.delete(a.id)
+  ocupado = false
+  firma = ''
+  await leer($)
+  $.ui.invalidate('ui.render')
+}
+
 // primeraLinea: un comando de varias líneas se ve en una, con cuántas faltan; entero solo al confirmarlo.
 function primeraLinea(comando) {
   const lineas = String(comando || '').trim().split('\n')
@@ -653,9 +678,27 @@ function tarjeta(Box, Text, Button, $, a) {
   }
   const caja = (cabeza, resto) => Box({ key: 'pedido-' + a.id, flexDirection: 'column', children: [cabeza, ...resto] })
   const gris = (marca) => Text({ key: 'que', dimColor: true, wrap: 'truncate-end', children: [marca + '  ' + a.etiqueta] })
+  if (s.estado === 'espera' && !a.tecla) {
+    return caja(gris('◌'), [comando, ...meta('espera a ' + esperaDe(a))])
+  }
+  // Ya se puede confirmar: queda armado y corre solo cuando termine lo que espera.
   if (s.estado === 'espera') {
-    const de = (a.espera || []).map((t) => '[' + t + ']').join(' ')
-    return caja(gris('◌'), [comando, ...meta('espera a ' + (de || 'otro pedido'))])
+    return caja(Button({ key: 'b-' + a.id, label: a.tecla + '  ' + a.etiqueta, hotkey: a.tecla, onPress: () => pedir($, a) }), [comando, ...meta('espera a ' + esperaDe(a) + ' · confírmalo y corre solo')])
+  }
+  // Armado (pedido del usuario, 2026-11-01): ya tiene la intención de la persona. Lo importante primero y en color; lo
+  // que dijo el comando, atenuado debajo (lectura en F).
+  if (s.estado === 'armado') {
+    const cuando = a.espera?.length ? 'cuando ' + esperaDe(a) + ' termine' : 'cuando esté listo'
+    const intento = a.intentos ? ' · intento ' + a.intentos : ''
+    const proximo = !a.espera?.length && hora(a.proximo) ? ' · reintenta ' + hora(a.proximo) : ''
+    const dijo = a.aviso ? [Text({ key: 'aviso', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   ' + a.aviso.trim().split('\n').slice(-1)[0]] })] : []
+    return caja(Text({ key: 'que', color: 'yellow', weight: 'bold', wrap: 'truncate-end', children: ['◷  ' + a.etiqueta] }), [
+      Text({ key: 'armado', color: 'yellow', wrap: 'wrap', children: ['   Armado · corre solo ' + cuando + intento + proximo] }),
+      ...dijo,
+      comando,
+      ...meta(),
+      Box({ key: 'desarmar', paddingLeft: 3, children: [Button({ key: 'desarmar-' + a.id, label: '✕ Dejar de esperar', plain: true, onPress: () => desarmar($, a) })] }),
+    ])
   }
   if (s.estado === 'ejecutando') {
     return caja(gris('⟳'), [comando, ...meta(hora(s.inicio) ? 'ejecutando desde ' + hora(s.inicio) : 'ejecutando…')])
@@ -681,9 +724,13 @@ function tarjeta(Box, Text, Button, $, a) {
       Box({ key: 'reintentar', paddingLeft: 3, children: [Button({ key: 'b-' + a.id, label: a.tecla + '  ↻ Reintentar', hotkey: a.tecla, onPress: () => pedir($, a) })] }),
     ])
   }
-  // «todavía no» (FND-082): el comando dijo que su condición aún no se cumple; se ve en gris y se puede volver a probar.
+  // «todavía no» (FND-082) sin armar (dejó de esperar, o un qdd anterior): primero y en color qué pasa; atenuado, lo que
+  // dijo. Se puede volver a confirmar.
   const aviso = a.aviso
-    ? [Text({ key: 'aviso', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   todavía no' + (hora(a.aviso_en) ? ' · ' + hora(a.aviso_en) : '') + ' — ' + a.aviso.trim().split('\n').slice(-1)[0]] })]
+    ? [
+        Text({ key: 'aviso-t', color: 'yellow', weight: 'bold', size: 'caption', children: ['   ◷ Todavía no' + (hora(a.aviso_en) ? ' · ' + hora(a.aviso_en) : '')] }),
+        Text({ key: 'aviso', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   ' + a.aviso.trim().split('\n').slice(-1)[0]] }),
+      ]
     : []
   return caja(Button({ key: 'b-' + a.id, label: a.tecla + '  ' + a.etiqueta, hotkey: a.tecla, variant: 'primary', onPress: () => pedir($, a) }), [comando, ...aviso, ...meta()])
 }
@@ -724,8 +771,9 @@ function paraTi(Box, Text, Button, $, lista, ancho) {
   const porHacer = lista.filter(ejecutable).length
   const enEspera = lista.filter((a) => estadoDe(a).estado === 'espera').length
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
+  const armados = lista.filter((a) => estadoDe(a).estado === 'armado').length
   const nada = corriendo ? [] : ['nada por hacer']
-  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
+  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
   const dibujo = (a) => materializa($, Text, 'p:' + a.id, lineasDeTarjeta(a), tarjeta(Box, Text, Button, $, a), estadoDe(a).estado + '|' + a.tecla + '|' + a.etiqueta)
   const cuerpo = [...[...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))), ...seVa]
   return [
@@ -786,6 +834,52 @@ function dibujar($, Box, Text, Button, Input, ancho) {
       Box({ marginTop: 1, children: [pie(Text, datos.version)] }),
     ],
   })
+}
+
+// ── Atajo desde el chat (pedido del usuario, 2026-11-01) ─────────────────────────────────────────────────────────
+// Sin mouse y en cualquier terminal: con el chat vacío, la tecla de lo que te espera (un pedido a, b, d…, una ficha
+// 1…9) y Enter abren su confirmación en el panel con el foco en «s  Sí»; otro Enter aprueba y el teclado vuelve solo al
+// chat. Solo se toma un mensaje que es exactamente esa tecla («a.» va a la IA). Para un solo paso, el terminal o el
+// sistema puede mapear AltGr+letra (o lo que se quiera) a un carácter privado, U+E000 + la letra: el panel lo consume
+// sin escribirlo. Probado en Claude Code 2.1.300: Alt+letra no llega a los mods y el texto descartado vuelve al chat
+// después del hook, por eso el panel espera un instante antes de vaciarlo y tomar el foco.
+const PRIVADO = 0xe000
+const ESPERA_ATAJO_MS = 40
+
+function atajoDe(texto) {
+  if (!datos || !/^[a-z0-9]$/.test(texto)) return null
+  const lista = datos.acciones || []
+  const pedido = pedidos(lista).find((a) => a.tecla === texto && ejecutable(a))
+  if (pedido) return pedido
+  const fichas = lista.filter((a) => a.tipo === 'aprobar')
+  const asignadas = teclas(fichas)
+  return fichas.find((a) => asignadas[a.id] === texto) || null
+}
+
+// privadoDe: la letra de un carácter privado (U+E061 → «a»), o '' si no es uno.
+function privadoDe(texto) {
+  const cp = [...String(texto || '')].length === 1 ? texto.codePointAt(0) : 0
+  if (cp < PRIVADO + 0x30 || cp > PRIVADO + 0x7a) return ''
+  return String.fromCharCode(cp - PRIVADO)
+}
+
+function teclaDe(a) {
+  if (a.tecla) return a.tecla
+  return teclas((datos?.acciones || []).filter((x) => x.tipo === 'aprobar'))[a.id] || ''
+}
+
+// atajo deja la confirmación de a en el panel con el foco en «s  Sí». vaciar: tras un envío descartado, el chat
+// todavía tiene la tecla y el motor no le da el foco al panel sobre un chat con texto.
+async function atajo($, a, vaciar) {
+  if (vaciar) await $.clock.sleep(ESPERA_ATAJO_MS)
+  bps = null
+  config = null
+  pedir($, a)
+  if (vaciar) await $.prompt.fill({ text: '', mode: 'replace' }).catch((err) => $.ui.log('no se vació el chat: ' + String(err?.message ?? err)))
+  await $.ui.open({ id: PANE, title: TITULO, focus: true })
+  if (confirmando?.id !== a.id) return
+  const r = await $.ui.focus({ requestId: PANE, key: 'si' }).catch((err) => ({ deny: String(err?.message ?? err) }))
+  if (r?.deny) $.ui.log('el panel no tomó el foco: ' + r.deny)
 }
 
 // ── 📦 Blueprints (pedido del usuario, 2026-11-01) ───────────────────────────────────────────────────────────────
@@ -1501,6 +1595,30 @@ export function register(on) {
     const r = await next(e)
     if (!contexto) return r
     return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), contexto] }
+  })
+
+  // Atajo desde el chat: la tecla de lo que te espera y Enter lo abren en el panel, sin enviarle nada a la IA.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.command || e.isMeta) return next(e)
+    const a = atajoDe(String(e.text || '').trim())
+    if (!a) return next(e)
+    atajo($, a, true).catch((err) => $.ui.log('atajo: ' + String(err?.message ?? err)))
+    return { drop: '▶ ' + teclaDe(a) + ' · ' + a.etiqueta + ': Enter confirma en el panel, n cancela' }
+  })
+
+  // Mientras se escribe la tecla, el chat dice qué abre Enter; un carácter privado lo abre en el acto sin escribirse.
+  on('prompt.edit', async ($, e, next) => {
+    const privado = privadoDe(e.inputText)
+    if (privado) {
+      const a = atajoDe(privado)
+      if (a) atajo($, a, false).catch((err) => $.ui.log('atajo: ' + String(err?.message ?? err)))
+      return { text: e.text, cursor: e.cursor }
+    }
+    const r = await next(e)
+    const a = atajoDe(String(r.text || '').trim())
+    if (!a) return r
+    const fin = r.text.length
+    return { ...r, decorations: [...(r.decorations ?? []), { start: fin, end: fin, virtualText: '  ↵ ' + a.etiqueta, dimColor: true }] }
   })
 
   // El reproductor terminó: se vuelve a dibujar lo de siempre (o se quita lo que se iba).

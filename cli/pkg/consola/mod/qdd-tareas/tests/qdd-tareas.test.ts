@@ -588,12 +588,14 @@ test('un pedido en espera dice a quién espera, no tiene botón ni cuenta como p
 })
 
 // FND-082: un comando que todavía no puede correr (falta un tag, un merge) no se ve como una falla.
-test('un pedido que dijo «todavía no» se ve pendiente con su aviso en gris, no en rojo (FND-082)', async ($, on) => {
+// Desde el armado (pedido del usuario, 2026-11-01), «todavía no» va primero y en amarillo; lo que dijo, atenuado.
+test('un pedido que dijo «todavía no» se ve pendiente con su aviso destacado, no en rojo (FND-082)', async ($, on) => {
   const todaviaNo = { ...PEDIDO, estado: 'pendiente', aviso: 'Falta el tag v2.7.0', aviso_en: '2026-10-30T12:05:00-03:00' }
   preparar(on, ok({ ...PANEL, acciones: [todaviaNo] }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /todavía no .*Falta el tag v2\.7\.0/ })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: /◷ Todavía no/ })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: /Falta el tag v2\.7\.0/ })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: /✗/ })).toBeUndefined()
   expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
 })
