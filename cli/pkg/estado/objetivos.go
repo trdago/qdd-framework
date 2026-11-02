@@ -32,6 +32,7 @@ type Objetivo struct {
 	Evidencia string `yaml:"evidencia,omitempty"` // de que se cumple el criterio
 	Motivo    string `yaml:"motivo,omitempty"`    // de un descarte
 	CerradoEl string `yaml:"cerrado_el,omitempty"`
+	Ciclo     string `yaml:"ciclo,omitempty"` // el ciclo que siguen sus tareas; sin él, el del proyecto (ciclos.go)
 }
 
 // usaFormato2: objetivos o dependencias. Un qdd anterior rechaza el formato 2 en vez de leerlo y perderlos al escribir.
@@ -68,7 +69,7 @@ func (e Estado) indiceObjetivo(id string) int {
 // TareaTerminada: cerrada, o con todas sus etapas en ✅ o —. Una descartada no termina: quien la espera tiene que
 // quitarla de sus dependencias.
 func (e Estado) TareaTerminada(f Frente) bool {
-	return f.Estado == EstadoCerrado || (f.Estado == EstadoAbierto && f.Terminado(e.Etapas))
+	return f.Estado == EstadoCerrado || (f.Estado == EstadoAbierto && f.Terminado(e.EtapasDe(f)))
 }
 
 // pendientesDe son las dependencias de f que no terminaron (las que no existen no cuentan aquí: las dice EPT-D01).
@@ -85,9 +86,10 @@ func (e Estado) pendientesDe(f Frente) []Frente {
 
 // ultimaQueAplica es la última etapa de f que no está en —; "" si ninguna aplica.
 func (e Estado) ultimaQueAplica(f Frente) string {
-	for i := len(e.Etapas) - 1; i >= 0; i-- {
-		if NormalizarEstado(f.Celdas[e.Etapas[i]].Estado) != NoAplica {
-			return e.Etapas[i]
+	etapas := e.EtapasDe(f)
+	for i := len(etapas) - 1; i >= 0; i-- {
+		if NormalizarEstado(f.Celdas[etapas[i]].Estado) != NoAplica {
+			return etapas[i]
 		}
 	}
 	return ""
@@ -126,7 +128,7 @@ func (e Estado) checkDependencias(f Frente) []Violacion {
 			continue
 		}
 		if e.alcanza(d, f.ID, map[string]bool{}) {
-			vs = append(vs, Violacion{ID: "EPT-D01", Frente: f.ID, Mensaje: fmt.Sprintf("depender de %q hace un ciclo", d)})
+			vs = append(vs, Violacion{ID: "EPT-D01", Frente: f.ID, Mensaje: fmt.Sprintf("depender de %q es circular: vuelve a esta tarea", d)})
 		}
 	}
 	pend := e.pendientesDe(f)
@@ -356,7 +358,7 @@ func (e Estado) grupo(objetivo string, incluir func(Frente) bool, conectarRaices
 	for i, r := range raices {
 		visita(r, nil, i == len(raices)-1, conectarRaices)
 	}
-	for _, f := range miembros { // un ciclo (EPT-D01) no deja una tarea sin dibujar
+	for _, f := range miembros { // una dependencia circular (EPT-D01) no deja una tarea sin dibujar
 		visita(f, nil, true, conectarRaices)
 	}
 	return filas
@@ -379,6 +381,9 @@ func (e Estado) notas(f Frente) []string {
 type CambioObjetivo struct {
 	ID, Nombre, Criterio string
 	Foco                 bool
+	// Ciclo que siguen sus tareas; CambiaCiclo distingue «no tocar» de «volver al del proyecto» ("").
+	Ciclo       string
+	CambiaCiclo bool
 }
 
 // GuardarObjetivo crea o actualiza un objetivo (qdd estado objetivo). Uno nuevo necesita nombre y criterio (EPT-O01).
@@ -402,6 +407,12 @@ func GuardarObjetivo(root string, c CambioObjetivo, now time.Time) error {
 		for j := range e.Objetivos {
 			e.Objetivos[j].Foco = j == i
 		}
+	}
+	if c.CambiaCiclo || c.Ciclo != "" {
+		e.Objetivos[i].Ciclo = c.Ciclo
+	}
+	if err := e.reformarObjetivo(c.ID); err != nil {
+		return fmt.Errorf("no se escribió: %w", err)
 	}
 	return guardarObjetivoValidado(root, e, c.ID, now)
 }
@@ -447,7 +458,7 @@ func ReabrirObjetivo(root, id string, now time.Time) error {
 
 func guardarObjetivoValidado(root string, e Estado, id string, now time.Time) error {
 	var propias []string
-	for _, v := range e.checkObjetivos(nil) {
+	for _, v := range append(e.checkObjetivos(nil), e.checkCiclos()...) {
 		if v.Frente == id || v.ID == "EPT-O03" {
 			propias = append(propias, v.String())
 		}
@@ -485,8 +496,33 @@ func GuardarTarea(root string, c CambioTarea, now time.Time) error {
 	if c.CambiaObjetivo {
 		e.Frentes[i].Objetivo = c.Objetivo
 	}
+	// Con su objetivo, la tarea toma las etapas de su ciclo sin perder avance (EPT-K02, EPT-K03).
+	if err := reformar(&e.Frentes[i], e.EtapasDe(e.Frentes[i]), e.CicloDe(e.Frentes[i])); err != nil {
+		return fmt.Errorf("no se escribió: %w", err)
+	}
 	if c.CambiaDependencias {
 		e.Frentes[i].DependeDe = c.DependeDe
 	}
 	return guardarValidado(root, e, c.ID, now)
+}
+
+// reformarObjetivo deja a las tareas del objetivo con las etapas de su ciclo (EPT-K03). Con un ciclo que no existe no
+// toca nada: lo rechaza EPT-K01.
+func (e *Estado) reformarObjetivo(id string) error {
+	o, ok := e.objetivo(id)
+	if !ok {
+		return nil
+	}
+	if _, existe := e.etapasDelCiclo(o.Ciclo); !existe {
+		return nil
+	}
+	for i := range e.Frentes {
+		if e.Frentes[i].Objetivo != id {
+			continue
+		}
+		if err := reformar(&e.Frentes[i], e.EtapasDe(e.Frentes[i]), e.CicloDe(e.Frentes[i])); err != nil {
+			return err
+		}
+	}
+	return nil
 }

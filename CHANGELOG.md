@@ -6,6 +6,23 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.16] - 2026-11-02 (preview)
+
+Decimosexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae los ciclos con nombre (blueprint `estado-por-tareas` 2.1.0).
+
+### 🔁 Ciclos con nombre: cada objetivo puede tener sus propias etapas
+
+- **Qué cambia:** las etapas del estado eran una sola lista para todo el proyecto. Ahora esas etapas son el ciclo «proyecto» y puedes declarar otros ciclos, cada uno con sus etapas. Un objetivo sigue un ciclo, y sus tareas toman esas etapas sin cambiar las del proyecto.
+  - `qdd estado ciclo agentico Concepto Artefacto Medición Puerta` declara el ciclo «agentico».
+  - `qdd estado objetivo tutor --ciclo agentico` hace que el objetivo «tutor» lo siga.
+  - La IA hace lo mismo con la acción `ciclo` de la herramienta `qdd_estado`.
+- **Por qué:** un blueprint que trae su propio ciclo, como `ciclo-de-vida-agentico`, ya no choca con las etapas del proyecto.
+- **No se pierde avance:** si una tarea cambia de ciclo, conserva las etapas que comparten los dos ciclos y agrega las nuevas en «·». Si eso borrara un ✅, ⏳ o ❌, no se escribe y el mensaje dice qué etapa es.
+- **Cómo se ve:**
+  - El reporte trae una tabla por ciclo, la del proyecto primero, y `qdd estado check` las revisa todas.
+  - En los paneles de Claude Code y OpenCode, cada objetivo con ciclo propio muestra sus abreviaturas bajo su cabecera, y la leyenda nombra cada ciclo.
+- **Compatibilidad:** un estado sin ciclos se guarda igual que antes. Con ciclos se guarda en formato 3, y un qdd anterior lo rechaza en vez de borrarlos al escribir.
+
 ## [2.8.0-rc.15] - 2026-11-01 (preview)
 
 Decimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Permite aplicar el blueprint ciclo-de-vida-agentico con su registro en `.qdd/project/tutor/`.

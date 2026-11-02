@@ -56,8 +56,12 @@ func Set(root string, c Cambio, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	if !e.tieneEtapa(c.Etapa) {
-		return fmt.Errorf("la etapa %q no está en el archivo (etapas: %s)", c.Etapa, strings.Join(e.Etapas, ", "))
+	destino := Frente{ID: c.Frente}
+	if i := e.buscar(c.Frente); i >= 0 {
+		destino = e.Frentes[i]
+	}
+	if !e.tieneEtapa(destino, c.Etapa) {
+		return errEtapaAjena(e, destino, c.Etapa)
 	}
 	estado := NormalizarEstado(c.Estado)
 	if estado == "" {
@@ -134,4 +138,13 @@ func guardarValidado(root string, e Estado, frente string, now time.Time) error 
 	}
 	e.Actualizado = now.Format(time.RFC3339)
 	return Save(root, e)
+}
+
+// errEtapaAjena nombra las etapas de la tarea; con ciclos, también su ciclo (EPT-K02).
+func errEtapaAjena(e Estado, f Frente, etapa string) error {
+	etapas := strings.Join(e.EtapasDe(f), ", ")
+	if !e.usaCiclos() {
+		return fmt.Errorf("la etapa %q no está en el archivo (etapas: %s)", etapa, etapas)
+	}
+	return fmt.Errorf("la etapa %q no es del ciclo «%s» de la tarea %s (etapas: %s)", etapa, e.CicloDe(f), f.ID, etapas)
 }

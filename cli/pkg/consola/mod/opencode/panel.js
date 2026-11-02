@@ -55,14 +55,17 @@ function fila(f) {
 }
 
 // arbol: con objetivos, cada uno es una fila de cabecera (el foco primero, como los entrega qdd) antes de sus tareas, y
-// las tareas sin objetivo van al final bajo «🎯 sin objetivo». Sin objetivos, las tareas tal cual.
+// las tareas sin objetivo van al final bajo «🎯 sin objetivo». Sin objetivos, las tareas tal cual. Un objetivo que
+// sigue su propio ciclo lleva bajo su cabecera las abreviaturas de ese ciclo (EPT-K05).
 export function arbol(e) {
   const objetivos = e.objetivos || []
   if (objetivos.length === 0) return e.frentes.map(fila)
-  const cabecera = (id, nombre, celdasTexto) => ({ id: 'objetivo:' + id, nombre, celdas: celdasTexto, tono: 'primary', running: false, pulso: '', objetivo: true })
+  const cabecera = (id, nombre, celdasTexto, tono = 'primary') => ({ id: 'objetivo:' + id, nombre, celdas: celdasTexto, tono, running: false, pulso: '', objetivo: true })
   const filas = []
   for (const o of objetivos) {
     filas.push(cabecera(o.id, '🎯 ' + o.nombre + (o.foco ? ' · foco' : ''), o.simbolo + ' ' + o.resumen))
+    const ciclo = (e.ciclos || []).find((c) => c.nombre === o.ciclo)
+    if (ciclo) filas.push({ ...cabecera(o.id, '', ciclo.abreviaturas.join(' '), 'textMuted'), id: 'ciclo:' + o.id })
     filas.push(...e.frentes.filter((f) => f.objetivo === o.id).map(fila))
   }
   const sueltas = e.frentes.filter((f) => !f.objetivo)

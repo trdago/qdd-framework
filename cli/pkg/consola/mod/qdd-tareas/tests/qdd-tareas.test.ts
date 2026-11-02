@@ -690,6 +690,30 @@ test('pinchar el nombre de una tarea o de un objetivo le pregunta a la IA cómo 
   expect(await ui.find({ type: 'Text', text: /→ enviado a la IA/ })).toBeDefined()
 })
 
+// Ciclos con nombre (decisión de la persona, 2026-11-01): un objetivo que sigue su propio ciclo lleva sus etapas bajo su
+// cabecera; la leyenda nombra cada ciclo.
+const CICLOS = {
+  ...ARBOL,
+  formato: 3,
+  objetivos: [{ ...ARBOL.objetivos[0], ciclo: 'agentico' }, ARBOL.objetivos[1]],
+  ciclos: [{ nombre: 'agentico', etapas: ['Concepto', 'Artefacto', 'Medición', 'Puerta', 'Bitácora'], abreviaturas: ['Co', 'Ar', 'Me', 'Pu', 'Bi'] }],
+  frentes: [
+    { id: 'f01', nombre: 'F01 problema', estado: 'abierto', simbolos: ['⏳', '·', '·', '·', '·'], objetivo: 'arbol', prefijo: '└─ ', pregunta: '¿Cómo vamos con «F01»?' },
+    { id: 'limpiar', nombre: 'limpiar', estado: 'abierto', simbolos: ['·', '·', '·', '·'], prefijo: '└─ ', pregunta: '¿Cómo vamos con «limpiar»?' },
+  ],
+}
+
+test('un objetivo con su propio ciclo lleva sus etapas bajo su cabecera y la leyenda nombra el ciclo (EPT-K05)', async ($, on) => {
+  preparar(on, ok({ ...PANEL, estado: CICLOS }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Co Ar Me Pu Bi' })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ key: 'n-f01' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Có Pu Po Va' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /agentico: Co Concepto · Ar Artefacto/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Có Código · Pu Pruebas/ })).toBeDefined()
+})
+
 test('«l ↻» vuelve a leer el tablero en el acto (CCC-C29)', async ($, on) => {
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, estado: ARBOL }), llamadas)
