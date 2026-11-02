@@ -53,6 +53,7 @@ func runInit(cmd *cobra.Command, args []string) {
 	}
 	cwd = integration.FindProjectRoot(cwd)
 	ensureAdopcion(cwd, !fileExists(filepath.Join(cwd, ".qdd", "config.yaml")))
+	anotarProyecto(cwd)
 	executeInitLoop(cwd)
 }
 

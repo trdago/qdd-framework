@@ -1,0 +1,64 @@
+id: remoto
+nombre: Consola remota (qdd remoto, QDD Móvil)
+estado: aprobado
+rutas:
+    - cli/pkg/remoto
+    - cli/cmd/remoto.go
+    - cli/cmd/remoto_doctor.go
+    - cli/cmd/remoto_relay.go
+    - cli/cmd/remoto_dispositivos.go
+objetivo_operativo:
+    problema: El panel de QDD solo existe al lado de la conversación, en el PC. Fuera del escritorio no hay forma de ver qué falta para cumplir el objetivo en foco de cada proyecto, aprobar los pedidos y las fichas que esperan a la persona, ni ver qué hace la IA en este momento; y la persona trabaja en varios proyectos y en más de un PC.
+    usuarios: La persona que trabaja con QDD en uno o varios PCs y quiere seguir y aprobar desde el teléfono (app QDD Móvil); la app y cualquier cliente futuro del protocolo.
+    criterio_de_exito: La app muestra en vivo los proyectos de cada PC encendido con el mismo panel que qdd consola panel --json, y un PC apagado como «apagado»; aprobar desde el teléfono ejecuta una sola vez aunque llegue repetido y queda en el log local; un teléfono revocado no puede; la consola se transmite solo con espectadores, sin secretos, y se pausa al pasar el cupo.
+    caso_real: '2026-11-02: el usuario pidió una vista móvil en tiempo real de todos sus proyectos y PCs para aprobar pedidos y fichas fuera del escritorio (RFC 0013, plan del usuario), con Supabase solo como relay.'
+objetivo_tecnologico:
+    arquitectura: 'pkg/remoto/registro guarda los proyectos de la máquina (<QDD_HOME>/proyectos.json, 0600, atómico con pkg/candado); lo anotan qdd init y consola.MarcarCiclo, y no depende de pkg/consola. pkg/remoto arma el estado (Armar: un consola.Panel por proyecto, o su error), habla con el relay (RPC de PostgREST public.qdd_remoto_* y la Edge Function avisar), es un cliente Phoenix de Supabase Realtime (broadcast, presence, heartbeat, reconexión), calcula deltas, verifica y ejecuta acciones firmadas vía pkg/consola, transmite la consola desde el transcript de Claude Code y oculta secretos antes de enviar nada. cmd/remoto.go conecta los subcomandos (estado, activar, emparejar, desactivar, dispositivos, revocar, correr) y cmd/remoto_doctor.go el grupo 9 de doctor.'
+    decisiones:
+        - 'El registro vive en un subpaquete (pkg/remoto/registro) porque pkg/consola lo anota en cada ciclo y pkg/remoto importa pkg/consola: así no hay ciclo de imports. Anotar solo lee si el proyecto está y se vio hace menos de 1 h; anotar es de mejor esfuerzo y no corta ni el ciclo ni init.'
+        - 'Un registro ilegible no se trata como vacío (anotar encima perdería los proyectos): Anotar devuelve error, doctor lo señala (REM-02) y --fix lo aparta como proyectos.json.ilegible. REM-01 señala las rutas que ya no existen y --fix las quita.'
+        - '«Rechazar» desde el teléfono es la acción rechazar:<id de la acción de un pedido>: el PC la acepta solo si el panel ofrece ese pedido y nadie lo aprobó (uno aprobado responde ya_aprobado con el lugar), lo descarta de la cola con consola.Descartar sin ejecutarlo y queda en el log. No es una acción del panel del PC, que ya tiene su ✕.'
+        - 'Cada consola mirada recuerda qué teléfonos la miran: uno nuevo provoca otra tanda de inicio y, si está pausada, otro aviso del motivo (FND-110). Un sync reenvía además el estado de las solicitudes de la última media hora, como mucho 20, para el teléfono que se desconectó mientras corrían (FND-111).'
+        - 'qdd remoto tiene hooks propios vacíos (como qdd consola): no exige proyecto, no escribe .qdd/working y su tráfico no cuenta como uso (inv. 10).'
+        - El panel de cada proyecto es consola.Panel(root, now) con la versión de qdd, igual que qdd consola panel --json, sin tipos opcionales (atender no tiene sentido lejos de la conversación) y sin efectos.
+        - 'Sin tools MCP nuevas: la CLI basta y tools/list está al borde del presupuesto.'
+        - 'Dependencias nuevas (rc.2): github.com/coder/websocket v1.8.14 (sin dependencias propias, mantenida por Coder, sucesora de nhooyr/websocket; go.mod no tenía WebSocket) y rsc.io/qr v0.2.0 (QR sin dependencias, de Russ Cox) para dibujar el QR con medios bloques.'
+        - 'Cliente de Realtime propio (phoenix.go): Phoenix v1 al escribir (vsn=1.0.0) y v1/v2 al leer; join con config {broadcast:{self:false, ack:false}, presence:{key:"pc"}, private:true} y access_token = la clave publicable (el PC es anon). Heartbeat cada 25 s; sin respuesta antes del siguiente, la conexión está muerta. Reconexión con espera exponencial (1 s a 30 s) y jitter entre la mitad y el total; al volver repite el join y su track.'
+        - 'Emparejar (contrato del relay, migración 20261102120000_qdd_remoto.sql): código de 8 caracteres base32 (A–Z, 2–7) en mayúsculas y p_codigo_hash = hex(sha256(código en mayúsculas)); tópico qdd:pc:<uuid>:<secreto base64url de 22>, donde el uuid es el id de la máquina que genera el PC; firma de 64 hex. Las credenciales se guardan recién cuando qdd_remoto_emparejada devuelve ese id; otro id es un error.'
+        - 'Errores del relay: SQLSTATE 28000 son credenciales de máquina malas (la máquina se quitó): latido devuelve ErrCredenciales y qdd remoto correr termina con 0, sin reiniciarse. 53400 es un límite con su motivo. Un 404 es «no disponible» (la Edge Function avisar sin desplegar): se loguea una vez.'
+        - 'El servicio corre qdd remoto correr con Restart=on-failure (systemd --user), KeepAlive SuccessfulExit=false (launchd) o una tarea al iniciar sesión con XML en UTF-16 (Windows, schtasks). Lleva el PATH de la terminal que activó, porque los pedidos corren con la shell y necesitan las mismas herramientas; y QDD_HOME si se fijó. Linger no se activa: se informa. Uno por máquina: <QDD_HOME>/remoto/correr.pid con un proceso vivo impide otro.'
+        - 'Deltas: el bucle junta los cambios 300 ms (fsnotify sobre .qdd/project y modules de cada proyecto y lo local de QDD, más un sondeo cada 5 s por lo que cambia con la hora) y manda delta {version, seq, proyectos:{clave: panel|null}} solo con los paneles que cambiaron. Lo que un delta no dice (un proyecto nuevo, un nombre, un error, cuántos quedaron fuera del plan) va en un estado completo con el siguiente seq. Al llegar el primer teléfono (o tras una caída) el PC manda el estado sin esperar el sync; sync siempre lo responde.'
+        - 'Plan: hasta el primer latido se supone Gratis (3 proyectos). Se publican los más recientes por visto hasta el límite y el estado dice fuera_del_plan. El latido va cada minuto aunque no haya teléfonos, con p_en_curso = tareas «● running» más pedidos ejecutando de todos los proyectos, y lo consumido desde el anterior (mensajes ≤ 10.000, minutos de consola ≤ 2; lo que no se pudo informar se suma al siguiente).'
+        - 'Push (best effort, sin bloquear): un pedido pendiente o una ficha en borrador que aparece en un panel publicado pide avisar con {topico, firma, tipo, proyecto, clave}; proyecto es el nombre visible saneado a ^[\p{L}\p{N} ._()-]{1,80}$. Lo que ya esperaba al arrancar no se avisa.'
+        - 'Acciones (rc.3): la firma se verifica con hmac.Equal sobre solicitud|proyecto|accion_id|dispositivo|en (clave: el texto hex de la firma de la máquina) y en con formato YYYY-MM-DDTHH:MM:SSZ a ±5 min. Lo que no tiene firma válida o es viejo se descarta sin respuesta y queda en el log como descartada. Un teléfono en revocados.json, un proyecto fuera del registro o del plan, o un id que el panel recalculado no ofrece reciben rechazada con el motivo. Abrir carpeta y atender se rechazan: solo tienen sentido en el PC.'
+        - 'Idempotencia: cada solicitud se guarda en <QDD_HOME>/remoto/solicitudes.json (0600, 7 días, 1000 como mucho) antes de ejecutarla; una repetida responde su último estado sin re-ejecutar, aunque qdd se haya reiniciado. Un archivo ilegible se aparta como .ilegible.'
+        - 'Un pedido se ejecuta igual que en el panel (Accion.Lanzar, aparte y con la cola bloqueada) con la sesión remoto:<dispositivo>. Si el pedido ya no es ejecutable (lo aprobó el PC u otro teléfono), responde ya_aprobado con lugar: «PC», o el nombre del teléfono si su sesión es remoto:<id>. Al terminar, el PC responde hecha o fallo con el final de la salida, pide el push termino_bien o termino_falla y lo marca avisado (consola.Avisado), para que salga del tablero como uno que el panel ya avisó. Las demás acciones (aprobar ficha, descartar, revisar, auditar) corren con Accion.Ejecutar en segundo plano.'
+        - 'Sin teléfonos en la presence el PC no responde accion_estado (inv. 12): el teléfono reintenta con el mismo id y recibe el último estado. El log (log.jsonl, 0600) anota cada acción terminada y cada descartada, con dispositivo, nombre, proyecto, acción y resultado ya sin secretos.'
+        - qdd remoto revocar <id> escribe primero revocados.json (efecto inmediato en este PC) y después revoca en el relay; qdd remoto dispositivos marca revocado lo que dice cualquiera de los dos.
+        - 'Consola (rc.4): se sigue solo la de cada proyecto publicado que un teléfono mira (presence mirando: <clave>); sin nadie mirando no hay ticker ni lectura. Cada 500 ms se junta lo nuevo y sale como mucho un mensaje (dos por segundo en total, por turnos si se miran varios proyectos, hasta 60 líneas por mensaje: lo demás va en el siguiente). El evento es consola {version, proyecto, inicio, lineas:[{fuente, rol, texto, en}]}; inicio marca la primera tanda (las últimas 40 líneas), que reemplaza lo que el teléfono tenía.'
+        - La conversación sale del transcript de Claude Code más reciente del proyecto (<CLAUDE_CONFIG_DIR o ~/.claude>/projects/<ruta con lo no alfanumérico como «-»>/*.jsonl, también los de un worktree o una subcarpeta), confirmado con su cwd vía estado.ClaveLocal, porque «qdd» y «qdd-movil» empiezan igual. Se toman los turnos de la persona y de la IA y el nombre de cada herramienta; nunca la entrada ni el resultado de una herramienta, el razonamiento, los subagentes (isSidechain), lo meta ni el texto que inyecta Claude Code (empieza con «<»). Cada turno va recortado a 2000 caracteres. Cada 5 s se mira si hay un transcript más nuevo (otra sesión) y, si lo hay, empieza de nuevo con su cola.
+        - 'Los pedidos que terminan mientras alguien mira salen como una línea de rol pedido: tecla, motivo, cómo terminó y el final de la salida que guarda la cola.'
+        - 'Permiso: hasta el primer latido no se transmite. Si el latido dice consola_permitida false, cada consola mirada recibe una sola vez {pausada: motivo} y no se transmite ni se cuentan minutos; el estado y las acciones siguen. Si vuelve a estar permitida, quien mira recibe de nuevo la cola con inicio. Los minutos de consola se cuentan por tick transmitido (0,5 s) y van en el latido.'
+    invariantes:
+        - El teléfono solo envía ids de acción que el PC ofreció; el PC vuelve a calcular el panel antes de ejecutar y rechaza un id que no ofrece (inv. 1).
+        - Una acción con la misma solicitud se ejecuta una sola vez; una repetida responde el último estado sin re-ejecutar (inv. 3).
+        - Cada acción recibe recibida → ejecutando → hecha | fallo, o ya_aprobado o rechazada (inv. 4, 19).
+        - Quién aprobó qué, cuándo y desde qué dispositivo queda en <QDD_HOME>/remoto/log.jsonl (0600), nunca en el relay (inv. 5).
+        - La consola se transmite solo mientras alguien la mira y es de solo lectura (inv. 6, 7).
+        - Las credenciales viven en <QDD_HOME>/remoto/ con permisos 0600; el PC nunca acepta ni guarda una clave secreta o service_role (inv. 9).
+        - Sin teléfono conectado, el PC no publica nada más que su Presence (inv. 12).
+        - Los deltas se agrupan cada 300 ms y la consola manda como mucho 2 mensajes por segundo (inv. 13).
+        - 'Nada que parezca un secreto sale del PC: todo lo que sale (consola, resultado, error) pasa por el ocultador (inv. 16).'
+        - El push solo dice el tipo cerrado y el proyecto; nunca un comando ni una salida (inv. 17).
+        - Una acción sin firma válida del relay, vieja (más de 5 min), de un dispositivo revocado o de un proyecto desconocido se descarta y queda en el log (inv. 18).
+        - 'Un registro de proyectos ilegible nunca se reescribe en silencio: se aparta.'
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/remoto/...
+        - cd cli && go test ./cmd/ -run 'Remoto|REM0'
+        - cd cli && go test ./pkg/consola/ -run TestCiclo_AnotaElProyecto
+        - cd cli && go test ./pkg/remoto/ -run 'Consola|Transcript|LineasDe|Lector' -race
+fuentes:
+    - rfcs/0013-consola-remota.md
+ultima_revision: "2026-11-02"
+revisado_en_commit: a8918d61bb0d

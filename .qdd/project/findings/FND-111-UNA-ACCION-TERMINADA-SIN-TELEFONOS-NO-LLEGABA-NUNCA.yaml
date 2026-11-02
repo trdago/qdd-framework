@@ -1,0 +1,9 @@
+id: "FND-111"
+title: "Una acción que terminaba mientras no había teléfonos conectados nunca le llegaba al teléfono que la pidió"
+description: "responder (pkg/remoto/acciones.go) no manda nada sin teléfonos (inv. 12), y el teléfono deja de reintentar cuando ya recibió «recibida». Si el teléfono se desconectaba (pantalla apagada, red) mientras el pedido corría, nunca recibía hecha ni fallo."
+impact: "La app quedaba con la acción «ejecutando» para siempre, salvo que dedujera el final del panel."
+action_taken: "Al recibir sync (lo que hace un teléfono al volver), el PC reenvía el estado de las solicitudes de la última media hora, como mucho 20, además del estado completo."
+test_result: "TestAccion_AlVolverElTelefonoUnSyncReenviaComoTerminaron_FND111 falla antes del arreglo y pasa después; una solicitud de hace horas no se reenvía."
+status: resolved
+detectado_por: ia
+date: "2026-11-02"
