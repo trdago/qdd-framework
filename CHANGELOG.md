@@ -10,6 +10,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 - **Registro de proyectos de la máquina:** `<QDD_HOME>/proyectos.json` (0600) guarda los proyectos de este PC. Lo anotan `qdd init` y cada mensaje con el panel; un worktree cuenta como su checkout principal. `qdd doctor` señala las rutas que ya no existen (REM-01) y un registro ilegible (REM-02); `--fix` las quita o lo aparta.
 - **`qdd remoto estado [--json]`:** lo que este PC publicaría en QDD Móvil, sin red: el panel de cada proyecto (el mismo de `qdd consola panel --json`), o el error si la carpeta ya no está.
+- **`qdd remoto activar` / `emparejar` / `desactivar`:** guarda el relay (solo la clave publicable; una secreta se rechaza), empareja el PC con un QR en la terminal y deja un servicio del usuario (systemd, launchd o una tarea de Windows) que lo publica. Con teléfonos conectados, el PC manda el estado y luego solo lo que cambió, agrupado cada 300 ms; sin teléfonos, solo dice que está encendido. Un latido por minuto informa las tareas en curso y respeta el límite de proyectos del plan. Un pedido o una ficha nueva avisa por push, solo con el tipo y el proyecto.
 
 ## [2.8.0-rc.18] - 2026-11-02 (preview)
 

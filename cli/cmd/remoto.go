@@ -26,7 +26,15 @@ canal de Supabase Realtime y ejecuta solo las acciones que el panel ofrece, firm
 teléfono. El PC encendido es la fuente de verdad: en la nube no se guarda ni el estado ni las acciones.
 
   qdd remoto estado [--json]   lo que este PC publicaría, sin red: un panel por proyecto del registro
-                               (<QDD_HOME>/proyectos.json, que anotan qdd init y cada mensaje con el panel)`,
+                               (<QDD_HOME>/proyectos.json, que anotan qdd init y cada mensaje con el panel)
+  qdd remoto activar --relay <url> --clave <publicable>
+                               guarda el relay, empareja el PC con QDD Móvil (QR) y deja el servicio
+                               (systemd --user, launchd o una tarea al iniciar sesión en Windows)
+  qdd remoto emparejar         muestra el QR y espera a que el teléfono lo acepte (5 min)
+  qdd remoto desactivar        saca el PC del relay, detiene y borra el servicio y las credenciales
+
+Las credenciales quedan en <QDD_HOME>/remoto/ (0600). El PC usa solo la clave publicable del relay: una clave
+secreta (sb_secret_…, service_role) se rechaza y no se guarda.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 }

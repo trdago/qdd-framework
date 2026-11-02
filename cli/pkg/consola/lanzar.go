@@ -76,3 +76,8 @@ func anotarLanzado(root, id string, pid int) {
 func CorrerLanzado(root, id string, salida io.Writer) int {
 	return correrAceptado(root, id, salida)
 }
+
+// ProcesoVivo dice si el proceso pid sigue vivo (qdd remoto lo usa para correr una sola vez por máquina).
+func ProcesoVivo(pid int) bool {
+	return procesoVivo(pid)
+}

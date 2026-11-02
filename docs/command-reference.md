@@ -146,6 +146,9 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | Comando | Descripción |
 |---------|-------------|
 | `qdd remoto estado [--json]` | Lo que este PC publicaría, sin red: un proyecto por línea (nombre, foco, tareas, esperan, fallan) o, con `--json`, el contenido del evento `estado` (`version`, `qdd`, `maquina`, `en` y cada proyecto con su `clave`, `nombre`, `ruta` y el `panel` de `qdd consola panel --json`, o un `error` si falla), el más reciente primero. **Seguro.** (qdd 2.9.0) |
+| `qdd remoto activar [--relay <url> --clave <publicable>] [--sin-servicio]` | Guarda el relay (`<QDD_HOME>/remoto/relay.json`, 0600), empareja el PC si hace falta y deja el servicio que lo publica: `systemd --user` en Linux, launchd en macOS o una tarea al iniciar sesión en Windows, con el PATH de la terminal (los pedidos corren con las mismas herramientas). Solo acepta la clave publicable: una secreta (`sb_secret_…`, un JWT `service_role`) se rechaza y no se guarda. Sin flags usa lo guardado. (qdd 2.9.0) |
+| `qdd remoto emparejar` | Muestra en la terminal el QR (`{"v":1,"codigo","topico","nombre"}`) y el código de 8 caracteres, válido 5 minutos y una sola vez, y espera a que QDD Móvil lo acepte. El PC genera su id, el secreto de su canal (128 bits) y su firma (256 bits); la firma nunca va al teléfono. Credenciales en `<QDD_HOME>/remoto/credenciales.json` (0600). (qdd 2.9.0) |
+| `qdd remoto desactivar` | Saca el PC del relay (su canal deja de admitir a nadie), detiene y borra el servicio y borra las credenciales. (qdd 2.9.0) |
 
 ### 📏 Uso real medido y canal preview (RFC 0010)
 Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
