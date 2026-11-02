@@ -1,14 +1,14 @@
 id: remoto
 nombre: Consola remota (qdd remoto, QDD Móvil)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/remoto
     - cli/cmd/remoto.go
     - cli/cmd/remoto_doctor.go
 objetivo_operativo:
-    problema: 'El panel de QDD solo existe al lado de la conversación, en el PC. Fuera del escritorio no hay forma de ver qué falta para cumplir el objetivo en foco de cada proyecto, aprobar los pedidos y las fichas que esperan a la persona, ni ver qué hace la IA en este momento; y la persona trabaja en varios proyectos y en más de un PC.'
+    problema: El panel de QDD solo existe al lado de la conversación, en el PC. Fuera del escritorio no hay forma de ver qué falta para cumplir el objetivo en foco de cada proyecto, aprobar los pedidos y las fichas que esperan a la persona, ni ver qué hace la IA en este momento; y la persona trabaja en varios proyectos y en más de un PC.
     usuarios: La persona que trabaja con QDD en uno o varios PCs y quiere seguir y aprobar desde el teléfono (app QDD Móvil); la app y cualquier cliente futuro del protocolo.
-    criterio_de_exito: 'La app muestra en vivo los proyectos de cada PC encendido con el mismo panel que qdd consola panel --json, y un PC apagado como «apagado»; aprobar desde el teléfono ejecuta una sola vez aunque llegue repetido y queda en el log local; un teléfono revocado no puede; la consola se transmite solo con espectadores, sin secretos, y se pausa al pasar el cupo.'
+    criterio_de_exito: La app muestra en vivo los proyectos de cada PC encendido con el mismo panel que qdd consola panel --json, y un PC apagado como «apagado»; aprobar desde el teléfono ejecuta una sola vez aunque llegue repetido y queda en el log local; un teléfono revocado no puede; la consola se transmite solo con espectadores, sin secretos, y se pausa al pasar el cupo.
     caso_real: '2026-11-02: el usuario pidió una vista móvil en tiempo real de todos sus proyectos y PCs para aprobar pedidos y fichas fuera del escritorio (RFC 0013, plan del usuario), con Supabase solo como relay.'
 objetivo_tecnologico:
     arquitectura: 'pkg/remoto/registro guarda los proyectos de la máquina (<QDD_HOME>/proyectos.json, 0600, atómico con pkg/candado); lo anotan qdd init y consola.MarcarCiclo, y no depende de pkg/consola. pkg/remoto arma el estado (Armar: un consola.Panel por proyecto, o su error), habla con el relay (RPC de PostgREST public.qdd_remoto_* y la Edge Function avisar), es un cliente Phoenix de Supabase Realtime (broadcast, presence, heartbeat, reconexión), calcula deltas, verifica y ejecuta acciones firmadas vía pkg/consola, transmite la consola desde el transcript de Claude Code y oculta secretos antes de enviar nada. cmd/remoto.go conecta los subcomandos (estado, activar, emparejar, desactivar, dispositivos, revocar, correr) y cmd/remoto_doctor.go el grupo 9 de doctor.'
@@ -16,20 +16,20 @@ objetivo_tecnologico:
         - 'El registro vive en un subpaquete (pkg/remoto/registro) porque pkg/consola lo anota en cada ciclo y pkg/remoto importa pkg/consola: así no hay ciclo de imports. Anotar solo lee si el proyecto está y se vio hace menos de 1 h; anotar es de mejor esfuerzo y no corta ni el ciclo ni init.'
         - 'Un registro ilegible no se trata como vacío (anotar encima perdería los proyectos): Anotar devuelve error, doctor lo señala (REM-02) y --fix lo aparta como proyectos.json.ilegible. REM-01 señala las rutas que ya no existen y --fix las quita.'
         - 'qdd remoto tiene hooks propios vacíos (como qdd consola): no exige proyecto, no escribe .qdd/working y su tráfico no cuenta como uso (inv. 10).'
-        - 'El panel de cada proyecto es consola.Panel(root, now) con la versión de qdd, igual que qdd consola panel --json, sin tipos opcionales (atender no tiene sentido lejos de la conversación) y sin efectos.'
+        - El panel de cada proyecto es consola.Panel(root, now) con la versión de qdd, igual que qdd consola panel --json, sin tipos opcionales (atender no tiene sentido lejos de la conversación) y sin efectos.
         - 'Sin tools MCP nuevas: la CLI basta y tools/list está al borde del presupuesto.'
     invariantes:
-        - 'El teléfono solo envía ids de acción que el PC ofreció; el PC vuelve a calcular el panel antes de ejecutar y rechaza un id que no ofrece (inv. 1).'
-        - 'Una acción con la misma solicitud se ejecuta una sola vez; una repetida responde el último estado sin re-ejecutar (inv. 3).'
-        - 'Cada acción recibe recibida → ejecutando → hecha | fallo, o ya_aprobado o rechazada (inv. 4, 19).'
-        - 'Quién aprobó qué, cuándo y desde qué dispositivo queda en <QDD_HOME>/remoto/log.jsonl (0600), nunca en el relay (inv. 5).'
-        - 'La consola se transmite solo mientras alguien la mira y es de solo lectura (inv. 6, 7).'
-        - 'Las credenciales viven en <QDD_HOME>/remoto/ con permisos 0600; el PC nunca acepta ni guarda una clave secreta o service_role (inv. 9).'
-        - 'Sin teléfono conectado, el PC no publica nada más que su Presence (inv. 12).'
-        - 'Los deltas se agrupan cada 300 ms y la consola manda como mucho 2 mensajes por segundo (inv. 13).'
+        - El teléfono solo envía ids de acción que el PC ofreció; el PC vuelve a calcular el panel antes de ejecutar y rechaza un id que no ofrece (inv. 1).
+        - Una acción con la misma solicitud se ejecuta una sola vez; una repetida responde el último estado sin re-ejecutar (inv. 3).
+        - Cada acción recibe recibida → ejecutando → hecha | fallo, o ya_aprobado o rechazada (inv. 4, 19).
+        - Quién aprobó qué, cuándo y desde qué dispositivo queda en <QDD_HOME>/remoto/log.jsonl (0600), nunca en el relay (inv. 5).
+        - La consola se transmite solo mientras alguien la mira y es de solo lectura (inv. 6, 7).
+        - Las credenciales viven en <QDD_HOME>/remoto/ con permisos 0600; el PC nunca acepta ni guarda una clave secreta o service_role (inv. 9).
+        - Sin teléfono conectado, el PC no publica nada más que su Presence (inv. 12).
+        - Los deltas se agrupan cada 300 ms y la consola manda como mucho 2 mensajes por segundo (inv. 13).
         - 'Nada que parezca un secreto sale del PC: todo lo que sale (consola, resultado, error) pasa por el ocultador (inv. 16).'
-        - 'El push solo dice el tipo cerrado y el proyecto; nunca un comando ni una salida (inv. 17).'
-        - 'Una acción sin firma válida del relay, vieja (más de 5 min), de un dispositivo revocado o de un proyecto desconocido se descarta y queda en el log (inv. 18).'
+        - El push solo dice el tipo cerrado y el proyecto; nunca un comando ni una salida (inv. 17).
+        - Una acción sin firma válida del relay, vieja (más de 5 min), de un dispositivo revocado o de un proyecto desconocido se descarta y queda en el log (inv. 18).
         - 'Un registro de proyectos ilegible nunca se reescribe en silencio: se aparta.'
 pruebas:
     comandos:
@@ -38,3 +38,5 @@ pruebas:
         - cd cli && go test ./pkg/consola/ -run TestCiclo_AnotaElProyecto
 fuentes:
     - rfcs/0013-consola-remota.md
+ultima_revision: "2026-11-02"
+revisado_en_commit: 57ca38e161a4

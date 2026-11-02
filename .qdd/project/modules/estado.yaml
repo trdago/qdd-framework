@@ -125,4 +125,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-11-02"
-revisado_en_commit: d65f46467ec3
+revisado_en_commit: 57ca38e161a4
