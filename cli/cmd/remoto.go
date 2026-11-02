@@ -32,6 +32,8 @@ teléfono. El PC encendido es la fuente de verdad: en la nube no se guarda ni el
                                (systemd --user, launchd o una tarea al iniciar sesión en Windows)
   qdd remoto emparejar         muestra el QR y espera a que el teléfono lo acepte (5 min)
   qdd remoto desactivar        saca el PC del relay, detiene y borra el servicio y las credenciales
+  qdd remoto dispositivos      los teléfonos de tu cuenta que ven este PC
+  qdd remoto revocar <id>      saca un teléfono al instante (en el relay y en este PC)
 
 Las credenciales quedan en <QDD_HOME>/remoto/ (0600). El PC usa solo la clave publicable del relay: una clave
 secreta (sb_secret_…, service_role) se rechaza y no se guarda.`,

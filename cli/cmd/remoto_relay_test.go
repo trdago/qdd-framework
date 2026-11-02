@@ -143,3 +143,37 @@ func TestRemotoCorrer_UnaSolaVezPorMaquina(t *testing.T) {
 	}
 	soltar()
 }
+
+func TestRemotoRevocar_LocalYEnElRelay(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	var revocado string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		var a map[string]string
+		json.Unmarshal(b, &a)
+		if strings.HasSuffix(r.URL.Path, "qdd_remoto_revocar") {
+			revocado = a["p_dispositivo"]
+			json.NewEncoder(w).Encode(true)
+			return
+		}
+		json.NewEncoder(w).Encode([]map[string]any{{"id": "d1", "nombre": "Pixel", "plataforma": "android", "revocado": false, "visto": "2026-11-02T10:00:00Z"}})
+	}))
+	defer srv.Close()
+	remoto.GuardarRelay(remoto.ConfigRelay{URL: srv.URL, Clave: "sb_publishable_x"})
+	remoto.GuardarCredenciales(remoto.Credenciales{Topico: "t", Firma: "f"})
+	var out, errs bytes.Buffer
+	if c := remotoDispositivos(context.Background(), &out, &errs); c != 0 || !strings.Contains(out.String(), "d1  Pixel (android)") {
+		t.Fatalf("lista: %d %s %s", c, out.String(), errs.String())
+	}
+	if c := remotoRevocar(context.Background(), "d1", &out, &errs); c != 0 || revocado != "d1" {
+		t.Fatalf("revoca en el relay: %d %s", c, errs.String())
+	}
+	if !remoto.LeerRevocados()["d1"] {
+		t.Fatal("y en este PC, en el acto")
+	}
+	out.Reset()
+	remotoDispositivos(context.Background(), &out, &errs)
+	if !strings.Contains(out.String(), "✕ revocado") {
+		t.Fatalf("la lista lo dice: %s", out.String())
+	}
+}

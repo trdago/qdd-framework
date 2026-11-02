@@ -24,9 +24,9 @@ import (
 const (
 	// CadaLatidoWS es cada cuánto se manda el heartbeat de Phoenix; sin respuesta antes del siguiente, la conexión
 	// está muerta.
-	CadaLatidoWS = 25 * time.Second
-	esperaMinima = time.Second
-	esperaMaxima = 30 * time.Second
+	CadaLatidoWS  = 25 * time.Second
+	esperaMinima  = time.Second
+	esperaMaxima  = 30 * time.Second
 	limiteLectura = 4 << 20
 
 	TipoBroadcast    = "broadcast"

@@ -82,6 +82,17 @@ func (f *transporteFalso) esperar(t *testing.T, plazo time.Duration, evento stri
 	}
 }
 
+// contar dice cuántos eventos de ese tipo se mandaron en total.
+func (f *transporteFalso) contar(evento string) int {
+	n := 0
+	for _, e := range f.Enviados() {
+		if e.Evento == evento {
+			n++
+		}
+	}
+	return n
+}
+
 func (f *transporteFalso) nada(t *testing.T, plazo time.Duration) {
 	t.Helper()
 	select {
@@ -126,11 +137,14 @@ func (r *relayBucleFalso) Latidos() []map[string]int {
 	return append([]map[string]int{}, r.latidos...)
 }
 
-func bucleDePrueba(t *testing.T) (*Bucle, *transporteFalso, *relayBucleFalso, chan error) {
+func bucleDePrueba(t *testing.T, ajustes ...func(*Bucle)) (*Bucle, *transporteFalso, *relayBucleFalso, chan error) {
 	t.Helper()
 	tr, rl := nuevoTransporte(), nuevoRelayBucle()
 	b := &Bucle{QDD: "v-prueba", Cred: Credenciales{Topico: topicoPrueba, Firma: "f"}, T: tr, R: rl,
 		Agrupar: 30 * time.Millisecond, CadaLatido: time.Hour, CadaSondeo: 40 * time.Millisecond}
+	for _, a := range ajustes {
+		a(b)
+	}
 	ctx, cancelar := context.WithCancel(context.Background())
 	fin := make(chan error, 1)
 	go func() { fin <- b.Correr(ctx) }()
