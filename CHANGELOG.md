@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🐛 Ids de QDD: lo que vio la certificación ciega de estado-por-tareas 2.2.0 (FND-109)
+
+- Un id largo quita palabras del final en vez de cortar una por la mitad, y el sufijo `-2` acorta la base para seguir en 40 caracteres. Antes, un segundo id largo pasaba de 40 y qdd mismo lo rechazaba.
+- Una referencia a 2 letras de un id de largo impar (como `barra`) también se sugiere.
+- Un ciclo nuevo lleva un id de QDD; los que ya existían siguen valiendo.
+
 ## [2.8.0-rc.18] - 2026-11-02 (preview)
 
 Decimoctava **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Los ids de las tareas los da o valida qdd.

@@ -65,6 +65,32 @@ func TestIDs_UnIDDesconocidoNoCreaLaTareaYSugiereLaQueEra_FND109(t *testing.T) {
 	}
 }
 
+func TestIDs_UnIDLargoQuitaPalabrasYElSufijoCabe_FND109(t *testing.T) {
+	root := proyectoNotificador(t)
+	nombre := "Reconciliación transaccional interbancaria multimoneda automatizada"
+	id, err := Nueva(root, CambioNueva{Nombre: nombre}, ahora)
+	if err != nil || id != "reconciliacion-transaccional" {
+		t.Fatalf("pasado de 40 se quitan palabras del final, sin cortar una: %q %v", id, err)
+	}
+	otra, err := Nueva(root, CambioNueva{Nombre: nombre, AunqueExista: true}, ahora)
+	if err != nil || len(otra) > MaxID || !strings.HasSuffix(otra, "-2") {
+		t.Fatalf("con sufijo sigue en %d: %q %v", MaxID, otra, err)
+	}
+	if got := SlugDe(strings.Repeat("a", 50)); got != strings.Repeat("a", MaxID) {
+		t.Fatalf("una sola palabra larga se corta en %d: %q", MaxID, got)
+	}
+}
+
+func TestIDs_UnCicloNuevoLlevaUnIDDeQDD_FND109(t *testing.T) {
+	root := proyectoNotificador(t)
+	if err := DeclararCiclo(root, "Diseño", []string{"Boceto"}, ahora); err == nil || !strings.Contains(err.Error(), "id") {
+		t.Fatalf("un ciclo nuevo con un nombre que no es id de QDD se rechaza: %v", err)
+	}
+	if err := DeclararCiclo(root, "diseno", []string{"Boceto"}, ahora); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIDs_ADosLetrasDeUnIDImparTambienSeParece_FND109(t *testing.T) {
 	// «menos de la mitad del largo del id»: con 5 letras, 2 de distancia es menos que 2,5 (no se divide entero).
 	e := mustParse(t, "formato: 1\netapas: [Código]\nfrentes:\n  - {id: barra, nombre: Barra, estado: abierto, celdas: {Código: {estado: ·}}}\n")

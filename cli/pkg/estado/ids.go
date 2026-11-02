@@ -62,9 +62,17 @@ func SlugDe(nombre string) string {
 	if len(ps) > PalabrasID {
 		ps = ps[:PalabrasID]
 	}
+	return hasta(ps, MaxID)
+}
+
+// hasta une las palabras con guiones sin pasar de n: quita palabras del final; una sola palabra larga se corta.
+func hasta(ps []string, n int) string {
+	for len(ps) > 1 && len(strings.Join(ps, "-")) > n {
+		ps = ps[:len(ps)-1]
+	}
 	slug := strings.Join(ps, "-")
-	if len(slug) > MaxID {
-		slug = strings.TrimRight(slug[:MaxID], "-")
+	if len(slug) > n {
+		return slug[:n]
 	}
 	return slug
 }
@@ -84,11 +92,12 @@ func ejemploID(id string) string {
 	return "barra-estado"
 }
 
-// idLibre: el slug tal cual, o con -2, -3… si ya lo usa una tarea.
+// idLibre: el slug tal cual, o con -2, -3… si ya lo usa una tarea, acortando la base para seguir en MaxID.
 func (e Estado) idLibre(base string) string {
 	id := base
 	for n := 2; e.buscar(id) >= 0; n++ {
-		id = base + "-" + strconv.Itoa(n)
+		sufijo := "-" + strconv.Itoa(n)
+		id = hasta(strings.Split(base, "-"), MaxID-len(sufijo)) + sufijo
 	}
 	return id
 }
