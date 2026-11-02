@@ -36,6 +36,9 @@ const (
 	maxSolicitudes = 1000
 	formatoEn      = "2006-01-02T15:04:05Z"
 	prefijoSesion  = "remoto:"
+	// prefijoRechazar + el id de la acción de un pedido lo descarta de la cola sin ejecutarlo (el «Rechazar» del
+	// teléfono). No es una acción del panel: el PC la acepta solo si el panel ofrece ese pedido.
+	prefijoRechazar = "rechazar:"
 
 	EstadoRecibida   = "recibida"
 	EstadoEjecutando = "ejecutando"
@@ -309,6 +312,10 @@ func (b *Bucle) ejecutar(ctx context.Context, s Solicitud) {
 		b.cerrar(ctx, s, EstadoRechazada, ErrCarpetaNoExiste)
 		return
 	}
+	if pedido, ok := strings.CutPrefix(s.AccionID, prefijoRechazar); ok {
+		b.rechazarPedido(ctx, s, pedido)
+		return
+	}
 	accion, err := consola.BuscarAccion(consola.Panel(p.Ruta, b.ahora()).Acciones, s.AccionID)
 	if err != nil {
 		b.cerrar(ctx, s, EstadoRechazada, "el panel ya no ofrece esa acción")
@@ -353,6 +360,26 @@ func (b *Bucle) lanzarPedido(ctx context.Context, s Solicitud, accion consola.Ac
 	s.Estado, s.Resultado = EstadoEjecutando, Recortar(Ocultar(strings.TrimSpace(salida.String())), maxResultado)
 	b.recordar(s)
 	b.responder(ctx, s)
+}
+
+// rechazarPedido descarta de la cola un pedido que el panel ofrece y nadie aprobó todavía. Uno ya aprobado responde
+// ya_aprobado con el lugar, como al aprobarlo (inv. 19).
+func (b *Bucle) rechazarPedido(ctx context.Context, s Solicitud, accionID string) {
+	accion, err := consola.BuscarAccion(consola.Panel(s.Ruta, b.ahora()).Acciones, accionID)
+	if err != nil || accion.Tipo != consola.TipoPedido {
+		b.cerrar(ctx, s, EstadoRechazada, "el panel ya no ofrece ese pedido")
+		return
+	}
+	s.Pedido = strings.TrimPrefix(accion.ID, "pedido:")
+	if p, ok := pedidoDe(s.Ruta, s.Pedido); ok && !p.Ejecutable() {
+		b.yaAprobado(ctx, s, p)
+		return
+	}
+	if err := consola.Descartar(s.Ruta, s.Pedido); err != nil {
+		b.cerrar(ctx, s, EstadoFallo, err.Error())
+		return
+	}
+	b.cerrar(ctx, s, EstadoHecha, "pedido rechazado")
 }
 
 func pedidoDe(root, id string) (consola.Pedido, bool) {

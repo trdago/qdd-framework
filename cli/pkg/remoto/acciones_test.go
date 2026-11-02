@@ -279,3 +279,68 @@ func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 		t.Fatalf("ya aprobado en el PC: %+v", got)
 	}
 }
+
+func TestAccion_RechazarUnPedidoLoQuitaDeLaColaSinEjecutarlo(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("comando de prueba en sh")
+	}
+	homeTemporal(t)
+	root := proyecto(t, "web", true)
+	registro.Anotar(root, time.Now())
+	clave, _ := registro.ClaveDe(root)
+	marca := filepath.Join(t.TempDir(), "corridas")
+	p, err := consola.Pedir(root, "echo x >> '"+marca+"'", "Publicar", "", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, tr, _ := bucleConFirma(t)
+	tr.eventos <- telefono("d1", "")
+	tr.esperar(t, time.Second, "estado")
+	mandarAccion(tr, firmada("sol-r", clave, prefijoRechazar+"pedido:"+p.ID, "d1", ahoraEn()))
+	estadoDe(t, tr, time.Second)
+	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoHecha {
+		t.Fatalf("rechazado: %+v", got)
+	}
+	if _, ok := pedidoDe(root, p.ID); ok {
+		t.Fatal("el pedido rechazado sigue en la cola")
+	}
+	if _, err := os.Stat(marca); err == nil {
+		t.Fatal("rechazar no debe ejecutar el pedido")
+	}
+	ls := lineasLog(t)
+	if len(ls) == 0 || ls[len(ls)-1].AccionID != prefijoRechazar+"pedido:"+p.ID {
+		t.Fatalf("el rechazo queda en el log (inv. 5): %+v", ls)
+	}
+	// Ya no se ofrece: un segundo rechazo (otra solicitud) se rechaza.
+	mandarAccion(tr, firmada("sol-r2", clave, prefijoRechazar+"pedido:"+p.ID, "d1", ahoraEn()))
+	estadoDe(t, tr, time.Second)
+	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoRechazada {
+		t.Fatalf("un pedido que ya no está: %+v", got)
+	}
+}
+
+func TestAccion_RechazarUnPedidoYaAprobadoDiceDonde(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("comando de prueba en sh")
+	}
+	homeTemporal(t)
+	root := proyecto(t, "web", true)
+	registro.Anotar(root, time.Now())
+	clave, _ := registro.ClaveDe(root)
+	p, _ := consola.Pedir(root, "sleep 2", "Esperar", "", time.Now())
+	a, _ := consola.BuscarAccion(consola.Panel(root, time.Now()).Acciones, "pedido:"+p.ID)
+	if c := a.Lanzar(root, os.Args[0], "sesion-claude", os.Stderr); c != 0 {
+		t.Fatal("lanzado desde el panel del PC")
+	}
+	_, tr, _ := bucleConFirma(t)
+	tr.eventos <- telefono("d1", "")
+	tr.esperar(t, time.Second, "estado")
+	mandarAccion(tr, firmada("sol-r", clave, prefijoRechazar+"pedido:"+p.ID, "d1", ahoraEn()))
+	estadoDe(t, tr, time.Second)
+	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoYaAprobado || got.Lugar != LugarPC {
+		t.Fatalf("no se rechaza lo que ya se aprobó: %+v", got)
+	}
+	if _, ok := pedidoDe(root, p.ID); !ok {
+		t.Fatal("un pedido aprobado no sale de la cola por un rechazo")
+	}
+}

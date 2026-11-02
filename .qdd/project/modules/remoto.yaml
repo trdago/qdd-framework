@@ -17,6 +17,7 @@ objetivo_tecnologico:
     decisiones:
         - 'El registro vive en un subpaquete (pkg/remoto/registro) porque pkg/consola lo anota en cada ciclo y pkg/remoto importa pkg/consola: así no hay ciclo de imports. Anotar solo lee si el proyecto está y se vio hace menos de 1 h; anotar es de mejor esfuerzo y no corta ni el ciclo ni init.'
         - 'Un registro ilegible no se trata como vacío (anotar encima perdería los proyectos): Anotar devuelve error, doctor lo señala (REM-02) y --fix lo aparta como proyectos.json.ilegible. REM-01 señala las rutas que ya no existen y --fix las quita.'
+        - '«Rechazar» desde el teléfono es la acción rechazar:<id de la acción de un pedido>: el PC la acepta solo si el panel ofrece ese pedido y nadie lo aprobó (uno aprobado responde ya_aprobado con el lugar), lo descarta de la cola con consola.Descartar sin ejecutarlo y queda en el log. No es una acción del panel del PC, que ya tiene su ✕.'
         - 'qdd remoto tiene hooks propios vacíos (como qdd consola): no exige proyecto, no escribe .qdd/working y su tráfico no cuenta como uso (inv. 10).'
         - El panel de cada proyecto es consola.Panel(root, now) con la versión de qdd, igual que qdd consola panel --json, sin tipos opcionales (atender no tiene sentido lejos de la conversación) y sin efectos.
         - 'Sin tools MCP nuevas: la CLI basta y tools/list está al borde del presupuesto.'
@@ -59,4 +60,4 @@ pruebas:
 fuentes:
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-02"
-revisado_en_commit: c1c2a7e3fb50
+revisado_en_commit: 7fb872b3713c
