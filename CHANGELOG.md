@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 📦 Los blueprints a un clic en el panel
+
+- **Tecla `p` (📦 Blueprints) en el panel de tareas:** lista los blueprints instalados y los disponibles en las fuentes del proyecto, con sus cuentas: instalados, cuántos se actualizan sin la IA, cuántos cambian la receta y cuántos están disponibles. Para cada uno muestra la versión instalada → la publicada y, si la receta cambió, por qué.
+- **Sin gastar tokens:** todo lo hace qdd en Go (`qdd consola blueprints`) y sin red, con la copia central de cada fuente.
+  - **r ↻ Actualizar catálogo** trae las versiones nuevas (`qdd blueprint sync`).
+  - **⬆ Actualizar** toma una versión nueva y **u ⬆ Actualizar los N sin la IA** toma de una vez todas las que no cambian la receta.
+  - **＋ Instalar** agrega uno disponible.
+  - Las acciones que escriben el lockfile piden «s  Sí». Después de cada una, el panel dice cuántas versiones nuevas trajo o cuántos blueprints se actualizaron o instalaron.
+- **Solo ✦ Aplicar con la IA gasta tokens:** construye o adapta el módulo. Le envía a la IA un mensaje corto que le pide usar `qdd_blueprint_apply` y hacerte las preguntas de diseño.
+- Un blueprint instalado desde la URL https se reconoce aunque la organización esté registrada con la URL ssh: es el mismo repositorio.
+
 ## [2.8.0-rc.11] - 2026-11-01 (preview)
 
 Undécima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae lo de abajo, el panel que relee con cualquier qdd (FND-106) y estado-por-tareas desde v10.0.0.
