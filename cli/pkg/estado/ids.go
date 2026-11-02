@@ -135,7 +135,7 @@ func parecidos(ref string, cands []candidato) []candidato {
 
 func puntaje(ref string, buscadas []string, c candidato) float64 {
 	mejor := 0.0
-	if d := distancia(strings.ToLower(ref), c.ID); d <= 2 && d < len(c.ID)/2 {
+	if d := distancia(strings.ToLower(ref), c.ID); d <= 2 && 2*d < len([]rune(c.ID)) {
 		mejor = 0.9
 	}
 	if len(buscadas) == 0 {

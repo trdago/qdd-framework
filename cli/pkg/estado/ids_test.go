@@ -65,6 +65,14 @@ func TestIDs_UnIDDesconocidoNoCreaLaTareaYSugiereLaQueEra_FND109(t *testing.T) {
 	}
 }
 
+func TestIDs_ADosLetrasDeUnIDImparTambienSeParece_FND109(t *testing.T) {
+	// «menos de la mitad del largo del id»: con 5 letras, 2 de distancia es menos que 2,5 (no se divide entero).
+	e := mustParse(t, "formato: 1\netapas: [Código]\nfrentes:\n  - {id: barra, nombre: Barra, estado: abierto, celdas: {Código: {estado: ·}}}\n")
+	if err := e.ValidarTarea("bxrrx"); err == nil || !strings.Contains(err.Error(), "¿quisiste decir barra") {
+		t.Fatalf("a 2 letras de un id de 5 se sugiere: %v", err)
+	}
+}
+
 func TestIDs_SinNadaParecidoListaLasAbiertas_FND109(t *testing.T) {
 	root := proyectoNotificador(t)
 	err := Set(root, Cambio{Frente: "xyz", Etapa: "Código", Estado: "ok", Evidencia: "c"}, ahora)
