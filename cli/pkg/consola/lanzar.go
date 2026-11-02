@@ -15,11 +15,11 @@ import (
 
 // Lanzar marca el pedido como ejecutando (con la cola bloqueada: no corre dos veces) y lo deja corriendo aparte, con
 // «bin consola correr <id>»; vuelve sin esperarlo. Una acción que no es un pedido se ejecuta como siempre.
-func (a Accion) Lanzar(root, bin string, salida io.Writer) int {
+func (a Accion) Lanzar(root, bin, sesion string, salida io.Writer) int {
 	if a.Tipo != TipoPedido {
 		return a.Ejecutar(root, bin, salida)
 	}
-	estado, err := aceptar(root, a.pedido, time.Now())
+	estado, err := aceptar(root, a.pedido, sesion, time.Now())
 	if err != nil {
 		fmt.Fprintf(salida, "[!] %v\n", err)
 		return 1

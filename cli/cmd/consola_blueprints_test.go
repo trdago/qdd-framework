@@ -44,7 +44,7 @@ func TestConsolaAccion_UnaDeBlueprintsSeBuscaEnElInventario(t *testing.T) {
 		t.Fatalf("qdd la vuelve a calcular: %v", err)
 	}
 	var out, errs bytes.Buffer
-	if code := consolaAccion(root, "blueprint:instalar:nada", true, &out, &errs); code == 0 {
+	if code := consolaAccion(root, "blueprint:instalar:nada", true, "", &out, &errs); code == 0 {
 		t.Fatal("una que el inventario no ofrece se rechaza sin ejecutar nada")
 	}
 }
