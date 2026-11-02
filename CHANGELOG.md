@@ -6,10 +6,35 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.15] - 2026-11-01 (preview)
+
+Decimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Permite aplicar el blueprint ciclo-de-vida-agentico con su registro en `.qdd/project/tutor/`.
+
 ### 🐛 `qdd blueprint apply` aceptaba solo `estado.yaml` dentro de `.qdd` (FND-108)
 
 - **Qué pasaba:** `qdd blueprint apply ciclo-de-vida-agentico` rechazaba las rutas `.qdd/project/tutor/…`, aunque la receta guarda ahí su registro, y no generaba la ficha.
 - **Arreglo:** `.qdd/project/tutor/` es un área de datos de un módulo: puede ser ruta de una ficha y no tiene que existir todavía, porque el esqueleto la crea. El resto de `.qdd` sigue fuera.
+
+## [2.8.0-rc.14] - 2026-11-01 (preview)
+
+Decimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae el atajo desde el chat y los pedidos ◷ armados.
+
+### ◷ Confirmas una vez y el pedido corre solo cuando está listo
+
+- **Tu intención queda tomada:** si un pedido confirmado responde «todavía no» (código 75: falta un tag, npm aún no publica…), queda **◷ armado**. qdd lo reintenta solo cada 30 s, sin la IA y sin que lo vuelvas a pulsar, hasta que sale bien.
+  - Una falla de verdad no se reintenta.
+- **Un pedido que espera a otro («espera a [a]») ya se puede confirmar:** corre solo en cuanto [a] termina.
+- **✕ Dejar de esperar** lo devuelve a pendiente (`qdd consola desarmar <tecla>`). Pasadas 2 h, o si se cierra el proceso que esperaba, también vuelve a pendiente, y el panel dice por qué.
+- **Se lee de un vistazo:** «◷» y el nombre van en amarillo y negrita, «Armado · corre solo cuando…» en amarillo, y lo que dijo el comando, atenuado debajo. Un «todavía no» sin armar ya no se pierde en gris.
+
+### ⌨ Aprobar sin mouse desde el chat
+
+- **Funciona en cualquier terminal y sistema, sin configurar nada:**
+  1. Con el chat vacío, escribe la tecla de lo que te espera: un pedido (`a`, `b`, `d`…) o una ficha (`1`…`9`). Mientras la escribes, el chat te muestra qué abre Enter.
+  2. **Enter:** no le envía nada a la IA. Abre la confirmación en el panel, con el foco en «s  Sí».
+  3. **Enter** otra vez aprueba, y el teclado vuelve solo al chat.
+- Solo se toma un mensaje que sea exactamente esa tecla. Si quieres enviarle a la IA solo una letra, por ejemplo «a», escribe «a.».
+- **En un solo paso, si tu terminal o tu sistema lo permite:** mapea AltGr+letra (u otra tecla) al carácter privado U+E000 + la letra (AltGr+a → U+E061). El panel lo recibe sin escribirlo en el chat y abre la confirmación al instante.
 
 ## [2.8.0-rc.13] - 2026-11-01 (preview)
 

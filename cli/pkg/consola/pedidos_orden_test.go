@@ -64,7 +64,8 @@ func TestPedidos_SeMuestranEnElOrdenDeSusDependencias_FND080(t *testing.T) {
 	}
 }
 
-func TestAcciones_UnPedidoQueEsperaNoTieneTeclaYDiceQueEspera_FND080(t *testing.T) {
+// Desde el armado (pedido del usuario, 2026-11-01) el que espera tiene su tecla: confirmarlo lo arma (armado.go).
+func TestAcciones_UnPedidoQueEsperaDiceQueEsperaYSeArmaConSuTecla_FND080(t *testing.T) {
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})
 	segundo := mustPedirEnOrden(t, root, "exit 0 # segundo", Orden{Despues: []string{"a"}})
@@ -72,8 +73,8 @@ func TestAcciones_UnPedidoQueEsperaNoTieneTeclaYDiceQueEspera_FND080(t *testing.
 		t.Fatalf("la dependencia se guarda por id (se puede dar por tecla) y el pedido tiene su tecla: %+v", segundo)
 	}
 	a, _ := BuscarAccion(Acciones(root, false), "pedido:"+segundo.ID)
-	if a.Estado != EstadoEspera || a.Tecla != "" || len(a.Espera) != 1 || a.Espera[0] != "a" {
-		t.Fatalf("el panel lo muestra en espera de [a], sin tecla: %+v", a)
+	if a.Estado != EstadoEspera || a.Tecla != "b" || len(a.Espera) != 1 || a.Espera[0] != "a" {
+		t.Fatalf("el panel lo muestra en espera de [a], con su tecla para armarlo: %+v", a)
 	}
 	var salida bytes.Buffer
 	if codigo := a.Ejecutar(root, "qdd", &salida); codigo != 1 || !strings.Contains(salida.String(), "espera a [a]") {
@@ -97,7 +98,7 @@ func TestPedidos_UnaFallaDeLoQueEsperaLoSigueBloqueando_FND080(t *testing.T) {
 	var salida bytes.Buffer
 	a.Ejecutar(root, "qdd", &salida)
 	b, _ := BuscarAccion(Acciones(root, false), "pedido:"+espera.ID)
-	if b.Estado != EstadoEspera || b.Tecla != "" {
+	if b.Estado != EstadoEspera || len(b.Espera) != 1 {
 		t.Fatalf("si lo que espera falló, sigue esperando: %+v", b)
 	}
 }
