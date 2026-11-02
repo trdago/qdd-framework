@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,7 +126,25 @@ type claudeFalso struct {
 	instalada   string
 	carpeta     string // versión del plugin.json del marketplace local
 	dir         string
-	anterior    bool // sigue instalado el panel con su nombre anterior (qdd-estado@qdd)
+	anterior    bool   // sigue instalado el panel con su nombre anterior (qdd-estado@qdd)
+	cache       string // copia instalada (installPath), como la deja Claude Code; "" = un claude que no la informa
+}
+
+// copiar deja en la copia instalada lo que tiene el marketplace local, como hace Claude Code al instalar.
+func (f *claudeFalso) copiar() {
+	if f.cache == "" {
+		return
+	}
+	os.RemoveAll(f.cache)
+	origen := filepath.Join(f.dir, "plugins", Plugin)
+	_ = filepath.WalkDir(origen, func(ruta string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, _ := filepath.Rel(origen, ruta)
+		data, _ := os.ReadFile(ruta)
+		return escribir(filepath.Join(f.cache, rel), data)
+	})
 }
 
 func (f *claudeFalso) run(args ...string) ([]byte, error) {
@@ -145,10 +164,12 @@ func (f *claudeFalso) run(args ...string) ([]byte, error) {
 		}
 		if f.instalada == "" {
 			f.instalada = f.versionCarpeta()
+			f.copiar()
 		}
 		return []byte("ok"), nil
 	case cmd == "plugin update":
 		f.instalada = f.versionCarpeta()
+		f.copiar()
 		return []byte("ok"), nil
 	case cmd == "plugin uninstall" && args[2] == IDAnterior():
 		if !f.anterior {
@@ -158,6 +179,9 @@ func (f *claudeFalso) run(args ...string) ([]byte, error) {
 		return []byte("ok"), nil
 	case cmd == "plugin uninstall":
 		f.instalada = ""
+		if f.cache != "" {
+			os.RemoveAll(f.cache)
+		}
 		return []byte("ok"), nil
 	case cmd == "plugin list":
 		var lista []string
@@ -165,7 +189,7 @@ func (f *claudeFalso) run(args ...string) ([]byte, error) {
 			lista = append(lista, `{"id":"`+IDAnterior()+`","version":"2.4.0","enabled":true}`)
 		}
 		if f.instalada != "" {
-			lista = append(lista, `{"id":"`+ID()+`","version":"`+f.instalada+`","enabled":true}`)
+			lista = append(lista, `{"id":"`+ID()+`","version":"`+f.instalada+`","enabled":true,"installPath":"`+f.cache+`"}`)
 		}
 		return []byte("[" + strings.Join(lista, ",") + "]"), nil
 	}
@@ -234,6 +258,32 @@ func TestActivar_ConCLINuevaActualizaElPanelYDoctorLoDetecta_CCC_C09(t *testing.
 	}
 	if f.instalada != "2.3.0" || !nueva.Diagnosticar()[0].OK {
 		t.Fatalf("reparar actualiza el panel: %q", f.instalada)
+	}
+}
+
+// FND-107: rc.11 se instaló sin hooks/materializar.js y doctor decía ✓ porque solo miraba la versión. Ahora compara lo
+// que trae el binario con la copia que Claude Code instaló, y --fix la reinstala aunque la versión sea la misma.
+func TestDiagnosticar_UnPanelInstaladoAlQueLeFaltaUnArchivoNoEstaSano_FND107(t *testing.T) {
+	f := &claudeFalso{cache: filepath.Join(t.TempDir(), "cache", "qdd-tareas", "2.2.0")}
+	c := nuevaConsola(t, "2.2.0", f)
+	if _, err := c.Activar(false); err != nil {
+		t.Fatal(err)
+	}
+	if d := c.Diagnosticar(); !d[0].OK {
+		t.Fatalf("recién instalado está completo: %+v", d)
+	}
+	if err := os.Remove(filepath.Join(f.cache, "hooks", "register.js")); err != nil {
+		t.Fatal(err)
+	}
+	d := c.Diagnosticar()
+	if d[0].OK || !strings.Contains(d[0].Detalle, "hooks/register.js") || !strings.Contains(d[0].Detalle, "doctor --fix") {
+		t.Fatalf("doctor dice qué archivo falta y cómo repararlo: %+v", d)
+	}
+	if _, err := c.Reparar(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(f.cache, "hooks", "register.js")); err != nil || !c.Diagnosticar()[0].OK {
+		t.Fatalf("--fix lo reinstala con la misma versión: %v", err)
 	}
 }
 

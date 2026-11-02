@@ -1,0 +1,9 @@
+id: "FND-107"
+title: "rc.11 y rc.12 instalaban el panel sin hooks/materializar.js y Claude Code no lo cargaba"
+description: "El go:embed del mod (pkg/consola/consola.go) nombraba solo plugin.json, hooks.json y register.js. El PR #59 agregó hooks/materializar.js (el Client que reproduce los cuadros) y lo usó desde register.js, pero el binario no lo llevaba: Claude Code decía «qdd-tareas: hooks module did not load: …/hooks/materializar.js: no such file» y, según la versión del motor, no cargaba el panel o lo dibujaba sin efecto. Las pruebas del mod corren sobre la carpeta del repositorio, donde el archivo sí está, y doctor solo comparaba la versión instalada, así que decía ✓."
+impact: "Con qdd 2.8.0-rc.11 o rc.12 el panel de tareas no cargaba o no materializaba nada, sin aviso de qdd. Lo detectaron esta sesión (una sonda en tmux) y la del notificador_de_ofertas, el mismo día."
+action_taken: "El go:embed toma hooks/*.js. Una prueba recorre la carpeta del mod y exige que el binario lleve cada archivo (salvo las pruebas, los tipos y los archivos ocultos). doctor compara lo embebido con la copia que Claude Code instaló (installPath de 'claude plugin list --json') y dice qué falta. activar y doctor --fix reinstalan el panel (uninstall + install) cuando a esa copia le falta un archivo, aunque la versión coincida, porque 'plugin update' con la misma versión no la renueva."
+test_result: "TestModEmbebido_LlevaTodosLosArchivosDelMod_FND107 y TestDiagnosticar_UnPanelInstaladoAlQueLeFaltaUnArchivoNoEstaSano_FND107 fallan antes del arreglo y pasan después; go test ./pkg/consola/ pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-01"
