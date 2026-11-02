@@ -8,7 +8,7 @@ import "fmt"
 // repositorio de qdd (fichas con implementa:). Un proyecto que solo usa uno de ellos (qdd estado, el panel) no tiene
 // ese código: su conformidad es la del qdd instalado (FND-102). Implementar una versión nueva incluye subirla aquí.
 var implementadosPorQDD = map[string]string{
-	"estado-por-tareas":   "2.1.0",
+	"estado-por-tareas":   "2.2.0",
 	"consola-claude-code": "10.0.0",
 }
 
