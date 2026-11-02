@@ -176,7 +176,7 @@ func runConsolaAccion(cmd *cobra.Command, args []string) {
 }
 
 func consolaAccion(root, id string, confirmado bool, salida, errores io.Writer) int {
-	a, err := consola.BuscarAccion(consola.Acciones(root, consola.HayEstado(root)), id)
+	a, err := consola.BuscarAccion(accionesPara(root, id), id)
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1

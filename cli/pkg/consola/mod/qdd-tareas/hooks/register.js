@@ -336,7 +336,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
     columnGap: 2,
     children: [
       Box({ flexShrink: 0, children: [Text({ key: 'titulo', color: 'cyan', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] })] }),
-      Box({ flexDirection: 'row', flexShrink: 1, columnGap: 2, children: [...carpeta, Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }), Button({ key: 'config', label: '⚙ Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) })] }),
+      Box({ flexDirection: 'row', flexShrink: 1, columnGap: 2, children: [...carpeta, Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }), Button({ key: 'blueprints', label: '📦 Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }), Button({ key: 'config', label: '⚙ Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) })] }),
     ],
   })
   if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila] })
@@ -773,6 +773,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
   const e = datos.estado
   const lista = datos.acciones || []
   if (config) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaConfig($, Box, Text, Button, Input, ancho)] })
+  if (bps) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaBlueprints($, Box, Text, Button, ancho)] })
   const cuerpo = e ? [tabla(Box, Text, Button, $, e, lista, ancho)] : [sinEstado(Box, Text, datos.motivo)]
   return Box({
     flexDirection: 'column',
@@ -785,6 +786,218 @@ function dibujar($, Box, Text, Button, Input, ancho) {
       Box({ marginTop: 1, children: [pie(Text, datos.version)] }),
     ],
   })
+}
+
+// ── 📦 Blueprints (pedido del usuario, 2026-11-01) ───────────────────────────────────────────────────────────────
+// Los instalados y los disponibles, con sus cuentas, los da 'qdd consola blueprints --json' sin red ni IA. ↻ trae el
+// catálogo; ⬆ Actualizar y ＋ Instalar son comandos de qdd que escriben el lockfile (con «s  Sí»); ✦ Aplicar es lo único
+// que le escribe a la IA, con el mensaje que da qdd. Después de cada acción se relee y se dice cuántos cambiaron.
+let bps = null // null | { inv, acciones, confirmando, resultado, falla }
+const SIMBOLO_BP = { 'con-cambios': ['✦', 'magenta'], 'solo-lock': ['⬆', 'yellow'], 'sin-medir': ['?', undefined], 'al-dia': ['✓', 'green'], disponible: ['＋', undefined] }
+const ESTADO_BP = { 'con-cambios': 'cambia la receta', 'solo-lock': 'sin la IA', 'sin-medir': 'sin medir', 'al-dia': 'al día', disponible: 'disponible' }
+
+async function abrirBlueprints($) {
+  bps = bps ? null : {}
+  config = null
+  if (bps) await leerBlueprints($)
+  $.ui.invalidate('ui.render')
+}
+
+async function leerBlueprints($) {
+  const bin = await binario($)
+  try {
+    const r = await $.process.run([bin, 'consola', 'blueprints', '--json'], { timeoutMs: TOPE_MS })
+    const j = r.exitCode === 0 ? JSON.parse(r.stdout) : null
+    if (!j) throw new Error(((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida')
+    if (bps) bps = { ...bps, inv: j.inventario || { entradas: [] }, acciones: j.acciones || [], falla: '' }
+  } catch (err) {
+    if (bps) bps = { ...bps, falla: String(err?.message ?? err) }
+  }
+}
+
+function pedirBP($, a) {
+  if (ocupado || !bps) return
+  if (a.tipo === 'atender') return aplicarBP($, a)
+  if (!a.confirmar) return correrBP($, a)
+  bps = { ...bps, confirmando: a }
+  $.ui.invalidate('ui.render')
+}
+
+// correrBP corre la acción con qdd, relee y compara: cuántas versiones nuevas trajo el catálogo, o cuántos blueprints
+// se actualizaron o instalaron.
+async function correrBP($, a) {
+  const antes = bps.inv
+  ocupado = true
+  bps = { ...bps, confirmando: null, resultado: { ok: true, titulo: a.etiqueta, texto: 'ejecutando ' + a.detalle + '…' } }
+  $.ui.invalidate('ui.render')
+  const bin = await binario($)
+  let r = null
+  try {
+    r = await $.process.run([bin, 'consola', 'accion', a.id, ...(a.confirmar ? ['--confirmado'] : [])], { timeoutMs: TOPE_ACCION_MS })
+  } catch (err) {
+    r = { exitCode: 1, stdout: '', stderr: String(err?.message ?? err) }
+  }
+  await leerBlueprints($)
+  const salida = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
+  const ok = r.exitCode === 0
+  const resumen = ok ? cambiosBP(antes, bps?.inv, a.id === PREFIJO_BP + 'sync') : ''
+  if (bps) bps = { ...bps, resultado: { ok, titulo: a.etiqueta, resumen, texto: salida || 'sin salida' } }
+  ocupado = false
+  $.ui.invalidate('ui.render')
+}
+
+async function aplicarBP($, a) {
+  ocupado = true
+  bps = { ...bps, confirmando: null }
+  const bin = await binario($)
+  let texto = ''
+  let resultado = { ok: false, titulo: a.etiqueta, texto: 'sin salida' }
+  try {
+    const r = await $.process.run([bin, 'consola', 'accion', a.id], { timeoutMs: TOPE_MS })
+    texto = r.exitCode === 0 ? (r.stdout || '').trim() : ''
+    resultado = { ok: false, titulo: a.etiqueta, texto: ((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida' }
+  } catch (err) {
+    resultado = { ok: false, titulo: a.etiqueta, texto: String(err?.message ?? err) }
+  }
+  if (texto) {
+    resultado = { ok: true, titulo: a.etiqueta, texto: '→ enviado a la IA' }
+    $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  }
+  if (bps) bps = { ...bps, resultado }
+  ocupado = false
+  $.ui.invalidate('ui.render')
+}
+
+const PREFIJO_BP = 'blueprint:'
+
+// cambiosBP: tras ↻, cuántas versiones nuevas hay y qué se puede tomar; tras actualizar o instalar, cuántos cambiaron.
+function cambiosBP(antes, despues, esSync) {
+  if (!despues) return ''
+  const previas = new Map((antes?.entradas || []).map((e) => [e.id, e]))
+  if (esSync) {
+    const nuevas = despues.entradas.filter((e) => e.publicada && previas.get(e.id)?.publicada !== e.publicada).length
+    return [plural(nuevas, 'versión nueva', 'versiones nuevas'), despues.sin_ia + (despues.sin_ia === 1 ? ' se actualiza' : ' se actualizan') + ' sin la IA', plural(despues.con_ia, 'cambia la receta', 'cambian la receta')].join(' · ')
+  }
+  const actualizados = despues.entradas.filter((e) => e.instalada && previas.get(e.id)?.instalada && previas.get(e.id).instalada !== e.instalada).length
+  const instalados = despues.entradas.filter((e) => e.instalada && !previas.get(e.id)?.instalada).length
+  return [plural(actualizados, 'actualizado', 'actualizados'), plural(instalados, 'instalado', 'instalados')].join(' · ')
+}
+
+function plural(n, uno, varios) {
+  return n + ' ' + (n === 1 ? uno : varios)
+}
+
+function vistaBlueprints($, Box, Text, Button, ancho) {
+  const titulo = separador(Box, Text, 't-blueprints', '📦 Blueprints', undefined, 'p cierra', ancho)
+  if (!bps.inv && !bps.falla) return [titulo, Text({ key: 'bp-leyendo', dimColor: true, children: ['leyendo…'] })]
+  if (!bps.inv) return [titulo, Text({ key: 'bp-falla', color: 'red', wrap: 'wrap', children: ['✗ ' + bps.falla] })]
+  const inv = bps.inv
+  const acciones = bps.acciones || []
+  const deEntrada = (id) => acciones.filter((a) => a.id.endsWith(':' + id) && a.id !== PREFIJO_BP + 'sync')
+  const cuentas = [plural(inv.instalados, 'instalado', 'instalados'), inv.sin_ia + ' sin IA', inv.con_ia + ' con IA', plural(inv.disponibles, 'disponible', 'disponibles')].join(' · ')
+  const generales = acciones.filter((a) => a.id === PREFIJO_BP + 'sync' || a.id === PREFIJO_BP + 'actualizar-sin-ia')
+  const teclaGeneral = { [PREFIJO_BP + 'sync']: 'r', [PREFIJO_BP + 'actualizar-sin-ia']: 'u' }
+  const botones = generales.map((a) => (bps.confirmando?.id === a.id ? confirmarBP($, Box, Text, Button) : Button({ key: 'bp-' + a.id, label: teclaGeneral[a.id] + '  ' + a.etiqueta, hotkey: teclaGeneral[a.id], plain: true, onPress: () => pedirBP($, a) })))
+  const problemas = (inv.problemas || []).map((p, i) => Text({ key: 'bp-problema-' + i, color: 'yellow', wrap: 'wrap', children: ['⚠ ' + p] }))
+  const grupos = [
+    ['Para actualizar', inv.entradas.filter((e) => e.estado === 'con-cambios' || e.estado === 'solo-lock')],
+    ['Instalados', inv.entradas.filter((e) => e.estado === 'al-dia' || e.estado === 'sin-medir')],
+    ['Disponibles', inv.entradas.filter((e) => e.estado === 'disponible')],
+  ].filter(([, es]) => es.length > 0)
+  const cuerpo = grupos.flatMap(([nombre, es]) => [
+    Text({ key: 'bp-g-' + nombre, dimColor: true, weight: 'semibold', size: 'caption', children: [nombre] }),
+    ...es.map((e) => filaBP($, Box, Text, Button, e, deEntrada(e.id))),
+  ])
+  return [
+    titulo,
+    Text({ key: 'bp-cuentas', wrap: 'wrap', children: [cuentas] }),
+    ...problemas,
+    Box({ key: 'bp-generales', flexDirection: 'column', marginTop: 1, children: [Box({ flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: botones })] }),
+    ...resultadoBP(Box, Text),
+    Box({ key: 'bp-lista', flexDirection: 'column', marginTop: 1, rowGap: 1, children: cuerpo }),
+  ]
+}
+
+// filaBP: el símbolo y el nombre, las versiones y el estado; debajo, por qué cambió la receta y sus botones.
+function filaBP($, Box, Text, Button, e, acciones) {
+  const [simbolo, color] = SIMBOLO_BP[e.estado] || ['·', undefined]
+  const versiones = e.instalada && e.publicada && e.instalada !== e.publicada ? e.instalada + ' → ' + e.publicada : e.instalada || e.publicada || ''
+  const confirma = acciones.find((a) => bps.confirmando?.id === a.id)
+  const botones = confirma
+    ? [confirmarBP($, Box, Text, Button)]
+    : [Box({ flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: acciones.map((a) => Button({ key: 'bp-' + a.id, label: a.etiqueta.replace(/ «[^»]*»/, ''), plain: true, onPress: () => pedirBP($, a) })) })]
+  return Box({
+    key: 'bp-' + e.id,
+    flexDirection: 'column',
+    children: [
+      Box({
+        flexDirection: 'row',
+        columnGap: 1,
+        children: [
+          Text({ color, dimColor: !color, children: [simbolo] }),
+          Text({ weight: 'bold', wrap: 'truncate-end', children: [e.nombre || e.id] }),
+          Text({ dimColor: true, wrap: 'truncate-end', children: [versiones + ' · ' + (ESTADO_BP[e.estado] || e.estado)] }),
+        ],
+      }),
+      ...(e.razones?.length ? [Text({ dimColor: true, size: 'caption', wrap: 'wrap', children: ['  ' + e.razones.join(' · ')] })] : []),
+      ...(acciones.length ? [Box({ paddingLeft: 2, children: botones })] : []),
+    ],
+  })
+}
+
+function confirmarBP($, Box, Text, Button) {
+  const a = bps.confirmando
+  return Box({
+    key: 'bp-confirmar',
+    flexDirection: 'column',
+    borderStyle: 'single',
+    borderColor: 'yellow',
+    paddingX: 1,
+    children: [
+      Text({ color: 'yellow', dimColor: true, size: 'caption', children: ['Escribe en el proyecto'] }),
+      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
+      Text({ mono: true, wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
+      Box({
+        flexDirection: 'row',
+        columnGap: 2,
+        marginTop: 1,
+        children: [
+          Button({ key: 'bp-si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => correrBP($, a) }),
+          Button({
+            key: 'bp-no',
+            label: 'n  No',
+            hotkey: 'n',
+            onPress: () => {
+              bps = { ...bps, confirmando: null }
+              $.ui.invalidate('ui.render')
+            },
+          }),
+        ],
+      }),
+    ],
+  })
+}
+
+function resultadoBP(Box, Text) {
+  const r = bps.resultado
+  if (!r) return []
+  const tinte = r.ok ? 'green' : 'red'
+  return [
+    Box({
+      key: 'bp-resultado',
+      flexDirection: 'column',
+      borderStyle: 'single',
+      borderColor: tinte,
+      borderDimColor: true,
+      paddingX: 1,
+      marginTop: 1,
+      children: [
+        Text({ color: tinte, weight: 'semibold', wrap: 'wrap', children: [(r.ok ? '✓ ' : '✗ ') + r.titulo] }),
+        ...(r.resumen ? [Text({ key: 'bp-resumen', wrap: 'wrap', children: [r.resumen] })] : []),
+        Text({ dimColor: true, size: 'caption', wrap: 'wrap', children: [r.texto] }),
+      ],
+    }),
+  ]
 }
 
 // ── Herramientas del proyecto (RFC 0011) ──────────────────────────────────────────────────────────────────────────
@@ -1024,6 +1237,7 @@ function dibujarHerramienta($, Box, Text, Button, Input, Select, id) {
 // ⚙ Config (en el panel de tareas): las herramientas del proyecto y el paso a paso para agregar una.
 async function abrirConfig($) {
   config = config ? null : { vista: 'lista' }
+  bps = null
   if (config) await leerHerramientas($)
   $.ui.invalidate('ui.render')
 }
