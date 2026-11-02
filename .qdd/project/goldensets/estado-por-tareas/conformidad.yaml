@@ -1,6 +1,6 @@
-# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@2.0.0.
+# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@2.1.0.
 # No se editan a mano: cambian al volver a aplicar el blueprint.
-blueprint: estado-por-tareas@2.0.0
+blueprint: estado-por-tareas@2.1.0
 escenarios:
     - id: EPF-C01
       titulo: Un estado por celda
@@ -76,6 +76,24 @@ escenarios:
       titulo: La tabla agrupa por objetivo
       cuando: se entrega la tabla
       entonces: "cada objetivo tiene su fila \U0001F3AF antes de sus tareas, el foco primero, y las tareas sin objetivo van al final bajo «\U0001F3AF sin objetivo»"
+    - id: EPT-K01
+      titulo: Ciclos válidos
+      cuando: se declara un ciclo sin etapas, con una etapa repetida o llamado «proyecto», o un objetivo sigue un ciclo que no existe
+      entonces: es un error y no se escribe nada
+    - id: EPT-K02
+      titulo: La tarea toma las etapas de su ciclo
+      dado: un objetivo que sigue un ciclo propio
+      cuando: se le agrega una tarea o se marca una de sus celdas
+      entonces: la tarea tiene una celda por etapa de ese ciclo, sin empezar; una celda de otra etapa no vale y no se escribe
+    - id: EPT-K03
+      titulo: Cambiar de ciclo no pierde avance
+      cuando: una tarea pasa a otro ciclo (cambia su objetivo, el ciclo de su objetivo o las etapas del ciclo)
+      entonces: conserva las celdas de las etapas comunes y agrega las nuevas sin empezar; si tiene ✅ ⏳ o ❌ en una etapa que el ciclo nuevo no tiene, es un error que la nombra y no se escribe
+    - id: EPT-K04
+      titulo: Una tabla por ciclo
+      dado: objetivos que siguen ciclos distintos
+      cuando: se entrega la tabla
+      entonces: hay una tabla por ciclo con sus columnas, la del proyecto primero, y el lector automático revisa cada tarea en la de su ciclo
     - id: EPF-A01
       titulo: El archivo y la respuesta coinciden
       cuando: se entrega una tabla y se actualiza .qdd/project/estado.yaml
@@ -89,6 +107,11 @@ escenarios:
       titulo: Cada fila trae su pregunta
       cuando: se arma el JSON del panel
       entonces: cada tarea (y cada objetivo, si los hay) trae la pregunta «¿Cómo vamos con…?» que el panel le envía al agente al pincharla
+    - id: EPT-K05
+      titulo: El panel lleva los ciclos
+      cuando: se arma el JSON del panel
+      entonces: |
+        cada fila trae un símbolo por etapa de su ciclo, y sin ciclos propios el JSON no trae ciclos; un objetivo que sigue un ciclo propio dice su ciclo, el JSON trae ese ciclo con sus etapas y abreviaturas y los ⏳ y ❌ de sus tareas cuentan con su etapa; el panel pone las abreviaturas del ciclo bajo la cabecera del objetivo y la leyenda nombra cada ciclo
     - id: EPT-C01
       titulo: El agente declara la tarea en curso
       cuando: el agente activa una tarea abierta
