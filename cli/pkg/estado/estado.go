@@ -69,11 +69,12 @@ type Frente struct {
 
 // Estado es el archivo completo.
 type Estado struct {
-	Formato     int      `yaml:"formato"`
-	Etapas      []string `yaml:"etapas"`
-	Actualizado string     `yaml:"actualizado,omitempty"`
-	Objetivos   []Objetivo `yaml:"objetivos,omitempty"`
-	Frentes     []Frente   `yaml:"frentes"`
+	Formato     int                 `yaml:"formato"`
+	Etapas      []string            `yaml:"etapas"`
+	Ciclos      map[string][]string `yaml:"ciclos,omitempty"` // otros ciclos con sus etapas (ciclos.go)
+	Actualizado string              `yaml:"actualizado,omitempty"`
+	Objetivos   []Objetivo          `yaml:"objetivos,omitempty"`
+	Frentes     []Frente            `yaml:"frentes"`
 }
 
 // NormalizarEstado acepta el emoji o un alias escribible (ok, espera, falla, na, sin-empezar) y devuelve el estado cerrado; "" si no
@@ -101,8 +102,8 @@ func Parse(data []byte) (Estado, error) {
 	if err := yaml.Unmarshal(data, &e); err != nil {
 		return Estado{}, fmt.Errorf("estado.yaml ilegible: %w", err)
 	}
-	if e.Formato != Formato && e.Formato != FormatoConObjetivos {
-		return Estado{}, fmt.Errorf("estado.yaml: formato %d no soportado (se espera %d o %d; uno más nuevo pide actualizar qdd)", e.Formato, Formato, FormatoConObjetivos)
+	if e.Formato != Formato && e.Formato != FormatoConObjetivos && e.Formato != FormatoConCiclos {
+		return Estado{}, fmt.Errorf("estado.yaml: formato %d no soportado (se espera %d, %d o %d; uno más nuevo pide actualizar qdd)", e.Formato, Formato, FormatoConObjetivos, FormatoConCiclos)
 	}
 	return e, nil
 }
@@ -121,6 +122,9 @@ func Save(root string, e Estado) error {
 	e.Formato = Formato
 	if e.usaFormato2() {
 		e.Formato = FormatoConObjetivos
+	}
+	if e.usaCiclos() {
+		e.Formato = FormatoConCiclos
 	}
 	data, err := yaml.Marshal(e)
 	if err != nil {
@@ -194,11 +198,7 @@ func (e Estado) buscar(id string) int {
 	return -1
 }
 
-func (e Estado) tieneEtapa(etapa string) bool {
-	for _, s := range e.Etapas {
-		if s == etapa {
-			return true
-		}
-	}
-	return false
+// tieneEtapa: la etapa es de las de la tarea (las de su ciclo).
+func (e Estado) tieneEtapa(f Frente, etapa string) bool {
+	return contiene(e.EtapasDe(f), etapa)
 }

@@ -35,7 +35,7 @@ func atenciones(root string) []Accion {
 		if f.Estado != estado.EstadoAbierto {
 			continue
 		}
-		for i, etapa := range e.Etapas {
+		for i, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
 			if c.Estado != estado.Espera && c.Estado != estado.Falla {
 				continue

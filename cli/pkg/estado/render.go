@@ -68,24 +68,33 @@ func (e Estado) textoObjetivo(o Objetivo) string {
 }
 
 // Markdown arma la tabla de la respuesta con el alcance pedido. Con objetivos, cada uno lleva su fila antes de sus
-// tareas: «—» en cada etapa salvo la última, que dice su estado (EPT-O06).
+// tareas: «—» en cada etapa salvo la última, que dice su estado (EPT-O06). Con ciclos, una tabla por ciclo, cada una
+// con sus columnas y separadas por una línea en blanco: la del proyecto primero (EPT-K04).
 func Markdown(e Estado, now time.Time, alcance Alcance) string {
+	var tablas []string
+	for _, t := range e.porCiclo(e.Arbol(func(f Frente) bool { return f.EnAlcance(alcance, now) })) {
+		tablas = append(tablas, tablaMD(e, t))
+	}
+	return strings.Join(tablas, "\n")
+}
+
+func tablaMD(e Estado, t grupoCiclo) string {
 	var b strings.Builder
-	b.WriteString("| Tarea | " + strings.Join(e.Etapas, " | ") + " |\n")
-	b.WriteString("|---" + strings.Repeat("|---", len(e.Etapas)) + "|\n")
+	b.WriteString("| Tarea | " + strings.Join(t.Etapas, " | ") + " |\n")
+	b.WriteString("|---" + strings.Repeat("|---", len(t.Etapas)) + "|\n")
 	conObjetivos := len(e.Objetivos) > 0
-	for _, g := range e.Arbol(func(f Frente) bool { return f.EnAlcance(alcance, now) }) {
+	for _, g := range t.Grupos {
 		if conObjetivos {
 			ultima := NoAplica
 			if g.Objetivo != nil {
 				ultima = e.textoObjetivo(*g.Objetivo)
 			}
-			celdas := append(repetir(NoAplica, len(e.Etapas)-1), escaparMD(ultima))
+			celdas := append(repetir(NoAplica, len(t.Etapas)-1), escaparMD(ultima))
 			b.WriteString("| " + escaparMD(etiquetaObjetivo(g.Objetivo)) + " | " + strings.Join(celdas, " | ") + " |\n")
 		}
 		for _, fa := range g.Filas {
-			celdas := make([]string, 0, len(e.Etapas))
-			for _, etapa := range e.Etapas {
+			celdas := make([]string, 0, len(t.Etapas))
+			for _, etapa := range t.Etapas {
 				c := fa.Frente.Celdas[etapa]
 				celdas = append(celdas, escaparMD(celdaTexto(c)+pendienteDeAprobacion(c)))
 			}
@@ -116,7 +125,7 @@ func Mensajeria(e Estado, now time.Time, alcance Alcance) string {
 		}
 		for _, fa := range g.Filas {
 			b.WriteString("*" + etiquetaFrente(e, fa.Frente) + "*\n")
-			for _, etapa := range e.Etapas {
+			for _, etapa := range e.EtapasDe(fa.Frente) {
 				c := fa.Frente.Celdas[etapa]
 				b.WriteString("  " + etapa + ": " + celdaTexto(c) + pendienteDeAprobacion(c) + "\n")
 			}
@@ -125,9 +134,10 @@ func Mensajeria(e Estado, now time.Time, alcance Alcance) string {
 	return b.String()
 }
 
-// CheckRespuesta (EPF-A01): la tabla de una respuesta tiene los mismos frentes y estados que el archivo.
+// CheckRespuesta (EPF-A01): la tabla de una respuesta tiene los mismos frentes y estados que el archivo. Con ciclos, lee
+// todas sus tablas: cada tarea, en la de su ciclo (EPT-K04).
 func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
-	filas, ok := leerTablaMD(respuesta, len(e.Etapas))
+	filas, ok := leerTablaMD(respuesta, !e.usaCiclos())
 	if !ok {
 		return []Violacion{{ID: "EPF-A01", Mensaje: "la respuesta no trae la tabla de estado por tarea"}}
 	}
@@ -139,12 +149,13 @@ func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
 		}
 		etiqueta := etiquetaFrente(e, f)
 		esperados[etiqueta] = true
+		etapas := e.EtapasDe(f)
 		celdas, hay := filas[etiqueta]
-		if !hay {
+		if !hay || len(celdas) != len(etapas) {
 			vs = append(vs, Violacion{ID: "EPF-A01", Frente: f.ID, Mensaje: "está en el archivo y no en la respuesta"})
 			continue
 		}
-		for i, etapa := range e.Etapas {
+		for i, etapa := range etapas {
 			want := NormalizarEstado(f.Celdas[etapa].Estado)
 			if primerEstado(celdas[i]) != want {
 				vs = append(vs, Violacion{ID: "EPF-A01", Frente: f.ID, Etapa: etapa, Mensaje: fmt.Sprintf("la respuesta dice %q y el archivo %s", celdas[i], want)})
@@ -186,7 +197,7 @@ func checkAfirmacion(e Estado, antes, etapa, dice string) []Violacion {
 	if !ok {
 		return []Violacion{{ID: "EPF-C08", Mensaje: fmt.Sprintf("el texto afirma «%s · %s: %s» de una tarea que no está en la tabla", strings.TrimSpace(antes), etapa, dice)}}
 	}
-	for _, et := range e.Etapas {
+	for _, et := range e.EtapasDe(f) {
 		if !strings.EqualFold(et, etapa) {
 			continue
 		}
@@ -222,29 +233,32 @@ func primerEstado(celda string) string {
 	return NormalizarEstado(campos[0])
 }
 
-// leerTablaMD toma la primera tabla cuyo encabezado empieza por «Tarea» (o «Frente», la tabla de antes) y devuelve sus filas por etiqueta.
-func leerTablaMD(texto string, etapas int) (map[string][]string, bool) {
+// leerTablaMD lee las filas de la tabla de estado de la respuesta (la primera con cabecera «Tarea»); sin soloPrimera,
+// de todas las que la tengan (una por ciclo). Cada fila lleva sus celdas; quien las compara revisa cuántas son.
+func leerTablaMD(texto string, soloPrimera bool) (map[string][]string, bool) {
 	filas := map[string][]string{}
-	enTabla := false
+	enTabla, vista := false, false
 	for _, linea := range strings.Split(texto, "\n") {
 		l := strings.TrimSpace(linea)
 		if !strings.HasPrefix(l, "|") {
-			if enTabla {
+			if enTabla && soloPrimera {
 				break
 			}
+			enTabla = false
 			continue
 		}
 		celdas := partirFila(l)
 		if !enTabla {
 			enTabla = len(celdas) > 0 && (strings.EqualFold(celdas[0], "Tarea") || strings.EqualFold(celdas[0], "Frente"))
+			vista = vista || enTabla
 			continue
 		}
-		if len(celdas) != etapas+1 || strings.HasPrefix(celdas[0], "---") {
+		if len(celdas) < 2 || strings.HasPrefix(celdas[0], "---") {
 			continue
 		}
 		filas[celdas[0]] = celdas[1:]
 	}
-	return filas, enTabla
+	return filas, vista
 }
 
 func partirFila(l string) []string {
@@ -437,45 +451,56 @@ func Panel(e Estado, proyecto string, ancho int, now time.Time) []string {
 	add(titulo)
 	add(strings.Repeat("─", ancho))
 
-	abrev := abreviaturas(e.Etapas)
 	nombreAncho := AnchoVisible("Tarea")
+	maxEtapas := 0
 	for _, f := range e.Frentes {
 		if f.EnAlcance(AlcanceAbiertos, now) && AnchoVisible(f.Nombre) > nombreAncho {
 			nombreAncho = AnchoVisible(f.Nombre)
 		}
+		if f.EnAlcance(AlcanceAbiertos, now) {
+			maxEtapas = max(maxEtapas, len(e.EtapasDe(f)))
+		}
 	}
-	if disponible := ancho - 3*len(e.Etapas) - 1; nombreAncho > disponible {
+	if disponible := ancho - 3*max(maxEtapas, len(e.Etapas)) - 1; nombreAncho > disponible {
 		nombreAncho = disponible
 	}
 	if nombreAncho < 8 {
 		nombreAncho = 8
 	}
-	cab := relleno("Tarea", nombreAncho)
-	for _, a := range abrev {
-		cab += " " + relleno(a, 2)
-	}
-	add(cab)
 
+	// Un bloque por ciclo (EPT-K04): cabecera, filas y leyenda; el del proyecto primero.
 	var esperas, fallas []string
-	for _, f := range e.Frentes {
-		if !f.EnAlcance(AlcanceAbiertos, now) {
-			continue
+	for i, ciclo := range e.ciclosDelPanel(now) {
+		etapas, _ := e.etapasDelCiclo(ciclo)
+		abrev := abreviaturas(etapas)
+		if i > 0 {
+			add("")
 		}
-		fila := relleno(Truncar(f.Nombre, nombreAncho), nombreAncho)
-		for _, etapa := range e.Etapas {
-			c := f.Celdas[etapa]
-			fila += " " + relleno(simbolo(c), 2)
-			switch NormalizarEstado(c.Estado) {
-			case Espera:
-				esperas = append(esperas, "• "+f.Nombre+" › "+etapa, "  de "+c.DeQuien+": "+c.Bloqueo)
-			case Falla:
-				fallas = append(fallas, "• "+f.Nombre+" › "+etapa, "  "+c.Falla)
+		cab := relleno("Tarea", nombreAncho)
+		for _, a := range abrev {
+			cab += " " + relleno(a, 2)
+		}
+		add(cab)
+		for _, f := range e.Frentes {
+			if !f.EnAlcance(AlcanceAbiertos, now) || e.CicloDe(f) != ciclo {
+				continue
 			}
+			fila := relleno(Truncar(f.Nombre, nombreAncho), nombreAncho)
+			for _, etapa := range etapas {
+				c := f.Celdas[etapa]
+				fila += " " + relleno(simbolo(c), 2)
+				switch NormalizarEstado(c.Estado) {
+				case Espera:
+					esperas = append(esperas, "• "+f.Nombre+" › "+etapa, "  de "+c.DeQuien+": "+c.Bloqueo)
+				case Falla:
+					fallas = append(fallas, "• "+f.Nombre+" › "+etapa, "  "+c.Falla)
+				}
+			}
+			add(fila)
 		}
-		add(fila)
+		add("")
+		add(leyenda(etapas, abrev))
 	}
-	add("")
-	add(leyenda(e.Etapas, abrev))
 	if len(esperas) > 0 {
 		add("")
 		add(Espera + " Esperando")
@@ -518,4 +543,28 @@ func relleno(s string, w int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", falta)
+}
+
+// ciclosDelPanel: el del proyecto primero (si tiene tareas a la vista, o si ningún otro ciclo las tiene) y después cada
+// ciclo con tareas a la vista, en el orden de sus tareas.
+func (e Estado) ciclosDelPanel(now time.Time) []string {
+	var otros []string
+	conProyecto := false
+	for _, f := range e.Frentes {
+		if !f.EnAlcance(AlcanceAbiertos, now) {
+			continue
+		}
+		c := e.CicloDe(f)
+		if c == CicloProyecto {
+			conProyecto = true
+			continue
+		}
+		if _, ok := e.etapasDelCiclo(c); ok && !contiene(otros, c) {
+			otros = append(otros, c)
+		}
+	}
+	if conProyecto || len(otros) == 0 {
+		return append([]string{CicloProyecto}, otros...)
+	}
+	return otros
 }

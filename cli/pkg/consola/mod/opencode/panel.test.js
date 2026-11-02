@@ -97,6 +97,20 @@ test('paraTi no cuenta los pedidos en espera (FND-080)', () => {
   assert.equal(paraTi(acciones), 1)
 })
 
+test('un objetivo con su propio ciclo lleva sus etapas bajo su cabecera (EPT-K05)', () => {
+  const e = {
+    etapas: ['Código'], abreviaturas: ['Có'], esperas: [], fallas: [],
+    ciclos: [{ nombre: 'agentico', etapas: ['Concepto', 'Puerta'], abreviaturas: ['Co', 'Pu'] }],
+    objetivos: [{ id: 'tutor', nombre: 'Tutor', simbolo: '⏳', resumen: '0/1 tareas listas', ciclo: 'agentico' }],
+    frentes: [{ id: 'f01', nombre: 'F01', simbolos: ['⏳', '·'], objetivo: 'tutor', prefijo: '└─ ' }],
+  }
+  assert.deepEqual(arbol(e).map((f) => [f.nombre, f.celdas, f.tono]), [
+    ['🎯 Tutor', '⏳ 0/1 tareas listas', 'primary'],
+    ['', 'Co Pu', 'textMuted'],
+    ['└─ F01', '⏳ ·', 'warning'],
+  ])
+})
+
 test('dibuja el árbol de objetivos igual que Claude Code, en lectura (EPT-A02)', () => {
   const e = {
     etapas: ['Código'], abreviaturas: ['Có'], esperas: [], fallas: [],

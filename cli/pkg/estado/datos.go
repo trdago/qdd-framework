@@ -29,6 +29,9 @@ type DatosPanel struct {
 	// Objetivos en el orden en que se dibujan (el foco primero); Frentes viene en orden de árbol y cada fila dice su
 	// Objetivo ("" son las tareas sin objetivo, al final). Vacío si el tablero no usa objetivos.
 	Objetivos []ObjetivoPanel `json:"objetivos,omitempty"`
+	// Ciclos: los propios (no «proyecto») de los objetivos que se ven, con sus etapas; las filas de un objetivo con
+	// ciclo traen un símbolo por etapa de ese ciclo (EPT-K05).
+	Ciclos []CicloPanel `json:"ciclos,omitempty"`
 }
 
 // ObjetivoPanel es la cabecera de un grupo del árbol, ya resuelta: su estado (Simbolo y Resumen) y la pregunta que el
@@ -41,6 +44,21 @@ type ObjetivoPanel struct {
 	Simbolo  string `json:"simbolo"`
 	Resumen  string `json:"resumen"`
 	Pregunta string `json:"pregunta"`
+	Ciclo    string `json:"ciclo,omitempty"` // el ciclo propio que siguen sus tareas; sin él, el del proyecto
+}
+
+// CicloPanel es un ciclo propio con sus etapas y sus abreviaturas, para la cabecera de sus objetivos.
+type CicloPanel struct {
+	Nombre       string   `json:"nombre"`
+	Etapas       []string `json:"etapas"`
+	Abreviaturas []string `json:"abreviaturas"`
+}
+
+func cicloPropio(o Objetivo) string {
+	if o.Ciclo == CicloProyecto {
+		return ""
+	}
+	return o.Ciclo
 }
 
 // TableroViejo: con tareas pendientes y sin escrituras en este tiempo, el panel avisa que el tablero puede no estar al
@@ -116,7 +134,7 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 			visibles[f.ID] = true
 			continue
 		}
-		if !f.Terminado(e.Etapas) {
+		if !f.Terminado(e.EtapasDe(f)) {
 			pendientes = append(pendientes, f.ID)
 		}
 	}
@@ -148,11 +166,11 @@ type Totales struct {
 func (e Estado) Totales() Totales {
 	var t Totales
 	for _, f := range e.Abiertos() {
-		if f.Terminado(e.Etapas) {
+		if f.Terminado(e.EtapasDe(f)) {
 			continue
 		}
 		t.Tareas++
-		for _, etapa := range e.Etapas {
+		for _, etapa := range e.EtapasDe(f) {
 			switch NormalizarEstado(f.Celdas[etapa].Estado) {
 			case Espera:
 				t.Esperan++
@@ -186,26 +204,33 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 		d.Hace = hace(now.Sub(cuando))
 		d.Viejo = t.Tareas > 0 && now.Sub(cuando) > TableroViejo
 	}
+	var usados []Objetivo
 	for _, g := range e.Arbol(incluir) {
 		objetivo := ""
 		if g.Objetivo != nil {
 			o := *g.Objetivo
 			simbolo, resumen := e.EstadoObjetivo(o)
-			d.Objetivos = append(d.Objetivos, ObjetivoPanel{ID: o.ID, Nombre: o.Nombre, Criterio: o.Criterio, Foco: o.Foco && o.Estado == ObjetivoAbierto, Simbolo: simbolo, Resumen: resumen, Pregunta: PreguntaObjetivo(o)})
+			d.Objetivos = append(d.Objetivos, ObjetivoPanel{ID: o.ID, Nombre: o.Nombre, Criterio: o.Criterio, Foco: o.Foco && o.Estado == ObjetivoAbierto, Simbolo: simbolo, Resumen: resumen, Pregunta: PreguntaObjetivo(o), Ciclo: cicloPropio(o)})
+			usados = append(usados, o)
 			objetivo = o.ID
 		}
 		for _, fa := range g.Filas {
 			d.Frentes = append(d.Frentes, filaPanel(e, fa, objetivo, &d))
 		}
 	}
+	for _, c := range ciclosUsados(usados) {
+		etapas, _ := e.etapasDelCiclo(c)
+		d.Ciclos = append(d.Ciclos, CicloPanel{Nombre: c, Etapas: etapas, Abreviaturas: abreviaturas(etapas)})
+	}
 	return d
 }
 
 func filaPanel(e Estado, fa FilaArbol, objetivo string, d *DatosPanel) FrentePanel {
 	f := fa.Frente
-	fila := FrentePanel{ID: f.ID, Nombre: f.Nombre, Estado: f.Estado, Simbolos: make([]string, 0, len(e.Etapas)),
+	etapas := e.EtapasDe(f)
+	fila := FrentePanel{ID: f.ID, Nombre: f.Nombre, Estado: f.Estado, Simbolos: make([]string, 0, len(etapas)),
 		Objetivo: objetivo, Prefijo: fa.Prefijo, Notas: fa.Notas, Pregunta: PreguntaTarea(f)}
-	for _, etapa := range e.Etapas {
+	for _, etapa := range etapas {
 		c := f.Celdas[etapa]
 		fila.Simbolos = append(fila.Simbolos, simbolo(c))
 		switch NormalizarEstado(c.Estado) {

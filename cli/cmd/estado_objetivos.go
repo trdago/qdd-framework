@@ -32,8 +32,10 @@ var estadoObjetivoCmd = &cobra.Command{
   qdd estado objetivo release --evidencia "corrida uso-5h"     se cumple: terminar sus tareas no basta
   qdd estado objetivo release --descartado --motivo "…"        se descarta; nunca desaparece en silencio
   qdd estado objetivo release --reabrir
+  qdd estado objetivo tutor --ciclo agentico                   sus tareas siguen el ciclo «agentico»
 
-A lo más un objetivo abierto es el foco: marcar uno desmarca al anterior.`,
+A lo más un objetivo abierto es el foco: marcar uno desmarca al anterior. Con --ciclo, sus tareas toman las etapas de
+ese ciclo (declarado con 'qdd estado ciclo'); --ciclo "" las vuelve al del proyecto.`,
 	Args: cobra.ExactArgs(1),
 	Run:  runEstadoObjetivo,
 }
@@ -59,15 +61,37 @@ func init() {
 	f.BoolVar(&objetivoDescartado, "descartado", false, "lo descarta (con --motivo)")
 	f.StringVar(&objetivoMotivo, "motivo", "", "por qué se descarta")
 	f.BoolVar(&objetivoReabrir, "reabrir", false, "vuelve a abrir un objetivo cumplido o descartado")
+	f.StringVar(&objetivoCambio.Ciclo, "ciclo", "", "el ciclo que siguen sus tareas (\"\" el del proyecto)")
 	t := estadoTareaCmd.Flags()
 	t.StringVar(&tareaCambio.Nombre, "nombre", "", "nombre de la tarea")
 	t.StringVar(&tareaCambio.Objetivo, "objetivo", "", "id del objetivo al que sirve (\"\" la deja sin objetivo)")
 	t.StringVar(&tareaDependeDe, "depende-de", "", "ids de las tareas de las que depende, separados por coma (\"\" ninguna)")
-	estadoCmd.AddCommand(estadoObjetivoCmd, estadoTareaCmd)
+	estadoCmd.AddCommand(estadoObjetivoCmd, estadoTareaCmd, estadoCicloCmd)
+}
+
+var estadoCicloCmd = &cobra.Command{
+	Use:   "ciclo <nombre> <etapa>...",
+	Short: "Declara un ciclo con sus etapas (o cambia las de uno); un objetivo lo sigue con 'objetivo --ciclo'",
+	Long: `Las etapas del archivo son el ciclo «proyecto». Un ciclo con nombre tiene sus propias etapas: las tareas de un
+objetivo que lo sigue toman esas etapas, sin cambiar las del proyecto.
+
+  qdd estado ciclo agentico Concepto Artefacto Medición Puerta
+  qdd estado objetivo tutor --nombre "Tutor" --criterio "…" --ciclo agentico
+  qdd estado ciclo proyecto Código Pruebas Producción        cambia las etapas del proyecto
+
+Cambiar las etapas de un ciclo no pierde avance: si una tarea tiene ✅ ⏳ o ❌ en una etapa que se quita, no se escribe.`,
+	Args: cobra.MinimumNArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := estado.DeclararCiclo(estadoRaiz(), args[0], args[1:], time.Now()); err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[+] ciclo %s: %s en %s\n", args[0], strings.Join(args[1:], " · "), estado.Ruta)
+	},
 }
 
 func runEstadoObjetivo(cmd *cobra.Command, args []string) {
 	root, id, now := estadoRaiz(), args[0], time.Now()
+	objetivoCambio.CambiaCiclo = cmd.Flags().Changed("ciclo")
 	if err := aplicarObjetivo(root, id, objetivoCambio, objetivoEvidencia, objetivoMotivo, objetivoDescartado, objetivoReabrir, now); err != nil {
 		salirCon("%v", err)
 	}
@@ -77,7 +101,7 @@ func runEstadoObjetivo(cmd *cobra.Command, args []string) {
 // aplicarObjetivo es lo mismo para la CLI y la tool MCP: primero los datos, después el cierre o la reapertura.
 func aplicarObjetivo(root, id string, c estado.CambioObjetivo, evidencia, motivo string, descartado, reabrir bool, now time.Time) error {
 	c.ID = id
-	if c.Nombre != "" || c.Criterio != "" || c.Foco || (evidencia == "" && !descartado && !reabrir) {
+	if c.Nombre != "" || c.Criterio != "" || c.Foco || c.CambiaCiclo || c.Ciclo != "" || (evidencia == "" && !descartado && !reabrir) {
 		if err := estado.GuardarObjetivo(root, c, now); err != nil {
 			return err
 		}

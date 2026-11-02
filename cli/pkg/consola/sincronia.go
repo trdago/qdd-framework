@@ -43,7 +43,7 @@ func Esperas(root string, now time.Time) []string {
 		return out
 	}
 	for _, f := range e.Abiertos() {
-		for _, etapa := range e.Etapas {
+		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
 			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) {
 				continue

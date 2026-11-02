@@ -379,8 +379,12 @@ function cabecera(Box, Text, Button, $, e, lista) {
 // prefijo («│  └─ »), su objetivo y a quién espera; el panel pone la cabecera de cada objetivo (el foco primero) y
 // deja las etapas en columnas a la derecha. Pinchar el nombre de una tarea o de un objetivo le envía a la IA la
 // pregunta que trae qdd («¿Cómo vamos con…?»).
+// Ciclos (estado-por-tareas, EPT-K05): un objetivo que sigue su propio ciclo trae sus etapas en e.ciclos; bajo su
+// cabecera van las abreviaturas de ese ciclo y sus filas, un símbolo por etapa. La leyenda nombra cada ciclo.
 function tabla(Box, Text, Button, $, e, lista, ancho) {
-  const columnas = 3 * e.etapas.length + 2
+  const ciclos = e.ciclos || []
+  const cicloDe = (o) => ciclos.find((c) => c.nombre === o.ciclo)
+  const columnas = 3 * Math.max(e.etapas.length, ...ciclos.map((c) => c.etapas.length)) + 2
   const etiqueta = (f) => (f.prefijo || '') + f.nombre + (f.notas?.length ? ' · ' + f.notas.join(' · ') : '')
   const objetivos = e.objetivos || []
   const largo = Math.max('Tarea'.length, ...e.frentes.map((f) => etiqueta(f).length), ...objetivos.map((o) => o.nombre.length + 10))
@@ -437,10 +441,13 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
         Text({ key: 'o-estado', dimColor: true, wrap: 'truncate-end', children: [o.simbolo + ' ' + o.resumen] }),
       ],
     })
+  const cabeceraCiclo = (o, c) => fila('cab-' + o.id, null, [Text({ dimColor: true, size: 'caption', children: [c.abreviaturas.join(' ')] })], {}, [])
   const filas = []
   if (objetivos.length === 0) filas.push(...e.frentes.map(filaTarea))
   for (const o of objetivos) {
     filas.push(cabeceraObjetivo(o))
+    const c = cicloDe(o)
+    if (c) filas.push(cabeceraCiclo(o, c))
     filas.push(...e.frentes.filter((f) => f.objetivo === o.id).map(filaTarea))
   }
   const sueltas = objetivos.length ? e.frentes.filter((f) => !f.objetivo) : []
@@ -448,7 +455,8 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     filas.push(Box({ key: 'o-sin', marginTop: 1, children: [Text({ dimColor: true, weight: 'bold', children: ['🎯 sin objetivo'] })] }))
     filas.push(...sueltas.map(filaTarea))
   }
-  const leyenda = e.etapas.map((etapa, i) => e.abreviaturas[i] + ' ' + etapa).join(' · ')
+  const nombrar = (etapas, abrev) => etapas.map((etapa, i) => abrev[i] + ' ' + etapa).join(' · ')
+  const leyendas = [nombrar(e.etapas, e.abreviaturas), ...ciclos.map((c) => c.nombre + ': ' + nombrar(c.etapas, c.abreviaturas))]
   const antiguas = e.ocultos > 0 ? [Text({ key: 'ocultas', dimColor: true, size: 'caption', children: ['+' + e.ocultos + ' más antiguas · qdd estado ver'] })] : []
   return Box({
     key: 'tabla',
@@ -458,7 +466,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       fila('cab', 'Tarea', [Text({ dimColor: true, size: 'caption', children: [e.abreviaturas.join(' ')] })], { dimColor: true, size: 'caption' }, []),
       ...filas,
       ...antiguas,
-      Text({ dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [leyenda] }),
+      ...leyendas.map((l, i) => Text({ key: 'leyenda-' + i, dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [l] })),
       ...enZona(Box, Text, Button, $, 'tabla'),
     ],
   })

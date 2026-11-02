@@ -42,6 +42,7 @@ func Check(e Estado, prev *Estado) []Violacion {
 		vistos[f.ID] = true
 	}
 	vs = append(vs, e.checkObjetivos(prev)...)
+	vs = append(vs, e.checkCiclos()...)
 	if prev == nil {
 		return vs
 	}
@@ -64,11 +65,16 @@ func checkFrente(e Estado, f Frente, vistos map[string]bool) []Violacion {
 	vs = append(vs, checkCierre(f)...)
 	vs = append(vs, checkTexto(f.ID, "", f.Nombre, f.MotivoCierre)...)
 	for nombre := range f.Celdas {
-		if !e.tieneEtapa(nombre) {
-			vs = append(vs, Violacion{ID: "EPF-C01", Frente: f.ID, Etapa: nombre, Mensaje: "celda de una etapa que no está en «etapas»"})
+		if e.tieneEtapa(f, nombre) {
+			continue
 		}
+		if e.usaCiclos() {
+			vs = append(vs, Violacion{ID: "EPT-K02", Frente: f.ID, Etapa: nombre, Mensaje: "celda de una etapa que no es del ciclo «" + e.CicloDe(f) + "» de la tarea"})
+			continue
+		}
+		vs = append(vs, Violacion{ID: "EPF-C01", Frente: f.ID, Etapa: nombre, Mensaje: "celda de una etapa que no está en «etapas»"})
 	}
-	for _, etapa := range e.Etapas {
+	for _, etapa := range e.EtapasDe(f) {
 		c, ok := f.Celdas[etapa]
 		if !ok {
 			vs = append(vs, Violacion{ID: "EPF-C01", Frente: f.ID, Etapa: etapa, Mensaje: "falta la celda: cada celda tiene exactamente un estado"})

@@ -18,31 +18,32 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea (.qdd/project/estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). cerrar con motivo. objetivo: criterio y foco; se cumple con evidencia. tarea: objetivo y depende_de. Inválido → no escribe."
+const descripcionEstadoMCP = "Estado por tarea (estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto); se cumple con evidencia. tarea: objetivo y depende_de. Inválido → no escribe."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
 		mcp.WithDescription(descripcionEstadoMCP),
-		mcp.WithString("accion", mcp.Description("ver|set|cerrar|check|activar|pulso|terminar|objetivo|tarea")),
-		mcp.WithString("fuente", mcp.Description("agente | subagente | comando")),
+		mcp.WithString("accion", mcp.Description("ver|set|cerrar|check|activar|pulso|terminar|objetivo|tarea|ciclo")),
+		mcp.WithString("fuente", mcp.Description("agente|subagente|comando")),
 		mcp.WithString("frente", mcp.Description("Id de la tarea.")),
 		mcp.WithString("nombre", mcp.Description("Al crearla.")),
-		mcp.WithString("etapa", mcp.Description("Columna.")),
+		mcp.WithString("etapa", mcp.Description("Columna (ciclo: todas, con coma).")),
 		mcp.WithString("estado", mcp.Description("ok|espera|falla|na")),
 		mcp.WithString("evidencia"),
 		mcp.WithString("bloqueo", mcp.Description("Qué espera.")),
 		mcp.WithString("de_quien", mcp.Description("De quién.")),
 		mcp.WithString("falla"),
-		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba antes del ✅.")),
+		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba el ✅.")),
 		mcp.WithBoolean("aprobado", mcp.Description("Dada por quien debía; nunca tú.")),
 		mcp.WithString("motivo", mcp.Description("Del cierre.")),
 		mcp.WithBoolean("descartado", mcp.Description("En vez de cerrar.")),
-		mcp.WithString("respuesta", mcp.Description("Texto a contrastar (check).")),
+		mcp.WithString("respuesta"),
 		mcp.WithString("objetivo", mcp.Description("Id; «-» ninguno.")),
 		mcp.WithString("criterio"),
 		mcp.WithBoolean("foco"),
 		mcp.WithBoolean("reabrir"),
 		mcp.WithString("depende_de", mcp.Description("Ids con coma; «-» ninguna.")),
+		mcp.WithString("ciclo"),
 	)
 	RegisterToolWithTelemetry(s, tool, handleEstadoTool)
 }
@@ -58,8 +59,15 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
 		return resultadoEscritura(err, "tarea cerrada")
 	}
+	if accion == "ciclo" {
+		err := estado.DeclararCiclo(root, stringArg(request, "ciclo"), listaDeIDs(stringArg(request, "etapa")), now)
+		return resultadoEscritura(err, "ciclo declarado")
+	}
 	if accion == "objetivo" {
 		c := estado.CambioObjetivo{Nombre: stringArg(request, "nombre"), Criterio: stringArg(request, "criterio"), Foco: boolArg(request, "foco")}
+		if ciclo := strings.TrimSpace(stringArg(request, "ciclo")); ciclo != "" {
+			c.CambiaCiclo, c.Ciclo = true, strings.TrimPrefix(ciclo, "-")
+		}
 		err := aplicarObjetivo(root, stringArg(request, "objetivo"), c, stringArg(request, "evidencia"), stringArg(request, "motivo"), boolArg(request, "descartado"), boolArg(request, "reabrir"), now)
 		return resultadoEscritura(err, "objetivo actualizado")
 	}
@@ -94,7 +102,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoCheck(e, root, stringArg(request, "respuesta"), now), nil
 	}
 	if accion != "" && accion != "ver" {
-		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar, check, activar, pulso, terminar, objetivo o tarea", accion)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar, check, activar, pulso, terminar, objetivo, tarea o ciclo", accion)), nil
 	}
 	return mcp.NewToolResultText(estado.Markdown(e, now, estado.AlcanceAbiertos)), nil
 }
