@@ -390,7 +390,7 @@ func validateRutas(rutas []string) []string {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' debe ser relativa a la raíz del proyecto", r))
 			continue
 		}
-		if (clean == ".qdd" || strings.HasPrefix(clean, ".qdd/")) && !modules.DatosDeQDD[clean] {
+		if (clean == ".qdd" || strings.HasPrefix(clean, ".qdd/")) && !modules.EsDatoDeQDD(clean) {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' está dentro de .qdd; el código de la aplicación nunca vive ahí", r))
 		}
 	}

@@ -439,6 +439,25 @@ func TestApply_RejectsRoutesInsideQDD(t *testing.T) {
 	}
 }
 
+// FND-108: ciclo-de-vida-agentico fija sus rutas en .qdd/project/tutor/ (los datos del tutor, que sus invariantes
+// exigen escribir ahí) y apply las rechazaba como «código dentro de .qdd»: el blueprint no se podía aplicar.
+func TestApply_LosDatosDelTutorPuedenSerRutaDeUnModulo_FND108(t *testing.T) {
+	root := importedProject(t)
+	tutor := []string{".qdd/project/tutor/plan.yaml", ".qdd/project/tutor/bitacora.yaml", ".qdd/project/tutor/diagnostico.md", ".qdd/project/tutor/artefactos/"}
+	_, problems := Apply(ApplyInput{Root: root, Blueprint: "auth", Rutas: tutor,
+		Respuestas: map[string]string{"identificador": "correo", "recuperacion": "correo"}})
+	if hasProblem(problems, "dentro de .qdd") {
+		t.Fatalf("los datos del tutor viven en .qdd/project/tutor: %v", problems)
+	}
+	for _, r := range []string{".qdd/project/modules/x.yaml", ".qdd/project/tutorial/x", ".qdd/config.yaml"} {
+		_, problems := Apply(ApplyInput{Root: root, Blueprint: "auth", Rutas: []string{r},
+			Respuestas: map[string]string{"identificador": "correo", "recuperacion": "correo"}})
+		if !hasProblem(problems, "dentro de .qdd") {
+			t.Fatalf("lo demás de .qdd sigue siendo de QDD: %s %v", r, problems)
+		}
+	}
+}
+
 func TestApply_ReapplyKeepsProjectAdditionsAndPreviousAnswers(t *testing.T) {
 	root := importedProject(t)
 	answers := map[string]string{"identificador": "correo", "recuperacion": "correo"}
