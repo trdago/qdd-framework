@@ -140,6 +140,13 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd herramienta correr <id> <acción> [campo=valor…] [--si]` | Corre una acción sin shell, en la raíz del proyecto, con el entorno de la máquina: lo escrito en un campo llega como un solo argumento. Si falta una variable de `entorno`, dice cuál (nunca su valor) y no corre. Una acción con `confirmar` pide `--si`. Sale con el código del ejecutable. |
 | `qdd herramienta quitar <id> --si` | Borra su definición; su pestaña se cierra. |
 
+### 📱 Consola remota: QDD Móvil (RFC 0013)
+`qdd remoto` es el lado PC de QDD Móvil: un solo proceso por máquina publica el panel de todos sus proyectos por un canal de Supabase Realtime (el relay no guarda ni el estado ni las acciones). Los proyectos salen del registro de la máquina, `<QDD_HOME>/proyectos.json` (0600), que anotan `qdd init` y cada mensaje con el panel (`qdd consola ciclo`); un worktree se anota como su checkout principal. `qdd doctor` señala las rutas que ya no existen (REM-01) y un registro ilegible (REM-02); `--fix` las quita o lo aparta. Nada de esto cuenta como uso en `qdd uso`.
+
+| Comando | Descripción |
+|---------|-------------|
+| `qdd remoto estado [--json]` | Lo que este PC publicaría, sin red: un proyecto por línea (nombre, foco, tareas, esperan, fallan) o, con `--json`, el contenido del evento `estado` (`version`, `qdd`, `maquina`, `en` y cada proyecto con su `clave`, `nombre`, `ruta` y el `panel` de `qdd consola panel --json`, o un `error` si falla), el más reciente primero. **Seguro.** (qdd 2.9.0) |
+
 ### 📏 Uso real medido y canal preview (RFC 0010)
 Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
 

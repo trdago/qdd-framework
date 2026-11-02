@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 📱 Consola remota: QDD Móvil (RFC 0013, en preparación para 2.9.0)
+
+- **Registro de proyectos de la máquina:** `<QDD_HOME>/proyectos.json` (0600) guarda los proyectos de este PC. Lo anotan `qdd init` y cada mensaje con el panel; un worktree cuenta como su checkout principal. `qdd doctor` señala las rutas que ya no existen (REM-01) y un registro ilegible (REM-02); `--fix` las quita o lo aparta.
+- **`qdd remoto estado [--json]`:** lo que este PC publicaría en QDD Móvil, sin red: el panel de cada proyecto (el mismo de `qdd consola panel --json`), o el error si la carpeta ya no está.
+
 ## [2.8.0-rc.18] - 2026-11-02 (preview)
 
 Decimoctava **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Los ids de las tareas los da o valida qdd.

@@ -4,6 +4,9 @@ import (
 	"io"
 	"testing"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/estado"
+	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
 // Rule: Prohibido usar 'else'
@@ -57,5 +60,21 @@ func TestCiclo_AnotaElModoDeLaIA(t *testing.T) {
 	MarcarCiclo(root, "inventado; rm -rf", ahora)
 	if _, ok := ModoVigente(root, ahora); ok {
 		t.Fatal("un modo que no es de Claude Code no se anota")
+	}
+}
+
+// RFC 0013 (rc.1): cada mensaje de la persona anota el proyecto en el registro de la máquina (lo que publica qdd
+// remoto), sin reescribirlo si se vio hace menos de una hora.
+func TestCiclo_AnotaElProyectoEnElRegistroDeLaMaquina(t *testing.T) {
+	root := proyectoConCola(t)
+	if err := MarcarCiclo(root, "auto", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	reg, err := registro.Leer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reg.Proyectos) != 1 || reg.Proyectos[0].Ruta != estado.ClaveLocal(root) {
+		t.Fatalf("el ciclo anota el proyecto: %+v", reg.Proyectos)
 	}
 }

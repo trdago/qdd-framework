@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
 // Rule: Prohibido usar 'else'
@@ -53,6 +55,9 @@ func MarcarCiclo(root, modo string, now time.Time) error {
 	if err := os.Rename(tmp, ruta); err != nil {
 		return err
 	}
+	// RFC 0013: el proyecto queda en el registro de la máquina (lo que publica qdd remoto). Es de mejor esfuerzo: un
+	// registro ilegible lo señala doctor (REM-02) y no corta el ciclo.
+	_ = registro.Anotar(root, now)
 	return AnotarHuellas(root, now)
 }
 
