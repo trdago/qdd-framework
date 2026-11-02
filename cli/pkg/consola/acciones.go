@@ -3,6 +3,7 @@ package consola
 import (
 	"errors"
 	"fmt"
+	"github.com/qdd-framework/qdd/pkg/materializar"
 	"io"
 	"os"
 	"os/exec"
@@ -63,12 +64,13 @@ type Accion struct {
 
 // DatosConsola es lo que 'qdd consola panel --json' entrega al panel en una sola lectura.
 type DatosConsola struct {
-	Formato  int                `json:"formato"`
-	Version  string             `json:"version,omitempty"` // versión de qdd, que el panel muestra atenuada (§3.9)
-	Carpeta  string             `json:"carpeta"`           // raíz del proyecto, junto al botón «Abrir carpeta» (§3.9)
-	Estado   *estado.DatosPanel `json:"estado"`
-	Motivo   string             `json:"motivo,omitempty"`
-	Acciones []Accion           `json:"acciones"`
+	Formato  int                   `json:"formato"`
+	Version  string                `json:"version,omitempty"` // versión de qdd, que el panel muestra atenuada (§3.9)
+	Carpeta  string                `json:"carpeta"`           // raíz del proyecto, junto al botón «Abrir carpeta» (§3.9)
+	Estado   *estado.DatosPanel    `json:"estado"`
+	Motivo   string                `json:"motivo,omitempty"`
+	Acciones []Accion              `json:"acciones"`
+	Efectos  *materializar.Efectos `json:"efectos,omitempty"` // si el panel materializa lo que cambia, y con qué estilo
 }
 
 // opcionales son los tipos de acción que un panel recibe solo si dice que los dibuja (FND-092): un mod anterior no los

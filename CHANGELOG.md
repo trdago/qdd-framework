@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### ✨ Lo que cambia en el panel se materializa
+
+- **Como las ventanas de hypr-materialize:** caracteres que parpadean en el acento, bloques que se afinan (█ ▓ ▒ ░) y el texto nítido, en 0,8 s. Lo que se va hace lo mismo al revés, en 0,4 s.
+  - Solo se anima lo mínimo que cambió: una celda ⏳ → ✅, el nombre de una tarea, la cabecera de un objetivo o la tarjeta de un pedido. El panel entero se materializa solo la primera vez que se dibuja.
+  - Nada cambia de ancho ni se mueve de lugar.
+- **Funciona igual en cualquier sistema:** solo usa caracteres y colores del terminal. Si existe `~/.config/hypr/materialize.conf`, toma de ahí el acento y las duraciones (solo los lee). Si no, usa el acento del tema y 0,8 s / 0,4 s.
+- **Cómo se calcula:** qdd calcula los cuadros en Go (`qdd consola materializar`, pkg/materializar, determinista), una vez por cambio. El panel solo los reproduce con su propio reloj.
+- **Encendido por defecto:** `qdd consola efectos off` o `QDD_EFECTOS=off` lo apaga. `qdd doctor` dice cómo está y `--fix` repara el interruptor si quedó ilegible.
+
 ### 🐛 Corregido
 
 - **El panel relee en el acto con cualquier qdd** (FND-106): un comando como `…/qdd-rc10 consola pedir`, `./qdd` o `~/.local/bin/qdd` ahora hace que el pedido aparezca en «▶ Para ti» al terminar, sin esperar la lectura de cada 2 s. Una carpeta o un archivo llamado qdd en los argumentos no cuenta.

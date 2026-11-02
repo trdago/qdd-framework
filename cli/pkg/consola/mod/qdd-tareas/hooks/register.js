@@ -27,6 +27,84 @@ const LATIDO_MS = 500
 const PULSO_MIN_MS = 5000
 const ACENTO = 'cyan'
 
+// ── Materializar (pedido del usuario, 2026-11-01) ──────────────────────────────────────────────────────────────────
+// Lo que cambia aparece como las ventanas del usuario (hypr-materialize): caracteres en el acento, bloques que se
+// afinan y el texto nítido; lo que se va, al revés. Solo lo mínimo que cambió (una celda, un nombre, una tarjeta), y
+// solo con los efectos encendidos ('qdd consola efectos'). qdd calcula los cuadros una vez por cambio ('qdd consola
+// materializar'); el elemento Client del panel (materializar.js) solo los reproduce. Sin Client (otra superficie) o
+// sin cuadros, se dibuja lo de siempre.
+const vistos = new Map() // clave → huella de lo último dibujado
+const animaciones = new Map() // clave → { huella, n, cuadros, ms, fallo } (lo que se materializa)
+const fantasmas = new Map() // clave → { lineas, n, cuadros, ms, fallo } (un pedido que se va)
+const tarjetasVistas = new Map() // id de pedido → sus líneas, para que al irse se vaya materializando
+let Client = null
+let contador = 0
+
+function conEfectos() {
+  return Boolean(Client && datos?.efectos?.activo)
+}
+
+// materializa: plano, o su materialización si cambió lo que muestra (huella). La primera vez que el panel dibuja algo
+// también se materializa: el panel aparece como una ventana.
+function materializa($, Text, clave, lineas, plano, huella = JSON.stringify(lineas)) {
+  const antes = vistos.get(clave)
+  vistos.set(clave, huella)
+  if (!conEfectos()) return plano
+  const a = animaciones.get(clave)
+  if (a && a.huella === huella) return a.fallo ? plano : a.cuadros ? reproductor(clave, a) : enBlanco(Text, clave, lineas)
+  if (antes === huella) return plano
+  const nueva = { huella, n: ++contador }
+  animaciones.set(clave, nueva)
+  pedirCuadros($, nueva, lineas, true)
+  return enBlanco(Text, clave, lineas)
+}
+
+function reproductor(clave, a) {
+  return Client({ key: 'mat-' + clave + '-' + a.n, module: './materializar.js', props: { cuadros: a.cuadros, ms: a.ms, clave } })
+}
+
+// enBlanco ocupa lo mismo que el texto mientras llegan los cuadros (unos 30 ms): nada se mueve de lugar.
+function enBlanco(Text, clave, lineas) {
+  const blanco = (t) => [...t].map((c) => (c === '\uFE0F' ? '' : c.codePointAt(0) >= 0x1f000 || /[\u2300-\u27bf\u2b00-\u2bff]/.test(c) ? '  ' : ' ')).join('')
+  return Text({ key: 'blanco-' + clave, children: [lineas.map((l) => l.map((x) => blanco(x.texto)).join('')).join('\n')] })
+}
+
+async function pedirCuadros($, anim, lineas, abrir) {
+  try {
+    const bin = await binario($)
+    const pedido = { lineas, abrir, semilla: anim.n, acento: datos?.efectos?.acento || ACENTO }
+    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify(pedido), timeoutMs: TOPE_MS })
+    const j = r.exitCode === 0 ? JSON.parse(r.stdout) : null
+    anim.cuadros = Array.isArray(j?.cuadros) && j.cuadros.length ? j.cuadros : null
+    anim.ms = j?.cuadro_ms || 40
+    anim.fallo = !anim.cuadros
+  } catch {
+    anim.fallo = true
+  }
+  $.ui.invalidate('ui.render')
+}
+
+// seVan: los pedidos que estaban y ya no están se van materializando al revés (0,4 s), en el lugar del final.
+function seVan($, Text, ids) {
+  for (const [id, lineas] of tarjetasVistas) {
+    if (ids.has(id)) continue
+    tarjetasVistas.delete(id)
+    if (!conEfectos()) continue
+    const g = { lineas, n: ++contador }
+    fantasmas.set('g:' + id, g)
+    pedirCuadros($, g, lineas, false)
+  }
+  return [...fantasmas].map(([clave, g]) => (g.fallo ? null : g.cuadros ? reproductor(clave, g) : enBlanco(Text, clave, g.lineas))).filter(Boolean)
+}
+
+// lineasDeTarjeta: lo que se ve de un pedido, como líneas para materializar.
+function lineasDeTarjeta(a) {
+  const s = estadoDe(a)
+  const marca = { espera: '◌', ejecutando: '⟳', hecho: '✓', fallo: '✗' }[s.estado]
+  const cabeza = marca ? [{ texto: marca + '  ' + a.etiqueta, tenue: s.estado !== 'fallo', color: s.estado === 'fallo' ? 'red' : undefined }] : [{ texto: a.tecla + '  ' + a.etiqueta, negrita: true }]
+  return [cabeza, [{ texto: '   $ ' + primeraLinea(a.detalle), tenue: true }]]
+}
+
 let datos = null // { estado, motivo, acciones }
 let falla = ''
 let firma = ''
@@ -319,8 +397,9 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   const etapasDe = (f) =>
     f.simbolos.map((s, i) => {
       const a = lista.find((x) => x.id === 'atender:' + f.id + ':' + i)
-      if (a) return Button({ key: 'e-' + f.id + '-' + i, label: s, plain: true, onPress: () => atender($, a) })
-      return Text({ key: 'c-' + f.id + '-' + i, color: colorFrente(f), children: [celda(s)] })
+      const lineas = [[{ texto: celda(s), color: colorFrente(f) }]]
+      if (a) return materializa($, Text, 'c:' + f.id + ':' + i, lineas, Button({ key: 'e-' + f.id + '-' + i, label: s, plain: true, onPress: () => atender($, a) }), s)
+      return materializa($, Text, 'c:' + f.id + ':' + i, lineas, Text({ key: 'c-' + f.id + '-' + i, color: colorFrente(f), children: [celda(s)] }), s)
     })
   const equis = (f) => {
     const a = lista.find((x) => x.id === 'descartar:' + f.id)
@@ -333,8 +412,9 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       Text({ key: 'nom', color: colorFrente(f), children: [f.nombre] }),
       ...(f.notas?.length ? [Text({ key: 'notas', color: 'yellow', dimColor: true, children: [' · ' + f.notas.join(' · ')] })] : []),
     ]
-    if (!f.pregunta) return f.prefijo || f.notas?.length ? Text({ wrap: 'truncate-end', children: partes }) : f.nombre
-    return Button({ key: 'n-' + f.id, plain: true, onPress: () => preguntar($, f.pregunta), children: partes })
+    const lineas = [[...(f.prefijo ? [{ texto: f.prefijo, tenue: true }] : []), { texto: f.nombre, color: colorFrente(f) }, ...(f.notas?.length ? [{ texto: ' · ' + f.notas.join(' · '), color: 'yellow', tenue: true }] : [])]]
+    const plano = !f.pregunta ? (f.prefijo || f.notas?.length ? Text({ wrap: 'truncate-end', children: partes }) : f.nombre) : Button({ key: 'n-' + f.id, plain: true, onPress: () => preguntar($, f.pregunta), children: partes })
+    return materializa($, Text, 'n:' + f.id, lineas, plano, etiqueta(f))
   }
   const filaTarea = (f) => fila('f-' + f.id, nombreDe(f), etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])
   const cabeceraObjetivo = (o) =>
@@ -344,7 +424,14 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       columnGap: 1,
       marginTop: 1,
       children: [
-        Button({ key: 'o-' + o.id + '-nombre', plain: true, onPress: () => preguntar($, o.pregunta), children: [Text({ key: 'o', weight: 'bold', color: o.foco ? ACENTO : undefined, children: ['🎯 ' + o.nombre + (o.foco ? ' · foco' : '')] })] }),
+        materializa(
+          $,
+          Text,
+          'o:' + o.id,
+          [[{ texto: '🎯 ' + o.nombre + (o.foco ? ' · foco' : ''), negrita: true, color: o.foco ? datos?.efectos?.acento || ACENTO : undefined }]],
+          Button({ key: 'o-' + o.id + '-nombre', plain: true, onPress: () => preguntar($, o.pregunta), children: [Text({ key: 'o', weight: 'bold', color: o.foco ? ACENTO : undefined, children: ['🎯 ' + o.nombre + (o.foco ? ' · foco' : '')] })] }),
+          o.nombre + (o.foco ? '·foco' : ''),
+        ),
         Text({ key: 'o-estado', dimColor: true, wrap: 'truncate-end', children: [o.simbolo + ' ' + o.resumen] }),
       ],
     })
@@ -629,7 +716,9 @@ function enZona(Box, Text, Button, $, aqui) {
 // después de lo que espera, FND-080), y al final los hechos. El que se está confirmando cambia su tarjeta por la
 // confirmación; los demás siguen en su lugar.
 function paraTi(Box, Text, Button, $, lista, ancho) {
-  if (lista.length === 0) return []
+  const seVa = seVan($, Text, new Set(lista.map((a) => a.id)))
+  for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(a))
+  if (lista.length === 0 && seVa.length === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho')
   const porHacer = lista.filter(ejecutable).length
@@ -637,7 +726,8 @@ function paraTi(Box, Text, Button, $, lista, ancho) {
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
   const nada = corriendo ? [] : ['nada por hacer']
   const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
-  const cuerpo = [...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : tarjeta(Box, Text, Button, $, a)))
+  const dibujo = (a) => materializa($, Text, 'p:' + a.id, lineasDeTarjeta(a), tarjeta(Box, Text, Button, $, a), estadoDe(a).estado + '|' + a.tecla + '|' + a.etiqueta)
+  const cuerpo = [...[...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))), ...seVa]
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer ? 'yellow' : undefined, resumen, ancho),
     Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: cuerpo }),
@@ -1199,8 +1289,19 @@ export function register(on) {
     return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), contexto] }
   })
 
+  // El reproductor terminó: se vuelve a dibujar lo de siempre (o se quita lo que se iba).
+  on('ui.message', async ($, e, next) => {
+    const fin = e.data && typeof e.data === 'object' ? e.data.fin : undefined
+    if (typeof fin !== 'string') return next(e)
+    animaciones.delete(fin)
+    fantasmas.delete(fin)
+    $.ui.invalidate('ui.render')
+    return {}
+  })
+
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
-    const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
+    const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
+    Client = cliente || null
     if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length))
     if (e.requestId !== PANE) return next(e)
     return dibujar($, Box, Text, Button, Input, e.props.bodyColumns || 40)

@@ -162,6 +162,7 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 func runConsolaPanel(cmd *cobra.Command, args []string) {
 	datos := consola.Panel(estadoRaiz(), time.Now(), consolaCon...)
 	datos.Version = Version
+	conEfectos(&datos)
 	out, err := json.Marshal(datos)
 	if err != nil {
 		salirCon("%v", err)
