@@ -144,6 +144,7 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 	if activa {
 		g.Items = append(g.Items, checkModo(projectPath))
 		g.Items = append(g.Items, checkFoto())
+		g.Items = append(g.Items, checkEfectos())
 	}
 	return g
 }
@@ -188,6 +189,10 @@ func repairConsola(projectPath string, g *CheckGroup) {
 		}
 		if item.Name == nombreFoto {
 			fmt.Println("  [i] " + item.Error + " (qdd no instala paquetes del sistema)")
+			continue
+		}
+		if item.Name == nombreEfectos {
+			repararEfectos()
 			continue
 		}
 		if item.Name == nombreUso {

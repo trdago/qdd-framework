@@ -776,3 +776,76 @@ test('un qdd con ruta o con sufijo también relee el panel; una carpeta llamada 
     expect(lecturas()).toBe(antes)
   }
 })
+
+// Materializar (pedido del usuario, 2026-11-01): lo que cambia aparece como sus ventanas (hypr-materialize); qdd
+// calcula los cuadros y el Client del panel solo los reproduce.
+const EFECTOS = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400, cuadro_ms: 40, origen: 'hypr-materialize' }
+
+function prepararMat(on, panel: () => unknown, mats: { lineas: { texto: string }[][]; abrir: boolean }[]) {
+  const clock = mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    if (e.argv[2] !== 'materializar') return { value: ok(panel()) }
+    const p = JSON.parse(e.init.stdin)
+    mats.push(p)
+    return { value: ok({ cuadro_ms: 40, cuadros: [[[{ texto: '#', color: '#bbfff4' }]], p.lineas] }) }
+  })
+  return clock
+}
+
+const textoDe = (m: { lineas: { texto: string }[][] }) => m.lineas.map((l) => l.map((s) => s.texto).join('')).join('\n')
+
+test('lo que aparece se materializa y vuelve a ser lo de siempre (materializar)', async ($, on) => {
+  const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
+  prepararMat(on, () => ({ ...PANEL, efectos: EFECTOS }), mats)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(mats.some((m) => m.abrir && textoDe(m) === 'Gemini retirado')).toBe(true)
+  expect(await ui.find({ type: 'Client' })).toBeDefined()
+  await ui.advance(200)
+  expect(await ui.find({ type: 'Client' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: 'yellow' } })
+})
+
+test('con los efectos apagados el panel no pide cuadros (materializar)', async ($, on) => {
+  const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
+  prepararMat(on, () => ({ ...PANEL, efectos: { ...EFECTOS, activo: false } }), mats)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(mats).toEqual([])
+  expect(await ui.find({ type: 'Client' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toBeDefined()
+})
+
+test('una etapa que cambia materializa solo esa celda (materializar)', async ($, on) => {
+  const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
+  let estado = ESTADO
+  const clock = prepararMat(on, () => ({ ...PANEL, estado, efectos: EFECTOS }), mats)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.advance(200)
+  mats.length = 0
+  estado = { ...ESTADO, frentes: [{ ...ESTADO.frentes[0], simbolos: ['✅', '✅', '✅', '✅'] }, ESTADO.frentes[1]] }
+  await clock.advance(2000)
+  await ui.find({ type: 'Client' })
+  expect(mats.map(textoDe)).toEqual(['✅'])
+})
+
+test('un pedido que se va se materializa al revés (materializar)', async ($, on) => {
+  const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
+  let acciones: unknown[] = [{ id: 'pedido:p1', tipo: 'pedido', tecla: 'a', etiqueta: 'Publicar v1', detalle: 'git push origin v1', confirmar: true, estado: 'pendiente' }, ...ACCIONES]
+  const clock = prepararMat(on, () => ({ ...PANEL, acciones, efectos: EFECTOS }), mats)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.advance(200)
+  mats.length = 0
+  acciones = ACCIONES
+  await clock.advance(2000)
+  await ui.find({ type: 'Client' })
+  expect(mats).toHaveLength(1)
+  expect(mats[0].abrir).toBe(false)
+  expect(textoDe(mats[0])).toContain('a  Publicar v1')
+})
