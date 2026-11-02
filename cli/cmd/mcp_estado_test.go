@@ -102,18 +102,42 @@ func TestEstadoTool_ObjetivoYTarea_EPT_O01_EPT_D02(t *testing.T) {
 	if bad, txt := call(map[string]interface{}{"accion": "objetivo", "objetivo": "rel", "nombre": "Publicar", "criterio": "5 h de uso", "foco": true}); bad {
 		t.Fatalf("con criterio sí: %q", txt)
 	}
-	call(map[string]interface{}{"accion": "tarea", "frente": "a", "objetivo": "rel"})
-	if bad, txt := call(map[string]interface{}{"accion": "tarea", "frente": "b", "objetivo": "rel", "depende_de": "a"}); bad {
+	call(map[string]interface{}{"accion": "tarea", "frente": "a", "nombre": "La primera", "objetivo": "rel"})
+	if bad, txt := call(map[string]interface{}{"accion": "tarea", "frente": "b", "nombre": "La segunda", "objetivo": "rel", "depende_de": "a"}); bad {
 		t.Fatalf("una tarea que depende de otra: %q", txt)
 	}
 	if bad, txt := call(map[string]interface{}{"accion": "set", "frente": "b", "etapa": "Código", "estado": "ok", "evidencia": "abc1234"}); !bad || !strings.Contains(txt, "EPT-D02") {
 		t.Fatalf("b no termina antes que a: %q", txt)
 	}
 	_, txt := call(map[string]interface{}{"accion": "ver"})
-	if !strings.Contains(txt, "| 🎯 Publicar · foco |") || !strings.Contains(txt, "| b (espera a a) |") {
+	if !strings.Contains(txt, "| 🎯 Publicar · foco |") || !strings.Contains(txt, "| La segunda (espera a La primera) |") {
 		t.Fatalf("ver agrupa por objetivo y dice a quién espera: %q", txt)
 	}
 	if bad, txt := call(map[string]interface{}{"accion": "objetivo", "objetivo": "rel", "evidencia": "corrida uso-5"}); bad {
 		t.Fatalf("se cumple con evidencia: %q", txt)
+	}
+}
+
+// FND-109: la IA crea con «nueva» (qdd da el id) y un id que no existe se rechaza con sugerencia, sin crear nada.
+func TestEstadoTool_NuevaDaElIDYUnIDDesconocidoSugiere_FND109(t *testing.T) {
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	call := func(args map[string]interface{}) (bool, string) {
+		res, _ := handleEstadoTool(context.Background(), toolRequest(args))
+		return res.IsError, resultText(t, res)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "nueva", "nombre": "Segmento de estado en la barra"}); bad || !strings.Contains(txt, "segmento-estado-barra") {
+		t.Fatalf("nueva dice el id que dio qdd: %q", txt)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "set", "frente": "barra-estado", "etapa": "Código", "estado": "ok", "evidencia": "abc1234"}); !bad || !strings.Contains(txt, "¿quisiste decir segmento-estado-barra") {
+		t.Fatalf("un id inventado se rechaza con sugerencia: %q", txt)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "nueva", "nombre": "Segmento de estado en la barra de nuevo"}); !bad || !strings.Contains(txt, "aunque-exista") {
+		t.Fatalf("una casi igual se rechaza: %q", txt)
+	}
+	if bad, txt := call(map[string]interface{}{"accion": "nueva", "nombre": "Segmento de estado en la barra de nuevo", "aunque_exista": true}); bad {
+		t.Fatalf("con aunque_exista se crea: %q", txt)
 	}
 }

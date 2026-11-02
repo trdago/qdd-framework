@@ -83,10 +83,10 @@ func tareaAbierta(root, id string) error {
 	if err != nil {
 		return err
 	}
-	i := e.buscar(id)
-	if i < 0 {
-		return fmt.Errorf("no hay una tarea %q", id)
+	if err := e.ValidarTarea(id); err != nil {
+		return err
 	}
+	i := e.buscar(id)
 	if e.Frentes[i].Estado != EstadoAbierto {
 		return fmt.Errorf("la tarea %q está %s", id, e.Frentes[i].Estado)
 	}

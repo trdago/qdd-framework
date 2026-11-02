@@ -42,6 +42,7 @@ var estadoCmd = &cobra.Command{
 
   qdd estado [--json]                imprime la tabla (markdown o mensajería, según la ficha; --json para un panel)
   qdd estado init                    crea el archivo con las etapas de la ficha
+  qdd estado nueva "<nombre>" [--objetivo …] [--depende-de …]  crea una tarea; qdd le da el id y lo imprime
   qdd estado set <tarea> <etapa> <ok|espera|falla|na|sin-empezar> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
   qdd estado cerrar <tarea> --motivo "…" [--descartado]
   qdd estado activa <tarea> [--fin]  la tarea en curso: el panel la muestra «● running» (blueprint estado-por-tareas)
@@ -64,7 +65,7 @@ var estadoInitCmd = &cobra.Command{
 
 var estadoSetCmd = &cobra.Command{
 	Use:   "set <tarea> <etapa> <estado>",
-	Short: "Crea o actualiza una celda; valida antes de escribir",
+	Short: "Actualiza una celda (crea la tarea solo con --nombre); valida antes de escribir",
 	Args:  cobra.ExactArgs(3),
 	Run:   runEstadoSet,
 }
@@ -122,6 +123,7 @@ func init() {
 	f.StringVar(&estadoCambio.Falla, "falla", "", "la falla del ❌, nombrada")
 	f.StringVar(&estadoCambio.RequiereAprobacion, "requiere-aprobacion", "", "quién debe aprobar antes de pasar a ✅")
 	f.BoolVar(&estadoCambio.Aprobado, "aprobado", false, "marca la aprobación como dada")
+	f.BoolVar(&estadoCambio.AunqueExista, "aunque-exista", false, "con --nombre: la crea aunque se parezca a una tarea abierta")
 	estadoCerrarCmd.Flags().StringVar(&estadoMotivo, "motivo", "", "por qué se cierra (obligatorio)")
 	estadoCerrarCmd.Flags().BoolVar(&estadoDescarta, "descartado", false, "se descarta en vez de cerrarse")
 	estadoActivaCmd.Flags().BoolVar(&estadoFin, "fin", false, "apaga la tarea en vez de declararla en curso")

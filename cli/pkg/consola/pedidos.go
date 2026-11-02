@@ -352,6 +352,9 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		return Pedido{}, err
 	}
 	tarea := orden.Tarea
+	if err := tareaQueExiste(root, tarea); err != nil {
+		return Pedido{}, err
+	}
 	if tarea == "" {
 		tarea = tareaEnCurso(root, now)
 	}
@@ -633,4 +636,17 @@ func codigoDe(err error, a Accion, salida io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// tareaQueExiste (FND-109): la tarea que el pedido extiende es del estado; un id equivocado se rechaza con la más
+// parecida. Sin tarea o sin estado legible no hay nada que revisar.
+func tareaQueExiste(root, tarea string) error {
+	if tarea == "" {
+		return nil
+	}
+	e, err := estado.Load(root)
+	if err != nil {
+		return nil
+	}
+	return e.ValidarTarea(tarea)
 }
