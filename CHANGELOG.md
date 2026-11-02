@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.11] - 2026-11-01 (preview)
+
+Undécima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae lo de abajo, el panel que relee con cualquier qdd (FND-106) y estado-por-tareas desde v10.0.0.
+
 ### ✨ Lo que cambia en el panel se materializa
 
 - **Como las ventanas de hypr-materialize:** caracteres que parpadean en el acento, bloques que se afinan (█ ▓ ▒ ░) y el texto nítido, en 0,8 s. Lo que se va hace lo mismo al revés, en 0,4 s.
