@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.17] - 2026-11-02 (preview)
+
+Decimoséptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. El chat se entera de los pedidos que confirmas en el panel.
+
+### 🔔 El chat se entera de lo que confirmas en el panel
+
+- **Antes:** confirmabas un pedido en el panel y la conversación no se enteraba. La IA no sabía que ya corría ni cuándo terminaba, y había que contárselo.
+- **Ahora, al confirmar:** arriba del prompt aparece «▶ [a] Publicar rc.16 · en marcha» (o «◷ … armado» si espera) mientras corre. La IA recibe una nota de que el pedido corre aparte, para que no lo repita.
+- **Al terminar:** el resultado llega a la conversación como un mensaje del panel («✓ … terminó bien» o «✗ … falló», con el final de la salida). La IA lo lee en el acto y sigue sola. Además sale una notificación de escritorio.
+- **Una sola vez:** solo avisa la sesión que lo confirmó, aunque tengas varias abiertas, y un reload del mod no lo repite. Lo decide qdd con `qdd consola avisado`.
+- **Compatibilidad:** con un qdd anterior el pedido corre igual, sin aviso. El panel de OpenCode todavía no avisa.
+
 ## [2.8.0-rc.16] - 2026-11-02 (preview)
 
 Decimosexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae los ciclos con nombre (blueprint `estado-por-tareas` 2.1.0).

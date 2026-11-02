@@ -38,7 +38,7 @@ func TestArmado_TodaviaNoSeReintentaSoloHastaQueSaleBien(t *testing.T) {
 	root := proyectoConCola(t)
 	listo := t.TempDir() + "/listo"
 	p := mustPedir(t, root, "test -f '"+listo+"' || { echo 'npm preview tiene 2.8.0-rc.12'; exit 75; }; echo instalado", "Instalar rc.13", "")
-	if _, err := aceptar(root, p.ID, time.Now()); err != nil {
+	if _, err := aceptar(root, p.ID, "", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	fin := correrAparte(root, p.ID)
@@ -69,7 +69,7 @@ func TestArmado_UnaFallaDeVerdadNoSeReintenta(t *testing.T) {
 	cadasCortos(t)
 	root := proyectoConCola(t)
 	p := mustPedir(t, root, "echo roto; exit 3", "Romper", "")
-	if _, err := aceptar(root, p.ID, time.Now()); err != nil {
+	if _, err := aceptar(root, p.ID, "", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if codigo := <-correrAparte(root, p.ID); codigo != 3 {
@@ -89,7 +89,7 @@ func TestArmado_UnPedidoQueEsperaSeConfirmaAntesYCorreAlTerminarElOtro(t *testin
 	if a.Estado != EstadoEspera || a.Tecla != "b" {
 		t.Fatalf("el que espera a [a] ya se puede confirmar, con su tecla: %+v", a)
 	}
-	estado, err := aceptar(root, segundo.ID, time.Now())
+	estado, err := aceptar(root, segundo.ID, "", time.Now())
 	if err != nil || estado != EstadoArmado {
 		t.Fatalf("confirmarlo lo arma, no lo corre: %q %v", estado, err)
 	}
@@ -110,7 +110,7 @@ func TestArmado_DejarDeEsperarLoVuelveAPendienteYElProcesoTermina(t *testing.T) 
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # publicar", Orden{})
 	segundo := mustPedirEnOrden(t, root, "echo instalado", Orden{Despues: []string{primero.ID}})
-	if _, err := aceptar(root, segundo.ID, time.Now()); err != nil {
+	if _, err := aceptar(root, segundo.ID, "", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	fin := correrAparte(root, segundo.ID)
@@ -141,7 +141,7 @@ func TestArmado_PasadoElTopeVuelveAPendienteConElMotivo(t *testing.T) {
 	root := proyectoConCola(t)
 	mustPedirEnOrden(t, root, "exit 0 # nunca", Orden{})
 	segundo := mustPedirEnOrden(t, root, "echo instalado", Orden{Despues: []string{"a"}})
-	if _, err := aceptar(root, segundo.ID, time.Now()); err != nil {
+	if _, err := aceptar(root, segundo.ID, "", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if codigo := <-correrAparte(root, segundo.ID); codigo != 0 {
@@ -170,10 +170,10 @@ func TestArmado_YaArmadoNoSeAceptaDosVeces(t *testing.T) {
 	root := proyectoConCola(t)
 	mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})
 	segundo := mustPedirEnOrden(t, root, "exit 0 # segundo", Orden{Despues: []string{"a"}})
-	if _, err := aceptar(root, segundo.ID, time.Now()); err != nil {
+	if _, err := aceptar(root, segundo.ID, "", time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := aceptar(root, segundo.ID, time.Now()); err == nil || !strings.Contains(err.Error(), "armado") {
+	if _, err := aceptar(root, segundo.ID, "", time.Now()); err == nil || !strings.Contains(err.Error(), "armado") {
 		t.Fatalf("uno armado ya tiene tu intención (FND-070): %v", err)
 	}
 }

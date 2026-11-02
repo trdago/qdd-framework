@@ -22,6 +22,7 @@ var (
 	consolaSinBarra   bool
 	consolaSiActivo   bool
 	consolaConfirmado bool
+	consolaSesion     string
 	consolaRecursos   bool
 	consolaSinRecurso bool
 )
@@ -39,7 +40,8 @@ var consolaCmd = &cobra.Command{
   qdd consola actualizar             lo deja en la versión de esta CLI (--si-activo: solo si se activó)
   qdd consola statusline             la barra: lee el JSON de la consola por la entrada estándar
   qdd consola panel                  lo que dibuja el panel, en JSON: tareas y acciones
-  qdd consola accion <id> [--confirmado]  ejecuta una acción que ofrece 'qdd consola panel'
+  qdd consola accion <id> [--confirmado] [--sesion <id>]  ejecuta una acción que ofrece 'qdd consola panel'
+  qdd consola avisado <id> --sesion <id>  la sesión que confirmó un pedido ya recibió su resultado (una vez)
   qdd consola pedir -m <motivo> <comando…>  deja un comando en el panel para que la persona lo ejecute
   qdd consola pedidos | descartar <id>      lista o quita los comandos que esperan en el panel
 
@@ -76,8 +78,10 @@ func init() {
 	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
 	consolaPanelCmd.Flags().StringSliceVar(&consolaCon, "con", nil, "tipos de acción opcionales que este panel sabe dibujar (atender); sin esto no se ofrecen (FND-092)")
 	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
+	consolaAccionCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión de Claude Code que confirma un pedido: recibe su resultado al terminar")
+	consolaAvisadoCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión que recibió el aviso (la que confirmó el pedido)")
 	consolaCmd.AddCommand(consolaActivarCmd, consolaDesactivarCmd, consolaEstadoCmd, consolaActualizarCmd, consolaStatuslineCmd,
-		consolaPanelCmd, consolaAccionCmd)
+		consolaPanelCmd, consolaAccionCmd, consolaAvisadoCmd)
 	rootCmd.AddCommand(consolaCmd)
 }
 
@@ -172,10 +176,10 @@ func runConsolaPanel(cmd *cobra.Command, args []string) {
 
 // runConsolaAccion vuelve a calcular las acciones: el panel solo pasa el id y qdd decide si existe y si está confirmada.
 func runConsolaAccion(cmd *cobra.Command, args []string) {
-	os.Exit(consolaAccion(estadoRaiz(), args[0], consolaConfirmado, os.Stdout, os.Stderr))
+	os.Exit(consolaAccion(estadoRaiz(), args[0], consolaConfirmado, consolaSesion, os.Stdout, os.Stderr))
 }
 
-func consolaAccion(root, id string, confirmado bool, salida, errores io.Writer) int {
+func consolaAccion(root, id string, confirmado bool, sesion string, salida, errores io.Writer) int {
 	a, err := consola.BuscarAccion(accionesPara(root, id), id)
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
@@ -190,7 +194,26 @@ func consolaAccion(root, id string, confirmado bool, salida, errores io.Writer) 
 		bin = "qdd"
 	}
 	// Un pedido se lanza aparte y el panel queda libre; el resultado llega por la cola (FND-089).
-	return a.Lanzar(root, bin, salida)
+	return a.Lanzar(root, bin, sesion, salida)
+}
+
+// consolaAvisadoCmd: el panel reclama el aviso de un pedido terminado antes de mostrarlo en el chat; sale con 0 solo
+// la primera vez y solo para la sesión que lo confirmó (aviso.go).
+var consolaAvisadoCmd = &cobra.Command{
+	Use:   "avisado <id>",
+	Short: "Marca que la sesión que confirmó un pedido ya recibió su resultado (sale con 1 si ya se avisó)",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		os.Exit(consolaAvisado(estadoRaiz(), args[0], consolaSesion, os.Stderr))
+	},
+}
+
+func consolaAvisado(root, id, sesion string, errores io.Writer) int {
+	if err := consola.Avisado(root, id, sesion); err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 // qdd consola correr <id> (oculto): lo lanza 'qdd consola accion' en su propia sesión para correr un pedido que ya

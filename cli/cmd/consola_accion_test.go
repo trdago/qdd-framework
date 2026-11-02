@@ -42,7 +42,7 @@ func TestConsolaAccion_RechazaSinConfirmarYIdDesconocido_CCC_C11(t *testing.T) {
 		{"sh -c id", true, "no está entre las que ofrece"},
 	} {
 		var salida, errores bytes.Buffer
-		if codigo := consolaAccion(root, caso.id, caso.confirmado, &salida, &errores); codigo != 1 {
+		if codigo := consolaAccion(root, caso.id, caso.confirmado, "", &salida, &errores); codigo != 1 {
 			t.Fatalf("%s: código %d, se esperaba 1", caso.id, codigo)
 		}
 		if !strings.Contains(errores.String(), caso.dice) || salida.Len() > 0 {
@@ -57,7 +57,7 @@ func TestConsolaAccion_RechazaSinConfirmarYIdDesconocido_CCC_C11(t *testing.T) {
 func TestConsolaAccion_AprobarConfirmado_CCC_C10(t *testing.T) {
 	root := proyectoConBorrador(t)
 	var salida, errores bytes.Buffer
-	if codigo := consolaAccion(root, "aprobar:pagos", true, &salida, &errores); codigo != 0 {
+	if codigo := consolaAccion(root, "aprobar:pagos", true, "", &salida, &errores); codigo != 0 {
 		t.Fatalf("código %d: %s %s", codigo, salida.String(), errores.String())
 	}
 	if m, _ := modules.Find(root, "pagos"); m.Estado != modules.EstadoAprobado {

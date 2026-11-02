@@ -44,18 +44,18 @@ func TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18(t *testing.T) {
 		t.Fatal(err)
 	}
 	var salida, errores bytes.Buffer
-	if codigo := consolaAccion(root, "pedido:"+p.ID, false, &salida, &errores); codigo != 1 || !strings.Contains(errores.String(), "--confirmado") {
+	if codigo := consolaAccion(root, "pedido:"+p.ID, false, "", &salida, &errores); codigo != 1 || !strings.Contains(errores.String(), "--confirmado") {
 		t.Fatalf("un pedido no corre sin --confirmado: %d %q", codigo, errores.String())
 	}
 	if len(consola.Pedidos(root)) != 1 {
 		t.Fatal("el pedido sigue en la cola")
 	}
-	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo != 0 || esperarFin(t, root, p.ID).Estado != consola.EstadoHecho {
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, "", &salida, &errores); codigo != 0 || esperarFin(t, root, p.ID).Estado != consola.EstadoHecho {
 		t.Fatalf("confirmado corre (aparte, FND-089) y queda hecho: %d %q", codigo, salida.String())
 	}
 	salida.Reset()
 	errores.Reset()
-	if codigo := consolaAccion(root, "pedido:"+p.ID, true, &salida, &errores); codigo == 0 {
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, "", &salida, &errores); codigo == 0 {
 		t.Fatalf("FND-070: un pedido hecho no se acepta dos veces: %q %q", salida.String(), errores.String())
 	}
 }
@@ -89,7 +89,7 @@ func TestConsolaPedidos_ListaCadaPedidoConSuEstado(t *testing.T) {
 	hecho, _ := consola.Pedir(root, "exit 0", "Ya hecho", "", ahoraPrueba)
 	consola.Pedir(root, "exit 0; echo", "Por hacer", "", ahoraPrueba)
 	var salida, errores bytes.Buffer
-	consolaAccion(root, "pedido:"+hecho.ID, true, &salida, &errores)
+	consolaAccion(root, "pedido:"+hecho.ID, true, "", &salida, &errores)
 	esperarFin(t, root, hecho.ID)
 	salida.Reset()
 	listarPedidos(root, &salida)
@@ -225,5 +225,28 @@ func TestConsolaPedirTool_ResueltoEnElChat(t *testing.T) {
 	req.Params.Arguments = map[string]any{"motivo": "sin comando"}
 	if res, _ := handleConsolaPedirTool(context.Background(), req); !res.IsError {
 		t.Fatal("sin comando ni resuelto es error")
+	}
+}
+
+// Aviso al chat (pedido del usuario, 2026-11-02): el panel dice su sesión al confirmar y reclama el aviso una vez.
+func TestConsolaAvisado_LaSesionQueConfirmoLoReclamaUnaSolaVez(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	p, err := consola.Pedir(root, "echo publicado", "Publicar", "", ahoraPrueba)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var salida, errores bytes.Buffer
+	if codigo := consolaAccion(root, "pedido:"+p.ID, true, "sesion-1", &salida, &errores); codigo != 0 || esperarFin(t, root, p.ID).Estado != consola.EstadoHecho {
+		t.Fatalf("confirmado corre: %d %q", codigo, errores.String())
+	}
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-2", &errores); codigo != 1 {
+		t.Fatal("otra sesión no lo reclama")
+	}
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &errores); codigo != 0 {
+		t.Fatalf("la que lo confirmó, sí: %q", errores.String())
+	}
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &errores); codigo != 1 {
+		t.Fatal("una sola vez")
 	}
 }

@@ -26,7 +26,7 @@ var (
 
 // aceptar toma el «s  Sí» de la persona con la cola bloqueada: ejecutando si puede correr ya, armado si espera a otro
 // pedido. Uno hecho, en curso o ya armado no se acepta dos veces (FND-070).
-func aceptar(root, id string, now time.Time) (string, error) {
+func aceptar(root, id, sesion string, now time.Time) (string, error) {
 	var estado string
 	err := conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
 		i := indiceID(cola, id)
@@ -41,7 +41,7 @@ func aceptar(root, id string, now time.Time) (string, error) {
 			estado = EstadoArmado
 		}
 		cola[i].Estado, cola[i].Fin, cola[i].Salida, cola[i].PID, cola[i].Hijo = estado, nil, "", os.Getpid(), 0
-		cola[i].Inicio = &now
+		cola[i].Inicio, cola[i].Sesion, cola[i].Avisado = &now, sesionValida(sesion), false
 		// Armado, lo toma el proceso que lo va a esperar (anotarLanzado, tomarTurno), no quien lo lanzó.
 		if estado == EstadoArmado {
 			cola[i].ArmadoEn, cola[i].Proximo, cola[i].Inicio, cola[i].PID = &now, &now, nil, 0

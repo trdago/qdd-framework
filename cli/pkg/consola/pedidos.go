@@ -97,6 +97,9 @@ type Pedido struct {
 	ArmadoEn *time.Time `json:"armado_en,omitempty"`
 	Proximo  *time.Time `json:"proximo,omitempty"`
 	Intentos int        `json:"intentos,omitempty"`
+	// Sesion es la sesión de Claude Code que lo confirmó y Avisado, que ya recibió su resultado (aviso.go).
+	Sesion  string `json:"sesion,omitempty"`
+	Avisado bool   `json:"avisado,omitempty"`
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
@@ -226,8 +229,8 @@ func leerCola(root string) []Pedido {
 	return cola
 }
 
-// normalizar deja la cola como se ve a la hora now: un hecho sale en el ciclo siguiente (ya se vio) o pasado VidaHecho
-// si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado; uno que espera a la persona
+// normalizar deja la cola como se ve a la hora now: un hecho sale en el ciclo siguiente (ya se vio; si falta avisarle
+// a la sesión que lo confirmó, después del aviso) o pasado VidaHecho si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado; uno que espera a la persona
 // se retira si su tarea cambió desde el último mensaje (huella da cómo está ahora). Lo que esperaba a un hecho que
 // salió ya no espera: una dependencia que no está en la cola no cuenta.
 func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string) []Pedido {
@@ -240,7 +243,7 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 		if p.Estado == EstadoHecho && p.Fin != nil && now.Sub(*p.Fin) > VidaHecho && !esperado[p.ID] {
 			continue
 		}
-		if p.Estado == EstadoHecho && p.Fin != nil && p.Fin.Before(ciclo) {
+		if p.Estado == EstadoHecho && p.Fin != nil && p.Fin.Before(ciclo) && !p.porAvisar() {
 			continue
 		}
 		if p.Estado == EstadoRetirado && p.Fin != nil && now.Sub(*p.Fin) > VidaRetirado {
@@ -468,7 +471,10 @@ func accionesDePedidos(root string) []Accion {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
-			Confirmar: true, pedido: p.ID,
+			Sesion: p.Sesion, Confirmar: true, pedido: p.ID,
+		}
+		if p.porAvisar() {
+			a.Avisar, a.Mensaje = true, mensajeAviso(p)
 		}
 		if faltan := esperaA(p, cola); p.Ejecutable() && len(faltan) > 0 {
 			a.Estado, a.Espera = EstadoEspera, faltan

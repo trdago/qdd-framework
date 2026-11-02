@@ -48,7 +48,7 @@ func TestLanzar_VuelveEnElActoYElPedidoTerminaSolo_FND089(t *testing.T) {
 	a, _ := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
 	var salida bytes.Buffer
 	inicio := time.Now()
-	if codigo := a.Lanzar(root, os.Args[0], &salida); codigo != 0 {
+	if codigo := a.Lanzar(root, os.Args[0], "", &salida); codigo != 0 {
 		t.Fatalf("lanza: %d %s", codigo, salida.String())
 	}
 	if time.Since(inicio) > 900*time.Millisecond {
@@ -81,7 +81,7 @@ func TestLanzar_UnPedidoNoEjecutableNoSeLanza_FND089(t *testing.T) {
 		t.Fatal("corre")
 	}
 	var salida bytes.Buffer
-	if codigo := a.Lanzar(root, os.Args[0], &salida); codigo == 0 || !strings.Contains(salida.String(), "ya se ejecutó") {
+	if codigo := a.Lanzar(root, os.Args[0], "", &salida); codigo == 0 || !strings.Contains(salida.String(), "ya se ejecutó") {
 		t.Fatalf("uno hecho no se lanza de nuevo: %d %q", codigo, salida.String())
 	}
 }

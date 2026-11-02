@@ -143,7 +143,7 @@ async function leer($) {
     motivo = 'no se pudo ejecutar ' + bin + ': ' + String(err?.message ?? err)
   }
   const huella = JSON.stringify([nuevo, motivo])
-  if (huella === firma) return
+  if (huella === firma) return avisar($)
   firma = huella
   datos = nuevo
   falla = motivo
@@ -152,6 +152,87 @@ async function leer($) {
   verPulsos()
   $.ui.invalidate('ui.render')
   await abrirSiLlegaUnPedido($)
+  await avisar($)
+}
+
+// Aviso al chat (pedido del usuario, 2026-11-02: «el chat principal tiene que enterarse y verse una leyenda cuando
+// acepto la tarea en el panel»). Al confirmar un pedido, el panel le dice a qdd qué sesión lo confirma y le deja a la
+// IA una nota invisible de que corre aparte; la banda de arriba del prompt dice «▶ … en marcha» (o «◷ … armado»)
+// mientras corre. Al terminar, qdd marca el pedido «por avisar» a esa sesión: el panel lo reclama con «qdd consola
+// avisado» (sale con 0 solo la primera vez, aunque haya varias sesiones o un reload del mod), envía el mensaje de qdd
+// a la IA, que sigue sola, y notifica en el escritorio.
+let sesion = null // id de esta sesión; '' si no se pudo leer (entonces no hay aviso)
+const teclasConfirmadas = new Map() // id de pedido → la tecla con que se confirmó (la banda la nombra)
+const reclamados = new Set() // pedidos cuyo aviso ya se pidió a qdd en esta carga
+
+async function sesionPropia($) {
+  if (sesion !== null) return sesion
+  try {
+    sesion = String((await $.session.id()) || '')
+  } catch {
+    sesion = ''
+  }
+  return sesion
+}
+
+// notaParaLaIA: la IA sabe que el pedido ya corre (no lo repite ni lo vuelve a pedir) y que el resultado le llega solo.
+async function notaParaLaIA($, a) {
+  const texto = '[qdd] La persona confirmó en el panel el pedido «' + a.etiqueta + '»: corre aparte (o queda armado hasta que esté listo); no lo ejecutes ni lo pidas de nuevo. Cuando termine te llega su resultado.'
+  try {
+    await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: texto }] } })
+  } catch (err) {
+    $.ui.log('no se anotó el pedido para la IA: ' + String(err?.message ?? err))
+  }
+}
+
+// enMarchaAqui: los pedidos que esta sesión confirmó y todavía corren o esperan armados.
+function enMarchaAqui() {
+  return pedidos(datos?.acciones || []).filter((a) => {
+    const { estado } = estadoDe(a)
+    const propio = a.sesion ? a.sesion === sesion : teclasConfirmadas.has(a.id)
+    return propio && (estado === 'ejecutando' || estado === 'armado')
+  })
+}
+
+// banda: una línea por pedido en marcha, arriba del prompt; sin ninguno, la banda es la de siempre.
+function banda($, e, next) {
+  const lista = enMarchaAqui()
+  if (e.props.hasSurvey || lista.length === 0) return next(e)
+  const { Box, Text } = $.ui.resolve(e)
+  const filas = lista.slice(0, Math.max(1, e.props.maxRows || 1)).map((a) => {
+    const tecla = teclasConfirmadas.get(a.id)
+    const nombre = (tecla ? '[' + tecla + '] ' : '') + a.etiqueta
+    if (estadoDe(a).estado === 'armado') return Text({ key: 'banda-' + a.id, color: 'yellow', children: '◷ ' + nombre + ' · armado: corre solo cuando esté listo' })
+    return Text({ key: 'banda-' + a.id, color: ACENTO, children: '▶ ' + nombre + ' · en marcha' })
+  })
+  return Box({ key: 'banda', flexDirection: 'column', children: filas })
+}
+
+// avisar reclama y entrega los avisos de esta sesión. Uno que qdd ya no ofrece (reintentado, ya avisado) se olvida.
+async function avisar($) {
+  const mia = await sesionPropia($)
+  const listos = pedidos(datos?.acciones || []).filter((a) => a.avisar && a.mensaje && mia && a.sesion === mia)
+  for (const id of [...reclamados]) if (!listos.some((a) => a.id === id)) reclamados.delete(id)
+  for (const a of listos.filter((x) => !reclamados.has(x.id))) await entregar($, a, mia)
+}
+
+async function entregar($, a, mia) {
+  reclamados.add(a.id)
+  const bin = await binario($)
+  let r = null
+  try {
+    r = await $.process.run([bin, 'consola', 'avisado', a.id, '--sesion', mia], { timeoutMs: TOPE_MS })
+  } catch (err) {
+    reclamados.delete(a.id)
+    $.ui.log('no se reclamó el aviso del pedido: ' + String(err?.message ?? err))
+    return
+  }
+  if (r.exitCode !== 0) return
+  teclasConfirmadas.delete(a.id)
+  $.ui.invalidate('ui.render')
+  $.prompt.submit({ text: a.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  const fallo = a.estado === 'fallo'
+  $.ui.notify((fallo ? '✗ ' : '✓ ') + a.etiqueta + (fallo ? ' falló' : ' terminó'), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
 }
 
 // verPulsos marca un destello en cada tarea cuyo pulso cambió desde la lectura anterior (lo deja cualquier fuente).
@@ -537,11 +618,14 @@ async function ejecutar($, a) {
   resultado = { titulo: a.etiqueta, ok: true, texto: 'ejecutando ' + primeraLinea(a.detalle) + '…', zona: zona(a) }
   $.ui.invalidate('ui.render')
   const bin = await binario($)
-  const argv = [bin, 'consola', 'accion', a.id, ...(a.confirmar ? ['--confirmado'] : [])]
+  const mia = esPedido && a.confirmar ? await sesionPropia($) : ''
+  const argv = [bin, 'consola', 'accion', a.id, ...(a.confirmar ? ['--confirmado'] : []), ...(mia ? ['--sesion', mia] : [])]
   let lanzado = false
   try {
     // Un pedido solo se lanza: qdd lo corre aparte y el panel queda libre (FND-089); el resultado llega por la cola.
-    const r = await $.process.run(argv, { timeoutMs: a.id === 'auditar' ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
+    let r = await $.process.run(argv, { timeoutMs: a.id === 'auditar' ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
+    // Un qdd anterior a --sesion no lo conoce: el pedido corre igual, sin aviso al terminar.
+    if (mia && r.exitCode !== 0 && /unknown flag/.test(r.stderr || '')) r = await $.process.run(argv.slice(0, -2), { timeoutMs: TOPE_ACCION_MS })
     const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
     resultado = { titulo: a.etiqueta, ok: r.exitCode === 0, texto: texto || 'sin salida', zona: zona(a) }
     todaviaNo = r.exitCode === CODIGO_TODAVIA_NO
@@ -553,6 +637,8 @@ async function ejecutar($, a) {
   // Lanzado: la tarjeta del pedido dice cómo va; sin recuadro de resultado. Rechazado o «todavía no»: manda qdd.
   if (lanzado) resultado = null
   if (esPedido && !lanzado) locales.delete(a.id)
+  if (lanzado) teclasConfirmadas.set(a.id, a.tecla)
+  if (lanzado) await notaParaLaIA($, a)
   ocupado = false
   firma = ''
   await leer($)
@@ -1638,6 +1724,8 @@ export function register(on) {
     $.ui.invalidate('ui.render')
     return {}
   })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => banda($, e, next))
 
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
