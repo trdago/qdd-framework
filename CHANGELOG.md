@@ -29,9 +29,10 @@ que un proyecto que lo usa ya puede subir a esa versión.
 - Una referencia a 2 letras de un id de largo impar (como `barra`) también se sugiere.
 - Un ciclo nuevo lleva un id de QDD; los que ya existían siguen valiendo.
 
-## [2.8.0-rc.19] - 2026-11-02 (preview)
+## [2.8.0-rc.19] - 2026-11-02 (sin publicar)
 
-Decimonovena **preview** de 2.8.0: `npm i -g qdd-framework@preview`. El lado PC de QDD Móvil: ver y aprobar lo de todos
+El tag existe, pero no llegó a npm: el gate del workflow se trabó con FND-112. Todo lo de esta versión sale en
+rc.20. Decimonovena preview de 2.8.0. El lado PC de QDD Móvil: ver y aprobar lo de todos
 tus proyectos desde el teléfono.
 
 ### 📱 Consola remota: QDD Móvil (RFC 0013)
