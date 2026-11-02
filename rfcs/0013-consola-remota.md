@@ -1,7 +1,7 @@
 # RFC 0013: Consola remota (QDD Móvil)
 
 - Estado: aceptado (plan del usuario, 2026-11-02)
-- Versión: qdd 2.9.0, canal preview (rc.1 → rc.4)
+- Versión: preview desde qdd 2.8.0-rc.19 (las fases rc.1 → rc.4 de abajo salieron juntas); estable con la siguiente versión que cumpla VER-05
 - Nombres: app Flutter **QDD Móvil** (`qdd-movil`, hoy en `~/Documents/proyectos/qdd-movile`), subcomando
   **`qdd remoto`** (`pkg/remoto`), blueprint **`consola-remota`** (cuando la implementación esté probada)
 
