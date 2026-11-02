@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.14] - 2026-11-01 (preview)
+
+Decimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae el atajo desde el chat y los pedidos ◷ armados.
+
 ### ◷ Confirmas una vez y el pedido corre solo cuando está listo
 
 - **Tu intención queda tomada:** si un pedido confirmado responde «todavía no» (código 75: falta un tag, npm aún no publica…), queda **◷ armado**. qdd lo reintenta solo cada 30 s, sin la IA y sin que lo vuelvas a pulsar, hasta que sale bien.
