@@ -41,6 +41,7 @@ type mirada struct {
 	pendiente []LineaConsola
 	inicio    bool
 	pausada   bool
+	quienes   map[string]bool // los teléfonos que la miran: uno nuevo recibe el inicio y la pausa (FND-110)
 	pedidosA  time.Time
 	buscado   time.Time
 }
@@ -56,26 +57,31 @@ type estadoConsola struct {
 // alCambiarEspectadores empieza a seguir lo que alguien mira ahora y suelta lo que nadie mira.
 func (b *Bucle) alCambiarEspectadores(ctx context.Context) {
 	c := &b.extras.consola
-	quiero := map[string]bool{}
+	quiero := map[string]map[string]bool{}
 	for _, t := range b.telefonos {
-		if t.Mirando != "" {
-			quiero[t.Mirando] = true
+		if t.Mirando == "" {
+			continue
 		}
+		if quiero[t.Mirando] == nil {
+			quiero[t.Mirando] = map[string]bool{}
+		}
+		quiero[t.Mirando][t.Dispositivo] = true
 	}
 	for clave := range c.miradas {
-		if !quiero[clave] {
+		if quiero[clave] == nil {
 			delete(c.miradas, clave)
 		}
 	}
-	for clave := range quiero {
-		if c.miradas[clave] != nil {
+	for clave, quienes := range quiero {
+		if m := c.miradas[clave]; m != nil {
+			m.alCambiarQuienes(quienes)
 			continue
 		}
 		p, ok := b.proyectoPublicado(clave)
 		if !ok {
 			continue
 		}
-		c.miradas[clave] = &mirada{clave: clave, ruta: p.Ruta, inicio: true, pedidosA: b.ahora()}
+		c.miradas[clave] = &mirada{clave: clave, ruta: p.Ruta, inicio: true, pedidosA: b.ahora(), quienes: quienes}
 	}
 	b.ajustarTicker()
 }
@@ -215,4 +221,20 @@ func (b *Bucle) mandarConsola(ctx context.Context, m *mirada) {
 		return
 	}
 	m.pendiente, m.inicio = m.pendiente[len(tanda):], false
+}
+
+// alCambiarQuienes: si empezó a mirar un teléfono que no estaba, la consola vuelve a mandar su tanda de inicio (las
+// últimas líneas, que reemplazan lo que había en todos) y, si está pausada, el motivo (FND-110).
+func (m *mirada) alCambiarQuienes(quienes map[string]bool) {
+	nuevo := false
+	for d := range quienes {
+		if !m.quienes[d] {
+			nuevo = true
+		}
+	}
+	m.quienes = quienes
+	if !nuevo {
+		return
+	}
+	m.pausada, m.inicio, m.lector, m.pendiente = false, true, nil, nil
 }

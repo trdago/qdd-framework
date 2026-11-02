@@ -209,6 +209,7 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	}
 	if e.Evento == "sync" {
 		b.mandarEstado(ctx, b.armar())
+		b.reenviarSolicitudes(ctx)
 		return
 	}
 	if e.Evento == "accion" {

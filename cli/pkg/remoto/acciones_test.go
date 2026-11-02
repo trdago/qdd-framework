@@ -344,3 +344,30 @@ func TestAccion_RechazarUnPedidoYaAprobadoDiceDonde(t *testing.T) {
 		t.Fatal("un pedido aprobado no sale de la cola por un rechazo")
 	}
 }
+
+// FND-111: una acción que terminó mientras no había teléfonos nunca le llegaba al teléfono que la pidió: responder
+// no manda nada sin teléfonos y el teléfono ya no reintenta pasada «recibida».
+func TestAccion_AlVolverElTelefonoUnSyncReenviaComoTerminaron_FND111(t *testing.T) {
+	homeTemporal(t)
+	vieja := Solicitud{Solicitud: "sol-vieja", Proyecto: "p-1", AccionID: "aprobar:x", Dispositivo: "d1", Estado: EstadoHecha,
+		Resultado: "ok", Recibida: time.Now().Add(-2 * time.Hour)}
+	nueva := Solicitud{Solicitud: "sol-nueva", Proyecto: "p-1", AccionID: "aprobar:y", Dispositivo: "d1", Estado: EstadoFallo,
+		Resultado: "falló", Recibida: time.Now().Add(-time.Minute)}
+	if err := guardarSolicitudes(map[string]Solicitud{vieja.Solicitud: vieja, nueva.Solicitud: nueva}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	_, tr, _ := bucleConFirma(t)
+	tr.eventos <- telefono("d1", "")
+	tr.esperar(t, time.Second, "estado")
+	tr.eventos <- Evento{Tipo: TipoBroadcast, Evento: "sync", Payload: json.RawMessage(`{"version":1}`)}
+	got := estadoDe(t, tr, 2*time.Second)
+	if got.Solicitud != "sol-nueva" || got.Estado != EstadoFallo {
+		t.Fatalf("el sync reenvía cómo terminó la reciente: %+v", got)
+	}
+	time.Sleep(200 * time.Millisecond)
+	for _, e := range tr.Enviados() {
+		if e.Evento == "accion_estado" && strings.Contains(string(e.Payload), "sol-vieja") {
+			t.Fatal("una de hace horas no se reenvía")
+		}
+	}
+}

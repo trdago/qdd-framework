@@ -1,0 +1,9 @@
+id: "FND-110"
+title: "Un segundo teléfono que empezaba a mirar una consola ya mirada no recibía el inicio ni la pausa"
+description: "alCambiarEspectadores (pkg/remoto/consola_remota.go) creaba la mirada solo para el primer teléfono que miraba un proyecto. Uno que llegaba después a la misma consola recibía solo las líneas nuevas, sin la tanda de inicio con las últimas 40, y si la consola ya estaba pausada no recibía el motivo, porque pausar avisa una sola vez por consola."
+impact: "En el segundo teléfono la consola se veía vacía («Esperando a la consola…») o parecía funcionar mientras el plan la tenía pausada."
+action_taken: "Cada mirada recuerda qué teléfonos la miran; cuando aparece uno nuevo, vuelve a mandar la tanda de inicio (que reemplaza lo que había en todos) y, si está pausada, el motivo una vez más."
+test_result: "TestConsola_UnSegundoTelefonoQueEmpiezaAMirarRecibeElInicio_FND110 y TestConsola_UnSegundoTelefonoSeEnteraDeLaPausa_FND110 fallan antes del arreglo y pasan después; go test ./pkg/remoto/... -race -count=2 en verde."
+status: resolved
+detectado_por: ia
+date: "2026-11-02"

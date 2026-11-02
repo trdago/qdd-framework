@@ -36,6 +36,10 @@ const (
 	maxSolicitudes = 1000
 	formatoEn      = "2006-01-02T15:04:05Z"
 	prefijoSesion  = "remoto:"
+	// ventanaReenvio y maxReenvio acotan lo que un sync reenvía de las solicitudes (FND-111): lo que un teléfono puede
+	// estar esperando todavía, sin volver a mandar el historial entero.
+	ventanaReenvio = 30 * time.Minute
+	maxReenvio     = 20
 	// prefijoRechazar + el id de la acción de un pedido lo descarta de la cola sin ejecutarlo (el «Rechazar» del
 	// teléfono). No es una acción del panel: el PC la acepta solo si el panel ofrece ese pedido.
 	prefijoRechazar = "rechazar:"
@@ -274,6 +278,27 @@ func (b *Bucle) responder(ctx context.Context, s Solicitud) {
 		return
 	}
 	b.broadcast(ctx, "accion_estado", s.respuesta())
+}
+
+// reenviarSolicitudes manda, al pedir sync un teléfono, cómo van las solicitudes recientes: una que terminó mientras
+// no había teléfonos no le habría llegado nunca (FND-111). Solo las de la última media hora, como mucho 20.
+func (b *Bucle) reenviarSolicitudes(ctx context.Context) {
+	if len(b.telefonos) == 0 {
+		return
+	}
+	var recientes []Solicitud
+	for _, s := range b.extras.solicitudes {
+		if b.ahora().Sub(s.Recibida) <= ventanaReenvio {
+			recientes = append(recientes, s)
+		}
+	}
+	sort.Slice(recientes, func(i, j int) bool { return recientes[i].Recibida.After(recientes[j].Recibida) })
+	if len(recientes) > maxReenvio {
+		recientes = recientes[:maxReenvio]
+	}
+	for _, s := range recientes {
+		b.broadcast(ctx, "accion_estado", s.respuesta())
+	}
 }
 
 func (b *Bucle) cerrar(ctx context.Context, s Solicitud, estado, resultado string) {

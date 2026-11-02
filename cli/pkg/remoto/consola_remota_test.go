@@ -173,3 +173,59 @@ func TestConsola_CuandoVuelveAEstarPermitidaEmpiezaDeNuevo(t *testing.T) {
 		t.Fatalf("vuelve con la cola de nuevo: %+v", m)
 	}
 }
+
+func dosTelefonos(d1, mirando1, d2, mirando2 string) Evento {
+	m1, _ := json.Marshal(map[string]string{"rol": "movil", "dispositivo": d1, "mirando": mirando1, "phx_ref": "r-" + d1})
+	m2, _ := json.Marshal(map[string]string{"rol": "movil", "dispositivo": d2, "mirando": mirando2, "phx_ref": "r-" + d2})
+	pc, _ := json.Marshal(map[string]string{"rol": "pc", "phx_ref": "r-pc"})
+	return Evento{Tipo: TipoPresencia, Presencias: map[string][]json.RawMessage{"pc": {pc}, d1: {m1}, d2: {m2}}}
+}
+
+// FND-110: un segundo teléfono que empieza a mirar una consola que otro ya miraba recibía solo lo nuevo, sin la
+// tanda de inicio, y si estaba pausada no se enteraba del motivo.
+func TestConsola_UnSegundoTelefonoQueEmpiezaAMirarRecibeElInicio_FND110(t *testing.T) {
+	homeTemporal(t)
+	root := proyecto(t, "p", true)
+	registro.Anotar(root, time.Now())
+	clave, _ := registro.ClaveDe(root)
+	escribirTranscript(t, root, "s", turno("user", "hola"), turno("assistant", "Listo."))
+	_, tr, _, _ := bucleDePrueba(t)
+	tr.eventos <- telefono("d1", clave)
+	if m := consolaDe(t, tr.esperar(t, 2*time.Second, "consola")); !m.Inicio {
+		t.Fatalf("d1 recibe el inicio: %+v", m)
+	}
+	antes := tr.contar("consola")
+	tr.eventos <- dosTelefonos("d1", clave, "d2", clave)
+	for plazo := time.Now().Add(2 * time.Second); time.Now().Before(plazo); time.Sleep(50 * time.Millisecond) {
+		vistos := 0
+		for _, e := range tr.Enviados() {
+			if e.Evento != "consola" {
+				continue
+			}
+			vistos++
+			if m := consolaDe(t, e); vistos > antes && m.Inicio && strings.Contains(textos(m), "ia:Listo.") {
+				return
+			}
+		}
+	}
+	t.Fatal("d2 empezó a mirar y no recibió la tanda de inicio con lo que ya había")
+}
+
+func TestConsola_UnSegundoTelefonoSeEnteraDeLaPausa_FND110(t *testing.T) {
+	homeTemporal(t)
+	root := proyecto(t, "p", true)
+	registro.Anotar(root, time.Now())
+	clave, _ := registro.ClaveDe(root)
+	escribirTranscript(t, root, "s", turno("user", "hola"))
+	motivo := "horas"
+	_, tr, _, _ := bucleDePrueba(t, func(b *Bucle) {
+		b.R.(*relayBucleFalso).plan = Plan{Plan: "gratis", ConsolaPermitida: false, Motivo: &motivo}
+	})
+	tr.eventos <- telefono("d1", clave)
+	tr.esperar(t, 2*time.Second, "consola")
+	tr.eventos <- dosTelefonos("d1", clave, "d2", clave)
+	time.Sleep(1200 * time.Millisecond)
+	if n := tr.contar("consola"); n != 2 {
+		t.Fatalf("el segundo teléfono también se entera de la pausa, una vez: %d", n)
+	}
+}
