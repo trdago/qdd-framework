@@ -14,10 +14,11 @@ objetivo_tecnologico:
         - 'implementa (2026-10-31): [{blueprint, respuestas}]. Sin respuestas, el módulo es la implementación de origen y cubre todas las opciones del blueprint; con respuestas, solo esa variante. Lo usa qdd blueprint conformance.'
         - 'Reescribir una ficha (guardar, aprobar) conserva las claves de la ficha en disco que este qdd no conoce (FND-099): un qdd más viejo nunca borra lo que escribió uno más nuevo.'
         - 'implementa admite fuera: {ID: motivo}, un escenario que hace otro y no este código; la conformidad no lo exige y siempre lo muestra.'
+        - 'Datos de QDD como ruta de un módulo (FND-108, 2026-11-01): una ficha y qdd blueprint apply rechazan las rutas bajo .qdd salvo los datos que QDD escribe por un módulo. EsDatoDeQDD los reconoce: los archivos de DatosDeQDD (.qdd/project/estado.yaml) y las carpetas de AreasDeDatos (.qdd/project/tutor/, el registro de ciclo-de-vida-agentico). Esas rutas no tienen que existir todavía, porque el esqueleto las crea.'
     invariantes:
         - Una ficha guardada por una IA queda en borrador; solo una persona (o quien tenga la aprobación delegada) la aprueba.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
-ultima_revision: "2026-10-31"
-revisado_en_commit: 2406f3e2c0a2
+ultima_revision: "2026-11-01"
+revisado_en_commit: cd7868b9205f

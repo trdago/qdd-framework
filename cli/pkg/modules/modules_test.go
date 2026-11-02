@@ -204,6 +204,13 @@ func TestTextoAprobada_SinCommitLoDice(t *testing.T) {
 
 // FND-084: el estado por tareas lo crea 'qdd estado init', que necesita la ficha: la ficha no puede exigir que el
 // archivo ya exista. Solo los datos que escribe QDD (DatosDeQDD) quedan exentos.
+func TestValidateRutas_LosDatosDelTutorNoTienenQueExistirTodavia_FND108(t *testing.T) {
+	m := Module{Rutas: []string{".qdd/project/tutor/plan.yaml", ".qdd/project/tutor/artefactos/"}}
+	if problems := m.validateRutas(t.TempDir()); len(problems) != 0 {
+		t.Fatalf("el tutor los escribe al aplicar la receta: %v", problems)
+	}
+}
+
 func TestValidateRutas_ElEstadoDeQDDNoTieneQueExistirTodavia_FND084(t *testing.T) {
 	root := t.TempDir()
 	m := Module{Rutas: []string{".qdd/project/estado.yaml"}}

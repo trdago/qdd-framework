@@ -112,8 +112,28 @@ func (m Module) Validate(root string) []string {
 
 // DatosDeQDD son los archivos de .qdd que pertenecen a un módulo del proyecto porque QDD los escribe por él: el estado
 // por tareas, que crea 'qdd estado init'. Pueden ser ruta de una ficha aunque estén en .qdd y aunque todavía no
-// existan (su comando necesita la ficha para crearlos). Nada más de .qdd es ruta de un módulo (FND-084).
+// existan (su comando necesita la ficha para crearlos). Nada más de .qdd es ruta de un módulo (FND-084), salvo las
+// carpetas de AreasDeDatos.
 var DatosDeQDD = map[string]bool{".qdd/project/estado.yaml": true}
+
+// AreasDeDatos son las carpetas de .qdd donde un blueprint guarda los datos de su módulo: .qdd/project/tutor/, la del
+// tutor de ciclo-de-vida-agentico, cuyas invariantes exigen escribir ahí (FND-108). Lo que hay dentro se crea al
+// aplicar la receta, así que tampoco tiene que existir antes.
+var AreasDeDatos = []string{".qdd/project/tutor/"}
+
+// EsDatoDeQDD dice si una ruta (relativa, con / o \) es un dato de QDD que puede ser ruta de una ficha.
+func EsDatoDeQDD(ruta string) bool {
+	clean := filepath.ToSlash(filepath.Clean(ruta))
+	if DatosDeQDD[clean] {
+		return true
+	}
+	for _, area := range AreasDeDatos {
+		if clean+"/" == area || strings.HasPrefix(clean, area) {
+			return true
+		}
+	}
+	return false
+}
 
 func (m Module) validateRutas(root string) []string {
 	if len(m.Rutas) == 0 {
@@ -126,7 +146,7 @@ func (m Module) validateRutas(root string) []string {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' debe ser relativa a la raíz del proyecto", r))
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(root, clean)); err != nil && !DatosDeQDD[filepath.ToSlash(clean)] {
+		if _, err := os.Stat(filepath.Join(root, clean)); err != nil && !EsDatoDeQDD(clean) {
 			problems = append(problems, fmt.Sprintf("rutas: '%s' no existe en el proyecto", r))
 		}
 	}

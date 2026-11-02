@@ -1,0 +1,9 @@
+id: "FND-108"
+title: "qdd blueprint apply rechazaba las rutas .qdd/project/tutor/ que la receta ciclo-de-vida-agentico declara"
+description: "validateRutas (pkg/blueprints/apply.go) rechazaba toda ruta bajo .qdd/ salvo .qdd/project/estado.yaml. La receta ciclo-de-vida-agentico guarda su registro de conceptos, artefactos y mediciones en .qdd/project/tutor/, así que 'qdd blueprint apply ciclo-de-vida-agentico --rutas .qdd/project/tutor/…' fallaba y no generaba la ficha. modules.validateRutas tenía la misma excepción de un solo archivo y además exigía que la ruta existiera, aunque el esqueleto la crea después."
+impact: "Un proyecto no podía aplicar ciclo-de-vida-agentico con su registro en la carpeta que la receta pide; lo reportó la sesión de llmlocal el 2026-11-01."
+action_taken: "modules.AreasDeDatos declara las carpetas de .qdd donde un blueprint guarda los datos de su módulo (.qdd/project/tutor/) y modules.EsDatoDeQDD responde por archivo y por carpeta. apply y la ficha usan esa misma regla: el resto de .qdd (fichas, config, hallazgos) sigue rechazado y una carpeta parecida (.qdd/project/tutorial/) no entra."
+test_result: "TestApply_LosDatosDelTutorPuedenSerRutaDeUnModulo_FND108 y TestValidateRutas_LosDatosDelTutorNoTienenQueExistirTodavia_FND108 fallan antes del arreglo y pasan después. En un proyecto de prueba, el comando de llmlocal genera la ficha y el esqueleto .qdd/project/tutor/artefactos/README.md, y el gate solo marca BP-08 (faltan las pruebas de los escenarios)."
+status: resolved
+detectado_por: ia
+date: "2026-11-01"

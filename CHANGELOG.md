@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.15] - 2026-11-01 (preview)
+
+Decimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Permite aplicar el blueprint ciclo-de-vida-agentico con su registro en `.qdd/project/tutor/`.
+
+### 🐛 `qdd blueprint apply` aceptaba solo `estado.yaml` dentro de `.qdd` (FND-108)
+
+- **Qué pasaba:** `qdd blueprint apply ciclo-de-vida-agentico` rechazaba las rutas `.qdd/project/tutor/…`, aunque la receta guarda ahí su registro, y no generaba la ficha.
+- **Arreglo:** `.qdd/project/tutor/` es un área de datos de un módulo: puede ser ruta de una ficha y no tiene que existir todavía, porque el esqueleto la crea. El resto de `.qdd` sigue fuera.
+
 ## [2.8.0-rc.14] - 2026-11-01 (preview)
 
 Decimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae el atajo desde el chat y los pedidos ◷ armados.
