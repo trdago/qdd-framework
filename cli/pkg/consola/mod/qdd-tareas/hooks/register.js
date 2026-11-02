@@ -788,6 +788,52 @@ function dibujar($, Box, Text, Button, Input, ancho) {
   })
 }
 
+// ── Atajo desde el chat (pedido del usuario, 2026-11-01) ─────────────────────────────────────────────────────────
+// Sin mouse y en cualquier terminal: con el chat vacío, la tecla de lo que te espera (un pedido a, b, d…, una ficha
+// 1…9) y Enter abren su confirmación en el panel con el foco en «s  Sí»; otro Enter aprueba y el teclado vuelve solo al
+// chat. Solo se toma un mensaje que es exactamente esa tecla («a.» va a la IA). Para un solo paso, el terminal o el
+// sistema puede mapear AltGr+letra (o lo que se quiera) a un carácter privado, U+E000 + la letra: el panel lo consume
+// sin escribirlo. Probado en Claude Code 2.1.300: Alt+letra no llega a los mods y el texto descartado vuelve al chat
+// después del hook, por eso el panel espera un instante antes de vaciarlo y tomar el foco.
+const PRIVADO = 0xe000
+const ESPERA_ATAJO_MS = 40
+
+function atajoDe(texto) {
+  if (!datos || !/^[a-z0-9]$/.test(texto)) return null
+  const lista = datos.acciones || []
+  const pedido = pedidos(lista).find((a) => a.tecla === texto && ejecutable(a))
+  if (pedido) return pedido
+  const fichas = lista.filter((a) => a.tipo === 'aprobar')
+  const asignadas = teclas(fichas)
+  return fichas.find((a) => asignadas[a.id] === texto) || null
+}
+
+// privadoDe: la letra de un carácter privado (U+E061 → «a»), o '' si no es uno.
+function privadoDe(texto) {
+  const cp = [...String(texto || '')].length === 1 ? texto.codePointAt(0) : 0
+  if (cp < PRIVADO + 0x30 || cp > PRIVADO + 0x7a) return ''
+  return String.fromCharCode(cp - PRIVADO)
+}
+
+function teclaDe(a) {
+  if (a.tecla) return a.tecla
+  return teclas((datos?.acciones || []).filter((x) => x.tipo === 'aprobar'))[a.id] || ''
+}
+
+// atajo deja la confirmación de a en el panel con el foco en «s  Sí». vaciar: tras un envío descartado, el chat
+// todavía tiene la tecla y el motor no le da el foco al panel sobre un chat con texto.
+async function atajo($, a, vaciar) {
+  if (vaciar) await $.clock.sleep(ESPERA_ATAJO_MS)
+  bps = null
+  config = null
+  pedir($, a)
+  if (vaciar) await $.prompt.fill({ text: '', mode: 'replace' }).catch((err) => $.ui.log('no se vació el chat: ' + String(err?.message ?? err)))
+  await $.ui.open({ id: PANE, title: TITULO, focus: true })
+  if (confirmando?.id !== a.id) return
+  const r = await $.ui.focus({ requestId: PANE, key: 'si' }).catch((err) => ({ deny: String(err?.message ?? err) }))
+  if (r?.deny) $.ui.log('el panel no tomó el foco: ' + r.deny)
+}
+
 // ── 📦 Blueprints (pedido del usuario, 2026-11-01) ───────────────────────────────────────────────────────────────
 // Los instalados y los disponibles, con sus cuentas, los da 'qdd consola blueprints --json' sin red ni IA. ↻ trae el
 // catálogo; ⬆ Actualizar y ＋ Instalar son comandos de qdd que escriben el lockfile (con «s  Sí»); ✦ Aplicar es lo único
@@ -1501,6 +1547,30 @@ export function register(on) {
     const r = await next(e)
     if (!contexto) return r
     return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), contexto] }
+  })
+
+  // Atajo desde el chat: la tecla de lo que te espera y Enter lo abren en el panel, sin enviarle nada a la IA.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.command || e.isMeta) return next(e)
+    const a = atajoDe(String(e.text || '').trim())
+    if (!a) return next(e)
+    atajo($, a, true).catch((err) => $.ui.log('atajo: ' + String(err?.message ?? err)))
+    return { drop: '▶ ' + teclaDe(a) + ' · ' + a.etiqueta + ': Enter confirma en el panel, n cancela' }
+  })
+
+  // Mientras se escribe la tecla, el chat dice qué abre Enter; un carácter privado lo abre en el acto sin escribirse.
+  on('prompt.edit', async ($, e, next) => {
+    const privado = privadoDe(e.inputText)
+    if (privado) {
+      const a = atajoDe(privado)
+      if (a) atajo($, a, false).catch((err) => $.ui.log('atajo: ' + String(err?.message ?? err)))
+      return { text: e.text, cursor: e.cursor }
+    }
+    const r = await next(e)
+    const a = atajoDe(String(r.text || '').trim())
+    if (!a) return r
+    const fin = r.text.length
+    return { ...r, decorations: [...(r.decorations ?? []), { start: fin, end: fin, virtualText: '  ↵ ' + a.etiqueta, dimColor: true }] }
   })
 
   // El reproductor terminó: se vuelve a dibujar lo de siempre (o se quita lo que se iba).

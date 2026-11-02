@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### ⌨ Aprobar sin mouse desde el chat
+
+- **Funciona en cualquier terminal y sistema, sin configurar nada:**
+  1. Con el chat vacío, escribe la tecla de lo que te espera: un pedido (`a`, `b`, `d`…) o una ficha (`1`…`9`). Mientras la escribes, el chat te muestra qué abre Enter.
+  2. **Enter:** no le envía nada a la IA. Abre la confirmación en el panel, con el foco en «s  Sí».
+  3. **Enter** otra vez aprueba, y el teclado vuelve solo al chat.
+- Solo se toma un mensaje que sea exactamente esa tecla. Si quieres enviarle a la IA solo una letra, por ejemplo «a», escribe «a.».
+- **En un solo paso, si tu terminal o tu sistema lo permite:** mapea AltGr+letra (u otra tecla) al carácter privado U+E000 + la letra (AltGr+a → U+E061). El panel lo recibe sin escribirlo en el chat y abre la confirmación al instante.
+
 ## [2.8.0-rc.13] - 2026-11-01 (preview)
 
 Decimotercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Arregla el panel de rc.11 y rc.12.
