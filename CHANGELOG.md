@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.12] - 2026-11-01 (preview)
+
+Duodécima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae los blueprints a un clic en el panel.
+
 ### 📦 Los blueprints a un clic en el panel
 
 - **Tecla `p` (📦 Blueprints) en el panel de tareas:** lista los blueprints instalados y los disponibles en las fuentes del proyecto, con sus cuentas: instalados, cuántos se actualizan sin la IA, cuántos cambian la receta y cuántos están disponibles. Para cada uno muestra la versión instalada → la publicada y, si la receta cambió, por qué.
