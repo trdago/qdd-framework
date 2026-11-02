@@ -33,6 +33,10 @@ objetivo_tecnologico:
         - 'Un pedido se ejecuta igual que en el panel (Accion.Lanzar, aparte y con la cola bloqueada) con la sesión remoto:<dispositivo>. Si el pedido ya no es ejecutable (lo aprobó el PC u otro teléfono), responde ya_aprobado con lugar: «PC», o el nombre del teléfono si su sesión es remoto:<id>. Al terminar, el PC responde hecha o fallo con el final de la salida, pide el push termino_bien o termino_falla y lo marca avisado (consola.Avisado), para que salga del tablero como uno que el panel ya avisó. Las demás acciones (aprobar ficha, descartar, revisar, auditar) corren con Accion.Ejecutar en segundo plano.'
         - 'Sin teléfonos en la presence el PC no responde accion_estado (inv. 12): el teléfono reintenta con el mismo id y recibe el último estado. El log (log.jsonl, 0600) anota cada acción terminada y cada descartada, con dispositivo, nombre, proyecto, acción y resultado ya sin secretos.'
         - 'qdd remoto revocar <id> escribe primero revocados.json (efecto inmediato en este PC) y después revoca en el relay; qdd remoto dispositivos marca revocado lo que dice cualquiera de los dos.'
+        - 'Consola (rc.4): se sigue solo la de cada proyecto publicado que un teléfono mira (presence mirando: <clave>); sin nadie mirando no hay ticker ni lectura. Cada 500 ms se junta lo nuevo y sale como mucho un mensaje (dos por segundo en total, por turnos si se miran varios proyectos, hasta 60 líneas por mensaje: lo demás va en el siguiente). El evento es consola {version, proyecto, inicio, lineas:[{fuente, rol, texto, en}]}; inicio marca la primera tanda (las últimas 40 líneas), que reemplaza lo que el teléfono tenía.'
+        - 'La conversación sale del transcript de Claude Code más reciente del proyecto (<CLAUDE_CONFIG_DIR o ~/.claude>/projects/<ruta con lo no alfanumérico como «-»>/*.jsonl, también los de un worktree o una subcarpeta), confirmado con su cwd vía estado.ClaveLocal, porque «qdd» y «qdd-movil» empiezan igual. Se toman los turnos de la persona y de la IA y el nombre de cada herramienta; nunca la entrada ni el resultado de una herramienta, el razonamiento, los subagentes (isSidechain), lo meta ni el texto que inyecta Claude Code (empieza con «<»). Cada turno va recortado a 2000 caracteres. Cada 5 s se mira si hay un transcript más nuevo (otra sesión) y, si lo hay, empieza de nuevo con su cola.'
+        - 'Los pedidos que terminan mientras alguien mira salen como una línea de rol pedido: tecla, motivo, cómo terminó y el final de la salida que guarda la cola.'
+        - 'Permiso: hasta el primer latido no se transmite. Si el latido dice consola_permitida false, cada consola mirada recibe una sola vez {pausada: motivo} y no se transmite ni se cuentan minutos; el estado y las acciones siguen. Si vuelve a estar permitida, quien mira recibe de nuevo la cola con inicio. Los minutos de consola se cuentan por tick transmitido (0,5 s) y van en el latido.'
     invariantes:
         - El teléfono solo envía ids de acción que el PC ofreció; el PC vuelve a calcular el panel antes de ejecutar y rechaza un id que no ofrece (inv. 1).
         - Una acción con la misma solicitud se ejecuta una sola vez; una repetida responde el último estado sin re-ejecutar (inv. 3).
@@ -51,6 +55,7 @@ pruebas:
         - cd cli && go test ./pkg/remoto/...
         - cd cli && go test ./cmd/ -run 'Remoto|REM0'
         - cd cli && go test ./pkg/consola/ -run TestCiclo_AnotaElProyecto
+        - cd cli && go test ./pkg/remoto/ -run 'Consola|Transcript|LineasDe|Lector' -race
 fuentes:
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-02"

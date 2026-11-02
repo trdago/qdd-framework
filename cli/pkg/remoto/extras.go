@@ -1,7 +1,6 @@
 package remoto
 
 import (
-	"context"
 	"os"
 	"time"
 )
@@ -15,17 +14,15 @@ type extrasBucle struct {
 	solicitudes map[string]Solicitud
 	ocultadores map[string]ocultadorLeido
 	consolaTick <-chan time.Time
+	consola     estadoConsola
 }
 
 func (b *Bucle) iniciarExtras() {
 	b.extras.resultados = make(chan resultadoAccion, 16)
 	b.extras.solicitudes = leerSolicitudes()
 	b.extras.ocultadores = map[string]ocultadorLeido{}
+	b.extras.consola.miradas = map[string]*mirada{}
 	if b.Bin == "" {
 		b.Bin, _ = os.Executable()
 	}
 }
-
-func (b *Bucle) alCambiarEspectadores(ctx context.Context) {}
-func (b *Bucle) alCambiarPlan()                            {}
-func (b *Bucle) tickConsola(ctx context.Context)           {}

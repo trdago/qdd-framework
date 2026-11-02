@@ -21,6 +21,7 @@ func homeTemporal(t *testing.T) string {
 	t.Helper()
 	h := t.TempDir()
 	t.Setenv("QDD_HOME", h)
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(h, "claude-code"))
 	return h
 }
 
