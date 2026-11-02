@@ -3,7 +3,6 @@ package consola
 import (
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -20,7 +19,8 @@ func (a Accion) Lanzar(root, bin string, salida io.Writer) int {
 	if a.Tipo != TipoPedido {
 		return a.Ejecutar(root, bin, salida)
 	}
-	if err := marcarEjecutando(root, a.pedido, time.Now()); err != nil {
+	estado, err := aceptar(root, a.pedido, time.Now())
+	if err != nil {
 		fmt.Fprintf(salida, "[!] %v\n", err)
 		return 1
 	}
@@ -28,12 +28,16 @@ func (a Accion) Lanzar(root, bin string, salida io.Writer) int {
 	c.Dir = root
 	separar(c)
 	if err := c.Start(); err != nil {
-		terminar(root, a.pedido, 1, "no se pudo lanzar: "+err.Error())
+		terminar(root, a.pedido, 1, "no se pudo lanzar: "+err.Error(), false)
 		fmt.Fprintf(salida, "[!] no se pudo lanzar el pedido: %v\n", err)
 		return 1
 	}
 	anotarLanzado(root, a.pedido, c.Process.Pid)
 	_ = c.Process.Release()
+	if estado == EstadoArmado {
+		fmt.Fprintf(salida, "[+] Armado: %s corre solo cuando termine lo que espera (el panel lo muestra)\n", a.Etiqueta)
+		return 0
+	}
 	fmt.Fprintf(salida, "[+] En marcha: %s (el panel muestra el resultado)\n", a.Etiqueta)
 	return 0
 }
@@ -58,35 +62,17 @@ func anotarLanzado(root, id string, pid int) {
 			if cola[i].ID == id && cola[i].Estado == EstadoEjecutando && cola[i].Hijo == 0 {
 				cola[i].PID = pid
 			}
+			if cola[i].ID == id && cola[i].Estado == EstadoArmado && cola[i].PID == 0 {
+				cola[i].PID = pid
+			}
 		}
 		return cola, nil
 	})
 }
 
-// CorrerLanzado es «qdd consola correr <id>»: corre un pedido que Lanzar ya marcó como ejecutando y que nadie tomó.
-// Un pedido pendiente, hecho, o que ya corre en otro proceso no se toca.
+// CorrerLanzado es «qdd consola correr <id>»: corre un pedido que Lanzar ya aceptó y que nadie tomó; si dice «todavía
+// no» o espera a otro, lo reintenta solo (armado.go). Un pedido pendiente, hecho, o que ya corre en otro proceso no se
+// toca.
 func CorrerLanzado(root, id string, salida io.Writer) int {
-	err := conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
-		for i, p := range cola {
-			if p.ID != id {
-				continue
-			}
-			if p.Estado != EstadoEjecutando || p.Hijo != 0 {
-				return nil, fmt.Errorf("el pedido %s no espera que lo corran (está %s)", id, p.Estado)
-			}
-			cola[i].PID, cola[i].Hijo = os.Getpid(), -1
-			return cola, nil
-		}
-		return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
-	})
-	if err != nil {
-		fmt.Fprintf(salida, "[!] %v\n", err)
-		return 1
-	}
-	for _, a := range accionesDePedidos(root) {
-		if a.pedido == id {
-			return correrComando(root, a, salida)
-		}
-	}
-	return 1
+	return correrAceptado(root, id, salida)
 }

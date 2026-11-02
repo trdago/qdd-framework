@@ -45,6 +45,9 @@ const (
 	// EstadoRetirado: la tarea que el pedido extiende siguió cambiando después de un mensaje de la persona; sale de
 	// «▶ Para ti» hasta que la IA lo pide de nuevo (pedido del usuario, 2026-10-31).
 	EstadoRetirado = "retirado"
+	// EstadoArmado: la persona ya lo confirmó y el comando dijo «todavía no» (o espera a otro pedido): el proceso de qdd
+	// que lo corre lo reintenta solo (armado.go, pedido del usuario, 2026-11-01).
+	EstadoArmado = "armado"
 
 	// VidaHecho es cuánto se sigue viendo, en gris, un pedido hecho.
 	VidaHecho = 30 * time.Minute
@@ -54,7 +57,7 @@ const (
 	VidaRetirado = 24 * time.Hour
 
 	// CodigoTodaviaNo (EX_TEMPFAIL) es la salida de un comando cuya condición todavía no se cumple (falta un tag, un
-	// merge): el pedido vuelve a pendiente con el aviso, en gris, y no cuenta como falla (FND-082).
+	// merge): no cuenta como falla (FND-082). Lanzado desde el panel, el pedido queda armado y se reintenta solo.
 	CodigoTodaviaNo = 75
 
 	prefijoPedido = "pedido:"
@@ -89,6 +92,11 @@ type Pedido struct {
 	// cambia después, la persona siguió trabajando en vez de ejecutarlo y el pedido se retira.
 	Tarea  string `json:"tarea,omitempty"`
 	Huella string `json:"huella,omitempty"`
+	// Armado (armado.go): desde cuándo espera con la intención de la persona, cuándo vuelve a intentarlo y cuántas
+	// veces corrió.
+	ArmadoEn *time.Time `json:"armado_en,omitempty"`
+	Proximo  *time.Time `json:"proximo,omitempty"`
+	Intentos int        `json:"intentos,omitempty"`
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
@@ -249,6 +257,9 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 		if p.Estado == EstadoEjecutando && p.PID > 0 && !procesoVivo(p.PID) && !procesoVivo(p.Hijo) {
 			p.Estado, p.Codigo, p.PID, p.Hijo = EstadoFallo, -1, 0, 0
 			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: el proceso que lo ejecutaba terminó sin anotar el resultado (¿se recargó el panel?). Revisa qué alcanzó a hacer antes de reintentarlo.")
+		}
+		if p.Estado == EstadoArmado && p.PID > 0 && !procesoVivo(p.PID) {
+			p = desarmado(p, "Dejó de esperar: el proceso de qdd que esperaba terminó (¿se reinició la máquina?). Confírmalo de nuevo.")
 		}
 		if p.Abierto() && p.Tecla != "" {
 			usadas[p.Tecla] = true
@@ -462,8 +473,12 @@ func accionesDePedidos(root string) []Accion {
 		if faltan := esperaA(p, cola); p.Ejecutable() && len(faltan) > 0 {
 			a.Estado, a.Espera = EstadoEspera, faltan
 		}
-		if p.Ejecutable() && len(a.Espera) == 0 {
+		// Uno que espera a otro también se confirma: queda armado y corre cuando el otro termina.
+		if p.Ejecutable() {
 			a.Tecla = p.Tecla
+		}
+		if p.Estado == EstadoArmado {
+			a.Espera, a.Proximo, a.Intentos = esperaA(p, cola), p.Proximo, p.Intentos
 		}
 		acciones = append(acciones, a)
 	}
@@ -495,6 +510,9 @@ func errNoEjecutable(id, estado string) error {
 	if estado == EstadoEjecutando {
 		return fmt.Errorf("el pedido %s ya se está ejecutando", id)
 	}
+	if estado == EstadoArmado {
+		return fmt.Errorf("el pedido %s ya está armado: corre solo cuando esté listo", id)
+	}
 	return fmt.Errorf("el pedido %s ya se ejecutó: no se acepta dos veces", id)
 }
 
@@ -506,7 +524,7 @@ func ejecutarPedido(root string, a Accion, salida io.Writer) int {
 		fmt.Fprintf(salida, "[!] %v\n", err)
 		return 1
 	}
-	return correrComando(root, a, salida)
+	return correrComando(root, a, salida, false)
 }
 
 // marcarEjecutando pasa el pedido a ejecutando con la cola bloqueada, a nombre de este proceso: solo uno pendiente o
@@ -531,8 +549,9 @@ func marcarEjecutando(root, id string, now time.Time) error {
 	})
 }
 
-// correrComando corre el comando de un pedido ya marcado, anota su PID y guarda el resultado.
-func correrComando(root string, a Accion, salida io.Writer) int {
+// correrComando corre el comando de un pedido ya marcado, anota su PID y guarda el resultado. armar: un «todavía no»
+// lo deja armado (lo reintenta quien lo corre) en vez de pendiente.
+func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 	shell, flag := "sh", "-c"
 	if runtime.GOOS == "windows" {
 		shell, flag = "cmd", "/C"
@@ -548,7 +567,7 @@ func correrComando(root string, a Accion, salida io.Writer) int {
 		err = c.Wait()
 	}
 	codigo := codigoDe(err, a, io.MultiWriter(salida, &copia))
-	terminar(root, a.pedido, codigo, ultimasLineas(copia.String(), lineasSalida))
+	terminar(root, a.pedido, codigo, ultimasLineas(copia.String(), lineasSalida), armar)
 	return codigo
 }
 
@@ -564,15 +583,20 @@ func anotarHijo(root, id string, pid int) {
 	})
 }
 
-func terminar(root, id string, codigo int, texto string) {
+func terminar(root, id string, codigo int, texto string, armar bool) {
 	fin := time.Now()
 	conCola(root, fin, func(cola []Pedido) ([]Pedido, error) {
 		for i := range cola {
 			if cola[i].ID != id {
 				continue
 			}
+			pid := cola[i].PID
 			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida, cola[i].Aviso, cola[i].AvisoEn = EstadoHecho, &fin, codigo, texto, "", nil
-			cola[i].PID, cola[i].Hijo = 0, 0
+			cola[i].PID, cola[i].Hijo, cola[i].Proximo, cola[i].ArmadoEn = 0, 0, nil, nil
+			if codigo == CodigoTodaviaNo && armar {
+				cola[i] = armadoTras(cola[i], pid, texto, fin)
+				continue
+			}
 			if codigo == CodigoTodaviaNo {
 				cola[i].Estado, cola[i].Fin, cola[i].Aviso, cola[i].AvisoEn = EstadoPendiente, nil, texto, &fin
 				continue

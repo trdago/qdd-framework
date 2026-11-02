@@ -325,6 +325,19 @@ var consolaDescartarCmd = &cobra.Command{
 	},
 }
 
+// consolaDesarmarCmd es «x Dejar de esperar»: el pedido armado vuelve a pendiente (armado.go).
+var consolaDesarmarCmd = &cobra.Command{
+	Use:   "desarmar <id|tecla>",
+	Short: "Deja de esperar un pedido armado (ya confirmado, que corre solo cuando esté listo): vuelve a pendiente",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := consola.Desarmar(estadoRaiz(), args[0]); err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[+] Pedido %s: ya no espera; queda pendiente en el panel.\n", args[0])
+	},
+}
+
 func init() {
 	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "resumen estilo chat (≤ 60 caracteres, con símbolos): qué hace y por qué lo ejecuta la persona")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
@@ -334,7 +347,7 @@ func init() {
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")
 	consolaDescartarCmd.Flags().BoolVar(&consolaHecho, "hecho", false, "la persona ya lo hizo fuera del panel: queda hecho (no descartado) y libera a los que lo esperan")
 	consolaDescartarCmd.Flags().StringVar(&consolaNota, "nota", "", "con --hecho: lo que dijo la persona («lo mergeé en GitHub»)")
-	consolaCmd.AddCommand(consolaPedirCmd, consolaPedidosCmd, consolaDescartarCmd, consolaCorrerCmd)
+	consolaCmd.AddCommand(consolaPedirCmd, consolaPedidosCmd, consolaDescartarCmd, consolaDesarmarCmd, consolaCorrerCmd)
 }
 
 func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []string, salida, errores io.Writer) int {

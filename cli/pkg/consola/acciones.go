@@ -52,6 +52,8 @@ type Accion struct {
 	Espera    []string   `json:"espera,omitempty"`    // solo pedidos en espera: las teclas de lo que espera
 	Aviso     string     `json:"aviso,omitempty"`     // solo pedidos: «todavía no», lo que dijo la última vez (FND-082)
 	AvisoEn   *time.Time `json:"aviso_en,omitempty"`
+	Proximo   *time.Time `json:"proximo,omitempty"`  // solo pedidos armados: cuándo vuelve a intentarlo
+	Intentos  int        `json:"intentos,omitempty"` // solo pedidos armados: cuántas veces corrió
 	Inicio    *time.Time `json:"inicio,omitempty"`
 	Fin       *time.Time `json:"fin,omitempty"`
 	Confirmar bool       `json:"confirmar"`

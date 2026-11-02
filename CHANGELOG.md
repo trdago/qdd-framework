@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### ◷ Confirmas una vez y el pedido corre solo cuando está listo
+
+- **Tu intención queda tomada:** si un pedido confirmado responde «todavía no» (código 75: falta un tag, npm aún no publica…), queda **◷ armado**. qdd lo reintenta solo cada 30 s, sin la IA y sin que lo vuelvas a pulsar, hasta que sale bien.
+  - Una falla de verdad no se reintenta.
+- **Un pedido que espera a otro («espera a [a]») ya se puede confirmar:** corre solo en cuanto [a] termina.
+- **✕ Dejar de esperar** lo devuelve a pendiente (`qdd consola desarmar <tecla>`). Pasadas 2 h, o si se cierra el proceso que esperaba, también vuelve a pendiente, y el panel dice por qué.
+- **Se lee de un vistazo:** «◷» y el nombre van en amarillo y negrita, «Armado · corre solo cuando…» en amarillo, y lo que dijo el comando, atenuado debajo. Un «todavía no» sin armar ya no se pierde en gris.
+
 ### ⌨ Aprobar sin mouse desde el chat
 
 - **Funciona en cualquier terminal y sistema, sin configurar nada:**
