@@ -20,5 +20,5 @@ objetivo_tecnologico:
 pruebas:
     comandos:
         - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
-ultima_revision: "2026-10-31"
-revisado_en_commit: 2406f3e2c0a2
+ultima_revision: "2026-11-01"
+revisado_en_commit: cd7868b9205f
