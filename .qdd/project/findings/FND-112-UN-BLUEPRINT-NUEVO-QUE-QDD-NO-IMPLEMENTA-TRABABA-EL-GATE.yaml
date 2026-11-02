@@ -1,0 +1,9 @@
+id: "FND-112"
+title: "Una versión nueva de un blueprint que implementa qdd trababa el gate hasta que saliera un qdd que la implementara"
+description: "Se publicó estado-por-tareas 2.2.0 (v11.1.0) antes de un qdd que lo implemente. En un proyecto que lo usa (fairplay_agent), quedarse en 2.1.0 daba BP-06-BEHIND y subir a 2.2.0 daba BP-08-CONFORMIDAD («este qdd implementa 2.1.0: actualiza qdd»), y no había qdd más nuevo: el gate no tenía salida."
+impact: "Ningún proyecto que use un blueprint implementado por qdd podía pasar el gate entre la publicación del blueprint y la del qdd que lo implementa."
+action_taken: "BP-06-BEHIND no bloquea si el blueprint lo implementa qdd y este qdd implementa una versión anterior a la publicada; el gate lo dice como recomendación BP-06-ESPERA-QDD (quédate en la versión actual hasta instalar un qdd que implemente la nueva). Con el qdd nuevo, BP-06-BEHIND vuelve a bloquear."
+test_result: "TestCheck_UnaVersionQueQDDTodaviaNoImplementaNoBloquea_FND112 falla antes del arreglo y pasa después; cuando qdd ya implementa la versión nueva, quedarse atrás vuelve a bloquear."
+status: resolved
+detectado_por: ia
+date: "2026-11-02"

@@ -3,7 +3,7 @@ nombre: Estado por tareas
 estado: aprobado
 rutas:
     - .qdd/project/estado.yaml
-blueprint: estado-por-tareas@2.1.0
+blueprint: estado-por-tareas@2.2.0
 objetivo_operativo:
     problema: |
         Los reportes de avance en prosa no se pueden auditar ni comparar entre proyectos: un «listo» sin evidencia, un desplegado presentado como validado o una tarea que desaparece en silencio se descubren tarde. Y aunque la tabla diga cómo va cada tarea, no dice cuál se está trabajando ahora ni si el agente sigue vivo.
@@ -44,6 +44,7 @@ objetivo_tecnologico:
         - 'Vocabulario «foco»: El objetivo abierto en el que se trabaja ahora; a lo más uno, y se muestra primero.'
         - 'Vocabulario «ciclo»: Una lista de etapas con nombre. Las etapas de la tabla son el ciclo «proyecto»; un objetivo puede seguir otro ciclo y sus tareas toman esas etapas. No es el ciclo de dependencias (una dependencia que vuelve a la misma tarea), que no vale.'
         - 'Vocabulario «actividad»: El registro de las tareas en curso y sus pulsos. Es de la máquina, vive fuera del proyecto (en la carpeta central de QDD), no es estado y no se commitea.'
+        - 'Vocabulario «id»: La clave fija de una tarea, un objetivo o un ciclo, con la que la nombran las dependencias, los cierres y quien escribe el archivo. El nombre es lo que se lee; el id no cambia.'
         - Paso 1 · Armar la tabla de tareas (filas) por las etapas elegidas (columnas), con un estado cerrado por celda (✅ ⏳ ❌ —) → una tabla en la que cada celda tiene exactamente un estado (verifica EPF-C01)
         - Paso 2 · Exigir a cada ✅ su evidencia y a cada ⏳ qué espera y de quién; nombrar cada ❌ → celdas que un lector automático acepta o rechaza (verifica EPF-C02, EPF-C03, EPF-C09)
         - Paso 3 · Separar desplegado de validado y dejar en la celda la aprobación que falta, sin avanzar sin ella → ninguna etapa en ✅ que no lo esté de verdad (verifica EPF-C04, EPF-C06)
@@ -53,10 +54,11 @@ objetivo_tecnologico:
         - Paso 7 · Comparar cada reporte con el anterior y con su texto, y revisar que no lleve secretos → ninguna tarea desaparece sin cierre o descarte con motivo, el texto coincide con la tabla y no hay datos personales (verifica EPF-C05, EPF-C07, EPF-C08)
         - Paso 8 · Guardar la misma tabla en .qdd/project/estado.yaml en cada reporte → un archivo desde el que otro agente retoma por los ⏳, y un JSON del panel con el árbol y la pregunta de cada fila (verifica EPF-A01, EPT-A02, EPT-A03)
         - Paso 9 · Llevar al JSON del panel el ciclo de cada fila, con sus etapas y abreviaturas → filas con un símbolo por etapa de su ciclo y un panel que nombra cada ciclo bajo su objetivo (verifica EPT-K05)
-        - Paso 10 · Registrar la tarea en curso fuera del proyecto, activando solo tareas abiertas y recibiendo pulsos con su fuente → una actividad que se apaga sola tras 120 s sin pulsos, al terminar o al cerrar la tarea (verifica EPT-C01, EPT-C02, EPT-C03, EPT-C05, EPT-C06)
-        - Paso 11 · Aceptar los pulsos de los comandos externos que trabajan en una tarea → la tarea en curso con fuente comando (verifica EPT-C04)
-        - Paso 12 · Mostrar la tarea en curso en el panel, aunque no esté entre las más nuevas → «● running» que alterna cada 1 s y destella con cada pulso, también en un panel de solo lectura (verifica EPT-C07, EPT-C08, EPT-C09, EPT-C11)
-        - Paso 13 · Hacer latir las herramientas del agente y sus subagentes sin demorarlas → como mucho un pulso cada 5 s por panel, sin esperar a la CLI (verifica EPT-C10, EPT-C12)
+        - Paso 10 · Separar crear de nombrar, dar el id desde el nombre y rechazar con sugerencia toda referencia que no existe → un archivo en el que solo aparecen tareas creadas a propósito, con ids que da o valida la herramienta (verifica EPT-I01, EPT-I02, EPT-I03, EPT-I04)
+        - Paso 11 · Registrar la tarea en curso fuera del proyecto, activando solo tareas abiertas y recibiendo pulsos con su fuente → una actividad que se apaga sola tras 120 s sin pulsos, al terminar o al cerrar la tarea (verifica EPT-C01, EPT-C02, EPT-C03, EPT-C05, EPT-C06)
+        - Paso 12 · Aceptar los pulsos de los comandos externos que trabajan en una tarea → la tarea en curso con fuente comando (verifica EPT-C04)
+        - Paso 13 · Mostrar la tarea en curso en el panel, aunque no esté entre las más nuevas → «● running» que alterna cada 1 s y destella con cada pulso, también en un panel de solo lectura (verifica EPT-C07, EPT-C08, EPT-C09, EPT-C11)
+        - Paso 14 · Hacer latir las herramientas del agente y sus subagentes sin demorarlas → como mucho un pulso cada 5 s por panel, sin esperar a la CLI (verifica EPT-C10, EPT-C12)
         - 'etapas → propias: Etapas definidas por el proyecto, que nombra cuál de ellas cumple el rol de Validación real.'
         - 'cuando → cada-avance: En cada respuesta o reporte que trae avance.'
         - 'alcance → abiertos: Las tareas abiertas y las recién cerradas.'
@@ -78,6 +80,11 @@ objetivo_tecnologico:
         - 'El JSON del panel trae el árbol resuelto: las filas en orden (por objetivo si los hay, el foco primero), cada una con su prefijo de dibujo («├─ », «│  └─ »), sus notas «espera a X» y la pregunta para el agente; los paneles solo lo dibujan'
         - Cada tarea cuelga de su primera dependencia visible del mismo objetivo; sin ella es raíz. Bajo un objetivo las raíces llevan conector; sin objetivos, no
         - La pregunta de una tarea es «¿Cómo vamos con «<tarea>»? Avance, bloqueos y siguiente paso; actualiza sus celdas con evidencia.»; la de un objetivo nombra también su criterio
+        - 'Nombrar una tarea, un objetivo o un ciclo nunca lo crea: crear es una operación aparte. Una tarea se crea con su nombre y la herramienta le da el id; también con un id escrito a mano junto con su nombre; un objetivo, con id, nombre y criterio; un ciclo, declarándolo con sus etapas'
+        - El id que se da a un nombre son sus primeras 4 palabras en minúsculas, sin tildes (á→a, ñ→n, ü→u) ni palabras vacías (de, del, la, el, los, las, en, y, o, e, a, al, con, por, para, un, una, que, se, su, sus, lo, the, of, and, to, in, for, on), cada palabra una vez y unidas con «-»; si pasa de 40 caracteres se quitan palabras del final (una sola palabra larga se corta en 40 caracteres). Si una tarea (abierta, cerrada o descartada) ya lo usa, lleva «-2», «-3»…, acortando la base para seguir en 40 caracteres
+        - Un id escrito a mano al crear una tarea, un objetivo o un ciclo es de minúsculas, números y guiones simples, sin guion al comienzo ni al final, hasta 40 caracteres; un id que ya estaba en el archivo sigue valiendo aunque no lo cumpla
+        - 'Una referencia que no existe (al escribir una celda, cerrar, declarar en curso, asignar objetivo, ciclo o dependencia) es un error que no escribe nada y sugiere hasta 3 parecidos. El parecido de un candidato es la parte de las palabras de la referencia (con la regla del id) que están en las palabras de su id o de su nombre, o 0,9 si su id está a 1 o 2 letras de la referencia (distancia de Levenshtein, y menos de la mitad del largo del id), lo que sea mayor; parece desde 0,5. Se ordenan por parecido, el mayor primero; a igual parecido, los abiertos antes y después el orden del archivo. Si ninguno se parece, el error lista los abiertos en el orden del archivo, hasta 8 (los ciclos: «proyecto» y luego los demás por nombre). En la sugerencia, un nombre de más de 40 caracteres se corta un carácter antes y lleva «…»'
+        - 'Una tarea nueva cuyo nombre repite el de una abierta (comparten al menos 2 palabras y el 80 % de las del nombre más corto, contando cada palabra una vez) o cuyo id sería el de una abierta no se crea: el error la nombra, salvo que quien crea confirme que es otra'
         - 'formato → mensajeria: Texto apto para aplicaciones de mensajería.'
         - 'en_curso → todos: Sí. Laten las herramientas del agente, sus subagentes y los comandos externos que llaman a ''qdd estado pulso <tarea> --fuente comando'' (scripts, tests, deploys, workers).'
         - Los scripts largos del proyecto (tests, deploys, workers) llaman a 'qdd estado pulso <tarea> --fuente comando'
@@ -105,6 +112,8 @@ objetivo_tecnologico:
         - Una tarea tiene una celda por cada etapa de su ciclo, y solo esas
         - Un objetivo sigue un ciclo que existe; un ciclo tiene etapas, sin repetir
         - 'Cambiar de ciclo nunca pierde avance: una tarea con ✅ ⏳ o ❌ en una etapa que el ciclo nuevo no tiene no cambia'
+        - Nombrar un id que no existe nunca crea una tarea ni un objetivo
+        - Una referencia equivocada no cambia el archivo
         - 'La actividad no es estado: no cambia la tabla y no se commitea'
         - Solo una tarea abierta puede estar en curso; cerrarla o descartarla la apaga
         - 'Una tarea sin pulsos durante la vida deja de estar en curso: nunca queda encendida para siempre'
@@ -120,4 +129,4 @@ fuentes:
     - .qdd/blueprints.lock.yaml
     - .qdd/project/blueprints/estado-por-tareas.yaml
 ultima_revision: "2026-11-02"
-revisado_en_commit: a207e5f0c841
+revisado_en_commit: e065ac998e5c

@@ -12,7 +12,7 @@ func RunBlueprintCheck(cwd string) []Violation {
 	for _, p := range append(blueprints.Check(cwd), bloquean...) {
 		violations = append(violations, violacionDe(p, false))
 	}
-	for _, p := range sinMedir {
+	for _, p := range append(sinMedir, blueprints.Esperas(cwd)...) {
 		violations = append(violations, violacionDe(p, true))
 	}
 	return violations

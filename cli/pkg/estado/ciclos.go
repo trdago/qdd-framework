@@ -173,6 +173,12 @@ func DeclararCiclo(root, nombre string, etapas []string, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	// Un ciclo nuevo lleva un id de QDD; uno que ya estaba sigue valiendo (FND-109).
+	if _, existe := e.Ciclos[nombre]; nombre != CicloProyecto && !existe {
+		if err := IDValido(nombre); err != nil {
+			return err
+		}
+	}
 	if nombre == CicloProyecto {
 		e.Etapas = etapas
 	}

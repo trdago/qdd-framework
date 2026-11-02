@@ -1,6 +1,6 @@
-# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@2.1.0.
+# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@2.2.0.
 # No se editan a mano: cambian al volver a aplicar el blueprint.
-blueprint: estado-por-tareas@2.1.0
+blueprint: estado-por-tareas@2.2.0
 escenarios:
     - id: EPF-C01
       titulo: Un estado por celda
@@ -112,6 +112,26 @@ escenarios:
       cuando: se arma el JSON del panel
       entonces: |
         cada fila trae un símbolo por etapa de su ciclo, y sin ciclos propios el JSON no trae ciclos; un objetivo que sigue un ciclo propio dice su ciclo, el JSON trae ese ciclo con sus etapas y abreviaturas y los ⏳ y ❌ de sus tareas cuentan con su etapa; el panel pone las abreviaturas del ciclo bajo la cabecera del objetivo y la leyenda nombra cada ciclo
+    - id: EPT-I01
+      titulo: Nombrar no crea
+      dado: un archivo sin la tarea «segmento-barra»
+      cuando: se escribe una celda de «segmento-barra» sin nombre, se cierra, se declara en curso o otra tarea la pone como dependencia
+      entonces: es un error, el archivo no cambia y no aparece ninguna tarea nueva
+    - id: EPT-I02
+      titulo: Crear da el id
+      cuando: se crea la tarea «Ticket de MP en logs de error» por su nombre
+      entonces: |
+        queda abierta con id «ticket-mp-logs-error», ese nombre y ninguna etapa con avance; crear otra con el mismo nombre, confirmando que es otra, le da «ticket-mp-logs-error-2»; crear con el id a mano «Ticket_MP» se rechaza
+    - id: EPT-I03
+      titulo: Una referencia equivocada sugiere la que era
+      dado: las tareas «barra-estado» (nombre «Segmento de estado en la barra») y «estado-por-frente» (nombre «qdd estado (RFC 0006)»)
+      cuando: se escribe una celda de «segmento-barra», de «qdd-estado» o de «barra-estdo»
+      entonces: el error sugiere «barra-estado», «estado-por-frente» y «barra-estado», en ese orden; con «xyz», que no se parece a ninguna, lista las abiertas
+    - id: EPT-I04
+      titulo: Sin duplicados
+      dado: una tarea abierta «claves-gemini» con nombre «Quitar claves de Gemini (GCP y GitHub)»
+      cuando: se crea la tarea «Quitar claves de Gemini»
+      entonces: no se crea y el error nombra «claves-gemini»; confirmando que es otra, se crea
     - id: EPT-C01
       titulo: El agente declara la tarea en curso
       cuando: el agente activa una tarea abierta
