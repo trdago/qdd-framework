@@ -25,7 +25,8 @@ type Problema struct {
 //     de la importada; hay que volver a aplicarlo.
 //   - BP-04-MISSING: un módulo se generó desde un blueprint que ya no está importado.
 //   - BP-05-LEGACY: queda una copia del esquema anterior dentro del proyecto.
-//   - BP-06-BEHIND: la organización publicó una versión más nueva del blueprint.
+//   - BP-06-BEHIND: la organización publicó una versión más nueva del blueprint. No bloquea si es un blueprint que
+//     implementa qdd y este qdd todavía no implementa esa versión: subir daría BP-08-CONFORMIDAD (ver Esperas).
 func Check(root string) []Problema {
 	var out []Problema
 	lock, err := LoadLock(root)
@@ -89,7 +90,41 @@ func checkVigencia(root string, e LockEntry) []Problema {
 	if disponible == "" || compararVersion(disponible, e.Version) <= 0 {
 		return nil
 	}
+	if esperaAQDD(e.ID, disponible) {
+		return nil
+	}
 	return []Problema{{"BP-06-BEHIND", LockFile, fmt.Sprintf("%s publicó %s@%s (%s) y el proyecto usa %s. Actualízalo: qdd blueprint add %s (y vuelve a aplicarlo a sus módulos con qdd blueprint apply).", e.Origen, e.ID, disponible, tags[0], e.Version, e.ID)}}
+}
+
+// Esperas son las versiones nuevas que el proyecto todavía no puede adoptar porque las implementa qdd y este qdd
+// implementa una anterior (FND-112). Son recomendaciones del gate (BP-06-ESPERA-QDD): llegan con un qdd nuevo.
+func Esperas(root string) []Problema {
+	lock, err := LoadLock(root)
+	if err != nil {
+		return nil
+	}
+	var out []Problema
+	for _, e := range lock.Blueprints {
+		disponible, tag := publicadaEnEspejo(e)
+		if disponible == "" || compararVersion(disponible, e.Version) <= 0 || !esperaAQDD(e.ID, disponible) {
+			continue
+		}
+		out = append(out, Problema{"BP-06-ESPERA-QDD", LockFile, fmt.Sprintf("%s publicó %s@%s (%s) y el proyecto usa %s, pero este qdd implementa %s@%s: quédate en %s hasta instalar un qdd que implemente %s.", e.Origen, e.ID, disponible, tag, e.Version, e.ID, implementadosPorQDD[e.ID], e.Version, disponible)})
+	}
+	return out
+}
+
+// publicadaEnEspejo es la versión del blueprint en el último tag del espejo central, sin red.
+func publicadaEnEspejo(e LockEntry) (version, tag string) {
+	mirror, err := mirrorPath(e.Origen)
+	if err != nil || !exists(mirror) {
+		return "", ""
+	}
+	tags, err := versionTags(mirror)
+	if err != nil || len(tags) == 0 {
+		return "", ""
+	}
+	return versionEn(mirror, tags[0], e.Subdir), tags[0]
 }
 
 func checkApplication(root string, a Aplicacion, versiones map[string]string) []Problema {

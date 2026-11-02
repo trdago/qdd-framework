@@ -199,3 +199,35 @@ func TestCheck_ProjectBehindItsOrganization(t *testing.T) {
 		t.Fatalf("al actualizar, el proyecto vuelve a estar al día: %v", problems)
 	}
 }
+
+// FND-112: la organización publicó una versión de un blueprint que implementa qdd antes de que exista un qdd que la
+// implemente. Quedarse en la anterior daba BP-06-BEHIND y subir daba BP-08-CONFORMIDAD: el gate no tenía salida.
+func TestCheck_UnaVersionQueQDDTodaviaNoImplementaNoBloquea_FND112(t *testing.T) {
+	repo := gitOrgRepo(t)
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	antes := implementadosPorQDD["auth"]
+	t.Cleanup(func() { implementadosPorQDD["auth"] = antes })
+	implementadosPorQDD["auth"] = "1.0.0"
+	publicar(t, repo, "1.1.0", "v1.1.0")
+	if _, err := Sincronizar(root); err != nil {
+		t.Fatal(err)
+	}
+
+	if hasRule(Check(root), "BP-06-BEHIND") {
+		t.Fatal("si este qdd todavía no implementa la versión nueva, subir no es posible: BP-06 no puede bloquear")
+	}
+	if !hasRule(Esperas(root), "BP-06-ESPERA-QDD") {
+		t.Fatalf("el proyecto se entera de que hay una versión nueva y de qué espera: %v", Esperas(root))
+	}
+
+	implementadosPorQDD["auth"] = "1.1.0"
+	if !hasRule(Check(root), "BP-06-BEHIND") {
+		t.Fatal("cuando qdd ya implementa la versión nueva, quedarse atrás vuelve a bloquear")
+	}
+	if len(Esperas(root)) != 0 {
+		t.Fatalf("sin nada que esperar no hay aviso: %v", Esperas(root))
+	}
+}

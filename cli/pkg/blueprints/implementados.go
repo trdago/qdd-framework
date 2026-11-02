@@ -29,3 +29,10 @@ func cubiertoPorQDD(id, aplicada string) (implementa string, esDeQDD bool, motiv
 	}
 	return implementa, true, ""
 }
+
+// esperaAQDD dice si una versión publicada de un blueprint que implementa qdd es más nueva que la que implementa
+// este qdd: el proyecto no puede adoptarla hasta que llegue un qdd que la implemente (FND-112).
+func esperaAQDD(id, publicada string) bool {
+	implementa, esDeQDD := implementadosPorQDD[id]
+	return esDeQDD && compararVersion(publicada, implementa) > 0
+}
