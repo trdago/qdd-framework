@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.17] - 2026-11-02 (preview)
+
+Decimoséptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. El chat se entera de los pedidos que confirmas en el panel.
+
 ### 🔔 El chat se entera de lo que confirmas en el panel
 
 - **Antes:** confirmabas un pedido en el panel y la conversación no se enteraba. La IA no sabía que ya corría ni cuándo terminaba, y había que contárselo.
