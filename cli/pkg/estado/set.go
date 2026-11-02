@@ -25,6 +25,8 @@ type Cambio struct {
 	Falla              string
 	RequiereAprobacion string
 	Aprobado           bool
+	// AunqueExista crea la tarea aunque su nombre repita el de una abierta (FND-109).
+	AunqueExista bool
 }
 
 // ErrSinArchivo: el proyecto todavía no tiene estado.yaml (se crea con Init).
@@ -49,8 +51,8 @@ func cargarParaEscribir(root string) (Estado, error) {
 	return e, err
 }
 
-// Set crea o actualiza una celda. La aprobación pendiente se conserva aunque el cambio no la repita: un set no la
-// salta (EPF-C06).
+// Set actualiza una celda; crea la tarea solo con nombre y un id de QDD (FND-109: nombrar una tarea no la crea). La
+// aprobación pendiente se conserva aunque el cambio no la repita: un set no la salta (EPF-C06).
 func Set(root string, c Cambio, now time.Time) error {
 	e, err := cargarParaEscribir(root)
 	if err != nil {
@@ -59,6 +61,9 @@ func Set(root string, c Cambio, now time.Time) error {
 	destino := Frente{ID: c.Frente}
 	if i := e.buscar(c.Frente); i >= 0 {
 		destino = e.Frentes[i]
+	}
+	if err := e.puedeNombrar(c.Frente, c.Nombre, c.AunqueExista); err != nil {
+		return err
 	}
 	if !e.tieneEtapa(destino, c.Etapa) {
 		return errEtapaAjena(e, destino, c.Etapa)
@@ -106,10 +111,10 @@ func Cerrar(root, frente, motivo string, descartado bool, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	i := e.buscar(frente)
-	if i < 0 {
-		return fmt.Errorf("no hay una tarea %q", frente)
+	if err := e.ValidarTarea(frente); err != nil {
+		return err
 	}
+	i := e.buscar(frente)
 	e.Frentes[i].Estado = EstadoCerrado
 	if descartado {
 		e.Frentes[i].Estado = EstadoDescartado
@@ -147,4 +152,16 @@ func errEtapaAjena(e Estado, f Frente, etapa string) error {
 		return fmt.Errorf("la etapa %q no está en el archivo (etapas: %s)", etapa, etapas)
 	}
 	return fmt.Errorf("la etapa %q no es del ciclo «%s» de la tarea %s (etapas: %s)", etapa, e.CicloDe(f), f.ID, etapas)
+}
+
+// puedeNombrar: una tarea que existe se usa tal cual; una que no, se crea solo con nombre, un id de QDD y sin repetir
+// una abierta. Sin nombre es una referencia equivocada: el error sugiere la que era.
+func (e Estado) puedeNombrar(id, nombre string, aunqueExista bool) error {
+	if e.buscar(id) >= 0 {
+		return nil
+	}
+	if strings.TrimSpace(nombre) == "" {
+		return e.ValidarTarea(id)
+	}
+	return e.puedeCrear(id, nombre, aunqueExista)
 }

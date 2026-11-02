@@ -18,20 +18,20 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea (estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto); se cumple con evidencia. tarea: objetivo y depende_de. Inválido → no escribe."
+const descripcionEstadoMCP = "Estado por tarea (estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto); se cumple con evidencia. nueva: qdd da el id. tarea: objetivo y depende_de."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
 		mcp.WithDescription(descripcionEstadoMCP),
-		mcp.WithString("accion", mcp.Description("ver|set|cerrar|check|activar|pulso|terminar|objetivo|tarea|ciclo")),
+		mcp.WithString("accion", mcp.Description("ver|nueva|set|cerrar|check|activar|pulso|terminar|objetivo|tarea|ciclo")),
 		mcp.WithString("fuente", mcp.Description("agente|subagente|comando")),
-		mcp.WithString("frente", mcp.Description("Id de la tarea.")),
+		mcp.WithString("frente", mcp.Description("Id.")),
 		mcp.WithString("nombre", mcp.Description("Al crearla.")),
 		mcp.WithString("etapa", mcp.Description("Columna (ciclo: todas, con coma).")),
 		mcp.WithString("estado", mcp.Description("ok|espera|falla|na")),
 		mcp.WithString("evidencia"),
-		mcp.WithString("bloqueo", mcp.Description("Qué espera.")),
-		mcp.WithString("de_quien", mcp.Description("De quién.")),
+		mcp.WithString("bloqueo"),
+		mcp.WithString("de_quien"),
 		mcp.WithString("falla"),
 		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba el ✅.")),
 		mcp.WithBoolean("aprobado", mcp.Description("Dada por quien debía; nunca tú.")),
@@ -44,6 +44,7 @@ func registerEstadoTool(s *server.MCPServer) {
 		mcp.WithBoolean("reabrir"),
 		mcp.WithString("depende_de", mcp.Description("Ids con coma; «-» ninguna.")),
 		mcp.WithString("ciclo"),
+		mcp.WithBoolean("aunque_exista"),
 	)
 	RegisterToolWithTelemetry(s, tool, handleEstadoTool)
 }
@@ -52,6 +53,11 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	root := projectRootForMCP()
 	accion := strings.TrimSpace(stringArg(request, "accion"))
 	now := time.Now()
+	if accion == "nueva" {
+		id, err := estado.Nueva(root, estado.CambioNueva{Nombre: stringArg(request, "nombre"), Objetivo: cambioTareaDesde(request).Objetivo,
+			DependeDe: cambioTareaDesde(request).DependeDe, AunqueExista: boolArg(request, "aunque_exista")}, now)
+		return resultadoEscritura(err, "tarea creada: "+id)
+	}
 	if accion == "set" {
 		return resultadoEscritura(estado.Set(root, cambioDesde(request), now), "celda actualizada")
 	}
@@ -102,7 +108,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoCheck(e, root, stringArg(request, "respuesta"), now), nil
 	}
 	if accion != "" && accion != "ver" {
-		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, set, cerrar, check, activar, pulso, terminar, objetivo, tarea o ciclo", accion)), nil
+		return mcp.NewToolResultError(fmt.Sprintf("accion desconocida %q: usa ver, nueva, set, cerrar, check, activar, pulso, terminar, objetivo, tarea o ciclo", accion)), nil
 	}
 	return mcp.NewToolResultText(estado.Markdown(e, now, estado.AlcanceAbiertos)), nil
 }
@@ -119,12 +125,13 @@ func cambioDesde(request mcp.CallToolRequest) estado.Cambio {
 		Falla:              stringArg(request, "falla"),
 		RequiereAprobacion: stringArg(request, "requiere_aprobacion"),
 		Aprobado:           boolArg(request, "aprobado"),
+		AunqueExista:       boolArg(request, "aunque_exista"),
 	}
 }
 
 // cambioTareaDesde: un argumento ausente no cambia nada; «-» lo deja vacío.
 func cambioTareaDesde(request mcp.CallToolRequest) estado.CambioTarea {
-	c := estado.CambioTarea{ID: stringArg(request, "frente"), Nombre: stringArg(request, "nombre")}
+	c := estado.CambioTarea{ID: stringArg(request, "frente"), Nombre: stringArg(request, "nombre"), AunqueExista: boolArg(request, "aunque_exista")}
 	if o := strings.TrimSpace(stringArg(request, "objetivo")); o != "" {
 		c.CambiaObjetivo = true
 		c.Objetivo = strings.TrimPrefix(o, "-")

@@ -21,7 +21,31 @@ var (
 	objetivoReabrir    bool
 	tareaCambio        estado.CambioTarea
 	tareaDependeDe     string
+	nuevaCambio        estado.CambioNueva
+	nuevaDependeDe     string
 )
+
+// estadoNuevaCmd (FND-109): crear una tarea es explícito y qdd le da el id desde el nombre; nombrar una que no existe
+// en set, cerrar o tarea es un error que sugiere la más parecida.
+var estadoNuevaCmd = &cobra.Command{
+	Use:   "nueva <nombre>",
+	Short: "Crea una tarea abierta y le da su id desde el nombre (lo imprime: úsalo en set, cerrar y tarea)",
+	Long: `  qdd estado nueva "Quitar claves de Gemini" --objetivo gemini     → quitar-claves-gemini
+  qdd estado nueva "Panel en Antigravity" --depende-de ag-rfc
+
+El id son las primeras palabras del nombre, en minúsculas, sin tildes ni palabras vacías (de, la, en…); si ya existe,
+lleva -2, -3… Si el nombre se parece mucho al de una tarea abierta, no la crea y la nombra: usa esa, o --aunque-exista.`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		c := nuevaCambio
+		c.Nombre, c.DependeDe = args[0], listaDeIDs(nuevaDependeDe)
+		id, err := estado.Nueva(estadoRaiz(), c, time.Now())
+		if err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[+] tarea %s creada en %s: %s\n", id, estado.Ruta, c.Nombre)
+	},
+}
 
 var estadoObjetivoCmd = &cobra.Command{
 	Use:   "objetivo <id>",
@@ -42,7 +66,7 @@ ese ciclo (declarado con 'qdd estado ciclo'); --ciclo "" las vuelve al del proye
 
 var estadoTareaCmd = &cobra.Command{
 	Use:   "tarea <id>",
-	Short: "Cambia el objetivo de una tarea o de qué depende (la crea si no existe, con sus etapas en «·»)",
+	Short: "Cambia el objetivo de una tarea o de qué depende (la crea solo con --nombre, con sus etapas en «·»)",
 	Long: `  qdd estado tarea panel --objetivo release --depende-de receta,modelo
   qdd estado tarea panel --objetivo ""          la deja sin objetivo
   qdd estado tarea panel --depende-de ""        sin dependencias
@@ -66,7 +90,12 @@ func init() {
 	t.StringVar(&tareaCambio.Nombre, "nombre", "", "nombre de la tarea")
 	t.StringVar(&tareaCambio.Objetivo, "objetivo", "", "id del objetivo al que sirve (\"\" la deja sin objetivo)")
 	t.StringVar(&tareaDependeDe, "depende-de", "", "ids de las tareas de las que depende, separados por coma (\"\" ninguna)")
-	estadoCmd.AddCommand(estadoObjetivoCmd, estadoTareaCmd, estadoCicloCmd)
+	t.BoolVar(&tareaCambio.AunqueExista, "aunque-exista", false, "con --nombre: la crea aunque se parezca a una tarea abierta")
+	n := estadoNuevaCmd.Flags()
+	n.StringVar(&nuevaCambio.Objetivo, "objetivo", "", "id del objetivo al que sirve")
+	n.StringVar(&nuevaDependeDe, "depende-de", "", "ids de las tareas de las que depende, separados por coma")
+	n.BoolVar(&nuevaCambio.AunqueExista, "aunque-exista", false, "la crea aunque se parezca a una tarea abierta")
+	estadoCmd.AddCommand(estadoObjetivoCmd, estadoTareaCmd, estadoCicloCmd, estadoNuevaCmd)
 }
 
 var estadoCicloCmd = &cobra.Command{

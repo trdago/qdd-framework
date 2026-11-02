@@ -6,6 +6,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.18] - 2026-11-02 (preview)
+
+Decimoctava **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Los ids de las tareas los da o valida qdd.
+
+### 🏷️ Ids de QDD: nombrar una tarea ya no la crea (FND-109)
+
+- **Antes:** `qdd estado set <id> …` con un id que no existía creaba una tarea nueva, y le ponía el id como nombre. En notificador_de_ofertas la IA escribió `segmento-barra` y `qdd-estado` para tareas que ya existían (`barra-estado`, `estado-por-frente`), y hubo que descartarlas a mano.
+- **Ahora, crear es explícito:** `qdd estado nueva "Quitar claves de Gemini"` le da el id `quitar-claves-gemini` y lo imprime. La IA hace lo mismo con la acción `nueva` de `qdd_estado`. `set` y `tarea` siguen creando con `--nombre`, pero solo con un id de QDD (minúsculas, números y guiones).
+- **Un id equivocado se rechaza con sugerencia:** «no hay una tarea "qdd-estado": ¿quisiste decir estado-por-frente («qdd estado (RFC 0006)»)?». Vale para `set`, `cerrar`, `activar`, `tarea`, `--objetivo`, `--depende-de`, `--ciclo` y el `--tarea` de un pedido. No se escribe nada.
+- **Sin duplicados:** una tarea cuyo nombre casi repite el de una abierta se rechaza nombrando la otra; `--aunque-exista` la crea igual.
+- **Doctor:** señala las tareas abiertas que se llaman como su id o casi igual que otra, y dice cómo resolverlo. No decide cuál es la buena.
+- **Compatibilidad:** los ids de un estado anterior siguen valiendo; el formato solo se exige al crear.
+
 ## [2.8.0-rc.17] - 2026-11-02 (preview)
 
 Decimoséptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. El chat se entera de los pedidos que confirmas en el panel.

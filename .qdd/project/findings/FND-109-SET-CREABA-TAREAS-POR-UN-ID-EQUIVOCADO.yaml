@@ -1,0 +1,9 @@
+id: "FND-109"
+title: "qdd estado set creaba una tarea nueva en silencio cuando la IA escribía mal el id"
+description: "Set (pkg/estado/set.go) agregaba la tarea si no encontraba el id, con el id como nombre. Lo mismo hacían 'qdd estado tarea' y 'qdd estado objetivo'. En notificador_de_ofertas la IA escribió 'set segmento-barra' y 'set qdd-estado' para tareas que ya existían (barra-estado y estado-por-frente): quedaron dos tareas fantasma con avance que era de otras y hubo que descartarlas a mano."
+impact: "El tablero se ensuciaba solo y el avance quedaba en la fila equivocada; con cualquier IA, porque el id lo inventaba el modelo y qdd lo aceptaba."
+action_taken: "Nombrar no crea (pkg/estado/ids.go). qdd estado nueva da el id desde el nombre; set y tarea crean solo con --nombre y un id de QDD; un objetivo nuevo, con nombre. Toda referencia desconocida (set, cerrar, activar, tarea, --objetivo, --depende-de, --ciclo y el --tarea de un pedido) se rechaza con la más parecida, sin escribir. Un nombre casi igual al de una tarea abierta se rechaza salvo --aunque-exista. Doctor señala las tareas que se llaman como su id o casi igual que otra."
+test_result: "TestIDs_UnIDDesconocidoNoCreaLaTareaYSugiereLaQueEra_FND109 reproduce los dos casos de notificador y falla antes del arreglo; pasan las 10 pruebas TestIDs_*, TestEstadoTool_NuevaDaElIDYUnIDDesconocidoSugiere_FND109, TestPedido_ConUnaTareaQueNoExisteSeRechazaYSugiere_FND109 y TestDoctor_TareasQueParecenFantasma_FND109. Sobre una copia del estado real de notificador, 'set panel-de-claude' sugiere panel-claude y 'set gemini' sugiere gemini-retirado."
+status: resolved
+detectado_por: humano
+date: "2026-11-02"

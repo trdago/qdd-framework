@@ -153,3 +153,17 @@ func TestDoctor_RegistrosSanos(t *testing.T) {
 		t.Errorf("registros sanos: fallidos = %v; want ninguno", fallidos)
 	}
 }
+
+// FND-109: doctor señala las tareas que parecen creadas por un id equivocado y dice cómo resolverlo; no las toca.
+func TestDoctor_TareasQueParecenFantasma_FND109(t *testing.T) {
+	dir := t.TempDir()
+	escribirRegistro(t, dir, "project/estado.yaml", "formato: 1\netapas: [Código]\nfrentes:\n  - {id: barra-estado, nombre: Segmento de estado en la barra, estado: abierto, celdas: {Código: {estado: ·}}}\n  - {id: segmento-barra, nombre: segmento-barra, estado: abierto, celdas: {Código: {estado: ✅, evidencia: x}}}\n")
+	fallidos := itemsFallidos(buildRegistrosChecks(dir))
+	if !strings.Contains(fallidos[itemTareasFantasma], "segmento-barra se llama como su id") || !strings.Contains(fallidos[itemTareasFantasma], "--descartado") {
+		t.Fatalf("doctor señala la tarea fantasma y cómo descartarla: %v", fallidos)
+	}
+	runSelectiveFixes(dir, &Checklist{Groups: []*CheckGroup{buildRegistrosChecks(dir)}})
+	if _, ok := itemsFallidos(buildRegistrosChecks(dir))[itemTareasFantasma]; !ok {
+		t.Fatal("--fix no decide cuál es la buena: lo decide la persona")
+	}
+}

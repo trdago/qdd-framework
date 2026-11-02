@@ -392,6 +392,9 @@ func GuardarObjetivo(root string, c CambioObjetivo, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	if err := e.puedeNombrarObjetivo(c); err != nil {
+		return err
+	}
 	i := e.indiceObjetivo(c.ID)
 	if i < 0 {
 		e.Objetivos = append(e.Objetivos, Objetivo{ID: c.ID, Nombre: c.ID, Estado: ObjetivoAbierto})
@@ -429,10 +432,10 @@ func CerrarObjetivo(root, id, texto string, descartado bool, now time.Time) erro
 	if err != nil {
 		return err
 	}
-	i := e.indiceObjetivo(id)
-	if i < 0 {
-		return fmt.Errorf("no hay un objetivo %q", id)
+	if err := e.validarObjetivo(id); err != nil {
+		return err
 	}
+	i := e.indiceObjetivo(id)
 	o := &e.Objetivos[i]
 	o.Estado, o.Evidencia, o.Motivo, o.Foco = ObjetivoCumplido, texto, "", false
 	if descartado {
@@ -448,10 +451,10 @@ func ReabrirObjetivo(root, id string, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	i := e.indiceObjetivo(id)
-	if i < 0 {
-		return fmt.Errorf("no hay un objetivo %q", id)
+	if err := e.validarObjetivo(id); err != nil {
+		return err
 	}
+	i := e.indiceObjetivo(id)
 	e.Objetivos[i].Estado, e.Objetivos[i].Evidencia, e.Objetivos[i].Motivo, e.Objetivos[i].CerradoEl = ObjetivoAbierto, "", "", ""
 	return guardarObjetivoValidado(root, e, id, now)
 }
@@ -477,12 +480,20 @@ type CambioTarea struct {
 	DependeDe            []string
 	CambiaObjetivo       bool
 	CambiaDependencias   bool
+	AunqueExista         bool // la crea aunque su nombre repita el de una abierta (FND-109)
 }
 
-// GuardarTarea crea la tarea si no existe (todas sus etapas en «·») y aplica el cambio (qdd estado tarea).
+// GuardarTarea aplica el cambio (qdd estado tarea); crea la tarea solo con nombre y un id de QDD, con todas sus etapas
+// en «·» (FND-109).
 func GuardarTarea(root string, c CambioTarea, now time.Time) error {
 	e, err := cargarParaEscribir(root)
 	if err != nil {
+		return err
+	}
+	if err := e.puedeNombrar(c.ID, c.Nombre, c.AunqueExista); err != nil {
+		return err
+	}
+	if err := e.referenciasDe(c); err != nil {
 		return err
 	}
 	i := e.buscar(c.ID)
@@ -525,4 +536,33 @@ func (e *Estado) reformarObjetivo(id string) error {
 		}
 	}
 	return nil
+}
+
+// puedeNombrarObjetivo (FND-109): uno que existe se usa; uno nuevo necesita nombre y un id de QDD; el ciclo que sigue
+// existe. Sin nombre es una referencia equivocada: el error sugiere el que era.
+func (e Estado) puedeNombrarObjetivo(c CambioObjetivo) error {
+	if c.Ciclo != "" {
+		if err := e.validarCiclo(c.Ciclo); err != nil {
+			return err
+		}
+	}
+	if e.indiceObjetivo(c.ID) >= 0 {
+		return nil
+	}
+	if strings.TrimSpace(c.Nombre) == "" {
+		return e.validarObjetivo(c.ID)
+	}
+	return IDValido(c.ID)
+}
+
+// referenciasDe: el objetivo y las dependencias que el cambio asigna existen (FND-109).
+func (e Estado) referenciasDe(c CambioTarea) error {
+	objetivo, dependeDe := "", []string(nil)
+	if c.CambiaObjetivo {
+		objetivo = c.Objetivo
+	}
+	if c.CambiaDependencias {
+		dependeDe = c.DependeDe
+	}
+	return e.validarReferencias(objetivo, dependeDe)
 }

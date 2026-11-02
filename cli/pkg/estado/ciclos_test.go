@@ -81,7 +81,7 @@ func TestEPT_K01_UnCicloTieneEtapasYUnObjetivoSigueUnoQueExiste(t *testing.T) {
 
 func TestEPT_K02_LaTareaTomaLasEtapasDeSuCiclo(t *testing.T) {
 	root := guardarEn(t, conCiclos())
-	if err := GuardarTarea(root, CambioTarea{ID: "f02", Objetivo: "tutor", CambiaObjetivo: true}, time.Now()); err != nil {
+	if err := GuardarTarea(root, CambioTarea{ID: "f02", Nombre: "Explicar el tutor", Objetivo: "tutor", CambiaObjetivo: true}, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	e, _ := Load(root)

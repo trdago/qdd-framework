@@ -2,6 +2,7 @@ package consola
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,5 +134,17 @@ func TestPedido_SinEstadoLegibleNoSeRetira(t *testing.T) {
 	escribirArchivo(t, filepath.Join(root, estado.Ruta), "no: [es, yaml")
 	if got := pedidoDe(t, root, p.ID, enCola.Add(2*time.Minute)); got.Estado != EstadoPendiente {
 		t.Fatalf("si no se puede leer la tarea, no se sabe si cambió: el pedido sigue: %+v", got)
+	}
+}
+
+// FND-109: un pedido no extiende una tarea que no existe; el error sugiere la que era y la cola no cambia.
+func TestPedido_ConUnaTareaQueNoExisteSeRechazaYSugiere_FND109(t *testing.T) {
+	root := proyectoConTareas(t)
+	_, err := PedirEnOrden(root, "gh pr merge 42", "Mergear #42", "", Orden{Tarea: "barr"}, enCola)
+	if err == nil || !strings.Contains(err.Error(), "¿quisiste decir barra") {
+		t.Fatalf("se rechaza con sugerencia: %v", err)
+	}
+	if len(Pedidos(root)) != 0 {
+		t.Fatal("la cola no cambia")
 	}
 }

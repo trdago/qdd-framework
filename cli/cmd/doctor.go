@@ -17,6 +17,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/foto"
 	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
+	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/herramientas"
 	"github.com/qdd-framework/qdd/pkg/integration"
@@ -268,6 +269,7 @@ const (
 	itemFindingsSinEstado        = "Findings con estado (open | resolved | wontfix)"
 	itemFindingsNoCanonicos      = "Estado de los findings escrito en su forma canónica"
 	itemCertificacionesSinEstado = "Certificaciones del proyecto con estado"
+	itemTareasFantasma           = "Tareas del estado sin duplicar ni creadas por un id equivocado (FND-109)"
 )
 
 func buildRegistrosChecks(projectPath string) *CheckGroup {
@@ -284,7 +286,18 @@ func buildRegistrosChecks(projectPath string) *CheckGroup {
 			"Escríbelo en minúscula con un valor canónico; 'qdd doctor --fix' lo corrige"),
 		itemDeRegistros(itemCertificacionesSinEstado, certs,
 			"Declara su estado en el campo status (certified, failed o pending); doctor no lo infiere"),
+		itemDeRegistros(itemTareasFantasma, tareasFantasma(projectPath),
+			"Si sobra, pasa su avance a la buena y ciérrala con 'qdd estado cerrar <id> --descartado --motivo \"duplicada de …\"'; si es buena, dale nombre con 'qdd estado tarea <id> --nombre \"…\"'. Doctor no decide cuál es la buena"),
 	}}
+}
+
+// tareasFantasma: lo que estado.Sospechosas ve en el estado del proyecto (nada si no hay estado legible).
+func tareasFantasma(projectPath string) []string {
+	e, err := estado.Load(projectPath)
+	if err != nil {
+		return nil
+	}
+	return estado.Sospechosas(e)
 }
 
 func archivosDeFindings(fs []findings.Finding) []string {
