@@ -6,6 +6,23 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.20] - 2026-11-02 (preview)
+
+Vigésima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Este qdd implementa `estado-por-tareas` 2.2.0, así
+que un proyecto que lo usa ya puede subir a esa versión.
+
+### 🐛 Un blueprint nuevo ya no traba el gate (FND-112)
+
+- Si la organización publica una versión de un blueprint que implementa qdd antes de que exista un qdd que la
+  implemente, `BP-06-BEHIND` ya no bloquea: el gate lo avisa como recomendación `BP-06-ESPERA-QDD` («quédate en la
+  versión actual hasta instalar un qdd que implemente la nueva»). Antes, quedarse daba BP-06 y subir daba BP-08: no
+  había salida. Con un qdd que ya la implementa, quedarse atrás vuelve a bloquear.
+
+### ✨ estado-por-tareas 2.2.0
+
+- Los escenarios de ids EPT-I01…I04 (nombrar no crea, crear da el id, una referencia equivocada sugiere la que era,
+  sin duplicados) se prueban con los datos del blueprint.
+
 ### 🐛 Ids de QDD: lo que vio la certificación ciega de estado-por-tareas 2.2.0 (FND-109)
 
 - Un id largo quita palabras del final en vez de cortar una por la mitad, y el sufijo `-2` acorta la base para seguir en 40 caracteres. Antes, un segundo id largo pasaba de 40 y qdd mismo lo rechazaba.
