@@ -41,7 +41,9 @@ func ID() string { return Plugin + "@" + Marketplace }
 // IDAnterior es el id del panel con su nombre anterior (son tareas, no frentes).
 func IDAnterior() string { return PluginAnterior + "@" + Marketplace }
 
-//go:embed mod/qdd-tareas/.claude-plugin/plugin.json mod/qdd-tareas/hooks/hooks.json mod/qdd-tareas/hooks/register.js
+// Todo hooks/*.js: un módulo de superficie nuevo (materializar.js) no puede quedar fuera (FND-107).
+//
+//go:embed mod/qdd-tareas/.claude-plugin/plugin.json mod/qdd-tareas/hooks/hooks.json mod/qdd-tareas/hooks/*.js
 var modFS embed.FS
 
 // huellaReferencia100 es el SHA-256 (sin espacios al final) de referencias/statusline.sh del blueprint
@@ -249,6 +251,12 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 			return hecho, fmt.Errorf("claude plugin update: %v: %s", err, strings.TrimSpace(string(out)))
 		}
 	}
+	if faltan := faltantes(c.instalado(ID()).Ruta); len(faltan) > 0 {
+		if err := c.reinstalar(); err != nil {
+			return hecho, err
+		}
+		hecho = append(hecho, "Panel reinstalado: a la copia de Claude Code le faltaba "+strings.Join(faltan, ", ")+".")
+	}
 	hecho = append(hecho, fmt.Sprintf("Panel %s %s instalado en Claude Code (alcance de usuario).", ID(), c.Version))
 
 	previo, _ := c.LeerRegistro()
@@ -290,24 +298,54 @@ func (c Consola) versionInstalada() (string, bool) { return c.versionDe(ID()) }
 
 // versionDe devuelve la versión instalada del plugin id y si está activo; "" si no está.
 func (c Consola) versionDe(id string) (string, bool) {
+	p := c.instalado(id)
+	return p.Version, p.Enabled
+}
+
+// pluginInstalado es lo que 'claude plugin list --json' dice de un plugin; Ruta es la copia que Claude Code carga
+// (installPath), vacía con un claude que no la informa.
+type pluginInstalado struct {
+	ID      string `json:"id"`
+	Version string `json:"version"`
+	Enabled bool   `json:"enabled"`
+	Ruta    string `json:"installPath"`
+}
+
+func (c Consola) instalado(id string) pluginInstalado {
 	out, err := c.Run("plugin", "list", "--json")
 	if err != nil {
-		return "", false
+		return pluginInstalado{}
 	}
-	var lista []struct {
-		ID      string `json:"id"`
-		Version string `json:"version"`
-		Enabled bool   `json:"enabled"`
-	}
+	var lista []pluginInstalado
 	if json.Unmarshal(sinPrefijo(out), &lista) != nil {
-		return "", false
+		return pluginInstalado{}
 	}
 	for _, p := range lista {
 		if p.ID == id {
-			return p.Version, p.Enabled
+			return p
 		}
 	}
-	return "", false
+	return pluginInstalado{}
+}
+
+// faltantes: los archivos del mod embebido que no están en la copia instalada (FND-107). Sin copia informada no se
+// puede medir y no se inventa una falta.
+func faltantes(ruta string) []string {
+	if ruta == "" {
+		return nil
+	}
+	var faltan []string
+	_ = fs.WalkDir(modFS, "mod/qdd-tareas", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel := strings.TrimPrefix(p, "mod/qdd-tareas/")
+		if _, err := os.Stat(filepath.Join(ruta, filepath.FromSlash(rel))); err != nil {
+			faltan = append(faltan, rel)
+		}
+		return nil
+	})
+	return faltan
 }
 
 // sinPrefijo descarta los avisos que el CLI pueda imprimir antes del JSON.
@@ -455,6 +493,17 @@ func (c Consola) restaurarBarra(anterior json.RawMessage) (string, error) {
 	return msg, c.guardarSettings(settings)
 }
 
+// reinstalar desinstala y vuelve a instalar el panel: con la misma versión, 'plugin update' no renueva la copia.
+func (c Consola) reinstalar() error {
+	if out, err := c.Run("plugin", "uninstall", ID(), "--scope", "user"); err != nil {
+		return fmt.Errorf("claude plugin uninstall: %v: %s", err, strings.TrimSpace(string(out)))
+	}
+	if out, err := c.Run("plugin", "install", ID(), "--scope", "user"); err != nil {
+		return fmt.Errorf("claude plugin install: %v: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // Diagnosticar revisa la consola solo si se activó en esta máquina; sin activar no hay nada que revisar.
 func (c Consola) Diagnosticar() []Diagnostico {
 	reg, ok := c.LeerRegistro()
@@ -465,8 +514,13 @@ func (c Consola) Diagnosticar() []Diagnostico {
 	if err != nil {
 		return []Diagnostico{{Nombre: "Panel de tareas en Claude Code", Detalle: err.Error()}}
 	}
-	version, enabled := c.versionInstalada()
-	panel := Diagnostico{Nombre: "Panel de tareas en Claude Code (" + ID() + ")", OK: version == c.Version && enabled}
+	p := c.instalado(ID())
+	version, enabled := p.Version, p.Enabled
+	faltan := faltantes(p.Ruta)
+	panel := Diagnostico{Nombre: "Panel de tareas en Claude Code (" + ID() + ")", OK: version == c.Version && enabled && len(faltan) == 0}
+	if len(faltan) > 0 {
+		panel.Detalle = "a la copia instalada le falta " + strings.Join(faltan, ", ") + " y el panel no carga; 'qdd doctor --fix' lo reinstala"
+	}
 	if version == "" {
 		panel.Detalle = "no está instalado; 'qdd doctor --fix' o 'qdd consola activar' lo instala"
 	}

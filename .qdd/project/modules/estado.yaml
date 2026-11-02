@@ -68,6 +68,7 @@ objetivo_tecnologico:
         - "\U0001F4E6 Blueprints en el panel (pedido del usuario, 2026-11-01): la tecla p abre la lista de los instalados y los disponibles con sus cuentas (instalados, sin IA, con IA, disponibles), que da qdd consola blueprints --json sin red ni IA. ↻ Actualizar catálogo corre qdd blueprint sync sin confirmar (solo escribe la copia central); ⬆ Actualizar, ⬆ Actualizar los N sin la IA y ＋ Instalar corren qdd blueprint add con «s  Sí» (escriben el lockfile); ✦ Aplicar con la IA es lo único que le escribe a la IA, con el mensaje que da qdd (≤280). Tras cada acción el panel relee y dice cuántas versiones nuevas trajo o cuántos se actualizaron o instalaron. qdd vuelve a calcular la acción antes de ejecutarla (prefijo blueprint:)."
     invariantes:
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
+        - El binario lleva cada archivo del mod (salvo pruebas y tipos) y doctor no da por sano un panel cuya copia instalada no los tiene todos (FND-107).
         - Un frente nunca se borra; se cierra o se descarta con motivo.
         - statusline no imprime nada si no hay archivo o está ilegible, y nunca sale con error.
         - Sin estado.yaml, qdd audit no reporta EPF-01-CHECK.
@@ -116,4 +117,4 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
 ultima_revision: "2026-11-01"
-revisado_en_commit: b4d7c8d398a8
+revisado_en_commit: 2631a96ad9c3

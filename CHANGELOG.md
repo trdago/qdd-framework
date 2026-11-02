@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.13] - 2026-11-01 (preview)
+
+Decimotercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Arregla el panel de rc.11 y rc.12.
+
+### 🐛 El panel se instalaba sin `materializar.js` (FND-107)
+
+- **Qué pasaba:** con rc.11 y rc.12, Claude Code no cargaba el panel de tareas («hooks module did not load: …/materializar.js: no such file») o lo dibujaba sin el efecto, porque el binario no llevaba ese archivo.
+- **Arreglo:** el binario ahora lleva todos los archivos del mod, y una prueba impide que vuelva a faltar uno.
+- **El doctor lo detecta:** `qdd doctor` compara el panel instalado en Claude Code con el del binario y dice qué falta. `qdd doctor --fix` y `qdd consola activar` lo reinstalan aunque la versión sea la misma.
+
 ## [2.8.0-rc.12] - 2026-11-01 (preview)
 
 Duodécima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Trae los blueprints a un clic en el panel.
