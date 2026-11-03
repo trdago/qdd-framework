@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.2-rc.1] - 2026-11-03 (preview)
+
+Preview (`npm i -g qdd-framework@preview`) con QDD Móvil preguntando solo lo que es pregunta.
+
 ### Cambiado
 
 - **QDD Móvil pregunta solo lo que es pregunta** (MEJ-004, FND-123). Un ⏳ de la persona llega al teléfono solo si su
