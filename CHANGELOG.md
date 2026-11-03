@@ -6,6 +6,26 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-03
+
+Versión estable (`npm i -g qdd-framework`). Reúne las 27 previews de 2.8.0, con 60,3 h de uso real medido (VER-05,
+`.qdd/project/evidence/uso/v2.8.0.yaml`). El detalle de cada cambio está en su preview, abajo. Lo principal:
+
+- **Uso medido y canal preview** (RFC 0010): cada versión nueva sale primero como `@preview` y pasa a `latest` con sus
+  horas de uso real.
+- **Panel de Claude Code**: el tablero por tareas, con objetivos, árbol por dependencias y ciclos con nombre
+  (`estado-por-tareas` 2.2.0). También los pedidos para la persona, que se ordenan, se arman y avisan al chat; los
+  blueprints a un clic; las herramientas del proyecto; el atajo desde el chat; y las animaciones solo de lo que cambió.
+- **Ids de QDD** para tareas, objetivos y ciclos: qdd los da o los valida (FND-109).
+- **Blueprints**: un solo `estado-por-tareas`, que reemplaza a `estado-por-frente` (RFC 0009), además del índice, la
+  calidad de la receta, la conformidad en el gate (BP-08, con `fuera` también en lo aplicado: FND-121), los aportes en
+  paralelo y la lectura por HTTPS.
+- **QDD Móvil** (RFC 0013): `qdd remoto` publica el panel de cada proyecto en el teléfono, que aprueba pedidos, responde
+  las preguntas de la consola y los ⏳ de la persona, y ejecuta comandos qdd e instrucciones para la IA (Pro). El servicio
+  vuelve a arrancar solo cuando se actualiza qdd (FND-120).
+- **Cola de mejoras** (`qdd mejoras`): los reportes de las sesiones y los issues de GitHub se vuelven tareas del
+  objetivo `mejora-continua`, 2 abiertas como mucho.
+
 ## [2.8.0-rc.27] - 2026-11-03 (preview)
 
 Vigesimoséptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. La cola de mejoras (`qdd mejoras`, objetivo
