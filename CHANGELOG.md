@@ -6,9 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
-## [2.8.1-rc.1] - 2026-11-03 (preview)
+## [2.8.1] - 2026-11-03
 
-Primera **preview** de 2.8.1: `npm i -g qdd-framework@preview`. El arreglo de Windows del issue #83.
+Corrección (`npm i -g qdd-framework@latest`). El mismo arreglo sale a la vez como 2.8.1-rc.1 en `preview`: el bug estaba
+en todas las versiones publicadas, de los dos canales.
 
 ### Arreglado
 
@@ -16,6 +17,10 @@ Primera **preview** de 2.8.1: `npm i -g qdd-framework@preview`. El arreglo de Wi
   pedidos del panel y `qdd incidentes publicar`) corren con una consola oculta. Antes cada `gh` o `git` que llamaban abría
   una ventana negra visible, cada minuto y por proyecto. `qdd consola prs` tampoco llama a `gh` si el remote no es de
   GitHub.
+
+## [2.8.1-rc.1] - 2026-11-03 (preview)
+
+Preview (`npm i -g qdd-framework@preview`) con el mismo arreglo de 2.8.1 (FND-122, issue #83).
 
 ## [2.8.0] - 2026-11-03
 
