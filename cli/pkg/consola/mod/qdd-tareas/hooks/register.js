@@ -1624,8 +1624,138 @@ function hayQueMostrar() {
   return frentes + fichas > 0
 }
 
+// ── Preguntas desde el teléfono (RFC 0013 §«Preguntas desde el teléfono») ─────────────────────────────────────────
+// Lo que Claude Code le pregunta a la persona en esta sesión (AskUserQuestion o un permiso de herramienta) también se
+// responde desde QDD Móvil. El panel lo registra con «qdd consola pregunta registrar» (sin QDD Móvil activado, qdd no
+// registra nada) y espera la respuesta de un teléfono con «qdd consola pregunta esperar» mientras el diálogo de la
+// terminal sigue abierto: Claude Code corre el hook PermissionRequest al lado del diálogo y gana quien responde
+// primero. Si gana el teléfono, el hook decide: AskUserQuestion con sus answers; un permiso, permitir una vez o negar
+// (nunca «siempre» ni reglas). Si gana la terminal, la llamada de la herramienta termina y el panel la cierra «en el
+// PC». Solo en la conversación principal de una sesión interactiva: en un subagente o sin terminal Claude Code puede
+// esperar al hook antes de mostrar el diálogo, y la terminal quedaría sin preguntar.
+const ESPERA_PREGUNTA_S = 10
+const PREGUNTAR = 'AskUserQuestion'
+const RESERVADAS = new Set(['tool', 'tool_use_id', 'agentId', 'requestMeta', 'consent'])
+let interactiva = false
+let huboPreguntas = false // esta carga registró alguna (al cerrar la sesión, qdd vence las que queden)
+const llamadas = new Map() // tool_use_id → { tool, entrada }: las herramientas en curso de la conversación principal
+const preguntasVivas = new Map() // id → { llamada, candidatas, cerrada, aplicada }
+
+// estable: el JSON de un valor con las claves ordenadas, para reconocer la misma entrada.
+function estable(v) {
+  if (Array.isArray(v)) return '[' + v.map(estable).join(',') + ']'
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + estable(v[k])).join(',') + '}'
+  return JSON.stringify(v)
+}
+
+function entradaDe(e) {
+  const out = {}
+  for (const [k, v] of Object.entries(e)) if (!RESERVADAS.has(k)) out[k] = v
+  return out
+}
+
+// llamadaDe: la herramienta en curso que pide este permiso (la de la misma entrada, sin otra pregunta viva); si no, las
+// de esa herramienta quedan como candidatas.
+function llamadaDe(tool, entrada) {
+  const usadas = new Set([...preguntasVivas.values()].map((v) => v.llamada))
+  const libres = [...llamadas].filter(([id, l]) => l.tool === tool && !usadas.has(id))
+  const clave = estable(entrada)
+  const misma = libres.find(([, l]) => estable(l.entrada) === clave)
+  if (misma) return { llamada: misma[0], candidatas: new Set() }
+  return { llamada: '', candidatas: new Set(libres.map(([id]) => id)) }
+}
+
+async function registrarPregunta($, bin, mia, e) {
+  try {
+    const r = await $.process.run([bin, 'consola', 'pregunta', 'registrar'], { stdin: JSON.stringify({ sesion: mia, herramienta: e.tool_name, entrada: e.tool_input }), timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0) return ''
+    return String(JSON.parse(r.stdout).id || '')
+  } catch {
+    return ''
+  }
+}
+
+// esperarTelefono pide a qdd, de a ESPERA_PREGUNTA_S, la respuesta de un teléfono; null si la terminal ganó, venció o
+// Claude Code dejó de esperar al hook.
+async function esperarTelefono($, bin, id, viva, signal) {
+  while (!viva.cerrada && !signal?.aborted) {
+    let r
+    try {
+      r = await $.process.run([bin, 'consola', 'pregunta', 'esperar', id, '--segundos', String(ESPERA_PREGUNTA_S)], { timeoutMs: (ESPERA_PREGUNTA_S + 5) * 1000 })
+    } catch (err) {
+      $.ui.log('qdd: dejó de esperar la respuesta del teléfono: ' + String(err?.message ?? err), { to: 'debug' })
+      return null
+    }
+    if (viva.cerrada || r.exitCode !== 0) return null
+    let p = null
+    try {
+      p = JSON.parse(r.stdout)
+    } catch {
+      return null
+    }
+    if (p.estado === 'pendiente') continue
+    if (p.estado !== 'respondida' || p.respondida_en !== 'telefono') return null
+    return p
+  }
+  return null
+}
+
+// decisionDe: lo que el teléfono respondió, como lo decide un hook PermissionRequest. Un permiso solo se permite una
+// vez (sin updatedPermissions) o se niega.
+function decisionDe(e, p) {
+  const donde = p.lugar || 'el teléfono'
+  if (e.tool_name === PREGUNTAR && p.answers) return { behavior: 'allow', updatedInput: { ...e.tool_input, answers: p.answers } }
+  if (e.tool_name !== PREGUNTAR && p.decision === 'permitir') return { behavior: 'allow' }
+  return { behavior: 'deny', message: 'La persona lo negó desde ' + donde + ' (QDD Móvil).' }
+}
+
+async function preguntarAlTelefono($, e, next) {
+  const r = await next(e)
+  if (r?.decision || !interactiva || e.agent_id) return r
+  const bin = await binario($)
+  const id = await registrarPregunta($, bin, await sesionPropia($), e)
+  if (!id) return r
+  huboPreguntas = true
+  const viva = { ...llamadaDe(e.tool_name, e.tool_input), cerrada: false, aplicada: false }
+  preguntasVivas.set(id, viva)
+  if (viva.llamada) {
+    try {
+      $.ui.notice(viva.llamada, '📱 También se puede responder desde QDD Móvil')
+    } catch {}
+  }
+  const p = await esperarTelefono($, bin, id, viva, next.signal)
+  if (!p || viva.cerrada) return r
+  viva.aplicada = true
+  preguntasVivas.delete(id)
+  return { ...(r || {}), decision: decisionDe(e, p) }
+}
+
+// cerrarPreguntasDe: terminó la herramienta que preguntaba sin que el teléfono decidiera: la respondió la terminal.
+async function cerrarPreguntasDe($, llamada) {
+  const vivas = [...preguntasVivas].filter(([, v]) => v.llamada === llamada || v.candidatas.has(llamada))
+  if (vivas.length === 0) return
+  const bin = await binario($)
+  for (const [id, v] of vivas) {
+    preguntasVivas.delete(id)
+    v.cerrada = true
+    await $.process.run([bin, 'consola', 'pregunta', 'cerrar', id], { timeoutMs: TOPE_MS }).catch((err) => $.ui.log('qdd: no se cerró la pregunta: ' + String(err?.message ?? err), { to: 'debug' }))
+  }
+}
+
+// vencerPreguntas: la sesión se cierra; lo que esperaba al teléfono ya no se puede responder.
+async function vencerPreguntas($) {
+  for (const v of preguntasVivas.values()) v.cerrada = true
+  preguntasVivas.clear()
+  if (!huboPreguntas) return
+  const mia = await sesionPropia($)
+  if (!mia) return
+  const bin = await binario($)
+  await $.process.run([bin, 'consola', 'pregunta', 'vencer', '--sesion', mia], { timeoutMs: 2000 }).catch(() => {})
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
+    interactiva = e.isInteractive === true
     await leer($)
     await leerHerramientas($)
     $.clock.every(INTERVALO_MS, async () => {
@@ -1665,12 +1795,31 @@ export function register(on) {
   // y sin esperar al pulso.
   // Una tool de qdd o un comando qdd cambian lo que el panel muestra: se relee en el acto, sin esperar a la próxima
   // lectura (sincronía panel–chat, 2026-11-01).
+  // Cada herramienta de la conversación principal queda en curso hasta que termina: si preguntó algo (un permiso) y el
+  // teléfono no decidió, la respondió la terminal.
   on('tool.call', async ($, e, next) => {
     pulsar($, 'agente')
-    if (!cambiaElPanel(e)) return next(e)
-    const r = await next(e)
-    await leer($)
-    return r
+    const seguir = !e.agentId && e.tool_use_id
+    if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
+    try {
+      if (!cambiaElPanel(e)) return await next(e)
+      const r = await next(e)
+      await leer($)
+      return r
+    } finally {
+      if (seguir) {
+        llamadas.delete(e.tool_use_id)
+        await cerrarPreguntasDe($, e.tool_use_id)
+      }
+    }
+  })
+
+  // Preguntas desde el teléfono: corre al lado del diálogo de la terminal; gana quien responde primero.
+  on('classic.PermissionRequest', async ($, e, next) => preguntarAlTelefono($, e, next))
+
+  on('session.end', async ($, e, next) => {
+    await vencerPreguntas($)
+    return next(e)
   })
 
   on('agent.spawn', async ($, e, next) => {

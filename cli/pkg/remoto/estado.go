@@ -76,15 +76,16 @@ func Publicables(reg registro.Registro, limite int) []registro.Proyecto {
 	return reg.Proyectos[:limite]
 }
 
-// PanelDe es el proyecto con su panel, exactamente consola.Panel (con la versión, como qdd consola panel --json), o
-// con el error si la carpeta ya no está.
+// PanelDe es el proyecto con su panel, exactamente consola.Panel (con la versión, como qdd consola panel --json) con
+// las preguntas de la consola (tipo opcional, sin secretos), o con el error si la carpeta ya no está.
 func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 	out := ProyectoEstado{Clave: p.Clave, Nombre: filepath.Base(p.Ruta), Ruta: p.Ruta}
 	if info, err := os.Stat(p.Ruta); err != nil || !info.IsDir() {
 		out.Error = ErrCarpetaNoExiste
 		return out
 	}
-	panel := consola.Panel(p.Ruta, now)
+	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta)
+	ocultarPreguntas(p.Ruta, &panel)
 	panel.Version = qdd
 	out.Panel = &panel
 	return out

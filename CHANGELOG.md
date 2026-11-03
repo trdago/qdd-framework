@@ -6,6 +6,34 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.24] - 2026-11-03 (preview)
+
+Vigesimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 1: el teléfono responde lo que
+pregunta la consola.
+
+### ✨ Responder desde el teléfono lo que pregunta la consola (QDD Móvil)
+
+- Cuando Claude Code espera a la persona, la pregunta aparece en QDD Móvil y se responde desde el teléfono o desde la
+  terminal: gana la primera, y el otro lado ve «ya respondida en …».
+  - Preguntas de la IA (`AskUserQuestion`): una opción, varias, o «Otra» con texto libre.
+  - Permisos de herramientas: desde el teléfono solo **permitir una vez** o **negar**; nunca «permitir siempre» ni
+    cambios de reglas.
+- El mod `qdd-tareas` las registra desde `PermissionRequest`, que corre junto al diálogo de la terminal. Solo lo hace en
+  sesiones interactivas, en el hilo principal, y cuando el PC tiene QDD Móvil activado.
+- `qdd consola pregunta registrar | esperar | cerrar | vencer | lista` maneja la cola local.
+- `qdd consola panel --json --con pregunta` muestra las preguntas como acciones `tipo:"pregunta"`.
+- `qdd remoto` las publica pasadas por el ocultador de secretos y atiende el evento firmado `responder` del relay
+  (`public.qdd_remoto_responder`). Contesta con `accion_estado` (`hecha`, `ya_aprobado`, `vencida` o `rechazada`) una
+  sola vez por solicitud.
+- Una pregunta vence si deja de recibir latidos por 60 s, a los 30 min o cuando termina la sesión.
+- Diseño completo en la RFC 0013, «Preguntas desde el teléfono».
+
+### 🐛 Corregido
+
+- Las pruebas corridas por un hook de git (el pre-push desde un worktree exporta `GIT_DIR`) ya no escriben commits ni
+  tags en el repositorio real. El nuevo `pkg/gitenv` limpia ese entorno en cada paquete cuyas pruebas corren git, y
+  los clones de blueprints corren git con el entorno limpio aunque qdd corra dentro de un hook (FND-117).
+
 ## [2.8.0-rc.23] - 2026-11-03 (preview)
 
 Vigesimotercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Arreglos de blueprints que encontraron las

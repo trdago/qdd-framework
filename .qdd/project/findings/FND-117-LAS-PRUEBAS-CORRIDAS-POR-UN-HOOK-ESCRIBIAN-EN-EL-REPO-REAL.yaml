@@ -1,0 +1,9 @@
+id: "FND-117"
+title: "Las pruebas corridas por el pre-push desde un worktree escribían commits y tags en el repositorio real"
+description: "Desde un worktree, git exporta GIT_DIR a sus hooks. El pre-push de husky corre «make build && make test», y las pruebas que corren git en carpetas temporales (versioning, estado, modules, blueprints, consola, registro, cmd) lo heredaban: hacían init, commit y tag en el repositorio del worktree. El 2026-11-03, al empujar feat/preguntas-remotas, quedaron ~42 commits de fixtures sobre la rama y los tags locales v0.4.2 y v2.3.1. El push no llegó a GitHub. El mismo defecto afectaba a qdd en uso: un qdd blueprint corrido dentro de un hook trabajaba sobre el repositorio del hook en vez del clon de blueprints."
+impact: "Una rama de release contaminada con commits de prueba y tags de versión falsos, a un push de publicarse."
+action_taken: "Nuevo pkg/gitenv: Limpio(env) quita las variables con que git elige repositorio y LimpiarProceso() las quita del proceso. Cada paquete cuyas pruebas corren git lo llama en un init de prueba, y una prueba de arquitectura exige que un paquete nuevo también lo haga. gitRaw (clones de blueprints) corre git con el entorno limpio. Limpieza: la rama volvió a 6c980f5 y se borraron los dos tags; los tags reales coinciden con el remoto."
+test_result: "TestLimpiarProceso_GitEnUnaCarpetaTemporalNoTocaElRepoDelHook, TestGitRaw_DentroDeUnHookTrabajaEnElClonYNoEnElRepoDelHook y TestArquitectura_LasPruebasQueCorrenGitLimpianElEntorno; «GIT_DIR=<señuelo> go test ./...» deja el repositorio señuelo con su único commit y sin tags."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

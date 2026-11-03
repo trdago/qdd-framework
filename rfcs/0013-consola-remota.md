@@ -141,6 +141,7 @@ existen y el nuestro no se configura a mano.
 | `qdd_remoto_registrar_dispositivo(p_nombre, p_plataforma, p_push_token)` | teléfono | Registra el teléfono (atado a su sesión). |
 | `qdd_remoto_mis_dispositivos()` · `qdd_remoto_revocar_dispositivo(p_dispositivo)` | teléfono | Lista y revoca. |
 | `qdd_remoto_accion(p_maquina, p_solicitud, p_proyecto, p_accion_id)` | teléfono | Sella, verifica y reenvía la acción firmada. |
+| `qdd_remoto_responder(p_maquina, p_solicitud, p_proyecto, p_pregunta, p_respuesta)` | teléfono | Sella, verifica y reenvía la respuesta firmada a una pregunta de la consola. |
 | `qdd_remoto_mi_plan()` | teléfono | Plan, límites y horas de consola usadas. |
 | `qdd_remoto_dispositivos(p_topico, p_firma)` · `qdd_remoto_revocar(p_topico, p_firma, p_dispositivo)` | PC | `qdd remoto dispositivos` y `revocar`. |
 | `qdd_remoto_latido(p_topico, p_firma, p_en_curso, p_consola_min, p_mensajes)` | PC | Cada minuto: latido, consumo; responde el plan y si la consola sigue permitida. |
@@ -160,7 +161,8 @@ existen y el nuestro no se configura a mano.
 | `estado` | PC → teléfono | El JSON de `qdd remoto estado --json`, con `seq`. |
 | `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}}`: los proyectos cuyo panel cambió (null: salió). Si falta un `seq`, el teléfono pide `sync`. |
 | `accion` | relay → PC | El teléfono llama a `qdd_remoto_accion(maquina, solicitud, proyecto, accion_id)`; el relay sella `dispositivo`, verifica que no esté revocado y lo envía con `realtime.send` y `firma = hmac_sha256(firma_maquina, solicitud\|proyecto\|accion_id\|dispositivo\|en)`. El PC descarta lo que no traiga una firma válida. |
-| `accion_estado` | PC → teléfono | `{solicitud, estado: recibida/ejecutando/hecha/fallo/ya_aprobado/rechazada, resultado, lugar}`. |
+| `responder` | relay → PC | El teléfono responde una pregunta de la consola con `qdd_remoto_responder`; el relay lo firma como `accion`, con la respuesta entre la pregunta y el dispositivo (ver «Preguntas desde el teléfono»). |
+| `accion_estado` | PC → teléfono | `{solicitud, estado: recibida/ejecutando/hecha/fallo/ya_aprobado/rechazada/vencida, resultado, lugar}`. |
 | `consola` | PC → teléfono | Fragmentos de la conversación o de un pedido, solo con espectadores. |
 
 Presence: el PC publica `{rol: "pc", version_qdd, desde}`; cada teléfono `{rol: "movil", dispositivo, mirando}`. Cada
@@ -193,6 +195,98 @@ mensaje lleva `version`; un cliente que no la entiende lo dice y no adivina.
   salida. No pasa por Realtime, no consume mensajes.
 - «PC apagado con tareas en curso» no lo puede avisar el PC: el PC da un latido por RPC cada minuto con cuántas tareas
   tiene en curso, y un trabajo de `pg_cron` avisa cuando el latido se corta con tareas en curso.
+
+### Preguntas desde el teléfono (2026-11-03)
+
+Cuando la consola de Claude Code espera a la persona, la pregunta aparece en la app y se puede responder desde ahí o
+desde la terminal: gana la primera respuesta.
+
+**Tipos.**
+
+- **(a) Preguntas de la IA:** `AskUserQuestion`, con opción única, varias o «Otra» (texto libre, hasta 500 caracteres).
+- **(b) Permisos de herramientas:** desde el teléfono solo hay **permitir una vez** o **negar**. Nunca «permitir siempre» ni
+  cambios de reglas: la decisión no lleva `updatedPermissions`.
+- **(c) Preguntas interactivas de los comandos de qdd:** hoy ningún comando de qdd pregunta sin una terminal. Las
+  preguntas de diseño de `qdd_blueprint_apply` llegan a la IA, que las hace con `AskUserQuestion`, así que entran como
+  (a). Para un comando futuro que pregunte por su cuenta, el diseño ya existe: `qdd consola pregunta registrar` con
+  `origen:"qdd"`, `etiqueta` y `preguntas` explícitas, y después `qdd consola pregunta esperar <id>` hasta tener la
+  respuesta. Ningún comando lo usa todavía.
+
+**Cómo se engancha.** El mod `qdd-tareas` escucha `PermissionRequest`, que Claude Code corre **al mismo tiempo** que
+muestra el diálogo en la terminal. El primero que responde se queda con la decisión, y la respuesta del hook cierra el
+diálogo.
+
+1. El hook deja pasar primero los hooks de la persona: si alguno ya decidió, no pregunta al teléfono.
+2. Si la sesión es interactiva, es del hilo principal (no de un subagente) y el PC tiene QDD Móvil activado, registra la
+   pregunta con `qdd consola pregunta registrar` y avisa en la terminal «📱 También se puede responder desde QDD Móvil».
+3. Espera con `qdd consola pregunta esperar <id> --segundos 10` en un bucle. Cada espera es un latido.
+4. Con la respuesta del teléfono:
+   - para (a), devuelve `allow` con `updatedInput.answers`;
+   - para (b), devuelve `allow` (sin reglas) o `deny` con «La persona lo negó desde <teléfono> (QDD Móvil)».
+5. Si la persona responde en la terminal, la herramienta sigue adelante. El mod ve terminar la llamada y cierra la
+   pregunta con `qdd consola pregunta cerrar <id>` («respondida en el PC»).
+
+**Cola local.** Las preguntas viven en `<QDD_HOME>/claude/preguntas/<proyecto>.json`, con candado y escritura atómica.
+`qdd consola panel --json --con pregunta` las muestra primero, como acciones `tipo:"pregunta"`:
+
+```
+{ "id":"pregunta:<id>", "tipo":"pregunta", "origen":"ia|permiso|qdd", "sesion", "etiqueta"(≤60),
+  "estado":"pendiente|respondida|vencida", "respondida_en":"pc|telefono", "confirmar":true,
+  "preguntas":[{"id":"q1","encabezado","texto","multiple","otra","opciones":[{"valor","etiqueta","descripcion"}]}],
+  "permiso":{"herramienta","detalle"} }
+```
+
+- `permiso` va solo con `origen:"permiso"`, y entonces las opciones son exactamente `permitir` y `negar`.
+- `qdd consola accion` no acepta una pregunta: se responde, no se ejecuta.
+- `qdd remoto` las publica pasadas por el ocultador de secretos (etiqueta, detalle, textos, opciones y el detalle del
+  permiso).
+
+**Relay.** El teléfono llama a
+`qdd_remoto_responder(p_maquina, p_solicitud, p_proyecto, p_pregunta, p_respuesta jsonb)`.
+
+- `p_respuesta` es `{"<qid>": {"opciones":[…]} | {"otra":"texto"}}`, de 4096 bytes como máximo.
+- `p_pregunta` puede ser el id solo o `pregunta:<id>`.
+- El relay hace las mismas comprobaciones que `qdd_remoto_accion` (máquina del usuario, teléfono no revocado) y envía el
+  evento `responder` con `{version, solicitud, proyecto, pregunta, respuesta, dispositivo, nombre, en, firma}`:
+  - `respuesta` es el texto de `p_respuesta::text`, para que la firma se calcule sobre los mismos bytes;
+  - `firma = hmac_sha256(firma_maquina, solicitud|proyecto|pregunta|respuesta|dispositivo|en)`, con
+    `en = YYYY-MM-DDTHH:MM:SSZ`.
+- Como las aprobaciones, no mira el plan ni el interruptor de la consola (inv. 14).
+
+**Respuesta del PC.** El PC verifica la firma y la vigencia (±5 min) y contesta con `accion_estado`
+`{solicitud, estado, resultado, lugar}`, una sola vez por `solicitud`:
+
+| Estado | Cuándo | `resultado` / `lugar` |
+|---|---|---|
+| `hecha` | La respuesta quedó entregada a la consola. | «respuesta entregada a la consola del PC» |
+| `ya_aprobado` | Ya la respondió la terminal u otro teléfono. | `lugar` = «PC» o el nombre del teléfono |
+| `vencida` | La pregunta venció o ya no está en el PC. | El motivo |
+| `rechazada` | Respuesta inválida, teléfono revocado, proyecto no publicado. | El motivo |
+
+- Si la terminal gana después de que el PC dijo `hecha` (la respuesta del teléfono llegó pero el motor ya había
+  aceptado la de la terminal), el PC corrige esa solicitud con `ya_aprobado` y `lugar:"PC"`.
+- Una respuesta sin firma válida se anota en el log y no se contesta.
+
+**Vencimiento.** Una pregunta vence cuando:
+
+- deja de recibir latidos de `esperar` por 60 s (el hook terminó por su tiempo límite o Claude Code lo canceló);
+- pasan 30 min desde que se creó;
+- termina la sesión de Claude Code (`qdd consola pregunta vencer --sesion`).
+
+Una pregunta cerrada sigue visible 5 min como «ya respondida en …» o «venció». La cola guarda como máximo 20.
+
+**Límites de la API de Claude Code.**
+
+- Las sesiones no interactivas y los subagentes quedan fuera: hay subagentes que esperan a los hooks antes de mostrar el
+  diálogo, y la pregunta bloquearía la terminal.
+- Claude Code no avisa al hook cuando la persona responde el diálogo; el mod lo deduce cuando termina la llamada a la
+  herramienta. Así, un permiso aceptado en la terminal para una herramienta larga (un `Bash` de minutos) deja la
+  pregunta «pendiente» hasta que la herramienta termina. Si el teléfono responde en ese rato, recibe `hecha` aunque el
+  motor ya no la use, y el PC lo corrige con `ya_aprobado` PC cuando la herramienta termina.
+- La biometría para responder es cosa de la app.
+
+**Pendiente.** No hay un tipo `pregunta` en la Edge Function `avisar`, porque sus tipos son cerrados. Hasta que se
+agregue, la pregunta llega por Realtime con la app abierta y no hay aviso push.
 
 ### Planes y controles de costo
 

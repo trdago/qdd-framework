@@ -70,9 +70,19 @@ type AccionFirmada struct {
 
 // FirmaAccion es la firma que pone el relay: la clave es el texto hex de la firma de la máquina (sus bytes UTF-8).
 func FirmaAccion(firmaMaquina, solicitud, proyecto, accionID, dispositivo, en string) string {
+	return firmar(firmaMaquina, solicitud, proyecto, accionID, dispositivo, en)
+}
+
+// firmar es hex(hmac_sha256(firma de la máquina, partes unidas por «|»)), como pgcrypto en el relay.
+func firmar(firmaMaquina string, partes ...string) string {
 	m := hmac.New(sha256.New, []byte(firmaMaquina))
-	m.Write([]byte(strings.Join([]string{solicitud, proyecto, accionID, dispositivo, en}, "|")))
+	m.Write([]byte(strings.Join(partes, "|")))
 	return hex.EncodeToString(m.Sum(nil))
+}
+
+// firmaIgual compara en tiempo constante (la firma puede venir en mayúsculas).
+func firmaIgual(esperada, firma string) bool {
+	return hmac.Equal([]byte(esperada), []byte(strings.ToLower(firma)))
 }
 
 // Verificar exige la firma de la máquina y que la acción sea de los últimos VigenciaAccion.
@@ -81,7 +91,7 @@ func (a AccionFirmada) Verificar(firmaMaquina string, now time.Time) error {
 		return errors.New("acción incompleta")
 	}
 	esperada := FirmaAccion(firmaMaquina, a.Solicitud, a.Proyecto, a.AccionID, a.Dispositivo, a.En)
-	if !hmac.Equal([]byte(esperada), []byte(strings.ToLower(a.Firma))) {
+	if !firmaIgual(esperada, a.Firma) {
 		return errors.New("firma inválida")
 	}
 	en, err := time.Parse(formatoEn, a.En)
@@ -117,6 +127,7 @@ type Solicitud struct {
 	Lugar       string    `json:"lugar,omitempty"`
 	Ruta        string    `json:"ruta,omitempty"`
 	Pedido      string    `json:"pedido,omitempty"`
+	Pregunta    string    `json:"pregunta,omitempty"` // una respuesta a una pregunta de la consola (preguntas.go)
 	Recibida    time.Time `json:"recibida"`
 }
 
