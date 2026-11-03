@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Arreglado
+
+- **Windows: sin ventanas de consola** (FND-122, issue #83). Los procesos que qdd lanza aparte (`qdd consola prs`, los
+  pedidos del panel y `qdd incidentes publicar`) corren con una consola oculta. Antes cada `gh` o `git` que llamaban abría
+  una ventana negra visible, cada minuto y por proyecto. `qdd consola prs` tampoco llama a `gh` si el remote no es de
+  GitHub.
+
 ## [2.8.0] - 2026-11-03
 
 Versión estable (`npm i -g qdd-framework`). Reúne las 27 previews de 2.8.0, con 60,3 h de uso real medido (VER-05,
