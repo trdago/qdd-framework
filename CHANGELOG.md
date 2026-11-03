@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.26] - 2026-11-03 (preview)
+
+Vigesimosexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Dos arreglos: `qdd remoto` vuelve a arrancar solo
+tras actualizar qdd, y un módulo que aplica un blueprint puede declarar escenarios fuera.
+
 ### 🐛 Corregido
 
 - Al actualizar qdd, `qdd remoto` sigue corriendo la versión vieja hasta que alguien reinicia el servicio: lo que
