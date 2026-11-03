@@ -1,13 +1,13 @@
 id: mejoras
 nombre: Cola de mejoras (mejora continua)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/mejoras
     - cli/cmd/mejoras.go
 objetivo_operativo:
     problema: 'Lo que hay que mejorar llega por muchos lados y se pierde: una sesión de Claude Code en otro proyecto lo cuenta en un mensaje que nadie guarda (sfrc, 2026-11-03: «las consultas no salen en el tablero»), un issue de GitHub espera a que alguien lo mire, y cuando se trabaja nadie sabe cuántas mejoras hay ni cuáles van primero. Si todo pasa directo a la IA, abre diez frentes a la vez y no termina ninguno.'
-    usuarios: 'La persona, que ve en el tablero el objetivo mejora-continua con lo que se está mejorando y fuerza un ciclo con un clic; las sesiones de Claude Code de cualquier proyecto, que reportan con qdd mejoras reportar --proyecto <nombre>; y la IA del proyecto, que trabaja las tareas que la cola le entrega.'
-    criterio_de_exito: 'Todo reporte de una sesión y todo issue abierto admitido de GitHub queda como un MEJ-NNN en .qdd/project/cola_de_mejoras/ una sola vez, aunque el ciclo corra muchas veces. El objetivo mejora-continua nunca tiene más de 2 tareas abiertas de la cola. Cuando se cierra una, el ciclo siguiente entrega la próxima en orden. El mismo estado de entrada da siempre el mismo resultado, y el ciclo corre solo cada 10 min mientras haya una sesión abierta, o al instante con el botón del panel.'
+    usuarios: La persona, que ve en el tablero el objetivo mejora-continua con lo que se está mejorando y fuerza un ciclo con un clic; las sesiones de Claude Code de cualquier proyecto, que reportan con qdd mejoras reportar --proyecto <nombre>; y la IA del proyecto, que trabaja las tareas que la cola le entrega.
+    criterio_de_exito: Todo reporte de una sesión y todo issue abierto admitido de GitHub queda como un MEJ-NNN en .qdd/project/cola_de_mejoras/ una sola vez, aunque el ciclo corra muchas veces. El objetivo mejora-continua nunca tiene más de 2 tareas abiertas de la cola. Cuando se cierra una, el ciclo siguiente entrega la próxima en orden. El mismo estado de entrada da siempre el mismo resultado, y el ciclo corre solo cada 10 min mientras haya una sesión abierta, o al instante con el botón del panel.
     caso_real: '2026-11-03: la sesión de sfrc pidió por mensaje que toda consulta a la persona pase por el tablero, y la sesión de qdd-movile pidió cambios de protocolo. Las dos peticiones vivieron solo en el chat de esta sesión. En los 30 repositorios de GitHub no había issues abiertos, pero tampoco una forma de que entraran solos al trabajo.'
 objetivo_tecnologico:
     arquitectura: 'pkg/mejoras es determinista y no llama a ningún modelo. Ciclo(root, fuentes, now) toma el candado de la cola y sigue cinco pasos: recibe la entrada local, lee GitHub, sigue a sus tareas, entrega a la IA hasta el tope y anota la hora. (1) La entrada local es <QDD_HOME>/claude/mejoras-entrada/<proyecto>.json, donde escribe qdd mejoras reportar; cada reporte se pasa a la cola y se borra de la entrada. (2) GitHub se lee con gh issue list en el repositorio del remote origin, sin terminal y con el entorno de git limpio. (3) Seguir las tareas: una tarea cerrada deja su MEJ hecha, una descartada lo deja descartado, y si la tarea ya no está, el MEJ vuelve a la cola. (4) Entregar: crea el objetivo mejora-continua si falta y una tarea por MEJ, en orden, hasta 2 abiertas. (5) Anota la hora del ciclo en <QDD_HOME>/claude/mejoras-ciclo/<proyecto>.json. La cola es un archivo por mejora, .qdd/project/cola_de_mejoras/MEJ-NNN-<slug>.yaml, como los findings, y solo el ciclo la escribe. qdd mejoras ciclo [--si-toca] corre el ciclo; con --si-toca, solo si pasaron 10 min desde el último. Lo llama el mod qdd-tareas cada minuto, y el botón «Ciclo de mejoras» del panel lo corre sin --si-toca.'
@@ -23,10 +23,10 @@ objetivo_tecnologico:
         - 'Duplicados: un issue se reconoce por github:<owner>/<repo>#N y un reporte por el sha256 de su título y detalle normalizados. Un issue cerrado en GitHub mientras su MEJ espera en la cola se descarta con ese motivo.'
         - 'Cerrar el issue en GitHub cuando su tarea termina publica algo, así que el ciclo no lo hace: deja un pedido en el panel con gh issue close y el commit como evidencia.'
     invariantes:
-        - 'Nunca hay más de 2 tareas abiertas de la cola en el objetivo mejora-continua.'
-        - 'Un reporte o issue entra a la cola una sola vez, y correr el ciclo dos veces seguidas sin cambios no cambia nada.'
-        - 'Si una fuente falla (no hay gh, no hay red, el remote no es de GitHub), esa fuente se salta y se dice por qué. El resto del ciclo sigue y nada se pierde.'
-        - 'El ciclo no llama a ningún modelo y no publica nada en GitHub.'
+        - Nunca hay más de 2 tareas abiertas de la cola en el objetivo mejora-continua.
+        - Un reporte o issue entra a la cola una sola vez, y correr el ciclo dos veces seguidas sin cambios no cambia nada.
+        - Si una fuente falla (no hay gh, no hay red, el remote no es de GitHub), esa fuente se salta y se dice por qué. El resto del ciclo sigue y nada se pierde.
+        - El ciclo no llama a ningún modelo y no publica nada en GitHub.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/mejoras/... ./cmd/ -run 'Mejora'
@@ -34,3 +34,5 @@ fuentes:
     - cli/pkg/estado/objetivos.go
     - cli/pkg/consola/preguntas.go
     - cli/pkg/remoto/registro/registro.go
+ultima_revision: "2026-11-03"
+revisado_en_commit: cba8cbb15f4b
