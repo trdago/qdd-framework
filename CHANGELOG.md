@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.27] - 2026-11-03 (preview)
+
+Vigesimoséptima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. La cola de mejoras (`qdd mejoras`, objetivo
+mejora-continua) y lo que el estado espera de la persona como pregunta en QDD Móvil.
+
 ### ✨ Añadido
 
 - **Cola de mejoras** (`qdd mejoras`). Lo que reportan las sesiones de Claude Code (`qdd mejoras reportar --proyecto qdd`)
