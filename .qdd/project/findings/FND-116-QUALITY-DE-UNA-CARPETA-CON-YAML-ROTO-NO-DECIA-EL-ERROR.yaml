@@ -1,0 +1,9 @@
+id: "FND-116"
+title: "qdd blueprint quality <carpeta> con un blueprint.yaml inválido respondía «no está importado ni publicado» en vez del error de YAML"
+description: "Medir (pkg/blueprints/calidad.go) trataba como un id cualquier pedido que no pudiera leer, aunque fuera una carpeta con su blueprint.yaml, y lo buscaba en lo publicado. Con «: » dentro de un escalar sin comillas (fairplay_agent, whatsapp-web, 2026-11-03), la respuesta mandaba a buscar el problema en el repositorio."
+impact: "Quien edita un aporte no veía el error de parseo de su propio archivo."
+action_taken: "Si el pedido es una carpeta con blueprint.yaml y no se puede leer, quality dice «no se pudo leer <carpeta>/blueprint.yaml» con el error de YAML y no busca en lo publicado."
+test_result: "TestMedir_UnaCarpetaConYAMLRotoDiceElErrorDeParseo_FND116 falla antes del arreglo y pasa después."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

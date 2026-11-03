@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.23] - 2026-11-03 (preview)
+
+Vigesimotercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Arreglos de blueprints que encontraron las
+sesiones que aportan blueprints.
+
+### 🐛 Certificación y calidad de blueprints, más claras (FND-115, FND-116)
+
+- La variante adaptada de `qdd blueprint certify` ya no inventa «otro <valor>» en un parámetro de texto sin otro
+  ejemplo: conserva su valor por defecto.
+- `qdd blueprint quality <carpeta>` con un `blueprint.yaml` inválido dice el error de YAML, en vez de «no está
+  importado ni publicado».
+
 ### 🐛 El PR de `qdd blueprint propose` ya no falla con un mensaje largo (FND-114)
 
 - El título es la primera línea del mensaje, recortada a 120 caracteres en total; el mensaje completo va en el cuerpo

@@ -152,7 +152,8 @@ func otroValor(p Parametro) string {
 	if p.Tipo == tipoNumero && err == nil {
 		return strconv.FormatFloat(n*2+1, 'f', -1, 64)
 	}
-	return "otro " + p.PorDefecto
+	// Sin otro ejemplo, el valor por defecto: inventar texto («otro …») ensucia la receta que lee el agente (FND-115).
+	return p.PorDefecto
 }
 
 // recetaParaConstruir es lo único que ve quien construye a ciegas: la receta de su variante, ya resuelta.

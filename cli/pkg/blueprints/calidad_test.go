@@ -320,3 +320,14 @@ func TestCalidad_UnaOpcionQueDependeDeOtraRespuestaVaConSi(t *testing.T) {
 		t.Fatalf("una pregunta con si ya no se hace sin esa respuesta: %d", n)
 	}
 }
+
+// FND-116 (fairplay_agent, whatsapp-web, 2026-11-03): un blueprint.yaml con un error de YAML en la carpeta de un aporte
+// se medía como si fuera un id y respondía «no está importado ni publicado», que manda a buscar el problema afuera.
+func TestMedir_UnaCarpetaConYAMLRotoDiceElErrorDeParseo_FND116(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ManifestName), "id: roto\nnombre: Un nombre: con dos puntos sin comillas\n  mal: sangrado\n")
+	_, _, err := Medir(t.TempDir(), []string{dir})
+	if err == nil || strings.Contains(err.Error(), "no está importado") || !strings.Contains(err.Error(), ManifestName) {
+		t.Fatalf("dice que el blueprint.yaml de la carpeta no se puede leer, y por qué: %v", err)
+	}
+}
