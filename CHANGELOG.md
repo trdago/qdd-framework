@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### ✨ Añadido
+
+- Lo que el estado espera de la persona llega a QDD Móvil como pregunta: cada ⏳ «de la persona» de una tarea abierta
+  se responde desde el teléfono con texto libre, y la respuesta le llega a la IA del proyecto como un mensaje tuyo. Sale
+  sola cuando la celda cambia (pedido de sfrc, RFC 0013).
+
 ## [2.8.0-rc.26] - 2026-11-03 (preview)
 
 Vigesimosexta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Dos arreglos: `qdd remoto` vuelve a arrancar solo
