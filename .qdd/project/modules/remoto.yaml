@@ -15,6 +15,7 @@ objetivo_operativo:
 objetivo_tecnologico:
     arquitectura: 'pkg/remoto/registro guarda los proyectos de la máquina (<QDD_HOME>/proyectos.json, 0600, atómico con pkg/candado); lo anotan qdd init y consola.MarcarCiclo, y no depende de pkg/consola. pkg/remoto arma el estado (Armar: un consola.Panel por proyecto, o su error), habla con el relay (RPC de PostgREST public.qdd_remoto_* y la Edge Function avisar), es un cliente Phoenix de Supabase Realtime (broadcast, presence, heartbeat, reconexión), calcula deltas, verifica y ejecuta acciones firmadas vía pkg/consola, transmite la consola desde el transcript de Claude Code y oculta secretos antes de enviar nada. cmd/remoto.go conecta los subcomandos (estado, activar, emparejar, desactivar, dispositivos, revocar, correr) y cmd/remoto_doctor.go el grupo 9 de doctor.'
     decisiones:
+        - 'qdd remoto correr mira en cada sondeo el qdd del que arrancó (tamaño y fecha): si se reemplazó en el disco, termina con ErrActualizado y salida 3, y el servicio (systemd Restart=on-failure, launchd KeepAlive, tarea de Windows RestartOnFailure) lo arranca con la versión nueva. Mientras el archivo falta (npm lo está reemplazando) sigue (FND-120).'
         - 'El registro vive en un subpaquete (pkg/remoto/registro) porque pkg/consola lo anota en cada ciclo y pkg/remoto importa pkg/consola: así no hay ciclo de imports. Anotar solo lee si el proyecto está y se vio hace menos de 1 h; anotar es de mejor esfuerzo y no corta ni el ciclo ni init.'
         - 'Un registro ilegible no se trata como vacío (anotar encima perdería los proyectos): Anotar devuelve error, doctor lo señala (REM-02) y --fix lo aparta como proyectos.json.ilegible. REM-01 señala las rutas que ya no existen y --fix las quita.'
         - '«Rechazar» desde el teléfono es la acción rechazar:<id de la acción de un pedido>: el PC la acepta solo si el panel ofrece ese pedido y nadie lo aprobó (uno aprobado responde ya_aprobado con el lugar), lo descarta de la cola con consola.Descartar sin ejecutarlo y queda en el log. No es una acción del panel del PC, que ya tiene su ✕.'
@@ -71,4 +72,4 @@ pruebas:
 fuentes:
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-03"
-revisado_en_commit: 3ae69b206c77
+revisado_en_commit: dd3f338af9b0

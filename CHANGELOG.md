@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🐛 Corregido
+
+- Al actualizar qdd, `qdd remoto` sigue corriendo la versión vieja hasta que alguien reinicia el servicio: lo que
+  el teléfono pedía a la versión nueva quedaba cargando. Ahora el servicio nota que su qdd cambió en el disco y vuelve
+  a arrancar solo con la nueva (FND-120).
+
 ## [2.8.0-rc.25] - 2026-11-03 (preview)
 
 Vigesimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 2: ejecutar desde el teléfono.

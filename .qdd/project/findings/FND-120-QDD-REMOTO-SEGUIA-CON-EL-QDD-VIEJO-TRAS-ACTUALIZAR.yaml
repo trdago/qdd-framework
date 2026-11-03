@@ -1,0 +1,9 @@
+id: "FND-120"
+title: "Tras actualizar qdd, el servicio qdd remoto seguía corriendo la versión vieja y los comandos del teléfono quedaban cargando"
+description: "npm i -g reemplaza el binario en el disco, pero el proceso del servicio (qdd-remoto.service, arrancado el día anterior) sigue con el qdd viejo en memoria. El 2026-11-03, con rc.25 instalada, el PC seguía en rc.23: el evento ejecutar del teléfono no tenía quién lo atendiera y la app quedaba cargando. Ni la instalación ni qdd doctor reiniciaban el servicio."
+impact: "Cada actualización de qdd dejaba QDD Móvil con la versión anterior hasta reiniciar el servicio a mano."
+action_taken: "El bucle de qdd remoto guarda la huella (tamaño y fecha) del qdd del que arrancó y la compara en cada sondeo (5 s). Si cambió, termina con ErrActualizado y salida 3; los tres servicios reinician ante una salida distinta de 0 y arrancan la versión nueva. Mientras el archivo falta, porque npm lo está reemplazando, sigue corriendo. En Windows, que RestartOnFailure cubra una salida distinta de 0 no se probó en una máquina real."
+test_result: "TestBucle_SiSuQDDSeActualizaTerminaParaQueElServicioLoReinicie, TestBucle_MientrasElQDDNuevoNoTerminaDeInstalarseSigue y TestBucle_ConElMismoQDDSigueCorriendo."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

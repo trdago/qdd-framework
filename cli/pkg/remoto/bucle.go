@@ -80,6 +80,8 @@ type Bucle struct {
 	latidos     chan resultadoLatido
 	avisos      chan error
 	extras      extrasBucle
+	huellaBin   huella
+	conHuella   bool
 }
 
 type resultadoLatido struct {
@@ -125,10 +127,12 @@ func (b *Bucle) iniciar() {
 		b.CadaSondeo = CadaSondeo
 	}
 	b.vigia = nuevaVigia()
+	b.huellaBin, b.conHuella = huellaDe(b.Bin)
 	b.iniciarExtras()
 }
 
-// Correr es el bucle; vuelve con ErrCredenciales si el relay ya no reconoce la máquina (se quitó desde el teléfono).
+// Correr es el bucle; vuelve con ErrCredenciales si el relay ya no reconoce la máquina (se quitó desde el teléfono) y
+// con ErrActualizado si su qdd se reemplazó en el disco.
 func (b *Bucle) Correr(ctx context.Context) error {
 	b.iniciar()
 	go b.vigia.correr(ctx)
@@ -158,6 +162,10 @@ func (b *Bucle) Correr(ctx context.Context) error {
 		case <-latido.C:
 			b.latir(ctx)
 		case <-sondeo.C:
+			if b.seActualizo() {
+				b.logf("%v", ErrActualizado)
+				return ErrActualizado
+			}
 			b.marcar()
 		case <-b.vigia.Cambios():
 			b.marcar()
