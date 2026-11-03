@@ -100,6 +100,8 @@ type Pedido struct {
 	// Sesion es la sesión de Claude Code que lo confirmó y Avisado, que ya recibió su resultado (aviso.go).
 	Sesion  string `json:"sesion,omitempty"`
 	Avisado bool   `json:"avisado,omitempty"`
+	// PR es el pull request que ofrece un pedido opcional de qdd (prs.go); 0 en uno de la IA.
+	PR int `json:"pr,omitempty"`
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
@@ -279,6 +281,17 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 	return out
 }
 
+// teclasAbiertas son las teclas de los pedidos abiertos de la cola.
+func teclasAbiertas(cola []Pedido) map[string]bool {
+	usadas := map[string]bool{}
+	for _, p := range cola {
+		if p.Abierto() {
+			usadas[p.Tecla] = true
+		}
+	}
+	return usadas
+}
+
 func teclaLibre(usadas map[string]bool) string {
 	for _, t := range TeclasPedidos {
 		if !usadas[t] {
@@ -371,6 +384,12 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 			}
 		}
 		if len(usadas) >= MaxPedidos {
+			var cedio bool
+			if cola, cedio = cederUnPR(cola); cedio {
+				usadas = teclasAbiertas(cola)
+			}
+		}
+		if len(usadas) >= MaxPedidos {
 			return nil, fmt.Errorf("ya hay %d comandos esperando en el panel: que la persona los ejecute o descarte antes de pedir otro", MaxPedidos)
 		}
 		tecla := teclaLibre(usadas)
@@ -453,6 +472,9 @@ func Descartar(root, idOTecla string) error {
 			if p.ID == id && p.Estado == EstadoEjecutando {
 				return nil, fmt.Errorf("el pedido %s se está ejecutando: espera a que termine", id)
 			}
+			if p.ID == id && p.PR != 0 {
+				anotarDescartado(root, p.PR)
+			}
 			if p.ID != id {
 				resto = append(resto, p)
 			}
@@ -474,7 +496,7 @@ func accionesDePedidos(root string) []Accion {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
-			Sesion: p.Sesion, Confirmar: true, pedido: p.ID,
+			Sesion: p.Sesion, PR: p.PR, Confirmar: true, pedido: p.ID,
 		}
 		if p.porAvisar() {
 			a.Avisar, a.Mensaje = true, mensajeAviso(p)

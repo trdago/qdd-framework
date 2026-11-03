@@ -6,6 +6,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.22] - 2026-11-02 (preview)
+
+Vigesimosegunda **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### ✨ Los PRs abiertos, a un clic en el panel (siempre opcionales)
+
+- El panel ofrece solo un pedido «🔀 Mergear #N» por cada PR abierto del repositorio (no borradores, hasta 3). qdd
+  los pregunta con `gh` a lo más cada minuto, aparte, sin demorar al panel.
+- Confirmado, `qdd consola mergear-pr N` mergea solo con el CI verde; con el CI corriendo queda armado y mergea cuando
+  pasa. Con el CI en rojo o el PR cerrado, no mergea.
+- Son opcionales: no abren el panel, no le piden nada a la IA, ceden su lugar a un pedido de la IA, uno descartado no
+  vuelve y uno de un PR que se cerró afuera sale solo. Un PR que un pedido de la IA ya nombra («#69») no se repite.
+
 ## [2.8.0-rc.21] - 2026-11-02 (preview)
 
 Vigesimoprimera **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

@@ -57,6 +57,7 @@ type Accion struct {
 	Sesion    string     `json:"sesion,omitempty"`   // solo pedidos: la sesión de Claude Code que lo confirmó
 	Avisar    bool       `json:"avisar,omitempty"`   // solo pedidos: terminó y esa sesión todavía no recibió el aviso
 	Mensaje   string     `json:"mensaje,omitempty"`  // solo con avisar: lo que lee la IA de esa sesión (aviso.go)
+	PR        int        `json:"pr,omitempty"`       // solo pedidos opcionales de un PR abierto (prs.go)
 	Inicio    *time.Time `json:"inicio,omitempty"`
 	Fin       *time.Time `json:"fin,omitempty"`
 	Confirmar bool       `json:"confirmar"`
