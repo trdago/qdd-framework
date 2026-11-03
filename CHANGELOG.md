@@ -9,6 +9,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ## [2.8.0-rc.25] - 2026-11-03 (preview)
 
 Vigesimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 2: ejecutar desde el teléfono.
+Trae también lo de rc.24, que no llegó a npm: responder desde el teléfono lo que pregunta la consola.
+
+### 🐛 Corregido
+
+- Las pruebas de `pkg/remoto` que lanzan un pedido esperan a que termine: si no, el pedido escribía en la carpeta
+  temporal mientras se borraba y el gate del CI fallaba a veces (FND-119).
 
 ### ✨ Ejecutar desde el teléfono (QDD Móvil, solo Pro)
 
@@ -35,9 +41,10 @@ Vigesimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvi
 - «Auditar» y las demás acciones aprobadas desde el teléfono devolvían el principio de la salida, y el veredicto (que
   va al final) no llegaba. Ahora llega el final, sin secretos (FND-118).
 
-## [2.8.0-rc.24] - 2026-11-03 (preview)
+## [2.8.0-rc.24] - 2026-11-03 (sin publicar)
 
-Vigesimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 1: el teléfono responde lo que
+El tag existe, pero no llegó a npm: el gate del workflow falló por una prueba inestable (FND-119). Todo lo de esta
+versión sale en rc.25. Vigesimocuarta preview de 2.8.0. QDD Móvil, sprint 1: el teléfono responde lo que
 pregunta la consola.
 
 ### ✨ Responder desde el teléfono lo que pregunta la consola (QDD Móvil)

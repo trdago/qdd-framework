@@ -261,6 +261,29 @@ func TestAccion_UnPedidoCorreUnaVezYOtroTelefonoVeYaAprobado(t *testing.T) {
 	}
 }
 
+// esperarQueTermine: el pedido lanzado corre aparte y escribe su resultado en la carpeta temporal de la prueba. Si la
+// prueba termina antes, esa escritura choca con el borrado de la carpeta y la prueba falla a veces en el CI (FND-119).
+func esperarQueTermine(t *testing.T, root, id string) {
+	t.Helper()
+	t.Cleanup(func() {
+		tope := time.Now().Add(15 * time.Second)
+		for time.Now().Before(tope) && !terminoYSoltoLaCola(root, id) {
+			time.Sleep(20 * time.Millisecond)
+		}
+	})
+}
+
+func terminoYSoltoLaCola(root, id string) bool {
+	for _, p := range consola.Pedidos(root) {
+		if p.ID != id || (p.Estado != consola.EstadoHecho && p.Estado != consola.EstadoFallo) {
+			continue
+		}
+		bloqueos, _ := filepath.Glob(filepath.Join(os.Getenv("QDD_HOME"), "claude", "pedidos", "*.lock"))
+		return len(bloqueos) == 0
+	}
+	return false
+}
+
 func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -274,6 +297,7 @@ func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 	if c := a.Lanzar(root, os.Args[0], "sesion-claude", os.Stderr); c != 0 {
 		t.Fatal("lanzado desde el panel del PC")
 	}
+	esperarQueTermine(t, root, p.ID)
 	_, tr, _ := bucleConFirma(t)
 	tr.eventos <- telefono("d1", "")
 	tr.esperar(t, time.Second, "estado")
@@ -336,6 +360,7 @@ func TestAccion_RechazarUnPedidoYaAprobadoDiceDonde(t *testing.T) {
 	if c := a.Lanzar(root, os.Args[0], "sesion-claude", os.Stderr); c != 0 {
 		t.Fatal("lanzado desde el panel del PC")
 	}
+	esperarQueTermine(t, root, p.ID)
 	_, tr, _ := bucleConFirma(t)
 	tr.eventos <- telefono("d1", "")
 	tr.esperar(t, time.Second, "estado")
