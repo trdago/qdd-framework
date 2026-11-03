@@ -62,7 +62,7 @@ func ids(acciones []Accion) []string {
 func TestAcciones_OfreceFichasEnBorradorYComandos_CCC_C10(t *testing.T) {
 	root := proyectoConFichas(t, []string{"auth"}, []string{"pagos", "catalogo"})
 	got := ids(Acciones(root, true))
-	want := []string{"aprobar:catalogo", "aprobar:pagos", "revisar-estado", "auditar"}
+	want := []string{"aprobar:catalogo", "aprobar:pagos", "revisar-estado", "auditar", "mejoras-ciclo"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("acciones:\n got %v\nwant %v", got, want)
 	}
@@ -73,6 +73,10 @@ func TestAcciones_OfreceFichasEnBorradorYComandos_CCC_C10(t *testing.T) {
 	r, _ := BuscarAccion(Acciones(root, true), "revisar-estado")
 	if r.Confirmar || r.Detalle != "qdd estado check" {
 		t.Fatalf("revisar el estado es de solo lectura y no pide confirmación: %+v", r)
+	}
+	m, _ := BuscarAccion(Acciones(root, true), "mejoras-ciclo")
+	if m.Tipo != TipoComando || m.Confirmar || strings.Join(m.Args, " ") != "mejoras ciclo" {
+		t.Fatalf("el ciclo de mejoras se fuerza con un clic, sin --si-toca: %+v", m)
 	}
 }
 
@@ -178,7 +182,7 @@ func TestPanel_ConEstado(t *testing.T) {
 	if d.Estado == nil || len(d.Estado.Frentes) != 1 || d.Motivo != "" {
 		t.Fatalf("con estado.yaml el panel trae los frentes: %+v", d)
 	}
-	if got := ids(d.Acciones); strings.Join(got, ",") != "descartar:a,revisar-estado,auditar" {
+	if got := ids(d.Acciones); strings.Join(got, ",") != "descartar:a,revisar-estado,auditar,mejoras-ciclo" {
 		t.Fatalf("acciones con estado y sin borradores: %v", got)
 	}
 }

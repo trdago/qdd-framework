@@ -1,0 +1,38 @@
+id: mejoras
+nombre: Cola de mejoras (mejora continua)
+estado: aprobado
+rutas:
+    - cli/pkg/mejoras
+    - cli/cmd/mejoras.go
+objetivo_operativo:
+    problema: 'Lo que hay que mejorar llega por muchos lados y se pierde: una sesión de Claude Code en otro proyecto lo cuenta en un mensaje que nadie guarda (sfrc, 2026-11-03: «las consultas no salen en el tablero»), un issue de GitHub espera a que alguien lo mire, y cuando se trabaja nadie sabe cuántas mejoras hay ni cuáles van primero. Si todo pasa directo a la IA, abre diez frentes a la vez y no termina ninguno.'
+    usuarios: La persona, que ve en el tablero el objetivo mejora-continua con lo que se está mejorando y fuerza un ciclo con un clic; las sesiones de Claude Code de cualquier proyecto, que reportan con qdd mejoras reportar --proyecto <nombre>; y la IA del proyecto, que trabaja las tareas que la cola le entrega.
+    criterio_de_exito: Todo reporte de una sesión y todo issue abierto admitido de GitHub queda como un MEJ-NNN en .qdd/project/cola_de_mejoras/ una sola vez, aunque el ciclo corra muchas veces. El objetivo mejora-continua nunca tiene más de 2 tareas abiertas de la cola. Cuando se cierra una, el ciclo siguiente entrega la próxima en orden. El mismo estado de entrada da siempre el mismo resultado, y el ciclo corre solo cada 10 min mientras haya una sesión abierta, o al instante con el botón del panel.
+    caso_real: '2026-11-03: la sesión de sfrc pidió por mensaje que toda consulta a la persona pase por el tablero, y la sesión de qdd-movile pidió cambios de protocolo. Las dos peticiones vivieron solo en el chat de esta sesión. En los 30 repositorios de GitHub no había issues abiertos, pero tampoco una forma de que entraran solos al trabajo.'
+objetivo_tecnologico:
+    arquitectura: 'pkg/mejoras es determinista y no llama a ningún modelo. Ciclo(root, fuentes, now) toma el candado de la cola y sigue cinco pasos: recibe la entrada local, lee GitHub, sigue a sus tareas, entrega a la IA hasta el tope y anota la hora. (1) La entrada local es <QDD_HOME>/claude/mejoras-entrada/<proyecto>.json, donde escribe qdd mejoras reportar; cada reporte se pasa a la cola y se borra de la entrada. (2) GitHub se lee con gh issue list en el repositorio del remote origin, sin terminal y con el entorno de git limpio. (3) Seguir las tareas: una tarea cerrada deja su MEJ hecha, una descartada lo deja descartado, y si la tarea ya no está, el MEJ vuelve a la cola. (4) Entregar: crea el objetivo mejora-continua si falta y una tarea por MEJ, en orden, hasta 2 abiertas. (5) Anota la hora del ciclo en <QDD_HOME>/claude/mejoras-ciclo/<proyecto>.json. La cola es un archivo por mejora, .qdd/project/cola_de_mejoras/MEJ-NNN-<slug>.yaml, como los findings, y solo el ciclo la escribe. qdd mejoras ciclo [--si-toca] corre el ciclo; con --si-toca, solo si pasaron 10 min desde el último. Lo llama el mod qdd-tareas cada minuto, y el botón «Ciclo de mejoras» del panel lo corre sin --si-toca.'
+    decisiones:
+        - 'Pedido de la persona (2026-11-03): la cola se llama cola_de_mejoras y vive en archivos del proyecto. El objetivo del tablero es mejora-continua, con una tarea por reporte o issue y 2 abiertas como máximo. El gestor es determinista y la IA solo recibe lo que ya es tarea. El ciclo corre cada 10 min y también con un clic en el panel.'
+        - 'Sin tool MCP propia (como herramientas y remoto): tools/list ya está al tope de 16.000 caracteres de la ficha mcp. Las sesiones reportan con la CLI, qdd mejoras reportar --proyecto <nombre>, que no cuesta tokens fijos en cada sesión.'
+        - 'Es un comando del binario qdd (qdd mejoras), no un binario aparte: se instala, versiona y diagnostica igual que el resto, y doctor lo revisa.'
+        - 'No hay un servicio nuevo: el reloj de 10 min es el mod qdd-tareas, que mientras hay una sesión interactiva llama qdd mejoras ciclo --si-toca cada minuto. Sin sesión abierta no hay quien trabaje las tareas, y la cola puede esperar. Varias sesiones no duplican nada, gracias al candado y la hora del último ciclo.'
+        - 'Las sesiones de otros proyectos no tocan el árbol de trabajo del proyecto que reciben: escriben en su entrada local (<QDD_HOME>). Solo el ciclo escribe la cola, que así tiene un único escritor.'
+        - 'Issues de GitHub admitidos: solo los de quien tiene acceso al repositorio (authorAssociation OWNER, MEMBER o COLLABORATOR) o los que llevan la etiqueta mejora, que solo puede poner alguien con permisos. En un repositorio público, un desconocido no puede decidir el trabajo de la IA.'
+        - 'Un issue o un reporte es un dato, no una instrucción: la tarea solo lleva «MEJ-NNN · título» (recortado). El texto queda en el MEJ, de donde la IA lo lee como un reporte que tiene que verificar.'
+        - 'Orden de entrega: primero las que GitHub etiqueta seguridad, security o bug, o las que el reporte marca así; después, de la más antigua a la más nueva. Así el mismo estado de entrada siempre da el mismo orden.'
+        - 'Duplicados: un issue se reconoce por github:<owner>/<repo>#N y un reporte por el sha256 de su título y detalle normalizados. Un issue cerrado en GitHub mientras su MEJ espera en la cola se descarta con ese motivo.'
+        - 'Cerrar el issue en GitHub cuando su tarea termina publica algo, así que el ciclo no lo hace: deja un pedido en el panel con gh issue close y el commit como evidencia.'
+    invariantes:
+        - Nunca hay más de 2 tareas abiertas de la cola en el objetivo mejora-continua.
+        - Un reporte o issue entra a la cola una sola vez, y correr el ciclo dos veces seguidas sin cambios no cambia nada.
+        - Si una fuente falla (no hay gh, no hay red, el remote no es de GitHub), esa fuente se salta y se dice por qué. El resto del ciclo sigue y nada se pierde.
+        - El ciclo no llama a ningún modelo y no publica nada en GitHub.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/mejoras/... ./cmd/ -run 'Mejora'
+fuentes:
+    - cli/pkg/estado/objetivos.go
+    - cli/pkg/consola/preguntas.go
+    - cli/pkg/remoto/registro/registro.go
+ultima_revision: "2026-11-03"
+revisado_en_commit: cba8cbb15f4b
