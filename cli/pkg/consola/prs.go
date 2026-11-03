@@ -11,7 +11,10 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
 // Rule: Prohibido usar 'else'
@@ -200,6 +203,20 @@ func ghReal(dir string, args ...string) ([]byte, error) {
 	return c.Output()
 }
 
+// remoteOrigin es la URL del remote origin de root; vacía si no hay.
+func remoteOrigin(root string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), topeGH)
+	defer cancel()
+	c := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
+	c.Dir = root
+	c.Env = gitenv.Limpio(os.Environ())
+	b, err := c.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
 // PRsAlDia lanza aparte «bin consola prs --raiz root» si hace más de IntervaloPRs que no se preguntan; vuelve en el
 // acto. Sin gh no hace nada.
 func PRsAlDia(root, bin string, now time.Time) {
@@ -226,7 +243,16 @@ func PRsAlDia(root, bin string, now time.Time) {
 
 // TraerPRs pregunta a gh los PRs abiertos del repositorio de root y los ofrece en el panel.
 func TraerPRs(root string, now time.Time) error {
-	b, err := ghReal(root, "pr", "list", "--state", "open", "--json", "number,title,isDraft", "--limit", "20")
+	return traerPRsCon(ghReal, remoteOrigin, root, now)
+}
+
+// traerPRsCon: sin un remote de GitHub no hay PRs que preguntar, y gh no se llama (FND-122: con Azure DevOps, cada
+// minuto lanzaba un gh que no podía devolver nada).
+func traerPRsCon(correr gh, remote func(string) string, root string, now time.Time) error {
+	if !strings.Contains(remote(root), "github.com") {
+		return nil
+	}
+	b, err := correr(root, "pr", "list", "--state", "open", "--json", "number,title,isDraft", "--limit", "20")
 	if err != nil {
 		return fmt.Errorf("gh pr list: %v", err)
 	}

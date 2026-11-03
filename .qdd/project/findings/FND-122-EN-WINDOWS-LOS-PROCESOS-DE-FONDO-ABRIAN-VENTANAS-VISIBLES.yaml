@@ -1,0 +1,9 @@
+id: "FND-122"
+title: "En Windows, los procesos de fondo de qdd abrían una ventana de consola visible por cada gh o git"
+description: "qdd lanza aparte «qdd consola prs» (cada minuto, por proyecto con sesión abierta), los pedidos del panel («qdd consola correr») y «qdd incidentes publicar». En Windows los lanzaba con DETACHED_PROCESS: el proceso quedaba sin consola, y Windows le da una ventana nueva y visible a cada programa de consola que arranca un proceso así. Cada gh pr list aparecía como una ventana negra «gh.exe». Además, consola prs llamaba a gh aunque el remote no fuera de GitHub (Azure DevOps), donde no puede haber PRs."
+impact: "Issue #83 (2026-11-03, QDD 2.8.0 y 2.8.0-rc.25, Windows 10 19045, gh 2.103.3): con el panel activo aparecían y desaparecían ventanas cada 16 a 44 s por proyecto, también sin estar trabajando, aunque gh no tuviera sesión y aunque el remote fuera de Azure DevOps. En Linux y macOS no pasa."
+action_taken: "Los dos lanzadores de fondo (pkg/consola y pkg/incidentes, separar_windows.go) usan CREATE_NO_WINDOW con HideWindow, en su propio grupo (CREATE_NEW_PROCESS_GROUP): el proceso tiene una consola oculta que sus hijos heredan, y cerrar la terminal sigue sin cortarlo. TraerPRs mira primero el remote origin y, si no es de GitHub, no llama a gh."
+test_result: "TestSinVentanas_NingunProcesoDeFondoSeLanzaSinConsola_FND122 y TestSinVentanas_LosLanzadoresDeFondoOcultanLaConsola_FND122 revisan el código de Windows (la CI no corre en Windows); TestPRs_SinRemoteDeGitHubNoLlamaAGH_FND122 (vacío, Azure DevOps, GitLab: gh no se llama) y TestPRs_ConRemoteDeGitHubPreguntaAGH_FND122. GOOS=windows go vet pasa."
+status: resolved
+detectado_por: humano
+date: "2026-11-03"

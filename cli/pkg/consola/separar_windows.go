@@ -9,7 +9,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// separar deja el proceso sin consola y en su propio grupo: cerrar la terminal o el panel no lo corta.
+// separar deja el proceso en su propio grupo y con una consola oculta: cerrar la terminal o el panel no lo corta, y
+// los gh o git que lance heredan esa consola en vez de abrir cada uno una ventana visible (FND-122: con
+// el proceso separado sin consola y Windows le daba una ventana nueva a cada hijo).
 func separar(c *exec.Cmd) {
-	c.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS}
+	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NO_WINDOW}
 }
