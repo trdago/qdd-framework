@@ -354,3 +354,51 @@ func TestAportar_PreparesABranchInTheCentralWorkspace(t *testing.T) {
 		t.Fatal("los cambios sin commitear se conservan")
 	}
 }
+
+// FND-113 (fairplay_agent, 2026-11-02): con el aporte de auth a medio hacer (sin commitear) en el clon central, pedir
+// el aporte de un blueprint nuevo respondía «Aporte listo: rama aporte/auth» y la carpeta del nuevo caía en ese mismo
+// clon: los dos trabajos se mezclaban y propose subía todo junto. Cada aporte tiene su propio espacio (worktree).
+func TestAportar_DosAportesEnParaleloNoSeMezclan_FND113(t *testing.T) {
+	repo := gitOrgRepo(t)
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Ref: "v1.0.0", Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	auth, err := Aportar(root, "auth", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(auth.Carpeta, "NOTAS.md"), "auth en curso\n")
+
+	nuevo, err := Aportar(root, "whatsapp-web", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nuevo.Rama != "aporte/whatsapp-web" {
+		t.Fatalf("el aporte nuevo va en su propia rama: %+v", nuevo)
+	}
+	if nuevo.Espacio == auth.Espacio || isUnder(nuevo.Carpeta, auth.Espacio) {
+		t.Fatalf("y en un espacio aparte del de auth: %s y %s", nuevo.Espacio, auth.Espacio)
+	}
+	if _, err := os.Stat(filepath.Join(nuevo.Espacio, "auth", "NOTAS.md")); err == nil {
+		t.Fatal("el trabajo sin commitear de auth no aparece en el aporte nuevo")
+	}
+	if _, err := os.Stat(filepath.Join(auth.Carpeta, "NOTAS.md")); err != nil {
+		t.Fatal("y sigue intacto en el de auth")
+	}
+
+	otraVez, err := Aportar(root, "auth", "")
+	if err != nil || otraVez.Carpeta != auth.Carpeta || otraVez.Rama != "aporte/auth" {
+		t.Fatalf("volver a pedir auth vuelve a su espacio: %+v (%v)", otraVez, err)
+	}
+	writeFile(t, filepath.Join(nuevo.Carpeta, ManifestName), strings.Replace(strings.Replace(authBlueprint, "id: auth", "id: whatsapp-web", 1), "version: 1.0.0", "version: 0.1.0", 1))
+	if b, err := CarpetaDeAporte(root, "whatsapp-web"); err != nil || b.ID != "whatsapp-web" {
+		t.Fatalf("certify encuentra el aporte nuevo en su espacio: %+v %v", b, err)
+	}
+	if _, rama, err := espacioEnRama(repo, "whatsapp-web"); err != nil || rama != "aporte/whatsapp-web" {
+		t.Fatalf("propose también: %q %v", rama, err)
+	}
+	if _, rama, err := espacioEnRama(repo, "auth"); err != nil || rama != "aporte/auth" {
+		t.Fatalf("y el de auth sigue proponiéndose desde el suyo: %q %v", rama, err)
+	}
+}

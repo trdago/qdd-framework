@@ -15,8 +15,9 @@ objetivo_operativo:
     criterio_de_exito: Un proyecto cuyo remote git pertenece a una organización registrada ve sus blueprints sin configurar nada; el repositorio se clona una sola vez por máquina; el proyecto solo versiona el lockfile; el CI reconstruye cada blueprint desde el commit del lockfile; un proyecto del esquema anterior se migra solo, una vez.
     caso_real: 'RFC 0004: con 10 proyectos de FairplayChile había 10 registros, 10 copias vendorizadas y ningún flujo para aportar al repositorio de la organización.'
 objetivo_tecnologico:
-    arquitectura: 'Carpeta central por usuario ($QDD_HOME, por defecto ~/.local/share/qdd/blueprints): organizaciones.yaml (registro por patrón de remote git), mirrors/ (un clon espejo por repositorio, fetch incremental), store/<sha256>/ (contenido inmutable, de solo lectura, compartido por todos los proyectos) y aportes/ (clon editable para proponer cambios). El proyecto guarda solo .qdd/blueprints.lock.yaml (formato 2) con origen, subcarpeta, commit y sha256. Para qdd doctor (grupo 4), Diagnosticar revisa copias legadas, carpeta central, acceso al repositorio, vigencia y versión de los módulos, y Reparar los repara de forma determinista (diagnostico.go).'
+    arquitectura: 'Carpeta central por usuario ($QDD_HOME, por defecto ~/.local/share/qdd/blueprints): organizaciones.yaml (registro por patrón de remote git), mirrors/ (un clon espejo por repositorio, fetch incremental), store/<sha256>/ (contenido inmutable, de solo lectura, compartido por todos los proyectos) y aportes/ (clon editable por repositorio, y un worktree <clon>@<id> por aporte para que dos aportes en paralelo no se mezclen, FND-113). El proyecto guarda solo .qdd/blueprints.lock.yaml (formato 2) con origen, subcarpeta, commit y sha256. Para qdd doctor (grupo 4), Diagnosticar revisa copias legadas, carpeta central, acceso al repositorio, vigencia y versión de los módulos, y Reparar los repara de forma determinista (diagnostico.go).'
     decisiones:
+        - 'Cada aporte tiene su propio worktree, <clon>@<id>, en la rama aporte/<id> (FND-113): pedir un aporte con otro a medio hacer en el clon central ya no responde con la rama del otro ni mezcla su trabajo; contribute, certify y propose lo ubican igual. Un aporte abierto antes vive en el clon, en su rama, y se sigue usando ahí.'
         - 'Opción A del RFC 0004: el CI reconstruye desde el commit del lockfile con credenciales de solo lectura; no se vendoriza.'
         - 'El store se direcciona por contenido (sha256): dos proyectos con la misma versión comparten la misma carpeta.'
         - 'Diagnosticar solo usa la red para comprobar el acceso al repositorio de un proyecto con blueprints; Reparar no decide lo que necesita a una persona (preguntas nuevas, actualizar de versión, aportar a la organización): dice qué hacer (FND-053).'
@@ -54,5 +55,5 @@ fuentes:
     - rfcs/0007-fuentes-de-blueprints.md
     - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
-ultima_revision: "2026-11-01"
-revisado_en_commit: b4d7c8d398a8
+ultima_revision: "2026-11-02"
+revisado_en_commit: 2761d8665ae6

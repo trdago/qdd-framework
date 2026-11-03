@@ -315,19 +315,23 @@ type Aporte struct {
 	Rama    string
 }
 
-// Aportar prepara en la carpeta central (nunca en el proyecto) un clon
-// editable de la fuente del blueprint (ver origenDe), en la rama aporte/<id> sobre
-// lo último publicado. Si el clon tiene cambios sin commitear, no lo toca.
+// Aportar prepara en la carpeta central (nunca en el proyecto) el espacio editable de un aporte, en la rama
+// aporte/<id> sobre lo último publicado (ver origenDe para la fuente). Cada aporte tiene su propio espacio (ver
+// espacioDelAporte): dos aportes en paralelo nunca se mezclan (FND-113). Un espacio con cambios sin commitear no se toca.
 func Aportar(root, id, origen string) (Aporte, error) {
 	repo, subdir, err := origenDe(root, id, origen)
 	if err != nil {
 		return Aporte{}, err
 	}
-	espacio, err := espacioDeTrabajo(repo)
+	clon, err := espacioDeTrabajo(repo)
 	if err != nil {
 		return Aporte{}, err
 	}
 	rama := "aporte/" + id
+	espacio, err := espacioDelAporte(clon, id)
+	if err != nil {
+		return Aporte{}, err
+	}
 	sucio, err := git(espacio, "status", "--porcelain")
 	if err != nil {
 		return Aporte{}, err
@@ -342,6 +346,34 @@ func Aportar(root, id, origen string) (Aporte, error) {
 		return Aporte{}, err
 	}
 	return Aporte{Repo: repo, Espacio: espacio, Carpeta: filepath.Join(espacio, filepath.FromSlash(subdir)), Rama: actual}, nil
+}
+
+// espacioDelAporte es el worktree del aporte, <clon>@<id>, junto al clon central; lo crea si falta. Un aporte abierto
+// antes de FND-113 vive en el clon mismo (en su rama) y se sigue usando ahí.
+func espacioDelAporte(clon, id string) (string, error) {
+	if dir := ubicarAporte(clon, id); dir != "" {
+		return dir, nil
+	}
+	dir := clon + "@" + id
+	rama := "aporte/" + id
+	if _, err := git(clon, "rev-parse", "--verify", "--quiet", "refs/heads/"+rama); err != nil {
+		_, err := git(clon, "worktree", "add", "--quiet", "-b", rama, dir, "origin/HEAD")
+		return dir, err
+	}
+	_, err := git(clon, "worktree", "add", "--quiet", dir, rama)
+	return dir, err
+}
+
+// ubicarAporte es el espacio donde ya está el aporte de id: su worktree o, si es de antes de FND-113, el clon cuando
+// está en su rama. Vacío si no hay uno.
+func ubicarAporte(clon, id string) string {
+	if dir := clon + "@" + id; exists(dir) {
+		return dir
+	}
+	if actual, err := git(clon, "rev-parse", "--abbrev-ref", "HEAD"); err == nil && actual == "aporte/"+id {
+		return clon
+	}
+	return ""
 }
 
 // origenDe devuelve el repositorio y la carpeta de un blueprint: la del
@@ -534,6 +566,10 @@ func espacioEnRama(repo, id string) (string, string, error) {
 	rama := "aporte/" + id
 	if !exists(espacio) {
 		return "", "", fmt.Errorf("no hay un aporte en curso: primero 'qdd blueprint contribute %s'", id)
+	}
+	espacio = ubicarAporte(espacio, id)
+	if espacio == "" {
+		return "", "", fmt.Errorf("no hay un aporte de '%s' en curso: primero 'qdd blueprint contribute %s'", id, id)
 	}
 	actual, err := git(espacio, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil || actual != rama {
