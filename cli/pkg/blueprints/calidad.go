@@ -524,6 +524,10 @@ func Medir(root string, pedidos []string) ([]Calidad, string, error) {
 	var faltan []string
 	for _, p := range pedidos {
 		b, err := blueprintPedido(root, p)
+		if err != nil && exists(filepath.Join(p, ManifestName)) {
+			// Una carpeta con su blueprint.yaml roto dice por qué, no «no está publicado» (FND-116).
+			return out, "", fmt.Errorf("no se pudo leer %s: %v", filepath.Join(p, ManifestName), err)
+		}
 		if err != nil {
 			faltan = append(faltan, p)
 			continue

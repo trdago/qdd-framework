@@ -1,0 +1,9 @@
+id: "FND-115"
+title: "La variante adaptada de la certificación ciega inventaba «otro <valor>» en un parámetro de texto sin otro ejemplo"
+description: "otroValor (pkg/blueprints/certificar.go) buscaba un ejemplo distinto del valor por defecto; sin uno, y si no era número, devolvía «otro » + el valor. En whatsapp-web (fairplay_agent, 2026-11-03) salieron marca_respuesta=«otro 🤖» y pais_telefono=«otro Chile: …», y la RECETA.md decía «empieza con otro 🤖»."
+impact: "El agente ciego recibía texto que la receta no define y lo marcaba como resto de sustitución: la certificación medía el generador y no el blueprint."
+action_taken: "Sin otro ejemplo, el parámetro de texto conserva su valor por defecto en la variante adaptada; con otro ejemplo lo usa, como antes."
+test_result: "TestCertificar_UnTextoSinOtroEjemploConservaSuValor_FND115 falla antes del arreglo («otro 🤖») y pasa después."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

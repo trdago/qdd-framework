@@ -219,3 +219,17 @@ func TestCertificar_UnIdLargoNoEsLaPruebaDeOtroYUnNombreConGuionBajoSi(t *testin
 		t.Fatalf("P-020 no prueba P-02; test_P_01 sí prueba P-01: %v", faltan)
 	}
 }
+
+// FND-115 (fairplay_agent, whatsapp-web, 2026-11-03): en la variante adaptada, un parámetro de texto sin otro ejemplo
+// salía «otro <valor por defecto>» («otro 🤖», «otro Chile: …»): texto inventado que el agente ciego vio como un resto
+// de sustitución. Sin otro ejemplo, el parámetro conserva su valor por defecto.
+func TestCertificar_UnTextoSinOtroEjemploConservaSuValor_FND115(t *testing.T) {
+	p := Parametro{ID: "marca_respuesta", Tipo: "texto", PorDefecto: "🤖", Ejemplos: []string{"🤖"}}
+	if v := otroValor(p); v != "🤖" {
+		t.Fatalf("no se inventa texto: %q", v)
+	}
+	p.Ejemplos = []string{"🤖", "[bot]"}
+	if v := otroValor(p); v != "[bot]" {
+		t.Fatalf("con otro ejemplo, la variante lo usa: %q", v)
+	}
+}
