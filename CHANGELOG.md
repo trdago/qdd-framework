@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.24] - 2026-11-03 (preview)
+
+Vigesimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 1: el teléfono responde lo que
+pregunta la consola.
+
 ### ✨ Responder desde el teléfono lo que pregunta la consola (QDD Móvil)
 
 - Cuando Claude Code espera a la persona, la pregunta aparece en QDD Móvil y se responde desde el teléfono o desde la
