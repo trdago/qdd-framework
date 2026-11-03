@@ -497,6 +497,7 @@ type Propuesta struct {
 	Calidad       string   // la línea de calidad del aporte
 	Certificacion string   // la línea de la certificación ciega; vacía si la receta no tiene pasos
 	Supuestos     []string // lo que quien construyó a ciegas tuvo que suponer
+	Mensaje       string   // el mensaje de propose completo: va en el cuerpo del PR
 }
 
 // abrirPR abre el pull request de la rama con la CLI de GitHub.
@@ -537,11 +538,11 @@ func Proponer(root, id, mensaje, origen string) (Propuesta, error) {
 	if err != nil {
 		return Propuesta{}, err
 	}
-	p.Rama = rama
-	titulo := fmt.Sprintf("feat(%s): %s (v%s)", id, strings.TrimSpace(mensaje), p.Version)
+	p.Rama, p.Mensaje = rama, strings.TrimSpace(mensaje)
+	titulo := tituloPR(id, mensaje, p.Version)
 	// Sin nada nuevo desde el último propose no hay commit vacío: se vuelve a publicar la rama y el PR (FND-083).
 	if _, hayCambios := git(espacio, "diff", "--cached", "--quiet"); hayCambios != nil { // --quiet sale con 1 si hay cambios
-		if _, err := git(espacio, "commit", "--quiet", "-m", titulo); err != nil {
+		if _, err := git(espacio, "commit", "--quiet", "-m", titulo, "-m", p.Mensaje); err != nil {
 			return Propuesta{}, err
 		}
 	}
@@ -666,9 +667,33 @@ func fijarVersion(manifest, version string) error {
 	return os.WriteFile(manifest, versionLine.ReplaceAll(data, []byte("version: "+version)), 0644)
 }
 
+// MaxTituloPR es el largo del título del PR: GitHub acepta 256 caracteres, y uno corto se lee en la lista (FND-114).
+const MaxTituloPR = 120
+
+// tituloPR es «feat(<id>): <primera línea del mensaje> (v<versión>)», recortado a MaxTituloPR; el mensaje completo va
+// en el cuerpo (FND-114).
+func tituloPR(id, mensaje, version string) string {
+	primera, _, _ := strings.Cut(strings.TrimSpace(mensaje), "\n")
+	cabeza, cola := fmt.Sprintf("feat(%s): ", id), fmt.Sprintf(" (v%s)", version)
+	cabe := MaxTituloPR - len([]rune(cabeza)) - len([]rune(cola))
+	return cabeza + recortarTexto(strings.TrimSpace(primera), cabe) + cola
+}
+
+// recortarTexto deja s en n caracteres como mucho, con «…» si lo cortó.
+func recortarTexto(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return strings.TrimSpace(string(r[:n-1])) + "…"
+}
+
 func cuerpoPR(id string, p Propuesta) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Aporte al blueprint `%s` preparado con `qdd blueprint propose`.\n\n", id)
+	if p.Mensaje != "" {
+		fmt.Fprintf(&b, "%s\n\n", p.Mensaje)
+	}
 	fmt.Fprintf(&b, "**Cambio %s → v%s** (lo calculó QDD):\n", p.Cambio, p.Version)
 	for _, r := range p.Razones {
 		fmt.Fprintf(&b, "- %s\n", r)

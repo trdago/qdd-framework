@@ -1,0 +1,9 @@
+id: "FND-114"
+title: "El título del PR que abría qdd blueprint propose pasaba los 256 caracteres de GitHub con un mensaje largo"
+description: "Proponer armaba el título como «feat(<id>): <todo el mensaje> (vX)». Con el mensaje del blueprint back-end-manager (notificador-export, 2026-11-02) gh pr create falló por el largo y el PR se abrió a mano."
+impact: "propose dejaba la rama publicada sin PR; quien aportaba tenía que abrirlo a mano, sin el cuerpo que arma QDD (calidad, certificación ciega)."
+action_taken: "El título es la primera línea del mensaje, recortada para que todo el título quepa en 120 caracteres con «…»; el mensaje completo va en el cuerpo del PR y en el cuerpo del commit."
+test_result: "TestProponer_UnMensajeLargoNoRompeElTituloDelPR_FND114 falla antes del arreglo y pasa después; un mensaje corto queda igual."
+status: resolved
+detectado_por: ia
+date: "2026-11-02"
