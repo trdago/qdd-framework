@@ -167,6 +167,17 @@ La consola de un proyecto se transmite solo mientras un teléfono la mira y es d
 | `qdd consola telefono lista [--json]` | Lo mandado desde el teléfono a este proyecto (comandos qdd e instrucciones) y cómo está. **Seguro.** (qdd 2.9.0) |
 | `qdd remoto revocar <id>` | Saca un teléfono al instante: lo anota en `<QDD_HOME>/remoto/revocados.json` (este PC rechaza su próxima acción aunque tenga la sesión abierta) y lo revoca en el relay. (qdd 2.9.0) |
 
+### 🔁 Cola de mejoras (mejora continua)
+
+Lo que reportan las sesiones de Claude Code y los issues de GitHub queda como `MEJ-NNN` en `.qdd/project/cola_de_mejoras/`. Los issues admitidos son los de quien tiene acceso al repositorio, o los que llevan la etiqueta `mejora`. El ciclo es determinista: mantiene el objetivo `mejora-continua` del tablero con una tarea por mejora, 2 abiertas como mucho, y solo lo que ya es tarea pasa a la IA. Cerrar el issue de una mejora hecha queda como pedido en el panel.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd mejoras` | La cola de mejoras del proyecto: `reportar`, `ciclo` y `lista`. |
+| `qdd mejoras reportar --titulo … [--detalle …] [--autor …] [--proyecto <ruta\|nombre>] [--etiqueta bug]` | Deja un reporte en la entrada local del proyecto que lo recibe (por defecto, este; con `--proyecto`, otro del registro de la máquina). Lo pasa a la cola su próximo ciclo. No toca el árbol de trabajo de ese proyecto. |
+| `qdd mejoras ciclo [--si-toca] [--json]` | Recibe la entrada y los issues de GitHub, sigue las tareas de la cola (cerrada → hecha, descartada → descartada, borrada → vuelve a la cola) y entrega hasta 2 tareas: primero las de seguridad o bugs, después de la más antigua a la más nueva. Con `--si-toca`, solo si pasaron 10 min desde el último ciclo; así lo llama el panel de Claude Code cada minuto. El botón «Ciclo de mejoras» del panel lo corre sin esperar. |
+| `qdd mejoras lista [--json]` | La cola y en qué está cada mejora (`en_cola`, `tarea`, `hecha`, `descartada`). **Seguro.** |
+
 ### 📏 Uso real medido y canal preview (RFC 0010)
 Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
 

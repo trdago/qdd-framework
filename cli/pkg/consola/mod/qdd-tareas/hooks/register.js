@@ -1829,6 +1829,51 @@ async function cerrarTelefono($) {
   await $.process.run([bin, 'consola', 'telefono', 'latir', '--sesion', mia, '--fin'], { timeoutMs: 2000 }).catch(() => {})
 }
 
+// ── Cola de mejoras (pkg/mejoras) ──────────────────────────────────────────────────────────────────────────────────
+// Mientras hay una sesión interactiva, cada MEJORAS_MS pide «qdd mejoras ciclo --si-toca»: qdd decide si pasaron sus
+// 10 min y, si el ciclo entregó tareas del objetivo mejora-continua, devuelve el mensaje para la IA, que empieza con 🔁
+// (nunca se lee como «!» ni «/»). Con un qdd sin «mejoras», deja de pedirlo. El botón «Ciclo de mejoras» del panel lo
+// fuerza sin esperar.
+const MEJORAS_MS = 60000
+const mejoras = { soportado: true, corriendo: false }
+
+async function cicloMejoras($) {
+  if (!interactiva || !mejoras.soportado || mejoras.corriendo) return
+  mejoras.corriendo = true
+  try {
+    await pedirCicloMejoras($)
+  } finally {
+    mejoras.corriendo = false
+  }
+}
+
+async function pedirCicloMejoras($) {
+  const bin = await binario($)
+  let r
+  try {
+    r = await $.process.run([bin, 'mejoras', 'ciclo', '--si-toca', '--json'], { timeoutMs: TOPE_MS })
+  } catch (err) {
+    $.ui.log('qdd: el ciclo de mejoras no corrió: ' + String(err?.message ?? err), { to: 'debug' })
+    return
+  }
+  if (r.exitCode !== 0 && /unknown command|unknown flag/.test(r.stderr || '')) mejoras.soportado = false
+  if (r.exitCode !== 0 || !String(r.stdout || '').trim()) return
+  let c = null
+  try {
+    c = JSON.parse(r.stdout)
+  } catch {
+    return
+  }
+  if (!c?.mensaje || !String(c.mensaje).startsWith('🔁')) return
+  try {
+    await $.prompt.submit({ text: c.mensaje })
+  } catch (err) {
+    $.ui.log('no se envió a la IA el aviso de la cola de mejoras: ' + String(err?.message ?? err))
+    return
+  }
+  $.ui.notify('🔁 Mejoras nuevas para trabajar: ' + (c.tareas || []).join(', '), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
@@ -1838,6 +1883,9 @@ export function register(on) {
       await latirTelefono($)
       $.clock.every(TELEFONO_MS, async () => {
         await latirTelefono($)
+      })
+      $.clock.every(MEJORAS_MS, async () => {
+        await cicloMejoras($)
       })
     }
     $.clock.every(INTERVALO_MS, async () => {

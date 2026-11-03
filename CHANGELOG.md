@@ -8,6 +8,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### ✨ Añadido
 
+- **Cola de mejoras** (`qdd mejoras`). Lo que reportan las sesiones de Claude Code (`qdd mejoras reportar --proyecto qdd`)
+  y los issues de GitHub de quien tiene acceso al repositorio, o con la etiqueta `mejora`, queda como `MEJ-NNN` en
+  `.qdd/project/cola_de_mejoras/`. El ciclo es determinista y mantiene el objetivo `mejora-continua` del tablero con
+  una tarea por mejora, 2 abiertas como mucho: primero las de seguridad o bugs, después en orden de llegada. Solo lo que
+  ya es tarea pasa a la IA, que recibe un aviso 🔁. El panel corre el ciclo solo cada 10 min mientras hay una sesión
+  abierta, y el botón «Ciclo de mejoras» lo fuerza. Cerrar el issue de una mejora hecha queda como pedido en el panel.
+  `qdd doctor` revisa la cola (MEJ-01 a MEJ-03).
+
 - Lo que el estado espera de la persona llega a QDD Móvil como pregunta: cada ⏳ «de la persona» de una tarea abierta
   se responde desde el teléfono con texto libre, y la respuesta le llega a la IA del proyecto como un mensaje tuyo. Sale
   sola cuando la celda cambia (pedido de sfrc, RFC 0013).

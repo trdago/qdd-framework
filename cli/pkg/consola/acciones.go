@@ -176,6 +176,13 @@ func Acciones(root string, hayEstado bool) []Accion {
 		ID: "auditar", Tipo: TipoComando, Etiqueta: "Auditar", Detalle: "qdd audit", Confirmar: true,
 		Args: []string{"audit"},
 	})
+	if hayEstado {
+		// Cola de mejoras (pkg/mejoras): fuerza el ciclo sin esperar los 10 min; con tablero, porque entrega tareas.
+		acciones = append(acciones, Accion{
+			ID: "mejoras-ciclo", Tipo: TipoComando, Etiqueta: "Ciclo de mejoras", Detalle: "qdd mejoras ciclo",
+			Args: []string{"mejoras", "ciclo"},
+		})
+	}
 	a, ok := accionAbrir(root)
 	if !ok {
 		return acciones
