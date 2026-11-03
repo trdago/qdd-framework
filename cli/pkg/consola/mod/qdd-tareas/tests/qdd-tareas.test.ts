@@ -346,6 +346,21 @@ test('el panel se abre solo cuando llega un comando pedido, aunque no haya frent
   expect(aperturas.length).toBe(1)
 })
 
+// Los PRs abiertos son pedidos opcionales (pkg/consola/prs.go): se ofrecen en «▶ Para ti», pero no abren el panel.
+test('un PR abierto se ofrece en el panel pero no lo abre solo: es opcional', async ($, on) => {
+  const aperturas: unknown[] = []
+  const vacio = { formato: 1, estado: null, motivo: 'sin estado', acciones: [ACCIONES[2]] }
+  const salida = ok(vacio)
+  const clock = preparar(on, salida, [], undefined, aperturas)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const pr = { ...PEDIDO, id: 'pedido:7', etiqueta: '🔀 Mergear #69 · rc.21', detalle: 'qdd consola mergear-pr 69', tecla: 'b', pr: 69 }
+  salida.stdout = JSON.stringify({ ...vacio, acciones: [pr, ACCIONES[2]] })
+  await clock.advance(2000)
+  expect(aperturas.length).toBe(0)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Button', label: /Mergear #69/ })).toBeDefined()
+})
+
 // FND-090: primero lo que es de la persona (▶ Para ti), después lo que falla y al final las herramientas.
 test('las secciones van en orden: tareas, para ti, fallas y acciones, separadas por una línea (FND-090)', async ($, on) => {
   preparar(on, ok({ ...PANEL, acciones: [PEDIDO, ...ACCIONES] }))

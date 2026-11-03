@@ -289,7 +289,8 @@ function enCurso(Text, f) {
 async function abrirSiLlegaUnPedido($) {
   const nuevos = pedidos(datos?.acciones || []).filter((a) => ejecutable(a) && !pedidosVistos.has(a.id))
   for (const a of nuevos) pedidosVistos.add(a.id)
-  if (!iniciado || nuevos.length === 0) return
+  // Un PR abierto (a.pr) es opcional: se ofrece, pero no abre el panel.
+  if (!iniciado || !nuevos.some((a) => !a.pr)) return
   await $.ui.open({ id: PANE, title: TITULO })
 }
 
