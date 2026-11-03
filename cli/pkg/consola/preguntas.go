@@ -374,6 +374,9 @@ func IDPregunta(id string) string {
 // motivo, y la cola no cambia.
 func ResponderPregunta(root, id, respuesta, lugar string, now time.Time) (Pregunta, error) {
 	id = IDPregunta(id)
+	if strings.HasPrefix(id, prefijoEspera) {
+		return responderEspera(root, id, respuesta, lugar, now)
+	}
 	var out Pregunta
 	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
 		i := indicePregunta(cola, id)
@@ -574,9 +577,10 @@ func PreguntaDe(root, id string, now time.Time) (Pregunta, bool) {
 	return cola[i], true
 }
 
-// PreguntasA es la cola a la hora now: las pendientes primero, después las cerradas, las más nuevas antes.
+// PreguntasA es la cola a la hora now, con los ⏳ de la persona del estado (esperas_preguntas.go): las pendientes
+// primero, después las cerradas, las más nuevas antes.
 func PreguntasA(root string, now time.Time) []Pregunta {
-	return normalizarPreguntas(leerPreguntas(root, false), now)
+	return conEsperas(normalizarPreguntas(leerPreguntas(root, false), now), esperasDeLaPersona(root, now))
 }
 
 func indicePregunta(cola []Pregunta, id string) int {
@@ -599,7 +603,11 @@ func normalizarPreguntas(cola []Pregunta, now time.Time) []Pregunta {
 		if p.Estado == PreguntaPendiente && now.Sub(p.Vista) > LatidoPregunta {
 			p = cerrarEnPC(p, PreguntaVencida, "la sesión de Claude Code ya no la espera (se cerró o se cortó)", now)
 		}
-		if p.Cerrada != nil && now.Sub(*p.Cerrada) > VidaCerrada {
+		vida := VidaCerrada
+		if p.Origen == OrigenEstado {
+			vida = VidaEsperaRespondida
+		}
+		if p.Cerrada != nil && now.Sub(*p.Cerrada) > vida {
 			continue
 		}
 		out = append(out, p)

@@ -217,6 +217,15 @@ desde la terminal: gana la primera respuesta.
   (a). Para un comando futuro que pregunte por su cuenta, el diseño ya existe: `qdd consola pregunta registrar` con
   `origen:"qdd"`, `etiqueta` y `preguntas` explícitas, y después `qdd consola pregunta esperar <id>` hasta tener la
   respuesta. Ningún comando lo usa todavía.
+- **(d) Lo que el estado espera de la persona** (pedido de sfrc, 2026-11-03): cada ⏳ cuyo «de quién» es la persona,
+  en una tarea abierta, es una pregunta `origen:"estado"` de respuesta libre: una sola pregunta `q1`, con la tarea y la
+  etapa como `encabezado`, lo que espera como `texto`, `otra:true` y sin opciones. Se responde con
+  `{"q1":{"otra":"…"}}`. No se guarda una copia: sale del estado cada vez que se lee la cola, con un id
+  `espera-<hash de tarea, etapa y bloqueo>` que es el mismo en cada lectura, y desaparece cuando la celda cambia. La
+  respuesta del teléfono le llega a la IA del proyecto como una instrucción del teléfono (la misma cola que «Ejecutar
+  desde el teléfono»), que dice a qué ⏳ responde. La cola la recuerda 24 h como respondida para no volver a
+  preguntarla; si la IA no cambió la celda en ese tiempo, se pregunta de nuevo. Una respuesta a una espera que la celda
+  ya no tiene da `vencida`.
 
 **Cómo se engancha.** El mod `qdd-tareas` escucha `PermissionRequest`, que Claude Code corre **al mismo tiempo** que
 muestra el diálogo en la terminal. El primero que responde se queda con la decisión, y la respuesta del hook cierra el
@@ -236,7 +245,7 @@ diálogo.
 `qdd consola panel --json --con pregunta` las muestra primero, como acciones `tipo:"pregunta"`:
 
 ```
-{ "id":"pregunta:<id>", "tipo":"pregunta", "origen":"ia|permiso|qdd", "sesion", "etiqueta"(≤60),
+{ "id":"pregunta:<id>", "tipo":"pregunta", "origen":"ia|permiso|qdd|estado", "sesion", "etiqueta"(≤60),
   "estado":"pendiente|respondida|vencida", "respondida_en":"pc|telefono", "confirmar":true,
   "preguntas":[{"id":"q1","encabezado","texto","multiple","otra","opciones":[{"valor","etiqueta","descripcion"}]}],
   "permiso":{"herramienta","detalle"} }
