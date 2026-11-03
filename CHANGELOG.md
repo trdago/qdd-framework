@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### 🐛 El PR de `qdd blueprint propose` ya no falla con un mensaje largo (FND-114)
+
+- El título es la primera línea del mensaje, recortada a 120 caracteres en total; el mensaje completo va en el cuerpo
+  del PR y del commit. Antes, un mensaje largo pasaba los 256 caracteres de GitHub y el PR había que abrirlo a mano.
+
 ## [2.8.0-rc.22] - 2026-11-02 (preview)
 
 Vigesimosegunda **preview** de 2.8.0: `npm i -g qdd-framework@preview`.

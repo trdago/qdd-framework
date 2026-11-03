@@ -231,3 +231,26 @@ func TestCheck_UnaVersionQueQDDTodaviaNoImplementaNoBloquea_FND112(t *testing.T)
 		t.Fatalf("sin nada que esperar no hay aviso: %v", Esperas(root))
 	}
 }
+
+// FND-114 (notificador-export, 2026-11-02): el título del PR era «feat(<id>): <todo el mensaje> (vX)»; con un mensaje
+// largo pasaba los 256 caracteres de GitHub, gh pr create fallaba y hubo que abrir el PR a mano.
+func TestProponer_UnMensajeLargoNoRompeElTituloDelPR_FND114(t *testing.T) {
+	largo := "Blueprint nuevo back-end-manager: API serverless en AWS Lambda con Go o Node, " + strings.Repeat("y su despliegue con presupuesto, CORS y locks ", 8) + "\nSegunda línea con el detalle."
+	titulo := tituloPR("back-end-manager", largo, "1.0.0")
+	if n := len([]rune(titulo)); n > MaxTituloPR {
+		t.Fatalf("el título cabe en %d caracteres: mide %d", MaxTituloPR, n)
+	}
+	if !strings.HasPrefix(titulo, "feat(back-end-manager): Blueprint nuevo") || !strings.HasSuffix(titulo, "… (v1.0.0)") {
+		t.Fatalf("conserva el tipo, el comienzo del mensaje y la versión: %q", titulo)
+	}
+	if corto := tituloPR("auth", "Agrega MFA", "1.1.0"); corto != "feat(auth): Agrega MFA (v1.1.0)" {
+		t.Fatalf("un mensaje corto queda igual: %q", corto)
+	}
+	if dos := tituloPR("auth", "Agrega MFA\ny el detalle abajo", "1.1.0"); dos != "feat(auth): Agrega MFA (v1.1.0)" {
+		t.Fatalf("el título es solo la primera línea: %q", dos)
+	}
+	cuerpo := cuerpoPR("back-end-manager", Propuesta{Version: "1.0.0", Mensaje: largo})
+	if !strings.Contains(cuerpo, "Segunda línea con el detalle.") || !strings.Contains(cuerpo, "y su despliegue con presupuesto") {
+		t.Fatal("el mensaje completo queda en el cuerpo del PR")
+	}
+}
