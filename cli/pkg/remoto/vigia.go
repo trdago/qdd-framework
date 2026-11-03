@@ -102,7 +102,7 @@ func carpetasDe(reg registro.Registro) []string {
 	var dirs []string
 	if home, err := blueprints.Home(); err == nil {
 		dirs = append(dirs, home)
-		for _, c := range []string{"pedidos", estado.CarpetaActividad, "ciclo"} {
+		for _, c := range []string{"pedidos", "preguntas", estado.CarpetaActividad, "ciclo"} {
 			dirs = append(dirs, filepath.Join(home, "claude", c))
 		}
 	}

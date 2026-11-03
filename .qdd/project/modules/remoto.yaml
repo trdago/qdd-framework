@@ -20,7 +20,8 @@ objetivo_tecnologico:
         - '«Rechazar» desde el teléfono es la acción rechazar:<id de la acción de un pedido>: el PC la acepta solo si el panel ofrece ese pedido y nadie lo aprobó (uno aprobado responde ya_aprobado con el lugar), lo descarta de la cola con consola.Descartar sin ejecutarlo y queda en el log. No es una acción del panel del PC, que ya tiene su ✕.'
         - 'Cada consola mirada recuerda qué teléfonos la miran: uno nuevo provoca otra tanda de inicio y, si está pausada, otro aviso del motivo (FND-110). Un sync reenvía además el estado de las solicitudes de la última media hora, como mucho 20, para el teléfono que se desconectó mientras corrían (FND-111).'
         - 'qdd remoto tiene hooks propios vacíos (como qdd consola): no exige proyecto, no escribe .qdd/working y su tráfico no cuenta como uso (inv. 10).'
-        - El panel de cada proyecto es consola.Panel(root, now) con la versión de qdd, igual que qdd consola panel --json, sin tipos opcionales (atender no tiene sentido lejos de la conversación) y sin efectos.
+        - 'El panel de cada proyecto es consola.Panel(root, now, pregunta) con la versión de qdd, igual que qdd consola panel --json --con pregunta, sin atender (no tiene sentido lejos de la conversación) y sin efectos. Las preguntas salen pasadas por el ocultador: etiqueta, detalle, resultado, encabezado, texto, opciones y el detalle del permiso.'
+        - 'Preguntas desde el teléfono (decisión de la persona, 2026-11-03; RFC 0013 «Preguntas desde el teléfono»): el evento responder del relay (public.qdd_remoto_responder) trae {solicitud, proyecto, pregunta, respuesta (el texto de p_respuesta::text), dispositivo, nombre, en, firma}, firmado con hmac_sha256 sobre solicitud|proyecto|pregunta|respuesta|dispositivo|en, igual que las acciones. Se verifica, se guarda en solicitudes.json con la pregunta y se responde con accion_estado {solicitud, estado, resultado, lugar} una sola vez: hecha, ya_aprobado (lugar «PC» o el nombre del teléfono que ganó), vencida o rechazada, con el motivo en resultado. Si la terminal gana después de un hecha, seguirPreguntas corrige esa solicitud a ya_aprobado PC. Desde el teléfono un permiso solo se permite una vez o se niega. Como las aprobaciones, no depende del plan ni del interruptor de la consola (inv. 14).'
         - 'Sin tools MCP nuevas: la CLI basta y tools/list está al borde del presupuesto.'
         - 'Dependencias nuevas (rc.2): github.com/coder/websocket v1.8.14 (sin dependencias propias, mantenida por Coder, sucesora de nhooyr/websocket; go.mod no tenía WebSocket) y rsc.io/qr v0.2.0 (QR sin dependencias, de Russ Cox) para dibujar el QR con medios bloques.'
         - 'Cliente de Realtime propio (phoenix.go): Phoenix v1 al escribir (vsn=1.0.0) y v1/v2 al leer; join con config {broadcast:{self:false, ack:false}, presence:{key:"pc"}, private:true} y access_token = la clave publicable (el PC es anon). Heartbeat cada 25 s; sin respuesta antes del siguiente, la conexión está muerta. Reconexión con espera exponencial (1 s a 30 s) y jitter entre la mitad y el total; al volver repite el join y su track.'
@@ -52,13 +53,15 @@ objetivo_tecnologico:
         - El push solo dice el tipo cerrado y el proyecto; nunca un comando ni una salida (inv. 17).
         - Una acción sin firma válida del relay, vieja (más de 5 min), de un dispositivo revocado o de un proyecto desconocido se descarta y queda en el log (inv. 18).
         - 'Un registro de proyectos ilegible nunca se reescribe en silencio: se aparta.'
+        - 'Una pregunta se responde una sola vez: gana la primera respuesta, de la terminal o de un teléfono, y el otro lado recibe ya_aprobado con el lugar; un permiso respondido desde el teléfono nunca agrega reglas («permitir siempre»).'
 pruebas:
     comandos:
         - cd cli && go test ./pkg/remoto/...
         - cd cli && go test ./cmd/ -run 'Remoto|REM0'
         - cd cli && go test ./pkg/consola/ -run TestCiclo_AnotaElProyecto
         - cd cli && go test ./pkg/remoto/ -run 'Consola|Transcript|LineasDe|Lector' -race
+        - cd cli && go test ./pkg/remoto/ -run 'Responder|FirmaRespuesta|Armar_LaPregunta' -race
 fuentes:
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-02"
-revisado_en_commit: a8918d61bb0d
+ultima_revision: "2026-11-03"
+revisado_en_commit: 1cd096a1c296

@@ -215,6 +215,9 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	if e.Evento == "accion" {
 		b.alAccion(ctx, e.Payload)
 	}
+	if e.Evento == "responder" {
+		b.alResponder(ctx, e.Payload)
+	}
 }
 
 // Telefonos son los teléfonos de una presence (rol movil).
@@ -274,6 +277,7 @@ func (b *Bucle) recalcular(ctx context.Context) {
 	e := b.armar()
 	b.avisarNuevos(ctx, e)
 	b.seguirSolicitudes(ctx, e)
+	b.seguirPreguntas(ctx)
 	if len(b.telefonos) == 0 || !b.base {
 		return
 	}

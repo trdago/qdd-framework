@@ -58,14 +58,20 @@ type Accion struct {
 	Avisar    bool       `json:"avisar,omitempty"`   // solo pedidos: terminó y esa sesión todavía no recibió el aviso
 	Mensaje   string     `json:"mensaje,omitempty"`  // solo con avisar: lo que lee la IA de esa sesión (aviso.go)
 	PR        int        `json:"pr,omitempty"`       // solo pedidos opcionales de un PR abierto (prs.go)
-	Inicio    *time.Time `json:"inicio,omitempty"`
-	Fin       *time.Time `json:"fin,omitempty"`
-	Confirmar bool       `json:"confirmar"`
-	Args      []string   `json:"-"`
-	ficha     string
-	pedido    string
-	tarea     string // id del frente que descarta la ✕ (§3.9)
-	programa  string // abridor de «Abrir carpeta» (§3.9)
+	// Solo preguntas (preguntas.go): de dónde viene (ia, permiso o qdd), dónde se respondió (pc o telefono), sus
+	// preguntas con opciones y, en un permiso, la herramienta y el comando exacto.
+	Origen       string           `json:"origen,omitempty"`
+	RespondidaEn string           `json:"respondida_en,omitempty"`
+	Preguntas    []ItemPregunta   `json:"preguntas,omitempty"`
+	Permiso      *PermisoPregunta `json:"permiso,omitempty"`
+	Inicio       *time.Time       `json:"inicio,omitempty"`
+	Fin          *time.Time       `json:"fin,omitempty"`
+	Confirmar    bool             `json:"confirmar"`
+	Args         []string         `json:"-"`
+	ficha        string
+	pedido       string
+	tarea        string // id del frente que descarta la ✕ (§3.9)
+	programa     string // abridor de «Abrir carpeta» (§3.9)
 }
 
 // DatosConsola es lo que 'qdd consola panel --json' entrega al panel en una sola lectura.
@@ -81,7 +87,8 @@ type DatosConsola struct {
 
 // opcionales son los tipos de acción que un panel recibe solo si dice que los dibuja (FND-092): un mod anterior no los
 // conoce y los mostraría como botones sin tecla.
-var opcionales = map[string]bool{TipoAtender: true}
+// Una pregunta (preguntas.go) se responde en el terminal o desde el teléfono: solo la pide qdd remoto.
+var opcionales = map[string]bool{TipoAtender: true, TipoPregunta: true}
 
 // Panel es lo que dibuja el panel. con son los tipos opcionales que ese panel sabe dibujar (qdd consola panel --con).
 func Panel(root string, now time.Time, con ...string) DatosConsola {
@@ -102,22 +109,25 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 }
 
 // panel arma los datos del panel: el estado por frente (o el motivo por el que no hay) y las acciones de ahora.
+// Las preguntas que esperan a la persona van primero; no son acciones de 'qdd consola accion' (se responden en el
+// terminal o con ResponderPregunta).
 func panel(root string, now time.Time) DatosConsola {
 	d := DatosConsola{Formato: 1, Carpeta: root}
+	preguntas := accionesDePreguntas(root, now)
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
 		d.Motivo = estado.ErrSinArchivo.Error()
-		d.Acciones = Acciones(root, false)
+		d.Acciones = append(preguntas, Acciones(root, false)...)
 		return d
 	}
 	if err != nil {
 		d.Motivo = err.Error()
-		d.Acciones = Acciones(root, false)
+		d.Acciones = append(preguntas, Acciones(root, false)...)
 		return d
 	}
 	datos := estado.DatosEnCurso(e, estado.LeerActividad(root), now, MaxTareas)
 	d.Estado = &datos
-	d.Acciones = Acciones(root, true)
+	d.Acciones = append(preguntas, Acciones(root, true)...)
 	return d
 }
 
