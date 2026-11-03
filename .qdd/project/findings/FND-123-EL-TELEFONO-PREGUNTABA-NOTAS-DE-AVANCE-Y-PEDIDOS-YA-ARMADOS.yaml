@@ -1,0 +1,9 @@
+id: "FND-123"
+title: "El teléfono preguntaba como decisiones las notas de avance y los ⏳ que un pedido del panel ya cubría"
+description: "Cada ⏳ de la persona de una tarea abierta llegaba a QDD Móvil como pregunta de respuesta libre, con todo su bloqueo como texto. Pero la mayoría de los bloqueos son notas de avance («confirmado por la persona… sale con el primer despliegue») o esperan un pedido que la persona ya armó en el panel («falta aws configure para que corran [b] y [d]»). El teléfono volvía a preguntar lo ya decidido o aceptado, y la persona no sabía qué contestar."
+impact: "2026-11-03, qdd-movile-c8 con datos reales de v2.8.0: qdd remoto publicaba 11 preguntas de origen estado (3 en qdd, 8 en sfrc) y solo una era una pregunta de verdad. La persona veía unas 20 «decisiones» con un campo de texto libre (MEJ-004)."
+action_taken: "esperasDeLaPersona publica un ⏳ solo si su bloqueo tiene una frase ¿…? (preguntaDelBloqueo) y no nombra con [tecla] un pedido abierto (cubiertaPorPedido). El texto y la etiqueta son solo las preguntas. Se decidió sin campo nuevo en estado.yaml, porque su formato es del blueprint estado-por-tareas. Quedó en la ficha estado y en RFC 0013 (d)."
+test_result: "TestEspera_UnaNotaDeAvanceNoEsPregunta_MEJ004, TestEspera_ElTelefonoVeSoloLaPregunta_MEJ004 y TestEspera_UnPedidoAbiertoLaCubre_MEJ004; las 4 pruebas de esperas y la de punta a punta de pkg/remoto siguen pasando."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

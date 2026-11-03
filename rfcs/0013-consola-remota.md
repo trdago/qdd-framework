@@ -226,6 +226,9 @@ desde la terminal: gana la primera respuesta.
   desde el teléfono»), que dice a qué ⏳ responde. La cola la recuerda 24 h como respondida para no volver a
   preguntarla; si la IA no cambió la celda en ese tiempo, se pregunta de nuevo. Una respuesta a una espera que la celda
   ya no tiene da `vencida`.
+  Solo es pregunta el ⏳ que pregunta algo (MEJ-004, qdd-movile, 2026-11-03: de 11 publicados, casi todos eran notas de
+  avance): su bloqueo tiene al menos una frase entre `¿` y `?`, y `texto` es solo esas frases, sin el historial de la
+  tarea. Tampoco lo es si nombra con `[tecla]` un pedido abierto de la cola, que ya lo cubre en el panel.
 
 **Cómo se engancha.** El mod `qdd-tareas` escucha `PermissionRequest`, que Claude Code corre **al mismo tiempo** que
 muestra el diálogo en la terminal. El primero que responde se queda con la decisión, y la respuesta del hook cierra el

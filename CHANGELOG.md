@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Cambiado
+
+- **QDD Móvil pregunta solo lo que es pregunta** (MEJ-004, FND-123). Un ⏳ de la persona llega al teléfono solo si su
+  bloqueo pregunta algo (`¿…?`), y el teléfono ve solo esa pregunta, no el historial de la tarea. Si nombra con `[tecla]`
+  un pedido abierto del panel, no se publica, porque el pedido ya lo cubre.
+
 ## [2.8.1] - 2026-11-03
 
 Corrección (`npm i -g qdd-framework@latest`). El mismo arreglo sale a la vez como 2.8.1-rc.1 en `preview`: el bug estaba
