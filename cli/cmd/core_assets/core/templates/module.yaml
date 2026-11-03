@@ -7,6 +7,14 @@ nombre: Validador de ofertas
 estado: borrador                 # borrador | aprobado (lo pone 'qdd modules approve')
 rutas:                           # carpetas o archivos del módulo, relativas a la raíz
   - internal/validador
+# Si el módulo sale de un blueprint (lo deja 'qdd blueprint apply'):
+# blueprint: auth@2.0.0
+# fuera:                         # escenarios del blueprint que este código no hace, con su motivo (BP-08)
+#   AUTH-F07: "el segundo factor lo da el proveedor de identidad"
+# Si el módulo es la implementación de origen de un blueprint:
+# implementa:
+#   - blueprint: auth
+#     fuera: {AUTH-F07: "lo hace el proveedor de identidad"}
 objetivo_operativo:
   problema: Qué problema de negocio u operación resuelve y para quién.
   usuarios: Quién lo usa o depende de él.

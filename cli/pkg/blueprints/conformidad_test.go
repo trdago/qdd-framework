@@ -257,3 +257,47 @@ func TestNombraEscenario_ElIdPegadoATestEnGoCuenta_FND103(t *testing.T) {
 		}
 	}
 }
+
+// FND-121: a un módulo que aplica un blueprint (registro de aplicación) no le servía «implementa: fuera»: sumarlo a
+// su ficha creaba otra medición, la de origen, con todas las variantes. Su ficha lo declara en la raíz, «fuera».
+func TestCheckConformidad_UnModuloQueAplicaDeclaraFueraEnSuFicha_FND121(t *testing.T) {
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	writeFile(t, filepath.Join(root, "internal", "cliente", "auth_test.go"), "func TestLogin_AUTH_01(t *testing.T) {}\n")
+	m := modules.Module{ID: "cliente", Nombre: "cliente", Rutas: []string{"internal/cliente"}, Blueprint: "auth@1.0.0",
+		ObjetivoOperativo:   modules.ObjetivoOperativo{Problema: "Entrar.", CriterioDeExito: "Entra."},
+		ObjetivoTecnologico: modules.ObjetivoTecnologico{Arquitectura: "Un login."},
+		Pruebas:             modules.Pruebas{Comandos: []string{"go test ./internal/..."}}}
+	if _, problems := modules.Save(root, m); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if _, err := saveApplication(root, Aplicacion{Blueprint: "auth", Version: "1.0.0", Modulo: "cliente", Respuestas: map[string]string{"identificador": "rut", "recuperacion": "correo"}}); err != nil {
+		t.Fatal(err)
+	}
+	bloquean, _ := CheckConformidad(root)
+	if len(bloquean) != 1 || !strings.Contains(bloquean[0].Descripcion, "RUT-01") || !strings.Contains(bloquean[0].Descripcion, "fuera: {ID: motivo}") {
+		t.Fatalf("con rut le falta RUT-01, y el gate dice cómo declararlo fuera en la ficha de un módulo que aplica: %+v", bloquean)
+	}
+
+	m.Fuera = map[string]string{"RUT-01": "el RUT lo valida el registro civil"}
+	if _, problems := modules.Save(root, m); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if bloquean, _ = CheckConformidad(root); len(bloquean) != 0 {
+		t.Fatalf("declarado fuera con su motivo, pasa: %+v", bloquean)
+	}
+	cs, _ := Conformar(root)
+	if len(cs) != 1 || !strings.Contains(LineaConformidad(cs[0]), "fuera RUT-01 (el RUT lo valida el registro civil)") {
+		t.Fatalf("una sola medición, la de lo aplicado, que muestra lo de fuera: %+v", cs)
+	}
+
+	m.Fuera = map[string]string{"RUT-1": "con una errata"}
+	if _, problems := modules.Save(root, m); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if bloquean, _ = CheckConformidad(root); len(bloquean) != 1 || !strings.Contains(bloquean[0].Descripcion, "RUT-1") {
+		t.Fatalf("un id que el blueprint no tiene falta, igual que en implementa: %+v", bloquean)
+	}
+}

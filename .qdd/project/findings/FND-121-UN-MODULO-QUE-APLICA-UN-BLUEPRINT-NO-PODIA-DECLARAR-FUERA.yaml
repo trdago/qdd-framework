@@ -1,0 +1,9 @@
+id: "FND-121"
+title: "Un módulo que aplica un blueprint no podía declarar escenarios fuera, aunque BP-08 se lo pedía"
+description: "BP-08-CONFORMIDAD decía «declara en la ficha, con su motivo, lo que este código no hace (implementa: fuera)». Pero fuera solo existía en una entrada de implementa (la implementación de origen). Para un módulo que aplica un blueprint, el gate arma la medición desde su registro de aplicación (.qdd/project/blueprints/<modulo>.yaml), que no tiene fuera. Sumar implementa a su ficha creaba otra medición, la de origen, con todas las variantes del blueprint, y BP-08 empeoraba."
+impact: "2026-11-03, sfrc: la persona decidió dejar fuera 8 escenarios AUTH y BEM-F03/Q01, pero no había forma válida de decirlo y BP-08 seguía bloqueando el gate. La plantilla de ficha tampoco mostraba fuera."
+action_taken: "La ficha de un módulo que aplica un blueprint declara fuera: {ID: motivo} en la raíz, junto a blueprint. La conformidad de lo aplicado lo toma de ahí, igual que implementa: un id sin motivo, o que el blueprint no tiene, falta. El mensaje de BP-08 dice cuál de las dos formas usar según el caso, y la plantilla (.qdd/core/templates/module.yaml) muestra ambas."
+test_result: "TestCheckConformidad_UnModuloQueAplicaDeclaraFueraEnSuFicha_FND121: sin fuera bloquea y dice «fuera: {ID: motivo}»; con fuera y su motivo pasa y lo muestra, en una sola medición; con un id con errata, falta."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

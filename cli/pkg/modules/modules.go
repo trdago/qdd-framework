@@ -60,6 +60,7 @@ type Module struct {
 	Rutas               []string            `yaml:"rutas"`
 	Blueprint           string              `yaml:"blueprint,omitempty"`  // p. ej. "auth@1.2.0", si se generó desde un blueprint
 	Implementa          []Implementacion    `yaml:"implementa,omitempty"` // blueprints de los que este módulo es la implementación de origen
+	Fuera               map[string]string   `yaml:"fuera,omitempty"`      // del blueprint que aplica: escenario → por qué no lo cumple este código (FND-121)
 	ObjetivoOperativo   ObjetivoOperativo   `yaml:"objetivo_operativo"`
 	ObjetivoTecnologico ObjetivoTecnologico `yaml:"objetivo_tecnologico"`
 	Pruebas             Pruebas             `yaml:"pruebas"`
