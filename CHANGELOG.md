@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.1-rc.1] - 2026-11-03 (preview)
+
+Primera **preview** de 2.8.1: `npm i -g qdd-framework@preview`. El arreglo de Windows del issue #83.
+
 ### Arreglado
 
 - **Windows: sin ventanas de consola** (FND-122, issue #83). Los procesos que qdd lanza aparte (`qdd consola prs`, los
