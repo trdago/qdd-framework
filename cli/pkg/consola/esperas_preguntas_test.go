@@ -15,6 +15,24 @@ import (
 // libre, sacada del estado cada vez que se lee: no hay una copia que se desincronice, y sale sola cuando la celda
 // cambia. La respuesta del teléfono le llega a la IA como un mensaje de la persona.
 
+// conEspera deja el ⏳ de la persona de Barra · PR con este bloqueo.
+func conEspera(t *testing.T, root, bloqueo string) {
+	t.Helper()
+	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: bloqueo, DeQuien: "la persona"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func delEstado(root string) []Pregunta {
+	var out []Pregunta
+	for _, p := range PreguntasA(root, enCola) {
+		if p.Origen == OrigenEstado {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func esperaDe(t *testing.T, root string, now time.Time) Pregunta {
 	t.Helper()
 	for _, p := range PreguntasA(root, now) {
@@ -28,6 +46,7 @@ func esperaDe(t *testing.T, root string, now time.Time) Pregunta {
 
 func TestEspera_UnEsperaDeLaPersonaEsUnaPreguntaDeRespuestaLibre(t *testing.T) {
 	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
 	var delEstado []Pregunta
 	for _, p := range PreguntasA(root, enCola) {
 		if p.Origen == OrigenEstado {
@@ -42,7 +61,7 @@ func TestEspera_UnEsperaDeLaPersonaEsUnaPreguntaDeRespuestaLibre(t *testing.T) {
 		t.Fatalf("pendiente, con un id propio y la tarea y etapa a la vista: %+v", p)
 	}
 	q := p.Preguntas[0]
-	if len(p.Preguntas) != 1 || q.ID != "q1" || q.Texto != "merge" || q.Encabezado != "Barra · PR" || !q.Otra || len(q.Opciones) != 0 {
+	if len(p.Preguntas) != 1 || q.ID != "q1" || q.Texto != "¿mergeamos el #8?" || q.Encabezado != "Barra · PR" || !q.Otra || len(q.Opciones) != 0 {
 		t.Fatalf("una pregunta: lo que espera, de respuesta libre: %+v", p.Preguntas)
 	}
 	if again := esperaDe(t, root, enCola.Add(time.Hour)); again.ID != p.ID {
@@ -56,6 +75,7 @@ func TestEspera_UnEsperaDeLaPersonaEsUnaPreguntaDeRespuestaLibre(t *testing.T) {
 
 func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
 	p := esperaDe(t, root, enCola)
 	if _, err := ResponderPregunta(root, prefijoPregunta+p.ID, `{"q1":{"opciones":["a"]}}`, "Pixel", enCola); !errors.Is(err, ErrRespuestaInvalida) {
 		t.Fatalf("no tiene opciones: solo texto: %v", err)
@@ -85,6 +105,7 @@ func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 
 func TestEspera_RespondidaNoSeVuelveAOfrecerMientrasLaCeldaNoCambie(t *testing.T) {
 	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
 	p := esperaDe(t, root, enCola)
 	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"ya lo mergeé"}}`, "Pixel", enCola); err != nil {
 		t.Fatal(err)
@@ -99,11 +120,12 @@ func TestEspera_RespondidaNoSeVuelveAOfrecerMientrasLaCeldaNoCambie(t *testing.T
 
 func TestEspera_CuandoLaCeldaCambiaLaPreguntaSale(t *testing.T) {
 	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
 	p := esperaDe(t, root, enCola)
-	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: "merge del #9", DeQuien: "la persona"}, enCola); err != nil {
+	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: "¿mergeamos el #9?", DeQuien: "la persona"}, enCola); err != nil {
 		t.Fatal(err)
 	}
-	if nueva := esperaDe(t, root, enCola); nueva.ID == p.ID || nueva.Preguntas[0].Texto != "merge del #9" {
+	if nueva := esperaDe(t, root, enCola); nueva.ID == p.ID || nueva.Preguntas[0].Texto != "¿mergeamos el #9?" {
 		t.Fatalf("otra espera es otra pregunta: %+v", nueva)
 	}
 	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"tarde"}}`, "Pixel", enCola); !errors.Is(err, ErrPreguntaDesconocida) {
@@ -116,5 +138,48 @@ func TestEspera_CuandoLaCeldaCambiaLaPreguntaSale(t *testing.T) {
 		if q.Origen == OrigenEstado {
 			t.Fatalf("sin ⏳ de la persona no hay pregunta del estado: %+v", q)
 		}
+	}
+}
+
+// MEJ-004 (qdd-movile, 2026-11-03, datos reales): de 11 ⏳ publicados al teléfono, casi todos eran notas de avance o
+// esperaban un pedido que la persona ya había armado en el panel; solo uno preguntaba algo. Un ⏳ llega como pregunta
+// solo si pregunta (¿…?) y ningún pedido abierto lo cubre, y el teléfono ve solo la pregunta.
+
+func TestEspera_UnaNotaDeAvanceNoEsPregunta_MEJ004(t *testing.T) {
+	root := proyectoConTareas(t)
+	for _, nota := range []string{"merge", "confirmado por la persona (2026-11-03): sale con el primer despliegue", "Falta crear el secreto en Supabase."} {
+		conEspera(t, root, nota)
+		if ps := delEstado(root); len(ps) != 0 {
+			t.Fatalf("%q no pregunta nada: no va al teléfono: %+v", nota, ps)
+		}
+	}
+}
+
+func TestEspera_ElTelefonoVeSoloLaPregunta_MEJ004(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "Código: listo y probado con 12 casos. ¿Hacemos el gate en el Stop hook? Lo demás espera a eso.")
+	p := esperaDe(t, root, enCola)
+	if q := p.Preguntas[0].Texto; q != "¿Hacemos el gate en el Stop hook?" {
+		t.Fatalf("el texto es la pregunta, no el historial de la tarea: %q", q)
+	}
+	conEspera(t, root, "¿Proveedor de correo? ¿Resend o SES?")
+	if q := esperaDe(t, root, enCola).Preguntas[0].Texto; q != "¿Proveedor de correo? ¿Resend o SES?" {
+		t.Fatalf("varias preguntas van todas: %q", q)
+	}
+}
+
+func TestEspera_UnPedidoAbiertoLaCubre_MEJ004(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd, err := Pedir(root, "aws configure", "Configurar AWS", root, enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conEspera(t, root, "¿Corres ["+pd.Tecla+"] para desplegar?")
+	if ps := delEstado(root); len(ps) != 0 {
+		t.Fatalf("el pedido [%s] ya la cubre en el panel: el teléfono no la vuelve a preguntar: %+v", pd.Tecla, ps)
+	}
+	conEspera(t, root, "¿Corres [z] para desplegar?")
+	if ps := delEstado(root); len(ps) != 1 {
+		t.Fatalf("[z] no es un pedido abierto: sí es pregunta: %+v", ps)
 	}
 }

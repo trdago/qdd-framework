@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 // se desincronice, y sale sola cuando la celda cambia. El id sale de la tarea, la etapa y lo que espera, así que es el
 // mismo en cada lectura. La respuesta del teléfono queda en la cola (solo para decir «ya respondida» y no volver a
 // preguntar lo mismo durante VidaEsperaRespondida) y le llega a la IA como una instrucción del teléfono.
+// MEJ-004 (qdd-movile, 2026-11-03): de 11 ⏳ publicados, casi todos eran notas de avance o esperaban un pedido ya armado
+// en el panel. Un ⏳ es pregunta solo si pregunta algo (¿…?) y no nombra con [tecla] un pedido abierto, que ya lo cubre;
+// el teléfono ve solo la pregunta, no el historial de la tarea.
 
 const (
 	// OrigenEstado es el origen de una pregunta que sale de un ⏳ de la persona en el estado.
@@ -27,6 +31,26 @@ const (
 	prefijoEspera = "espera-"
 )
 
+var (
+	frasePregunta = regexp.MustCompile(`¿[^¿?]*\?`)
+	teclaNombrada = regexp.MustCompile(`\[([a-z0-9])\]`)
+)
+
+// preguntaDelBloqueo son las preguntas (¿…?) del bloqueo, juntas; vacío si no pregunta nada.
+func preguntaDelBloqueo(bloqueo string) string {
+	return strings.Join(frasePregunta.FindAllString(bloqueo, -1), " ")
+}
+
+// cubiertaPorPedido: un ⏳ que nombra la tecla de un pedido abierto ([b]) ya lo cubre el panel.
+func cubiertaPorPedido(bloqueo string, abiertas map[string]bool) bool {
+	for _, m := range teclaNombrada.FindAllStringSubmatch(bloqueo, -1) {
+		if abiertas[m[1]] {
+			return true
+		}
+	}
+	return false
+}
+
 // esperasDeLaPersona son las preguntas pendientes de los ⏳ de la persona de las tareas abiertas.
 func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 	e, err := estado.Load(root)
@@ -34,13 +58,18 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 		return nil
 	}
 	var out []Pregunta
+	abiertas := teclasAbiertas(PedidosA(root, now))
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
-			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || strings.TrimSpace(c.Bloqueo) == "" {
+			bloqueo := strings.TrimSpace(c.Bloqueo)
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) == "" {
 				continue
 			}
-			out = append(out, preguntaDeEspera(f, etapa, strings.TrimSpace(c.Bloqueo), now))
+			if cubiertaPorPedido(bloqueo, abiertas) {
+				continue
+			}
+			out = append(out, preguntaDeEspera(f, etapa, bloqueo, now))
 		}
 	}
 	return out
@@ -49,10 +78,11 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 func preguntaDeEspera(f estado.Frente, etapa, bloqueo string, now time.Time) Pregunta {
 	suma := sha256.Sum256([]byte(f.ID + "\x00" + etapa + "\x00" + bloqueo))
 	donde := f.Nombre + " · " + etapa
+	pregunta := preguntaDelBloqueo(bloqueo)
 	return Pregunta{
 		ID: prefijoEspera + hex.EncodeToString(suma[:6]), Origen: OrigenEstado, Estado: PreguntaPendiente,
-		Etiqueta:  recortar("⏳ "+donde+": "+bloqueo, MaxMotivo),
-		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: bloqueo, Otra: true}},
+		Etiqueta:  recortar("⏳ "+donde+": "+pregunta, MaxMotivo),
+		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: pregunta, Otra: true}},
 		Creada:    now.UTC(), Vista: now.UTC(),
 	}
 }
