@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.25] - 2026-11-03 (preview)
+
+Vigesimoquinta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 2: ejecutar desde el teléfono.
+
 ### ✨ Ejecutar desde el teléfono (QDD Móvil, solo Pro)
 
 - Con Pro, la persona manda a un proyecto, desde QDD Móvil y con biometría, un **comando qdd** o una **instrucción para
