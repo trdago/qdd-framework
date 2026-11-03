@@ -6,6 +6,31 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### ✨ Ejecutar desde el teléfono (QDD Móvil, solo Pro)
+
+- Con Pro, la persona manda a un proyecto, desde QDD Móvil y con biometría, un **comando qdd** o una **instrucción para
+  la IA**. Siempre a través de qdd: nunca un comando de shell.
+- `qdd remoto` atiende el evento firmado `ejecutar` del relay (`public.qdd_remoto_ejecutar`), una sola vez por
+  solicitud. Exige Pro con el plan del último latido y vuelve a validar el texto.
+- Un comando qdd se parte sin shell y solo corre si está en la lista permitida: `audit`, `doctor` (sin `--fix` ni
+  `-f`), `estado`, `estado check`, `modules list`, `blueprint list` y `blueprint quality [id]`, con banderas de solo
+  lectura. Corre con el qdd de este PC en la carpeta del proyecto, a lo más 10 min y uno por proyecto a la vez.
+- El teléfono recibe `accion_estado`: `recibida` → `ejecutando` → `hecha` o `fallo`, con el final de la salida sin
+  secretos (hasta 4000 caracteres). Lo que no se permite vuelve `rechazada` con el motivo.
+- Una instrucción llega a la sesión abierta de Claude Code del proyecto como un mensaje de la persona, «📱 La persona te
+  escribe desde «<teléfono>» (QDD Móvil)…»: nunca como un comando `!` o `/`, y a una sola sesión. Sin sesión abierta
+  queda en cola y vence a los 30 min. Desde el teléfono también se puede retirar mientras espera.
+- `qdd consola telefono latir | fallo | lista`: el mod `qdd-tareas` late cada 5 s en las sesiones interactivas y
+  recibe lo que le toca.
+- `qdd consola panel --json` trae `ejecutar: {qdd, ia, sugeridos}` con QDD Móvil activado y Pro. Con `--con telefono`
+  muestra lo mandado como pedidos `origen:"telefono"`, con `dispositivo` y `solicitud`.
+- Diseño en la RFC 0013, «Ejecutar desde el teléfono»; las invariantes 1 y 7 ahora permiten esto, solo con Pro.
+
+### 🐛 Corregido
+
+- «Auditar» y las demás acciones aprobadas desde el teléfono devolvían el principio de la salida, y el veredicto (que
+  va al final) no llegaba. Ahora llega el final, sin secretos (FND-118).
+
 ## [2.8.0-rc.24] - 2026-11-03 (preview)
 
 Vigesimocuarta **preview** de 2.8.0: `npm i -g qdd-framework@preview`. QDD Móvil, sprint 1: el teléfono responde lo que

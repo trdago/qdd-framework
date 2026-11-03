@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
 
@@ -76,7 +77,7 @@ func init() {
 	consolaActivarCmd.MarkFlagsMutuallyExclusive("recursos", "sin-recursos")
 	consolaActualizarCmd.Flags().BoolVar(&consolaSiActivo, "si-activo", false, "no hace nada si la consola no se activó (para instaladores)")
 	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
-	consolaPanelCmd.Flags().StringSliceVar(&consolaCon, "con", nil, "tipos de acción opcionales que este panel sabe dibujar (atender); sin esto no se ofrecen (FND-092)")
+	consolaPanelCmd.Flags().StringSliceVar(&consolaCon, "con", nil, "tipos de acción opcionales que este panel sabe dibujar (atender, pregunta, telefono); sin esto no se ofrecen (FND-092)")
 	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
 	consolaAccionCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión de Claude Code que confirma un pedido: recibe su resultado al terminar")
 	consolaAvisadoCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión que recibió el aviso (la que confirmó el pedido)")
@@ -166,14 +167,22 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 func runConsolaPanel(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	prsAlDia(root)
-	datos := consola.Panel(root, time.Now(), consolaCon...)
-	datos.Version = Version
+	datos := datosPanel(root, time.Now(), consolaCon)
 	conEfectos(&datos)
 	out, err := json.Marshal(datos)
 	if err != nil {
 		salirCon("%v", err)
 	}
 	fmt.Println(string(out))
+}
+
+// datosPanel es el panel con la versión de qdd y, con QDD Móvil activado y Pro, lo que este PC acepta ejecutar desde
+// el teléfono (RFC 0013 §«Ejecutar desde el teléfono»).
+func datosPanel(root string, now time.Time, con []string) consola.DatosConsola {
+	datos := consola.Panel(root, now, con...)
+	datos.Version = Version
+	datos.Ejecutar = remoto.OpcionesEjecutar(root, remoto.PlanLocal(), now)
+	return datos
 }
 
 // runConsolaAccion vuelve a calcular las acciones: el panel solo pasa el id y qdd decide si existe y si está confirmada.

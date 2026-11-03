@@ -20,8 +20,12 @@ import (
 // (inv. 3), recibe su respuesta (inv. 4), queda en el log local (inv. 5) y un pedido ya aprobado en otro lugar responde
 // ya_aprobado con el lugar (inv. 19).
 
-// TestMain hace del binario de pruebas el «qdd consola correr» que lanza un pedido.
+// TestMain hace del binario de pruebas el «qdd consola correr» que lanza un pedido y, con envQDDFalso, el qdd que corre
+// una ejecución mandada desde el teléfono (ejecutar_test.go).
 func TestMain(m *testing.M) {
+	if dir := os.Getenv(envQDDFalso); dir != "" && len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-test.") {
+		os.Exit(qddFalso(dir, os.Args[1:]))
+	}
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}

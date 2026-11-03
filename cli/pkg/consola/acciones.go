@@ -64,14 +64,17 @@ type Accion struct {
 	RespondidaEn string           `json:"respondida_en,omitempty"`
 	Preguntas    []ItemPregunta   `json:"preguntas,omitempty"`
 	Permiso      *PermisoPregunta `json:"permiso,omitempty"`
-	Inicio       *time.Time       `json:"inicio,omitempty"`
-	Fin          *time.Time       `json:"fin,omitempty"`
-	Confirmar    bool             `json:"confirmar"`
-	Args         []string         `json:"-"`
-	ficha        string
-	pedido       string
-	tarea        string // id del frente que descarta la ✕ (§3.9)
-	programa     string // abridor de «Abrir carpeta» (§3.9)
+	// Solo pedidos de origen telefono (telefono.go): el nombre del teléfono que lo mandó y la solicitud con que llegó.
+	Dispositivo string     `json:"dispositivo,omitempty"`
+	Solicitud   string     `json:"solicitud,omitempty"`
+	Inicio      *time.Time `json:"inicio,omitempty"`
+	Fin         *time.Time `json:"fin,omitempty"`
+	Confirmar   bool       `json:"confirmar"`
+	Args        []string   `json:"-"`
+	ficha       string
+	pedido      string
+	tarea       string // id del frente que descarta la ✕ (§3.9)
+	programa    string // abridor de «Abrir carpeta» (§3.9)
 }
 
 // DatosConsola es lo que 'qdd consola panel --json' entrega al panel en una sola lectura.
@@ -83,11 +86,24 @@ type DatosConsola struct {
 	Motivo   string                `json:"motivo,omitempty"`
 	Acciones []Accion              `json:"acciones"`
 	Efectos  *materializar.Efectos `json:"efectos,omitempty"` // si el panel materializa lo que cambia, y con qué estilo
+	// Ejecutar dice qué acepta este PC mandar a ejecutar desde el teléfono (solo con QDD Móvil activado y Pro; lo pone
+	// pkg/remoto, que sabe el plan). Sin él, el teléfono no ofrece ejecutar.
+	Ejecutar *OpcionesEjecutar `json:"ejecutar,omitempty"`
+}
+
+// OpcionesEjecutar es lo que el PC acepta desde el teléfono: comandos qdd (Sugeridos son los que permite, sin el
+// «qdd») e instrucciones para la IA (IA: hay una sesión de Claude Code abierta en el proyecto que las recibe).
+type OpcionesEjecutar struct {
+	QDD       bool     `json:"qdd"`
+	IA        bool     `json:"ia"`
+	Sugeridos []string `json:"sugeridos"`
 }
 
 // opcionales son los tipos de acción que un panel recibe solo si dice que los dibuja (FND-092): un mod anterior no los
 // conoce y los mostraría como botones sin tecla.
-// Una pregunta (preguntas.go) se responde en el terminal o desde el teléfono: solo la pide qdd remoto.
+// Una pregunta (preguntas.go) se responde en el terminal o desde el teléfono: solo la pide qdd remoto. Lo mandado desde
+// el teléfono (telefono.go) es un pedido de origen telefono y sale solo con --con telefono: el panel del PC lo
+// mostraría como un pedido suyo.
 var opcionales = map[string]bool{TipoAtender: true, TipoPregunta: true}
 
 // Panel es lo que dibuja el panel. con son los tipos opcionales que ese panel sabe dibujar (qdd consola panel --con).
@@ -102,6 +118,9 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 		if opcionales[a.Tipo] && !pide[a.Tipo] {
 			continue
 		}
+		if a.Origen == OrigenTelefono && !pide[ConTelefono] {
+			continue
+		}
 		acciones = append(acciones, a)
 	}
 	d.Acciones = acciones
@@ -109,11 +128,11 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 }
 
 // panel arma los datos del panel: el estado por frente (o el motivo por el que no hay) y las acciones de ahora.
-// Las preguntas que esperan a la persona van primero; no son acciones de 'qdd consola accion' (se responden en el
-// terminal o con ResponderPregunta).
+// Las preguntas que esperan a la persona van primero, y después lo mandado desde el teléfono; ninguno de los dos es
+// una acción de 'qdd consola accion' (se responden en el terminal o con ResponderPregunta; lo corre qdd remoto).
 func panel(root string, now time.Time) DatosConsola {
 	d := DatosConsola{Formato: 1, Carpeta: root}
-	preguntas := accionesDePreguntas(root, now)
+	preguntas := append(accionesDePreguntas(root, now), accionesDelTelefono(root, now)...)
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
 		d.Motivo = estado.ErrSinArchivo.Error()

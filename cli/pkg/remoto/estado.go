@@ -77,15 +77,16 @@ func Publicables(reg registro.Registro, limite int) []registro.Proyecto {
 }
 
 // PanelDe es el proyecto con su panel, exactamente consola.Panel (con la versión, como qdd consola panel --json) con
-// las preguntas de la consola (tipo opcional, sin secretos), o con el error si la carpeta ya no está.
+// las preguntas de la consola y lo mandado desde el teléfono (opcionales, sin secretos), o con el error si la carpeta
+// ya no está. El ejecutar del panel depende del plan: lo pone ConEjecutar.
 func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 	out := ProyectoEstado{Clave: p.Clave, Nombre: filepath.Base(p.Ruta), Ruta: p.Ruta}
 	if info, err := os.Stat(p.Ruta); err != nil || !info.IsDir() {
 		out.Error = ErrCarpetaNoExiste
 		return out
 	}
-	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta)
-	ocultarPreguntas(p.Ruta, &panel)
+	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono)
+	ocultarDelPanel(p.Ruta, &panel)
 	panel.Version = qdd
 	out.Panel = &panel
 	return out

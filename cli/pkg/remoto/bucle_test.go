@@ -152,7 +152,20 @@ func bucleDePrueba(t *testing.T, ajustes ...func(*Bucle)) (*Bucle, *transporteFa
 		cancelar()
 		<-fin
 	})
+	esperarPrimerLatido()
 	return b, tr, rl, fin
+}
+
+// esperarPrimerLatido espera (como mucho 1 s) a que el bucle tenga el plan del primer latido: con Pro el panel suma
+// ejecutar, y ese cambio no debe caer en medio de lo que mide una prueba.
+func esperarPrimerLatido() {
+	limite := time.Now().Add(time.Second)
+	for time.Now().Before(limite) {
+		if _, err := LeerPlan(); err == nil {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 func telefono(dispositivo, mirando string) Evento {
