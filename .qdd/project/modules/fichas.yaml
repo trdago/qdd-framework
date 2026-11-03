@@ -22,4 +22,4 @@ pruebas:
     comandos:
         - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
 ultima_revision: "2026-11-03"
-revisado_en_commit: 640d1b10de88
+revisado_en_commit: 9392f4366a24
