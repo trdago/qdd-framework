@@ -247,12 +247,20 @@ func remotoCorrer(errores io.Writer) int {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
 		return 0
 	}
+	if errors.Is(err, remoto.ErrActualizado) {
+		fmt.Fprintf(errores, "[i] %v.\n", err)
+		return codigoReiniciar
+	}
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
 	return 0
 }
+
+// codigoReiniciar es la salida con la que el servicio vuelve a arrancar qdd (los tres reinician ante una salida
+// distinta de 0): así toma la versión nueva tras actualizar qdd (FND-120).
+const codigoReiniciar = 3
 
 // unaSolaVez deja <QDD_HOME>/remoto/correr.pid con este proceso; si otro vivo ya corre, es un error.
 func unaSolaVez() (func(), error) {
