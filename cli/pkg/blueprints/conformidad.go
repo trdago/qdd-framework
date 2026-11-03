@@ -150,7 +150,7 @@ func pedidosDeConformidad(root string) []pedidoDeConformidad {
 	var pedidos []pedidoDeConformidad
 	apps, _ := LoadApplications(root)
 	for _, a := range apps {
-		impl := modules.Implementacion{Blueprint: a.Blueprint, Respuestas: a.Respuestas}
+		impl := modules.Implementacion{Blueprint: a.Blueprint, Respuestas: a.Respuestas, Fuera: porID[a.Modulo].Fuera}
 		pedidos = append(pedidos, pedidoDeConformidad{a.Modulo, impl, porID[a.Modulo].Rutas, filepath.ToSlash(filepath.Join(ApplicationsDir, a.Modulo+".yaml")), true})
 	}
 	for _, m := range fichas {
@@ -159,6 +159,15 @@ func pedidosDeConformidad(root string) []pedidoDeConformidad {
 		}
 	}
 	return pedidos
+}
+
+// comoDeclararFuera: un módulo que aplica el blueprint lo dice en la raíz de su ficha; la implementación de origen, en
+// su entrada de implementa (FND-121).
+func comoDeclararFuera(p pedidoDeConformidad) string {
+	if p.aplicado {
+		return "fuera: {ID: motivo} en la raíz de la ficha, junto a blueprint"
+	}
+	return "fuera: {ID: motivo} en su entrada de implementa"
 }
 
 // Conformar mide cada módulo que aplicó un blueprint (sus registros de aplicación) o que lo implementa (su ficha).
@@ -194,7 +203,7 @@ func CheckConformidad(root string) (bloquean, sinMedir []Problema) {
 			continue
 		}
 		if len(c.Faltan) > 0 {
-			bloquean = append(bloquean, Problema{"BP-08-CONFORMIDAD", p.archivo, LineaConformidad(c) + ". Escribe una prueba que lleve el id de cada escenario que falta, o declara en la ficha, con su motivo, lo que este código no hace (implementa: fuera)."})
+			bloquean = append(bloquean, Problema{"BP-08-CONFORMIDAD", p.archivo, LineaConformidad(c) + ". Escribe una prueba que lleve el id de cada escenario que falta, o declara en la ficha, con su motivo, lo que este código no hace: " + comoDeclararFuera(p) + "."})
 		}
 	}
 	return bloquean, sinMedir

@@ -11,6 +11,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - Al actualizar qdd, `qdd remoto` sigue corriendo la versión vieja hasta que alguien reinicia el servicio: lo que
   el teléfono pedía a la versión nueva quedaba cargando. Ahora el servicio nota que su qdd cambió en el disco y vuelve
   a arrancar solo con la nueva (FND-120).
+- La ficha de un módulo que aplica un blueprint ya puede declarar, con su motivo, los escenarios que su código no hace:
+  `fuera: {ID: motivo}` en la raíz, junto a `blueprint`. Antes BP-08 pedía `implementa: fuera`, que para un módulo
+  aplicado no servía. La plantilla de ficha muestra las dos formas (FND-121).
 
 ## [2.8.0-rc.25] - 2026-11-03 (preview)
 
