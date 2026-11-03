@@ -379,6 +379,9 @@ func CarpetaDeAporte(root, pedido string) (Blueprint, error) {
 	if err != nil {
 		return Blueprint{}, err
 	}
+	if aporte := ubicarAporte(espacio, pedido); aporte != "" {
+		espacio = aporte
+	}
 	dir := filepath.Join(espacio, filepath.FromSlash(subdir))
 	if !exists(filepath.Join(dir, ManifestName)) {
 		return Blueprint{}, fmt.Errorf("no hay un aporte de '%s': qdd blueprint contribute %s (o distill desde un módulo)", pedido, pedido)

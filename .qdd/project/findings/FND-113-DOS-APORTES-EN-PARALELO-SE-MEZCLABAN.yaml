@@ -1,0 +1,9 @@
+id: "FND-113"
+title: "Pedir un aporte con otro a medio hacer en el clon central respondía con la rama del otro y mezclaba los dos trabajos"
+description: "Aportar (pkg/blueprints/evolucion.go) usaba un solo clon por repositorio y, si tenía cambios sin commitear, no cambiaba de rama pero respondía «Aporte listo» igual. fairplay_agent pidió el aporte de whatsapp-web mientras otra sesión tenía auth a medio hacer: recibió «rama aporte/auth», y la carpeta de whatsapp-web quedaba en ese mismo clon."
+impact: "Dos sesiones que aportaban a la vez a la misma organización mezclaban sus blueprints; certify y propose habrían subido los dos juntos en el PR del otro."
+action_taken: "Cada aporte tiene su propio worktree, <clon>@<id>, en la rama aporte/<id>. contribute, certify y propose lo ubican igual. Un aporte abierto antes del arreglo vive en el clon, en su rama, y se sigue usando ahí."
+test_result: "TestAportar_DosAportesEnParaleloNoSeMezclan_FND113 falla antes del arreglo (responde aporte/auth) y pasa después; el trabajo sin commitear de auth no aparece en el aporte nuevo y sigue intacto en el suyo."
+status: resolved
+detectado_por: ia
+date: "2026-11-02"

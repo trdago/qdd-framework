@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.0-rc.21] - 2026-11-02 (preview)
+
+Vigesimoprimera **preview** de 2.8.0: `npm i -g qdd-framework@preview`.
+
+### 🐛 Dos aportes de blueprint en paralelo ya no se mezclan (FND-113)
+
+- Cada aporte tiene su propio espacio en la carpeta central (un worktree `<clon>@<id>` en la rama `aporte/<id>`).
+  Antes, pedir un aporte con otro a medio hacer respondía «Aporte listo: rama aporte/<el otro>» y dejaba los dos
+  trabajos en el mismo clon, y propose los habría subido juntos. Un aporte abierto antes sigue donde estaba.
+
 ## [2.8.0-rc.20] - 2026-11-02 (preview)
 
 Vigésima **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Este qdd implementa `estado-por-tareas` 2.2.0, así
