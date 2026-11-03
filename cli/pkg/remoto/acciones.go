@@ -128,6 +128,7 @@ type Solicitud struct {
 	Ruta        string    `json:"ruta,omitempty"`
 	Pedido      string    `json:"pedido,omitempty"`
 	Pregunta    string    `json:"pregunta,omitempty"` // una respuesta a una pregunta de la consola (preguntas.go)
+	Ejecutar    string    `json:"ejecutar,omitempty"` // lo mandado a ejecutar desde el teléfono: qdd o ia (ejecutar.go)
 	Recibida    time.Time `json:"recibida"`
 }
 
@@ -399,8 +400,13 @@ func (b *Bucle) lanzarPedido(ctx context.Context, s Solicitud, accion consola.Ac
 }
 
 // rechazarPedido descarta de la cola un pedido que el panel ofrece y nadie aprobó todavía. Uno ya aprobado responde
-// ya_aprobado con el lugar, como al aprobarlo (inv. 19).
+// ya_aprobado con el lugar, como al aprobarlo (inv. 19). Una instrucción mandada desde el teléfono (telefono:<solicitud>)
+// se retira si todavía espera una sesión (ejecutar.go).
 func (b *Bucle) rechazarPedido(ctx context.Context, s Solicitud, accionID string) {
+	if solicitud, ok := strings.CutPrefix(accionID, "telefono:"); ok {
+		b.retirarInstruccion(ctx, s, solicitud)
+		return
+	}
 	accion, err := consola.BuscarAccion(consola.Panel(s.Ruta, b.ahora()).Acciones, accionID)
 	if err != nil || accion.Tipo != consola.TipoPedido {
 		b.cerrar(ctx, s, EstadoRechazada, "el panel ya no ofrece ese pedido")
@@ -452,11 +458,18 @@ func (b *Bucle) alResultado(ctx context.Context, r resultadoAccion) {
 	if !ok {
 		return
 	}
+	if s.Ejecutar != "" {
+		b.terminarComando(ctx, s, r)
+		return
+	}
 	estado := EstadoHecha
 	if r.codigo != 0 {
 		estado = EstadoFallo
 	}
-	b.cerrar(ctx, s, estado, r.salida)
+	// FND-118: de una salida va el final (el veredicto de audit está al final), ya sin secretos en toda ella.
+	s.Estado, s.Resultado = estado, recortarFinal(b.ocultador(s.Ruta).Ocultar(strings.TrimSpace(r.salida)), maxResultado)
+	b.recordar(s)
+	b.responder(ctx, s)
 	b.marcar()
 }
 

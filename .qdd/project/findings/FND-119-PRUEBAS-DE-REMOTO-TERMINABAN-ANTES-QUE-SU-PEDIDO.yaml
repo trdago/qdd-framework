@@ -1,0 +1,9 @@
+id: "FND-119"
+title: "Las pruebas de pkg/remoto que lanzan un pedido terminaban antes que él y el gate del CI fallaba a veces"
+description: "TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC y TestAccion_RechazarUnPedidoYaAprobadoDiceDonde lanzan aparte un pedido «sleep 2» y terminaban en 0,01 s. El pedido escribe su estado en <QDD_HOME>/claude/pedidos, la carpeta temporal de la prueba, mientras Go la borra: «TempDir RemoveAll cleanup: unlinkat …/claude/pedidos: directory not empty». En local no se reproduce; en el CI falló el gate de la publicación de v2.8.0-rc.24 y el del PR #75."
+impact: "v2.8.0-rc.24 no llegó a npm y el merge del #75 quedó bloqueado; el teléfono no podía usar ejecutar porque el PC seguía en rc.23."
+action_taken: "esperarQueTermine registra un Cleanup que espera hasta que el pedido quede hecho o en fallo y la cola esté sin bloqueo, antes de que se borre la carpeta temporal. Lo usan las tres pruebas que lanzan un pedido. rc.24 queda «sin publicar» y todo sale en rc.25."
+test_result: "Las dos pruebas ahora duran 2 s (esperan al pedido) en vez de 0,01 s; go test ./pkg/remoto pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"

@@ -113,6 +113,7 @@ func TestConsola_UnPedidoQueTerminaSaleConSuSalida(t *testing.T) {
 	if c := accion.Lanzar(root, bin, "prueba", io.Discard); c != 0 {
 		t.Fatalf("lanzar: %d", c)
 	}
+	esperarQueTermine(t, root, p.ID)
 	limite := time.After(10 * time.Second)
 	for {
 		m := consolaDe(t, tr.esperar(t, 10*time.Second, "consola"))

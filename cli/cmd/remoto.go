@@ -62,6 +62,7 @@ func remotoEstado(salida, errores io.Writer, comoJSON bool, now time.Time) int {
 		return 1
 	}
 	e := remoto.Armar(Version, reg, now, 0)
+	remoto.ConEjecutar(&e, remoto.PlanLocal(), now)
 	if comoJSON {
 		b, err := json.MarshalIndent(e, "", "  ")
 		if err != nil {

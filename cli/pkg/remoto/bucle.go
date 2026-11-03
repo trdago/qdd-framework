@@ -218,6 +218,9 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	if e.Evento == "responder" {
 		b.alResponder(ctx, e.Payload)
 	}
+	if e.Evento == "ejecutar" {
+		b.alEjecutar(ctx, e.Payload)
+	}
 }
 
 // Telefonos son los teléfonos de una presence (rol movil).
@@ -269,7 +272,9 @@ func (b *Bucle) armar() Estado {
 	}
 	b.errRegistro = ""
 	b.vigia.vigilar(carpetasDe(reg))
-	return Armar(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos())
+	e := Armar(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos())
+	ConEjecutar(&e, b.plan, b.ahora())
+	return e
 }
 
 // recalcular arma el estado, avisa por push lo nuevo y, si hay teléfonos con un estado base, les manda lo que cambió.
@@ -278,6 +283,7 @@ func (b *Bucle) recalcular(ctx context.Context) {
 	b.avisarNuevos(ctx, e)
 	b.seguirSolicitudes(ctx, e)
 	b.seguirPreguntas(ctx)
+	b.seguirEjecuciones(ctx)
 	if len(b.telefonos) == 0 || !b.base {
 		return
 	}
@@ -479,13 +485,30 @@ func (b *Bucle) alLatido(r resultadoLatido) error {
 		b.logf("latido: %v", r.err)
 		return nil
 	}
-	limiteAntes := b.plan.LimiteProyectos()
+	limiteAntes, proAntes := b.plan.LimiteProyectos(), b.plan.Pro()
 	b.plan = r.plan
+	b.guardarPlan()
 	b.alCambiarPlan()
+	if b.plan.Pro() != proAntes {
+		b.marcar()
+	}
 	if b.plan.LimiteProyectos() != limiteAntes {
 		b.marcar()
 	}
 	return nil
+}
+
+// guardarPlan deja el plan en plan.json si cambió: qdd consola panel y qdd remoto estado lo leen de ahí.
+func (b *Bucle) guardarPlan() {
+	j, _ := json.Marshal(b.plan)
+	if string(j) == b.extras.plan {
+		return
+	}
+	if err := GuardarPlan(b.plan, b.ahora()); err != nil {
+		b.logf("plan: %v", err)
+		return
+	}
+	b.extras.plan = string(j)
 }
 
 // EnCurso cuenta lo que corre ahora en todos los proyectos del registro: tareas «● running» y pedidos ejecutando. Con

@@ -1753,11 +1753,93 @@ async function vencerPreguntas($) {
   await $.process.run([bin, 'consola', 'pregunta', 'vencer', '--sesion', mia], { timeoutMs: 2000 }).catch(() => {})
 }
 
+// ── Instrucciones desde el teléfono (RFC 0013 §«Ejecutar desde el teléfono», solo Pro) ──────────────────────────────
+// Con Pro, la persona puede mandar desde QDD Móvil una instrucción para la IA del proyecto. Cada TELEFONO_MS, la
+// sesión interactiva late con «qdd consola telefono latir» (así el teléfono sabe que hay una sesión abierta) y recibe
+// lo que le toca, una sola vez aunque haya varias sesiones abiertas: qdd lo decide con la cola bloqueada. Lo envía a
+// la IA como un mensaje de la persona que dice que viene de su teléfono; el mensaje empieza con 📱, así que nunca se
+// lee como un comando de shell («!») ni de Claude Code («/»), y se notifica en el escritorio. Sin QDD Móvil activado,
+// late cada TELEFONO_PAUSA latidos; con un qdd anterior a «consola telefono», deja de latir.
+const TELEFONO_MS = 5000
+const TELEFONO_PAUSA = 12
+const telefono = { soportado: true, latio: false, saltar: 0, latiendo: false }
+
+async function latirTelefono($) {
+  if (!interactiva || !telefono.soportado || telefono.latiendo) return
+  if (telefono.saltar > 0) {
+    telefono.saltar -= 1
+    return
+  }
+  const mia = await sesionPropia($)
+  if (!mia) return
+  telefono.latiendo = true
+  try {
+    await recibirDelTelefono($, mia)
+  } finally {
+    telefono.latiendo = false
+  }
+}
+
+async function recibirDelTelefono($, mia) {
+  const bin = await binario($)
+  let r
+  try {
+    r = await $.process.run([bin, 'consola', 'telefono', 'latir', '--sesion', mia], { timeoutMs: TOPE_MS })
+  } catch (err) {
+    $.ui.log('qdd: no latió para el teléfono: ' + String(err?.message ?? err), { to: 'debug' })
+    return
+  }
+  if (r.exitCode !== 0 && /unknown command|unknown flag/.test(r.stderr || '')) telefono.soportado = false
+  if (r.exitCode !== 0) return
+  let l = null
+  try {
+    l = JSON.parse(r.stdout)
+  } catch {
+    return
+  }
+  if (!l.activo) {
+    telefono.saltar = TELEFONO_PAUSA - 1
+    return
+  }
+  telefono.latio = true
+  for (const x of l.entregar || []) await entregarDelTelefono($, bin, mia, x)
+}
+
+// entregarDelTelefono le da la instrucción a la IA; si Claude Code no la acepta, qdd la marca sin entregar y el
+// teléfono lo ve.
+async function entregarDelTelefono($, bin, mia, x) {
+  if (!x?.mensaje || !String(x.mensaje).startsWith('📱')) return
+  try {
+    await $.prompt.submit({ text: x.mensaje })
+  } catch (err) {
+    const motivo = String(err?.message ?? err)
+    $.ui.log('no se envió a la IA la instrucción del teléfono: ' + motivo)
+    await $.process.run([bin, 'consola', 'telefono', 'fallo', x.solicitud, '--sesion', mia, '--motivo', motivo], { timeoutMs: TOPE_MS }).catch(() => {})
+    return
+  }
+  $.ui.notify('📱 Instrucción desde ' + (x.nombre || 'el teléfono'), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
+}
+
+// cerrarTelefono: la sesión se cierra; deja de contar como abierta en el acto.
+async function cerrarTelefono($) {
+  if (!telefono.latio) return
+  const mia = await sesionPropia($)
+  if (!mia) return
+  const bin = await binario($)
+  await $.process.run([bin, 'consola', 'telefono', 'latir', '--sesion', mia, '--fin'], { timeoutMs: 2000 }).catch(() => {})
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
     await leer($)
     await leerHerramientas($)
+    if (interactiva) {
+      await latirTelefono($)
+      $.clock.every(TELEFONO_MS, async () => {
+        await latirTelefono($)
+      })
+    }
     $.clock.every(INTERVALO_MS, async () => {
       await leer($)
       lecturas += 1
@@ -1819,6 +1901,7 @@ export function register(on) {
 
   on('session.end', async ($, e, next) => {
     await vencerPreguntas($)
+    await cerrarTelefono($)
     return next(e)
   })
 

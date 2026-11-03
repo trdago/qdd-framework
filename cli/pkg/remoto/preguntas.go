@@ -138,12 +138,12 @@ func (b *Bucle) seguirPreguntas(ctx context.Context) {
 	}
 }
 
-// ocultarPreguntas pasa por el ocultador lo que se publica de cada pregunta (inv. 16): textos, opciones y el detalle
-// de un permiso (el comando puede traer un token).
-func ocultarPreguntas(root string, panel *consola.DatosConsola) {
+// ocultarDelPanel pasa por el ocultador lo que se publica de cada pregunta (inv. 16): textos, opciones y el detalle
+// de un permiso (el comando puede traer un token); y de lo mandado desde el teléfono, el texto, el aviso y la salida.
+func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 	var o *Ocultador
 	for i, a := range panel.Acciones {
-		if a.Tipo != consola.TipoPregunta {
+		if a.Tipo != consola.TipoPregunta && a.Origen != consola.OrigenTelefono {
 			continue
 		}
 		if o == nil {
@@ -154,11 +154,14 @@ func ocultarPreguntas(root string, panel *consola.DatosConsola) {
 }
 
 func ocultarPregunta(o *Ocultador, a consola.Accion) consola.Accion {
-	a.Etiqueta, a.Detalle, a.Resultado = o.Ocultar(a.Etiqueta), o.Ocultar(a.Detalle), o.Ocultar(a.Resultado)
+	a.Etiqueta, a.Detalle, a.Resultado, a.Aviso = o.Ocultar(a.Etiqueta), o.Ocultar(a.Detalle), o.Ocultar(a.Resultado), o.Ocultar(a.Aviso)
 	if a.Permiso != nil {
 		permiso := *a.Permiso
 		permiso.Detalle = o.Ocultar(permiso.Detalle)
 		a.Permiso = &permiso
+	}
+	if len(a.Preguntas) == 0 {
+		return a
 	}
 	items := make([]consola.ItemPregunta, len(a.Preguntas))
 	for i, q := range a.Preguntas {

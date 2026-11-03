@@ -35,14 +35,18 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 ## Invariantes
 
 1. El teléfono solo envía **ids de acción** que el PC ofreció en `qdd consola panel --json`. Nunca texto libre que se
-   ejecute. El PC vuelve a calcular la acción antes de ejecutarla (`qdd consola accion <id> --confirmado`).
+   ejecute. El PC vuelve a calcular la acción antes de ejecutarla (`qdd consola accion <id> --confirmado`). La única
+   excepción es **solo para Pro** (decisión del usuario, 2026-11-03): «Ejecutar desde el teléfono», un comando qdd de
+   la lista que permite el PC, sin shell, o una instrucción para la IA, que llega como un mensaje de la persona.
 2. Toda acción que escribe o ejecuta pasa por la confirmación de la persona en el teléfono (biometría o PIN).
 3. Cada acción tiene un **id de solicitud único** y es idempotente: si llega dos veces, se ejecuta una sola vez.
 4. Cada acción recibe su respuesta: `recibida` → `ejecutando` → `hecha` | `fallo`. Sin `recibida` en 5 s, el teléfono
    reintenta con el mismo id.
 5. Quién aprobó qué, cuándo y desde qué dispositivo queda en `<QDD_HOME>/remoto/log.jsonl`, nunca en Supabase.
 6. La consola se transmite solo mientras alguien la mira (Presence de espectadores).
-7. La consola es de solo lectura.
+7. La consola es de solo lectura. **Solo con Pro** (decisión del usuario, 2026-11-03) el teléfono puede mandar a un
+   proyecto un comando qdd de la lista permitida y una instrucción para la IA de la sesión abierta (ver «Ejecutar desde
+   el teléfono»); la instrucción entra a la conversación como un mensaje de la persona, nunca como un comando.
 8. Un PC sin conexión nunca aparece «encendido»: lo decide Presence, no el último mensaje.
 9. Las credenciales del PC viven en `<QDD_HOME>/remoto/` con permisos `0600`. El PC y la app nunca usan la service key
    (la clave secreta se usa solo para aplicar las migraciones del relay); nada de credenciales en un repositorio.
@@ -142,6 +146,7 @@ existen y el nuestro no se configura a mano.
 | `qdd_remoto_mis_dispositivos()` · `qdd_remoto_revocar_dispositivo(p_dispositivo)` | teléfono | Lista y revoca. |
 | `qdd_remoto_accion(p_maquina, p_solicitud, p_proyecto, p_accion_id)` | teléfono | Sella, verifica y reenvía la acción firmada. |
 | `qdd_remoto_responder(p_maquina, p_solicitud, p_proyecto, p_pregunta, p_respuesta)` | teléfono | Sella, verifica y reenvía la respuesta firmada a una pregunta de la consola. |
+| `qdd_remoto_ejecutar(p_maquina, p_solicitud, p_proyecto, p_tipo, p_texto)` | teléfono | Solo Pro: sella, verifica y reenvía firmado lo que se manda a ejecutar (ver «Ejecutar desde el teléfono»). |
 | `qdd_remoto_mi_plan()` | teléfono | Plan, límites y horas de consola usadas. |
 | `qdd_remoto_dispositivos(p_topico, p_firma)` · `qdd_remoto_revocar(p_topico, p_firma, p_dispositivo)` | PC | `qdd remoto dispositivos` y `revocar`. |
 | `qdd_remoto_latido(p_topico, p_firma, p_en_curso, p_consola_min, p_mensajes)` | PC | Cada minuto: latido, consumo; responde el plan y si la consola sigue permitida. |
@@ -162,6 +167,7 @@ existen y el nuestro no se configura a mano.
 | `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}}`: los proyectos cuyo panel cambió (null: salió). Si falta un `seq`, el teléfono pide `sync`. |
 | `accion` | relay → PC | El teléfono llama a `qdd_remoto_accion(maquina, solicitud, proyecto, accion_id)`; el relay sella `dispositivo`, verifica que no esté revocado y lo envía con `realtime.send` y `firma = hmac_sha256(firma_maquina, solicitud\|proyecto\|accion_id\|dispositivo\|en)`. El PC descarta lo que no traiga una firma válida. |
 | `responder` | relay → PC | El teléfono responde una pregunta de la consola con `qdd_remoto_responder`; el relay lo firma como `accion`, con la respuesta entre la pregunta y el dispositivo (ver «Preguntas desde el teléfono»). |
+| `ejecutar` | relay → PC | Solo Pro: el teléfono llama a `qdd_remoto_ejecutar`; el relay lo firma como `responder`, con el tipo y el texto (ver «Ejecutar desde el teléfono»). |
 | `accion_estado` | PC → teléfono | `{solicitud, estado: recibida/ejecutando/hecha/fallo/ya_aprobado/rechazada/vencida, resultado, lugar}`. |
 | `consola` | PC → teléfono | Fragmentos de la conversación o de un pedido, solo con espectadores. |
 
@@ -288,6 +294,103 @@ Una pregunta cerrada sigue visible 5 min como «ya respondida en …» o «venci
 **Pendiente.** No hay un tipo `pregunta` en la Edge Function `avisar`, porque sus tipos son cerrados. Hasta que se
 agregue, la pregunta llega por Realtime con la app abierta y no hay aviso push.
 
+### Ejecutar desde el teléfono (2026-11-03, solo Pro)
+
+Con Pro, la persona manda desde la app (Proyecto → «Ejecutar», con biometría o PIN) un **comando qdd** o una
+**instrucción para la IA** de un proyecto. Siempre a través de qdd: nunca un comando de shell.
+
+**Relay.** `qdd_remoto_ejecutar(p_maquina, p_solicitud, p_proyecto, p_tipo, p_texto)` hace las comprobaciones de
+`qdd_remoto_responder` y además exige Pro vigente (`53400` «requiere Pro»). Reenvía el evento `ejecutar` con
+`{version: 1, solicitud, proyecto, tipo, texto, dispositivo, nombre, en, firma}`:
+
+- `firma = hmac_sha256_hex(concat_ws('|', solicitud, proyecto, tipo, texto, dispositivo, en), firma_maquina)`, el mismo
+  esquema de `responder`. `nombre` es solo para mostrar y no va firmado.
+- `tipo` es `qdd` o `ia`. `qdd`: una línea de 1 a 1000 caracteres, sin la palabra `qdd` del principio y sin caracteres
+  de control. `ia`: de 1 a 4000 caracteres; admite saltos de línea y tabulaciones, ningún otro control.
+- El relay no guarda ni el comando ni su salida.
+
+**PC.** El PC nunca confía en el relay:
+
+1. Como una acción, descarta sin respuesta lo que no trae la firma de la máquina o es viejo (±5 min; queda en el log
+   como `descartada`, inv. 18). No lo recuerda, así que no le quita la solicitud a la de verdad.
+2. Aplica cada `solicitud` una sola vez (`solicitudes.json`); una repetida responde su último estado.
+3. Rechaza (`rechazada` con el motivo) lo que llega de un teléfono revocado, de un proyecto que no publica o sin Pro.
+   «Pro» es el plan del último latido (`qdd_remoto_latido`); hasta el primero se supone Gratis. El PC guarda ese plan en
+   `<QDD_HOME>/remoto/plan.json` (0600) para `qdd consola panel` y `qdd remoto estado`, que corren en otro proceso.
+4. Vuelve a validar el texto como el relay. Un comando qdd se parte sin shell: por espacios, con comillas simples o
+   dobles. Se rechaza entero si trae ``; | & $ ` > < ( )``, un salto de línea o un carácter de control.
+5. Compara el comando con la lista permitida. Solo comandos que leen o revisan, y solo banderas de solo lectura:
+
+   | Comando | Acepta |
+   |---|---|
+   | `audit` | nada más |
+   | `doctor` | nada más: `--fix` y `-f` reparan archivos |
+   | `estado` | `--json`, `--alcance=abiertos` o `=todos`, `--formato=markdown` o `=mensajeria` |
+   | `estado check` | `--json` |
+   | `modules list` | nada más |
+   | `blueprint list` | `--json` |
+   | `blueprint quality [id]` | un id de blueprint (`^[a-z0-9][a-z0-9._-]{0,79}$`, sin rutas) y `--json` |
+
+   `status` y `sprint status` no son comandos de la CLI: caen al manejador de intenciones, que solo dice que está
+   deprecado. Por eso no están en la lista. Las banderas con valor van con `=`, y cualquier otra palabra se rechaza
+   (`--dir`, `--respuesta`, `set`, `approve`…).
+6. Corre el mismo binario de qdd (`os.Executable`) con `exec`, en la raíz del proyecto, sin entrada y con el entorno
+   limpio de las variables que eligen repositorio (FND-117). Lo corta a los 10 min. Corre uno por proyecto a la vez:
+   dos `audit` juntos se pisarían lo que escriben en `.qdd`.
+7. Una instrucción queda en la cola del teléfono hasta que la toma una sesión interactiva de Claude Code del proyecto
+   (ver abajo). Si ninguna la toma en 30 min, vence.
+
+**Respuesta.** `accion_estado` `{solicitud, accion_id: "ejecutar", estado, resultado}`:
+
+| Estado | Comando qdd | Instrucción |
+|---|---|---|
+| `recibida` | Llegó. | Llegó; sin sesión abierta, `resultado` dice que queda en cola. |
+| `ejecutando` | Corre. | Hay una sesión abierta: va en camino. |
+| `hecha` | Salió con 0. | La tomó la sesión. |
+| `fallo` | Salió con otro código, se cortó o qdd remoto se cerró mientras corría. | La sesión no pudo dársela a la IA. |
+| `vencida` | — | Ninguna sesión la tomó en 30 min. |
+| `rechazada` | Teléfono revocado, proyecto desconocido, sin Pro, texto mal formado, comando fuera de la lista u otro comando del teléfono corriendo. | Lo mismo, o el teléfono la retiró. |
+
+- La salida de un comando pasa entera por el ocultador de secretos (inv. 16). Al teléfono va su final: como mucho 4000
+  caracteres, con «…» delante si se cortó.
+- Se usa `fallo` y no `fallida`: es la fase que la app conoce.
+
+**Cola del teléfono.** Lo mandado vive en `<QDD_HOME>/claude/telefono/<proyecto>.json` (`RutaLocal`, como los pedidos),
+con candado y escritura atómica. Guarda las 10 más nuevas, y lo cerrado sale a los 30 min.
+
+`qdd consola panel --json --con telefono` lo muestra como pedidos:
+
+```
+{"id": "telefono:<solicitud>", "tipo": "pedido", "origen": "telefono", "dispositivo": "<nombre del teléfono>",
+ "solicitud", "etiqueta", "detalle", "estado", "resultado"}
+```
+
+- Estos pedidos no tienen tecla y no son acciones de `qdd consola accion`.
+- Un comando sale `ejecutando`, `hecho` o `fallo`.
+- Una instrucción sale `armado` mientras espera una sesión, `hecho` al entregarse y `fallo` si venció, se retiró o no
+  se pudo entregar.
+- El «Rechazar» de la app (`rechazar:telefono:<solicitud>`) retira una instrucción que todavía espera.
+- El panel del PC no los recibe (no pide `--con telefono`). `qdd remoto` sí, pasados por el ocultador.
+
+**`ejecutar` del panel.** Con QDD Móvil activado y Pro, el panel trae `ejecutar: {qdd: true, ia, sugeridos}`. Sin
+eso, el campo no va:
+
+- `ia` es `true` si una sesión de Claude Code del proyecto latió en los últimos 30 s.
+- `sugeridos` es la lista permitida, sin la palabra `qdd`.
+
+**Entrega a la IA.** En cada sesión interactiva, el mod `qdd-tareas` corre `qdd consola telefono latir --sesion <id>`
+cada 5 s. Así el proyecto sabe que hay una sesión abierta, y el latido devuelve las instrucciones que le tocan:
+
+- Cada instrucción va a una sola sesión, una sola vez, aunque haya varias abiertas: qdd lo decide con la cola bloqueada.
+- El mod la envía con `prompt.submit` como un mensaje de la persona: «📱 La persona te escribe desde «<teléfono>» (QDD
+  Móvil). Atiéndelo como un mensaje suyo:» y el texto tal cual. También avisa en el escritorio.
+- El mensaje empieza con 📱, así que Claude Code nunca lo lee como un comando de shell (`!`) ni uno suyo (`/`). El mod
+  no envía nada que no empiece así.
+- Si Claude Code no acepta el mensaje, `qdd consola telefono fallo` la marca sin entregar.
+- Las sesiones sin terminal y los subagentes no laten ni reciben nada.
+- Sin QDD Móvil activado, el mod late cada minuto. Con un qdd anterior, deja de latir.
+- Al cerrarse la sesión, `latir --fin` la quita en el acto.
+
 ### Planes y controles de costo
 
 | | Gratis | Pro (USD 1 al mes) |
@@ -332,7 +435,9 @@ La app en español e inglés desde el principio, con las fichas de las tiendas e
 
 ## Fuera de alcance
 
-Escribir en la consola, guardar estado en la nube, cifrado de extremo a extremo (siguiente versión).
+Escribir en la consola (salvo, solo con Pro, lo de «Ejecutar desde el teléfono»: comandos qdd de la lista permitida e
+instrucciones a la IA), cualquier comando que no pase por qdd, guardar estado en la nube, cifrado de extremo a extremo
+(siguiente versión).
 
 ## Modelo de negocio
 
