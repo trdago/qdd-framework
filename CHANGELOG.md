@@ -28,6 +28,12 @@ pregunta la consola.
 - Una pregunta vence si deja de recibir latidos por 60 s, a los 30 min o cuando termina la sesión.
 - Diseño completo en la RFC 0013, «Preguntas desde el teléfono».
 
+### 🐛 Corregido
+
+- Las pruebas corridas por un hook de git (el pre-push desde un worktree exporta `GIT_DIR`) ya no escriben commits ni
+  tags en el repositorio real. El nuevo `pkg/gitenv` limpia ese entorno en cada paquete cuyas pruebas corren git, y
+  los clones de blueprints corren git con el entorno limpio aunque qdd corra dentro de un hook (FND-117).
+
 ## [2.8.0-rc.23] - 2026-11-03 (preview)
 
 Vigesimotercera **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Arreglos de blueprints que encontraron las

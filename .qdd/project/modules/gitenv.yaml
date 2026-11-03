@@ -1,0 +1,26 @@
+id: gitenv
+nombre: Entorno de git aislado
+estado: aprobado
+rutas:
+    - cli/pkg/gitenv
+objetivo_operativo:
+    problema: 'Un hook de git (pre-push desde un worktree, pre-commit) exporta GIT_DIR y GIT_INDEX_FILE. Un git que corre en otra carpeta los hereda y trabaja sobre el repositorio del hook: las pruebas escriben sus fixtures en el repositorio real y qdd opera el repositorio equivocado.'
+    usuarios: Las pruebas de qdd que corren git en carpetas temporales, y el código de qdd que corre git en una carpeta que no es el proyecto (clones de blueprints).
+    criterio_de_exito: '«GIT_DIR=<otro repo> go test ./...» pasa y deja ese repositorio intacto: sin commits ni tags nuevos.'
+    caso_real: '2026-11-03: el pre-push de feat/preguntas-remotas dejó ~42 commits de fixtures y los tags v0.4.2 y v2.3.1 en el repositorio; el push no llegó a GitHub (FND-117).'
+objetivo_tecnologico:
+    arquitectura: Variables lista lo que hace que git ignore la carpeta en que corre. Limpio(env) devuelve el entorno sin ellas, para un exec.Cmd; LimpiarProceso() las quita del proceso y lo llama un init de prueba en cada paquete cuyas pruebas corren git.
+    decisiones:
+        - 'Se limpia en las pruebas y en el git que corre fuera del proyecto (gitRaw de blueprints), no en el git que opera el propio proyecto: dentro de un hook ese apunta al mismo repositorio y su GIT_INDEX_FILE es el índice que el hook está commiteando.'
+        - 'Una prueba de arquitectura exige el init en todo paquete nuevo cuyas pruebas corran git: no depende de acordarse.'
+    invariantes:
+        - Las pruebas nunca escriben en un repositorio fuera de sus carpetas temporales, corran desde donde corran.
+        - Un git sobre un clon de blueprints trabaja en ese clon aunque qdd corra dentro de un hook.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/gitenv/ ./pkg/blueprints/ -run 'Limpi|GitRaw|Arquitectura_LasPruebas'
+fuentes:
+    - cli/pkg/gitenv/gitenv.go
+    - .qdd/project/findings/FND-117-LAS-PRUEBAS-CORRIDAS-POR-UN-HOOK-ESCRIBIAN-EN-EL-REPO-REAL.yaml
+ultima_revision: "2026-11-03"
+revisado_en_commit: 6c980f512880

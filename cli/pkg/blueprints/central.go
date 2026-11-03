@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
 // HomeEnv mueve la carpeta central de QDD. Existe para el CI y las pruebas;
@@ -76,7 +78,7 @@ func repoKey(repo string) string {
 func gitRaw(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", append([]string{"-c", "protocol.ext.allow=never"}, args...)...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = append(gitenv.Limpio(os.Environ()), "GIT_TERMINAL_PROMPT=0")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

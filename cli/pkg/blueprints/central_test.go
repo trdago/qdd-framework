@@ -402,3 +402,23 @@ func TestAportar_DosAportesEnParaleloNoSeMezclan_FND113(t *testing.T) {
 		t.Fatalf("y el de auth sigue proponiéndose desde el suyo: %q %v", rama, err)
 	}
 }
+
+// FND-117: un qdd que corre dentro de un hook de git (GIT_DIR exportado) trabaja en su clon, no en el repo del hook.
+func TestGitRaw_DentroDeUnHookTrabajaEnElClonYNoEnElRepoDelHook(t *testing.T) {
+	hook := t.TempDir()
+	if _, err := gitRaw(hook, "init", "-q"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_DIR", filepath.Join(hook, ".git"))
+	clon := t.TempDir()
+	if _, err := gitRaw(clon, "init", "-q"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := gitRaw(clon, "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(out)); got != filepath.Join(clon, ".git") {
+		t.Fatalf("git trabaja en el clon: %s", got)
+	}
+}
