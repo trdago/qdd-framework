@@ -24,7 +24,8 @@ func (a Accion) Lanzar(root, bin, sesion string, salida io.Writer) int {
 		fmt.Fprintf(salida, "[!] %v\n", err)
 		return 1
 	}
-	c := exec.Command(bin, ArgsCorrer(root, a.pedido)...)
+	nombre, args := fueraDeLaUnidad(bin, ArgsCorrer(root, a.pedido))
+	c := exec.Command(nombre, args...)
 	c.Dir = root
 	separar(c)
 	if err := c.Start(); err != nil {

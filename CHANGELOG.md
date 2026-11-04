@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0-rc.4] - 2026-11-04 (preview)
+
+Cuarta **preview** de 2.9.0: `npm i -g qdd-framework@preview`. Su arreglo sale también en `latest` como 2.8.4.
+
+### Arreglado
+
+- **Un pedido ya no muere con la unidad de systemd que lo lanzó** (FND-129, MEJ-003). En Linux corre en su propio scope, así
+  que sigue aunque se detenga el servicio o la sesión desde la que se lanzó. Sin systemd de usuario se lanza como antes.
+
 ## [2.9.0-rc.3] - 2026-11-04 (preview)
 
 Tercera **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
