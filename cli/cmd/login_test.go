@@ -101,6 +101,19 @@ func TestLogin_LasBanderasGananAlPorDefecto(t *testing.T) {
 	}
 }
 
+// FND-133: un PC sin relay guardado toma el que trae qdd, sin banderas, y lo deja guardado para el servicio.
+func TestLogin_UnPCNuevoUsaElRelayQueTraeQdd_FND133(t *testing.T) {
+	prepararLogin(t, remoto.RelayPorDefecto)
+	c, err := relayDeFlags()
+	if err != nil {
+		t.Fatalf("un PC nuevo no necesita banderas: %v", err)
+	}
+	guardado, err := remoto.LeerRelay()
+	if err != nil || guardado != c {
+		t.Fatalf("queda guardado: %v", err)
+	}
+}
+
 func TestLogin_UnRelayPorDefectoSecretoNoSeGuarda(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://x.supabase.co", Clave: "sb_secret_nunca"})
 	if _, err := relayDeFlags(); err == nil {

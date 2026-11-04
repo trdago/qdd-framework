@@ -1,0 +1,9 @@
+id: "FND-133"
+title: "qdd login fallaba en un PC nuevo"
+description: "qdd 2.9.0 trajo qdd login con el relay por defecto vacío. En un PC sin relay guardado, el comando sin banderas terminaba con «falta el relay: esta versión de qdd no trae uno por defecto»."
+impact: "Lo que pedía el issue #102, emparejar un PC nuevo sin configurar nada, no funcionaba. La persona lo vio al probarlo en otro PC."
+action_taken: "RelayPorDefecto lleva la dirección del relay de QDD Móvil y su clave publicable, por decisión de la persona. La primera vez qdd la guarda en <QDD_HOME>/remoto/relay.json. --relay y --clave siguen para quien opera su relay."
+test_result: "TestRelayPorDefecto_VaCompletoYPublicable_FND133, TestLogin_UnPCNuevoUsaElRelayQueTraeQdd_FND133"
+status: resolved
+detectado_por: humano
+date: "2026-11-04"
