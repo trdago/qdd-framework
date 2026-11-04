@@ -1,0 +1,9 @@
+id: "FND-131"
+title: "Dos compilaciones en paralelo chocaban al crear el release y npm no publicaba"
+description: "Los cinco binarios del workflow de publicación se compilan en una matriz en paralelo, y cada job sube su archivo al mismo release de GitHub. Si dos ven a la vez que el release no existe, ambos lo crean. Pueden quedar dos releases publicados con el mismo tag; desde ahí, cada job falla con already_exists al actualizar el release, el fail-fast cancela el resto de la matriz y el job de npm se salta."
+impact: "Una versión con el gate en verde y su tag ya puesto queda sin publicar en npm, y reintentar la corrida no basta: vuelve a fallar hasta borrar el release duplicado. Pasó con v2.9.0-rc.4, cuyo primer reintento falló igual."
+action_taken: "La matriz de build-binaries corre con max-parallel: 1, así el primer job crea el release y los demás lo encuentran. La publicación tarda más, a cambio de no depender de quién llega primero."
+test_result: "TestPublishYml_LosBinariosSeSubenDeAUno_FND131 falla sin max-parallel y pasa con él. El arreglo se comprobará en la próxima publicación real."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"

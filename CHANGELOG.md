@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.5] - 2026-11-04
+
+Corrección (`npm i -g qdd-framework@latest`) con dos arreglos tomados de main, sin lo nuevo de 2.9.0.
+
+### Arreglado
+
+- **`qdd doctor` renueva las reglas de las IAs al actualizar qdd** (FND-126). El bloque de reglas solo se escribía en
+  `qdd init`, así que los proyectos existentes seguían con las reglas viejas. `qdd doctor` nombra los archivos atrasados
+  y `--fix` los renueva, conservando lo demás. Un qdd más viejo no pisa el bloque de uno más nuevo.
+- **Una publicación ya no queda a medias por una carrera al crear el release** (FND-131). Los binarios se suben de a uno.
+
 ## [2.8.4] - 2026-11-04
 
 Corrección (`npm i -g qdd-framework@latest`) con dos arreglos tomados de main, sin lo nuevo de 2.9.0.
