@@ -138,4 +138,4 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-03"
-revisado_en_commit: 3ff53da9403d
+revisado_en_commit: 926a4856e922
