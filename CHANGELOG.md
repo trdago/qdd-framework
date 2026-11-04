@@ -6,6 +6,21 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-11-04
+
+Versión estable (`npm i -g qdd-framework`). Reúne las 6 previews de 2.9.0, con 15,0 h de uso real medido (VER-05,
+`.qdd/project/evidence/uso/v2.9.0.yaml`). El detalle de cada cambio está en su preview, abajo. Lo principal:
+
+- **Modo goal por proyecto** (`qdd goal`, RFC 0015): lo activas tú, desde el panel o el teléfono. Todavía no se ha
+  probado en una sesión real ni en el teléfono.
+- **`qdd login`** empareja este PC con QDD Móvil (issue #102). Todavía pide `--relay` y `--clave`.
+- **QDD Móvil**: límites de Claude en el teléfono, sin saltos entre sesiones (FND-130), y no pregunta lo que nadie puede
+  resolver (FND-124).
+- **Reglas para las IAs**: lo que necesita de la persona no se queda en el chat, y `qdd doctor` renueva el bloque al
+  actualizar (FND-126).
+- **Pedidos**: uno armado no corre dos veces (FND-125), y uno sobrevive a detener el servicio que lo lanzó (FND-128,
+  FND-129).
+
 ## [2.9.0-rc.6] - 2026-11-04 (preview)
 
 Sexta **preview** de 2.9.0: `npm i -g qdd-framework@preview`.

@@ -1,0 +1,17 @@
+# Uso real medido de qdd 2.9.0 (qdd uso evidencia). El gate lo lee para publicar (VER-05).
+version: 2.9.0
+horas: 15.03
+medido_hasta: "2026-11-04T18:45:49Z"
+versiones:
+    - '2.9.0-rc.1: 8.63 h'
+    - '2.9.0-rc.2: 0.00 h'
+    - '2.9.0-rc.3: 4.29 h'
+    - '2.9.0-rc.4: 0.98 h'
+    - '2.9.0-rc.5: 1.12 h'
+    - '2.9.0-rc.6: 0.00 h'
+proyectos:
+    notificador_de_ofertas: 2.99
+    qdd: 2.9
+    qdd-movile: 4.85
+    sfrc: 4.29
+    tmp.BrN6cM8bcA: 0
