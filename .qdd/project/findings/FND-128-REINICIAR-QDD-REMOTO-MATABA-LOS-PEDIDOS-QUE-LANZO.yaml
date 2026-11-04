@@ -1,0 +1,9 @@
+id: "FND-128"
+title: "Reiniciar qdd remoto mataba los pedidos que lanzó, a mitad de la instalación"
+description: "Al ver un qdd nuevo en el disco, qdd remoto termina con código 3 y systemd lo reinicia. Con KillMode=control-group, el valor por defecto, systemd también envía SIGTERM a todo lo que el servicio lanzó."
+impact: "Un pedido lanzado desde qdd remoto que corría npm i -g moría justo después de que install.js extraía el binario: npm revertía la instalación, el pedido quedaba con código -1 y la máquina seguía en la versión anterior. Pasó el 2026-11-04 con v2.9.0-rc.2: log de npm con SIGTERM a las 08:48:27-30 y salida de qdd-remoto a las 08:48:30. No quedó registro de que ese pedido lo lanzara qdd remoto: es la causa que coincide con los tiempos."
+action_taken: "La unidad de systemd lleva KillMode=process y el plist de launchd AbandonProcessGroup. Doctor reconoce un servicio de antes (REM-03) y --fix solo le agrega esa línea, sin cambiar el binario ni el PATH ni reiniciarlo. Mientras se escribía, una corrida de go test reescribió dos veces el servicio real de la máquina: la primera versión del arreglo lo regeneró con el binario de prueba durante unos minutos, y la segunda le agregó la línea. La causa es TestPipelineExecution: su binario corre init, que hace doctor --fix en otro proceso, con el HOME real y sin el aislamiento de TestMain. Ahora lo lanza binarioDePrueba con un HOME temporal, y una prueba de arquitectura exige que nadie más lo lance directo. Ambas veces se restauró el servicio y siguió corriendo el qdd instalado."
+test_result: "TestServicio_ReiniciarseNoMataLoQueLanzo_FND128, TestServicio_ReconoceUnArchivoDeAntesDeFND128 TestServicio_RenovarSoloAgregaLaMarcaYNoReinicia_FND128, TestServicio_RenovarEnLaunchdAgregaLaMarca_FND128, TestDoctor_RenuevaElServicioQueMataLoQueLanzo_FND128 TestLasPruebasNoTocanElServicioReal y TestArquitectura_ElBinarioDePruebaNoUsaElHOMEReal."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"

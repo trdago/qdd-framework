@@ -19,6 +19,9 @@ const (
 	nombreUnidad = "qdd-remoto.service"
 	etiquetaMac  = "dev.qdd.remoto"
 	tareaWindows = "QDD remoto"
+	// Lo que hace que el sistema no mate lo lanzado por el servicio cuando este termina (FND-128).
+	marcaSystemd = "KillMode=process"
+	marcaLaunchd = "<key>AbandonProcessGroup</key><true/>"
 )
 
 // Servicio es lo necesario para escribir el servicio: el sistema, el binario de qdd, la carpeta del usuario, QDD_HOME
@@ -61,6 +64,69 @@ func (s Servicio) Contenido() ([]byte, error) {
 	return nil, err
 }
 
+// DejaVivoLoLanzado revisa el archivo instalado: al reiniciarse, el servicio no mata lo que lanzó (FND-128). qdd remoto
+// termina cuando ve un qdd nuevo, y un pedido que está instalando ese qdd tiene que seguir corriendo.
+func (s Servicio) DejaVivoLoLanzado() (bool, bool, error) {
+	archivo, err := s.Archivo()
+	if err != nil {
+		return false, false, err
+	}
+	b, err := os.ReadFile(archivo)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	if s.SO == "linux" {
+		return true, strings.Contains(string(b), marcaSystemd), nil
+	}
+	if s.SO == "darwin" {
+		return true, strings.Contains(string(b), marcaLaunchd), nil
+	}
+	return true, true, nil
+}
+
+// RenovarDejaVivo le agrega la marca al archivo instalado y deja lo demás como está: el binario, el PATH y QDD_HOME son
+// los que eligió la persona al activarlo, no los de quien corre doctor. En systemd no reinicia el servicio.
+func (s Servicio) RenovarDejaVivo(correr Ejecutor) error {
+	archivo, err := s.Archivo()
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(archivo)
+	if err != nil {
+		return err
+	}
+	nuevo, comandos, err := s.conMarca(string(b), archivo)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(archivo, []byte(nuevo), 0o600); err != nil {
+		return err
+	}
+	for i, c := range comandos {
+		err := correr(c[0], c[1:]...)
+		if err != nil && !(s.SO == "darwin" && i == 0) {
+			return fmt.Errorf("%s: %w", strings.Join(c, " "), err)
+		}
+	}
+	return nil
+}
+
+func (s Servicio) conMarca(contenido, archivo string) (string, [][]string, error) {
+	seccion, marca := "[Service]\n", marcaSystemd+"\n"
+	comandos := [][]string{{"systemctl", "--user", "daemon-reload"}}
+	if s.SO == "darwin" {
+		seccion, marca = "<dict>\n", "\t"+marcaLaunchd+"\n"
+		comandos = [][]string{{"launchctl", "unload", archivo}, {"launchctl", "load", "-w", archivo}}
+	}
+	if !strings.Contains(contenido, seccion) {
+		return "", nil, fmt.Errorf("%s no tiene %s: corre qdd remoto activar", archivo, strings.TrimSpace(seccion))
+	}
+	return strings.Replace(contenido, seccion, seccion+marca, 1), comandos, nil
+}
+
 func (s Servicio) unidadSystemd() string {
 	var env strings.Builder
 	if s.QDDHome != "" {
@@ -71,7 +137,7 @@ func (s Servicio) unidadSystemd() string {
 	}
 	return "[Unit]\nDescription=QDD remoto: el panel de este PC en QDD Móvil\nAfter=network-online.target\nWants=network-online.target\n\n" +
 		"[Service]\nExecStart=" + comillasSystemd(s.Bin) + " remoto correr\n" + env.String() +
-		"Restart=on-failure\nRestartSec=15\n\n[Install]\nWantedBy=default.target\n"
+		"Restart=on-failure\nRestartSec=15\n" + marcaSystemd + "\n\n[Install]\nWantedBy=default.target\n"
 }
 
 func comillasSystemd(v string) string {
@@ -99,6 +165,7 @@ func (s Servicio) plist() string {
 	<key>RunAtLoad</key><true/>
 	<key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
 	<key>ThrottleInterval</key><integer>15</integer>
+	` + marcaLaunchd + `
 </dict>
 </plist>
 `
