@@ -1,0 +1,9 @@
+id: "FND-134"
+title: "CERT-021 marcaba leer la query string como una consulta a la base"
+description: "CERT-021-CHAOS-TOLERANCE busca llamadas Query, QueryRow y Exec solo por el nombre del método. Por eso r.URL.Query() y u.Query() de net/url salían como «Query sin Context», aunque no tocan la base."
+impact: "qdd audit bloqueaba el gate de un handler HTTP correcto en sfrc (reportes MEJ-005 y MEJ-009). Para pasarlo, dos sesiones reescribieron el código con url.ParseQuery y r.FormValue."
+action_taken: "Query() sin argumentos ya no se marca: una consulta a la base lleva su SQL como argumento. Límite conocido: un stmt.Query() de una sentencia preparada sin parámetros tampoco se marca."
+test_result: "TestCert021_LeerLaQueryStringNoEsUnaConsulta_FND134, TestCert021_SiguenMarcadasLasConsultasSinContexto_FND134"
+status: resolved
+detectado_por: ia
+date: "2026-11-04"

@@ -76,6 +76,10 @@ func checkContextlessDBQuery(path string, callExpr *ast.CallExpr, fset *token.Fi
 	}
 	
 	method := selExpr.Sel.Name
+	// Query() sin argumentos lee la query string de una URL (net/url); una consulta a la base lleva su SQL (FND-134).
+	if method == "Query" && len(callExpr.Args) == 0 {
+		return
+	}
 	if method == "Query" || method == "QueryRow" || method == "Exec" {
 		pos := fset.Position(selExpr.Pos())
 		*violations = append(*violations, Violation{

@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.2-rc.1] - 2026-11-04
+
+### Corregido
+
+- **CERT-021 ya no bloquea leer la query string (FND-134):** `r.URL.Query()` y `u.Query()` salían como una consulta a la
+  base sin contexto. Una consulta sigue marcada si lleva su SQL. Límite conocido: `stmt.Query()` sin parámetros tampoco
+  se marca.
+
 ## [2.9.1] - 2026-11-04
 
 Corrección de 2.9.0, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.1-rc.1: `qdd login` funciona en
