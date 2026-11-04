@@ -1,0 +1,9 @@
+id: "FND-125"
+title: "Un pedido armado podía ejecutarse dos veces si dos procesos lo esperaban"
+description: "tomarTurno, pasada la primera vuelta, corría cualquier pedido en estado ejecutando y le quitaba a otro proceso vivo un pedido armado. Dos 'qdd consola correr' del mismo pedido despiertan a la misma hora (Proximo): el primero lo pasaba a ejecutando y el segundo, al verlo así, también lo corría."
+impact: "MEJ-008, sfrc, 2026-11-03: el pedido armado 'bash tmp/cargar-llave-aws.sh' lanzó dos workflow_dispatch de backend en el mismo segundo (runs 41733701687 y 41733701742, 22:46:33 UTC, mismo commit y actor), y el script lanza uno por corrida. La persona lo confirmó dos veces (22:33:32 y 22:38:26). Por eso pudo haber dos procesos, aunque no quedó registro de los dos. Un pedido puede mergear, publicar o desplegar: correrlo dos veces puede dañar."
+action_taken: "Con deOtroDueno, tomarTurno termina sin correr, pasada la primera vuelta, si el pedido está ejecutando a nombre de otro proceso o armado por otro proceso vivo. Un armado cuyo dueño murió sigue volviendo a pendiente. Invariante nueva en la ficha estado."
+test_result: "armado_un_dueno_test.go: TestTurno_ConElPedidoEjecutandoEnOtroProcesoNoLoCorre_FND125, TestTurno_ConElPedidoArmadoPorOtroProcesoVivoNoLoCorre_FND125 y TestTurno_SuDuenoLoCorreUnaSolaVezAunqueOtroDespierteJunto_FND125 fallaban antes del arreglo; TestTurno_UnArmadoDeUnProcesoMuertoVuelveAPendienteSinCorrer_FND125 fija el caso del dueño muerto. La causa de los dos procesos en sfrc se dedujo del código y los tiempos: no se reprodujo de punta a punta."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"
