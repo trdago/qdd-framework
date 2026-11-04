@@ -22,6 +22,9 @@ func SafeInjectIdempotent(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
+	if revisionDe(content) > revisionDe(QDDCommandProtocol) {
+		return nil
+	}
 
 	content = removeOldBlock(content)
 	content = appendNewBlock(content)
