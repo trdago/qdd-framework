@@ -1,0 +1,9 @@
+id: "FND-130"
+title: "Las sesiones de Claude Code se pisaban los límites de Claude"
+description: "Cada barra de estado guarda en limites.json lo último que supo su sesión. Una sesión inactiva tiene datos viejos, y con varias abiertas el archivo saltaba entre ellas. qdd-movile midió 21 cambios en 2 min: la semana pasaba de 55 % a 32 %, 12 % y 56 %, con la misma fecha de reinicio."
+impact: "En el teléfono las barras de límites parpadeaban y mostraban menos uso del real, y cada salto mandaba un delta por el relay. El modo goal también lee este archivo: un dato viejo podía ocultar un límite agotado."
+action_taken: "GuardarLimites funde con lo guardado: en la misma ventana lo usado solo sube, una ventana más nueva manda, una que ya pasó no se guarda y un tramo ausente conserva el último. Con dos cuentas en el mismo PC y la misma hora de reinicio se ve la mayor, porque la entrada de la barra no dice de qué cuenta es."
+test_result: "TestLimites_UnaSesionConDatosViejosNoHaceRetroceder_FND130, TestLimites_EnLaMismaVentanaLoUsadoSube_FND130, TestLimites_UnaVentanaNuevaMandaYUnaPasadaSeIgnora_FND130, TestLimites_UnaVentanaQueYaPasoNoSeConservaNiSePublica_FND130, TestLimites_SinFechaSeUsaLoQueVino_FND130 y TestLimites_UnaFechaDeReinicioCasiIgualEsLaMismaVentana_FND130. Falta medir en el PC real con varias sesiones."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"
