@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-11-04
+
+Corrección de 2.9.0, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.1-rc.1: `qdd login` funciona en
+un PC nuevo, sin banderas (FND-133).
+
 ## [2.9.1-rc.1] - 2026-11-04
 
 ### Corregido
