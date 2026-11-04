@@ -546,6 +546,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     marginTop: 1,
     children: [
       fila('cab', 'Tarea', [Text({ dimColor: true, size: 'caption', children: [e.abreviaturas.join(' ')] })], { dimColor: true, size: 'caption' }, []),
+      ...filasGoal(Text),
       ...filas,
       ...antiguas,
       ...leyendas.map((l, i) => Text({ key: 'leyenda-' + i, dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [l] })),
@@ -588,7 +589,7 @@ function fallas(Box, Text, items, ancho) {
 }
 
 // tecla: la que qdd da a cada pedido (a, b, d…), 1…9 para las fichas en el orden en que qdd las entrega, c para
-// revisar el estado, u para auditar y o para abrir la carpeta.
+// revisar el estado, u para auditar, o para abrir la carpeta, m para el ciclo de mejoras y k para el modo goal.
 function teclas(acciones) {
   const asignadas = {}
   let n = 0
@@ -605,6 +606,8 @@ function teclas(acciones) {
     if (a.id === 'revisar-estado') asignadas[a.id] = 'c'
     if (a.id === 'auditar') asignadas[a.id] = 'u'
     if (a.id === 'abrir-carpeta') asignadas[a.id] = 'o'
+    if (a.id === 'mejoras-ciclo') asignadas[a.id] = 'm'
+    if (a.id === ACCION_GOAL || a.id === 'goal-desactivar') asignadas[a.id] = 'k'
   }
   return asignadas
 }
@@ -624,7 +627,7 @@ async function ejecutar($, a) {
   let lanzado = false
   try {
     // Un pedido solo se lanza: qdd lo corre aparte y el panel queda libre (FND-089); el resultado llega por la cola.
-    let r = await $.process.run(argv, { timeoutMs: a.id === 'auditar' ? TOPE_AUDITAR_MS : TOPE_ACCION_MS })
+    let r = await $.process.run(argv, { timeoutMs: a.id === 'auditar' ? TOPE_AUDITAR_MS : TOPE_ACCION_MS, ...entornoDe(a) })
     // Un qdd anterior a --sesion no lo conoce: el pedido corre igual, sin aviso al terminar.
     if (mia && r.exitCode !== 0 && /unknown flag/.test(r.stderr || '')) r = await $.process.run(argv.slice(0, -2), { timeoutMs: TOPE_ACCION_MS })
     const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
@@ -1874,6 +1877,98 @@ async function pedirCicloMejoras($) {
   $.ui.notify('🔁 Mejoras nuevas para trabajar: ' + (c.tareas || []).join(', '), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
 }
 
+// ── Modo goal (RFC 0015) ─────────────────────────────────────────────────────────────────────────────────────────────
+// Con el modo activo, cada GOAL_MS la sesión interactiva pide «qdd goal ciclo» y le dice cuánto lleva en silencio y si
+// está haciendo algo. Todo lo decide qdd, sin modelos: qué elegir, cuándo recordar y cuándo detenerse. Si devuelve un
+// mensaje, la IA lo recibe (empieza con 🎯: nunca se lee como «!» ni «/»); si devuelve un aviso, le llega a la persona.
+// Solo la persona lo activa: el botón del panel pasa por su confirmación y es lo único que limpia CLAUDECODE. Una IA que
+// lo intenta por Bash recibe una negativa aquí y, si lo esquiva, un rechazo de qdd.
+const GOAL_MS = 5000
+const ACCION_GOAL = 'goal-activar'
+const ACTIVA_GOAL = /\bqdd(\.exe)?\s+(goal\s+activar|consola\s+accion\s+goal-activar)\b/
+const MOTIVOS_GOAL = {
+  sin_consola: 'sin una sesión abierta',
+  sin_avance: '3 recordatorios sin avance',
+  sin_limite: 'sin límite de uso',
+  espera_persona: 'espera tu respuesta',
+}
+const goal = { soportado: true, corriendo: false, silencioMs: 0, enTurno: false }
+
+function hubo() {
+  goal.silencioMs = 0
+}
+
+function entornoDe(a) {
+  return a.id === ACCION_GOAL ? { env: { CLAUDECODE: '' } } : {}
+}
+
+function textoGoal(g) {
+  if (g.estado === 'pausado') return 'en pausa: ' + (MOTIVOS_GOAL[g.motivo] || g.motivo)
+  if (g.estado === 'terminado') return 'terminado'
+  return g.recordatorios > 0 ? 'trabajando · ' + g.recordatorios + ' recordatorios sin avance' : 'trabajando'
+}
+
+// filasGoal: en qué está y lo último que eligió, para que nada pase sin que la persona lo pueda ver.
+function filasGoal(Text) {
+  const g = datos?.goal
+  if (!g?.activo) return []
+  return [
+    Text({ key: 'goal', color: g.estado === 'pausado' ? 'yellow' : undefined, weight: 'bold', wrap: 'truncate-end', children: ['🎯 Modo goal · ' + textoGoal(g)] }),
+    ...(g.elegidas || []).slice(0, 3).map((x, i) => Text({ key: 'goal-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: ['  ✓ ' + x.etiqueta + ' → ' + x.eleccion] })),
+  ]
+}
+
+async function ocupada($) {
+  if (goal.enTurno || llamadas.size > 0) return true
+  try {
+    return (await $.agent.list()).some((a) => a.status === 'running')
+  } catch {
+    return false
+  }
+}
+
+async function cicloGoal($) {
+  goal.silencioMs += GOAL_MS
+  if (!interactiva || !goal.soportado || goal.corriendo) return
+  if (!datos?.goal?.activo || datos.goal.estado === 'terminado') return
+  goal.corriendo = true
+  try {
+    await pedirCicloGoal($)
+  } finally {
+    goal.corriendo = false
+  }
+}
+
+async function pedirCicloGoal($) {
+  const bin = await binario($)
+  const mia = await sesionPropia($)
+  const argv = [bin, 'goal', 'ciclo', '--json', '--silencio', String(goal.silencioMs / 1000), ...((await ocupada($)) ? ['--ocupada'] : []), ...(mia ? ['--sesion', mia] : [])]
+  let r
+  try {
+    r = await $.process.run(argv, { timeoutMs: TOPE_ACCION_MS })
+  } catch (err) {
+    $.ui.log('qdd: el modo goal no corrió: ' + String(err?.message ?? err), { to: 'debug' })
+    return
+  }
+  if (r.exitCode !== 0 && /unknown command|unknown flag/.test(r.stderr || '')) goal.soportado = false
+  if (r.exitCode !== 0) return
+  let c = null
+  try {
+    c = JSON.parse(r.stdout)
+  } catch {
+    return
+  }
+  if (c?.aviso) $.ui.notify(String(c.aviso), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
+  if (c?.aviso || c?.elegidas?.length) await leer($)
+  if (!c?.mensaje || !String(c.mensaje).startsWith('🎯')) return
+  hubo()
+  try {
+    await $.prompt.submit({ text: c.mensaje })
+  } catch (err) {
+    $.ui.log('no se le recordó a la IA el modo goal: ' + String(err?.message ?? err))
+  }
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
@@ -1886,6 +1981,9 @@ export function register(on) {
       })
       $.clock.every(MEJORAS_MS, async () => {
         await cicloMejoras($)
+      })
+      $.clock.every(GOAL_MS, async () => {
+        await cicloGoal($)
       })
     }
     $.clock.every(INTERVALO_MS, async () => {
@@ -1929,6 +2027,8 @@ export function register(on) {
   // teléfono no decidió, la respondió la terminal.
   on('tool.call', async ($, e, next) => {
     pulsar($, 'agente')
+    hubo()
+    if (e.tool === 'Bash' && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
     const seguir = !e.agentId && e.tool_use_id
     if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
     try {
@@ -1958,6 +2058,19 @@ export function register(on) {
     return next(e)
   })
 
+  // El silencio del modo goal: un turno de la conversación principal cuenta como actividad mientras dura.
+  on('turn.start', async ($, e, next) => {
+    if (!e.agentId) goal.enTurno = true
+    hubo()
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    if (!e.agentId) goal.enTurno = false
+    hubo()
+    return next(e)
+  })
+
   // Un ciclo por mensaje (§3.9): lo que ya se vio (el resultado y los pedidos hechos) sale del tablero, y qdd anota el
   // modo de permisos de la IA para decirle cuándo pedir autorización. Con --contexto, qdd dice además qué espera el
   // panel de la persona (solo si cambió) y va a la IA con el mensaje: si ella lo resolvió en el chat, la IA lo refleja.
@@ -1974,6 +2087,7 @@ export function register(on) {
 
   // Atajo desde el chat: la tecla de lo que te espera y Enter lo abren en el panel, sin enviarle nada a la IA.
   on('prompt.submit', async ($, e, next) => {
+    hubo()
     if (e.command || e.isMeta) return next(e)
     const a = atajoDe(String(e.text || '').trim())
     if (!a) return next(e)
@@ -1983,6 +2097,7 @@ export function register(on) {
 
   // Mientras se escribe la tecla, el chat dice qué abre Enter; un carácter privado lo abre en el acto sin escribirse.
   on('prompt.edit', async ($, e, next) => {
+    hubo()
     const privado = privadoDe(e.inputText)
     if (privado) {
       const a = atajoDe(privado)

@@ -387,6 +387,9 @@ const (
 	AvisoFicha        = "ficha"
 	AvisoTerminoBien  = "termino_bien"
 	AvisoTerminoFalla = "termino_falla"
+	// El modo goal se detuvo o terminó (RFC 0015).
+	AvisoGoalPausado   = "goal_pausado"
+	AvisoGoalTerminado = "goal_terminado"
 )
 
 // NombreParaAviso deja el nombre visible del proyecto como lo acepta avisar (^[\p{L}\p{N} ._()-]{1,80}$): lo demás

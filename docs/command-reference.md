@@ -178,6 +178,18 @@ Lo que reportan las sesiones de Claude Code y los issues de GitHub queda como `M
 | `qdd mejoras ciclo [--si-toca] [--json]` | Recibe la entrada y los issues de GitHub, sigue las tareas de la cola (cerrada → hecha, descartada → descartada, borrada → vuelve a la cola) y entrega hasta 2 tareas: primero las de seguridad o bugs, después de la más antigua a la más nueva. Con `--si-toca`, solo si pasaron 10 min desde el último ciclo; así lo llama el panel de Claude Code cada minuto. El botón «Ciclo de mejoras» del panel lo corre sin esperar. |
 | `qdd mejoras lista [--json]` | La cola y en qué está cada mejora (`en_cola`, `tarea`, `hecha`, `descartada`). **Seguro.** |
 
+### 🎯 Modo goal (RFC 0015)
+
+Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a la persona: qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3 recordatorios sin avance real se detiene y avisa. Sin una sesión abierta se pausa y nunca abre una. Siempre esperan a la persona: las preguntas de diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd goal` | El modo goal del proyecto: `activar`, `desactivar`, `estado` y `ciclo`. |
+| `qdd goal activar [--desde <dónde>]` | Lo activa la persona, desde el panel o el teléfono. Con `CLAUDECODE` en el entorno se rechaza: una IA no puede. Exige tareas abiertas. |
+| `qdd goal desactivar` | Lo apaga. Las elecciones quedan a la vista. |
+| `qdd goal estado [--json]` | En qué está y sus últimas 20 elecciones. |
+| `qdd goal ciclo [--json] [--silencio <s>] [--ocupada] [--sesion <id>]` | Una vuelta del vigilante. La llama el panel cada 5 s con el modo activo. |
+
 ### 📏 Uso real medido y canal preview (RFC 0010)
 Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
 

@@ -1,6 +1,7 @@
 package remoto
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -506,5 +507,33 @@ func TestPlanLocal_SoloConQDDMovilActivado(t *testing.T) {
 	borrarPrivado("plan.json")
 	if PlanLocal().Pro() {
 		t.Fatal("sin latido todavía: Gratis")
+	}
+}
+
+func TestEjecutar_ElModoGoalSeEnciendeYApagaDesdeElTelefono(t *testing.T) {
+	args, err := ArgsPermitidos("goal activar")
+	if err != nil || strings.Join(args, " ") != "goal activar --desde telefono" {
+		t.Fatalf("activar dice que vino del teléfono: %v %v", args, err)
+	}
+	if _, err := ArgsPermitidos("goal desactivar"); err != nil {
+		t.Fatal(err)
+	}
+	for _, texto := range []string{"goal ciclo", "goal activar --desde panel", "goal desactivar --x"} {
+		if _, err := ArgsPermitidos(texto); err == nil {
+			t.Fatalf("«%s» no está permitido", texto)
+		}
+	}
+	for _, s := range Sugeridos {
+		if strings.HasPrefix(s, "goal") {
+			t.Fatal("cambiar el modo no se sugiere como un comando más: la app lo ofrece con biometría")
+		}
+	}
+}
+
+func TestEjecutar_UnComandoDelTelefonoNoCorreComoIA(t *testing.T) {
+	t.Setenv("CLAUDECODE", "1")
+	codigo, salida := CorrerQDD(context.Background(), "sh", t.TempDir(), []string{"-c", `printf "[%s]" "$CLAUDECODE"`}, 5*time.Second)
+	if codigo != 0 || salida != "[]" {
+		t.Fatalf("sin CLAUDECODE: %d %q", codigo, salida)
 	}
 }

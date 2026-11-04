@@ -6,6 +6,21 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0-rc.3] - 2026-11-04 (preview)
+
+Tercera **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
+
+### ✨ Añadido
+
+- **Modo goal por proyecto** (`qdd goal`, RFC 0015, decisión de la persona). Lo activas tú, desde el panel o el teléfono.
+  Mientras está activo, qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas
+  sin esperarte, y cada elección queda registrada. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3
+  recordatorios sin avance real se detiene y avisa. Sin una sesión abierta o sin límite de uso se pausa. Las preguntas de
+  diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo
+  siempre te esperan.
+- **QDD Móvil**: `goal` opcional en el panel, `goal activar` y `goal desactivar` desde el teléfono, y dos avisos nuevos:
+  `goal_pausado` y `goal_terminado`.
+
 ## [2.9.0-rc.2] - 2026-11-04 (preview)
 
 Segunda **preview** de 2.9.0: `npm i -g qdd-framework@preview`.

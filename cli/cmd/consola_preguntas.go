@@ -91,7 +91,7 @@ func init() {
 // preguntaRegistrar registra la pregunta solo si este PC tiene QDD Móvil activado: sin teléfono no hay a quién más
 // preguntarle, y el terminal pregunta como siempre.
 func preguntaRegistrar(root string, entrada io.Reader, salida, errores io.Writer) int {
-	if _, err := remoto.LeerCredenciales(); err != nil {
+	if _, err := remoto.LeerCredenciales(); err != nil && !consola.VistaGoal(root, time.Now()).Activo {
 		return jsonPregunta(salida, map[string]string{"id": "", "motivo": "QDD Móvil no está activado en este PC (qdd remoto activar)"})
 	}
 	datos, err := io.ReadAll(io.LimitReader(entrada, 1<<20))

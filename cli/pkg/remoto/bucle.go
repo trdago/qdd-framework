@@ -72,6 +72,7 @@ type Bucle struct {
 	estructura  map[string]string
 	limites     string                     // huella de los límites de Claude que tienen los teléfonos
 	vistos      map[string]map[string]bool // clave → pedidos y fichas que esperan (para el push)
+	goalVisto   map[string]string          // clave → en qué estaba el modo goal (para el push)
 	mensajes    int
 	consolaSeg  float64
 	sinPush     bool
@@ -116,7 +117,7 @@ func (b *Bucle) logf(formato string, args ...any) {
 func (b *Bucle) iniciar() {
 	b.desde = b.ahora().UTC()
 	b.plan = PlanGratis()
-	b.enviados, b.vistos = map[string]string{}, map[string]map[string]bool{}
+	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]bool{}, map[string]string{}
 	b.latidos, b.avisos = make(chan resultadoLatido, 1), make(chan error, 8)
 	if b.Agrupar <= 0 {
 		b.Agrupar = Agrupar
@@ -426,6 +427,7 @@ func esperan(p ProyectoEstado) map[string]string {
 // proyecto es la base: lo que ya esperaba no se avisa.
 func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 	for _, p := range e.Proyectos {
+		b.avisarGoal(ctx, p)
 		ahora := esperan(p)
 		antes, conocido := b.vistos[p.Clave]
 		b.vistos[p.Clave] = map[string]bool{}
@@ -447,6 +449,33 @@ func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 			}
 		}
 	}
+}
+
+// avisarGoal pide un push cuando el modo goal de un proyecto se detiene o termina. La primera vez es la base.
+func (b *Bucle) avisarGoal(ctx context.Context, p ProyectoEstado) {
+	ahora, tipo := momentoGoal(p)
+	antes, conocido := b.goalVisto[p.Clave]
+	b.goalVisto[p.Clave] = ahora
+	if !conocido || antes == ahora || tipo == "" {
+		return
+	}
+	b.avisar(ctx, tipo, p.Nombre, p.Clave)
+}
+
+// momentoGoal es en qué está el modo y el push que merece llegar ahí.
+func momentoGoal(p ProyectoEstado) (string, string) {
+	if p.Panel == nil || p.Panel.Goal == nil || !p.Panel.Goal.Activo {
+		return "", ""
+	}
+	g := p.Panel.Goal
+	momento := g.Estado + "/" + g.Motivo
+	if g.Estado == consola.GoalPausado {
+		return momento, AvisoGoalPausado
+	}
+	if g.Estado == consola.GoalTerminado {
+		return momento, AvisoGoalTerminado
+	}
+	return momento, ""
 }
 
 // avisar pide el push sin bloquear el bucle: es de mejor esfuerzo (inv. 17: solo tipo y proyecto).

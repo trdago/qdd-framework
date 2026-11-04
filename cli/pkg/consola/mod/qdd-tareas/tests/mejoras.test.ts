@@ -71,3 +71,23 @@ test('con un qdd sin «mejoras» lo intenta una vez y para', async ($, on) => {
   await clock.advance(180000)
   expect(ciclos(r).length).toBe(1)
 })
+
+test('el botón «Ciclo de mejoras» se dibuja y tiene su tecla (FND-127)', async ($, on) => {
+  const accion = { id: 'mejoras-ciclo', tipo: 'comando', etiqueta: 'Ciclo de mejoras', detalle: 'qdd mejoras ciclo' }
+  const r = nuevo()
+  const clock = mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('session.id', () => ({ value: 'sesion-1' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    r.llamadas.push([...e.argv])
+    return { value: ok(e.argv[2] === 'telefono' ? { activo: false, entregar: [] } : { formato: 1, estado: null, motivo: 'sin estado', acciones: [accion] }) }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(0)
+  const ui = await $.ui.mount({ plugin: 'qdd-tareas', component: 'Pane', requestId: 'qdd-tareas', viewport: { columns: 160, rows: 40 }, props: { title: 'Tareas' }, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-mejoras-ciclo' })).toMatchObject({ props: { hotkey: 'm' } })
+})
+

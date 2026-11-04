@@ -214,3 +214,12 @@ func TestArmar_LaPreguntaSalePublicadaSinSecretos(t *testing.T) {
 		t.Fatalf("el comando del permiso sale sin el secreto: %s", b)
 	}
 }
+
+func TestPanel_LasEleccionesDelModoGoalSalenSinSecretos(t *testing.T) {
+	root := t.TempDir()
+	panel := consola.DatosConsola{Goal: &consola.Goal{Activo: true, Elegidas: []consola.Elegida{{Etiqueta: "token ghp_123456789012345678901234567890123456", Eleccion: "ejecutar"}}}}
+	ocultarDelPanel(root, &panel)
+	if strings.Contains(panel.Goal.Elegidas[0].Etiqueta, "ghp_") {
+		t.Fatalf("inv. 16: %q", panel.Goal.Elegidas[0].Etiqueta)
+	}
+}
