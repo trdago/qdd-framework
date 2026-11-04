@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.2] - 2026-11-04
+
+Corrección de 2.9.1, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.2-rc.1: CERT-021 ya no bloquea leer
+la query string de una URL (FND-134).
+
 ## [2.9.2-rc.1] - 2026-11-04
 
 ### Corregido
