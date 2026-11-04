@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0-rc.5] - 2026-11-04 (preview)
+
+Quinta **preview** de 2.9.0: `npm i -g qdd-framework@preview`. El arreglo también sale en `latest` como 2.8.6.
+
+### Arreglado
+
+- **El panel ya no pide dos veces mergear el mismo PR** (FND-132, MEJ-001). Un pedido que nombra el PR reemplaza al
+  automático «Mergear #N» aunque este haya llegado primero. Si ya lo confirmaste, sigue su curso; si descartas el otro
+  pedido y el PR sigue abierto, el automático vuelve.
+- **Una publicación ya no queda a medias por una carrera al crear el release** (FND-131). Los binarios se suben de a uno.
+
 ## [2.9.0-rc.4] - 2026-11-04 (preview)
 
 Cuarta **preview** de 2.9.0: `npm i -g qdd-framework@preview`. El arreglo de los pedidos sale también en `latest` como 2.8.4.
