@@ -89,6 +89,8 @@ type DatosConsola struct {
 	// Ejecutar dice qué acepta este PC mandar a ejecutar desde el teléfono (solo con QDD Móvil activado y Pro; lo pone
 	// pkg/remoto, que sabe el plan). Sin él, el teléfono no ofrece ejecutar.
 	Ejecutar *OpcionesEjecutar `json:"ejecutar,omitempty"`
+	// Goal es el modo goal del proyecto (goal.go): con Activo false, este qdd lo ofrece y está apagado.
+	Goal *Goal `json:"goal,omitempty"`
 }
 
 // OpcionesEjecutar es lo que el PC acepta desde el teléfono: comandos qdd (Sugeridos son los que permite, sin el
@@ -131,7 +133,8 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 // Las preguntas que esperan a la persona van primero, y después lo mandado desde el teléfono; ninguno de los dos es
 // una acción de 'qdd consola accion' (se responden en el terminal o con ResponderPregunta; lo corre qdd remoto).
 func panel(root string, now time.Time) DatosConsola {
-	d := DatosConsola{Formato: 1, Carpeta: root}
+	vista := VistaGoal(root, now)
+	d := DatosConsola{Formato: 1, Carpeta: root, Goal: &vista}
 	preguntas := append(accionesDePreguntas(root, now), accionesDelTelefono(root, now)...)
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
@@ -182,6 +185,7 @@ func Acciones(root string, hayEstado bool) []Accion {
 			ID: "mejoras-ciclo", Tipo: TipoComando, Etiqueta: "Ciclo de mejoras", Detalle: "qdd mejoras ciclo",
 			Args: []string{"mejoras", "ciclo"},
 		})
+		acciones = append(acciones, accionesDeGoal(root)...)
 	}
 	a, ok := accionAbrir(root)
 	if !ok {

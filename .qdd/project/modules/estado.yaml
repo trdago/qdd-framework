@@ -101,7 +101,7 @@ objetivo_tecnologico:
         - Sin activar la consola, doctor no revisa nada de Claude Code.
         - qdd consola accion vuelve a calcular las acciones y rechaza un id que no ofrece, sin ejecutar nada.
         - Una acción que escribe (aprobar, auditar) no corre sin --confirmado, que el panel pasa solo después de «s  Sí».
-        - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí».'
+        - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí». La única excepción es el modo goal que la persona activó en ese proyecto (decisión de la persona, 2026-11-04; RFC 0015): ahí corre sin ese «s  Sí» y queda registrado.'
         - Pedir o descartar un comando no escribe nada en el proyecto.
         - 'Un pedido armado corre solo con el «s  Sí» que ya dio la persona: nunca se arma sin él, una falla de verdad (código distinto de 0 y 75) no se reintenta y no corre dos veces (FND-070).'
         - 'El resultado de un pedido llega a la conversación una sola vez y solo a la sesión que lo confirmó: qdd consola avisado lo marca con la cola bloqueada y sale con 0 solo la primera vez, aunque haya varias sesiones abiertas o el mod se recargue.'
@@ -141,4 +141,4 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-04"
-revisado_en_commit: b6349fa0f755
+revisado_en_commit: 4ca00d54adb6

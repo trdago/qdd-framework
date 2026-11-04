@@ -1,0 +1,38 @@
+id: goal
+nombre: Modo goal por proyecto
+estado: aprobado
+rutas:
+    - cli/pkg/consola/goal.go
+    - cli/cmd/goal.go
+    - cli/cmd/goal_doctor.go
+objetivo_operativo:
+    problema: Un trabajo largo se detiene con cada pregunta, pedido, ficha o silencio de la IA, aunque la persona no esté mirando.
+    usuarios: La persona que deja un proyecto avanzando solo y lo sigue desde el panel o el teléfono.
+    criterio_de_exito: Con el modo activo, el proyecto avanza hasta no tener tareas abiertas o se detiene diciendo por qué, sin decisiones reservadas a la persona tomadas por qdd, y con cada elección registrada.
+    caso_real: '2026-11-04: la persona pidió elegir lo recomendado, recordar a la IA cada 2 min de silencio, detenerse tras 3 recordatorios sin avance y pausar sin consola; confirmó que también corre pedidos y fichas.'
+objetivo_tecnologico:
+    arquitectura: "pkg/consola/goal.go decide cada vuelta con el archivo <QDD_HOME>/claude/goal/<proyecto>.json bloqueado, sin modelos. El mod qdd-tareas llama qdd goal ciclo cada 5 s con el modo activo, con el silencio de la sesión, y entrega el mensaje \U0001F3AF a la IA y el aviso a la persona. qdd remoto publica la vista y pide los push."
+    decisiones:
+        - 'Aprobar pedidos y fichas entra en el modo (decisión de la persona, 2026-11-04): excepción acotada al invariante de pedidos de la ficha estado.'
+        - 'Los PRs que qdd ofrece solo no se corren: también son de otras sesiones.'
+        - 'Sin tool MCP: la IA no tiene nada que hacer con el modo y tools/list está al borde del presupuesto.'
+        - Si otra terminal del proyecto trabajó en los últimos 2 min, no se le recuerda a la que mira.
+    invariantes:
+        - 'Solo la persona lo activa: qdd goal activar se rechaza con CLAUDECODE en el entorno, y solo el panel tras la confirmación y el teléfono firmado lo limpian.'
+        - Nunca se responde solo un permiso de Claude Code, una pregunta de diseño de un blueprint ni una pregunta sin opción recomendada.
+        - Cada elección queda registrada, y lo publicado al teléfono pasa por el ocultador (inv. 16 de remoto).
+        - 'Nunca abre una sesión: sin una abierta se pausa, y vuelve cuando la sesión vuelve.'
+        - Tras 3 recordatorios sin avance real se detiene y queda detenido hasta que la persona lo active de nuevo.
+        - Solo cuenta como avance el tablero sin su fecha, el último commit y los cambios de git, sin lo que qdd escribe solo.
+        - 'Un archivo ilegible es modo apagado, nunca activo: doctor lo ve (GOAL-01) y --fix lo aparta.'
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/consola/ -run Goal
+        - cd cli && go test ./cmd/ -run Goal
+        - cd cli && go test ./pkg/remoto/ -run 'Ejecutar_|Avisos_|LasElecciones'
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
+fuentes:
+    - rfcs/0015-modo-goal.md
+    - rfcs/0013-consola-remota.md
+ultima_revision: "2026-11-04"
+revisado_en_commit: 4ca00d54adb6

@@ -1,0 +1,9 @@
+id: "FND-127"
+title: "El botón «Ciclo de mejoras» no se dibujaba en el panel"
+description: "El panel solo dibuja las acciones con tecla asignada, y mejoras-ciclo no tenía una: qdd lo ofrecía y nadie lo veía."
+impact: "Quien quería forzar el ciclo de la cola de mejoras no tenía el botón; solo el ciclo automático de cada 10 min y el comando."
+action_taken: "El panel le asigna la tecla m. El modo goal, que entra por el mismo camino, usa la k."
+test_result: "«el botón «Ciclo de mejoras» se dibuja y tiene su tecla (FND-127)» en tests/mejoras.test.ts y «el botón del panel pide confirmación…» en tests/goal.test.ts."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"

@@ -486,3 +486,30 @@ integrada, PC de demostración para la revisión, borrar la cuenta desde la app,
 1. ¿«¿Cómo vamos?» desde el teléfono debe llegar a la conversación de Claude Code, o basta con ver la tabla?
 2. **Usuarios compartidos.** En el relay de desarrollo, el Auth es el del notificador: una cuenta de QDD Móvil es una
    cuenta de ese proyecto. Vale para desarrollar; para las tiendas hace falta el proyecto propio.
+
+## Modo goal en el teléfono (RFC 0015)
+
+El panel de cada proyecto trae `goal`, opcional: sin él, ese qdd no ofrece el modo y la app no muestra nada. No cambia la
+versión del protocolo.
+
+```json
+"goal": {
+  "activo": true,
+  "estado": "trabajando",
+  "motivo": "sin_consola",
+  "desde": "2026-11-04T10:00:00Z",
+  "recordatorios": 1,
+  "elegidas": [{"en": "2026-11-04T10:02:00Z", "tipo": "pregunta", "etiqueta": "…", "eleccion": "…"}]
+}
+```
+
+- `estado` es `trabajando`, `pausado` o `terminado`. `motivo` viene solo con `pausado`: `sin_consola`, `sin_avance`,
+  `sin_limite` o `espera_persona`.
+- `activo: false` dice que este qdd lo ofrece y está apagado.
+- `elegidas` son las últimas 20, de la más nueva a la más vieja, ya sin secretos (inv. 16).
+- `qdd_remoto_ejecutar` con tipo `qdd` acepta `goal activar` y `goal desactivar`, sin banderas. No están en `Sugeridos`: la
+  app los ofrece con biometría.
+- Dos avisos nuevos para `avisar`, con solo tipo y proyecto (inv. 17): `goal_pausado` y `goal_terminado`. Se piden cuando
+  el modo llega a ese estado; la primera vez que `qdd remoto` ve un proyecto es la base. Un relay que no los acepta solo
+  deja el aviso sin enviar.
+

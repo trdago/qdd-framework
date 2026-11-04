@@ -44,8 +44,9 @@ const (
 	metacaracteres = ";|&$`><()"
 )
 
-// Sugeridos son los comandos qdd que el PC acepta desde el teléfono (sin el «qdd»), en el orden en que se ofrecen.
-// Solo leen o revisan: ninguno repara, aprueba, publica ni cambia el estado.
+// Sugeridos son los comandos qdd que el PC ofrece en el teléfono (sin el «qdd»), en el orden en que se ofrecen.
+// Solo leen o revisan: ninguno repara, aprueba, publica ni cambia el estado. Lo único que cambia algo está en permitidos
+// y no aquí: encender y apagar el modo goal, que la app ofrece con biometría (RFC 0015).
 var Sugeridos = []string{"audit", "doctor", "estado", "estado check", "modules list", "blueprint list", "blueprint quality"}
 
 // permitido es un comando de la lista: sus palabras, las banderas que acepta (exactas, de solo lectura) y si admite un
@@ -54,6 +55,7 @@ type permitido struct {
 	palabras []string
 	banderas []string
 	conID    bool
+	agrega   []string
 }
 
 // permitidos va del más largo al más corto: «estado check» antes que «estado».
@@ -65,6 +67,8 @@ var permitidos = []permitido{
 	{palabras: []string{"blueprint", "quality"}, banderas: []string{"--json"}, conID: true},
 	{palabras: []string{"audit"}},
 	{palabras: []string{"doctor"}},
+	{palabras: []string{"goal", "activar"}, agrega: []string{"--desde", "telefono"}},
+	{palabras: []string{"goal", "desactivar"}},
 }
 
 var (
@@ -134,7 +138,10 @@ func ArgsPermitidos(texto string) ([]string, error) {
 		if !empiezaCon(args, p.palabras) {
 			continue
 		}
-		return args, p.aceptar(args[len(p.palabras):])
+		if err := p.aceptar(args[len(p.palabras):]); err != nil {
+			return args, err
+		}
+		return append(args, p.agrega...), nil
 	}
 	return nil, fmt.Errorf("«%s» no está permitido desde el teléfono: solo %s", strings.Join(args[:min(2, len(args))], " "), strings.Join(Sugeridos, ", "))
 }
@@ -479,7 +486,8 @@ func CorrerQDD(ctx context.Context, bin, dir string, args []string, tope time.Du
 	c, cancelar := context.WithTimeout(ctx, tope)
 	defer cancelar()
 	cmd := exec.CommandContext(c, bin, args...)
-	cmd.Dir, cmd.Env, cmd.WaitDelay = dir, gitenv.Limpio(os.Environ()), 5*time.Second
+	// Lo mandó la persona desde el teléfono, no una IA, aunque qdd remoto se haya abierto desde una sesión de Claude Code.
+	cmd.Dir, cmd.Env, cmd.WaitDelay = dir, append(gitenv.Limpio(os.Environ()), "CLAUDECODE="), 5*time.Second
 	salida := &finalDeSalida{max: maxSalidaEjecutar}
 	cmd.Stdout, cmd.Stderr = salida, salida
 	err := cmd.Run()

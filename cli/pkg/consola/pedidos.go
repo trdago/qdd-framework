@@ -64,7 +64,7 @@ const (
 	lineasSalida  = 4
 )
 
-// TeclasPedidos son las teclas de los pedidos en el panel: no usan las de otros botones (1…9 fichas, c revisar,
+// TeclasPedidos son las teclas de los pedidos en el panel: no usan las de otros botones (1…9 fichas, k modo goal, m mejoras, c revisar,
 // u auditar, s y n confirmar, x descartar).
 var TeclasPedidos = []string{"a", "b", "d", "e", "f", "g", "h", "i", "j"}
 

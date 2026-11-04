@@ -142,6 +142,15 @@ func (b *Bucle) seguirPreguntas(ctx context.Context) {
 // de un permiso (el comando puede traer un token); y de lo mandado desde el teléfono, el texto, el aviso y la salida.
 func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 	var o *Ocultador
+	if panel.Goal != nil && len(panel.Goal.Elegidas) > 0 {
+		o = OcultadorDe(root)
+		elegidas := make([]consola.Elegida, len(panel.Goal.Elegidas))
+		for i, e := range panel.Goal.Elegidas {
+			e.Etiqueta, e.Eleccion = o.Ocultar(e.Etiqueta), o.Ocultar(e.Eleccion)
+			elegidas[i] = e
+		}
+		panel.Goal.Elegidas = elegidas
+	}
 	for i, a := range panel.Acciones {
 		if a.Tipo != consola.TipoPregunta && a.Origen != consola.OrigenTelefono {
 			continue

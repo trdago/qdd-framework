@@ -566,3 +566,23 @@ func List(root string) ([]Blueprint, []error) {
 	}
 	return out, errs
 }
+
+// PreguntasDeDiseno son las preguntas de los blueprints importados en el proyecto: son decisiones de la persona, y el
+// modo goal nunca las responde solo. Un blueprint que no se puede leer no aporta las suyas.
+func PreguntasDeDiseno(root string) []string {
+	lock, err := LoadLock(root)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range lock.Blueprints {
+		b, err := load(e)
+		if err != nil {
+			continue
+		}
+		for _, p := range b.Preguntas {
+			out = append(out, p.Pregunta)
+		}
+	}
+	return out
+}

@@ -408,3 +408,41 @@ func TestEstado_SinLimitesElCampoNoViaja(t *testing.T) {
 		t.Fatalf("sin dato no viaja el campo: %s", b)
 	}
 }
+
+func TestAvisos_ElModoGoalAvisaAlDetenerseYAlTerminar(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]bool{}}
+	conGoal := func(estado, motivo string) Estado {
+		g := &consola.Goal{Activo: true, Estado: estado, Motivo: motivo, Elegidas: []consola.Elegida{}}
+		return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Goal: g}}}}
+	}
+	recibir := func() string {
+		t.Helper()
+		select {
+		case a := <-rl.avisos:
+			if a.Proyecto != "p" {
+				t.Fatalf("solo tipo y proyecto: %+v", a)
+			}
+			return a.Tipo
+		case <-time.After(2 * time.Second):
+			t.Fatal("sin push")
+		}
+		return ""
+	}
+	b.avisarNuevos(context.Background(), conGoal(consola.GoalPausado, consola.MotivoSinAvance))
+	b.avisarNuevos(context.Background(), conGoal(consola.GoalTrabajando, ""))
+	select {
+	case a := <-rl.avisos:
+		t.Fatalf("la primera vez es la base y seguir trabajando no se avisa: %+v", a)
+	case <-time.After(50 * time.Millisecond):
+	}
+	b.avisarNuevos(context.Background(), conGoal(consola.GoalPausado, consola.MotivoSinConsola))
+	if tipo := recibir(); tipo != AvisoGoalPausado {
+		t.Fatal(tipo)
+	}
+	b.avisarNuevos(context.Background(), conGoal(consola.GoalPausado, consola.MotivoSinConsola))
+	b.avisarNuevos(context.Background(), conGoal(consola.GoalTerminado, ""))
+	if tipo := recibir(); tipo != AvisoGoalTerminado {
+		t.Fatal(tipo)
+	}
+}
