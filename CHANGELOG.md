@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Arreglado
+
+- **QDD Móvil no pregunta lo que nadie puede resolver** (FND-124). Sin una sesión de Claude Code abierta en el proyecto,
+  un ⏳ no llega al teléfono y su respuesta se rechaza. Antes la respuesta vencía a los 30 min mientras la pregunta seguía
+  como «respondida», y se perdía.
+
 ### ✨ Añadido
 
 - **Lo que la IA necesita de la persona no se queda en el chat** (pedido de sfrc). El bloque de `AGENTS.md` trae la
