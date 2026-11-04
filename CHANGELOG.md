@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.4] - 2026-11-04
+
+Corrección (`npm i -g qdd-framework@latest`) con dos arreglos tomados de main, sin lo nuevo de 2.9.0.
+
+### Arreglado
+
+- **Un pedido ya no muere con la unidad de systemd que lo lanzó** (FND-129, MEJ-003). En Linux corre en su propio scope, así
+  que sigue aunque se detenga el servicio o la sesión desde la que se lanzó. Sin systemd de usuario se lanza como antes.
+- **Actualizar qdd desde un pedido del teléfono ya no se corta a la mitad** (FND-128). `qdd remoto` se reinicia al ver un
+  qdd nuevo, y el sistema mataba también lo que había lanzado: npm revertía la instalación y el pedido fallaba con código
+  -1. `qdd doctor --fix` le agrega la línea que falta al servicio ya instalado (REM-03).
+
 ## [2.8.3] - 2026-11-03
 
 Corrección (`npm i -g qdd-framework@latest`) con dos arreglos tomados de main, sin lo nuevo de 2.9.0.
