@@ -164,7 +164,7 @@ existen y el nuestro no se configura a mano.
 |---|---|---|
 | `sync` | teléfono → PC | Pide el estado completo. |
 | `estado` | PC → teléfono | El JSON de `qdd remoto estado --json`, con `seq`. |
-| `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}}`: los proyectos cuyo panel cambió (null: salió). Si falta un `seq`, el teléfono pide `sync`. |
+| `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}, limites?}`: los proyectos cuyo panel cambió (null: salió) y los límites de Claude si cambiaron. Si falta un `seq`, el teléfono pide `sync`. |
 | `accion` | relay → PC | El teléfono llama a `qdd_remoto_accion(maquina, solicitud, proyecto, accion_id)`; el relay sella `dispositivo`, verifica que no esté revocado y lo envía con `realtime.send` y `firma = hmac_sha256(firma_maquina, solicitud\|proyecto\|accion_id\|dispositivo\|en)`. El PC descarta lo que no traiga una firma válida. |
 | `responder` | relay → PC | El teléfono responde una pregunta de la consola con `qdd_remoto_responder`; el relay lo firma como `accion`, con la respuesta entre la pregunta y el dispositivo (ver «Preguntas desde el teléfono»). |
 | `ejecutar` | relay → PC | Solo Pro: el teléfono llama a `qdd_remoto_ejecutar`; el relay lo firma como `responder`, con el tipo y el texto (ver «Ejecutar desde el teléfono»). |
@@ -173,6 +173,27 @@ existen y el nuestro no se configura a mano.
 
 Presence: el PC publica `{rol: "pc", version_qdd, desde}`; cada teléfono `{rol: "movil", dispositivo, mirando}`. Cada
 mensaje lleva `version`; un cliente que no la entiende lo dice y no adivina.
+
+
+**Límites de Claude de la máquina** (pedido de qdd-movile, 2026-11-04). Campo opcional `limites` de `estado` y `delta`, sin
+subir `version`. Sirve para ver cuánto queda sin gastar tokens:
+
+```json
+"limites": {
+  "cinco_horas": {"usado": 12.2, "reinicia": "2026-11-04T18:30:00-03:00"},
+  "semana": {"usado": 40, "reinicia": "2026-11-09T09:00:00-03:00"},
+  "actualizado": "2026-11-04T14:02:11-03:00"
+}
+```
+
+- `usado` es el `used_percentage` que Claude Code entrega a la barra, tal cual.
+- Un tramo o un `reinicia` que no vino se omite, nunca un 0 inventado. Sin ningún tramo, no viaja `limites`.
+- `actualizado` es cuándo la barra leyó el dato. La barra solo corre con una sesión abierta, así que el dato puede quedar
+  viejo, incluso con `reinicia` ya pasado: el teléfono dice de qué hora es.
+- La barra lo deja en `<QDD_HOME>/claude/limites.json`: al cambiar, o cada minuto si no cambia.
+- Un `delta` lo lleva solo si cambió `usado` o `reinicia`, no por `actualizado`. Sin el campo, el teléfono conserva el último
+  valor.
+- Es de la máquina, no de cada proyecto: no lleva rutas ni el modelo.
 
 ### App (`qdd-movil`, Flutter)
 

@@ -153,6 +153,7 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 	c := consolaActual()
 	reg, _ := c.LeerRegistro()
 	now := time.Now()
+	consola.GuardarLimites(datos, now)
 	modo, ancho := consola.ModoDeLaBarra(datos, now), consola.AnchoTerminal()
 	l := consola.Barra(datos, now, modo, ancho)
 	if reg.Recursos {

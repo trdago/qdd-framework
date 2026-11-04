@@ -1,0 +1,123 @@
+package consola
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/qdd-framework/qdd/pkg/blueprints"
+)
+
+// Rule: Prohibido usar 'else'
+// Pedido de qdd-movile (2026-11-04): la persona quiere ver en la app cuánto queda de sus límites de Claude sin gastar
+// tokens. Claude Code los entrega solo a la barra, así que la barra deja el último valor en <QDD_HOME>/claude/limites.json
+// y qdd remoto lo publica. Es un dato de la máquina (una cuenta de Claude por PC), no de cada proyecto: solo lleva
+// porcentajes y fechas, nunca rutas ni el modelo. Lo que no vino se omite, nunca un 0 inventado. La barra solo corre con
+// una sesión abierta, así que el dato puede quedar viejo: por eso va con Actualizado.
+
+// CadaLimites es cada cuánto la barra reescribe los límites que no cambiaron, para decir que siguen vigentes: la barra
+// corre cada 2 s y un cambio se escribe en el acto.
+const CadaLimites = time.Minute
+
+// TramoLimite es una ventana de uso: el used_percentage tal cual y cuándo se reinicia, si vino.
+type TramoLimite struct {
+	Usado    float64    `json:"usado"`
+	Reinicia *time.Time `json:"reinicia,omitempty"`
+}
+
+// Limites son los límites de uso de Claude de la máquina, como los leyó la barra.
+type Limites struct {
+	CincoHoras  *TramoLimite `json:"cinco_horas,omitempty"`
+	Semana      *TramoLimite `json:"semana,omitempty"`
+	Actualizado time.Time    `json:"actualizado"`
+}
+
+// LimitesDe saca los límites de la entrada de la barra; nil si no trae ningún tramo o es ilegible.
+func LimitesDe(datos []byte, now time.Time) *Limites {
+	var in entrada
+	if json.Unmarshal(datos, &in) != nil {
+		return nil
+	}
+	cinco, semana := tramoLimite(in.RateLimits.FiveHour, now), tramoLimite(in.RateLimits.SevenDay, now)
+	if cinco == nil && semana == nil {
+		return nil
+	}
+	return &Limites{CincoHoras: cinco, Semana: semana, Actualizado: now.Truncate(time.Second)}
+}
+
+func tramoLimite(t tramoJSON, now time.Time) *TramoLimite {
+	if t.UsedPercentage == nil {
+		return nil
+	}
+	out := &TramoLimite{Usado: *t.UsedPercentage}
+	if cuando, ok := renovacion(t.ResetsAt, now.Location()); ok {
+		out.Reinicia = &cuando
+	}
+	return out
+}
+
+// Huella es lo que cuenta como cambio: lo usado y cuándo se reinicia, no Actualizado.
+func (l *Limites) Huella() string {
+	if l == nil {
+		return ""
+	}
+	return huellaTramo(l.CincoHoras) + "|" + huellaTramo(l.Semana)
+}
+
+func huellaTramo(t *TramoLimite) string {
+	if t == nil {
+		return ""
+	}
+	if t.Reinicia == nil {
+		return fmt.Sprint(t.Usado)
+	}
+	return fmt.Sprint(t.Usado, "@", t.Reinicia.Unix())
+}
+
+func rutaLimites() (string, error) {
+	home, err := blueprints.Home()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "claude", "limites.json"), nil
+}
+
+// GuardarLimites es lo que hace la barra en cada vuelta: guarda si cambió o si pasó CadaLimites. Una entrada sin límites
+// no borra los últimos. Nunca falla: la barra no depende de esto.
+func GuardarLimites(datos []byte, now time.Time) {
+	l := LimitesDe(datos, now)
+	if l == nil {
+		return
+	}
+	ruta, err := rutaLimites()
+	if err != nil {
+		return
+	}
+	antes := LeerLimites()
+	if antes != nil && antes.Huella() == l.Huella() && now.Sub(antes.Actualizado) < CadaLimites {
+		return
+	}
+	if os.MkdirAll(filepath.Dir(ruta), 0o700) != nil {
+		return
+	}
+	_ = guardarJSON(ruta, l)
+}
+
+// LeerLimites son los últimos límites que guardó la barra; nil si no hay o el archivo es ilegible.
+func LeerLimites() *Limites {
+	ruta, err := rutaLimites()
+	if err != nil {
+		return nil
+	}
+	b, err := os.ReadFile(ruta)
+	if err != nil {
+		return nil
+	}
+	var l Limites
+	if json.Unmarshal(b, &l) != nil {
+		return nil
+	}
+	return &l
+}

@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0-rc.2] - 2026-11-04 (preview)
+
+Segunda **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
+
+### ✨ Añadido
+
+- **Límites de Claude en QDD Móvil** (pedido de qdd-movile). `qdd remoto` publica cuánto se usó de la ventana de 5 h y de la
+  semana, y cuándo se reinician, sin gastar tokens. Claude Code los entrega a la barra, que deja el último valor en
+  `<QDD_HOME>/claude/limites.json`. El campo `limites` es opcional en `estado` y `delta`, y no cambia la versión del
+  protocolo.
+
 ## [2.9.0-rc.1] - 2026-11-03 (preview)
 
 Primera **preview** de 2.9.0: `npm i -g qdd-framework@preview`. Sus dos arreglos salen también en `latest` como 2.8.3,

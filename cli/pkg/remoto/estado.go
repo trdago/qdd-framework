@@ -45,6 +45,7 @@ type Estado struct {
 	En           time.Time        `json:"en"`
 	Seq          uint64           `json:"seq,omitempty"`
 	FueraDelPlan int              `json:"fuera_del_plan,omitempty"`
+	Limites      *consola.Limites `json:"limites,omitempty"`
 	Proyectos    []ProyectoEstado `json:"proyectos"`
 }
 
@@ -60,7 +61,7 @@ func EstaMaquina() Maquina {
 // Armar arma el estado de los proyectos del registro (ya ordenado por visto, el más reciente primero). limite es el
 // de proyectos del plan (0: sin límite): se publican los más recientes y FueraDelPlan dice cuántos quedaron fuera.
 func Armar(qdd string, reg registro.Registro, now time.Time, limite int) Estado {
-	e := Estado{Version: VersionProtocolo, QDD: qdd, Maquina: EstaMaquina(), En: now.UTC(), Proyectos: []ProyectoEstado{}}
+	e := Estado{Version: VersionProtocolo, QDD: qdd, Maquina: EstaMaquina(), En: now.UTC(), Limites: consola.LeerLimites(), Proyectos: []ProyectoEstado{}}
 	for _, p := range Publicables(reg, limite) {
 		e.Proyectos = append(e.Proyectos, PanelDe(qdd, p, now))
 	}
