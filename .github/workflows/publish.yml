@@ -58,6 +58,8 @@ jobs:
     permissions:
       contents: write
     strategy:
+      # De a uno: cada job sube su archivo al mismo release, y en paralelo chocan al crearlo (FND-131).
+      max-parallel: 1
       matrix:
         include:
           - os: linux

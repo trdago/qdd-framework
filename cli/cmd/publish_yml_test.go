@@ -43,3 +43,20 @@ func TestPublishYml_UnaCandidataSaleComoPreview(t *testing.T) {
 		t.Fatal("las dos subidas a la GitHub Release la marcan como pre-release")
 	}
 }
+
+// FND-131: los binarios se compilan en una matriz y cada uno sube su archivo al mismo release. En paralelo, dos ven que
+// no existe, los dos lo crean y uno falla con already_exists; el fail-fast cancela el resto y npm no publica nada.
+func TestPublishYml_LosBinariosSeSubenDeAUno_FND131(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "publish.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, resto, ok := strings.Cut(string(content), "build-binaries:")
+	if !ok {
+		t.Fatal("publish.yml no tiene el job build-binaries")
+	}
+	estrategia, _, ok := strings.Cut(resto, "matrix:")
+	if !ok || !strings.Contains(estrategia, "max-parallel: 1") {
+		t.Fatal("la matriz de build-binaries debe correr de a uno: varias a la vez chocan al crear el release")
+	}
+}
