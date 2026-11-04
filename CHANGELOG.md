@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.4] - 2026-11-04
+
+Corrección de 2.9.3, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.4-rc.1.
+
 ## [2.9.4-rc.1] - 2026-11-04
 
 ### Corregido
