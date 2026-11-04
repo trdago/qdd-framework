@@ -11,6 +11,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **QDD Móvil no pregunta lo que nadie puede resolver** (FND-124). Sin una sesión de Claude Code abierta en el proyecto,
   un ⏳ no llega al teléfono y su respuesta se rechaza. Antes la respuesta vencía a los 30 min mientras la pregunta seguía
   como «respondida», y se perdía.
+- **Un pedido armado ya no puede ejecutarse dos veces** (FND-125, MEJ-008). Si dos procesos quedaban esperando el mismo
+  pedido, los dos lo corrían al mismo tiempo: en sfrc lanzó dos despliegues en el mismo segundo. Ahora solo lo corre su
+  dueño, y el otro termina sin correrlo.
 
 ## [2.8.2] - 2026-11-03
 

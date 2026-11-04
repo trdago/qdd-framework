@@ -127,6 +127,9 @@ func tomarTurno(root, id string, now time.Time, primero bool) (string, time.Dura
 		if primero && !aceptadoPorNadie(p) {
 			return nil, fmt.Errorf("el pedido %s no espera que lo corran (está %s)", id, p.Estado)
 		}
+		if !primero && deOtroDueno(p) {
+			return cola, nil
+		}
 		if p.Estado == EstadoEjecutando {
 			cola[i].PID, cola[i].Hijo, turno = os.Getpid(), -1, turnoCorrer
 			return cola, nil
@@ -151,6 +154,15 @@ func tomarTurno(root, id string, now time.Time, primero bool) (string, time.Dura
 		return cola, nil
 	})
 	return turno, espera, err
+}
+
+// deOtroDueno: pasada la primera vuelta, el pedido es de otro proceso vivo si lo está corriendo o esperando él. Quien ya
+// no es su dueño termina sin correrlo (FND-125: dos procesos despertaban a la misma hora y lo corrían los dos).
+func deOtroDueno(p Pedido) bool {
+	if p.PID == os.Getpid() {
+		return false
+	}
+	return p.Estado == EstadoEjecutando || (p.Estado == EstadoArmado && p.PID != 0 && procesoVivo(p.PID))
 }
 
 // aceptadoPorNadie: ejecutando sin comando en marcha, o armado sin otro proceso vivo que lo espere.
