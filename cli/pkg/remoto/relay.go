@@ -133,6 +133,10 @@ func GuardarRelay(c ConfigRelay) error {
 	return guardarPrivado("relay.json", c)
 }
 
+// RelayPorDefecto es el relay de QDD Móvil que qdd usa la primera vez (issue #102); lo opera qdd-movile. Va vacío a
+// propósito: publicar su dirección y su clave espera a que se cierren las tablas expuestas de ese proyecto de Supabase.
+var RelayPorDefecto = ConfigRelay{}
+
 // LeerRelay devuelve la config guardada; vuelve a validar la clave por si alguien editó el archivo.
 func LeerRelay() (ConfigRelay, error) {
 	var c ConfigRelay

@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0-rc.6] - 2026-11-04 (preview)
+
+Sexta **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
+
+### Añadido
+
+- **`qdd login` empareja este PC con QDD Móvil** (issue #102). Es `qdd remoto activar` con otro nombre. Todavía pide
+  `--relay` y `--clave`, porque esta versión no trae un relay por defecto; antes `qdd login` se tomaba como una intención
+  en texto libre.
+
 ## [2.9.0-rc.5] - 2026-11-04 (preview)
 
 Quinta **preview** de 2.9.0: `npm i -g qdd-framework@preview`. El arreglo también sale en `latest` como 2.8.6.
