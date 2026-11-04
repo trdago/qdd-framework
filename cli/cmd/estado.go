@@ -3,11 +3,13 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
@@ -293,12 +295,13 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		}
 		vs = append(vs, estado.CheckRespuesta(e, string(data), time.Now())...)
 	}
+	sinPregunta := consola.EsperasSinPregunta(root, time.Now())
 	if estadoJSON {
 		revision := []string{}
 		if estadoResp == "" {
 			revision = []string{"EPF-C08"}
 		}
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision}, "", "  ")
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...)}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -315,7 +318,19 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		}
 		fmt.Println(". EPF-C08 (texto y tabla no se contradicen) se revisa con --respuesta <reporte>.")
 	}
+	avisarEsperasSinPregunta(os.Stdout, sinPregunta)
 	salirSiHay(vs)
+}
+
+// avisarEsperasSinPregunta avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta.
+func avisarEsperasSinPregunta(salida io.Writer, esperas []consola.EsperaSinPregunta) {
+	if len(esperas) == 0 {
+		return
+	}
+	fmt.Fprintf(salida, "[i] ⏳ de la persona que no le llegan como pregunta: %d. Si le pides algo, escríbelo como ¿…? o nombra su pedido con [tecla]; si es una nota de avance, déjala:\n", len(esperas))
+	for _, e := range esperas {
+		fmt.Fprintf(salida, "    %s\n", e.Linea())
+	}
 }
 
 func salirSiHay(vs []estado.Violacion) {

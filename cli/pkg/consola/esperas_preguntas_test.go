@@ -183,3 +183,39 @@ func TestEspera_UnPedidoAbiertoLaCubre_MEJ004(t *testing.T) {
 		t.Fatalf("[z] no es un pedido abierto: sí es pregunta: %+v", ps)
 	}
 }
+
+// Decisión de la persona (2026-11-03): el check marca los ⏳ de la persona que no llegan al teléfono, y esa cuenta es
+// la medición que decide el gate en el Stop hook.
+func TestEsperasSinPregunta_SoloLasQueNoPreguntanNiTienenPedido(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "falta tu visto bueno al despliegue")
+	sin := EsperasSinPregunta(root, enCola)
+	if len(sin) != 1 || sin[0].Tarea != "Barra" || sin[0].Etapa != "PR" || sin[0].Bloqueo != "falta tu visto bueno al despliegue" {
+		t.Fatalf("no pregunta nada ni tiene pedido: se marca, con su tarea, etapa y bloqueo: %+v", sin)
+	}
+	if linea := (EsperaSinPregunta{Tarea: "Barra", Etapa: "PR", Bloqueo: strings.Repeat("x", 500)}).Linea(); !strings.HasPrefix(linea, "Barra · PR: x") || len([]rune(linea)) > maxLineaEspera {
+		t.Fatalf("la línea nombra tarea y etapa, y recorta el bloqueo: %q", linea)
+	}
+	conEspera(t, root, "¿Le damos el visto bueno al despliegue?")
+	if sin = EsperasSinPregunta(root, enCola); len(sin) != 0 {
+		t.Fatalf("la que pregunta ya llega al teléfono: %+v", sin)
+	}
+	pd, err := Pedir(root, "aws configure", "Configurar AWS", root, enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conEspera(t, root, "falta correr ["+pd.Tecla+"] para desplegar")
+	if sin = EsperasSinPregunta(root, enCola); len(sin) != 0 {
+		t.Fatalf("la cubre el pedido [%s]: %+v", pd.Tecla, sin)
+	}
+	conEspera(t, root, "falta correr [z] para desplegar")
+	if sin = EsperasSinPregunta(root, enCola); len(sin) != 1 {
+		t.Fatalf("[z] no es un pedido abierto: se marca: %+v", sin)
+	}
+	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: "falta el CI", DeQuien: "la IA"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if sin = EsperasSinPregunta(root, enCola); len(sin) != 0 {
+		t.Fatalf("un ⏳ de otro no le pide nada a la persona: %+v", sin)
+	}
+}
