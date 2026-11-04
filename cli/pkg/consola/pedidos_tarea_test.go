@@ -148,3 +148,19 @@ func TestPedido_ConUnaTareaQueNoExisteSeRechazaYSugiere_FND109(t *testing.T) {
 		t.Fatal("la cola no cambia")
 	}
 }
+
+// El teléfono no ofrece seguir con una tarea que ya tiene un pedido abierto: el panel le dice cuál es.
+func TestPedidos_LaAccionDiceSuTarea(t *testing.T) {
+	root := proyectoConTareas(t)
+	p := mustPedirEnOrden(t, root, "gh pr merge 42", Orden{Tarea: "barra"})
+	for _, a := range accionesDePedidos(root) {
+		if a.pedido != p.ID {
+			continue
+		}
+		if a.DeTarea != "barra" {
+			t.Fatalf("la acción lleva la tarea: %q", a.DeTarea)
+		}
+		return
+	}
+	t.Fatal("el pedido no aparece como acción")
+}

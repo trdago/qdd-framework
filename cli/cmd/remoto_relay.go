@@ -172,13 +172,14 @@ func remotoEmparejar(ctx context.Context, salida, errores io.Writer) int {
 	}
 	c, err := remoto.LeerRelay()
 	if err != nil {
-		fmt.Fprintln(errores, "[!] falta el relay: usa 'qdd remoto activar --relay <url> --clave <publicable>'")
+		fmt.Fprintln(errores, "[!] falta el relay: usa 'qdd login'")
 		return 1
 	}
 	if _, err := emparejarYGuardar(ctx, c, salida); err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
+	fmt.Fprintln(salida, "[i] Este PC no publica hasta tener su servicio: corre 'qdd login'.")
 	return 0
 }
 
@@ -193,17 +194,30 @@ func remotoDesactivar(ctx context.Context, salida, errores io.Writer) int {
 		}
 		fmt.Fprintln(salida, "[+] El PC salió del relay: su canal ya no admite a nadie.")
 	}
-	if s, err := servicioRemoto(); err == nil {
-		if err := s.Quitar(remotoEjecutor); err != nil {
-			fmt.Fprintf(errores, "[!] servicio: %v\n", err)
-		}
-	}
+	quitarServicio(salida, errores)
 	if err := remoto.BorrarCredenciales(); err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	fmt.Fprintln(salida, "[+] Servicio detenido y credenciales borradas. La config del relay queda para volver a activar.")
+	fmt.Fprintln(salida, "[+] Credenciales borradas. La config del relay queda para volver a activar.")
 	return 0
+}
+
+func quitarServicio(salida, errores io.Writer) {
+	s, err := servicioRemoto()
+	if err != nil {
+		return
+	}
+	err = s.Quitar(remotoEjecutor)
+	if errors.Is(err, remoto.ErrServicioDeOtroHome) {
+		fmt.Fprintln(salida, "[i] El servicio de este PC publica otro QDD_HOME: no se tocó.")
+		return
+	}
+	if err != nil {
+		fmt.Fprintf(errores, "[!] servicio: %v\n", err)
+		return
+	}
+	fmt.Fprintln(salida, "[+] Servicio detenido.")
 }
 
 // servicioRemoto arma el servicio de este sistema con el binario que corre y el PATH de la terminal.

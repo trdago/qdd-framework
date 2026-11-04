@@ -227,6 +227,20 @@ func (s Servicio) Comandos(encender bool) [][]string {
 	return nil
 }
 
+// esDeEsteHome mira el QDD_HOME del archivo instalado. En Windows el archivo ya vive en <QDD_HOME>/remoto.
+func (s Servicio) esDeEsteHome(contenido string) bool {
+	if s.SO == "windows" {
+		return true
+	}
+	if s.QDDHome == "" {
+		return !strings.Contains(contenido, "QDD_HOME")
+	}
+	if s.SO == "darwin" {
+		return strings.Contains(contenido, "<key>QDD_HOME</key><string>"+escaparXML(s.QDDHome)+"</string>")
+	}
+	return strings.Contains(contenido, comillasSystemd("QDD_HOME="+s.QDDHome))
+}
+
 // Ejecutor corre un comando del sistema (en pruebas, uno que solo anota).
 type Ejecutor func(nombre string, args ...string) error
 
@@ -256,14 +270,24 @@ func (s Servicio) Instalar(correr Ejecutor) (string, error) {
 	return archivo, nil
 }
 
-// Quitar apaga el servicio y borra su archivo. Lo que ya no estaba no es un error.
+// ErrServicioDeOtroHome: el servicio instalado publica otro QDD_HOME; quien lo quiera quitar debe correr con ese.
+var ErrServicioDeOtroHome = errors.New("el servicio de este PC publica otro QDD_HOME")
+
+// Quitar apaga el servicio y borra su archivo, si es de este QDD_HOME (FND-136). Lo que ya no estaba no es un error.
 func (s Servicio) Quitar(correr Ejecutor) error {
 	archivo, err := s.Archivo()
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(archivo); errors.Is(err, os.ErrNotExist) {
+	b, err := os.ReadFile(archivo)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !s.esDeEsteHome(string(b)) {
+		return ErrServicioDeOtroHome
 	}
 	for _, c := range s.Comandos(false) {
 		_ = correr(c[0], c[1:]...)

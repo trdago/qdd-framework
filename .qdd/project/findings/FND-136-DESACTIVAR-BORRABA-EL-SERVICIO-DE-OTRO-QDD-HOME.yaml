@@ -1,0 +1,9 @@
+id: "FND-136"
+title: "qdd remoto desactivar borraba el servicio de otro QDD_HOME"
+description: "En Linux y macOS hay un solo servicio por usuario, pero las credenciales van por QDD_HOME. Con otro QDD_HOME, desactivar sacaba esa máquina del relay y además apagaba y borraba el servicio real, que publicaba otro QDD_HOME."
+impact: "El 2026-11-04 una prueba e2e de qdd-movile con un QDD_HOME aislado apagó el servicio real de este PC con la 2.9.2. Dejó de publicar a las 20:20 y volvió a las 20:23, al correr qdd remoto activar sin volver a emparejar."
+action_taken: "Quitar lee el archivo instalado y, si su QDD_HOME no es el actual, no lo toca y lo dice. Un QDD_HOME definido con la misma ruta por defecto cuenta como otro: se prefiere no borrar. Además, qdd remoto emparejar manda a qdd login cuando falta el relay y avisa que sin servicio el PC no publica."
+test_result: "TestServicio_QuitarNoTocaElServicioDeOtroQDDHome_FND136, TestServicio_QuitarSiBorraElDeSuMismoQDDHome_FND136, TestRemoto_DesactivarDesdeOtroQDDHomeNoBorraElServicio_FND136, TestRemoto_EmparejarSinRelayMandaAQddLogin_FND136"
+status: resolved
+detectado_por: ia
+date: "2026-11-04"

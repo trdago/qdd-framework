@@ -58,6 +58,7 @@ type Accion struct {
 	Avisar    bool       `json:"avisar,omitempty"`   // solo pedidos: terminó y esa sesión todavía no recibió el aviso
 	Mensaje   string     `json:"mensaje,omitempty"`  // solo con avisar: lo que lee la IA de esa sesión (aviso.go)
 	PR        int        `json:"pr,omitempty"`       // solo pedidos opcionales de un PR abierto (prs.go)
+	DeTarea   string     `json:"tarea,omitempty"`    // solo pedidos: la tarea que extiende, para que el teléfono no la ofrezca otra vez
 	// Solo preguntas (preguntas.go): de dónde viene (ia, permiso o qdd), dónde se respondió (pc o telefono), sus
 	// preguntas con opciones y, en un permiso, la herramienta y el comando exacto.
 	Origen       string           `json:"origen,omitempty"`

@@ -1,6 +1,7 @@
 package remoto
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -175,3 +176,45 @@ func TestServicio_RenovarEnLaunchdAgregaLaMarca_FND128(t *testing.T) {
 	}
 }
 
+
+// FND-136: el servicio es uno por usuario, pero QDD_HOME no: desactivar desde otro QDD_HOME borraba el servicio real.
+func TestServicio_QuitarNoTocaElServicioDeOtroQDDHome_FND136(t *testing.T) {
+	for _, so := range []string{"linux", "darwin"} {
+		for _, instalado := range []string{"/h/real", ""} {
+			usuario := t.TempDir()
+			real := Servicio{SO: so, Bin: "/b/qdd", Usuario: usuario, QDDHome: instalado, DirQDD: t.TempDir()}
+			archivo, err := real.Instalar(func(string, ...string) error { return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			otro := real
+			otro.QDDHome = "/tmp/aislado"
+			corridos := 0
+			err = otro.Quitar(func(string, ...string) error { corridos++; return nil })
+			if !errors.Is(err, ErrServicioDeOtroHome) {
+				t.Fatalf("%s con %q: dice que es de otro QDD_HOME: %v", so, instalado, err)
+			}
+			if _, err := os.Stat(archivo); err != nil || corridos != 0 {
+				t.Fatalf("%s con %q: no lo apaga ni lo borra: %v, %d comandos", so, instalado, err, corridos)
+			}
+		}
+	}
+}
+
+func TestServicio_QuitarSiBorraElDeSuMismoQDDHome_FND136(t *testing.T) {
+	for _, so := range []string{"linux", "darwin", "windows"} {
+		for _, home := range []string{"/h/real", ""} {
+			s := Servicio{SO: so, Bin: "/b/qdd", Usuario: t.TempDir(), QDDHome: home, DirQDD: t.TempDir()}
+			archivo, err := s.Instalar(func(string, ...string) error { return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Quitar(func(string, ...string) error { return nil }); err != nil {
+				t.Fatalf("%s con %q: %v", so, home, err)
+			}
+			if _, err := os.Stat(archivo); err == nil {
+				t.Fatalf("%s con %q: lo borra", so, home)
+			}
+		}
+	}
+}

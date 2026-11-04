@@ -178,3 +178,51 @@ func TestRemotoRevocar_LocalYEnElRelay(t *testing.T) {
 		t.Fatalf("la lista lo dice: %s", out.String())
 	}
 }
+
+// FND-136: desactivar con otro QDD_HOME saca esa máquina, pero deja el servicio real y lo dice.
+func TestRemoto_DesactivarDesdeOtroQDDHomeNoBorraElServicio_FND136(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("en Windows la tarea no lleva QDD_HOME")
+	}
+	prepararLogin(t, remoto.ConfigRelay{})
+	t.Setenv("QDD_HOME", "/ruta/del/servicio/real")
+	real, err := servicioRemoto()
+	if err != nil {
+		t.Fatal(err)
+	}
+	archivo, err := real.Instalar(remotoEjecutor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("QDD_HOME", t.TempDir())
+	var out, errs bytes.Buffer
+	if c := remotoDesactivar(context.Background(), &out, &errs); c != 0 {
+		t.Fatalf("desactivar: %d %s", c, errs.String())
+	}
+	if _, err := os.Stat(archivo); err != nil {
+		t.Fatalf("el servicio real sigue: %v", err)
+	}
+	if strings.Contains(out.String(), "Servicio detenido") || !strings.Contains(out.String(), "otro QDD_HOME") {
+		t.Fatalf("dice lo que pasó: %s", out.String())
+	}
+}
+
+func TestRemoto_EmparejarSinRelayMandaAQddLogin_FND136(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{})
+	var out, errs bytes.Buffer
+	if c := remotoEmparejar(context.Background(), &out, &errs); c != 1 || !strings.Contains(errs.String(), "qdd login") {
+		t.Fatalf("un PC nuevo se empareja con qdd login: %d %s", c, errs.String())
+	}
+}
+
+func TestRemoto_EmparejarAvisaQueSinServicioNoPublica_FND136(t *testing.T) {
+	_, url := nuevoRelayCmd(t)
+	prepararLogin(t, remoto.ConfigRelay{})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: url, Clave: "sb_publishable_prueba"}); err != nil {
+		t.Fatal(err)
+	}
+	var out, errs bytes.Buffer
+	if c := remotoEmparejar(context.Background(), &out, &errs); c != 0 || !strings.Contains(out.String(), "qdd login") {
+		t.Fatalf("avisa qué falta: %d %s %s", c, out.String(), errs.String())
+	}
+}
