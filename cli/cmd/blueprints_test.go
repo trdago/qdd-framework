@@ -50,6 +50,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	os.Setenv(blueprints.HomeEnv, home)
+	// El servicio de qdd remoto de esta máquina no es de las pruebas.
+	remotoUsuario = func() (string, error) { return home, nil }
+	remotoEjecutor = func(string, ...string) error { return nil }
 	for k, v := range map[string]string{"GIT_AUTHOR_NAME": "qdd", "GIT_AUTHOR_EMAIL": "qdd@test", "GIT_COMMITTER_NAME": "qdd", "GIT_COMMITTER_EMAIL": "qdd@test"} {
 		os.Setenv(k, v)
 	}

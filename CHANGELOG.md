@@ -21,6 +21,13 @@ Tercera **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
 - **QDD Móvil**: `goal` opcional en el panel, `goal activar` y `goal desactivar` desde el teléfono, y dos avisos nuevos:
   `goal_pausado` y `goal_terminado`.
 
+### Arreglado
+
+- **Actualizar qdd desde un pedido del teléfono ya no se corta a la mitad** (FND-128). `qdd remoto` se reinicia al ver un
+  qdd nuevo, y el sistema mataba también lo que había lanzado: npm revertía la instalación y el pedido fallaba con código
+  -1. `qdd doctor --fix` le agrega la línea que falta al servicio ya instalado (REM-03).
+- **El botón «Ciclo de mejoras» se ve en el panel**, con la tecla `m` (FND-127).
+
 ## [2.9.0-rc.2] - 2026-11-04 (preview)
 
 Segunda **preview** de 2.9.0: `npm i -g qdd-framework@preview`.

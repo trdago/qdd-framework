@@ -64,6 +64,7 @@ func TestRemotoActivar_GuardaEmparejaYDejaElServicio(t *testing.T) {
 	usuario := t.TempDir()
 	f, url := nuevoRelayCmd(t)
 	var corridos []string
+	antesEjecutor, antesUsuario := remotoEjecutor, remotoUsuario
 	remotoEjecutor = func(n string, a ...string) error {
 		corridos = append(corridos, n+" "+strings.Join(a, " "))
 		return nil
@@ -71,7 +72,7 @@ func TestRemotoActivar_GuardaEmparejaYDejaElServicio(t *testing.T) {
 	remotoUsuario = func() (string, error) { return usuario, nil }
 	remotoCadaEspera, remotoRelayURL, remotoClave, remotoSinServ = 5*time.Millisecond, url, "sb_publishable_prueba", false
 	t.Cleanup(func() {
-		remotoEjecutor, remotoUsuario, remotoCadaEspera, remotoRelayURL, remotoClave = ejecutarSistema, os.UserHomeDir, 0, "", ""
+		remotoEjecutor, remotoUsuario, remotoCadaEspera, remotoRelayURL, remotoClave = antesEjecutor, antesUsuario, 0, "", ""
 	})
 	var out, errs bytes.Buffer
 	if c := remotoActivar(context.Background(), &out, &errs); c != 0 {

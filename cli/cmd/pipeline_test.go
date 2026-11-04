@@ -3,6 +3,8 @@ package cmd
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"runtime"
 	"testing"
 )
@@ -40,23 +42,53 @@ func TestPipelineExecution(t *testing.T) {
 	testIntermediateFail(t, binName)
 }
 
+// binarioDePrueba lanza el binario con un HOME temporal: lo que repare no es de esta máquina.
+func binarioDePrueba(t *testing.T, binName string, args ...string) *exec.Cmd {
+	t.Helper()
+	home := t.TempDir()
+	c := exec.Command("./"+binName, args...)
+	c.Env = append(os.Environ(), "HOME="+home, "USERPROFILE="+home)
+	return c
+}
+
 func testValidCommand(t *testing.T, binName string) {
-	cmd1 := exec.Command("./" + binName, "run", "init")
+	cmd1 := binarioDePrueba(t, binName, "run", "init")
 	if err := cmd1.Run(); err != nil {
 		t.Errorf("Expected pipeline to succeed with valid command, got %v", err)
 	}
 }
 
 func testInvalidCommand(t *testing.T, binName string) {
-	cmd2 := exec.Command("./" + binName, "run", "fakecommand")
+	cmd2 := binarioDePrueba(t, binName, "run", "fakecommand")
 	if err := cmd2.Run(); err == nil {
 		t.Errorf("Expected pipeline to fail with invalid command")
 	}
 }
 
 func testIntermediateFail(t *testing.T, binName string) {
-	cmd3 := exec.Command("./" + binName, "run", "init", "fakecommand", "init")
+	cmd3 := binarioDePrueba(t, binName, "run", "init", "fakecommand", "init")
 	if err := cmd3.Run(); err == nil {
 		t.Errorf("Expected pipeline to abort and fail on intermediate invalid command")
+	}
+}
+
+// FND-128: 'init' corre doctor --fix en otro proceso, sin el aislamiento de TestMain. Con el HOME real, una corrida de
+// las pruebas reparaba esta máquina: reescribió su servicio de qdd remoto con el binario de prueba (2026-11-04).
+func TestArquitectura_ElBinarioDePruebaNoUsaElHOMEReal(t *testing.T) {
+	archivos, err := filepath.Glob("*_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	directo := regexp.MustCompile(`exec\.Command\("\./"`)
+	var usos int
+	for _, archivo := range archivos {
+		data, err := os.ReadFile(archivo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		usos += len(directo.FindAll(data, -1))
+	}
+	if usos != 1 {
+		t.Fatalf("hay %d usos directos de un binario de prueba: solo binarioDePrueba puede lanzarlo, porque le da un HOME temporal", usos)
 	}
 }
