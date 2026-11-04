@@ -1,0 +1,9 @@
+id: "FND-129"
+title: "Un pedido lanzado desde una unidad de systemd moría al detenerla"
+description: "Los pedidos se lanzan con Setsid, que los saca de la sesión de la terminal pero no del cgroup. Lanzados desde una unidad de systemd, esta los mata al detenerse (KillMode=control-group). Desde una terminal normal sobreviven a cerrarla: su scope sigue mientras tenga procesos. Lo reportó MEJ-003 a partir de FND-244 de notificador."
+impact: "Un pedido largo, como un despliegue o una instalación, moría a la mitad si la sesión de Claude Code o el proceso que lo lanzó corría dentro de una unidad que se detuvo. Quedaba con código -1 y el trabajo sin terminar."
+action_taken: "En Linux, Lanzar lo corre con systemd-run --user --scope, que conserva el PID, la carpeta y el entorno, con --expand-environment=no para que un $ de la ruta no cambie. Si systemd de usuario no responde, se lanza como antes."
+test_result: "TestFueraDeLaUnidad_ConSystemdCorreEnSuPropioScope_FND129, TestFueraDeLaUnidad_SinSystemdLanzaComoAntes_FND129 y TestFueraDeLaUnidad_DeVerdadConservaPIDCarpetaYEntorno_FND129. De punta a punta en un proyecto aparte, deteniendo la unidad que lanzó el pedido: con 2.9.0-rc.3 falla con código -1; con el arreglo termina y queda hecho."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"
