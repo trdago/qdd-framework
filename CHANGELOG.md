@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-11-03
+
+Corrección (`npm i -g qdd-framework@latest`) con dos arreglos tomados de main, sin lo nuevo de 2.9.0.
+
 ### Arreglado
 
 - **QDD Móvil no pregunta lo que nadie puede resolver** (FND-124). Sin una sesión de Claude Code abierta en el proyecto,
