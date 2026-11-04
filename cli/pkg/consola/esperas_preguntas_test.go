@@ -23,6 +23,14 @@ func conEspera(t *testing.T, root, bloqueo string) {
 	}
 }
 
+// conSesionAbierta: una sesión de Claude Code late en el proyecto y puede recibir la respuesta.
+func conSesionAbierta(t *testing.T, root string) {
+	t.Helper()
+	if err := LatirSesion(root, "s1", enCola); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func delEstado(root string) []Pregunta {
 	var out []Pregunta
 	for _, p := range PreguntasA(root, enCola) {
@@ -76,6 +84,7 @@ func TestEspera_UnEsperaDeLaPersonaEsUnaPreguntaDeRespuestaLibre(t *testing.T) {
 func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
 	p := esperaDe(t, root, enCola)
 	if _, err := ResponderPregunta(root, prefijoPregunta+p.ID, `{"q1":{"opciones":["a"]}}`, "Pixel", enCola); !errors.Is(err, ErrRespuestaInvalida) {
 		t.Fatalf("no tiene opciones: solo texto: %v", err)
@@ -106,6 +115,7 @@ func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 func TestEspera_RespondidaNoSeVuelveAOfrecerMientrasLaCeldaNoCambie(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
 	p := esperaDe(t, root, enCola)
 	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"ya lo mergeé"}}`, "Pixel", enCola); err != nil {
 		t.Fatal(err)
@@ -121,6 +131,7 @@ func TestEspera_RespondidaNoSeVuelveAOfrecerMientrasLaCeldaNoCambie(t *testing.T
 func TestEspera_CuandoLaCeldaCambiaLaPreguntaSale(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
 	p := esperaDe(t, root, enCola)
 	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: "¿mergeamos el #9?", DeQuien: "la persona"}, enCola); err != nil {
 		t.Fatal(err)
@@ -181,5 +192,27 @@ func TestEspera_UnPedidoAbiertoLaCubre_MEJ004(t *testing.T) {
 	conEspera(t, root, "¿Corres [z] para desplegar?")
 	if ps := delEstado(root); len(ps) != 1 {
 		t.Fatalf("[z] no es un pedido abierto: sí es pregunta: %+v", ps)
+	}
+}
+
+// FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta, la respuesta a un ⏳ quedaba como instrucción que vence a los
+// 30 min, mientras la pregunta seguía «respondida» 24 h: la respuesta se perdía sin que nadie lo supiera.
+
+func TestEspera_SinSesionLaRespuestaNoSePierde_FND124(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
+	p := esperaDe(t, root, enCola)
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); !errors.Is(err, ErrPreguntaDesconocida) {
+		t.Fatalf("sin sesión no hay quien la reciba: se rechaza: %v", err)
+	}
+	if e := EjecucionesA(root, enCola); len(e) != 0 {
+		t.Fatalf("no queda una instrucción que vaya a vencer: %+v", e)
+	}
+	if r := esperaDe(t, root, enCola); r.Estado != PreguntaPendiente {
+		t.Fatalf("sigue pendiente, no «respondida»: %+v", r)
+	}
+	conSesionAbierta(t, root)
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
+		t.Fatalf("con una sesión abierta, se responde: %v", err)
 	}
 }

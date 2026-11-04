@@ -20,6 +20,8 @@ import (
 // MEJ-004 (qdd-movile, 2026-11-03): de 11 ⏳ publicados, casi todos eran notas de avance o esperaban un pedido ya armado
 // en el panel. Un ⏳ es pregunta solo si pregunta algo (¿…?) y no nombra con [tecla] un pedido abierto, que ya lo cubre;
 // el teléfono ve solo la pregunta, no el historial de la tarea.
+// FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta la respuesta se perdía (la instrucción vence a los 30 min y la
+// pregunta seguía «respondida» 24 h): esa respuesta se rechaza, y qdd remoto no publica el ⏳ (sinEsperasSinSesion).
 
 const (
 	// OrigenEstado es el origen de una pregunta que sale de un ⏳ de la persona en el estado.
@@ -136,6 +138,9 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 		p, ok := esperaPorID(root, id, now)
 		if !ok {
 			return nil, ErrPreguntaDesconocida
+		}
+		if !HaySesion(root, now) {
+			return nil, fmt.Errorf("%w: no hay una sesión de Claude Code abierta en el proyecto que la reciba", ErrPreguntaDesconocida)
 		}
 		r, err := validarRespuesta(p, respuesta)
 		if err != nil {

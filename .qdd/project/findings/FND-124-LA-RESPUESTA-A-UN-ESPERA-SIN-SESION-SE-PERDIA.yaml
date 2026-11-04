@@ -1,0 +1,9 @@
+id: "FND-124"
+title: "La respuesta del teléfono a un ⏳ sin sesión de Claude Code abierta se perdía"
+description: "Un ⏳ de la persona se publicaba al teléfono aunque el proyecto no tuviera una sesión abierta. Su respuesta se registraba como instrucción para la IA, que vence a los 30 min (VidaInstruccion), mientras la pregunta quedaba como respondida 24 h (VidaEsperaRespondida). Sin una sesión que la tomara, la respuesta desaparecía y la pregunta no volvía a salir en ese tiempo."
+impact: "2026-11-03, detectado por qdd-movile al leer v2.8.2: la persona pidió que la app no muestre lo que no se puede hacer sin consola conectada. Una respuesta enviada sin sesión se perdía sin aviso. No genera push: esperan() solo avisa de pedidos y fichas nuevas."
+action_taken: "responderEspera rechaza la respuesta sin HaySesion (ErrPreguntaDesconocida con el motivo; el teléfono la ve como vencida), y no deja instrucción ni marca respondida. PanelDe de qdd remoto quita los ⏳ del panel publicado sin sesión (sinEsperasSinSesion). Las preguntas de la consola no cambian. Quedó en la ficha estado y en RFC 0013 (d)."
+test_result: "TestEspera_SinSesionLaRespuestaNoSePierde_FND124 (sin sesión se rechaza, sin instrucción y sigue pendiente; con sesión se responde) y TestEstado_SinSesionUnEsperaNoSePublica_FND124 (sale sin sesión, entra con latido y vuelve a salir cuando deja de latir)."
+status: resolved
+detectado_por: ia
+date: "2026-11-03"
