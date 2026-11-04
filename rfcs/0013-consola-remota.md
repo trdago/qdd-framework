@@ -152,7 +152,7 @@ existen y el nuestro no se configura a mano.
 | `qdd_remoto_latido(p_topico, p_firma, p_en_curso, p_consola_min, p_mensajes)` | PC | Cada minuto: latido, consumo; responde el plan y si la consola sigue permitida. |
 | `qdd_remoto_desactivar(p_topico, p_firma)` | PC | `qdd remoto desactivar`. |
 
-- **Login (issue #102):** `qdd login` es `qdd remoto activar` sin banderas: usa el relay guardado o, la primera vez, el que trae qdd. El PC muestra el QR y necesita hablar con el relay antes del escaneo, así que la app no puede entregárselo en el QR. El relay por defecto va vacío hasta que se cierren las tablas sin RLS expuestas del proyecto de Supabase compartido.
+- **Login (issue #102):** `qdd login` es `qdd remoto activar` sin banderas: usa el relay guardado o, la primera vez, el que trae qdd. El PC muestra el QR y necesita hablar con el relay antes del escaneo, así que la app no puede entregárselo en el QR. Desde 2.9.1 qdd trae ese relay, solo con su clave publicable.
 - **Emparejar:** `qdd remoto emparejar` genera un código de un solo uso, llama a `qdd_remoto_ofrecer` y muestra un QR con
   `{"v":1,"codigo","topico","nombre"}`. El teléfono llama a `qdd_remoto_aceptar(codigo)`. El PC consulta
   `qdd_remoto_emparejada` hasta ver el id. Un código usado o vencido no sirve.

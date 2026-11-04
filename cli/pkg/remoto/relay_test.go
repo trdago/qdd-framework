@@ -286,15 +286,16 @@ func TestCredenciales_PrivadasYSeBorran(t *testing.T) {
 
 // Issue #102: qdd trae el relay de QDD Móvil por defecto. Hoy va vacío a propósito: publicarlo espera a que se cierren
 // las tablas expuestas del proyecto. Si se llena, va completo y con una clave publicable.
-func TestRelayPorDefecto_VaVacioOCompleto(t *testing.T) {
+// FND-133: sin relay de fábrica, qdd login fallaba en todo PC nuevo. Va completo y solo con la clave publicable.
+func TestRelayPorDefecto_VaCompletoYPublicable_FND133(t *testing.T) {
 	c := RelayPorDefecto
-	if c.URL == "" && c.Clave == "" {
-		return
-	}
 	if err := ValidarURL(c.URL); err != nil {
 		t.Fatal(err)
 	}
 	if err := ValidarClave(c.Clave); err != nil {
 		t.Fatal(err)
+	}
+	if !strings.HasPrefix(c.Clave, "sb_publishable_") {
+		t.Fatal("qdd se publica en npm: su relay de fábrica lleva solo la clave publicable")
 	}
 }

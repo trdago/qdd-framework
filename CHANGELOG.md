@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-11-04
+
+Corrección de 2.9.0, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.1-rc.1: `qdd login` funciona en
+un PC nuevo, sin banderas (FND-133).
+
+## [2.9.1-rc.1] - 2026-11-04
+
+### Corregido
+
+- **`qdd login` funciona en un PC nuevo, sin banderas (FND-133, issue #102):** qdd ahora trae el relay de QDD Móvil,
+  solo con su clave publicable. `--relay` y `--clave` quedan para quien opera su propio relay.
+
 ## [2.9.0] - 2026-11-04
 
 Versión estable (`npm i -g qdd-framework`). Reúne las 6 previews de 2.9.0, con 15,0 h de uso real medido (VER-05,
