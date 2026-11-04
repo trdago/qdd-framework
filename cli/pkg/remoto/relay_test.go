@@ -283,3 +283,18 @@ func TestCredenciales_PrivadasYSeBorran(t *testing.T) {
 		t.Fatal("se borran")
 	}
 }
+
+// Issue #102: qdd trae el relay de QDD Móvil por defecto. Hoy va vacío a propósito: publicarlo espera a que se cierren
+// las tablas expuestas del proyecto. Si se llena, va completo y con una clave publicable.
+func TestRelayPorDefecto_VaVacioOCompleto(t *testing.T) {
+	c := RelayPorDefecto
+	if c.URL == "" && c.Clave == "" {
+		return
+	}
+	if err := ValidarURL(c.URL); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidarClave(c.Clave); err != nil {
+		t.Fatal(err)
+	}
+}

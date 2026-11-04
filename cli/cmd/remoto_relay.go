@@ -33,6 +33,8 @@ var (
 	remotoUsuario                    = os.UserHomeDir
 	remotoPlazo                      = remoto.VigenciaOferta
 	remotoCadaEspera time.Duration
+
+	remotoRelayPorDefecto = remoto.RelayPorDefecto
 )
 
 func ejecutarSistema(nombre string, args ...string) error {
@@ -90,16 +92,22 @@ func contexto(ctx context.Context) context.Context {
 	return ctx
 }
 
-// relayDeFlags guarda la config si vino en flags; si no, usa la guardada.
+// relayDeFlags: las banderas mandan y se guardan; si no, lo guardado; la primera vez, el relay que trae qdd (issue #102).
 func relayDeFlags() (remoto.ConfigRelay, error) {
-	if remotoRelayURL == "" && remotoClave == "" {
-		c, err := remoto.LeerRelay()
-		if errors.Is(err, os.ErrNotExist) {
-			return c, errors.New("falta el relay: la primera vez usa 'qdd remoto activar --relay <url> --clave <publicable>'")
-		}
+	if remotoRelayURL != "" || remotoClave != "" {
+		return guardarYLeerRelay(remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave})
+	}
+	c, err := remoto.LeerRelay()
+	if !errors.Is(err, os.ErrNotExist) {
 		return c, err
 	}
-	c := remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave}
+	if remotoRelayPorDefecto.URL == "" {
+		return c, errors.New("falta el relay: esta versión de qdd no trae uno por defecto; usa 'qdd login --relay <url> --clave <publicable>'")
+	}
+	return guardarYLeerRelay(remotoRelayPorDefecto)
+}
+
+func guardarYLeerRelay(c remoto.ConfigRelay) (remoto.ConfigRelay, error) {
 	if err := remoto.GuardarRelay(c); err != nil {
 		return c, err
 	}
