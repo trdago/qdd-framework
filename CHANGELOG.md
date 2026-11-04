@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### ✨ Añadido
+
+- **Lo que la IA necesita de la persona no se queda en el chat** (pedido de sfrc). El bloque de `AGENTS.md` trae la
+  regla: una decisión va con la herramienta de preguntar (AskUserQuestion en Claude Code) y una opción recomendada; lo
+  que no es una elección, como ⏳ escrito con `¿…?`; un comando, con `qdd_consola_pedir`.
+- `qdd estado check` avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta: los que no preguntan
+  nada y que ningún pedido abierto cubre. El código de salida no cambia. Con `--json`, salen en `esperas_sin_pregunta`.
+
 ## [2.8.2] - 2026-11-03
 
 Corrección (`npm i -g qdd-framework@latest`). Sale a la vez como 2.8.2-rc.1 en `preview`.

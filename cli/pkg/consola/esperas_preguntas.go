@@ -29,6 +29,8 @@ const (
 	VidaEsperaRespondida = 24 * time.Hour
 
 	prefijoEspera = "espera-"
+
+	maxLineaEspera = 160
 )
 
 var (
@@ -70,6 +72,44 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 				continue
 			}
 			out = append(out, preguntaDeEspera(f, etapa, bloqueo, now))
+		}
+	}
+	return out
+}
+
+// EsperaSinPregunta es un ⏳ de la persona que no llega al teléfono: no pregunta nada y ningún pedido abierto lo cubre.
+type EsperaSinPregunta struct {
+	Tarea   string `json:"tarea"`
+	Etapa   string `json:"etapa"`
+	Bloqueo string `json:"bloqueo"`
+}
+
+// Linea es la espera en una línea, con el bloqueo recortado: el --json lo trae entero.
+func (e EsperaSinPregunta) Linea() string {
+	return recortar(e.Tarea+" · "+e.Etapa+": "+e.Bloqueo, maxLineaEspera)
+}
+
+// EsperasSinPregunta las lista para 'qdd estado check' (pedido de sfrc, decidido por la persona, 2026-11-03). Una nota
+// de avance es válida, así que no es una violación: es un aviso, y su cuenta es la medición que decide el gate en el
+// Stop hook.
+func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
+	e, err := estado.Load(root)
+	if err != nil {
+		return nil
+	}
+	var out []EsperaSinPregunta
+	abiertas := teclasAbiertas(PedidosA(root, now))
+	for _, f := range e.Abiertos() {
+		for _, etapa := range e.EtapasDe(f) {
+			c := f.Celdas[etapa]
+			bloqueo := strings.TrimSpace(c.Bloqueo)
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" {
+				continue
+			}
+			if cubiertaPorPedido(bloqueo, abiertas) {
+				continue
+			}
+			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})
 		}
 	}
 	return out
