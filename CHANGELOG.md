@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.3] - 2026-11-04
+
+Corrección de 2.9.2, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.3-rc.1: un pedido ya no falla porque
+se está reinstalando qdd (FND-135).
+
 ## [2.9.3-rc.1] - 2026-11-04
 
 ### Corregido
