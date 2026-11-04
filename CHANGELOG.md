@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.0-rc.1] - 2026-11-03 (preview)
+
+Primera **preview** de 2.9.0: `npm i -g qdd-framework@preview`. Sus dos arreglos salen también en `latest` como 2.8.3,
+en la rama `hotfix/2.8.3`.
+
 ### Arreglado
 
 - **QDD Móvil no pregunta lo que nadie puede resolver** (FND-124). Sin una sesión de Claude Code abierta en el proyecto,
