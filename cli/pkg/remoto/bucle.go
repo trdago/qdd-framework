@@ -70,6 +70,7 @@ type Bucle struct {
 	base        bool              // los teléfonos de ahora ya tienen un estado completo
 	enviados    map[string]string // clave → JSON del panel que tienen los teléfonos
 	estructura  map[string]string
+	limites     string                     // huella de los límites de Claude que tienen los teléfonos
 	vistos      map[string]map[string]bool // clave → pedidos y fichas que esperan (para el push)
 	mensajes    int
 	consolaSeg  float64
@@ -255,7 +256,7 @@ func (b *Bucle) alPresencia(ctx context.Context, presencias map[string][]json.Ra
 	b.telefonos = Telefonos(presencias)
 	b.alCambiarEspectadores(ctx)
 	if len(b.telefonos) == 0 {
-		b.base, b.enviados, b.estructura = false, map[string]string{}, nil
+		b.base, b.enviados, b.estructura, b.limites = false, map[string]string{}, nil, ""
 		if antes > 0 {
 			b.logf("sin teléfonos: solo presence")
 		}
@@ -319,7 +320,7 @@ func (b *Bucle) mandarEstado(ctx context.Context, e Estado) {
 		return
 	}
 	b.base = true
-	b.enviados, b.estructura = paneles(e), estructuraDe(e)
+	b.enviados, b.estructura, b.limites = paneles(e), estructuraDe(e), e.Limites.Huella()
 }
 
 // paneles es el JSON de cada panel, para saber cuál cambió.
@@ -353,11 +354,22 @@ func pideEstado(antes, ahora map[string]string) bool {
 	return false
 }
 
-// Delta es el evento delta: los paneles que cambiaron (null: el proyecto salió).
+// Delta es el evento delta: los paneles que cambiaron (null: el proyecto salió) y, solo si cambiaron, los límites de
+// Claude de la máquina: sin el campo, el teléfono conserva el último valor.
 type Delta struct {
 	Version   int                              `json:"version"`
 	Seq       uint64                           `json:"seq"`
+	Limites   *consola.Limites                 `json:"limites,omitempty"`
 	Proyectos map[string]*consola.DatosConsola `json:"proyectos"`
+}
+
+// limitesNuevos son los límites de Claude si cambió lo usado o cuándo se reinicia. Que solo cambie Actualizado no gasta
+// un mensaje del plan, y que ya no estén no se dice: el teléfono se queda con el último y su hora.
+func (b *Bucle) limitesNuevos(e Estado) *consola.Limites {
+	if e.Limites == nil || e.Limites.Huella() == b.limites {
+		return nil
+	}
+	return e.Limites
 }
 
 // mandarCambios manda un delta con los paneles que cambiaron, o el estado completo si cambió lo que un delta no dice.
@@ -367,7 +379,7 @@ func (b *Bucle) mandarCambios(ctx context.Context, e Estado) {
 		return
 	}
 	ahora := paneles(e)
-	d := Delta{Version: VersionProtocolo, Proyectos: map[string]*consola.DatosConsola{}}
+	d := Delta{Version: VersionProtocolo, Limites: b.limitesNuevos(e), Proyectos: map[string]*consola.DatosConsola{}}
 	for clave := range b.enviados {
 		if _, ok := ahora[clave]; !ok {
 			d.Proyectos[clave] = nil
@@ -378,7 +390,7 @@ func (b *Bucle) mandarCambios(ctx context.Context, e Estado) {
 			d.Proyectos[p.Clave] = p.Panel
 		}
 	}
-	if len(d.Proyectos) == 0 {
+	if len(d.Proyectos) == 0 && d.Limites == nil {
 		return
 	}
 	b.seq++
@@ -388,6 +400,9 @@ func (b *Bucle) mandarCambios(ctx context.Context, e Estado) {
 		return
 	}
 	b.enviados, b.estructura = ahora, estructuraDe(e)
+	if d.Limites != nil {
+		b.limites = d.Limites.Huella()
+	}
 }
 
 // esperan son los pedidos pendientes y las fichas en borrador de un panel: lo que espera a la persona.

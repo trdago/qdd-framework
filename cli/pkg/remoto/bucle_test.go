@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -367,5 +368,43 @@ func TestBucle_ElLatidoLlevaLoConsumido(t *testing.T) {
 	}
 	if len(ls) < 2 || total < 2 {
 		t.Fatalf("cada latido informa los mensajes desde el anterior (presence y estado): %v", ls)
+	}
+}
+
+// Pedido de qdd-movile (2026-11-04): los límites de Claude van en el estado y en un delta, solo si cambió lo que se usa
+// o cuándo se reinicia: actualizado solo no gasta mensajes del plan.
+func TestBucle_LosLimitesVanEnEstadoYEnDeltaSoloSiCambian(t *testing.T) {
+	homeTemporal(t)
+	registro.Anotar(proyecto(t, "a", true), time.Now())
+	entrada := `{"rate_limits":{"five_hour":{"used_percentage":12.2,"resets_at":1793000000}}}`
+	consola.GuardarLimites([]byte(entrada), time.Now())
+	_, tr, _, _ := bucleDePrueba(t)
+	tr.eventos <- telefono("d1", "")
+	e := tr.esperar(t, time.Second, "estado")
+	var est Estado
+	json.Unmarshal(e.Payload, &est)
+	if est.Limites == nil || est.Limites.CincoHoras.Usado != 12.2 || est.Limites.Semana != nil {
+		t.Fatalf("el estado trae los límites: %s", e.Payload)
+	}
+	consola.GuardarLimites([]byte(entrada), time.Now().Add(consola.CadaLimites+time.Second))
+	tr.nada(t, 400*time.Millisecond)
+	consola.GuardarLimites([]byte(`{"rate_limits":{"five_hour":{"used_percentage":14,"resets_at":1793000000}}}`), time.Now())
+	e = tr.esperar(t, 2*time.Second, "delta")
+	var d Delta
+	json.Unmarshal(e.Payload, &d)
+	if d.Limites == nil || d.Limites.CincoHoras.Usado != 14 || len(d.Proyectos) != 0 {
+		t.Fatalf("un delta con solo los límites: %s", e.Payload)
+	}
+	tr.nada(t, 400*time.Millisecond)
+}
+
+func TestEstado_SinLimitesElCampoNoViaja(t *testing.T) {
+	homeTemporal(t)
+	b, err := json.Marshal(Armar("v", registro.Registro{}, time.Now(), 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "limites") {
+		t.Fatalf("sin dato no viaja el campo: %s", b)
 	}
 }

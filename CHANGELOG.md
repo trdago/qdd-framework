@@ -6,7 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
-### 🐛 Corregido
+## [2.9.0-rc.2] - 2026-11-04 (preview)
+
+Segunda **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
+
+### ✨ Añadido
+
+- **Límites de Claude en QDD Móvil** (pedido de qdd-movile). `qdd remoto` publica cuánto se usó de la ventana de 5 h y de la
+  semana, y cuándo se reinician, sin gastar tokens. Claude Code los entrega a la barra, que deja el último valor en
+  `<QDD_HOME>/claude/limites.json`. El campo `limites` es opcional en `estado` y `delta`, y no cambia la versión del
+  protocolo.
+
+### Arreglado
 
 - Al actualizar qdd, los proyectos seguían con las reglas viejas para las IAs: el bloque de `AGENTS.md` y de los otros
   archivos solo se escribía si faltaba el archivo. Ahora `qdd doctor` avisa del bloque viejo y `qdd doctor --fix` lo
