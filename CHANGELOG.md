@@ -17,6 +17,12 @@ Segunda **preview** de 2.9.0: `npm i -g qdd-framework@preview`.
   `<QDD_HOME>/claude/limites.json`. El campo `limites` es opcional en `estado` y `delta`, y no cambia la versión del
   protocolo.
 
+### Arreglado
+
+- Al actualizar qdd, los proyectos seguían con las reglas viejas para las IAs: el bloque de `AGENTS.md` y de los otros
+  archivos solo se escribía si faltaba el archivo. Ahora `qdd doctor` avisa del bloque viejo y `qdd doctor --fix` lo
+  renueva, conservando lo demás. Un qdd más viejo no pisa el bloque de uno más nuevo (FND-126).
+
 ## [2.9.0-rc.1] - 2026-11-03 (preview)
 
 Primera **preview** de 2.9.0: `npm i -g qdd-framework@preview`. Sus dos arreglos salen también en `latest` como 2.8.3,

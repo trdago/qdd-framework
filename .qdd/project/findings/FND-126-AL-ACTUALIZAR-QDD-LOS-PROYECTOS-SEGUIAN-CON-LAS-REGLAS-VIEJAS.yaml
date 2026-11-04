@@ -1,0 +1,9 @@
+id: "FND-126"
+title: "Al actualizar qdd, los proyectos seguían con las reglas viejas para las IAs"
+description: "El bloque de reglas (AGENTS.md, .clauderc, .cursorrules…) solo se escribía en qdd init o cuando qdd doctor --fix veía que faltaba .cursor/mcp.json, .clauderc o .antigravityrules. Con los archivos presentes, ninguna actualización lo renovaba y nada avisaba. La regla de consultas a la persona (PR #90) salió en v2.9.0-rc.1, y tras instalarla y correr doctor --fix no había llegado ni a qdd, ni a sfrc, ni a qdd-movile, ni a notificador."
+impact: "Las reglas nuevas no llegaban a las IAs de los proyectos existentes. Afectaba a toda regla anterior: el .cursorrules de qdd ni siquiera tenía la de archivos temporales."
+action_taken: "El bloque lleva «QCP block revision». BloquesViejos nombra los archivos con una revisión anterior; qdd doctor falla con esos nombres y --fix los renueva conservando lo demás. SafeInjectIdempotent no pisa un bloque de revisión mayor, para que un qdd más viejo no baje las reglas. Una prueba fija la huella del texto: cambiarlo sin subir la revisión falla."
+test_result: "TestBloquesViejos_NombraSoloLosDeUnaRevisionAnterior_FND126, TestBloque_CambiarSuTextoObligaASubirLaRevision_FND126 y TestDoctor_ReglasViejasSeDetectanYFixLasRenueva_FND126."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"
