@@ -171,3 +171,129 @@ func TestMergearPR_SinGHLoDice(t *testing.T) {
 		t.Fatalf("sin gh falla diciendo por qué: %d %s", codigo, salida.String())
 	}
 }
+
+// ── MEJ-001 / FND-132: un pedido que nombra un PR reemplaza al automático de ese PR ────────────────────────────────
+
+func colaCon(t *testing.T, root string, p Pedido) {
+	t.Helper()
+	err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		p.ID, p.Tecla, p.Carpeta, p.Creado = siguienteID(cola), teclaLibre(teclasAbiertas(cola)), root, enCola
+		return append(cola, p), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPRs_UnPedidoQueNombraElPRReemplazaAlAutomatico_FND132(t *testing.T) {
+	casos := []struct{ nombre, comando, motivo string }{
+		{"en el motivo", "bash paso-rc.sh", "🚀 #69 + tag: v2.8.0-rc.21 → preview"},
+		{"con gh pr merge", "gh pr merge 69 --merge && git push origin v1", "🚀 Publicar v1"},
+		{"con gh pr view", "gh pr view 69 --json state && git push origin v1", "🚀 Publicar v1"},
+		{"con mergear-pr", "qdd consola mergear-pr 69 && git push origin v1", "🚀 Publicar v1"},
+	}
+	for _, c := range casos {
+		root := proyectoConCola(t)
+		abiertos := []PR{{Numero: 69, Titulo: "rc.21"}}
+		if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+			t.Fatal(err)
+		}
+		mustPedir(t, root, c.comando, c.motivo, "")
+		if prs := pedidosDePR(t, root); len(prs) != 0 {
+			t.Fatalf("%s: el pedido de la IA reemplaza al automático: %v", c.nombre, prs)
+		}
+		if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+			t.Fatal(err)
+		}
+		if prs := pedidosDePR(t, root); len(prs) != 0 {
+			t.Fatalf("%s: mientras ese pedido siga abierto, el automático no vuelve: %v", c.nombre, prs)
+		}
+	}
+}
+
+func TestPRs_ReemplazarNoTocaOtroPR_FND132(t *testing.T) {
+	root := proyectoConCola(t)
+	if err := OfrecerPRs(root, []PR{{Numero: 6, Titulo: "a"}, {Numero: 69, Titulo: "b"}}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	mustPedir(t, root, "bash paso.sh", "🚀 #69 → preview", "")
+	prs := pedidosDePR(t, root)
+	if _, ok := prs[6]; !ok || len(prs) != 1 {
+		t.Fatalf("«#69» no es «#6»: el #6 queda y el #69 sale: %v", prs)
+	}
+}
+
+func TestPRs_UnAutomaticoQueLaPersonaYaConfirmoNoSeQuita_FND132(t *testing.T) {
+	root := proyectoConCola(t)
+	abiertos := []PR{{Numero: 69, Titulo: "a"}}
+	if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+		t.Fatal(err)
+	}
+	err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		cola[0].Estado = EstadoArmado
+		return cola, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustPedir(t, root, "bash paso.sh", "🚀 #69 → preview", "")
+	if p, ok := pedidosDePR(t, root)[69]; !ok || p.Estado != EstadoArmado {
+		t.Fatalf("lo que la persona ya confirmó sigue su curso: %+v", p)
+	}
+	if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if p, ok := pedidosDePR(t, root)[69]; !ok || p.Estado != EstadoArmado {
+		t.Fatalf("tampoco lo quita la revisión de PRs: %+v", p)
+	}
+}
+
+func TestPRs_UnaColaQueYaTeniaLosDosQuedaConUno_FND132(t *testing.T) {
+	root := proyectoConCola(t)
+	abiertos := []PR{{Numero: 69, Titulo: "a"}}
+	if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+		t.Fatal(err)
+	}
+	colaCon(t, root, Pedido{Comando: "bash paso.sh", Motivo: "🚀 #69 → preview", Estado: EstadoPendiente})
+	if len(pedidosDePR(t, root)) != 1 {
+		t.Fatal("la cola de la prueba tiene los dos pedidos, como la de un qdd anterior")
+	}
+	if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if prs := pedidosDePR(t, root); len(prs) != 0 {
+		t.Fatalf("la revisión de PRs quita el automático repetido: %v", prs)
+	}
+}
+
+func TestPRs_SiSeDescartaElPedidoQueLoNombraElAutomaticoVuelve_FND132(t *testing.T) {
+	root := proyectoConCola(t)
+	abiertos := []PR{{Numero: 69, Titulo: "a"}}
+	if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+		t.Fatal(err)
+	}
+	p := mustPedir(t, root, "bash paso.sh", "🚀 #69 → preview", "")
+	if err := Descartar(root, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := pedidosDePR(t, root)[69]; !ok {
+		t.Fatal("el PR sigue abierto y nada lo nombra: se ofrece de nuevo; la persona descartó el otro pedido, no este")
+	}
+}
+
+func TestPRs_UnTituloQueNombraOtroPRNoLoTapa_FND132(t *testing.T) {
+	root := proyectoConCola(t)
+	if err := OfrecerPRs(root, []PR{{Numero: 69, Titulo: "va antes del #70"}, {Numero: 70, Titulo: "b"}}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	prs := pedidosDePR(t, root)
+	if _, ok := prs[69]; !ok {
+		t.Fatalf("el #69 se ofrece: %v", prs)
+	}
+	if _, ok := prs[70]; !ok {
+		t.Fatalf("el título del #69 menciona el #70, pero no lo mergea: el #70 también se ofrece: %v", prs)
+	}
+}

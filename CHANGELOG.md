@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.8.6] - 2026-11-04
+
+Corrección (`npm i -g qdd-framework@latest`) con un arreglo tomado de main, sin lo nuevo de 2.9.0.
+
+### Arreglado
+
+- **El panel ya no pide dos veces mergear el mismo PR** (FND-132). Un pedido que nombra el PR reemplaza al automático
+  «Mergear #N» aunque este haya llegado primero. Si ya lo confirmaste, sigue su curso; si descartas el otro pedido y el
+  PR sigue abierto, el automático vuelve.
+
 ## [2.8.5] - 2026-11-04
 
 Corrección (`npm i -g qdd-framework@latest`) con dos arreglos tomados de main, sin lo nuevo de 2.9.0.

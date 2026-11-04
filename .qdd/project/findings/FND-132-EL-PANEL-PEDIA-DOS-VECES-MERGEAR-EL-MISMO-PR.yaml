@@ -1,0 +1,9 @@
+id: "FND-132"
+title: "El panel pedía dos veces mergear el mismo PR"
+description: "El panel deja un pedido automático «Mergear #N» por cada PR abierto y no lo ofrece si un pedido abierto ya nombra ese PR. Eso solo cubría un orden: si el automático llegaba primero, el pedido de publicación posterior que mergea el mismo PR no lo reemplazaba y quedaban los dos. Pasó con #78, #81, #82 y #99. Además, si el título de un PR mencionaba otro, ese otro dejaba de ofrecerse."
+impact: "Dos pedidos para lo mismo en el panel. Sin daño en los datos, porque el segundo merge dice que ya estaba mergeado, pero la persona debe decidir cuál confirmar."
+action_taken: "Un pedido nuevo de la IA que nombra un PR, en su motivo o en su comando (#N, gh pr merge N, gh pr view N, mergear-pr N), quita el automático pendiente de ese PR, y la revisión de PRs limpia las colas que ya tenían los dos. Uno que la persona ya confirmó sigue su curso; si descarta el pedido de la IA y el PR sigue abierto, el automático vuelve. El de otro PR ya no cuenta como nombrarlo."
+test_result: "TestPRs_UnPedidoQueNombraElPRReemplazaAlAutomatico_FND132, TestPRs_ReemplazarNoTocaOtroPR_FND132, TestPRs_UnaColaQueYaTeniaLosDosQuedaConUno_FND132 y TestPRs_UnTituloQueNombraOtroPRNoLoTapa_FND132 fallaban antes del arreglo; TestPRs_UnAutomaticoQueLaPersonaYaConfirmoNoSeQuita_FND132 y TestPRs_SiSeDescartaElPedidoQueLoNombraElAutomaticoVuelve_FND132 los protegen."
+status: resolved
+detectado_por: ia
+date: "2026-11-04"
