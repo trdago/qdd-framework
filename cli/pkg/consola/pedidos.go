@@ -383,6 +383,8 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 				usadas[p.Tecla] = true
 			}
 		}
+		cola = sinAutomaticosQueNombra(cola, motivo, comando)
+		usadas = teclasAbiertas(cola)
 		if len(usadas) >= MaxPedidos {
 			var cedio bool
 			if cola, cedio = cederUnPR(cola); cedio {

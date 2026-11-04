@@ -50,8 +50,8 @@ func motivoPR(p PR) string {
 }
 
 // OfrecerPRs deja en la cola un pedido por cada PR abierto (no borrador) que no lo tenga, hasta MaxPRs y sin pasar de
-// MaxPedidos, y quita los pendientes de PRs que ya no están abiertos. No ofrece un PR que un pedido abierto ya nombra
-// («#69» en su motivo o comando) ni uno que la persona descartó.
+// MaxPedidos, y quita los pendientes de PRs que ya no están abiertos o que un pedido abierto de la IA ya nombra (FND-132).
+// No ofrece un PR que ese pedido nombra («#69» en su motivo o comando) ni uno que la persona descartó.
 func OfrecerPRs(root string, abiertos []PR, now time.Time) error {
 	descartados := leerDescartados(root)
 	abierto := map[int]PR{}
@@ -64,6 +64,9 @@ func OfrecerPRs(root string, abiertos []PR, now time.Time) error {
 		var queda []Pedido
 		for _, p := range cola {
 			if _, sigue := abierto[p.PR]; p.PR != 0 && p.Estado == EstadoPendiente && !sigue {
+				continue
+			}
+			if p.PR != 0 && p.Estado == EstadoPendiente && loNombraOtroPedido(cola, p.PR) {
 				continue
 			}
 			queda = append(queda, p)
@@ -105,16 +108,43 @@ func numerosEnOrden(abierto map[int]PR) []int {
 
 // yaOfrecido: un pedido del PR n (en cualquier estado: uno hecho tampoco se repite) o uno abierto que lo nombra.
 func yaOfrecido(cola []Pedido, n int) bool {
-	nombra := regexp.MustCompile(`#` + strconv.Itoa(n) + `\b|pr merge ` + strconv.Itoa(n) + `\b`)
 	for _, p := range cola {
 		if p.PR == n {
 			return true
 		}
-		if p.Abierto() && (nombra.MatchString(p.Motivo) || nombra.MatchString(p.Comando)) {
+	}
+	return loNombraOtroPedido(cola, n)
+}
+
+// loNombraOtroPedido: hay un pedido abierto de la IA que habla del PR n. El de otro PR no cuenta: que su título mencione
+// el #n no mergea el #n.
+func loNombraOtroPedido(cola []Pedido, n int) bool {
+	for _, p := range cola {
+		if p.PR == 0 && p.Abierto() && nombraPR(n, p.Motivo, p.Comando) {
 			return true
 		}
 	}
 	return false
+}
+
+// nombraPR: el motivo o el comando hablan del PR n («#69», «gh pr merge 69», «gh pr view 69», «mergear-pr 69»).
+func nombraPR(n int, motivo, comando string) bool {
+	num := strconv.Itoa(n)
+	nombra := regexp.MustCompile(`#` + num + `\b|\b(pr merge|pr view|mergear-pr) ` + num + `\b`)
+	return nombra.MatchString(motivo) || nombra.MatchString(comando)
+}
+
+// sinAutomaticosQueNombra quita los pedidos automáticos pendientes de los PRs que nombra un pedido nuevo de la IA
+// (FND-132). Uno ya confirmado sigue su curso: la persona lo decidió.
+func sinAutomaticosQueNombra(cola []Pedido, motivo, comando string) []Pedido {
+	queda := make([]Pedido, 0, len(cola))
+	for _, p := range cola {
+		if p.PR != 0 && p.Estado == EstadoPendiente && nombraPR(p.PR, motivo, comando) {
+			continue
+		}
+		queda = append(queda, p)
+	}
+	return queda
 }
 
 // cederUnPR quita el pedido de PR pendiente más viejo para que entre uno de la IA; false si no hay ninguno.
