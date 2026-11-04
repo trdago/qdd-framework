@@ -350,7 +350,8 @@ func buildGroup2Checks(projectPath string) *CheckGroup {
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".cursor", "mcp.json"), "Integración Cursor (.cursor/mcp.json)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
-	
+	g2.Items = append(g2.Items, checkBloquesDeReglas(projectPath))
+
 	wisdomCheck := &CheckItem{Name: "Conexión a Cloud Wisdom (Oráculo AI)", Success: true, Error: "Offline (Graceful Degradation)"}
 	wClient := wisdom.NewClient(projectPath)
 	manifest, err := wClient.FetchRulesManifest(context.Background())
@@ -410,6 +411,17 @@ func checkDir(path, name string) *CheckItem {
 	item.Success = true
 	item.Error = ""
 	return item
+}
+
+// itemBloquesDeReglas revisa que las reglas de las IAs del proyecto sean las de este qdd (FND-126).
+const itemBloquesDeReglas = "Reglas para las IAs al día (AGENTS.md y otros)"
+
+func checkBloquesDeReglas(projectPath string) *CheckItem {
+	viejos := integration.BloquesViejos(projectPath)
+	if len(viejos) == 0 {
+		return &CheckItem{Name: itemBloquesDeReglas, Success: true}
+	}
+	return &CheckItem{Name: itemBloquesDeReglas, Error: "Bloque de una versión anterior en " + strings.Join(viejos, ", ") + ": qdd doctor --fix lo renueva (conserva lo demás) y queda como cambio en git para commitear"}
 }
 
 func checkFile(path, name string) *CheckItem {
@@ -535,6 +547,7 @@ func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 		"Integración Cursor (.cursor/mcp.json)": repairMCP,
 		"Integración Claude (.clauderc)": repairMCP,
 		"Integración Antigravity (.antigravityrules)": repairMCP,
+		itemBloquesDeReglas: repairMCP,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,
 		itemFindingsNoCanonicos: repairFindingsNoCanonicos,
