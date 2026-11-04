@@ -1,0 +1,23 @@
+id: reglas-go
+nombre: Reglas de código Go del gate (CERT-020, CERT-021)
+estado: aprobado
+rutas:
+    - cli/pkg/audit/beyond_limits.go
+objetivo_operativo:
+    problema: Un panic o una consulta a la base sin contexto en código Go pueden botar o colgar un servicio, y hay que detectarlos antes del commit sin bloquear código correcto.
+    usuarios: Las personas y las IAs que corren qdd audit en un proyecto con Go.
+    criterio_de_exito: qdd audit marca panic() y las consultas sin contexto, y no bloquea una llamada que no toca la base.
+    caso_real: '2026-11-03: en sfrc el gate bloqueó r.URL.Query() de un handler HTTP como si fuera una consulta sin contexto (FND-134).'
+objetivo_tecnologico:
+    arquitectura: RunBeyondLimitsCheck recorre los .go del proyecto, los lee con go/parser y revisa cada llamada. Se activa con beyond_limits en las políticas.
+    decisiones:
+        - 'La regla mira la forma de la llamada, sin tipos: go/parser no resuelve de qué tipo es el receptor y compilar el proyecto ajeno no es viable en el gate.'
+        - 'Query() sin argumentos no se marca (FND-134): una consulta a la base lleva su SQL. Límite aceptado: un stmt.Query() sin parámetros tampoco se marca; un stmt.Exec() sí.'
+    invariantes:
+        - Query, QueryRow y Exec con argumentos se marcan como CERT-021 si no usan su variante con Context.
+        - Leer la query string de una URL nunca bloquea el gate.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/audit/ -run 'Cert021'
+ultima_revision: "2026-11-04"
+revisado_en_commit: 0886b9a2b169
