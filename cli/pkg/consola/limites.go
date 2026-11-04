@@ -16,10 +16,16 @@ import (
 // y qdd remoto lo publica. Es un dato de la máquina (una cuenta de Claude por PC), no de cada proyecto: solo lleva
 // porcentajes y fechas, nunca rutas ni el modelo. Lo que no vino se omite, nunca un 0 inventado. La barra solo corre con
 // una sesión abierta, así que el dato puede quedar viejo: por eso va con Actualizado.
+// Cada barra sabe lo último que le dijeron a su sesión, y una inactiva tiene datos viejos (FND-130): el archivo no
+// retrocede. En la misma ventana lo usado solo sube, una ventana más nueva manda y una que ya pasó no se guarda. Con dos
+// cuentas en el mismo PC y la misma hora de reinicio se vería la mayor: la entrada de la barra no dice de qué cuenta es.
 
 // CadaLimites es cada cuánto la barra reescribe los límites que no cambiaron, para decir que siguen vigentes: la barra
 // corre cada 2 s y un cambio se escribe en el acto.
 const CadaLimites = time.Minute
+
+// holguraVentana: dos fechas de reinicio así de cerca son la misma ventana.
+const holguraVentana = time.Minute
 
 // TramoLimite es una ventana de uso: el used_percentage tal cual y cuándo se reinicia, si vino.
 type TramoLimite struct {
@@ -96,6 +102,10 @@ func GuardarLimites(datos []byte, now time.Time) {
 		return
 	}
 	antes := LeerLimites()
+	l = fundirLimites(antes, l, now)
+	if l.CincoHoras == nil && l.Semana == nil {
+		return
+	}
 	if antes != nil && antes.Huella() == l.Huella() && now.Sub(antes.Actualizado) < CadaLimites {
 		return
 	}
@@ -103,6 +113,49 @@ func GuardarLimites(datos []byte, now time.Time) {
 		return
 	}
 	_ = guardarJSON(ruta, l)
+}
+
+func fundirLimites(antes, nuevo *Limites, now time.Time) *Limites {
+	if antes == nil {
+		antes = &Limites{}
+	}
+	return &Limites{
+		CincoHoras:  fundirTramo(antes.CincoHoras, nuevo.CincoHoras, now),
+		Semana:      fundirTramo(antes.Semana, nuevo.Semana, now),
+		Actualizado: nuevo.Actualizado,
+	}
+}
+
+func fundirTramo(antes, nuevo *TramoLimite, now time.Time) *TramoLimite {
+	antes, nuevo = tramoVigente(antes, now), tramoVigente(nuevo, now)
+	if antes == nil {
+		return nuevo
+	}
+	if nuevo == nil {
+		return antes
+	}
+	if nuevo.Reinicia == nil && antes.Reinicia != nil {
+		return antes
+	}
+	if nuevo.Reinicia == nil || antes.Reinicia == nil {
+		return nuevo
+	}
+	distancia := nuevo.Reinicia.Sub(*antes.Reinicia)
+	if distancia > holguraVentana {
+		return nuevo
+	}
+	if distancia < -holguraVentana || nuevo.Usado <= antes.Usado {
+		return antes
+	}
+	return &TramoLimite{Usado: nuevo.Usado, Reinicia: antes.Reinicia}
+}
+
+// tramoVigente: una ventana que ya se reinició no dice nada de la actual. Sin fecha no se sabe, y se conserva.
+func tramoVigente(t *TramoLimite, now time.Time) *TramoLimite {
+	if t == nil || t.Reinicia == nil || t.Reinicia.After(now) {
+		return t
+	}
+	return nil
 }
 
 // LeerLimites son los últimos límites que guardó la barra; nil si no hay o el archivo es ilegible.

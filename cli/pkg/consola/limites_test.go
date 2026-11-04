@@ -2,6 +2,7 @@ package consola
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -61,33 +62,35 @@ func TestLimites_LoQueNoVinoSeOmiteNuncaUnCero(t *testing.T) {
 
 func TestLimites_LaBarraLosGuardaYUnaEntradaSinLimitesNoLosBorra(t *testing.T) {
 	homeDeLimites(t)
+	alGuardar := time.Unix(1792900000, 0) // antes del reinicio de entradaBarra
 	if l := LeerLimites(); l != nil {
 		t.Fatalf("sin archivo no hay límites: %+v", l)
 	}
-	GuardarLimites([]byte(entradaBarra), enCola)
+	GuardarLimites([]byte(entradaBarra), alGuardar)
 	l := LeerLimites()
 	if l == nil || l.CincoHoras.Usado != 12.2 || l.Semana.Usado != 40 {
 		t.Fatalf("queda el último valor: %+v", l)
 	}
-	GuardarLimites([]byte(`{"model":{"display_name":"Opus"}}`), enCola.Add(time.Hour))
-	if l := LeerLimites(); l == nil || !l.Actualizado.Equal(enCola) {
+	GuardarLimites([]byte(`{"model":{"display_name":"Opus"}}`), alGuardar.Add(time.Hour))
+	if l := LeerLimites(); l == nil || !l.Actualizado.Equal(alGuardar) {
 		t.Fatalf("una entrada sin límites no borra lo último: %+v", l)
 	}
 }
 
 func TestLimites_NoEscribeCadaDosSegundos(t *testing.T) {
 	homeDeLimites(t)
-	GuardarLimites([]byte(entradaBarra), enCola)
-	GuardarLimites([]byte(entradaBarra), enCola.Add(2*time.Second))
-	if l := LeerLimites(); !l.Actualizado.Equal(enCola) {
+	alGuardar := time.Unix(1792900000, 0) // antes del reinicio de entradaBarra
+	GuardarLimites([]byte(entradaBarra), alGuardar)
+	GuardarLimites([]byte(entradaBarra), alGuardar.Add(2*time.Second))
+	if l := LeerLimites(); !l.Actualizado.Equal(alGuardar) {
 		t.Fatalf("sin cambios, la barra no escribe en cada vuelta: %v", l.Actualizado)
 	}
-	GuardarLimites([]byte(entradaBarra), enCola.Add(CadaLimites+time.Second))
-	if l := LeerLimites(); !l.Actualizado.Equal(enCola.Add(CadaLimites + time.Second)) {
+	GuardarLimites([]byte(entradaBarra), alGuardar.Add(CadaLimites+time.Second))
+	if l := LeerLimites(); !l.Actualizado.Equal(alGuardar.Add(CadaLimites + time.Second)) {
 		t.Fatalf("sin cambios, sigue diciendo de cuándo es el dato: %v", l.Actualizado)
 	}
 	otro := strings.Replace(entradaBarra, "12.2", "13", 1)
-	GuardarLimites([]byte(otro), enCola.Add(CadaLimites+2*time.Second))
+	GuardarLimites([]byte(otro), alGuardar.Add(CadaLimites+2*time.Second))
 	if l := LeerLimites(); l.CincoHoras.Usado != 13 {
 		t.Fatalf("un cambio se escribe en el acto: %+v", l.CincoHoras)
 	}
@@ -125,5 +128,98 @@ func TestLimites_UnArchivoIlegibleEsComoNoTenerlos(t *testing.T) {
 	GuardarLimites([]byte(entradaBarra), enCola)
 	if l := LeerLimites(); l == nil {
 		t.Fatal("la barra lo vuelve a escribir")
+	}
+}
+
+// FND-130: la barra de cada sesión escribe lo último que supo su sesión, y una inactiva tiene datos viejos. El teléfono
+// veía saltar la semana entre 12 %, 32 % y 56 %, y cada salto era un delta.
+func entradaDeLimites(cinco, semana string) []byte {
+	return []byte(`{"rate_limits":{` + strings.Trim(strings.Join([]string{cinco, semana}, ","), ",") + `}}`)
+}
+
+func tramoJSONDe(nombre string, usado float64, reinicia time.Time) string {
+	return fmt.Sprintf(`"%s":{"used_percentage":%v,"resets_at":%d}`, nombre, usado, reinicia.Unix())
+}
+
+func TestLimites_UnaSesionConDatosViejosNoHaceRetroceder_FND130(t *testing.T) {
+	homeDeLimites(t)
+	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	cinco, semana := now.Add(2*time.Hour), now.Add(72*time.Hour)
+	GuardarLimites(entradaDeLimites(tramoJSONDe("five_hour", 13, cinco), tramoJSONDe("seven_day", 56, semana)), now)
+	huella := LeerLimites().Huella()
+	for _, vieja := range [][]byte{
+		entradaDeLimites(tramoJSONDe("five_hour", 12, cinco), tramoJSONDe("seven_day", 55, semana)),
+		entradaDeLimites("", tramoJSONDe("seven_day", 32, semana)),
+		entradaDeLimites("", tramoJSONDe("seven_day", 12, semana)),
+	} {
+		now = now.Add(2 * time.Second)
+		GuardarLimites(vieja, now)
+		if h := LeerLimites().Huella(); h != huella {
+			t.Fatalf("retrocedió: %s, se esperaba %s", h, huella)
+		}
+	}
+}
+
+func TestLimites_EnLaMismaVentanaLoUsadoSube_FND130(t *testing.T) {
+	homeDeLimites(t)
+	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	semana := now.Add(72 * time.Hour)
+	GuardarLimites(entradaDeLimites("", tramoJSONDe("seven_day", 56, semana)), now)
+	GuardarLimites(entradaDeLimites("", tramoJSONDe("seven_day", 57, semana)), now.Add(time.Second))
+	if l := LeerLimites(); l.Semana == nil || l.Semana.Usado != 57 {
+		t.Fatalf("sube: %+v", l.Semana)
+	}
+}
+
+func TestLimites_UnaVentanaNuevaMandaYUnaPasadaSeIgnora_FND130(t *testing.T) {
+	homeDeLimites(t)
+	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	vieja, nueva := now.Add(time.Hour), now.Add(6*time.Hour)
+	GuardarLimites(entradaDeLimites(tramoJSONDe("five_hour", 90, vieja), ""), now)
+	GuardarLimites(entradaDeLimites(tramoJSONDe("five_hour", 3, nueva), ""), now.Add(time.Second))
+	if l := LeerLimites(); l.CincoHoras == nil || l.CincoHoras.Usado != 3 {
+		t.Fatalf("la ventana nueva empieza de nuevo, aunque use menos: %+v", l.CincoHoras)
+	}
+	GuardarLimites(entradaDeLimites(tramoJSONDe("five_hour", 90, vieja), ""), now.Add(2*time.Second))
+	if l := LeerLimites(); l.CincoHoras.Usado != 3 {
+		t.Fatalf("una sesión vieja no devuelve la ventana anterior: %+v", l.CincoHoras)
+	}
+}
+
+func TestLimites_UnaVentanaQueYaPasoNoSeConservaNiSePublica_FND130(t *testing.T) {
+	homeDeLimites(t)
+	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	cinco, semana := now.Add(time.Hour), now.Add(72*time.Hour)
+	GuardarLimites(entradaDeLimites(tramoJSONDe("five_hour", 90, cinco), tramoJSONDe("seven_day", 50, semana)), now)
+	despues := now.Add(2 * time.Hour)
+	GuardarLimites(entradaDeLimites("", tramoJSONDe("seven_day", 51, semana)), despues)
+	l := LeerLimites()
+	if l.CincoHoras != nil || l.Semana == nil || l.Semana.Usado != 51 {
+		t.Fatalf("la de 5 h ya se reinició: no se dice nada de ella: %+v", l)
+	}
+	GuardarLimites(entradaDeLimites(tramoJSONDe("five_hour", 90, cinco), tramoJSONDe("seven_day", 51, semana)), despues.Add(time.Second))
+	if l := LeerLimites(); l.CincoHoras != nil {
+		t.Fatalf("una entrada con la ventana pasada no la revive: %+v", l.CincoHoras)
+	}
+}
+
+func TestLimites_SinFechaSeUsaLoQueVino_FND130(t *testing.T) {
+	homeDeLimites(t)
+	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	GuardarLimites([]byte(`{"rate_limits":{"seven_day":{"used_percentage":40}}}`), now)
+	GuardarLimites([]byte(`{"rate_limits":{"seven_day":{"used_percentage":30}}}`), now.Add(time.Second))
+	if l := LeerLimites(); l.Semana == nil || l.Semana.Usado != 30 {
+		t.Fatalf("sin fecha no se sabe si es otra ventana: %+v", l.Semana)
+	}
+}
+
+func TestLimites_UnaFechaDeReinicioCasiIgualEsLaMismaVentana_FND130(t *testing.T) {
+	homeDeLimites(t)
+	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
+	semana := now.Add(72 * time.Hour)
+	GuardarLimites(entradaDeLimites("", tramoJSONDe("seven_day", 56, semana)), now)
+	GuardarLimites(entradaDeLimites("", tramoJSONDe("seven_day", 12, semana.Add(30*time.Second))), now.Add(time.Second))
+	if l := LeerLimites(); l.Semana.Usado != 56 {
+		t.Fatalf("30 s de diferencia no son otra ventana: %+v", l.Semana)
 	}
 }

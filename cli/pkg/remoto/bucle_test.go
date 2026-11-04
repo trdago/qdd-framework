@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -376,7 +377,8 @@ func TestBucle_ElLatidoLlevaLoConsumido(t *testing.T) {
 func TestBucle_LosLimitesVanEnEstadoYEnDeltaSoloSiCambian(t *testing.T) {
 	homeTemporal(t)
 	registro.Anotar(proyecto(t, "a", true), time.Now())
-	entrada := `{"rate_limits":{"five_hour":{"used_percentage":12.2,"resets_at":1793000000}}}`
+	reinicia := time.Now().Add(time.Hour).Unix()
+	entrada := fmt.Sprintf(`{"rate_limits":{"five_hour":{"used_percentage":12.2,"resets_at":%d}}}`, reinicia)
 	consola.GuardarLimites([]byte(entrada), time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefono("d1", "")
@@ -388,7 +390,7 @@ func TestBucle_LosLimitesVanEnEstadoYEnDeltaSoloSiCambian(t *testing.T) {
 	}
 	consola.GuardarLimites([]byte(entrada), time.Now().Add(consola.CadaLimites+time.Second))
 	tr.nada(t, 400*time.Millisecond)
-	consola.GuardarLimites([]byte(`{"rate_limits":{"five_hour":{"used_percentage":14,"resets_at":1793000000}}}`), time.Now())
+	consola.GuardarLimites([]byte(fmt.Sprintf(`{"rate_limits":{"five_hour":{"used_percentage":14,"resets_at":%d}}}`, reinicia)), time.Now())
 	e = tr.esperar(t, 2*time.Second, "delta")
 	var d Delta
 	json.Unmarshal(e.Payload, &d)
