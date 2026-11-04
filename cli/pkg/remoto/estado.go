@@ -86,10 +86,27 @@ func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 		return out
 	}
 	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono)
+	sinEsperasSinSesion(p.Ruta, &panel, now)
 	ocultarDelPanel(p.Ruta, &panel)
 	panel.Version = qdd
 	out.Panel = &panel
 	return out
+}
+
+// sinEsperasSinSesion: un ⏳ lo resuelve la IA con la respuesta; sin una sesión abierta no hay quien, y el teléfono no lo
+// ofrece (FND-124). Las preguntas de la consola siguen: tienen su propia vida.
+func sinEsperasSinSesion(root string, panel *consola.DatosConsola, now time.Time) {
+	if consola.HaySesion(root, now) {
+		return
+	}
+	var quedan []consola.Accion
+	for _, a := range panel.Acciones {
+		if a.Tipo == consola.TipoPregunta && a.Origen == consola.OrigenEstado {
+			continue
+		}
+		quedan = append(quedan, a)
+	}
+	panel.Acciones = quedan
 }
 
 // Linea es el proyecto en una línea (qdd remoto estado sin --json): nombre, foco, tareas, esperan y fallan.
