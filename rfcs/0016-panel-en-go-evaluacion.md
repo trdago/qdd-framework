@@ -75,7 +75,8 @@ máquina con otras sesiones trabajando:
 | `qdd consola statusline` | 65,4 y 50,5 ms | 3,27 y 2,52 |
 | `"<binario>" consola statusline \|\| qdd consola statusline` | 16,0 y 12,0 ms | 0,80 y 0,60 |
 
-Decisión de la persona (2026-11-05): la barra llama al binario por su ruta, con `qdd` de respaldo. No está medido en
+Elegido por el modo goal, la opción que recomendó la IA (2026-11-05), no por la persona, que puede revertirlo: la barra llama al
+binario por su ruta, con `qdd` de respaldo. No está medido en
 Windows ni en una sesión real con el cambio.
 
 ## Lo que un programa aparte no puede hacer

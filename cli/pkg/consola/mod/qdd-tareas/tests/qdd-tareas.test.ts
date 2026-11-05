@@ -916,6 +916,28 @@ test('si qdd no entrega el lote, el panel dibuja lo de siempre (materializar)', 
   expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toBeDefined()
 })
 
+// MEJ-017: el hueco en blanco duraba lo que tardara el proceso, hasta 3 s. Los efectos solo decoran: si no llegan a
+// tiempo, se corta el proceso y se dibuja lo de siempre.
+test('si los cuadros no llegan a tiempo, se corta y se dibuja lo de siempre, sin hueco (MEJ-017)', async ($, on) => {
+  mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  const topes: number[] = []
+  on('process.run', ($, e) => {
+    if (e.argv[2] !== 'materializar') return { value: ok({ ...PANEL, efectos: EFECTOS }) }
+    topes.push(e.init.timeoutMs)
+    throw new Error('process timed out')
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toBeDefined()
+  expect(await ui.find({ type: 'Client' })).toBeUndefined()
+  expect(topes.length).toBe(1)
+  expect(topes[0]).toBeLessThanOrEqual(250)
+})
+
 test('con los efectos apagados el panel no pide cuadros (materializar)', async ($, on) => {
   const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
   prepararMat(on, () => ({ ...PANEL, efectos: { ...EFECTOS, activo: false } }), mats)

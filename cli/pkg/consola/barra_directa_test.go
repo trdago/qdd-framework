@@ -11,8 +11,8 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Decisión de la persona (2026-11-05): la barra corre cada 2 s por sesión y arrancar node era más de la mitad de su
-// CPU en reposo (2,27 → 1,04 % de un núcleo, medido en Linux). Llama al binario por su ruta y, si la ruta ya no
+// Elegido por el modo goal (2026-11-05; RFC 0016): la barra corre cada 2 s por sesión y arrancar node era la mayor parte de su
+// CPU por llamada (de 50-65 ms a 12-16 ms, medido en Linux). Llama al binario por su ruta y, si la ruta ya no
 // existe, a qdd como antes.
 
 const binarioDePrueba = "/opt/node/lib/node_modules/qdd-framework/bin/qdd"

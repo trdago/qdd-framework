@@ -13,6 +13,9 @@ const PANE = 'qdd-tareas'
 const TITULO = 'Tareas'
 const INTERVALO_MS = 2000
 const TOPE_MS = 3000
+// TOPE_CUADROS_MS es lo más que un efecto deja un hueco en blanco: en Linux un lote de 21 celdas tarda 7 ms, en Windows al
+// menos 200 ms; lo que tarda más se corta y se dibuja sin efecto (MEJ-017).
+const TOPE_CUADROS_MS = 250
 // TOPE_CICLO_MS: el mensaje de la persona espera al ciclo (con lo que el panel espera de ella) a lo más esto.
 const TOPE_CICLO_MS = 1500
 const TOPE_ACCION_MS = 60000
@@ -67,7 +70,7 @@ function reproductor(clave, a) {
   return Client({ key: 'mat-' + clave + '-' + a.n, module: './materializar.js', props: { cuadros: a.cuadros, ms: a.ms, clave } })
 }
 
-// enBlanco ocupa lo mismo que el texto mientras llegan los cuadros (unos 30 ms): nada se mueve de lugar.
+// enBlanco ocupa lo mismo que el texto mientras llegan los cuadros (hasta TOPE_CUADROS_MS): nada se mueve de lugar.
 function enBlanco(Text, clave, lineas) {
   const blanco = (t) => [...t].map((c) => (c === '\uFE0F' ? '' : c.codePointAt(0) >= 0x1f000 || /[\u2300-\u27bf\u2b00-\u2bff]/.test(c) ? '  ' : ' ')).join('')
   return Text({ key: 'blanco-' + clave, children: [lineas.map((l) => l.map((x) => blanco(x.texto)).join('')).join('\n')] })
@@ -96,7 +99,7 @@ async function vaciarCuadros($) {
 async function loteDeCuadros($, pedidos) {
   try {
     const bin = await binario($)
-    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify({ lote: pedidos }), timeoutMs: TOPE_MS })
+    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify({ lote: pedidos }), timeoutMs: TOPE_CUADROS_MS })
     if (r.exitCode !== 0) return []
     return JSON.parse(r.stdout).lote || []
   } catch {

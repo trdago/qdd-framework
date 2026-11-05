@@ -1,0 +1,9 @@
+id: "FND-144"
+title: "Los efectos del panel dejaban un hueco en blanco hasta que llegaban los cuadros"
+description: "Mientras llega la respuesta de 'qdd consola materializar', cada celda que se anima se dibuja en blanco. El pedido tenía el tope general de 3 s, así que en una máquina lenta el hueco podía durar eso, y el comentario del código suponía 30 ms. Reportado en el issue #111 (MEJ-017)."
+impact: "En Windows, según ese reporte, cada proceso cuesta al menos 200 ms, y más de 600 ms con cmd, node y qdd.exe. Con un equipo cargado, el panel podía verse vacío y terminar sin efecto. No se reprodujo en un Windows real."
+action_taken: "El pedido de cuadros tiene su propio tope de 250 ms; al vencer, el proceso se corta y se dibuja el texto sin efecto. Medido en Linux: un lote de 21 celdas tarda 7 ms, así que ahí los efectos no cambian."
+test_result: "tests/qdd-tareas.test.ts: «si los cuadros no llegan a tiempo, se corta y se dibuja lo de siempre, sin hueco (MEJ-017)»"
+status: resolved
+detectado_por: humano
+date: "2026-11-05"
