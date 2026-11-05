@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.8] - 2026-11-05
+
+### Corregido
+
+- **Con npm 12, instalar o actualizar qdd lo dejaba sin binario (FND-143):** npm 12 bloquea por defecto los scripts de
+  instalación, y terminaba bien aunque qdd quedara sin funcionar. El comando correcto es ahora `npm install -g qdd-framework
+  --allow-scripts=qdd-framework`, y es el que indican la documentación y los mensajes de qdd. Si ya te pasó, ese comando lo
+  arregla.
+
 ## [2.9.7] - 2026-11-05
 
 ### Corregido
