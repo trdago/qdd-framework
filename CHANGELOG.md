@@ -6,16 +6,28 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
-### Agregado
+## [2.10.0-rc.9] - 2026-11-05
 
-- **La sesión se entera cuando se retira su pedido (RFC 0017 §1, MEJ-010):** antes el pedido solo cambiaba de estado en la
-  cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
-  Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
+### Seguridad
+
+- **El tablero y los pedidos ya no salen al teléfono sin pasar por el ocultador (FND-157):** solo se tapaban las preguntas,
+  lo mandado desde el teléfono y las elecciones del modo goal. El teléfono actúa por id, así que tapar un comando no cambia
+  lo que se ejecuta.
 
 ### Corregido
 
-- **Un seguro contra lanzar dos veces lo mismo (FND-154):** lo que terminó bien en las últimas 24 h no se vuelve a pedir, aunque
-  cambie el texto (cerrar el mismo issue, mergear el mismo PR). Repetirlo de verdad se dice con `--de-nuevo`.
+- **El teléfono muestra lo que sigue a la pregunta de un ⏳ (FND-155):** el texto va desde la primera pregunta hasta el final
+  del bloqueo. Lo anterior a la pregunta sigue sin publicarse.
+- **Un seguro contra lanzar dos veces lo mismo (FND-154):** lo que terminó bien en las últimas 24 h no se vuelve a pedir,
+  aunque cambie el texto (cerrar el mismo issue, mergear el mismo PR). Repetirlo de verdad se dice con `--de-nuevo`.
+
+### Agregado
+
+- **`esperan_persona` en el panel (FND-156):** cuenta los ⏳ de la persona de todas las tareas pendientes, incluidas las
+  ocultas, para que el teléfono no muestre menos de los que hay.
+- **La sesión se entera cuando se retira su pedido (RFC 0017 §1, MEJ-010):** antes el pedido solo cambiaba de estado en la
+  cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
+  Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
 
 ## [2.10.0-rc.8] - 2026-11-05
 

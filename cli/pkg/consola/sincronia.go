@@ -55,7 +55,7 @@ func Esperas(root string, now time.Time) []string {
 }
 
 func esDeLaPersona(deQuien string) bool {
-	return strings.Contains(strings.ToLower(deQuien), "persona")
+	return estado.DeLaPersona(deQuien)
 }
 
 // ContextoCiclo es lo que la IA recibe con el mensaje de la persona: qué pedidos de su sesión se retiraron, qué espera el
