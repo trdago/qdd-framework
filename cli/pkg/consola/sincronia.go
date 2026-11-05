@@ -58,9 +58,19 @@ func esDeLaPersona(deQuien string) bool {
 	return estado.DeLaPersona(deQuien)
 }
 
-// ContextoCiclo es lo que la IA recibe con el mensaje de la persona: qué espera el panel y cómo reflejar lo que ella
-// resuelva en el chat. Vacío si no espera nada o si es lo mismo que ya recibió.
-func ContextoCiclo(root string, now time.Time) string {
+// ContextoCiclo es lo que la IA recibe con el mensaje de la persona: qué pedidos de su sesión se retiraron, qué espera el
+// panel y cómo reflejar lo que ella resuelva en el chat. Vacío si no hay nada nuevo.
+func ContextoCiclo(root, sesion string, now time.Time) string {
+	var partes []string
+	partes = append(partes, tomarRetirados(root, sesion, now)...)
+	if esperas := contextoEsperas(root, now); esperas != "" {
+		partes = append(partes, esperas)
+	}
+	return strings.Join(partes, "\n")
+}
+
+// contextoEsperas dice qué espera el panel de la persona. Vacío si no espera nada o si es lo mismo que ya recibió.
+func contextoEsperas(root string, now time.Time) string {
 	esperas := Esperas(root, now)
 	suma := sha256.Sum256([]byte(strings.Join(esperas, "\n")))
 	huella := hex.EncodeToString(suma[:8])
