@@ -8,6 +8,10 @@ func TestBinarioDeLaBarra_SoloElInstaladoConNPM(t *testing.T) {
 	if got := binarioDeLaBarra("/opt/lib/node_modules/qdd-framework/bin/qdd"); got != "/opt/lib/node_modules/qdd-framework/bin/qdd" {
 		t.Fatalf("el de npm va directo: %q", got)
 	}
+	windows := `C:\Users\Ana\AppData\Local\qdd\bin\2.10.0\qdd.exe`
+	if got := binarioDeLaBarra(windows); got != windows {
+		t.Fatalf("el de la carpeta por versión de Windows va directo: %q", got)
+	}
 	for _, bin := range []string{"/home/ana/.cache/qdd-297", "/tmp/go-build1/qdd.test", ""} {
 		if got := binarioDeLaBarra(bin); got != "" {
 			t.Fatalf("%q no se escribe en la barra: %q", bin, got)
