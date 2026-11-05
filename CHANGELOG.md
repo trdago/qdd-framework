@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.9] - 2026-11-05
+
+### Corregido
+
+- **Con npm 12, qdd ya no queda sin binario si instalas sin la bandera (FND-143):** la primera vez que usas `qdd`, baja su
+  binario desde el release de GitHub de esa versión. Tarda unos 30 s y queda fuera del bloqueo de scripts de npm.
+
 ## [2.9.8] - 2026-11-05
 
 ### Corregido

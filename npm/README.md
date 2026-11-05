@@ -13,6 +13,9 @@
 npm install -g qdd-framework --allow-scripts=qdd-framework
 ```
 
+npm 12 no corre los scripts de instalación sin esa bandera. Si instalas sin ella, la primera vez que uses `qdd` se baja su
+binario desde el release de GitHub de esa versión, fuera del bloqueo de npm.
+
 > **Conflicto con el paquete `qdd` de npm:** existe un paquete ajeno llamado `qdd` (no pertenece a QDD Framework) que también instala un comando `qdd`. Si lo tienes instalado globalmente, desinstálalo antes (`npm uninstall -g qdd`) para que `qdd` apunte a QDD Framework. Desde v1.9.22 su presencia ya no rompe la instalación (antes fallaba con `EISDIR`).
 
 ---

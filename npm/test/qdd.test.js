@@ -42,3 +42,44 @@ test('un binario que no se puede ejecutar sigue siendo un fallo', { skip: os.pla
   assert.strictEqual(r.status, 1, r.stderr);
   assert.match(r.stderr, /Reinstala/);
 });
+
+// FND-143: quien instala sin la bandera de npm 12 queda sin binario: el primer qdd lo baja con el instalador del paquete.
+function paqueteConInstalador(t, instalador) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qdd-primer-uso-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, 'bin'));
+  fs.copyFileSync(envoltorio, path.join(dir, 'bin', 'qdd.js'));
+  fs.writeFileSync(path.join(dir, 'install.js'), instalador);
+  return dir;
+}
+
+const correr = (dir, ...args) => spawnSync(process.execPath, [path.join(dir, 'bin', 'qdd.js'), ...args], { encoding: 'utf8' });
+
+test('sin binario lo baja con el instalador y corre lo pedido', { skip: os.platform() === 'win32' }, (t) => {
+  const dir = paqueteConInstalador(t, `
+    const fs = require('fs');
+    const path = require('path');
+    if (!process.argv.includes('--primer-uso')) process.exit(9);
+    console.log('ruido del instalador');
+    fs.writeFileSync(path.join(__dirname, 'bin', 'qdd'), '#!/bin/sh\\necho salida-de-qdd\\nexit 7\\n', { mode: 0o755 });
+  `);
+  const r = correr(dir, 'consola', 'panel');
+  assert.strictEqual(r.status, 7, r.stderr);
+  assert.strictEqual(r.stdout, 'salida-de-qdd\n', 'lo del instalador no ensucia una salida que otro programa lee');
+  assert.match(r.stderr, /ruido del instalador/);
+});
+
+test('con binario no llama al instalador', { skip: os.platform() === 'win32' }, (t) => {
+  const dir = paqueteConInstalador(t, 'process.exit(1);');
+  fs.writeFileSync(path.join(dir, 'bin', nombreBinario), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const r = correr(dir);
+  assert.strictEqual(r.status, 0);
+  assert.strictEqual(r.stderr, '');
+});
+
+test('si el instalador no puede bajarlo sale con 75 y da el comando', (t) => {
+  const dir = paqueteConInstalador(t, 'process.exit(1);');
+  const r = correr(dir);
+  assert.strictEqual(r.status, 75, r.stderr);
+  assert.match(r.stderr, /--allow-scripts=qdd-framework/);
+});
