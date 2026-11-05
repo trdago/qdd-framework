@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.6] - 2026-11-05
+
 ### Corregido
 
 - **El panel ve los comandos qdd corridos por PowerShell o con una ruta entre comillas (FND-146, MEJ-016):** se relee tras

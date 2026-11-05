@@ -19,7 +19,7 @@ objetivo_tecnologico:
         - Si otra terminal del proyecto trabajó en los últimos 2 min, no se le recuerda a la que mira.
     invariantes:
         - 'Solo la persona lo activa: qdd goal activar se rechaza con CLAUDECODE en el entorno, y solo el panel tras la confirmación y el teléfono firmado lo limpian.'
-        - 'El panel niega activarlo a una IA por cualquier herramienta de shell (Bash, PowerShell), con ruta, comillas o sufijo; quien decide sigue siendo qdd, también por la acción del panel (FND-146).'
+        - El panel niega activarlo a una IA por cualquier herramienta de shell (Bash, PowerShell), con ruta, comillas o sufijo; quien decide sigue siendo qdd, también por la acción del panel (FND-146).
         - Nunca se responde solo un permiso de Claude Code, una pregunta de diseño de un blueprint ni una pregunta sin opción recomendada.
         - Cada elección queda registrada, y lo publicado al teléfono pasa por el ocultador (inv. 16 de remoto).
         - 'Nunca abre una sesión: sin una abierta se pausa, y vuelve cuando la sesión vuelve.'
@@ -35,5 +35,5 @@ pruebas:
 fuentes:
     - rfcs/0015-modo-goal.md
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-04"
-revisado_en_commit: 4ca00d54adb6
+ultima_revision: "2026-11-05"
+revisado_en_commit: 2785aee7be37
