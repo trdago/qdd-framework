@@ -11,6 +11,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Un seguro contra lanzar dos veces lo mismo (FND-154):** lo que terminó bien en las últimas 24 h no se vuelve a pedir, aunque
   cambie el texto (cerrar el mismo issue, mergear el mismo PR). Repetirlo de verdad se dice con `--de-nuevo`.
 
+### Cambiado
+
+- **«✓» y «Quitar» reemplazan a la ✕ en cada tarea del panel.** Sirven para las tareas atrapadas por algo que no se puede
+  validar en producción, o que ya no quieres ver. Los dos piden «s  Sí».
+  - **✓ (ya lo vi):** deja cada etapa en ⏳ en ✅ con la nota «la vio la persona el DD/MM, sin medición» y cierra la tarea si
+    no queda nada por hacer. Una etapa con falla o sin empezar, o una aprobación pendiente, sigue como está.
+  - **Quitar:** saca la tarea sin pedir motivo; queda en el historial con «la quitó la persona desde el panel».
+
 ## [2.10.0-rc.8] - 2026-11-05
 
 ### Corregido

@@ -135,8 +135,8 @@ test('una tarea ocupa una sola fila, aunque su nombre sea largo', async ($, on) 
 test('la tarea en curso cabe: su columna de nombre descuenta «● running» (ninguna línea más ancha que el panel)', async ($, on) => {
   const ui = await abrir($, on)
   const fila = await ui.find({ key: 'f-larga' })
-  // 60 de ancho: 14 de etapas, 3 de la ✕ y 10 de «● running».
-  expect(fila.children[0].props.width).toBeLessThanOrEqual(60 - 14 - 3 - 10)
+  // 60 de ancho: 14 de etapas, 10 de «✓ Quitar» y 10 de «● running».
+  expect(fila.children[0].props.width).toBeLessThanOrEqual(60 - 14 - 10 - 10)
 })
 
 test('un objetivo: el nombre se recorta y su estado queda a la derecha, siempre visible', async ($, on) => {
