@@ -1,0 +1,9 @@
+id: "FND-149"
+title: "La prueba de los deltas agrupados fallaba al azar y frenó la publicación de 2.9.10"
+description: "TestBucle_ConTelefonoEstadoSyncYDeltasAgrupados pide dos pedidos seguidos y espera verlos en un solo delta. Corría con una ventana de 30 ms y un sondeo cada 40 ms, y cada sondeo abre una ventana: si esa ventana se cerraba entre los dos pedidos, el delta traía uno solo. Falló en la corrida 42097493276 del tag v2.9.10 («1 pedidos»). Sin cambios no se reprodujo en 50 corridas locales ni en 120 con 24 procesos de carga y sin systemd-run en el PATH; separando los pedidos 25 ms a propósito falla 20 de 20. La causa se deduce de ese caso forzado y de la falla del CI, no de ver el mismo fallo sin forzarlo."
+impact: "Una publicación se detuvo sin que el código publicado tuviera un problema, y el mismo fallo podía repetirse en cualquier tag. El producto no cambia: en uso real la ventana es de 300 ms, y un cambio que cae en la ventana siguiente solo sale en el delta siguiente."
+action_taken: "La prueba usa una ventana de 200 ms y deja de sondear, así la abre solo el primer cambio. Solo cambia la prueba."
+test_result: "cli/pkg/remoto/bucle_test.go. Con los pedidos separados 25 ms a propósito: antes 20 de 20 fallos; después 0 de 20. Depende de fsnotify, que vigia.go usa en Linux, macOS y Windows."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"
