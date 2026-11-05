@@ -24,8 +24,24 @@ function versionDelPaquete() {
   }
 }
 
+function binarioActual() {
+  return rutaDelBinario({ platform: process.platform, env: process.env, dir: __dirname, version: versionDelPaquete(), existe: fs.existsSync });
+}
+
+// Con npm 12, quien instala sin --allow-scripts=qdd-framework no corrió el postinstall (FND-143): el primer qdd baja el
+// binario con el mismo instalador. Lo que escribe va a stderr: otro programa puede estar leyendo la salida de qdd.
+function bajarAlPrimerUso() {
+  const instalador = path.join(__dirname, '..', 'install.js');
+  if (fs.existsSync(binarioActual()) || !fs.existsSync(instalador)) {
+    return;
+  }
+  console.error('[QDD] qdd no tiene su binario: lo bajo ahora, porque npm no corrió su instalación.');
+  spawnSync(process.execPath, [instalador, '--primer-uso'], { stdio: ['ignore', 2, 'inherit'] });
+}
+
 function main() {
-  const binaryPath = rutaDelBinario({ platform: process.platform, env: process.env, dir: __dirname, version: versionDelPaquete(), existe: fs.existsSync });
+  bajarAlPrimerUso();
+  const binaryPath = binarioActual();
 
   const result = spawnSync(binaryPath, process.argv.slice(2), {
     stdio: 'inherit'

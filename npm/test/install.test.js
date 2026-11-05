@@ -259,3 +259,21 @@ test('reinstalar la misma versión no toca el puntero: nada tiene que reiniciars
   registrarVersion({ carpeta, version: '2.10.0' });
   assert.strictEqual(fs.statSync(puntero).mtimeMs, antes.getTime());
 });
+
+// FND-143: varios qdd a la vez sin binario (un panel, por ejemplo) no bajan cada uno el suyo.
+const { tomarTurno } = require('../install.js');
+
+test('tomarTurno: uno a la vez, y un turno abandonado no bloquea para siempre', (t) => {
+  const turno = path.join(crearRaiz(t), '.bajando');
+  assert.strictEqual(tomarTurno(turno), true);
+  assert.strictEqual(tomarTurno(turno), false);
+  const viejo = new Date(Date.now() - 10 * 60 * 1000);
+  fs.utimesSync(turno, viejo, viejo);
+  assert.strictEqual(tomarTurno(turno), true);
+  assert.strictEqual(tomarTurno(turno), false);
+});
+
+test('tomarTurno no esconde otro error', (t) => {
+  const turno = path.join(crearRaiz(t), 'no-existe', '.bajando');
+  assert.throws(() => tomarTurno(turno), /ENOENT/);
+});

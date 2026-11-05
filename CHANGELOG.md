@@ -63,6 +63,12 @@ Trae también lo de 2.9.7 (FND-141).
 
 - **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
 - **`k` ya no es a la vez Config y Modo goal (FND-139).**
+## [2.9.9] - 2026-11-05
+
+### Corregido
+
+- **Con npm 12, qdd ya no queda sin binario si instalas sin la bandera (FND-143):** la primera vez que usas `qdd`, baja su
+  binario desde el release de GitHub de esa versión. Tarda unos 30 s y queda fuera del bloqueo de scripts de npm.
 
 ## [2.9.8] - 2026-11-05
 
