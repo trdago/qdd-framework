@@ -26,7 +26,7 @@ type latido struct {
 func latir(t *testing.T, root, sesion string, fin bool) latido {
 	t.Helper()
 	var salida, errores bytes.Buffer
-	if codigo := telefonoLatir(root, sesion, fin, &salida, &errores); codigo != 0 {
+	if codigo := telefonoLatir(root, sesion, fin, false, &salida, &errores); codigo != 0 {
 		t.Fatalf("%d %s", codigo, errores.String())
 	}
 	var l latido
@@ -71,7 +71,7 @@ func TestConsolaTelefono_LaSesionLateYRecibeLaInstruccionUnaVez(t *testing.T) {
 	if consola.HaySesion(root, time.Now()) {
 		t.Fatal("al cerrarse ya no cuenta")
 	}
-	if codigo := telefonoLatir(root, "", false, &salida, &errores); codigo == 0 {
+	if codigo := telefonoLatir(root, "", false, false, &salida, &errores); codigo == 0 {
 		t.Fatal("sin --sesion es un error")
 	}
 }
@@ -95,5 +95,30 @@ func TestConsolaPanel_EjecutarSoloConQDDMovilYPro(t *testing.T) {
 	b, _ := json.Marshal(d)
 	if !strings.Contains(string(b), `"ejecutar":{"qdd":true,"ia":false,"sugeridos":["audit"`) {
 		t.Fatalf("el JSON del panel: %s", b)
+	}
+}
+
+// FND-138: el panel que confirma recibe la instrucción, y queda entregada solo cuando dice que Claude Code la aceptó.
+func TestConsolaTelefono_ConConfirmaQuedaEntregadaAlConfirmar_FND138(t *testing.T) {
+	emparejado(t)
+	root := t.TempDir()
+	if _, err := consola.RegistrarEjecucion(root, consola.Ejecucion{Solicitud: "s1", Tipo: consola.EjecutarIA, Texto: "si", Dispositivo: "d1"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	var salida, errores bytes.Buffer
+	if c := telefonoLatir(root, "a", false, true, &salida, &errores); c != 0 || !strings.Contains(salida.String(), "s1") {
+		t.Fatalf("la recibe: %d %s %s", c, salida.String(), errores.String())
+	}
+	if e, _ := consola.EjecucionDe(root, "s1", time.Now()); e.Estado != consola.EstadoEjecutando {
+		t.Fatalf("todavía no está entregada: %+v", e)
+	}
+	if c := telefonoEntregada(root, "s1", "a", &salida, &errores); c != 0 {
+		t.Fatalf("confirma: %d %s", c, errores.String())
+	}
+	if e, _ := consola.EjecucionDe(root, "s1", time.Now()); e.Estado != consola.EstadoHecho {
+		t.Fatalf("queda entregada: %+v", e)
+	}
+	if c := telefonoEntregada(root, "s1", "a", &salida, &errores); c == 0 {
+		t.Fatal("no se confirma dos veces")
 	}
 }
