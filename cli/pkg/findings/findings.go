@@ -46,6 +46,8 @@ type Finding struct {
 	Severidad      string
 	Estado         Estado
 	EstadoOriginal string
+	Fecha          string
+	Prueba         string
 }
 
 type archivo struct {
@@ -55,6 +57,8 @@ type archivo struct {
 	Impact      string `yaml:"impact"`
 	Severity    string `yaml:"severity"`
 	Status      string `yaml:"status"`
+	Date        string `yaml:"date"`
+	TestResult  string `yaml:"test_result"`
 }
 
 // Dir devuelve la carpeta de findings del proyecto.
@@ -104,6 +108,8 @@ func leerArchivo(cwd string, e os.DirEntry) (Finding, bool) {
 		Severidad:      a.Severity,
 		Estado:         Normalizar(a.Status),
 		EstadoOriginal: a.Status,
+		Fecha:          a.Date,
+		Prueba:         a.TestResult,
 	}, true
 }
 
