@@ -12,6 +12,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Agregado
 
+- **El panel lanza menos procesos con el flujo abierto (MEJ-020):** las herramientas y si toca el ciclo de mejoras llegan por
+  `qdd consola seguir`, sin `herramienta listar` cada 10 s ni `mejoras ciclo` cada minuto. El latido del teléfono sigue
+  siendo un proceso.
 - **`qdd estado check` avisa de las tareas desfasadas (MEJ-010):** las abiertas con todo listo y las cerradas que conservan
   un ⏳. No bloquea el gate.
 

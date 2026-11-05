@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/herramientas"
 )
 
 // respaldoSeguir cubre lo que cambia con la hora sin que nadie escriba, y marca el latido del flujo.
@@ -58,11 +60,16 @@ func lecturaPanel(root string, con []string) func() ([]byte, error) {
 	}
 }
 
+// carpetasDelFlujo: las del panel y las herramientas, que viven en pkg/herramientas (MEJ-020).
+func carpetasDelFlujo(root string) []string {
+	return append(consola.CarpetasDelPanel(root), filepath.Join(root, filepath.Dir(herramientas.Archivo("x"))))
+}
+
 func runConsolaSeguir(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	ctx, cancelar := context.WithCancel(context.Background())
 	defer cancelar()
-	senal, err := consola.SenalesDelPanel(ctx, consola.CarpetasDelPanel(root), respaldoSeguir)
+	senal, err := consola.SenalesDelPanel(ctx, carpetasDelFlujo(root), respaldoSeguir)
 	if err != nil {
 		salirCon("%v", err)
 	}

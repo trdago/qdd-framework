@@ -22,7 +22,8 @@ const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
-const OPCIONALES = ['atender']
+// «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
+const OPCIONALES = ['atender', 'herramientas', 'mejoras']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -238,12 +239,20 @@ async function aplicar($, nuevo, motivo) {
   firma = huella
   datos = nuevo
   falla = motivo
+  await datosDeLaLinea($, nuevo)
   // Lo aceptado que qdd ya anotó (ejecutando, hecho o con falla) deja de ser local.
   for (const a of nuevo?.acciones || []) if (locales.has(a.id) && a.estado && a.estado !== 'pendiente') locales.delete(a.id)
   verPulsos()
   $.ui.invalidate('ui.render')
   await abrirSiLlegaUnPedido($)
   await avisar($)
+}
+
+// datosDeLaLinea toma lo que viaja en el JSON del panel. Un qdd que no lo trae sigue con sus lecturas propias (MEJ-020).
+async function datosDeLaLinea($, nuevo) {
+  mejoras.toca = typeof nuevo?.mejoras_toca === 'boolean' ? nuevo.mejoras_toca : null
+  herramientasEnPanel = Array.isArray(nuevo?.herramientas)
+  if (herramientasEnPanel) await aplicarHerramientas($, nuevo.herramientas)
 }
 
 // Aviso al chat (pedido del usuario, 2026-11-02: «el chat principal tiene que enterarse y verse una leyenda cuando
@@ -1344,6 +1353,7 @@ const CADA_LECTURAS = 5 // las herramientas se releen cada 5 lecturas del panel 
 let herramientas = []
 let firmaHerramientas = ''
 let lecturas = 0
+let herramientasEnPanel = false // el JSON del panel las trae: no hace falta «herramienta listar»
 let config = null // null | { vista: 'lista' | 'agregar' | 'ia', candidatos, elegido, quitando, guardada, aviso }
 const sesionesHerr = {} // id → { accion, valores, confirmando, aviso, corrida, salida, fin }
 
@@ -1363,6 +1373,10 @@ async function leerHerramientas($) {
   } catch {
     lista = []
   }
+  await aplicarHerramientas($, lista)
+}
+
+async function aplicarHerramientas($, lista) {
   const huella = JSON.stringify(lista)
   if (huella === firmaHerramientas) return
   firmaHerramientas = huella
@@ -1994,10 +2008,10 @@ async function cerrarTelefono($) {
 // (nunca se lee como «!» ni «/»). Con un qdd sin «mejoras», deja de pedirlo. El botón «Ciclo de mejoras» del panel lo
 // fuerza sin esperar.
 const MEJORAS_MS = 60000
-const mejoras = { soportado: true, corriendo: false }
+const mejoras = { soportado: true, corriendo: false, toca: null } // toca: lo que dijo el panel; null, no lo dice
 
 async function cicloMejoras($) {
-  if (!interactiva || !mejoras.soportado || mejoras.corriendo) return
+  if (!interactiva || !mejoras.soportado || mejoras.corriendo || mejoras.toca === false) return
   mejoras.corriendo = true
   try {
     await pedirCicloMejoras($)
@@ -2129,7 +2143,7 @@ export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
     await leer($)
-    await leerHerramientas($)
+    if (!herramientasEnPanel) await leerHerramientas($)
     if (interactiva) {
       await latirTelefono($)
       $.clock.every(TELEFONO_MS, async () => {
@@ -2146,7 +2160,7 @@ export function register(on) {
         await (enFlujo ? avisar($) : leer($))
         abrirFlujo($)
         lecturas += 1
-        if (lecturas % CADA_LECTURAS === 0) await leerHerramientas($)
+        if (lecturas % CADA_LECTURAS === 0 && !herramientasEnPanel) await leerHerramientas($)
       })
       $.clock.every(LATIDO_MS, async () => {
         latir($)

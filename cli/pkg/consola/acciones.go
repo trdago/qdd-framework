@@ -1,6 +1,7 @@
 package consola
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/qdd-framework/qdd/pkg/materializar"
@@ -96,6 +97,11 @@ type DatosConsola struct {
 	Goal *Goal `json:"goal,omitempty"`
 	// AvisoVersion: hay una versión nueva de qdd y aquí no se puede actualizar con un botón (version_nueva.go).
 	AvisoVersion string `json:"aviso_version,omitempty"`
+	// Herramientas (con «herramientas») es la lista de «herramienta listar»; vacía sale como []: así el panel sabe que
+	// este qdd la trae y no lanza un proceso para leerla (MEJ-020).
+	Herramientas json.RawMessage `json:"herramientas,omitempty"`
+	// MejorasToca (con «mejoras»): si pasaron los 10 min del ciclo de mejoras. Sin el campo, el panel lo pide cada minuto.
+	MejorasToca *bool `json:"mejoras_toca,omitempty"`
 }
 
 // OpcionesEjecutar es lo que el PC acepta desde el teléfono: comandos qdd (Sugeridos son los que permite, sin el
