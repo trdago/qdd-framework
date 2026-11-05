@@ -137,6 +137,7 @@ type Pregunta struct {
 	Lugar        string                   `json:"lugar,omitempty"`  // el teléfono que la respondió
 	Motivo       string                   `json:"motivo,omitempty"` // por qué venció
 	Respuesta    map[string]RespuestaItem `json:"respuesta,omitempty"`
+	Instruccion  string                   `json:"instruccion,omitempty"` // la instrucción que lleva la respuesta a un ⏳ (FND-141)
 	Creada       time.Time                `json:"creada"`
 	Vista        time.Time                `json:"vista"` // la última vez que su sesión la esperó
 	Cerrada      *time.Time               `json:"cerrada,omitempty"`

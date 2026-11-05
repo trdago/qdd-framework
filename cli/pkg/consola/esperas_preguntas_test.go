@@ -252,3 +252,64 @@ func TestEspera_SinSesionLaRespuestaNoSePierde_FND124(t *testing.T) {
 		t.Fatalf("con una sesión abierta, se responde: %v", err)
 	}
 }
+
+// FND-141: la respuesta a un ⏳ se guardaba como respondida aunque ninguna sesión la tomara, y ya no se podía volver a
+// responder en 24 h. La pregunta recuerda qué instrucción lleva su respuesta para que qdd remoto la siga.
+func TestEspera_LaRespuestaDiceQueInstruccionLaLleva_FND141(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
+	p := esperaDe(t, root, enCola)
+	r, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ejecuciones := EjecucionesA(root, enCola)
+	if len(ejecuciones) != 1 || r.Instruccion == "" || r.Instruccion != ejecuciones[0].Solicitud {
+		t.Fatalf("la pregunta apunta a su instrucción: %q, %+v", r.Instruccion, ejecuciones)
+	}
+}
+
+func TestEspera_UnaRespuestaQueNoLlegoSePuedeResponderDeNuevo_FND141(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
+	p := esperaDe(t, root, enCola)
+	r, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ReabrirEspera(root, p.ID, r.Instruccion, enCola.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if v := esperaDe(t, root, enCola.Add(time.Second)); v.Estado != PreguntaPendiente {
+		t.Fatalf("vuelve a preguntarse: %+v", v)
+	}
+	otra := enCola.Add(2 * time.Second)
+	if err := LatirSesion(root, "s1", otra); err != nil {
+		t.Fatal(err)
+	}
+	segunda, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí, de nuevo"}}`, "Pixel", otra)
+	if err != nil {
+		t.Fatalf("se responde otra vez: %v", err)
+	}
+	if segunda.Instruccion == r.Instruccion {
+		t.Fatalf("la segunda respuesta es otra instrucción: %q", segunda.Instruccion)
+	}
+}
+
+func TestEspera_ReabrirNoTocaUnaRespuestaMasNueva_FND141(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
+	p := esperaDe(t, root, enCola)
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReabrirEspera(root, p.ID, "otra-instruccion", enCola); err != nil {
+		t.Fatal(err)
+	}
+	if v := esperaDe(t, root, enCola); v.Estado != PreguntaRespondida {
+		t.Fatalf("otra instrucción no reabre esta respuesta: %+v", v)
+	}
+}

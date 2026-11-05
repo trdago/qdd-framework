@@ -1,0 +1,9 @@
+id: "FND-141"
+title: "La respuesta a un ⏳ decía «entregada» antes de que una sesión la tomara"
+description: "Al responder un ⏳ desde el teléfono, qdd remoto cerraba la solicitud como hecha en cuanto dejaba la respuesta en la cola de instrucciones (remoto/preguntas.go). La confirmación de FND-138 cubría las instrucciones directas, pero no este camino. Además, la pregunta quedaba guardada como respondida, así que si la instrucción fallaba o vencía no se podía volver a responder en 24 h."
+impact: "La persona cree que la IA recibió su respuesta y no puede repetirla. El 2026-11-05 pasó con «si» (09:23 UTC) y dos «dale» (10:49 UTC) en qdd-movile; ninguna de las dos sesiones del proyecto los recibió."
+action_taken: "La solicitud queda ejecutando y sigue a su instrucción: hecha cuando la sesión confirma, fallo, vencida o rechazada si no llegó, y en esos tres casos el ⏳ vuelve a preguntarse. Límites conocidos: confirmar significa que Claude Code la aceptó, no que la IA ya la leyó; si dos procesos comparten una sesión, la entrega la toma el primero que late."
+test_result: "TestEspera_LaRespuestaDiceQueInstruccionLaLleva_FND141, TestEspera_UnaRespuestaQueNoLlegoSePuedeResponderDeNuevo_FND141, TestEspera_ReabrirNoTocaUnaRespuestaMasNueva_FND141, TestResponder_UnEsperaEsHechaSoloCuandoLaSesionConfirma_FND141, TestResponder_UnEsperaQueNoSeEntregoFallaYVuelveAPreguntarse_FND141"
+status: resolved
+detectado_por: ia
+date: "2026-11-05"
