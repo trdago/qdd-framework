@@ -1,0 +1,31 @@
+id: cobertura-auditoria
+nombre: Cobertura de la auditoría
+estado: aprobado
+rutas:
+    - cli/pkg/audit/cobertura.go
+    - cli/pkg/audit/principios.go
+    - cli/pkg/audit/principios.yaml
+    - cli/pkg/contexto
+objetivo_operativo:
+    problema: Un puntaje de 100 puede dar confianza falsa si la auditoría no pudo revisar una parte del proyecto, por ejemplo una API en un lenguaje sin detector (RFC 0005).
+    usuarios: Las personas y las IAs que leen qdd audit, qdd certify y las tools MCP antes de confiar en un resultado.
+    criterio_de_exito: Junto al puntaje se dice cuántos principios se evaluaron en todo el proyecto, y qué no se revisó, por qué y dónde.
+    caso_real: '2026-10-28: una revisión externa encontró una API de producción abierta a internet que qdd audit no mencionó, porque su detector solo leía Go.'
+objetivo_tecnologico:
+    arquitectura: pkg/contexto lee las unidades del repositorio por su manifiesto. principios.yaml agrupa las reglas del motor en principios con su razón y categoría. CalcularCobertura dice por principio y unidad qué se evaluó; cmd/audit.go lo imprime agrupado por motivo.
+    decisiones:
+        - Fase 1 de RFC 0005 solo informa, no cambia el puntaje ni lo que bloquea.
+        - Lo no revisado se dice una vez por motivo, porque una IA lee cada auditoría en cada commit.
+    invariantes:
+        - Un principio que no se pudo revisar nunca aparece como aprobado.
+        - Toda regla del motor pertenece a un principio.
+        - Calcular la cobertura no cambia las violaciones ni el puntaje.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/audit ./pkg/contexto
+        - cd cli && go test ./cmd -run 'Cobertura|FormatAuditResult'
+fuentes:
+    - rfcs/0005-reglas-como-principios.md
+    - cli/pkg/audit/cobertura.go
+ultima_revision: "2026-11-05"
+revisado_en_commit: 1e8cb33f0475

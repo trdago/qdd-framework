@@ -1,0 +1,277 @@
+# Principios que verifica el motor de auditoría (RFC 0005, fase 1).
+#
+# Cada principio agrupa reglas del motor (sus RuleID se mantienen como alias)
+# y dice por qué existe. Qué stacks sabe revisar cada principio lo declara el
+# código del detector (detectores en principios.go), no este archivo: así el
+# informe nunca promete revisar algo que el código no lee.
+#
+#   categoria: seguridad | correccion | auditabilidad | madurez
+#   alcance:   unidad (se revisa en cada unidad del repositorio, según su stack)
+#              repositorio (se revisa una vez, para todo el repositorio)
+#              pruebas (cada unidad con un comando de pruebas que corre el gate)
+#   politicas: claves de .qdd/policies.yaml que deben estar activas
+
+- id: P-NO-INJECTION
+  nombre: Ninguna consulta se arma concatenando entradas
+  categoria: seguridad
+  alcance: unidad
+  politicas: [owasp]
+  reglas: [OWASP-A03-INJECTION]
+  por_que: >-
+    Una consulta armada con texto concatenado permite que una entrada externa
+    cambie lo que la consulta hace (inyección, OWASP A03). Con parámetros, el
+    dato nunca se interpreta como código.
+
+- id: P-NO-PLAIN-SECRETS
+  nombre: Ningún secreto queda escrito en el código
+  categoria: seguridad
+  alcance: unidad
+  politicas: [owasp]
+  reglas: [OWASP-A02-CRYPTOGRAPHY]
+  por_que: >-
+    Un secreto escrito en el código queda en el historial de git y en cada copia
+    del repositorio, y rotarlo no lo borra de ahí. Los secretos se leen del
+    entorno o de un gestor de secretos.
+
+- id: P-TESTS-PER-UNIT
+  nombre: Las pruebas de cada unidad se ejecutan y pasan
+  categoria: correccion
+  alcance: pruebas
+  reglas: [QA-00-NO-TEST-COMMAND, QA-01-ALL-TESTS-PASS, QA-03-SIN-MEDIR]
+  por_que: >-
+    Un cambio que rompe algo solo se detecta antes de producción si las pruebas
+    corren. Una unidad cuyas pruebas no ejecuta el gate puede romperse sin que
+    nadie lo vea.
+
+- id: P-E2E-EVIDENCE
+  nombre: Hay pruebas de punta a punta
+  categoria: madurez
+  alcance: repositorio
+  reglas: [QA-02-E2E-TESTS]
+  por_que: >-
+    Las pruebas unitarias no muestran que las partes funcionen juntas. Una prueba
+    de punta a punta recorre el flujo como lo usa una persona.
+
+- id: P-READABLE-FLOW
+  nombre: Las funciones se leen de arriba abajo
+  categoria: auditabilidad
+  alcance: unidad
+  politicas: [clean_code, zero_else]
+  reglas: [CLEAN-01-NO-ELSE]
+  por_que: >-
+    El código se escribe una vez y se audita muchas. Con cláusulas de guarda,
+    quien audita lee primero los casos rechazados y al final el camino normal,
+    sin anidación. No previene defectos por sí sola: reduce el costo de auditar.
+
+- id: P-NO-TEST-CODE-IN-PROD
+  nombre: El código de producción no contiene código de prueba
+  categoria: correccion
+  alcance: unidad
+  politicas: [clean_code]
+  reglas: [CLEAN-02-NO-TEST-IN-PROD]
+  por_que: >-
+    Un mock o un dato simulado en el producto hace que muestre o use valores que
+    nadie midió. Los mocks y los datos simulados solo existen en las pruebas.
+
+- id: P-VERSION-CONTROL
+  nombre: El proyecto está bajo control de versiones
+  categoria: madurez
+  alcance: repositorio
+  reglas: [12F-01-CODEBASE]
+  por_que: >-
+    Sin control de versiones no hay historial que auditar ni forma de volver a
+    un estado que funcionaba.
+
+- id: P-DEPLOY-GATED
+  nombre: Ningún despliegue sale sin pasar las pruebas
+  categoria: correccion
+  alcance: repositorio
+  politicas: [deploy_gate]
+  reglas: [CI-01-UNGATED-DEPLOY, CI-02-DEPLOY-IGNORES-FAILURES]
+  por_que: >-
+    Un pipeline que despliega sin depender de las pruebas lleva a producción lo
+    que el gate habría rechazado.
+
+- id: P-MODULE-RECORDS
+  nombre: Cada módulo tiene su ficha vigente
+  categoria: auditabilidad
+  alcance: repositorio
+  reglas: [HEART-01-INVALID-RECORD, HEART-02-STALE-RECORD, HEART-03-ZONE-WITHOUT-RECORD]
+  por_que: >-
+    La ficha dice para qué existe el módulo y qué no se puede romper. Sin ella,
+    quien lo cambia, una persona o una IA, solo ve el código.
+
+- id: P-BLUEPRINTS-INTACT
+  nombre: Los blueprints de la organización se usan sin alterar y al día
+  categoria: correccion
+  alcance: repositorio
+  reglas: [BP-01-INVALID, BP-02-ALTERED, BP-03-OUTDATED, BP-04-MISSING, BP-05-LEGACY, BP-06-BEHIND, BP-06-ESPERA-QDD, BP-07-REPLACED, BP-08-CONFORMIDAD, BP-08-SIN-MEDIR]
+  por_que: >-
+    Un blueprint es el estándar que acordó la organización. Una copia alterada o
+    atrasada hace que cada proyecto cumpla una versión distinta.
+
+- id: P-DB-QUERY-COST
+  nombre: Las consultas no recorren tablas completas sin necesidad
+  categoria: madurez
+  alcance: unidad
+  reglas: [DB-PERF-01]
+  por_que: >-
+    Un SELECT COUNT(*) sin filtro recorre la tabla entera y, en tablas grandes,
+    degrada la base de datos para todos.
+
+- id: P-DATA-UNIQUENESS
+  nombre: Cada dato tiene una sola fuente
+  categoria: madurez
+  alcance: repositorio
+  politicas: [data_uniqueness]
+  reglas: [CERT-034-DATA-UNIQUENESS]
+  por_que: >-
+    Un dato copiado en varias tablas termina con valores distintos, y cuál es el
+    correcto deja de ser obvio.
+
+- id: P-TRACEABLE-COMMITS
+  nombre: Cada commit dice qué cambió
+  categoria: auditabilidad
+  alcance: repositorio
+  politicas: [traceability]
+  reglas: [TRC-01-CONVENTIONAL-COMMITS]
+  por_que: >-
+    Con Conventional Commits el historial se puede leer y filtrar en una
+    auditoría, y la versión se calcula a partir de él.
+
+- id: P-NO-PANIC
+  nombre: Los errores se manejan, no abortan el proceso
+  categoria: correccion
+  alcance: unidad
+  politicas: [beyond_limits]
+  reglas: [CERT-020-ZERO-PANIC]
+  por_que: >-
+    Un panic tira abajo el proceso entero por un error que se podía devolver y
+    manejar.
+
+- id: P-BOUNDED-CALLS
+  nombre: Toda llamada externa tiene un plazo
+  categoria: correccion
+  alcance: unidad
+  politicas: [beyond_limits]
+  reglas: [CERT-021-CHAOS-TOLERANCE]
+  por_que: >-
+    Una llamada sin plazo a una base de datos o a la red puede esperar para
+    siempre y agotar el servicio cuando la dependencia se cuelga.
+
+- id: P-DECISIONS-RECORDED
+  nombre: Las decisiones de arquitectura quedan escritas
+  categoria: madurez
+  alcance: repositorio
+  politicas: [enterprise]
+  reglas: [CERT-030-MANDATORY-ADR]
+  por_que: >-
+    Sin un registro, la razón de una decisión se pierde con quien la tomó y se
+    vuelve a discutir.
+
+- id: P-DOMAIN-ISOLATION
+  nombre: El dominio no depende de la infraestructura
+  categoria: madurez
+  alcance: unidad
+  politicas: [enterprise]
+  reglas: [CERT-032-DOMAIN-ISOLATION]
+  por_que: >-
+    Si la lógica de negocio importa la base de datos o HTTP, no se puede probar
+    ni cambiar una sin tocar la otra.
+
+- id: P-SMALL-FUNCTIONS
+  nombre: Las funciones tienen pocas decisiones
+  categoria: auditabilidad
+  alcance: unidad
+  politicas: [enterprise]
+  reglas: [CERT-031-CYCLOMATIC-LIMIT]
+  por_que: >-
+    Cada decisión de una función es un camino más que leer y probar. Con pocas,
+    una auditoría puede recorrerlos todos.
+
+- id: P-AI-POLICY
+  nombre: El uso de IA tiene una política escrita
+  categoria: madurez
+  alcance: repositorio
+  politicas: [ai_governance]
+  reglas: [ISO42001-GOV-01-MISSING-POLICY]
+  por_que: >-
+    ISO/IEC 42001 pide que el uso de IA tenga responsables y reglas escritas; sin
+    ellas no hay a quién pedirle cuentas.
+
+- id: P-AI-GOLDEN-SETS
+  nombre: Las respuestas de IA se prueban contra resultados conocidos
+  categoria: correccion
+  alcance: repositorio
+  politicas: [ai_governance]
+  reglas: [ISO29119-TEST-01-NO-GOLDEN-SETS]
+  por_que: >-
+    Una respuesta de IA puede cambiar sin que cambie el código. Un golden set
+    fija lo que se espera y detecta el cambio.
+
+- id: P-NO-PROMPT-INJECTION
+  nombre: Ninguna entrada del usuario llega al prompt sin sanear
+  categoria: seguridad
+  alcance: unidad
+  politicas: [ai_governance]
+  reglas: [ISO23894-RISK-01-UNSANITIZED-PROMPT-INJECTION]
+  por_que: >-
+    Texto del usuario dentro del prompt puede cambiar las instrucciones del
+    modelo (inyección de prompt).
+
+- id: P-AI-OUTPUT-VALIDATED
+  nombre: Lo que responde una IA se valida antes de ejecutarlo
+  categoria: seguridad
+  alcance: unidad
+  politicas: [ai_governance]
+  reglas: [SOC2-AI-02-UNVALIDATED-OUTPUT-EXECUTION]
+  por_que: >-
+    Ejecutar la salida de un modelo sin validarla le da al modelo, y a quien lo
+    manipule, el control del sistema.
+
+- id: P-NO-SECRETS-IN-PROMPTS
+  nombre: Ningún secreto se envía a un modelo
+  categoria: seguridad
+  alcance: unidad
+  politicas: [ai_governance]
+  reglas: [SOC2-AI-03-LEAKED-SECRETS-IN-PROMPTS]
+  por_que: >-
+    Lo que se envía a un proveedor de IA sale del sistema: un secreto en el
+    prompt queda en manos de terceros.
+
+- id: P-FINDINGS-COMPLETE
+  nombre: Cada finding dice su estado y qué lo prueba
+  categoria: auditabilidad
+  alcance: repositorio
+  reglas: [FND-01-SIN-ESTADO, FND-02-SIN-PRUEBA]
+  por_que: >-
+    Un finding sin estado no se cuenta como abierto ni como resuelto, y nadie
+    se entera. Sin decir qué lo prueba, no se puede comprobar que sigue arreglado.
+
+- id: P-TASK-STATE-VALID
+  nombre: El estado de las tareas es válido
+  categoria: auditabilidad
+  alcance: repositorio
+  reglas: [EPF-01-CHECK]
+  por_que: >-
+    Quien retoma el trabajo y el panel leen ese archivo. Si no es válido, el
+    avance que muestran no se puede creer.
+
+- id: P-TOOLS-DEFINED
+  nombre: Las herramientas del proyecto están bien definidas
+  categoria: correccion
+  alcance: repositorio
+  reglas: [HER-01-DEFINICION]
+  por_que: >-
+    Una definición que no se lee no se puede usar, y una que trae un secreto lo
+    deja en el repositorio.
+
+- id: P-SEMVER-RELEASES
+  nombre: Cada versión respeta SemVer y está probada
+  categoria: madurez
+  alcance: repositorio
+  politicas: [versioning]
+  reglas: [VER-01-INVALID-SEMVER, VER-02-VERSION-REGRESSION, VER-03-UNDERSIZED-BUMP, VER-04-CHANGELOG-MISSING, VER-05-UNPROVEN-RELEASE]
+  por_que: >-
+    Quien actualiza decide por el número de versión. Si el número no dice cuánto
+    cambió, o la versión sale sin uso medido, el riesgo lo asume esa persona.

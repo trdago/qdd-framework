@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/qdd-framework/qdd/pkg/contexto"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 )
 
@@ -18,6 +19,11 @@ type Violation struct {
 	Line        int
 	// Recomendacion indica que se informa sin bloquear el gate (adopción gradual).
 	Recomendacion bool
+	// Principio, PorQue y Categoria dicen qué protege la regla y por qué
+	// (RFC 0005 §3.1). Los completa el motor desde principios.yaml.
+	Principio string
+	PorQue    string
+	Categoria string
 }
 
 // Format muestra la violación de forma legible.
@@ -59,8 +65,19 @@ func (e *EngineCoordinator) RunAll() []Violation {
 	// Filtro de supresión Enterprise (Grandfathering)
 	allViolations = FilterIgnoredViolations(allViolations)
 	marcarRecomendaciones(p, allViolations)
+	conPrincipio(allViolations)
 
 	return allViolations
+}
+
+// Evaluar ejecuta la auditoría y dice además qué se pudo revisar en cada
+// unidad del proyecto (RFC 0005 §3.4).
+func (e *EngineCoordinator) Evaluar() Resultado {
+	violations := e.RunAll()
+	return Resultado{
+		Violaciones: violations,
+		Cobertura:   CalcularCobertura(e.cwd, LoadPolicies(e.cwd), contexto.Leer(e.cwd), violations),
+	}
 }
 
 func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation) {

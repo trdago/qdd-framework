@@ -23,9 +23,7 @@ func registerAuditTool(s *server.MCPServer) {
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		engine := audit.NewEngine(cwd)
-		violations := engine.RunAll()
-
-		return mcp.NewToolResultText(formatAuditResult(violations)), nil
+		return mcp.NewToolResultText(formatAuditResult(engine.Evaluar())), nil
 	})
 }
 
@@ -37,13 +35,15 @@ func registerCertifyTool(s *server.MCPServer) {
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		engine := audit.NewEngine(cwd)
-		violations := engine.RunAll()
-		
+		r := engine.Evaluar()
+		violations := r.Violaciones
+		cobertura := "Cobertura: " + resumenDeCobertura(r.Cobertura) + "\n" + formatCobertura(r.Cobertura)
+
 		if len(audit.Bloqueantes(violations)) == 0 {
-			return mcp.NewToolResultText("CERTIFICADO! Listo para release.\n" + formatRecomendaciones(audit.Recomendaciones(violations))), nil
+			return mcp.NewToolResultText("CERTIFICADO! Listo para release.\n" + cobertura + formatRecomendaciones(audit.Recomendaciones(violations))), nil
 		}
-		
-		return mcp.NewToolResultText("RECHAZADO! Existen violaciones de auditoría."), nil
+
+		return mcp.NewToolResultText("RECHAZADO! Existen violaciones de auditoría.\n" + cobertura), nil
 	})
 }
 
