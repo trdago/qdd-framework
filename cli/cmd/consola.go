@@ -155,11 +155,37 @@ func runConsolaEstado(cmd *cobra.Command, args []string) {
 	}
 }
 
+const (
+	// topeEntradaBarra: Claude Code escribe la entrada de la barra en el acto; nada justifica esperar más.
+	topeEntradaBarra = 3 * time.Second
+	maxEntradaBarra  = 1 << 20
+)
+
+// leerEntradaBarra corta al tope: con un stdin que nadie cierra, la barra quedaba viva para siempre (FND-144). Al salir
+// el proceso, la lectura pendiente termina con él.
+func leerEntradaBarra(r io.Reader, tope time.Duration) ([]byte, bool) {
+	type lectura struct {
+		datos []byte
+		err   error
+	}
+	listo := make(chan lectura, 1)
+	go func() {
+		datos, err := io.ReadAll(io.LimitReader(r, maxEntradaBarra))
+		listo <- lectura{datos, err}
+	}()
+	select {
+	case l := <-listo:
+		return l.datos, l.err == nil
+	case <-time.After(tope):
+		return nil, false
+	}
+}
+
 // runConsolaStatusline nunca falla ni escribe en stderr: con una entrada ilegible no imprime nada.
 func runConsolaStatusline(cmd *cobra.Command, args []string) {
 	defer func() { _ = recover() }()
-	datos, err := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
-	if err != nil {
+	datos, ok := leerEntradaBarra(os.Stdin, topeEntradaBarra)
+	if !ok {
 		return
 	}
 	c := consolaActual()
