@@ -2,6 +2,7 @@ package estado
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -16,10 +17,12 @@ type DatosPanel struct {
 	Frentes      []FrentePanel `json:"frentes"`
 	Ocultos      int           `json:"ocultos"` // pendientes que no entran en el tope de DatosPendientes (los más antiguos)
 	// Totales de las tareas pendientes, entren o no en el panel: los mismos que la barra (FND-086).
-	Tareas  int         `json:"tareas"`
-	Esperan int         `json:"esperan"`
-	Fallan  int         `json:"fallan"`
-	Esperas []Pendiente `json:"esperas"`
+	Tareas  int `json:"tareas"`
+	Esperan int `json:"esperan"`
+	// EsperanPersona son los de Esperan que tiene que resolver la persona (FND-156).
+	EsperanPersona int         `json:"esperan_persona"`
+	Fallan         int         `json:"fallan"`
+	Esperas        []Pendiente `json:"esperas"`
 	Fallas  []Pendiente `json:"fallas"`
 	Actual  string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
 	// Hace es cuánto pasó desde la última escritura («hace 9 h»); Viejo, que hay tareas pendientes y nadie tocó el
@@ -160,7 +163,12 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 // Totales cuenta las tareas pendientes (abiertas y no terminadas) y cada ⏳ y cada ❌ que tienen. La barra y el panel
 // usan esta misma cuenta (FND-086).
 type Totales struct {
-	Tareas, Esperan, Fallan int
+	Tareas, Esperan, EsperanPersona, Fallan int
+}
+
+// DeLaPersona dice si un ⏳ le toca a la persona, según su de_quien.
+func DeLaPersona(deQuien string) bool {
+	return strings.Contains(strings.ToLower(deQuien), "persona")
 }
 
 func (e Estado) Totales() Totales {
@@ -174,6 +182,9 @@ func (e Estado) Totales() Totales {
 			switch NormalizarEstado(f.Celdas[etapa].Estado) {
 			case Espera:
 				t.Esperan++
+				if DeLaPersona(f.Celdas[etapa].DeQuien) {
+					t.EsperanPersona++
+				}
 			case Falla:
 				t.Fallan++
 			}
@@ -197,7 +208,7 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 	t := e.Totales()
 	d := DatosPanel{
 		Formato: e.Formato, Actualizado: e.Actualizado, Resumen: Statusline(e, now), Etapas: e.Etapas,
-		Tareas: t.Tareas, Esperan: t.Esperan, Fallan: t.Fallan,
+		Tareas: t.Tareas, Esperan: t.Esperan, EsperanPersona: t.EsperanPersona, Fallan: t.Fallan,
 		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
 	}
 	if cuando, err := time.Parse(time.RFC3339, e.Actualizado); err == nil && !now.Before(cuando) {

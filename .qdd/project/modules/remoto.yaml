@@ -65,7 +65,7 @@ objetivo_tecnologico:
         - Las credenciales viven en <QDD_HOME>/remoto/ con permisos 0600; el PC nunca acepta ni guarda una clave secreta o service_role (inv. 9).
         - Sin teléfono conectado, el PC no publica nada más que su Presence (inv. 12).
         - Los deltas se agrupan cada 300 ms y la consola manda como mucho 2 mensajes por segundo (inv. 13).
-        - 'Nada que parezca un secreto sale del PC: todo lo que sale (consola, resultado, error) pasa por el ocultador (inv. 16).'
+        - 'Nada que parezca un secreto sale del PC: todo lo que sale (consola, resultado, error, y en el panel el tablero, los pedidos y las preguntas, FND-157) pasa por el ocultador (inv. 16).'
         - El push solo dice el tipo cerrado y el proyecto; nunca un comando ni una salida (inv. 17).
         - Una acción sin firma válida del relay, vieja (más de 5 min), de un dispositivo revocado o de un proyecto desconocido se descarta y queda en el log (inv. 18).
         - 'Un registro de proyectos ilegible nunca se reescribe en silencio: se aparta.'
