@@ -184,6 +184,11 @@ func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 			t.Fatalf("un PR abierto no es un pedido de la IA y no se mergea solo: %+v", p)
 		}
 	}
+	// FND-148: el pedido corre en un proceso aparte que escribe la cola en el TempDir; sin esperarlo, la limpieza de la prueba choca con él.
+	esperarEstado(t, root, pd.ID, EstadoHecho)
+	if _, err := os.Stat(marca); err != nil {
+		t.Fatal("el comando del pedido corrió")
+	}
 }
 
 func TestGoal_ApruebaLasFichasEnBorrador(t *testing.T) {
