@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.4] - 2026-11-05
+
 ### Cambiado
 
 - **La barra de estado ya no arranca Node cada 2 s:** llama al binario de qdd por su ruta y, si esa ruta ya no existe, a
