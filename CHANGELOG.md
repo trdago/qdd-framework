@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.8] - 2026-11-05
+
 ### Corregido
 
 - **Un pedido ya no se retira por el trabajo de otra sesión (FND-153, MEJ-010):** sin tarea explícita, solo hereda la tarea
