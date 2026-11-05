@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.1] - 2026-11-05
+
+### Cambiado
+
+- **El panel ya no lanza un proceso cada 2 s (RFC 0016, MEJ-020):** recibe los cambios de un solo proceso, `qdd consola
+  seguir`. En Linux, en reposo, su costo de CPU baja entre 71 % y 82 %, y un cambio llega a la pantalla en unos 500 ms. Sin
+  medir todavía en Windows. A cambio suma unos 25 MB de memoria por sesión.
+- **El panel llama directo al binario:** deja de pasar por el envoltorio de Node y, en Windows, por `cmd`.
+- **Las sesiones sin terminal (`claude -p`) ya no leen el panel cada 2 s.**
+
 ## [2.9.5] - 2026-11-05
 
 Corrección de 2.9.4, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.5-rc.1: `npm install` ya no termina

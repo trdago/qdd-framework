@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -166,11 +165,7 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 
 // runConsolaPanel siempre imprime un JSON: sin estado.yaml, el estado es null y el motivo dice cómo crearlo.
 func runConsolaPanel(cmd *cobra.Command, args []string) {
-	root := estadoRaiz()
-	prsAlDia(root)
-	datos := datosPanel(root, time.Now(), consolaCon)
-	conEfectos(&datos)
-	out, err := json.Marshal(datos)
+	out, err := lecturaPanel(estadoRaiz(), consolaCon)()
 	if err != nil {
 		salirCon("%v", err)
 	}

@@ -120,6 +120,7 @@ test('una acción en-vivo muestra su salida mientras corre y ■ la detiene (HER
   let cortada = false
   const lanzados: string[][] = []
   on('process.spawn', async function* ($, e) {
+    if (e.argv.includes('seguir')) return { value: { code: 1, signal: null } }
     lanzados.push([...e.argv])
     try {
       yield { stream: 'stdout', text: 'evento 1\n' }

@@ -4,7 +4,7 @@
 // persona), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
 // y el resultado de un botón van en su misma sección. Cada pedido se ve en su estado: pendiente (botón con su
 // tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080), «todavía no» (pendiente, con
-// su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
+// su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod recibe de 'qdd consola seguir' lo mismo que da 'qdd consola panel --json' (sin ese flujo, lo lee cada INTERVALO_MS) y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
@@ -119,18 +119,78 @@ const pedidosVistos = new Set() // ids de los pedidos que ya abrieron el panel
 // estado): id → { estado, fin }. Así un pedido aceptado nunca vuelve a ofrecerse.
 const locales = new Map()
 let tic = 0 // tics del latido; la fase cambia cada 2
+let rutaDirecta = null // promesa con la ruta del binario (binario)
+let enFlujo = false // hay un 'qdd consola seguir' abierto
+let sinFlujo = false // este qdd no lo trae: se lee como siempre
+let flujoProbado = false // ya entregó una línea: si se corta, se vuelve a abrir
+let lineasDelFlujo = 0 // para que una lectura lenta no pise algo más nuevo
 const destellos = {} // id → tics de destello que quedan
 const pulsos = {} // id → último pulso visto en el JSON
 let ultimoEnvio = -Infinity // cuándo se envió el último pulso a la CLI
 
+// binario: QDD_BIN manda; si no, la ruta real del binario, para no pasar por el envoltorio de Node (y en Windows, por cmd)
+// en cada llamada. Un qdd sin 'consola binario' sigue con 'qdd'.
 async function binario($) {
   const propio = await $.env.get('QDD_BIN')
-  return propio || 'qdd'
+  if (propio) return propio
+  rutaDirecta ??= resolverBinario($)
+  return rutaDirecta
+}
+
+async function resolverBinario($) {
+  try {
+    const r = await $.process.run(['qdd', 'consola', 'binario'], { timeoutMs: TOPE_MS })
+    const ruta = (r.stdout || '').trim()
+    if (r.exitCode === 0 && /^(\/|[A-Za-z]:\\)[^\n]*$/.test(ruta)) return ruta
+  } catch (err) {
+    $.ui.log('no se resolvió el binario de qdd: ' + String(err?.message ?? err))
+  }
+  return 'qdd'
+}
+
+// Flujo (RFC 0016, MEJ-020): un solo proceso, 'qdd consola seguir', trae cada cambio del panel; mientras esté abierto no
+// se lanza un proceso por lectura. Si se corta (qdd se actualizó, por ejemplo), el panel vuelve a leer, pregunta de nuevo
+// la ruta del binario y lo abre otra vez. Un qdd que no lo trae no entrega ni una línea y sigue leyendo como siempre.
+function abrirFlujo($) {
+  if (enFlujo || sinFlujo) return
+  enFlujo = true
+  seguirFlujo($)
+    .catch((err) => {
+      sinFlujo = !flujoProbado
+      $.ui.log('se cortó el flujo del panel: ' + String(err?.message ?? err))
+    })
+    .finally(() => {
+      enFlujo = false
+      rutaDirecta = null
+    })
+}
+
+async function seguirFlujo($) {
+  const bin = await binario($)
+  const stream = $.process.spawn({ argv: [bin, 'consola', 'seguir', '--con', OPCIONALES.join(',')] })
+  let resto = ''
+  for await (const trozo of stream) {
+    if (trozo.stream === 'stderr') continue
+    const lineas = (resto + trozo.text).split('\n')
+    resto = lineas.pop()
+    for (const linea of lineas) {
+      if (linea) await lineaDelFlujo($, linea)
+    }
+  }
+  sinFlujo = !flujoProbado
+}
+
+async function lineaDelFlujo($, linea) {
+  const nuevo = JSON.parse(linea)
+  flujoProbado = true
+  lineasDelFlujo += 1
+  await aplicar($, nuevo, '')
 }
 
 // leer pide el panel a la CLI y redibuja solo si cambió.
 async function leer($) {
   const bin = await binario($)
+  const lineasAntes = lineasDelFlujo
   let nuevo = null
   let motivo = ''
   try {
@@ -141,7 +201,15 @@ async function leer($) {
     nuevo = r.exitCode === 0 ? JSON.parse(r.stdout) : null
   } catch (err) {
     motivo = 'no se pudo ejecutar ' + bin + ': ' + String(err?.message ?? err)
+    rutaDirecta = null
   }
+  // Mientras se leía llegó algo del flujo: es más nuevo que esta lectura.
+  if (lineasDelFlujo !== lineasAntes) return avisar($)
+  await aplicar($, nuevo, motivo)
+}
+
+// aplicar redibuja solo si cambió, venga de una lectura o del flujo.
+async function aplicar($, nuevo, motivo) {
   const huella = JSON.stringify([nuevo, motivo])
   if (huella === firma) return avisar($)
   firma = huella
@@ -1985,15 +2053,17 @@ export function register(on) {
       $.clock.every(GOAL_MS, async () => {
         await cicloGoal($)
       })
+      abrirFlujo($)
+      $.clock.every(INTERVALO_MS, async () => {
+        await (enFlujo ? avisar($) : leer($))
+        abrirFlujo($)
+        lecturas += 1
+        if (lecturas % CADA_LECTURAS === 0) await leerHerramientas($)
+      })
+      $.clock.every(LATIDO_MS, async () => {
+        latir($)
+      })
     }
-    $.clock.every(INTERVALO_MS, async () => {
-      await leer($)
-      lecturas += 1
-      if (lecturas % CADA_LECTURAS === 0) await leerHerramientas($)
-    })
-    $.clock.every(LATIDO_MS, async () => {
-      latir($)
-    })
     // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
     if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
     // Cada herramienta guardada es una pestaña, sin quitarle el foco a la conversación (RFC 0011).

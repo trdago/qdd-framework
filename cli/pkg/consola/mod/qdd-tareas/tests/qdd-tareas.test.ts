@@ -63,7 +63,7 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, version: 'v2.5.0' }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-  expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender'])
+  expect(llamadas.find((a) => a.includes('panel'))).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })

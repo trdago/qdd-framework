@@ -40,3 +40,21 @@ jobs:
       - name: Run Architecture Audit
         run: |
           make audit
+
+  panel-windows:
+    # El flujo del panel (RFC 0016) depende de cómo el sistema avisa escrituras y cierra tuberías: se prueba en Windows.
+    name: Flujo del panel en Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Pruebas del flujo
+        working-directory: cli
+        run: go test ./pkg/consola/ -run "Seguir|SenalesDelPanel|BinarioCambio" -count=1 -v
