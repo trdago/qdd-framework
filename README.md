@@ -125,6 +125,9 @@ graph TD
 npm install -g qdd-framework --allow-scripts=qdd-framework
 ```
 
+npm 12 no corre los scripts de instalación sin esa bandera. Si instalas sin ella, la primera vez que uses `qdd` se baja su
+binario desde el release de GitHub de esa versión, fuera del bloqueo de npm.
+
 ### Opción 2: Binario (sin Node)
 Descarga el de tu sistema desde [Releases](https://github.com/trdago/qdd-framework/releases/latest) (Linux, macOS y Windows; amd64 y arm64), descomprímelo y deja `qdd` en tu `PATH`:
 ```bash

@@ -149,3 +149,21 @@ test('una descarga que tar no puede abrir falla', { skip: os.platform() === 'win
   assert.throws(() => instalar(d));
   assert.ok(!fs.existsSync(d.destino));
 });
+
+// FND-143: varios qdd a la vez sin binario (un panel, por ejemplo) no bajan cada uno el suyo.
+const { tomarTurno } = require('../install.js');
+
+test('tomarTurno: uno a la vez, y un turno abandonado no bloquea para siempre', (t) => {
+  const turno = path.join(crearRaiz(t), '.bajando');
+  assert.strictEqual(tomarTurno(turno), true);
+  assert.strictEqual(tomarTurno(turno), false);
+  const viejo = new Date(Date.now() - 10 * 60 * 1000);
+  fs.utimesSync(turno, viejo, viejo);
+  assert.strictEqual(tomarTurno(turno), true);
+  assert.strictEqual(tomarTurno(turno), false);
+});
+
+test('tomarTurno no esconde otro error', (t) => {
+  const turno = path.join(crearRaiz(t), 'no-existe', '.bajando');
+  assert.throws(() => tomarTurno(turno), /ENOENT/);
+});

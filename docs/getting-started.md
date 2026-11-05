@@ -10,6 +10,9 @@ Bienvenido a Quality-Driven Development. QDD no es un asistente de programación
 npm install -g qdd-framework --allow-scripts=qdd-framework
 ```
 
+npm 12 no corre los scripts de instalación sin esa bandera. Si instalas sin ella, la primera vez que uses `qdd` se baja su
+binario desde el release de GitHub de esa versión, fuera del bloqueo de npm.
+
 Sin Node, descarga el binario de tu sistema desde [Releases](https://github.com/trdago/qdd-framework/releases/latest). Más opciones en el [README](../README.md#instalación).
 
 ## Paso 1: Inicialización

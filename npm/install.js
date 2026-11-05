@@ -9,6 +9,8 @@ const VERSION = 'v' + pkg.version;
 const REPO = 'trdago/qdd-framework';
 // TOPE_VERSION_MS: el antivirus puede demorar la primera ejecución de un binario recién descargado.
 const TOPE_VERSION_MS = 60000;
+// TOPE_TURNO_MS: un turno más viejo que esto quedó abandonado; bajar el binario tarda mucho menos.
+const TOPE_TURNO_MS = 5 * 60 * 1000;
 
 const platformMap = {
   win32: 'windows',
@@ -73,6 +75,10 @@ function main() {
     fs.mkdirSync(binDir, { recursive: true });
   }
 
+  if (process.argv.includes('--primer-uso')) {
+    pedirTurno(path.join(binDir, '.bajando'));
+  }
+
   const binarioLocal = resolverBinarioLocal(__dirname, binaryName);
   if (binarioLocal) {
     console.log(`[QDD] Binario local detectado en ${binarioLocal}. Usando copia local para desarrollo...`);
@@ -85,10 +91,52 @@ function main() {
   descargarDesdeRelease({ os, arch, ext, binaryName, binDir });
 }
 
+// tomarTurno: varios qdd sin binario a la vez (un panel, por ejemplo) no bajan cada uno el suyo.
+function tomarTurno(ruta) {
+  try {
+    fs.closeSync(fs.openSync(ruta, 'wx'));
+    return true;
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      throw err;
+    }
+  }
+  if (Date.now() - fs.statSync(ruta).mtimeMs < TOPE_TURNO_MS) {
+    return false;
+  }
+  fs.rmSync(ruta, { force: true });
+  return tomarTurno(ruta);
+}
+
+// pedirTurno sale con 75, el «todavía no» de los pedidos, si otro qdd ya lo está bajando.
+function pedirTurno(ruta) {
+  try {
+    if (!tomarTurno(ruta)) {
+      console.error('[QDD] Otro proceso ya está bajando el binario.');
+      process.exit(75);
+    }
+  } catch (err) {
+    fallar(`no se pudo escribir en la carpeta del paquete: ${err.message}`);
+  }
+  process.on('exit', () => fs.rmSync(ruta, { force: true }));
+}
+
+// carpetaDeDescarga es propia de este proceso: un postinstall y un primer uso pueden correr a la vez.
+function carpetaDeDescarga() {
+  try {
+    const carpeta = fs.mkdtempSync(path.join(__dirname, 'descarga-'));
+    process.on('exit', () => fs.rmSync(carpeta, { recursive: true, force: true }));
+    return carpeta;
+  } catch (err) {
+    return fallar(`no se pudo escribir en la carpeta del paquete: ${err.message}`);
+  }
+}
+
 // 2. Descarga desde GitHub Releases
 function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
   const url = `https://github.com/${REPO}/releases/download/${VERSION}/qdd_${os}_${arch}.${ext}`;
-  const downloadDest = path.join(__dirname, `qdd-download.${ext}`);
+  const carpeta = carpetaDeDescarga();
+  const downloadDest = path.join(carpeta, `qdd-download.${ext}`);
 
   console.log(`[QDD] Descargando binario nativo para ${os}-${arch}...`);
   console.log(`[QDD] URL: ${url}`);
@@ -121,7 +169,7 @@ function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
   function extractBinary() {
     console.log('[QDD] Extrayendo...');
     try {
-      const bin = instalarDescarga({ os, paquete: downloadDest, carpeta: __dirname, binaryName, binDir, env: process.env });
+      const bin = instalarDescarga({ os, paquete: downloadDest, carpeta, binaryName, binDir, env: process.env });
       console.log('[QDD] ¡Instalación nativa completada exitosamente!');
       actualizarConsola(bin);
     } catch (err) {
@@ -178,7 +226,7 @@ function actualizarConsola(bin) {
   }
 }
 
-module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, comandoExtraer, instalarDescarga, codigoDeFalla };
+module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, comandoExtraer, instalarDescarga, codigoDeFalla, tomarTurno };
 
 if (require.main === module) {
   main();
