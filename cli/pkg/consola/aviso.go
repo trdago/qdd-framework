@@ -65,6 +65,38 @@ func sesionValida(sesion string) string {
 	return s
 }
 
+// tomarRetirados devuelve, una sola vez, el aviso de cada pedido retirado que pidió esta sesión (RFC 0017). Lee antes de
+// bloquear la cola: casi nunca hay nada, y esto corre con cada mensaje de la persona.
+func tomarRetirados(root, sesion string, now time.Time) []string {
+	sesion = sesionValida(sesion)
+	if sesion == "" {
+		return nil
+	}
+	hay := false
+	for _, p := range PedidosA(root, now) {
+		hay = hay || retiradoPorAvisar(p, sesion)
+	}
+	if !hay {
+		return nil
+	}
+	var avisos []string
+	_ = conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
+		for i, p := range cola {
+			if !retiradoPorAvisar(p, sesion) {
+				continue
+			}
+			cola[i].Avisado = true
+			avisos = append(avisos, fmt.Sprintf("[qdd · panel] Se retiró tu pedido «%s»: su tarea «%s» siguió cambiando. Si todavía va, pídelo de nuevo.", p.Motivo, p.Tarea))
+		}
+		return cola, nil
+	})
+	return avisos
+}
+
+func retiradoPorAvisar(p Pedido, sesion string) bool {
+	return p.Estado == EstadoRetirado && p.Pidio == sesion && !p.Avisado
+}
+
 // Avisado marca que la sesión ya recibió el aviso del pedido (id con o sin el prefijo «pedido:»). Solo la sesión que
 // lo confirmó lo reclama, y una sola vez: si ya se avisó, si es de otra sesión o si no terminó, es un error.
 func Avisado(root, id, sesion string) error {

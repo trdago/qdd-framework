@@ -857,6 +857,17 @@ test('un qdd por PowerShell o con ruta de Windows también relee el panel; lo de
   expect(lecturas()).toBe(antes)
 })
 
+// RFC 0017: qdd le avisa a la sesión que pidió un pedido retirado, así que el ciclo dice qué sesión es.
+test('el ciclo le dice a qdd qué sesión es', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('session.id', () => ({ value: 'sesion-1' }))
+  on('classic.UserPromptSubmit', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.UserPromptSubmit({ prompt: 'sigue', permission_mode: 'auto' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto', '--contexto', '--sesion', 'sesion-1'])
+})
+
 // Materializar (pedido del usuario, 2026-11-01): lo que cambia aparece como sus ventanas (hypr-materialize); qdd
 // calcula los cuadros y el Client del panel solo los reproduce.
 const EFECTOS = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400, cuadro_ms: 40, origen: 'hypr-materialize' }
