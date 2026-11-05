@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.3] - 2026-11-05
+
 ### Corregido
 
 - **En Windows, npm ya puede actualizar qdd con sesiones abiertas (FND-142, issue #107):** `qdd.exe` vive fuera del paquete,
