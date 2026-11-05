@@ -149,8 +149,10 @@ func TestEjecutar_UnPedidoAceptadoNoCorreDosVeces_FND070(t *testing.T) {
 	if b, _ := os.ReadFile(marca); strings.Count(string(b), "x") != 1 {
 		t.Fatalf("el comando corrió una sola vez: %q", b)
 	}
-	if again := mustPedir(t, root, comando, "otra", ""); again.ID == p.ID || again.Estado != EstadoPendiente {
-		t.Fatalf("pedirlo de nuevo, ya hecho, es un pedido nuevo: %+v", again)
+	// FND-154: repetir algo ya hecho hay que decirlo; sin decirlo, el seguro lo rechaza (pedidos_seguro_test.go).
+	again, err := PedirEnOrden(root, comando, "otra", "", Orden{DeNuevo: true}, enCola)
+	if err != nil || again.ID == p.ID || again.Estado != EstadoPendiente {
+		t.Fatalf("con de_nuevo, ya hecho, es un pedido nuevo: %+v %v", again, err)
 	}
 }
 

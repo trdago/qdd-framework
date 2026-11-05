@@ -296,6 +296,7 @@ var consolaRaiz string
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
+var consolaDeNuevo bool
 var consolaTarea string
 
 // consolaCon son los tipos opcionales que pide el panel (qdd consola panel --con atender).
@@ -311,6 +312,8 @@ se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para c
 Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
 sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+Lo que ya se hizo en las últimas 24 h no se vuelve a pedir, aunque cambie el texto (cerrar el mismo issue, mergear el
+mismo PR): repetirlo de verdad se dice con --de-nuevo.
 --tarea <id> dice qué tarea del estado extiende el pedido (sin él, la tarea en curso). Si después de un mensaje de la
 persona esa tarea sigue cambiando (la persona prefirió seguir trabajando en vez de ejecutarlo), el pedido sale de
 «▶ Para ti». Cuando la tarea vuelva a estar lista, pídelo de nuevo con la misma --tarea: vuelve con su tecla.
@@ -328,7 +331,7 @@ con 'exit 75' y la persona lo vuelve a apretar.
   qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea}
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo}
 		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
@@ -424,6 +427,7 @@ func init() {
 	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "resumen estilo chat (≤ 60 caracteres, con símbolos): qué hace y por qué lo ejecuta la persona")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
+	consolaPedirCmd.Flags().BoolVar(&consolaDeNuevo, "de-nuevo", false, "repetir algo que ya se hizo en las últimas 24 h")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")

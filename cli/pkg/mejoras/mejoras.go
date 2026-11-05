@@ -349,7 +349,12 @@ func (c *cicloEnCurso) pedirCierre(i int) {
 	comentario := "Resuelto: " + m.Motivo + " (" + m.ID + ", cola de mejoras de QDD)"
 	comando := fmt.Sprintf("gh issue close %d -R %s --comment %s", n, repo, comillas(comentario))
 	motivo := recortar(fmt.Sprintf("✅ Cerrar issue #%d · %s hecha", n, m.ID), 60)
-	if _, err := consola.PedirEnOrden(c.root, comando, motivo, "", consola.Orden{Tarea: m.Tarea}, c.now); err != nil {
+	_, err := consola.PedirEnOrden(c.root, comando, motivo, "", consola.Orden{Tarea: m.Tarea}, c.now)
+	var ya *consola.YaHecho
+	if errors.As(err, &ya) {
+		err = nil
+	}
+	if err != nil {
 		c.r.Avisos = append(c.r.Avisos, "no se pidió cerrar el issue #"+strconv.Itoa(n)+": "+err.Error())
 		return
 	}
