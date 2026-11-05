@@ -70,6 +70,11 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
           $bin = "$env:RUNNER_TEMP\qdd-ci.exe"
+          # El dashboard no es parte de esta prueba: basta con un archivo para compilar.
+          New-Item -ItemType Directory -Force cli/ui/dist | Out-Null
+          Set-Content cli/ui/dist/index.html ''
+          New-Item -ItemType Directory -Force cli/cmd/core_assets | Out-Null
+          Copy-Item -Recurse .qdd/core cli/cmd/core_assets/core
           go -C cli build -o $bin .
           $env:QDD_INSTALL_BINARIO = $bin
           function Instalar($v) {
