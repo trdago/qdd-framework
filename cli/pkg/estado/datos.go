@@ -233,6 +233,10 @@ func filaPanel(e Estado, fa FilaArbol, objetivo string, d *DatosPanel) FrentePan
 	for _, etapa := range etapas {
 		c := f.Celdas[etapa]
 		fila.Simbolos = append(fila.Simbolos, simbolo(c))
+		// De una tarea cerrada o descartada no se espera nada, aunque conserve el símbolo (FND-151).
+		if f.Estado != EstadoAbierto {
+			continue
+		}
 		switch NormalizarEstado(c.Estado) {
 		case Espera:
 			d.Esperas = append(d.Esperas, Pendiente{Frente: f.Nombre, Etapa: etapa, Texto: c.Bloqueo, DeQuien: c.DeQuien})

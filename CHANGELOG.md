@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Una tarea cerrada ya no aparece en las esperas (FND-151, MEJ-010):** `esperas` y `fallas` solo traen tareas abiertas.
+
+### Agregado
+
+- **`qdd estado check` avisa de las tareas desfasadas (MEJ-010):** las abiertas con todo listo y las cerradas que conservan
+  un ⏳. No bloquea el gate.
+
 ## [2.10.0-rc.7] - 2026-11-05
 
 Trae también lo de 2.9.10 (MEJ-002).
