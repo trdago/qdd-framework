@@ -29,8 +29,10 @@ const (
 	Plugin      = "qdd-tareas"
 	// PluginAnterior es el nombre que tuvo el panel hasta qdd 2.4.0; activar lo desinstala.
 	PluginAnterior = "qdd-estado"
-	// ComandoBarra es lo que queda en statusLine.command.
+	// ComandoBarra es lo que queda en statusLine.command sin un binario instalado, y el respaldo de la barra directa.
 	ComandoBarra = "qdd consola statusline"
+	// finBarraDirecta es lo que sigue a la ruta del binario en la barra directa.
+	finBarraDirecta = " consola statusline || " + ComandoBarra
 	// RefrescoBarra (segundos) hace que la barra se actualice sola, también sin actividad en la sesión.
 	RefrescoBarra = 2
 )
@@ -69,6 +71,7 @@ type Consola struct {
 	ClaudeDir string   // configuración de Claude Code (CLAUDE_CONFIG_DIR o ~/.claude)
 	Run       Ejecutar // por defecto, Claude
 	Recursos  *bool    // segunda línea de recursos en la barra; nil conserva lo elegido antes
+	Binario   string   // el binario instalado: la barra lo llama por su ruta, sin pasar por Node; vacío, usa ComandoBarra
 	// BuscarOpenCode devuelve la configuración de OpenCode y si está en esta máquina; por defecto, la detección real.
 	BuscarOpenCode func() (string, bool)
 }
@@ -371,25 +374,75 @@ func (c Consola) ponerBarra() (string, json.RawMessage, bool, error) {
 		return "", nil, false, err
 	}
 	actual := settings["statusLine"]
+	comando := c.comandoBarra()
+	if esBarraQDD(actual) && !c.barraPorRenovar(actual) {
+		return "La barra ya es «" + comandoDe(actual) + "».", nil, true, nil
+	}
 	if esBarraQDD(actual) {
-		return "La barra ya es «" + ComandoBarra + "».", nil, true, nil
+		renovada, err := conComando(actual, comando)
+		if err != nil {
+			return "", nil, false, err
+		}
+		settings["statusLine"] = renovada
+		if err := c.guardarSettings(settings); err != nil {
+			return "", nil, false, err
+		}
+		return "Barra renovada: «" + comando + "».", nil, true, nil
 	}
 	if len(actual) > 0 && !c.esReferencia(actual) {
 		return "Tu barra (statusLine) es propia y no se cambió; para sumar el estado agrega «qdd estado statusline --dir <proyecto>».", nil, false, nil
 	}
-	nueva, _ := json.Marshal(map[string]any{"type": "command", "command": ComandoBarra, "refreshInterval": RefrescoBarra})
+	nueva, _ := json.Marshal(map[string]any{"type": "command", "command": comando, "refreshInterval": RefrescoBarra})
 	settings["statusLine"] = nueva
 	if err := c.guardarSettings(settings); err != nil {
 		return "", nil, false, err
 	}
-	return "Barra cambiada a «" + ComandoBarra + "» (se refresca cada 2 s).", actual, true, nil
+	return "Barra cambiada a «" + comando + "» (se refresca cada 2 s).", actual, true, nil
 }
 
-func esBarraQDD(raw json.RawMessage) bool {
+// comandoBarra llama al binario por su ruta y, si ya no existe, a qdd: la barra corre cada 2 s por sesión y arrancar
+// Node era más de la mitad de su CPU en reposo. Una ruta que la shell interpretaría no se escribe.
+func (c Consola) comandoBarra() string {
+	if c.Binario == "" || strings.ContainsAny(c.Binario, "\"$`%\r\n") {
+		return ComandoBarra
+	}
+	return `"` + strings.ReplaceAll(c.Binario, `\`, "/") + `"` + finBarraDirecta
+}
+
+// barraPorRenovar: QDD sabe qué binario está instalado y la barra llama a otro. Sin binario (uno compilado a mano) no
+// se toca la que quedó puesta.
+func (c Consola) barraPorRenovar(raw json.RawMessage) bool {
+	return c.Binario != "" && comandoDe(raw) != c.comandoBarra()
+}
+
+func comandoDe(raw json.RawMessage) string {
 	var s struct {
 		Command string `json:"command"`
 	}
-	return len(raw) > 0 && json.Unmarshal(raw, &s) == nil && strings.TrimSpace(s.Command) == ComandoBarra
+	if len(raw) == 0 || json.Unmarshal(raw, &s) != nil {
+		return ""
+	}
+	return strings.TrimSpace(s.Command)
+}
+
+// conComando cambia solo el comando: lo demás de statusLine puede ser de la persona.
+func conComando(raw json.RawMessage, comando string) (json.RawMessage, error) {
+	var barra map[string]any
+	if err := json.Unmarshal(raw, &barra); err != nil {
+		return nil, err
+	}
+	barra["command"] = comando
+	return json.Marshal(barra)
+}
+
+func esBarraQDD(raw json.RawMessage) bool {
+	comando := comandoDe(raw)
+	if comando == ComandoBarra {
+		return true
+	}
+	ruta, ok := strings.CutSuffix(comando, `"`+finBarraDirecta)
+	ruta, abre := strings.CutPrefix(ruta, `"`)
+	return ok && abre && ruta != "" && !strings.Contains(ruta, `"`)
 }
 
 // esReferencia dice si statusLine apunta a un script idéntico a la referencia v1.0.0 del blueprint.
@@ -548,9 +601,9 @@ func (c Consola) Diagnosticar() []Diagnostico {
 
 func (c Consola) diagnosticarBarra() Diagnostico {
 	settings, err := c.leerSettings()
-	barra := Diagnostico{Nombre: "Barra de la consola con «" + ComandoBarra + "»", OK: err == nil && esBarraQDD(settings["statusLine"])}
+	barra := Diagnostico{Nombre: "Barra de la consola con «" + ComandoBarra + "»", OK: err == nil && esBarraQDD(settings["statusLine"]) && !c.barraPorRenovar(settings["statusLine"])}
 	if !barra.OK {
-		barra.Detalle = "statusLine ya no apunta a la barra de QDD; 'qdd consola activar' la vuelve a poner"
+		barra.Detalle = "statusLine ya no apunta a la barra de QDD instalada; 'qdd consola activar' la vuelve a poner"
 	}
 	return barra
 }
