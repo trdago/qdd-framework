@@ -6,8 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.5] - 2026-11-05
+
+Trae también lo de 2.9.9 (FND-143).
+
 ### Corregido
 
+- **La barra de estado ya no queda viva si nadie cierra su stdin (FND-145, MEJ-018):** corta a los 3 s y sale sin imprimir
+  nada ni fallar.
 - **Los efectos del panel ya no dejan un hueco en blanco largo (FND-144, issue #111):** si los cuadros tardan más de 250 ms,
   el proceso se corta y se dibuja el texto sin efecto. Antes, en una máquina lenta, el hueco podía durar hasta 3 s. Abrir el
   panel ya pedía todos los cuadros en un solo proceso desde 2.10.0-rc.1.
@@ -69,6 +75,12 @@ Trae también lo de 2.9.7 (FND-141).
 
 - **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
 - **`k` ya no es a la vez Config y Modo goal (FND-139).**
+## [2.9.9] - 2026-11-05
+
+### Corregido
+
+- **Con npm 12, qdd ya no queda sin binario si instalas sin la bandera (FND-143):** la primera vez que usas `qdd`, baja su
+  binario desde el release de GitHub de esa versión. Tarda unos 30 s y queda fuera del bloqueo de scripts de npm.
 
 ## [2.9.8] - 2026-11-05
 

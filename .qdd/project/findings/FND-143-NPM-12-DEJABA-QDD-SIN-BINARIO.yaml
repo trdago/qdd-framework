@@ -2,8 +2,8 @@ id: "FND-143"
 title: "Con npm 12, instalar o actualizar qdd lo dejaba sin binario"
 description: "npm 12 bloquea por defecto los scripts de instalación, y qdd baja su binario en el postinstall. npm i -g qdd-framework terminaba con 0 y solo un aviso. Después, qdd salía con 75 diciendo que se estaba actualizando y recomendaba reinstalar con el mismo comando, que deja lo mismo. Reproducido con npm 12.2.2 en un prefijo aislado, también actualizando sobre una instalación sana."
 impact: "Cualquiera con npm 12 quedaba sin qdd: una instalación nueva no funcionaba y una actualización rompía una que sí. npm 12 ya es latest en el registro."
-action_taken: "Toda instrucción de instalación lleva --allow-scripts=qdd-framework: documentación, mensajes de qdd y e2e. El mensaje de binario ausente nombra la causa y el comando que la arregla. Comprobado con npm 12.2.2 (instala y responde) y npm 10.9 (tolera la bandera). No se cambia la configuración de npm de la persona."
-test_result: "npm/test/qdd.test.js (sin binario sale con 75 y da el comando con la bandera) y cli/cmd/readme_test.go (TestInstrucciones_InstalanConLaBanderaDeNPM12_FND143)."
+action_taken: "Toda instrucción de instalación lleva --allow-scripts=qdd-framework: documentación, mensajes de qdd y e2e. El mensaje de binario ausente nombra la causa y el comando que la arregla. Comprobado con npm 12.2.2 (instala y responde) y npm 10.9 (tolera la bandera). No se cambia la configuración de npm de la persona. Desde 2.9.9, quien instala sin la bandera no queda sin qdd: el primer uso baja el binario con el mismo instalador."
+test_result: "npm/test/qdd.test.js (sin binario sale con 75 y da el comando con la bandera) y cli/cmd/readme_test.go (TestInstrucciones_InstalanConLaBanderaDeNPM12_FND143). Primer uso: npm/test/qdd.test.js e install.test.js (tomarTurno)."
 status: resolved
 detectado_por: ia
 date: "2026-11-05"

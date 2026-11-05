@@ -1,0 +1,9 @@
+id: "FND-145"
+title: "La barra de estado quedaba viva para siempre si nadie cerraba su stdin"
+description: "qdd consola statusline leía stdin hasta su fin, sin tope. Reproducido en Linux: con un stdin que sigue abierto, no termina (timeout a los 12 s). Encontrado al verificar MEJ-018 (issue #110), donde lo que quedaba colgado en Windows era node, con un qdd.exe ya terminado: es otro camino del mismo síntoma, y este quedaba expuesto al sacar a node de la barra."
+impact: "Un refresco de la barra cancelado podía dejar un proceso vivo hasta reiniciar, acumulándose durante la jornada."
+action_taken: "La barra corta la lectura a los 3 s y sale sin imprimir nada ni fallar. La causa exacta del node colgado en Windows sigue sin confirmar: lo cubre sacar a node de la barra (PR #122), y no se probó en un PC con Windows."
+test_result: "cli/cmd/consola_barra_test.go (FND145). El trabajo panel-windows de .github/workflows/quality.yml lanza la barra con stdin abierto en Windows real."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"
