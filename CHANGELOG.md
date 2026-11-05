@@ -17,6 +17,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Las sesiones sin terminal (`claude -p`) ya no leen el panel cada 2 s.**
 - **Abrir el panel pide los cuadros de los efectos en un solo proceso (MEJ-017):** antes lanzaba uno por cada celda que
   cambiaba. Un qdd anterior no entiende el lote y el panel se dibuja sin efecto.
+- **El panel se ve como QDD Móvil:** usa los colores de la marca en cualquier terminal, y el ámbar relleno marca «▶ N para
+  ti». Cada tarea ocupa una fila y el estado de cada objetivo queda a la derecha. La versión pasa a la cabecera y el pie se
+  acorta. En un tema claro de terminal, el ámbar y el verde pierden contraste.
+- **El botón Modo goal pasa a la tecla `z`.**
+
+### Corregido
+
+- **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
+- **`k` ya no es a la vez Config y Modo goal (FND-139).**
 
 ## [2.9.5] - 2026-11-05
 

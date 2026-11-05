@@ -78,7 +78,7 @@ async function abrir($, on, estado, r) {
   preparar(on, estado, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/bot' })
   const ui = await $.ui.mount({ ...TAREAS, surface: 'terminal' })
-  expect(await ui.find({ key: 'blueprints' })).toMatchObject({ props: { label: '📦 Blueprints', hotkey: 'p' } })
+  expect(await ui.find({ key: 'blueprints' })).toMatchObject({ props: { label: 'Blueprints', hotkey: 'p' } })
   await ui.press({ key: 'blueprints' })
   return ui
 }
