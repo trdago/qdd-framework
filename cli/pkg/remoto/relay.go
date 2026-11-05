@@ -37,6 +37,11 @@ type ErrLimite struct{ Motivo string }
 
 func (e ErrLimite) Error() string { return e.Motivo }
 
+// ErrRechazada: el relay rechazó la petición por inválida (400), como un tipo de aviso que un relay viejo no conoce.
+type ErrRechazada struct{ Texto string }
+
+func (e ErrRechazada) Error() string { return e.Texto }
+
 // ConfigRelay es <QDD_HOME>/remoto/relay.json: la URL del relay y su clave publicable.
 type ConfigRelay struct {
 	URL   string `json:"url"`
@@ -271,6 +276,7 @@ func errorDelRelay(status int, datos []byte) error {
 	var e struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
+		Error   string `json:"error"` // las Edge Functions
 	}
 	_ = json.Unmarshal(datos, &e)
 	if e.Code == "28000" {
@@ -285,10 +291,17 @@ func errorDelRelay(status int, datos []byte) error {
 	if status == http.StatusNotFound {
 		return ErrNoDisponible
 	}
+	texto := fmt.Sprintf("el relay respondió %d", status)
 	if e.Message != "" {
-		return fmt.Errorf("el relay respondió %d: %s", status, e.Message)
+		texto += ": " + e.Message
 	}
-	return fmt.Errorf("el relay respondió %d", status)
+	if e.Error != "" {
+		texto += ": " + e.Error
+	}
+	if status == http.StatusBadRequest {
+		return ErrRechazada{Texto: texto}
+	}
+	return errors.New(texto)
 }
 
 func (r *Relay) rpc(ctx context.Context, fn string, args any, out any) error {
@@ -397,6 +410,9 @@ const (
 	// El modo goal se detuvo o terminó (RFC 0015).
 	AvisoGoalPausado   = "goal_pausado"
 	AvisoGoalTerminado = "goal_terminado"
+	// Ya no espera nada de ese tipo: el relay manda un push solo de datos y la app quita el aviso de la bandeja.
+	AvisoPedidoResuelto = "pedido_resuelto"
+	AvisoFichaResuelta  = "ficha_resuelto"
 )
 
 // NombreParaAviso deja el nombre visible del proyecto como lo acepta avisar (^[\p{L}\p{N} ._()-]{1,80}$): lo demás

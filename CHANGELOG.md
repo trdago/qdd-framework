@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **El aviso del teléfono se quita cuando ya no hace falta (FND-028 de qdd-movile):** cuando un proyecto ya no tiene pedidos
+  o fichas esperando, `qdd remoto` pide `pedido_resuelto` o `ficha_resuelto`. Necesita la app con el receptor (qdd-movile
+  6551f3f).
+
+### Corregido
+
+- **Un proyecto que pierde su panel un momento ya no repite el push al volver:** lo que esperaba sigue contado como visto.
+
 ## [2.10.0-rc.9] - 2026-11-05
 
 ### Seguridad
