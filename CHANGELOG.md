@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.7] - 2026-11-05
+
+Trae también lo de 2.9.10 (MEJ-002).
+
+### Corregido
+
+- **En un proyecto nuevo el panel da un comando que funciona (FND-147):** `qdd estado init` falla sin `--etapas`, así que
+  el aviso ahora lo incluye y explica que las etapas son las columnas del tablero.
+
 ## [2.10.0-rc.6] - 2026-11-05
 
 ### Corregido
@@ -82,6 +91,15 @@ Trae también lo de 2.9.7 (FND-141).
 
 - **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
 - **`k` ya no es a la vez Config y Modo goal (FND-139).**
+
+## [2.9.10] - 2026-11-05
+
+### Corregido
+
+- **El gate ya no deja pasar un finding sin estado (MEJ-002):** un finding sin `status` no se contaba como abierto ni como
+  resuelto, y nadie se enteraba. Ahora bloquea, y QDD no lo infiere: escribe `open`, `resolved` o `wontfix`. Desde 2026-11-06,
+  un finding resuelto también tiene que decir en `test_result` qué lo prueba; los anteriores no se revisan.
+
 ## [2.9.9] - 2026-11-05
 
 ### Corregido
@@ -1275,8 +1293,6 @@ Medimos el recorrido de alguien nuevo (init, doctor, audit, evolution, report, m
 #### ⚡ Deterministic Architecture Discovery
 - **`qdd init` Nativo y Zero-LLM**: Refactorización del flujo de inicialización que elimina la latencia y la incerteza de los LLMs. Ahora escanea directamente `go.mod`, `package.json` y otros manifiestos clave (usando parsers puros en Go) para detectar si un proyecto es de Go, Node, React, o Serverless Functions, asegurando determinismo 100%.
 - **Zero-Else**: Continuación de la filosofía de guard clauses. Flujos simplificados que abortan ante errores antes de generar árboles de decisión ambiguos.
-
-
 
 ## [v1.8.0] - 2026-07-08
 

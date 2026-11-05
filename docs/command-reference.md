@@ -290,6 +290,8 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `QA-01-ALL-TESTS-PASS` | Las pruebas del proyecto fallan o no compilan. | siempre |
 | `QA-02-E2E-TESTS` | No hay pruebas E2E. | recomendación en adopción gradual |
 | `QA-03-SIN-MEDIR` | Una suite declarada como `{comando, requiere: [programas]}` no se corrió porque falta uno de esos programas en esta máquina (p. ej. la CLI de Claude en el CI). Queda sin medir: ni aprobada ni fallida. | recomendación (no bloquea) |
+| `FND-01-SIN-ESTADO` | Un finding no dice su estado, o dice uno que QDD no reconoce. Bloquea: QDD no lo infiere. |
+| `FND-02-SIN-PRUEBA` | Un finding resuelto, con fecha desde 2026-11-06, no dice en `test_result` qué lo prueba. Bloquea. |
 | `CI-01-UNGATED-DEPLOY` | Un pipeline despliega sin depender de un job de pruebas (GitHub Actions, Azure, GitLab, Bitbucket). | `deploy_gate` (activa por defecto) |
 | `CI-02-DEPLOY-IGNORES-FAILURES` | Un pipeline despliega aunque las pruebas fallen (`succeededOrFailed`, `\|\| true`). | `deploy_gate` |
 | `HEART-01-INVALID-RECORD` | Una ficha de módulo no es válida. | siempre |
