@@ -49,7 +49,8 @@ Lo que estas mediciones no dicen:
   sesión. Se espera más ganancia allá, pero no está medido: el CI solo comprueba que el flujo funcione.
 - Es en reposo y con un tablero que no cambia durante la prueba.
 - En Windows, cada sesión deja un `qdd.exe` corriendo. Antes ya había una ventana con el archivo abierto (issue #107); ahora
-  está abierto siempre, así que `npm i -g` exige cerrar las sesiones hasta resolver ese issue.
+  está abierto siempre. FND-142 lo resuelve: ese `qdd.exe` vive fuera del paquete, en la carpeta de su versión, y `npm i -g`
+  ya no se topa con él. Solo la primera actualización desde el esquema anterior exige cerrar las sesiones.
 - Bubble Tea y Wails no incluyen el mod mínimo que seguiría haciendo falta (ver abajo), y una sesión sin panel es solo
   el piso de ese costo.
 

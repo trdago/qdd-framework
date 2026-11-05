@@ -11,7 +11,8 @@ import (
 // RFC 0013: doctor revisa el registro de proyectos de la máquina (lo que publica qdd remoto), solo si existe. REM-02:
 // un registro ilegible es falla y --fix lo aparta (no lo borra; se vuelve a anotar solo). REM-01: una ruta que ya no
 // existe se publicaría con error para siempre; --fix la quita. REM-03: un servicio instalado antes de FND-128 mata lo que
-// lanzó al reiniciarse; --fix solo le agrega la línea que falta.
+// lanzó al reiniciarse; --fix solo le agrega la línea que falta. REM-04: en Windows, la tarea tiene que lanzar la versión
+// instalada, que vive en su propia carpeta (FND-142); --fix solo le cambia el binario.
 
 var remotoServicio = servicioRemoto
 
@@ -21,6 +22,7 @@ const (
 	itemRemotoLegible  = "Registro de proyectos legible (REM-02)"
 	itemRemotoRutas    = "Proyectos del registro que existen (REM-01)"
 	itemRemotoServicio = "El servicio no mata lo que lanzó al reiniciarse (REM-03)"
+	itemRemotoVersion  = "La tarea lanza la versión instalada (REM-04)"
 )
 
 func buildRemotoChecks() *CheckGroup {
@@ -54,10 +56,17 @@ func itemsServicioRemoto() []*CheckItem {
 	if err != nil || !instalado {
 		return nil
 	}
-	if deja {
-		return []*CheckItem{{Name: itemRemotoServicio, Success: true}}
+	if s.TareaSinEstaVersion() {
+		return []*CheckItem{itemDejaVivo(deja), {Name: itemRemotoVersion, Error: "al reiniciarse lanzaría otra versión de qdd (qdd doctor --fix la actualiza)"}}
 	}
-	return []*CheckItem{{Name: itemRemotoServicio, Error: "un pedido del teléfono muere si qdd se actualiza mientras corre (qdd doctor --fix lo renueva)"}}
+	return []*CheckItem{itemDejaVivo(deja)}
+}
+
+func itemDejaVivo(deja bool) *CheckItem {
+	if deja {
+		return &CheckItem{Name: itemRemotoServicio, Success: true}
+	}
+	return &CheckItem{Name: itemRemotoServicio, Error: "un pedido del teléfono muere si qdd se actualiza mientras corre (qdd doctor --fix lo renueva)"}
 }
 
 // repairRemoto aparta un registro ilegible o quita las rutas que ya no existen.
@@ -73,6 +82,15 @@ func repairRemoto(g *CheckGroup) {
 				err = s.RenovarDejaVivo(remotoEjecutor)
 			}
 			imprimirReparado([]string{"el servicio ya no mata lo que lanzó"}, err)
+			continue
+		}
+		if item.Name == itemRemotoVersion {
+			fmt.Println("  [~] Apuntando la tarea de qdd remoto a la versión instalada...")
+			s, err := remotoServicio()
+			if err == nil {
+				err = s.RenovarBinario(remotoEjecutor)
+			}
+			imprimirReparado([]string{"la tarea lanza la versión instalada"}, err)
 			continue
 		}
 		if item.Name == itemRemotoLegible {

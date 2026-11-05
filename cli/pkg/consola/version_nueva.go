@@ -23,8 +23,9 @@ import (
 // si la persona lo confirma con «s  Sí». Como un PR, no abre el panel, no es una espera de la persona, cede su lugar a un
 // pedido de la IA, no lo lanza el modo goal y uno descartado no vuelve hasta que salga otra versión.
 //
-// En Windows no hay botón: npm no puede reemplazar qdd.exe mientras algo lo usa, y un pedido corre desde qdd.exe (issue
-// #107). El panel avisa con lo que hay que hacer.
+// En Windows, una instalación que todavía deja qdd.exe dentro del paquete no tiene botón: npm no puede reemplazarlo
+// mientras algo lo usa, y un pedido corre desde qdd.exe (issue #107). El panel avisa con lo que hay que hacer. Desde que
+// el binario vive en su carpeta de versión (binario_version.go), Windows tiene el mismo botón.
 
 const (
 	// IntervaloVersion es cada cuánto se pregunta a npm.
@@ -94,7 +95,7 @@ func VersionAOfrecer(instalada string, tags map[string]string) string {
 
 // InstaladoConNPM: solo una instalación de npm se actualiza con npm; un binario compilado a mano no se toca.
 func InstaladoConNPM(bin string) bool {
-	return strings.Contains(strings.ReplaceAll(bin, `\`, "/"), "/node_modules/qdd-framework/")
+	return BinarioPorVersion(bin) || strings.Contains(strings.ReplaceAll(bin, `\`, "/"), "/node_modules/qdd-framework/")
 }
 
 // ComandoActualizarQDD es el comando del pedido.
@@ -253,17 +254,17 @@ func distTagsReal() (map[string]string, error) {
 }
 
 // TraerVersion pregunta a npm y ofrece lo que corresponda en el panel.
-func TraerVersion(root, instalada string, now time.Time) error {
-	return traerVersionCon(distTagsReal, runtime.GOOS, root, instalada, now)
+func TraerVersion(root, bin, instalada string, now time.Time) error {
+	return traerVersionCon(distTagsReal, runtime.GOOS, bin, root, instalada, now)
 }
 
-func traerVersionCon(obtener func() (map[string]string, error), sistema, root, instalada string, now time.Time) error {
+func traerVersionCon(obtener func() (map[string]string, error), sistema, bin, root, instalada string, now time.Time) error {
 	tags, err := obtener()
 	if err != nil {
 		return err
 	}
 	v := VersionAOfrecer(instalada, tags)
-	if sistema == "windows" {
+	if sistema == "windows" && !BinarioPorVersion(bin) {
 		return guardarVersionAvisada(root, v)
 	}
 	return OfrecerVersion(root, v, now)

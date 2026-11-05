@@ -42,9 +42,10 @@ func entregar(leer func() ([]byte, error), ultimo []byte, emitir func([]byte) er
 	return actual, emitir(actual)
 }
 
-// VigiaBinario dice si el archivo de ruta cambió desde que se empezó a vigilar: después de una actualización, un flujo
+// VigiaBinario dice si el archivo de RutaVigilada cambió desde que se empezó a vigilar: después de una actualización, un flujo
 // abierto no sigue corriendo el binario viejo. Mientras falta (npm lo está reemplazando, FND-135) todavía no cambió.
-func VigiaBinario(ruta string) func() bool {
+func VigiaBinario(bin string) func() bool {
+	ruta := RutaVigilada(bin)
 	inicial, err := os.Stat(ruta)
 	if err != nil {
 		return func() bool { return false }

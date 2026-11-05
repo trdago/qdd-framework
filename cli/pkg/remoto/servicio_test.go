@@ -218,3 +218,58 @@ func TestServicio_QuitarSiBorraElDeSuMismoQDDHome_FND136(t *testing.T) {
 		}
 	}
 }
+
+// FND-142: en Windows, cada versión de qdd vive en su carpeta: la tarea tiene que seguirla al actualizar.
+func TestServicio_RenovarBinarioApuntaLaTareaALaVersionNueva_FND142(t *testing.T) {
+	dir := t.TempDir()
+	vieja := Servicio{SO: "windows", Bin: `C:\AppData\Local\qdd\bin\2.10.0\qdd.exe`, Usuario: dir, DirQDD: dir}
+	sinUso := func(string, ...string) error { return nil }
+	archivo, err := vieja.Instalar(sinUso)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corrio [][]string
+	anota := func(n string, a ...string) error {
+		corrio = append(corrio, append([]string{n}, a...))
+		return nil
+	}
+	nueva := vieja
+	nueva.Bin = `C:\AppData\Local\qdd\bin\2.10.1\qdd.exe`
+	if err := nueva.RenovarBinario(anota); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(archivo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	texto := desdeUTF16(b)
+	if !strings.Contains(texto, `2.10.1\qdd.exe</Command>`) || strings.Contains(texto, "2.10.0") {
+		t.Fatalf("la tarea apunta a la versión nueva: %s", texto)
+	}
+	if !strings.Contains(texto, "<Arguments>remoto correr</Arguments>") {
+		t.Fatalf("lo demás queda igual: %s", texto)
+	}
+	if len(corrio) != 1 || corrio[0][0] != "schtasks" || corrio[0][1] != "/Create" {
+		t.Fatalf("la registra sin arrancarla: lo que corre termina solo: %v", corrio)
+	}
+	corrio = nil
+	if err := nueva.RenovarBinario(anota); err != nil || len(corrio) != 0 {
+		t.Fatalf("ya al día no hace nada: %v %v", err, corrio)
+	}
+}
+
+func TestServicio_RenovarBinarioSinTareaNoHaceNada_FND142(t *testing.T) {
+	dir := t.TempDir()
+	s := Servicio{SO: "windows", Bin: `C:\qdd.exe`, Usuario: dir, DirQDD: dir}
+	falla := func(string, ...string) error {
+		t.Fatal("sin tarea no se llama a schtasks")
+		return nil
+	}
+	if err := s.RenovarBinario(falla); err != nil {
+		t.Fatal(err)
+	}
+	linux := Servicio{SO: "linux", Bin: "/qdd", Usuario: dir}
+	if err := linux.RenovarBinario(falla); err != nil {
+		t.Fatal(err)
+	}
+}

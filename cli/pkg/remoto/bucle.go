@@ -129,7 +129,7 @@ func (b *Bucle) iniciar() {
 		b.CadaSondeo = CadaSondeo
 	}
 	b.vigia = nuevaVigia()
-	b.huellaBin, b.conHuella = huellaDe(b.Bin)
+	b.huellaBin, b.conHuella = huellaDe(consola.RutaVigilada(b.Bin))
 	b.iniciarExtras()
 }
 

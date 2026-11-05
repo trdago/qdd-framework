@@ -124,6 +124,7 @@ func runConsolaDesactivar(cmd *cobra.Command, args []string) {
 }
 
 func runConsolaActualizar(cmd *cobra.Command, args []string) {
+	seguirVersionEnLaTarea()
 	c := consolaActual()
 	if _, ok := c.LeerRegistro(); !ok {
 		if consolaSiActivo {
@@ -132,6 +133,18 @@ func runConsolaActualizar(cmd *cobra.Command, args []string) {
 		salirCon("la consola no está activada: usa 'qdd consola activar'")
 	}
 	imprimirHecho(c.Reparar())
+}
+
+// seguirVersionEnLaTarea: en Windows, cada versión de qdd vive en su carpeta, y la tarea de qdd remoto tiene que lanzar la
+// nueva (FND-142). Una falla no detiene la instalación: 'qdd doctor --fix' la repara.
+func seguirVersionEnLaTarea() {
+	s, err := remotoServicio()
+	if err != nil {
+		return
+	}
+	if err := s.RenovarBinario(remotoEjecutor); err != nil {
+		fmt.Fprintf(os.Stderr, "[!] No se pudo actualizar la tarea de qdd remoto: %v\n", err)
+	}
 }
 
 func runConsolaEstado(cmd *cobra.Command, args []string) {
