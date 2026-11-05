@@ -1,22 +1,26 @@
 id: envoltorio-npm
-nombre: Envoltorio npm de qdd
+nombre: Instalador y envoltorio npm de qdd
 estado: aprobado
 rutas:
     - npm/bin/qdd.js
+    - npm/install.js
 objetivo_operativo:
     problema: Quien instala qdd con npm ejecuta un script de node que tiene que lanzar el binario nativo, entregar su salida y explicar bien cuando no puede.
     usuarios: Las personas, las IAs y los pedidos del panel que llaman a qdd.
     criterio_de_exito: qdd responde con la salida del binario; si el binario falta mientras npm lo reinstala, un pedido queda en «todavía no» y no en fallo.
     caso_real: '2026-11-03: un pedido de mergear un PR falló con ENOENT porque otro pedido estaba instalando qdd (FND-135).'
 objetivo_tecnologico:
-    arquitectura: npm/bin/qdd.js lanza bin/qdd (qdd.exe en Windows) con spawnSync y stdio heredado, y sale con el mismo código.
+    arquitectura: npm/install.js descarga el binario de la versión del paquete y lo deja en bin/ del paquete (en Windows, en su carpeta de versión). npm/bin/qdd.js lo lanza con spawnSync y stdio heredado, y sale con el mismo código.
     decisiones:
+        - En Windows, install.js deja qdd.exe en %LOCALAPPDATA%/qdd/bin/<versión>/qdd.exe y escribe bin/actual.txt al terminar, después de actualizar el panel, porque lo que corre se cierra apenas cambia; conserva esta versión y la anterior, y lo que sigue corriendo se borra en otra actualización. Reinstalar la misma versión no descarga ni reemplaza (FND-142).
         - 'Binario ausente (ENOENT) sale con 75, el «todavía no» de los pedidos (FND-135): no se distingue una reinstalación de una instalación rota, así que el mensaje cubre las dos. Cualquier otro error de lanzarlo sale con 1.'
     invariantes:
+        - Linux y macOS mantienen el binario dentro del paquete.
+        - Solo un binario que responde a --version queda instalado.
         - El código de salida del binario llega intacto a quien llamó a qdd.
         - Un binario que existe y no se puede ejecutar nunca sale con 75.
 pruebas:
     comandos:
-        - cd npm && node --test test/qdd.test.js
-ultima_revision: "2026-11-04"
-revisado_en_commit: bfea22469775
+        - cd npm && node --test
+ultima_revision: "2026-11-05"
+revisado_en_commit: daf0e1d0f2a1

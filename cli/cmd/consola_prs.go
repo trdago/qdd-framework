@@ -66,7 +66,11 @@ var consolaVersionNuevaCmd = &cobra.Command{
 		if root == "" {
 			root = estadoRaiz()
 		}
-		if err := consola.TraerVersion(root, Version, time.Now()); err != nil {
+		bin, err := os.Executable()
+		if err != nil {
+			salirCon("%v", err)
+		}
+		if err := consola.TraerVersion(root, bin, Version, time.Now()); err != nil {
 			fmt.Fprintf(os.Stderr, "[!] %v\n", err)
 			os.Exit(1)
 		}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/consola"
 )
 
 // Rule: Prohibido usar 'else'
@@ -37,6 +39,6 @@ func (b *Bucle) seActualizo() bool {
 	if !b.conHuella {
 		return false
 	}
-	ahora, ok := huellaDe(b.Bin)
+	ahora, ok := huellaDe(consola.RutaVigilada(b.Bin))
 	return ok && ahora != b.huellaBin
 }

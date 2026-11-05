@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **En Windows, npm ya puede actualizar qdd con sesiones abiertas (FND-142, issue #107):** `qdd.exe` vive fuera del paquete,
+  en `%LOCALAPPDATA%\qdd\bin\<versión>`, así que lo que corre no se interpone. Lo que corre se cierra solo al ver la
+  versión nueva, y el panel lo reabre. Windows tiene ahora el mismo botón «⬆ Actualizar qdd» que Linux y macOS. `qdd doctor`
+  revisa que la tarea de `qdd remoto` lance la versión instalada (REM-04). La primera actualización desde una versión
+  anterior todavía pide cerrar las sesiones.
+
 ## [2.10.0-rc.2] - 2026-11-05
 
 Trae también lo de 2.9.7 (FND-141).

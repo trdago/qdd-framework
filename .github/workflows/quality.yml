@@ -57,4 +57,43 @@ jobs:
 
       - name: Pruebas del flujo
         working-directory: cli
-        run: go test ./pkg/consola/ -run "Seguir|SenalesDelPanel|BinarioCambio" -count=1 -v
+        run: go test ./pkg/consola/ ./pkg/remoto/ -run "Seguir|SenalesDelPanel|BinarioCambio|VigiaBinario|RutaVigilada|BinarioPorVersion|RenovarBinario|TareaSinEstaVersion" -count=1 -v
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Actualizar qdd con el panel abierto (issue 107)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $bin = "$env:RUNNER_TEMP\qdd-ci.exe"
+          go -C cli build -o $bin .
+          $env:QDD_INSTALL_BINARIO = $bin
+          function Instalar($v) {
+            Push-Location npm
+            npm version $v --no-git-tag-version --allow-same-version | Out-Null
+            $tgz = npm pack --silent
+            npm i -g ".\$tgz"
+            Remove-Item $tgz
+            Pop-Location
+          }
+          $dir = "$env:LOCALAPPDATA\qdd\bin"
+          Instalar 9.9.1
+          if (-not (Test-Path "$dir\9.9.1\qdd.exe")) { throw 'qdd.exe no quedó en la carpeta de su versión' }
+          if ((Get-Content "$dir\actual.txt") -ne '9.9.1') { throw 'el puntero no dice 9.9.1' }
+          $flujo = Start-Process "$dir\9.9.1\qdd.exe" -ArgumentList 'consola','seguir' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\flujo.out" -RedirectStandardError "$env:RUNNER_TEMP\flujo.err"
+          Start-Sleep -Seconds 5
+          if ($flujo.HasExited) { Get-Content "$env:RUNNER_TEMP\flujo.err"; throw 'el flujo no quedó corriendo' }
+          Instalar 9.9.2
+          if (-not (Test-Path "$dir\9.9.2\qdd.exe")) { throw 'qdd.exe no quedó en la carpeta de la versión nueva' }
+          if ((Get-Content "$dir\actual.txt") -ne '9.9.2') { throw 'el puntero no dice 9.9.2' }
+          if (Test-Path "$(npm root -g)\qdd-framework\bin\qdd.exe") { throw 'dentro del paquete no debe quedar qdd.exe' }
+          qdd --version
+          if (-not $flujo.WaitForExit(60000)) { throw 'el flujo no vio la versión nueva' }
+          # Reinstalar la misma versión no descarga nada ni reemplaza el binario.
+          Remove-Item Env:QDD_INSTALL_BINARIO
+          Instalar 9.9.2
+          qdd --version

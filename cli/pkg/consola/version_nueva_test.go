@@ -160,7 +160,7 @@ func TestTraerVersion_ConsultaYOfrece(t *testing.T) {
 	obtener := func() (map[string]string, error) {
 		return map[string]string{"latest": "2.9.7", "preview": "2.9.7-rc.1"}, nil
 	}
-	if err := traerVersionCon(obtener, "linux", root, "v2.9.6", enCola); err != nil {
+	if err := traerVersionCon(obtener, "linux", binNPM, root, "v2.9.6", enCola); err != nil {
 		t.Fatal(err)
 	}
 	if p, ok := pedidoDeVersion(root); !ok || p.Version != "2.9.7" {
@@ -177,7 +177,7 @@ func TestTraerVersion_SinRedNoTocaNada(t *testing.T) {
 		t.Fatal(err)
 	}
 	obtener := func() (map[string]string, error) { return nil, errors.New("sin red") }
-	if err := traerVersionCon(obtener, "linux", root, "v2.9.6", enCola); err == nil {
+	if err := traerVersionCon(obtener, "linux", binNPM, root, "v2.9.6", enCola); err == nil {
 		t.Fatal("una falla de red se informa")
 	}
 	if _, ok := pedidoDeVersion(root); !ok {
@@ -185,12 +185,12 @@ func TestTraerVersion_SinRedNoTocaNada(t *testing.T) {
 	}
 }
 
-// Issue #107: en Windows, npm no puede reemplazar qdd.exe mientras una sesión lo usa, y el pedido mismo corre desde
-// qdd.exe. Un botón fallaría siempre: se avisa con lo que hay que hacer.
+// Issue #107: en Windows, npm no puede reemplazar un qdd.exe dentro del paquete mientras una sesión lo usa, y el pedido
+// mismo corre desde qdd.exe. Un botón fallaría siempre: se avisa con lo que hay que hacer.
 func TestTraerVersion_EnWindowsAvisaSinBoton(t *testing.T) {
 	root := proyectoConCola(t)
 	obtener := func() (map[string]string, error) { return map[string]string{"latest": "2.9.7"}, nil }
-	if err := traerVersionCon(obtener, "windows", root, "v2.9.6", enCola); err != nil {
+	if err := traerVersionCon(obtener, "windows", `C:\npm\node_modules\qdd-framework\bin\qdd.exe`, root, "v2.9.6", enCola); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := pedidoDeVersion(root); ok {
@@ -214,5 +214,20 @@ func TestVersionAlDia_UnBinarioManualNoPreguntaNada(t *testing.T) {
 	}
 	if exists(marca) {
 		t.Fatal("sin instalación de npm no hay nada que preguntar")
+	}
+}
+
+// FND-142: con qdd.exe fuera del paquete, npm no toca lo que corre y el botón funciona también en Windows.
+func TestTraerVersion_EnWindowsConBinarioPorVersionOfreceElBoton(t *testing.T) {
+	root := proyectoConCola(t)
+	obtener := func() (map[string]string, error) { return map[string]string{"latest": "2.9.7"}, nil }
+	if err := traerVersionCon(obtener, "windows", `C:\Users\ana\AppData\Local\qdd\bin\2.9.6\qdd.exe`, root, "v2.9.6", enCola); err != nil {
+		t.Fatal(err)
+	}
+	if p, ok := pedidoDeVersion(root); !ok || p.Version != "2.9.7" {
+		t.Fatalf("se ofrece el botón: %+v", p)
+	}
+	if aviso := AvisoDeVersion(root, "v2.9.6"); aviso != "" {
+		t.Fatalf("con botón no hace falta el aviso: %q", aviso)
 	}
 }

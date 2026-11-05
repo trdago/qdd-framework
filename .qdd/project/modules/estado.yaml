@@ -34,6 +34,7 @@ objetivo_operativo:
 objetivo_tecnologico:
     arquitectura: 'pkg/estado es puro y sin terminal: Parse/Load/Save (escritura atómica con archivo temporal y rename), Check (EPF-C01…C07, contra la versión de git HEAD vía Anterior), CheckRespuesta (EPF-A01), Set/Init/Cerrar (validan el frente tocado antes de escribir), y los renderizadores Markdown, Mensajeria, Statusline y Panel. cmd/estado*.go solo conecta flags y terminal: el panel watch usa la pantalla alternativa ANSI, sondea mtime y tamaño (sin inotify) y restaura la terminal al salir. mcp_estado.go y audit/estado_check.go reutilizan las mismas funciones.'
     decisiones:
+        - El aviso sin botón de una versión nueva queda solo para una instalación de Windows con qdd.exe dentro del paquete; con el binario en su carpeta de versión (FND-142), Windows tiene el botón. En ese esquema, el flujo vigila bin/actual.txt en vez del binario.
         - 'qdd estado tiene sus propios hooks vacíos: no escribe .qdd/working, no migra ni exige contexto, porque la barra lo ejecuta a cada rato.'
         - 'statusline nunca falla ni escribe en stderr y corta a los 50 ms: si algo sale mal, la barra no muestra el segmento.'
         - 'Una escritura solo se rechaza por violaciones del frente que toca: un error previo en otro frente no bloquea el trabajo, pero check y audit lo siguen reportando.'
@@ -154,4 +155,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-05"
-revisado_en_commit: 736460760d8f
+revisado_en_commit: daf0e1d0f2a1

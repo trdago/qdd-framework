@@ -41,3 +41,23 @@ test('un binario que no se puede ejecutar sigue siendo un fallo', { skip: os.pla
   assert.strictEqual(r.status, 1, r.stderr);
   assert.match(r.stderr, /Reinstala/);
 });
+
+// FND-142: en Windows, qdd.exe vive fuera del paquete para que npm pueda actualizar con sesiones abiertas.
+const { rutaDelBinario } = require('../bin/qdd.js');
+
+test('en Windows usa el binario de la versión del paquete', () => {
+  const ruta = rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => true });
+  assert.strictEqual(ruta, path.join('L', 'qdd', 'bin', '2.10.0', 'qdd.exe'));
+});
+
+test('en Windows sin esa carpeta usa el del paquete: una instalación anterior sigue andando', () => {
+  const dentro = path.join('paquete', 'qdd.exe');
+  assert.strictEqual(rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => false }), dentro);
+  assert.strictEqual(rutaDelBinario({ platform: 'win32', env: {}, dir: 'paquete', version: '2.10.0', existe: () => true }), dentro);
+  assert.strictEqual(rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '', existe: () => true }), dentro);
+});
+
+test('fuera de Windows nada cambia', () => {
+  const ruta = rutaDelBinario({ platform: 'linux', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => true });
+  assert.strictEqual(ruta, path.join('paquete', 'qdd'));
+});
