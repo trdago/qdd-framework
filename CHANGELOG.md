@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd audit` dice qué no pudo revisar (RFC 0005, fase 1):** junto al puntaje informa cuántos principios se evaluaron en
+  todo el proyecto, y qué quedó sin revisar, por qué y dónde. Un 100 ya no sugiere que se revisó todo. No cambia el puntaje
+  ni lo que bloquea. También aparece en `qdd certify` y en las tools MCP.
+
 ## [2.9.9] - 2026-11-05
 
 ### Corregido

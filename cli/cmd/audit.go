@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -75,15 +76,8 @@ func resumenDeCobertura(c audit.Cobertura) string {
 
 var ordenDeCategoria = map[string]int{"seguridad": 0, "correccion": 1, "auditabilidad": 2, "madurez": 3}
 
-var marcaDeEstado = map[audit.EstadoCobertura]string{
-	audit.Parcial:     "~",
-	audit.NoEvaluado:  "?",
-	audit.Desactivado: "-",
-}
-
-// formatCobertura lista los principios que no se revisaron en todo el
-// proyecto, primero los de seguridad y corrección. Un principio sin
-// violaciones que no se evaluó no está aprobado: no se sabe.
+// formatCobertura dice una vez por motivo lo que no se revisó, primero lo de seguridad y corrección: cada auditoría se lee
+// entera, también por una IA en cada commit. Un principio sin violaciones que no se evaluó no está aprobado: no se sabe.
 func formatCobertura(c audit.Cobertura) string {
 	var pendientes []audit.CoberturaPrincipio
 	for _, cp := range c.Principios {
@@ -97,11 +91,56 @@ func formatCobertura(c audit.Cobertura) string {
 	sort.SliceStable(pendientes, func(i, j int) bool {
 		return ordenDeCategoria[pendientes[i].Principio.Categoria] < ordenDeCategoria[pendientes[j].Principio.Categoria]
 	})
-	out := "[i] Lo que la auditoría no revisó (~ parcial, ? no evaluado, - desactivado en .qdd/policies.yaml):\n"
-	for _, cp := range pendientes {
-		out += fmt.Sprintf("    %s %-26s %-13s %s\n", marcaDeEstado[cp.Estado], cp.Principio.ID, cp.Principio.Categoria, detalleDeCobertura(cp))
+	out := "[i] Lo que la auditoría no revisó (no está aprobado: no se sabe):\n"
+	for _, g := range gruposDeCobertura(pendientes) {
+		out += fmt.Sprintf("    %s, en %s: %s\n", g.motivo, unidades(g.rutas), strings.Join(g.principios, ", "))
+	}
+	if desactivados := principiosDesactivados(pendientes); len(desactivados) > 0 {
+		out += "    desactivado en .qdd/policies.yaml: " + strings.Join(desactivados, ", ") + "\n"
 	}
 	return out
+}
+
+// grupoDeCobertura es un motivo por el que no se revisó algo, dónde y qué principios.
+type grupoDeCobertura struct {
+	motivo     string
+	rutas      []string
+	principios []string
+}
+
+func gruposDeCobertura(pendientes []audit.CoberturaPrincipio) []*grupoDeCobertura {
+	var grupos []*grupoDeCobertura
+	porMotivo := map[string]*grupoDeCobertura{}
+	for _, cp := range pendientes {
+		for _, u := range cp.NoEvaluadas {
+			g := porMotivo[u.Motivo]
+			if g == nil {
+				g = &grupoDeCobertura{motivo: u.Motivo}
+				porMotivo[u.Motivo] = g
+				grupos = append(grupos, g)
+			}
+			g.rutas = agregarUnaVez(g.rutas, u.Ruta)
+			g.principios = agregarUnaVez(g.principios, cp.Principio.ID)
+		}
+	}
+	return grupos
+}
+
+func agregarUnaVez(xs []string, x string) []string {
+	if slices.Contains(xs, x) {
+		return xs
+	}
+	return append(xs, x)
+}
+
+func principiosDesactivados(pendientes []audit.CoberturaPrincipio) []string {
+	var ids []string
+	for _, cp := range pendientes {
+		if cp.Estado == audit.Desactivado {
+			ids = append(ids, cp.Principio.ID)
+		}
+	}
+	return ids
 }
 
 // coberturaDeCategoria resume una categoría para el certificado: certify no
@@ -118,28 +157,6 @@ func coberturaDeCategoria(c audit.Cobertura, categoria string) string {
 		}
 	}
 	return fmt.Sprintf("%d de %d principios evaluados en todo el proyecto", evaluados, aplicables)
-}
-
-func detalleDeCobertura(cp audit.CoberturaPrincipio) string {
-	if cp.Estado == audit.Desactivado {
-		return "desactivado (" + strings.Join(cp.Principio.Politicas, ": false, ") + ": false)"
-	}
-	var partes []string
-	if len(cp.Evaluadas) > 0 {
-		partes = append(partes, "evaluado en "+enumerar(cp.Evaluadas))
-	}
-	var motivos []string
-	porMotivo := map[string][]string{}
-	for _, u := range cp.NoEvaluadas {
-		if porMotivo[u.Motivo] == nil {
-			motivos = append(motivos, u.Motivo)
-		}
-		porMotivo[u.Motivo] = append(porMotivo[u.Motivo], u.Ruta)
-	}
-	for _, m := range motivos {
-		partes = append(partes, fmt.Sprintf("no evaluado en %s: %s", unidades(porMotivo[m]), m))
-	}
-	return strings.Join(partes, "; ")
 }
 
 func unidades(rutas []string) string {
