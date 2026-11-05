@@ -86,7 +86,19 @@ func init() {
 }
 
 func consolaActual() consola.Consola {
-	return consola.Consola{Version: Version}
+	bin, err := os.Executable()
+	if err != nil {
+		return consola.Consola{Version: Version}
+	}
+	return consola.Consola{Version: Version, Binario: binarioDeLaBarra(bin)}
+}
+
+// binarioDeLaBarra es la ruta que la barra llama directo: solo la de un qdd instalado, nunca la de uno compilado a mano.
+func binarioDeLaBarra(bin string) string {
+	if !consola.InstaladoConNPM(bin) {
+		return ""
+	}
+	return bin
 }
 
 func imprimirHecho(hecho []string, err error) {

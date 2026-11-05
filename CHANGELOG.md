@@ -10,6 +10,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 Trae también lo de 2.9.8 (FND-143).
 
+### Cambiado
+
+- **La barra de estado ya no arranca Node cada 2 s:** llama al binario de qdd por su ruta y, si esa ruta ya no existe, a
+  `qdd` como antes. Cada llamada gasta unas 4 veces menos CPU (en Linux, de 50-65 ms a 12-16 ms); en Windows no está
+  medido. `settings.json` guarda la ruta, y `qdd consola activar` o `qdd doctor --fix` la renuevan al actualizar. Un
+  binario compilado a mano no la escribe, y una barra propia no se toca.
+
 ### Corregido
 
 - **El botón «⬆ Actualizar qdd» ya no deja a qdd sin binario con npm 12 (FND-143):** instala con

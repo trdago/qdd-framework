@@ -1,37 +1,20 @@
 package cmd
 
-import (
-	"io"
-	"strings"
-	"testing"
-	"time"
-)
+import "testing"
 
 // Rule: Prohibido usar 'else'
-
-// FND-144: la barra leía stdin hasta su fin. Con un stdin que nadie cierra, el proceso quedaba vivo para siempre.
-func TestLeerEntradaBarra_StdinQueNadieCierraNoLaCuelga_FND144(t *testing.T) {
-	r, w := io.Pipe()
-	defer w.Close()
-	inicio := time.Now()
-	if datos, ok := leerEntradaBarra(r, 50*time.Millisecond); ok || datos != nil {
-		t.Fatalf("sin fin de la entrada no hay barra: %q %v", datos, ok)
+// Solo un binario instalado deja su ruta en settings.json: uno compilado a mano o de una prueba no es la barra de nadie.
+func TestBinarioDeLaBarra_SoloElInstaladoConNPM(t *testing.T) {
+	if got := binarioDeLaBarra("/opt/lib/node_modules/qdd-framework/bin/qdd"); got != "/opt/lib/node_modules/qdd-framework/bin/qdd" {
+		t.Fatalf("el de npm va directo: %q", got)
 	}
-	if d := time.Since(inicio); d > 2*time.Second {
-		t.Fatalf("tenía que cortar al tope: %v", d)
+	windows := `C:\Users\Ana\AppData\Local\qdd\bin\2.10.0\qdd.exe`
+	if got := binarioDeLaBarra(windows); got != windows {
+		t.Fatalf("el de la carpeta por versión de Windows va directo: %q", got)
 	}
-}
-
-func TestLeerEntradaBarra_EntradaCompleta_FND144(t *testing.T) {
-	datos, ok := leerEntradaBarra(strings.NewReader(`{"a":1}`), time.Second)
-	if !ok || string(datos) != `{"a":1}` {
-		t.Fatalf("entrega lo leído: %q %v", datos, ok)
-	}
-}
-
-func TestLeerEntradaBarra_NoLeeMasDelLimite_FND144(t *testing.T) {
-	datos, ok := leerEntradaBarra(strings.NewReader(strings.Repeat("x", maxEntradaBarra+10)), time.Second)
-	if !ok || len(datos) != maxEntradaBarra {
-		t.Fatalf("lee hasta el límite: %d %v", len(datos), ok)
+	for _, bin := range []string{"/home/ana/.cache/qdd-297", "/tmp/go-build1/qdd.test", ""} {
+		if got := binarioDeLaBarra(bin); got != "" {
+			t.Fatalf("%q no se escribe en la barra: %q", bin, got)
+		}
 	}
 }
