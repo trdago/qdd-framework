@@ -122,7 +122,7 @@ graph TD
 
 ### Opción 1: NPM (recomendada)
 ```bash
-npm install -g qdd-framework
+npm install -g qdd-framework --allow-scripts=qdd-framework
 ```
 
 ### Opción 2: Binario (sin Node)

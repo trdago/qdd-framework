@@ -23,7 +23,8 @@ test('sin binario sale con 75 y dice que qdd se está actualizando', (t) => {
   const r = spawnSync(process.execPath, [path.join(dir, 'qdd.js'), '--version'], { encoding: 'utf8' });
   assert.strictEqual(r.status, 75, r.stderr);
   assert.match(r.stderr, /actualizando/);
-  assert.match(r.stderr, /npm install -g qdd-framework/);
+  // FND-143: npm 12 bloquea el postinstall por defecto: reinstalar sin esta bandera deja a qdd igual, sin binario.
+  assert.match(r.stderr, /npm install -g qdd-framework --allow-scripts=qdd-framework/);
 });
 
 test('con binario entrega su salida tal cual', { skip: os.platform() === 'win32' }, (t) => {

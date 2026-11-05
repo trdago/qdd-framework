@@ -100,7 +100,7 @@ func InstaladoConNPM(bin string) bool {
 
 // ComandoActualizarQDD es el comando del pedido.
 func ComandoActualizarQDD(v string) string {
-	return "npm i -g qdd-framework@" + v + " && echo Listo. Escribe /reload-plugins para cargar el panel nuevo"
+	return "npm i -g qdd-framework@" + v + " --allow-scripts=qdd-framework && echo Listo. Escribe /reload-plugins para cargar el panel nuevo"
 }
 
 // OfrecerVersion deja el pedido de la versión v y quita el pendiente de otra. Con v vacía, solo lo quita. Sin lugar en la
@@ -193,7 +193,7 @@ func AvisoDeVersion(root, instalada string) string {
 	if !esMayor(v, instalada) {
 		return ""
 	}
-	return "⬆ qdd " + v + " disponible: cierra las sesiones de Claude Code y corre npm i -g qdd-framework@" + v
+	return "⬆ qdd " + v + " disponible: cierra las sesiones de Claude Code y corre npm i -g qdd-framework@" + v + " --allow-scripts=qdd-framework"
 }
 
 // ── Preguntar: aparte, cada IntervaloVersion ──────────────────────────────────────────────────────────────────────

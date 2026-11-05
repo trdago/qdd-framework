@@ -19,7 +19,7 @@ jobs:
       - name: Install QDD Framework Globally
         run: |
           echo "Simulando instalación global desde NPM en máquina prístina..."
-          npm install -g qdd-framework@latest
+          npm install -g qdd-framework@latest --allow-scripts=qdd-framework
           
       - name: Verify CLI availability
         run: |

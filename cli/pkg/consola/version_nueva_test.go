@@ -63,7 +63,8 @@ func TestVersion_SeOfreceComoPedidoOpcional(t *testing.T) {
 	if !strings.HasPrefix(p.Motivo, "⬆ Actualizar qdd a 2.9.7") || len([]rune(p.Motivo)) > MaxMotivo {
 		t.Fatalf("el motivo dice a qué versión: %q", p.Motivo)
 	}
-	if !strings.Contains(p.Comando, "npm i -g qdd-framework@2.9.7") || !strings.Contains(p.Comando, "/reload-plugins") {
+	// FND-143: con npm 12, sin la bandera el botón dejaría a qdd sin binario.
+	if !strings.Contains(p.Comando, "npm i -g qdd-framework@2.9.7 --allow-scripts=qdd-framework") || !strings.Contains(p.Comando, "/reload-plugins") {
 		t.Fatalf("el comando instala esa versión y dice cómo cargar el panel: %q", p.Comando)
 	}
 	if err := OfrecerVersion(root, "2.9.7", enCola); err != nil {
@@ -197,7 +198,7 @@ func TestTraerVersion_EnWindowsAvisaSinBoton(t *testing.T) {
 		t.Fatal("en Windows no se ofrece un botón que no puede funcionar")
 	}
 	aviso := AvisoDeVersion(root, "v2.9.6")
-	if !strings.Contains(aviso, "2.9.7") || !strings.Contains(aviso, "cierra las sesiones") || !strings.Contains(aviso, "npm i -g qdd-framework@2.9.7") {
+	if !strings.Contains(aviso, "2.9.7") || !strings.Contains(aviso, "cierra las sesiones") || !strings.Contains(aviso, "npm i -g qdd-framework@2.9.7 --allow-scripts=qdd-framework") {
 		t.Fatalf("el aviso dice qué versión y qué hacer: %q", aviso)
 	}
 	if aviso := AvisoDeVersion(root, "v2.9.7"); aviso != "" {
