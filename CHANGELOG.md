@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.5-rc.1] - 2026-11-05
+
+### Corregido
+
+- **`npm install` ya no termina bien sin dejar el binario (FND-137, issue #106):** en Windows usa el `tar` del sistema, aunque
+  Git Bash ponga otro primero en el `PATH`. Si la descarga o la extracción fallan, o el binario no responde, la instalación
+  termina con error y dice el motivo; npm conserva la versión anterior. Sin probar todavía en un Windows real.
+
 ## [2.9.4] - 2026-11-04
 
 Corrección de 2.9.3, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.4-rc.1.
