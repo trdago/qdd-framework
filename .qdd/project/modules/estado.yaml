@@ -101,6 +101,7 @@ objetivo_tecnologico:
         - statusline no imprime nada si no hay archivo o está ilegible, y nunca sale con error.
         - Sin estado.yaml, qdd audit no reporta EPF-01-CHECK.
         - Ninguna línea del panel es más ancha que la terminal.
+        - 'Materializar nunca deja un hueco en blanco por más de 250 ms: si los cuadros no llegan a tiempo, el proceso se corta y se dibuja el texto sin efecto (FND-144).'
         - 'Materializar nunca cambia el ancho de lo que anima ni lo mueve de lugar: cada cuadro mide lo mismo que el texto final, y el último cuadro al abrir es el texto tal cual.'
         - Sin efectos encendidos, o sin Client en la superficie, el panel no pide cuadros y dibuja lo de siempre.
         - Ver los blueprints, traer el catálogo, actualizar e instalar nunca le escriben a la IA; solo ✦ Aplicar lo hace, y lo que escribe el lockfile no corre sin «s  Sí».

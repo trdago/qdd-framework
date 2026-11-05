@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Los efectos del panel ya no dejan un hueco en blanco largo (FND-144, issue #111):** si los cuadros tardan más de 250 ms,
+  el proceso se corta y se dibuja el texto sin efecto. Antes, en una máquina lenta, el hueco podía durar hasta 3 s. Abrir el
+  panel ya pedía todos los cuadros en un solo proceso desde 2.10.0-rc.1.
+
 ## [2.10.0-rc.4] - 2026-11-05
 
 Trae también lo de 2.9.8 (FND-143).
