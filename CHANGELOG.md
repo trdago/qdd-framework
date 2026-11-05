@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **La sesión se entera cuando se retira su pedido (RFC 0017 §1, MEJ-010):** antes el pedido solo cambiaba de estado en la
+  cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
+  Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
+
 ## [2.10.0-rc.8] - 2026-11-05
 
 ### Corregido

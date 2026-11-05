@@ -97,6 +97,8 @@ type Pedido struct {
 	ArmadoEn *time.Time `json:"armado_en,omitempty"`
 	Proximo  *time.Time `json:"proximo,omitempty"`
 	Intentos int        `json:"intentos,omitempty"`
+	// Pidio es la sesión de la IA que lo dejó en el panel: si se retira, a ella se le avisa (RFC 0017).
+	Pidio string `json:"pidio,omitempty"`
 	// Sesion es la sesión de Claude Code que lo confirmó y Avisado, que ya recibió su resultado (aviso.go).
 	Sesion  string `json:"sesion,omitempty"`
 	Avisado bool   `json:"avisado,omitempty"`
@@ -401,7 +403,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if preferida != "" && !usadas[preferida] {
 			tecla = preferida
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea}
+		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual())}
 		return conOrden(append(cola, p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err

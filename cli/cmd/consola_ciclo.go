@@ -30,13 +30,14 @@ func correrCiclo(root string, out io.Writer) {
 	registrarUso(root)
 	_ = consola.MarcarCiclo(root, consolaModo, time.Now())
 	if consolaContexto {
-		fmt.Fprint(out, consola.ContextoCiclo(root, time.Now()))
+		fmt.Fprint(out, consola.ContextoCiclo(root, consolaSesion, time.Now()))
 	}
 }
 
 func init() {
 	consolaCicloCmd.Flags().BoolVar(&consolaContexto, "contexto", false, "imprime para la IA lo que el panel espera de la persona (pedidos, fichas, ⏳ suyos), solo si cambió desde el último mensaje")
 	consolaCicloCmd.Flags().StringVar(&consolaModo, "modo", "", "permission_mode de Claude Code (default, acceptEdits, plan, auto, dontAsk, bypassPermissions)")
+	consolaCicloCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión de Claude Code que recibe el contexto: se le avisa si se retiró un pedido suyo")
 	consolaCmd.AddCommand(consolaCicloCmd)
 }
 
