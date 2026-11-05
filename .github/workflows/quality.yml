@@ -98,7 +98,7 @@ jobs:
           if (Test-Path "$(npm root -g)\qdd-framework\bin\qdd.exe") { throw 'dentro del paquete no debe quedar qdd.exe' }
           qdd --version
           if (-not $flujo.WaitForExit(60000)) { throw 'el flujo no vio la versión nueva' }
-          # La barra termina aunque nadie cierre su stdin (FND-144).
+          # La barra termina aunque nadie cierre su stdin (FND-145).
           $inicio = New-Object System.Diagnostics.ProcessStartInfo "$dir\9.9.2\qdd.exe"
           $inicio.Arguments = 'consola statusline'
           $inicio.RedirectStandardInput = $true

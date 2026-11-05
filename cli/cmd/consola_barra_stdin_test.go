@@ -9,8 +9,8 @@ import (
 
 // Rule: Prohibido usar 'else'
 
-// FND-144: la barra leía stdin hasta su fin. Con un stdin que nadie cierra, el proceso quedaba vivo para siempre.
-func TestLeerEntradaBarra_StdinQueNadieCierraNoLaCuelga_FND144(t *testing.T) {
+// FND-145: la barra leía stdin hasta su fin. Con un stdin que nadie cierra, el proceso quedaba vivo para siempre.
+func TestLeerEntradaBarra_StdinQueNadieCierraNoLaCuelga_FND145(t *testing.T) {
 	r, w := io.Pipe()
 	defer w.Close()
 	inicio := time.Now()
@@ -22,14 +22,14 @@ func TestLeerEntradaBarra_StdinQueNadieCierraNoLaCuelga_FND144(t *testing.T) {
 	}
 }
 
-func TestLeerEntradaBarra_EntradaCompleta_FND144(t *testing.T) {
+func TestLeerEntradaBarra_EntradaCompleta_FND145(t *testing.T) {
 	datos, ok := leerEntradaBarra(strings.NewReader(`{"a":1}`), time.Second)
 	if !ok || string(datos) != `{"a":1}` {
 		t.Fatalf("entrega lo leído: %q %v", datos, ok)
 	}
 }
 
-func TestLeerEntradaBarra_NoLeeMasDelLimite_FND144(t *testing.T) {
+func TestLeerEntradaBarra_NoLeeMasDelLimite_FND145(t *testing.T) {
 	datos, ok := leerEntradaBarra(strings.NewReader(strings.Repeat("x", maxEntradaBarra+10)), time.Second)
 	if !ok || len(datos) != maxEntradaBarra {
 		t.Fatalf("lee hasta el límite: %d %v", len(datos), ok)

@@ -173,7 +173,7 @@ const (
 	maxEntradaBarra  = 1 << 20
 )
 
-// leerEntradaBarra corta al tope: con un stdin que nadie cierra, la barra quedaba viva para siempre (FND-144). Al salir
+// leerEntradaBarra corta al tope: con un stdin que nadie cierra, la barra quedaba viva para siempre (FND-145). Al salir
 // el proceso, la lectura pendiente termina con él.
 func leerEntradaBarra(r io.Reader, tope time.Duration) ([]byte, bool) {
 	type lectura struct {
