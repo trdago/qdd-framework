@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.5] - 2026-11-05
+
+Trae también lo de 2.9.9 (FND-143).
+
+### Corregido
+
+- **La barra de estado ya no queda viva si nadie cierra su stdin (FND-145, MEJ-018):** corta a los 3 s y sale sin imprimir
+  nada ni fallar.
+
 ## [2.10.0-rc.4] - 2026-11-05
 
 Trae también lo de 2.9.8 (FND-143).

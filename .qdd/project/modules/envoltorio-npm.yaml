@@ -26,4 +26,4 @@ pruebas:
     comandos:
         - cd npm && node --test
 ultima_revision: "2026-11-05"
-revisado_en_commit: 5b4e5ed9d979
+revisado_en_commit: 5d5fe39570de
