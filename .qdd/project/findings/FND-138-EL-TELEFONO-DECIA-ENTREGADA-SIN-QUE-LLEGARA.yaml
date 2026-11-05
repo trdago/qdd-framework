@@ -1,0 +1,9 @@
+id: "FND-138"
+title: "El teléfono decía «entregada» aunque la instrucción no llegara a la conversación"
+description: "qdd marcaba la instrucción como hecha al tomarla, antes de que el panel la entregara. Podía perderse sin aviso de tres formas: el latido se cortaba a los 3 s después de tomarla; $.prompt.submit respondía { drop } sin lanzar un error y el panel no lo miraba; o la entrega no terminaba."
+impact: "La persona cree que la IA leyó su respuesta. El 2026-11-05, a las 09:23:50 UTC, un «si» a un ⏳ de qdd-movile quedó entregado a una sesión cuya transcripción no lo tiene, y ninguna de las dos sesiones del proyecto lo recibió. No se determinó cuál de las tres formas fue en ese caso."
+action_taken: "La instrucción tomada queda ejecutando. Pasa a hecha solo si el panel confirma que Claude Code la aceptó; un rechazo pasa a fallo con su motivo. Sin confirmación en 15 min pasa a fallo diciendo que puede no haber llegado, y no se reintenta, para no entregarla dos veces. El tope del latido sube a 15 s. Límite conocido: confirmar significa que Claude Code la aceptó, no que el turno de la IA ya la leyó."
+test_result: "TestTelefono_TomadaNoEsEntregadaHastaQueSeConfirma_FND138, TestTelefono_SinConfirmarPasaAFallaYNoSeEntregaDeNuevo_FND138, TestTelefono_ComoLaEntregaEsperaHastaElTopeNoLaCortaElTopeDeComandos_FND138, TestTelefono_LaQueNoSePudoDarQuedaConSuMotivo_FND138, TestConsolaTelefono_ConConfirmaQuedaEntregadaAlConfirmar_FND138, y en mod/qdd-tareas/tests/telefono.test.ts: la entrega aceptada se confirma a qdd; si Claude Code descarta el mensaje, qdd la marca sin entregar y no la confirma"
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

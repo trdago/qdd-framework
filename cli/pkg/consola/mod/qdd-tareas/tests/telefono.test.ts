@@ -20,6 +20,7 @@ function preparar(on, r) {
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('prompt.submit', ($, e) => {
     if (r.submitFalla) throw new Error('el motor no aceptó el mensaje')
+    if (r.submitDescarta) return { drop: 'el motor lo descartó' }
     r.enviados.push(e.text)
     return { text: e.text }
   })
@@ -45,7 +46,7 @@ test('la instrucción del teléfono llega a la IA como mensaje de la persona, un
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] }] })
   const clock = preparar(on, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-  expect(latidos(r)[0]).toEqual(['qdd', 'consola', 'telefono', 'latir', '--sesion', 'sesion-1'])
+  expect(latidos(r)[0]).toEqual(['qdd', 'consola', 'telefono', 'latir', '--sesion', 'sesion-1', '--confirma'])
   expect(r.enviados).toEqual([MENSAJE])
   expect(r.notificaciones[0]).toMatchObject({ title: 'qdd' })
   expect(JSON.stringify(r.notificaciones[0])).toContain('Pixel de Ana')
@@ -67,6 +68,25 @@ test('si Claude Code no acepta el mensaje, qdd la marca sin entregar', async ($,
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const fallo = r.llamadas.find((a) => a[2] === 'telefono' && a[3] === 'fallo')
   expect(fallo?.slice(0, 7)).toEqual(['qdd', 'consola', 'telefono', 'fallo', 's1', '--sesion', 'sesion-1'])
+  expect(r.notificaciones).toEqual([])
+})
+
+// FND-138: solo queda entregada si Claude Code la aceptó; descartarla no lanza un error, responde { drop }.
+test('la entrega aceptada se confirma a qdd', async ($, on) => {
+  const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] }] })
+  preparar(on, r)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const confirmada = r.llamadas.find((a) => a[2] === 'telefono' && a[3] === 'entregada')
+  expect(confirmada).toEqual(['qdd', 'consola', 'telefono', 'entregada', 's1', '--sesion', 'sesion-1'])
+})
+
+test('si Claude Code descarta el mensaje, qdd la marca sin entregar y no la confirma', async ($, on) => {
+  const r = nuevo({ submitDescarta: true, latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] }] })
+  preparar(on, r)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const fallo = r.llamadas.find((a) => a[2] === 'telefono' && a[3] === 'fallo')
+  expect(fallo).toEqual(['qdd', 'consola', 'telefono', 'fallo', 's1', '--sesion', 'sesion-1', '--motivo', 'el motor lo descartó'])
+  expect(r.llamadas.some((a) => a[2] === 'telefono' && a[3] === 'entregada')).toBe(false)
   expect(r.notificaciones).toEqual([])
 })
 

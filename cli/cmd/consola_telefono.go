@@ -17,10 +17,11 @@ import (
 // sesión interactiva late; el latido le entrega, una sola vez, lo que espera.
 
 var (
-	telefonoSesion string
-	telefonoFin    bool
-	telefonoMotivo string
-	telefonoJSON   bool
+	telefonoSesion   string
+	telefonoFin      bool
+	telefonoConfirma bool
+	telefonoMotivo   string
+	telefonoJSON     bool
 )
 
 var consolaTelefonoCmd = &cobra.Command{
@@ -39,7 +40,14 @@ qdd remoto) o una instrucción para la IA, que espera a una sesión de Claude Co
 var consolaTelefonoLatirCmd = &cobra.Command{
 	Use: "latir --sesion <id>", Short: "La sesión sigue abierta: devuelve las instrucciones del teléfono que le tocan", Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(telefonoLatir(estadoRaiz(), telefonoSesion, telefonoFin, os.Stdout, os.Stderr))
+		os.Exit(telefonoLatir(estadoRaiz(), telefonoSesion, telefonoFin, telefonoConfirma, os.Stdout, os.Stderr))
+	},
+}
+
+var consolaTelefonoEntregadaCmd = &cobra.Command{
+	Use: "entregada <solicitud> --sesion <id>", Short: "Claude Code aceptó la instrucción tomada con --confirma", Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		os.Exit(telefonoEntregada(estadoRaiz(), args[0], telefonoSesion, os.Stdout, os.Stderr))
 	},
 }
 
@@ -60,10 +68,12 @@ var consolaTelefonoListaCmd = &cobra.Command{
 func init() {
 	consolaTelefonoLatirCmd.Flags().StringVar(&telefonoSesion, "sesion", "", "la sesión de Claude Code")
 	consolaTelefonoLatirCmd.Flags().BoolVar(&telefonoFin, "fin", false, "la sesión se cerró: deja de contar en el acto")
+	consolaTelefonoLatirCmd.Flags().BoolVar(&telefonoConfirma, "confirma", false, "la sesión confirmará cada entrega con 'entregada' o 'fallo'")
+	consolaTelefonoEntregadaCmd.Flags().StringVar(&telefonoSesion, "sesion", "", "la sesión que la tomó")
 	consolaTelefonoFalloCmd.Flags().StringVar(&telefonoSesion, "sesion", "", "la sesión que la tomó")
 	consolaTelefonoFalloCmd.Flags().StringVar(&telefonoMotivo, "motivo", "", "por qué no se entregó")
 	consolaTelefonoListaCmd.Flags().BoolVar(&telefonoJSON, "json", false, "salida JSON")
-	consolaTelefonoCmd.AddCommand(consolaTelefonoLatirCmd, consolaTelefonoFalloCmd, consolaTelefonoListaCmd)
+	consolaTelefonoCmd.AddCommand(consolaTelefonoLatirCmd, consolaTelefonoEntregadaCmd, consolaTelefonoFalloCmd, consolaTelefonoListaCmd)
 	consolaCmd.AddCommand(consolaTelefonoCmd)
 }
 
@@ -76,7 +86,7 @@ type entrega struct {
 
 // telefonoLatir anota la sesión y le entrega lo que espera, solo con QDD Móvil activado: sin teléfono emparejado nadie
 // manda instrucciones y no hay nada que anotar.
-func telefonoLatir(root, sesion string, fin bool, salida, errores io.Writer) int {
+func telefonoLatir(root, sesion string, fin, confirma bool, salida, errores io.Writer) int {
 	if _, err := remoto.LeerCredenciales(); err != nil {
 		return jsonPregunta(salida, map[string]any{"activo": false, "entregar": []entrega{}})
 	}
@@ -86,6 +96,10 @@ func telefonoLatir(root, sesion string, fin bool, salida, errores io.Writer) int
 	}
 	if err := consola.LatirSesion(root, sesion, now); err != nil {
 		return terminarLatido(err, nil, salida, errores)
+	}
+	if confirma {
+		tomadas, err := consola.TomarParaEntregar(root, sesion, now)
+		return terminarLatido(err, tomadas, salida, errores)
 	}
 	tomadas, err := consola.TomarInstrucciones(root, sesion, now)
 	return terminarLatido(err, tomadas, salida, errores)
@@ -101,6 +115,15 @@ func terminarLatido(err error, tomadas []consola.Ejecucion, salida, errores io.W
 		out = append(out, entrega{Solicitud: e.Solicitud, Nombre: e.Nombre, Mensaje: consola.MensajeInstruccion(e)})
 	}
 	return jsonPregunta(salida, map[string]any{"activo": true, "entregar": out})
+}
+
+func telefonoEntregada(root, solicitud, sesion string, salida, errores io.Writer) int {
+	if err := consola.ConfirmarEntrega(root, solicitud, sesion, time.Now()); err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(salida, "[+] La instrucción %s quedó entregada.\n", solicitud)
+	return 0
 }
 
 func telefonoFallo(root, solicitud, sesion, motivo string, salida, errores io.Writer) int {

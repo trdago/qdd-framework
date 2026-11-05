@@ -38,6 +38,8 @@ const (
 
 	// VidaInstruccion es lo más que una instrucción espera una sesión de Claude Code abierta en el proyecto.
 	VidaInstruccion = 30 * time.Minute
+	// TopeEntrega es cuánto espera una instrucción tomada a que su sesión confirme que Claude Code la aceptó (FND-138).
+	TopeEntrega = 15 * time.Minute
 	// TopeComandoTelefono es lo más que corre un comando qdd mandado desde el teléfono (qdd remoto lo corta).
 	TopeComandoTelefono = 10 * time.Minute
 	// VidaSesion: una sesión que no latió (qdd consola telefono latir) en este tiempo ya no cuenta como abierta.
@@ -114,8 +116,18 @@ func TerminarEjecucion(root, solicitud string, codigo int, salida string, now ti
 	})
 }
 
-// TomarInstrucciones entrega a la sesión las instrucciones que esperan: cada una a una sola sesión, una sola vez.
+// TomarInstrucciones es la toma de un panel anterior a FND-138, que no confirma: las da por entregadas al tomarlas.
 func TomarInstrucciones(root, sesion string, now time.Time) ([]Ejecucion, error) {
+	return tomar(root, sesion, now, EstadoHecho)
+}
+
+// TomarParaEntregar da a la sesión las instrucciones que esperan: cada una a una sola sesión, una sola vez. Quedan
+// ejecutando hasta que la sesión confirme la entrega (ConfirmarEntrega) o diga que falló (FallarEntrega).
+func TomarParaEntregar(root, sesion string, now time.Time) ([]Ejecucion, error) {
+	return tomar(root, sesion, now, EstadoEjecutando)
+}
+
+func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, error) {
 	sesion = sesionValida(sesion)
 	if sesion == "" {
 		return nil, ErrSinSesion
@@ -126,8 +138,11 @@ func TomarInstrucciones(root, sesion string, now time.Time) ([]Ejecucion, error)
 			if e.Tipo != EjecutarIA || e.Estado != EstadoPendiente {
 				continue
 			}
-			fin := now.UTC()
-			cola[i].Estado, cola[i].Sesion, cola[i].Inicio, cola[i].Fin = EstadoHecho, sesion, &fin, &fin
+			inicio := now.UTC()
+			cola[i].Estado, cola[i].Sesion, cola[i].Inicio = estado, sesion, &inicio
+			if estado == EstadoHecho {
+				cola[i].Fin = &inicio
+			}
 			tomadas = append(tomadas, cola[i])
 		}
 		return cola, nil
@@ -136,14 +151,28 @@ func TomarInstrucciones(root, sesion string, now time.Time) ([]Ejecucion, error)
 	return tomadas, err
 }
 
+// ConfirmarEntrega: Claude Code aceptó la instrucción que esta sesión tomó.
+func ConfirmarEntrega(root, solicitud, sesion string, now time.Time) error {
+	sesion = sesionValida(sesion)
+	return cambiarEjecucion(root, solicitud, now, func(e *Ejecucion) error {
+		if sesion == "" || e.Sesion != sesion || e.Estado != EstadoEjecutando {
+			return fmt.Errorf("la instrucción %s no espera confirmación de esta sesión", solicitud)
+		}
+		fin := now.UTC()
+		e.Estado, e.Fin = EstadoHecho, &fin
+		return nil
+	})
+}
+
 // FallarEntrega: la sesión que tomó la instrucción no pudo dársela a la IA.
 func FallarEntrega(root, solicitud, sesion, motivo string, now time.Time) error {
 	sesion = sesionValida(sesion)
 	return cambiarEjecucion(root, solicitud, now, func(e *Ejecucion) error {
-		if sesion == "" || e.Sesion != sesion || e.Estado != EstadoHecho {
+		if sesion == "" || e.Sesion != sesion || (e.Estado != EstadoHecho && e.Estado != EstadoEjecutando) {
 			return fmt.Errorf("la instrucción %s no la tomó esta sesión", solicitud)
 		}
-		e.Estado, e.Motivo = EstadoFallo, strings.TrimSpace(motivo)
+		fin := now.UTC()
+		e.Estado, e.Motivo, e.Fin = EstadoFallo, strings.TrimSpace(motivo), &fin
 		return nil
 	})
 }
@@ -220,7 +249,11 @@ func normalizarTelefono(cola []Ejecucion, now time.Time) []Ejecucion {
 			fin := e.Creada.Add(VidaInstruccion)
 			e.Estado, e.Fin, e.Motivo = EstadoVencida, &fin, "ninguna sesión de Claude Code se abrió en el proyecto en "+VidaInstruccion.String()
 		}
-		if e.Estado == EstadoEjecutando && now.Sub(e.Creada) > TopeComandoTelefono+time.Minute {
+		if e.Tipo == EjecutarIA && e.Estado == EstadoEjecutando && e.Inicio != nil && now.Sub(*e.Inicio) > TopeEntrega {
+			fin := e.Inicio.Add(TopeEntrega)
+			e.Estado, e.Fin, e.Motivo = EstadoFallo, &fin, "la sesión la tomó y no confirmó que Claude Code la aceptara: puede no haber llegado"
+		}
+		if e.Tipo != EjecutarIA && e.Estado == EstadoEjecutando && now.Sub(e.Creada) > TopeComandoTelefono+time.Minute {
 			fin := e.Creada.Add(TopeComandoTelefono)
 			e.Estado, e.Fin, e.Motivo = EstadoFallo, &fin, "se cortó sin terminar (qdd remoto se cerró mientras corría)"
 		}
@@ -295,6 +328,9 @@ func accionDelTelefono(root string, e Ejecucion) Accion {
 	a.Detalle = cortar(e.Texto, maxDetalleTelefono)
 	if e.Estado == EstadoPendiente {
 		a.Estado, a.Aviso = EstadoArmado, "espera una sesión de Claude Code abierta en el proyecto"
+	}
+	if e.Estado == EstadoEjecutando {
+		a.Aviso = "entregándola a la sesión de Claude Code"
 	}
 	if e.Estado == EstadoHecho {
 		a.Resultado = "entregada a la sesión de Claude Code"

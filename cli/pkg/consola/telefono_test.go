@@ -213,3 +213,83 @@ func TestTelefono_LaColaGuardaLasMasNuevas(t *testing.T) {
 		t.Fatalf("lo viejo sale: %+v", e)
 	}
 }
+
+// FND-138: «entregada» quedaba escrito al tomarla, antes de dársela a la IA. Si algo fallaba entremedio, el teléfono
+// decía entregada y la IA nunca la leía.
+func tomadaParaEntregar(t *testing.T) (string, time.Time) {
+	t.Helper()
+	root := proyectoConCola(t)
+	now := time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)
+	if _, err := RegistrarEjecucion(root, instruccion("s1", "si"), now); err != nil {
+		t.Fatal(err)
+	}
+	tomadas, err := TomarParaEntregar(root, "sesion-a", now)
+	if err != nil || len(tomadas) != 1 {
+		t.Fatalf("la toma: %v %v", tomadas, err)
+	}
+	return root, now
+}
+
+func TestTelefono_TomadaNoEsEntregadaHastaQueSeConfirma_FND138(t *testing.T) {
+	root, now := tomadaParaEntregar(t)
+	e, _ := EjecucionDe(root, "s1", now)
+	if e.Estado != EstadoEjecutando || e.Sesion != "sesion-a" {
+		t.Fatalf("todavía no está entregada: %+v", e)
+	}
+	if otra, err := TomarParaEntregar(root, "sesion-b", now); err != nil || len(otra) != 0 {
+		t.Fatalf("otra sesión no la toma de nuevo: %v %v", otra, err)
+	}
+	if err := ConfirmarEntrega(root, "s1", "sesion-b", now); err == nil {
+		t.Fatal("solo la confirma la sesión que la tomó")
+	}
+	if err := ConfirmarEntrega(root, "s1", "sesion-a", now); err != nil {
+		t.Fatal(err)
+	}
+	e, _ = EjecucionDe(root, "s1", now)
+	if e.Estado != EstadoHecho || e.Fin == nil {
+		t.Fatalf("confirmada queda hecha: %+v", e)
+	}
+}
+
+func TestTelefono_SinConfirmarPasaAFallaYNoSeEntregaDeNuevo_FND138(t *testing.T) {
+	root, now := tomadaParaEntregar(t)
+	antes, _ := EjecucionDe(root, "s1", now.Add(TopeEntrega-time.Minute))
+	if antes.Estado != EstadoEjecutando {
+		t.Fatalf("dentro del tope sigue esperando: %+v", antes)
+	}
+	tarde := now.Add(TopeEntrega + time.Minute)
+	e, _ := EjecucionDe(root, "s1", tarde)
+	if e.Estado != EstadoFallo || !strings.Contains(e.Motivo, "no confirmó") {
+		t.Fatalf("dice que no se sabe si llegó: %+v", e)
+	}
+	if otra, err := TomarParaEntregar(root, "sesion-b", tarde); err != nil || len(otra) != 0 {
+		t.Fatalf("nunca se entrega dos veces: %v %v", otra, err)
+	}
+}
+
+func TestTelefono_ComoLaEntregaEsperaHastaElTopeNoLaCortaElTopeDeComandos_FND138(t *testing.T) {
+	root := proyectoConCola(t)
+	creada := time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)
+	if _, err := RegistrarEjecucion(root, instruccion("s1", "si"), creada); err != nil {
+		t.Fatal(err)
+	}
+	tomada := creada.Add(VidaInstruccion - time.Minute)
+	if _, err := TomarParaEntregar(root, "sesion-a", tomada); err != nil {
+		t.Fatal(err)
+	}
+	e, _ := EjecucionDe(root, "s1", tomada.Add(time.Minute))
+	if e.Estado != EstadoEjecutando {
+		t.Fatalf("su tope cuenta desde que se tomó, no desde que se creó: %+v", e)
+	}
+}
+
+func TestTelefono_LaQueNoSePudoDarQuedaConSuMotivo_FND138(t *testing.T) {
+	root, now := tomadaParaEntregar(t)
+	if err := FallarEntrega(root, "s1", "sesion-a", "el motor no la aceptó", now); err != nil {
+		t.Fatal(err)
+	}
+	e, _ := EjecucionDe(root, "s1", now)
+	if e.Estado != EstadoFallo || e.Motivo != "el motor no la aceptó" || e.Fin == nil {
+		t.Fatalf("falla con su motivo: %+v", e)
+	}
+}

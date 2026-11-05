@@ -1898,6 +1898,8 @@ async function vencerPreguntas($) {
 // late cada TELEFONO_PAUSA latidos; con un qdd anterior a «consola telefono», deja de latir.
 const TELEFONO_MS = 5000
 const TELEFONO_PAUSA = 12
+// El latido toma instrucciones: cortarlo después de tomarlas las pierde. Tras horas sin uso qdd puede tardar en arrancar.
+const TOPE_LATIR_MS = 15000
 const telefono = { soportado: true, latio: false, saltar: 0, latiendo: false }
 
 async function latirTelefono($) {
@@ -1920,7 +1922,7 @@ async function recibirDelTelefono($, mia) {
   const bin = await binario($)
   let r
   try {
-    r = await $.process.run([bin, 'consola', 'telefono', 'latir', '--sesion', mia], { timeoutMs: TOPE_MS })
+    r = await $.process.run([bin, 'consola', 'telefono', 'latir', '--sesion', mia, '--confirma'], { timeoutMs: TOPE_LATIR_MS })
   } catch (err) {
     $.ui.log('qdd: no latió para el teléfono: ' + String(err?.message ?? err), { to: 'debug' })
     return
@@ -1941,18 +1943,30 @@ async function recibirDelTelefono($, mia) {
   for (const x of l.entregar || []) await entregarDelTelefono($, bin, mia, x)
 }
 
-// entregarDelTelefono le da la instrucción a la IA; si Claude Code no la acepta, qdd la marca sin entregar y el
-// teléfono lo ve.
-async function entregarDelTelefono($, bin, mia, x) {
-  if (!x?.mensaje || !String(x.mensaje).startsWith('📱')) return
+// motivoDeRechazo: por qué Claude Code no aceptó el mensaje, o vacío si lo aceptó. Rechazarlo no siempre lanza un error:
+// puede responder { drop } (FND-138).
+async function motivoDeRechazo($, mensaje) {
   try {
-    await $.prompt.submit({ text: x.mensaje })
+    const r = await $.prompt.submit({ text: mensaje })
+    return r?.drop ? String(r.drop) : ''
   } catch (err) {
-    const motivo = String(err?.message ?? err)
+    return String(err?.message ?? err)
+  }
+}
+
+// entregarDelTelefono le da la instrucción a la IA y le dice a qdd cómo fue: solo así queda entregada y el teléfono lo ve.
+async function entregarDelTelefono($, bin, mia, x) {
+  if (!x?.mensaje || !String(x.mensaje).startsWith('📱')) {
+    await $.process.run([bin, 'consola', 'telefono', 'fallo', x?.solicitud, '--sesion', mia, '--motivo', 'mensaje sin la marca del teléfono'], { timeoutMs: TOPE_MS }).catch(() => {})
+    return
+  }
+  const motivo = await motivoDeRechazo($, x.mensaje)
+  if (motivo) {
     $.ui.log('no se envió a la IA la instrucción del teléfono: ' + motivo)
     await $.process.run([bin, 'consola', 'telefono', 'fallo', x.solicitud, '--sesion', mia, '--motivo', motivo], { timeoutMs: TOPE_MS }).catch(() => {})
     return
   }
+  await $.process.run([bin, 'consola', 'telefono', 'entregada', x.solicitud, '--sesion', mia], { timeoutMs: TOPE_LATIR_MS }).catch((err) => $.ui.log('qdd: no se confirmó la entrega: ' + String(err?.message ?? err), { to: 'debug' }))
   $.ui.notify('📱 Instrucción desde ' + (x.nombre || 'el teléfono'), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
 }
 
