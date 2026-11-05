@@ -6,6 +6,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.6] - 2026-11-05
+
+Corrección de 2.9.5, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.6-rc.1.
+
+## [2.9.6-rc.1] - 2026-11-05
+
+### Corregido
+
+- **El teléfono ya no dice «entregada» si la instrucción no llegó (FND-138):** queda entregada solo cuando Claude Code la
+  acepta. Si la rechaza, pasa a falla con su motivo; sin confirmación en 15 min, pasa a falla diciendo que puede no haber
+  llegado. Nunca se entrega dos veces, así que en ese caso hay que volver a mandarla. Hace falta reiniciar Claude Code
+  para cargar el panel nuevo. Límite conocido: confirmar significa que Claude Code la aceptó, no que la IA ya la leyó.
+
 ## [2.9.5] - 2026-11-05
 
 Corrección de 2.9.4, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.5-rc.1: `npm install` ya no termina
