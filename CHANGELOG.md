@@ -12,6 +12,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
   Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
 
+### Corregido
+
+- **Un seguro contra lanzar dos veces lo mismo (FND-154):** lo que terminó bien en las últimas 24 h no se vuelve a pedir, aunque
+  cambie el texto (cerrar el mismo issue, mergear el mismo PR). Repetirlo de verdad se dice con `--de-nuevo`.
+
 ## [2.10.0-rc.8] - 2026-11-05
 
 ### Corregido

@@ -380,13 +380,20 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
 		cola, preferida := sinRetirados(cola, tarea)
 		usadas := map[string]bool{}
+		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
+				return conOrden(cola, p.ID, orden, &nuevo)
+			}
+			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
 				return conOrden(cola, p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
 			}
+		}
+		if ya := hechoReciente(ColaDe(root, dir), efecto, now); ya != nil && !orden.DeNuevo {
+			return nil, ya
 		}
 		cola = sinAutomaticosQueNombra(cola, motivo, comando)
 		usadas = teclasAbiertas(cola)
@@ -644,7 +651,9 @@ func terminar(root, id string, codigo int, texto string, armar bool) {
 			}
 			if codigo != 0 {
 				cola[i].Estado = EstadoFallo
+				continue
 			}
+			anotarHecho(root, cola[i], fin)
 		}
 		return cola, nil
 	})
