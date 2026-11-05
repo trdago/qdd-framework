@@ -1,0 +1,9 @@
+id: "FND-150"
+title: "Ocho reglas del motor no tenían principio y la prueba no lo veía"
+description: "TestPrincipios_CadaReglaDelMotorTienePrincipio busca las reglas con una lista fija de prefijos, sin FND, EPF, VER ni HER. Por eso EPF-01-CHECK, HER-01-DEFINICION, VER-01 a VER-05 y FND-01 y FND-02 no tenían principio y la prueba pasaba."
+impact: "El informe de cobertura de qdd audit (RFC 0005) no contaba esas reglas como principios revisados, y sus violaciones no decían por qué existen. El gate igual las aplicaba: no se dejó pasar nada por esto."
+action_taken: "La prueba reconoce esos cuatro prefijos. Se agregaron cuatro principios: P-FINDINGS-COMPLETE, P-TASK-STATE-VALID, P-TOOLS-DEFINED y P-SEMVER-RELEASES, este último con la política versioning."
+test_result: "cli/pkg/audit/principios_test.go (TestPrincipios_CadaReglaDelMotorTienePrincipio falló con las 8 reglas antes de agregar los principios) y cli/pkg/audit/cobertura_test.go (TestCobertura_LaPoliticaDeVersionesDecideSiSeRevisa_FND150)."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

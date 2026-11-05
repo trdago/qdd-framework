@@ -141,3 +141,14 @@ func TestEvaluar_LaCoberturaNoCambiaElPuntaje(t *testing.T) {
 		t.Error("un proyecto Node debería tener principios no evaluados")
 	}
 }
+
+// FND-150: sin esta clave, P-SEMVER-RELEASES saldría desactivado aunque la política esté activa.
+func TestCobertura_LaPoliticaDeVersionesDecideSiSeRevisa_FND150(t *testing.T) {
+	apagada := false
+	if !politicaActiva(QDDPolicies{}, "versioning") {
+		t.Error("sin declararla, la política de versiones está activa, igual que en el motor")
+	}
+	if politicaActiva(QDDPolicies{Versioning: &apagada}, "versioning") {
+		t.Error("apagada, el principio de versiones sale como desactivado")
+	}
+}
