@@ -37,7 +37,7 @@
   nombre: Las pruebas de cada unidad se ejecutan y pasan
   categoria: correccion
   alcance: pruebas
-  reglas: [QA-00-NO-TEST-COMMAND, QA-01-ALL-TESTS-PASS]
+  reglas: [QA-00-NO-TEST-COMMAND, QA-01-ALL-TESTS-PASS, QA-03-SIN-MEDIR]
   por_que: >-
     Un cambio que rompe algo solo se detecta antes de producción si las pruebas
     corren. Una unidad cuyas pruebas no ejecuta el gate puede romperse sin que
@@ -105,7 +105,7 @@
   nombre: Los blueprints de la organización se usan sin alterar y al día
   categoria: correccion
   alcance: repositorio
-  reglas: [BP-01-INVALID, BP-02-ALTERED, BP-03-OUTDATED, BP-04-MISSING, BP-05-LEGACY, BP-06-BEHIND]
+  reglas: [BP-01-INVALID, BP-02-ALTERED, BP-03-OUTDATED, BP-04-MISSING, BP-05-LEGACY, BP-06-BEHIND, BP-06-ESPERA-QDD, BP-07-REPLACED, BP-08-CONFORMIDAD, BP-08-SIN-MEDIR]
   por_que: >-
     Un blueprint es el estándar que acordó la organización. Una copia alterada o
     atrasada hace que cada proyecto cumpla una versión distinta.
