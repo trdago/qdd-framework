@@ -6,6 +6,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.3] - 2026-11-04
+
+Corrección de 2.9.2, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.3-rc.1: un pedido ya no falla porque
+se está reinstalando qdd (FND-135).
+
+## [2.9.3-rc.1] - 2026-11-04
+
+### Corregido
+
+- **Un pedido ya no falla porque se está reinstalando qdd (FND-135):** si falta el binario, `qdd` dice que se está
+  actualizando y sale con 75, y el panel lo muestra como «todavía no» en vez de marcarlo como fallo. Límite conocido: si
+  en ese instante falta el propio `qdd.js`, sigue siendo un fallo.
+
 ## [2.9.2] - 2026-11-04
 
 Corrección de 2.9.1, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.2-rc.1: CERT-021 ya no bloquea leer
