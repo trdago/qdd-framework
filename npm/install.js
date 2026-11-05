@@ -1,12 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 // Configuración del Release (Automático según tu GitHub)
 const pkg = require('./package.json');
 const VERSION = 'v' + pkg.version;
 const REPO = 'trdago/qdd-framework';
+// TOPE_VERSION_MS: el antivirus puede demorar la primera ejecución de un binario recién descargado.
+const TOPE_VERSION_MS = 60000;
 
 const platformMap = {
   win32: 'windows',
@@ -103,9 +105,8 @@ function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
       }
 
       if (response.statusCode !== 200) {
-        console.error(`[QDD] Error: GitHub Release devolvió HTTP ${response.statusCode} para ${targetUrl}`);
         console.error('[QDD] Si estás instalando desde una versión no publicada aún, compila localmente con "make build"');
-        process.exit(0); // Permitir que la instalación de npm continúe sin romper builds de CI
+        fallar(`GitHub Release devolvió HTTP ${response.statusCode} para ${targetUrl}`);
       }
 
       response.pipe(file);
@@ -113,34 +114,58 @@ function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
         file.close(extractBinary);
       });
     }).on('error', (err) => {
-      console.error('[QDD] Error de red descargando el binario:', err.message);
-      process.exit(0);
+      fallar(`error de red descargando el binario: ${err.message}`);
     });
   }
 
   function extractBinary() {
     console.log('[QDD] Extrayendo...');
     try {
-      if (os === 'windows') {
-        execSync(`tar -xf "${downloadDest}" -C "${__dirname}"`);
-      }
-      if (os !== 'windows') {
-        execSync(`tar -xzf "${downloadDest}" -C "${__dirname}"`);
-      }
-      const extractedBin = path.join(__dirname, binaryName);
-      if (fs.existsSync(extractedBin)) {
-        fs.renameSync(extractedBin, path.join(binDir, binaryName));
-        fs.chmodSync(path.join(binDir, binaryName), 0o755);
-      }
-      if (fs.existsSync(downloadDest)) {
-        fs.unlinkSync(downloadDest);
-      }
+      const bin = instalarDescarga({ os, paquete: downloadDest, carpeta: __dirname, binaryName, binDir, env: process.env });
       console.log('[QDD] ¡Instalación nativa completada exitosamente!');
-      actualizarConsola(path.join(binDir, binaryName));
+      actualizarConsola(bin);
     } catch (err) {
-      console.error('[QDD] Error al extraer el binario:', err.message);
+      fallar(`no se pudo instalar el binario: ${err.message}`);
     }
   }
+}
+
+// comandoExtraer: en Windows, el tar del sistema con su ruta completa. En Git Bash, el primero del PATH es GNU tar, que no
+// abre un zip y toma «C:» por un host remoto (MEJ-013).
+function comandoExtraer(os, paquete, destino, env) {
+  if (os === 'windows') {
+    const programa = path.win32.join(env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+    return { programa, args: ['-xf', paquete, '-C', destino] };
+  }
+  return { programa: 'tar', args: ['-xzf', paquete, '-C', destino] };
+}
+
+// instalarDescarga deja el binario en bin/ solo si responde; si algo falla, lanza el error y el binario anterior sigue ahí.
+function instalarDescarga({ os, paquete, carpeta, binaryName, binDir, env }) {
+  const { programa, args } = comandoExtraer(os, paquete, carpeta, env);
+  execFileSync(programa, args, { stdio: 'pipe' });
+  const extraido = path.join(carpeta, binaryName);
+  if (!esArchivo(extraido)) {
+    throw new Error(`el paquete descargado no trae ${binaryName}`);
+  }
+  fs.chmodSync(extraido, 0o755);
+  execFileSync(extraido, ['--version'], { stdio: 'pipe', timeout: TOPE_VERSION_MS });
+  const destino = path.join(binDir, binaryName);
+  fs.renameSync(extraido, destino);
+  fs.rmSync(paquete, { force: true });
+  return destino;
+}
+
+// codigoDeFalla: sin binario, npm tiene que enterarse (y conservar la versión anterior). Quien necesite instalar sin
+// binario a propósito, como un build de CI, lo pide con QDD_INSTALL_TOLERANTE=1.
+function codigoDeFalla(env) {
+  return env.QDD_INSTALL_TOLERANTE === '1' ? 0 : 1;
+}
+
+function fallar(motivo) {
+  console.error(`[QDD] La instalación falló: ${motivo}`);
+  console.error('[QDD] Para reintentar: npm install -g qdd-framework');
+  process.exit(codigoDeFalla(process.env));
 }
 
 // actualizarConsola deja el panel de Claude Code en la versión recién instalada si el usuario lo activó
@@ -153,7 +178,7 @@ function actualizarConsola(bin) {
   }
 }
 
-module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal };
+module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, comandoExtraer, instalarDescarga, codigoDeFalla };
 
 if (require.main === module) {
   main();

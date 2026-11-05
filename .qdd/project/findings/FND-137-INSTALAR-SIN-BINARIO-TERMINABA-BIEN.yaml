@@ -1,0 +1,9 @@
+id: "FND-137"
+title: "npm install terminaba con exit 0 aunque no quedara el binario de qdd"
+description: "En Windows con Git Bash, tar resuelve a GNU tar, que no abre un zip y toma «C:» por un host remoto. npm/install.js registraba el error y salía con 0. Lo mismo con un HTTP distinto de 200 o un error de red, y si el paquete no traía el binario anunciaba «completada» igual. Reportado en el issue #106 (MEJ-013): 2.9.1-rc.1, Windows 10. El vínculo entre GNU tar y esa instalación es una inferencia muy probable del reporte: la salida del postinstall no quedó en el log."
+impact: "npm decía que todo salió bien y desde ahí todo qdd fallaba, incluidos el panel y la barra de todas las sesiones abiertas, sin que nada dijera por qué."
+action_taken: "En Windows se usa %SystemRoot%\\System32\\tar.exe con su ruta completa. El binario se comprueba con --version antes de reemplazar al anterior. Si algo falla, la instalación termina con 1 y dice el motivo y cómo reintentar; npm conserva la versión anterior. Quien necesite instalar sin binario a propósito lo pide con QDD_INSTALL_TOLERANTE=1."
+test_result: "npm/test/install.test.js: ruta del tar en Windows, código de salida, paquete sin binario, binario que no responde y descarga que tar no abre (con tar real). Probado con npm real en Linux: instala con el release publicado, y con una versión sin release sale con 1 y conserva la anterior. Sin probar en un Windows real."
+status: resolved
+detectado_por: humano
+date: "2026-11-05"

@@ -6,6 +6,37 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.5] - 2026-11-05
+
+Corrección de 2.9.4, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.5-rc.1: `npm install` ya no termina
+bien sin dejar el binario (FND-137).
+
+## [2.9.5-rc.1] - 2026-11-05
+
+### Corregido
+
+- **`npm install` ya no termina bien sin dejar el binario (FND-137, issue #106):** en Windows usa el `tar` del sistema, aunque
+  Git Bash ponga otro primero en el `PATH`. Si la descarga o la extracción fallan, o el binario no responde, la instalación
+  termina con error y dice el motivo; npm conserva la versión anterior. Sin probar todavía en un Windows real.
+
+## [2.9.4] - 2026-11-04
+
+Corrección de 2.9.3, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.4-rc.1.
+
+## [2.9.4-rc.1] - 2026-11-04
+
+### Corregido
+
+- **`qdd remoto desactivar` ya no borra el servicio de otro `QDD_HOME` (FND-136):** saca del relay la máquina de ese
+  `QDD_HOME`, pero deja el servicio que publica otro y lo dice.
+- **`qdd remoto emparejar` manda a `qdd login`:** en un PC sin relay ya no pide banderas, y avisa que sin servicio el PC
+  no publica.
+
+### Agregado
+
+- **Los pedidos del panel dicen su tarea** (campo `tarea`, opcional): QDD Móvil puede dejar de ofrecer seguir con una tarea
+  que ya tiene un pedido abierto.
+
 ## [2.9.3] - 2026-11-04
 
 Corrección de 2.9.2, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.3-rc.1: un pedido ya no falla porque
