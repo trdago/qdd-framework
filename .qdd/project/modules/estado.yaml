@@ -39,6 +39,7 @@ objetivo_tecnologico:
         - 'Barra directa (elegida por el modo goal, opción recomendada por la IA, 2026-11-05; la persona puede revertirla; RFC 0016): con un qdd instalado por npm, statusLine.command es «"<binario>" consola statusline || qdd consola statusline», sin arrancar Node cada 2 s. La ruta la renuevan qdd consola activar y qdd doctor --fix, cambiando solo el comando. Un binario compilado a mano no la escribe ni cambia la barra puesta; una ruta con comillas, $, `, % o saltos de línea usa ComandoBarra.'
         - 'statusline nunca falla ni escribe en stderr y corta a los 50 ms: si algo sale mal, la barra no muestra el segmento.'
         - 'Una escritura solo se rechaza por violaciones del frente que toca: un error previo en otro frente no bloquea el trabajo, pero check y audit lo siguen reportando.'
+        - 'qdd estado check avisa sin bloquear de las tareas abiertas con todo listo y de las cerradas que conservan un ⏳ (MEJ-010): terminar una tarea lo decide quien trabaja en ella. esperas y fallas solo traen tareas abiertas (FND-151).'
         - 'Las abreviaturas del panel son únicas: si dos etapas se leen igual (sin distinguir mayúsculas, FND-087), se usa la primera letra más la siguiente que las distinga y no repita otra columna.'
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
@@ -158,4 +159,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-05"
-revisado_en_commit: 1340ac1bac15
+revisado_en_commit: bbf480a2b56e
