@@ -1,0 +1,9 @@
+id: "FND-156"
+title: "El teléfono no podía contar los ⏳ de la persona de las tareas ocultas"
+description: "Reportado por qdd-movile (FND-029 en ese proyecto). sfrc publicaba esperan 13, esperas 2 y ocultos 10. esperas solo trae las tareas visibles y esperan incluye los ⏳ de cualquiera, así que la app decía «2 esperan una consola» con unos 10 ⏳ de la persona en el tablero."
+impact: "El teléfono mostraba menos pendientes de la persona de los que había."
+action_taken: "El panel publica esperan_persona: los ⏳ de la persona de todas las tareas pendientes, se vean o no. Es un campo aditivo y sale de la misma cuenta que esperan (Totales). La regla de qué es de la persona pasa a estado.DeLaPersona, y consola la usa."
+test_result: "cli/pkg/estado/sin_empezar_test.go: TestDatos_EsperanPersonaCuentaTambienLasOcultas_FND156. Antes del cambio no compilaba porque el campo no existía; con la cuenta rota falla con persona=0. Falta que la app use el campo."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

@@ -154,7 +154,18 @@ func TestEspera_CuandoLaCeldaCambiaLaPreguntaSale(t *testing.T) {
 
 // MEJ-004 (qdd-movile, 2026-11-03, datos reales): de 11 ⏳ publicados al teléfono, casi todos eran notas de avance o
 // esperaban un pedido que la persona ya había armado en el panel; solo uno preguntaba algo. Un ⏳ llega como pregunta
-// solo si pregunta (¿…?) y ningún pedido abierto lo cubre, y el teléfono ve solo la pregunta.
+// solo si pregunta (¿…?) y ningún pedido abierto lo cubre, y el teléfono no ve lo que va antes de la pregunta.
+
+// FND-155 (qdd-movile, compilación 69): el teléfono mostraba hasta el último «?», y lo que la persona tenía que hacer iba
+// después.
+func TestEspera_ElTelefonoVeLoQueSigueALaPregunta_FND155(t *testing.T) {
+	root := proyectoConTareas(t)
+	bloqueo := "¿Ves el modo goal arriba en el proyecto? Si lo ves, toca Apagar; si no, dime qué ves en esa pantalla."
+	conEspera(t, root, bloqueo)
+	if q := esperaDe(t, root, enCola).Preguntas[0].Texto; q != bloqueo {
+		t.Fatalf("la instrucción va con la pregunta: %q", q)
+	}
+}
 
 func TestEspera_UnaNotaDeAvanceNoEsPregunta_MEJ004(t *testing.T) {
 	root := proyectoConTareas(t)
@@ -166,12 +177,12 @@ func TestEspera_UnaNotaDeAvanceNoEsPregunta_MEJ004(t *testing.T) {
 	}
 }
 
-func TestEspera_ElTelefonoVeSoloLaPregunta_MEJ004(t *testing.T) {
+func TestEspera_ElTelefonoNoVeElHistorial_MEJ004(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "Código: listo y probado con 12 casos. ¿Hacemos el gate en el Stop hook? Lo demás espera a eso.")
 	p := esperaDe(t, root, enCola)
-	if q := p.Preguntas[0].Texto; q != "¿Hacemos el gate en el Stop hook?" {
-		t.Fatalf("el texto es la pregunta, no el historial de la tarea: %q", q)
+	if q := p.Preguntas[0].Texto; q != "¿Hacemos el gate en el Stop hook? Lo demás espera a eso." {
+		t.Fatalf("el texto parte en la pregunta, sin el historial de la tarea: %q", q)
 	}
 	conEspera(t, root, "¿Proveedor de correo? ¿Resend o SES?")
 	if q := esperaDe(t, root, enCola).Preguntas[0].Texto; q != "¿Proveedor de correo? ¿Resend o SES?" {
