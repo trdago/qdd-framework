@@ -143,6 +143,9 @@ test('sin estado.yaml dice cómo crearlo y sigue ofreciendo las fichas por aprob
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /qdd estado init/ })).toBeDefined()
+  // FND-147: el comando va en el aviso de qdd; aquí no se repite uno que falla sin --etapas.
+  expect(await ui.find({ type: 'Text', text: /Se crea con 'qdd estado init'/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Las etapas son las columnas del tablero/ })).toBeDefined()
   expect(await ui.find({ key: 'b-aprobar:pagos' })).toBeDefined()
 })
 

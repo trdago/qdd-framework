@@ -223,20 +223,26 @@ func runEstadoInit(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	etapas := estado.EtapasDe(estadoOpciones(root)["etapas"])
 	if estadoEtapas != "" {
-		etapas = nil
-		for _, s := range strings.Split(estadoEtapas, ",") {
-			if t := strings.TrimSpace(s); t != "" {
-				etapas = append(etapas, t)
-			}
-		}
+		etapas = etapasDeLaOpcion(estadoEtapas)
 	}
 	if len(etapas) == 0 {
-		salirCon("la ficha del estado (%s) no define etapas conocidas: pásalas con --etapas \"A,B,C\"", strings.Join(estado.Blueprints, " o "))
+		salirCon("faltan las etapas, las columnas del tablero: ninguna ficha (%s) las define. Elige las tuyas: %s", strings.Join(estado.Blueprints, " o "), estado.ComandoInit)
 	}
 	if err := estado.Init(root, etapas, time.Now()); err != nil {
 		salirCon("%v", err)
 	}
 	fmt.Printf("[+] %s creado con las etapas: %s\n", estado.Ruta, strings.Join(etapas, " · "))
+}
+
+// etapasDeLaOpcion lee --etapas "A, B,C": sin espacios alrededor y sin etapas vacías.
+func etapasDeLaOpcion(opcion string) []string {
+	var etapas []string
+	for _, s := range strings.Split(opcion, ",") {
+		if t := strings.TrimSpace(s); t != "" {
+			etapas = append(etapas, t)
+		}
+	}
+	return etapas
 }
 
 func runEstadoSet(cmd *cobra.Command, args []string) {

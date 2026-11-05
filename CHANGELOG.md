@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.7] - 2026-11-05
+
+### Corregido
+
+- **En un proyecto nuevo el panel da un comando que funciona (FND-147):** `qdd estado init` falla sin `--etapas`, así que
+  el aviso ahora lo incluye y explica que las etapas son las columnas del tablero.
+
 ## [2.10.0-rc.6] - 2026-11-05
 
 ### Corregido

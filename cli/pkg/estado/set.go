@@ -29,8 +29,11 @@ type Cambio struct {
 	AunqueExista bool
 }
 
+// ComandoInit es el comando que se le da a la persona: sin ficha que defina las etapas, 'qdd estado init' solo falla (FND-147).
+const ComandoInit = `qdd estado init --etapas "Código,Pruebas,Producción"`
+
 // ErrSinArchivo: el proyecto todavía no tiene estado.yaml (se crea con Init).
-var ErrSinArchivo = errors.New("el proyecto no tiene " + Ruta + ": créalo con 'qdd estado init'")
+var ErrSinArchivo = errors.New("el proyecto no tiene " + Ruta + ": créalo con '" + ComandoInit + "'")
 
 // Init crea el archivo con sus etapas. Falla si ya existe.
 func Init(root string, etapas []string, now time.Time) error {

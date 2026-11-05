@@ -1047,7 +1047,7 @@ function sinEstado(Box, Text, motivo) {
     flexDirection: 'column',
     children: [
       Text({ dimColor: true, wrap: 'wrap', children: [motivo || 'No hay tareas en este proyecto.'] }),
-      Text({ dimColor: true, wrap: 'wrap', children: ["Se crea con 'qdd estado init' (blueprint estado-por-tareas, destino «archivo»)."] }),
+      Text({ dimColor: true, wrap: 'wrap', children: ['Las etapas son las columnas del tablero: elige las tuyas.'] }),
     ],
   })
 }
