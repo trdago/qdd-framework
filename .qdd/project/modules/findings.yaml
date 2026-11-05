@@ -12,7 +12,7 @@ objetivo_operativo:
 objetivo_tecnologico:
     arquitectura: 'Paquete sin estado propio: Leer(cwd) lee .qdd/project/findings/*.yaml, Normalizar traduce el status a un Estado (open, resolved, wontfix, sin estado) y Contar/ContarEn resumen. Los consumidores no leen los archivos de findings por su cuenta. Para doctor, PorDecidir lista los findings sin estado reconocido, NoCanonicos los que no están en su forma canónica y EscribirCanonicos reescribe solo la línea status de estos últimos.'
     decisiones:
-        - 'El gate bloquea un finding sin estado (FND-01), sin inferirlo, y un resuelto sin test_result (FND-02) solo desde 2026-11-06, para no castigar el historial: había más de 200 resueltos antiguos sin ese campo en los proyectos de la máquina (MEJ-002).'
+        - 'El gate bloquea un finding sin estado (FND-01), sin inferirlo, y un resuelto sin test_result (FND-02) solo desde 2026-11-06, para no castigar el historial: había unos 145 resueltos antiguos sin ese campo en los proyectos de la máquina (MEJ-002).'
         - Se aceptan sinónimos y mayúsculas (closed, fixed, resuelto → resolved; pending, in-progress → open) para no romper findings antiguos.
         - Un archivo que no se puede leer como YAML se omite. No se cuenta.
         - 'EscribirCanonicos cambia solo la línea status de primer nivel y no toca los findings sin estado: ese estado lo decide una persona (FND-061).'
@@ -28,4 +28,4 @@ fuentes:
     - cli/pkg/findings/revision.go
     - rfcs/0005-reglas-como-principios.md
 ultima_revision: "2026-11-05"
-revisado_en_commit: 8ce08a0ef1a9
+revisado_en_commit: e29d4fcba50c

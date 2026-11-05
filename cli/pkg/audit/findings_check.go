@@ -12,7 +12,7 @@ import (
 // Rule: Prohibido usar 'else'
 // MEJ-002: un finding sin estado no se cuenta como abierto ni como resuelto, y nadie se enteraba. El gate lo bloquea, sin
 // inferirlo: lo decide quien escribe el finding. A un resuelto le pide su prueba solo desde desdePruebaEnFinding: los
-// proyectos de esta máquina tenían más de 200 resueltos antiguos sin test_result, y exigirlo los dejaría a todos sin gate.
+// proyectos de esta máquina tenían unos 145 resueltos antiguos sin test_result, y exigirlo los dejaría a todos sin gate.
 
 const desdePruebaEnFinding = "2026-11-06"
 

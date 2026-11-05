@@ -56,7 +56,7 @@ func TestRunFindingsCheck_ResueltoNuevoSinPrueba(t *testing.T) {
 	}
 }
 
-// El historial no se castiga: en los proyectos de la máquina hay más de 200 resueltos antiguos sin test_result.
+// El historial no se castiga: en los proyectos de la máquina hay unos 145 resueltos antiguos sin test_result.
 func TestRunFindingsCheck_ResueltoAntiguoSinPruebaNoBloquea(t *testing.T) {
 	cwd := t.TempDir()
 	conFinding(t, cwd, "FND-001.yaml", "id: FND-001\nstatus: resolved\ndate: \"2026-11-04\"\n")
