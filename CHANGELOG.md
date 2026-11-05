@@ -8,6 +8,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **Un pedido ya no se retira por el trabajo de otra sesión (FND-153, MEJ-010):** sin tarea explícita, solo hereda la tarea
+  en curso de su propia sesión.
 - **Una tarea cerrada ya no aparece en las esperas (FND-151, MEJ-010):** `esperas` y `fallas` solo traen tareas abiertas.
 
 ### Agregado

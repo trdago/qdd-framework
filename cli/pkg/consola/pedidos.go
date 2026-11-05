@@ -207,13 +207,9 @@ func AnotarHuellas(root string, now time.Time) error {
 	})
 }
 
-// tareaEnCurso es la tarea que la IA tiene activa ahora (qdd estado activar), o "".
+// tareaEnCurso es la tarea que esta sesión tiene activa ahora (qdd estado activar), o "".
 func tareaEnCurso(root string, now time.Time) string {
-	act := estado.LeerActividad(root)
-	if _, ok := estado.EnCurso(act, now)[act.Ultima]; ok {
-		return act.Ultima
-	}
-	return ""
+	return estado.TareaDeLaSesion(estado.LeerActividad(root), estado.SesionActual(), now)
 }
 
 // cicloDe es la hora del último mensaje de la persona (cero si no hay): lo hecho antes ya se vio.
