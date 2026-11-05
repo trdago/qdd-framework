@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.2] - 2026-11-05
+
+Trae también lo de 2.9.7 (FND-141).
+
 ### Agregado
 
 - **El panel avisa de una versión nueva de qdd y la instala con una tecla:** una vez por hora pregunta a npm, aparte y sin
