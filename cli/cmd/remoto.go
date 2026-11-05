@@ -27,10 +27,10 @@ teléfono. El PC encendido es la fuente de verdad: en la nube no se guarda ni el
 
   qdd remoto estado [--json]   lo que este PC publicaría, sin red: un panel por proyecto del registro
                                (<QDD_HOME>/proyectos.json, que anotan qdd init y cada mensaje con el panel)
-  qdd remoto activar --relay <url> --clave <publicable>
+  qdd remoto activar [--relay <url> --clave <publicable>]
                                guarda el relay, empareja el PC con QDD Móvil (QR) y deja el servicio
                                (systemd --user, launchd o una tarea al iniciar sesión en Windows)
-  qdd login                    lo mismo que activar, sin banderas: usa el relay que trae qdd
+  qdd login                    lo mismo que activar; las banderas son solo para quien opera su propio relay
   qdd remoto emparejar         muestra el QR y espera a que el teléfono lo acepte (5 min)
   qdd remoto desactivar        saca el PC del relay, detiene y borra el servicio y las credenciales
   qdd remoto dispositivos      los teléfonos de tu cuenta que ven este PC

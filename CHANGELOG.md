@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **`qdd remoto dispositivos` y `revocar` ya no piden la URL y la clave (issue #102):** en un PC sin relay mandan a
+  `qdd login`. La ayuda de `qdd remoto` también dice que esas banderas son solo para quien opera su propio relay.
+
 ## [2.9.10] - 2026-11-05
 
 ### Corregido
