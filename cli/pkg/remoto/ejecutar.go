@@ -428,6 +428,10 @@ func (b *Bucle) terminarComando(ctx context.Context, s Solicitud, r resultadoAcc
 // tomó (hecha), venció, se retiró o no se pudo entregar; un comando que corría cuando qdd remoto se cerró (fallo).
 func (b *Bucle) seguirEjecuciones(ctx context.Context) {
 	for _, s := range b.extras.solicitudes {
+		if s.Instruccion != "" && !s.terminada() && s.Ruta != "" {
+			b.seguirInstruccion(ctx, s)
+			continue
+		}
 		if s.Ejecutar == "" || s.terminada() || s.Ruta == "" {
 			continue
 		}
@@ -444,9 +448,13 @@ func (b *Bucle) seguirEjecuciones(ctx context.Context) {
 }
 
 func (b *Bucle) seguirInstruccion(ctx context.Context, s Solicitud) {
-	x, ok := consola.EjecucionDe(s.Ruta, s.Solicitud, b.ahora())
+	id := s.Solicitud
+	if s.Instruccion != "" {
+		id = s.Instruccion
+	}
+	x, ok := consola.EjecucionDe(s.Ruta, id, b.ahora())
 	if !ok {
-		b.cerrar(ctx, s, EstadoVencida, "la instrucción ya no está en este PC")
+		b.cerrarSinEntregar(ctx, s, EstadoVencida, "la instrucción ya no está en este PC")
 		return
 	}
 	if x.Estado == consola.EstadoHecho {
@@ -454,16 +462,28 @@ func (b *Bucle) seguirInstruccion(ctx context.Context, s Solicitud) {
 		return
 	}
 	if x.Estado == consola.EstadoVencida {
-		b.cerrar(ctx, s, EstadoVencida, x.Motivo)
+		b.cerrarSinEntregar(ctx, s, EstadoVencida, x.Motivo)
 		return
 	}
 	if x.Estado == consola.EstadoRetirada {
-		b.cerrar(ctx, s, EstadoRechazada, "retirada desde el teléfono antes de entregarla")
+		b.cerrarSinEntregar(ctx, s, EstadoRechazada, "retirada desde el teléfono antes de entregarla")
 		return
 	}
 	if x.Estado == consola.EstadoFallo {
-		b.cerrar(ctx, s, EstadoFallo, "no se pudo entregar a la sesión: "+x.Motivo)
+		b.cerrarSinEntregar(ctx, s, EstadoFallo, "no se pudo entregar a la sesión: "+x.Motivo)
 	}
+}
+
+// cerrarSinEntregar cierra una instrucción que no llegó a ninguna sesión; si era la respuesta a un ⏳, este vuelve a
+// preguntarse para que la persona pueda responder de nuevo (FND-141).
+func (b *Bucle) cerrarSinEntregar(ctx context.Context, s Solicitud, estado, resultado string) {
+	if s.Instruccion != "" {
+		if err := consola.ReabrirEspera(s.Ruta, s.Pregunta, s.Instruccion, b.ahora()); err != nil {
+			b.logf("no se pudo volver a preguntar %s: %v", s.Pregunta, err)
+		}
+		b.marcar()
+	}
+	b.cerrar(ctx, s, estado, resultado)
 }
 
 // retirarInstruccion es el «Rechazar» del teléfono sobre una instrucción que todavía espera una sesión.

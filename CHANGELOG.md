@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.9.7] - 2026-11-05
+
+### Corregido
+
+- **La respuesta a un ⏳ desde el teléfono ya no dice «entregada» antes de tiempo (FND-141):** queda en curso hasta que
+  una sesión de Claude Code la acepta. Si no llega, el teléfono ve la falla o el vencimiento y el ⏳ se puede responder de
+  nuevo. Antes quedaba como respondida y no se podía repetir en 24 h. Límite conocido: confirmar significa que Claude Code
+  la aceptó, no que la IA ya la leyó.
+
 ## [2.9.6] - 2026-11-05
 
 Corrección de 2.9.5, sin esperar uso medido por ser un arreglo. Trae lo mismo que 2.9.6-rc.1.

@@ -306,6 +306,9 @@ diálogo.
 | `vencida` | La pregunta venció o ya no está en el PC. | El motivo |
 | `rechazada` | Respuesta inválida, teléfono revocado, proyecto no publicado. | El motivo |
 
+- La respuesta a un ⏳ del estado (id `espera-…`) no se cierra al recibirla (FND-141): pasa por `ejecutando` y termina
+  `hecha` cuando una sesión de Claude Code la acepta, o `fallo`, `vencida` o `rechazada` si no llegó. En esos tres casos el
+  ⏳ vuelve a preguntarse con el mismo id y una solicitud nueva.
 - Si la terminal gana después de que el PC dijo `hecha` (la respuesta del teléfono llegó pero el motor ya había
   aceptado la de la terminal), el PC corrige esa solicitud con `ya_aprobado` y `lugar:"PC"`.
 - Una respuesta sin firma válida se anota en el log y no se contesta.

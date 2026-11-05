@@ -127,8 +127,9 @@ type Solicitud struct {
 	Lugar       string    `json:"lugar,omitempty"`
 	Ruta        string    `json:"ruta,omitempty"`
 	Pedido      string    `json:"pedido,omitempty"`
-	Pregunta    string    `json:"pregunta,omitempty"` // una respuesta a una pregunta de la consola (preguntas.go)
-	Ejecutar    string    `json:"ejecutar,omitempty"` // lo mandado a ejecutar desde el teléfono: qdd o ia (ejecutar.go)
+	Pregunta    string    `json:"pregunta,omitempty"`    // una respuesta a una pregunta de la consola (preguntas.go)
+	Ejecutar    string    `json:"ejecutar,omitempty"`    // lo mandado a ejecutar desde el teléfono: qdd o ia (ejecutar.go)
+	Instruccion string    `json:"instruccion,omitempty"` // la respuesta a un ⏳ viaja en esta instrucción de la consola (FND-141)
 	Recibida    time.Time `json:"recibida"`
 }
 
