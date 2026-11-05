@@ -167,3 +167,30 @@ test('el pie es una línea corta, sin cursiva, y no repite lo que ya dicen los b
   expect(leyenda).toMatchObject({ props: { dimColor: true } })
   expect(leyenda.props.italic).toBeUndefined()
 })
+
+test('una versión nueva sin botón (Windows) se avisa en la cabecera con lo que dice qdd', async ($, on) => {
+  const aviso = '⬆ qdd 2.9.7 disponible: cierra las sesiones de Claude Code y corre npm i -g qdd-framework@2.9.7'
+  const ui = await abrir($, on, { ...PANEL, aviso_version: aviso })
+  expect(await ui.find({ type: 'Text', text: aviso })).toMatchObject({ props: { color: AMBAR, wrap: 'wrap' } })
+})
+
+test('la actualización de qdd se ofrece como pedido, pero no abre el panel', async ($, on) => {
+  const aperturas: unknown[] = []
+  const clock = mock.clock(on)
+  mock.env(on, {})
+  const salida = { exitCode: 0, stdout: JSON.stringify({ ...PANEL, acciones: [] }), stderr: '' }
+  on('session.start', () => ({ cwd: '/work/tienda' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', ($, e) => {
+    aperturas.push(e)
+    return { value: { isPlaced: true } }
+  })
+  on('process.run', () => ({ value: { ...salida } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/tienda' })
+  const antes = aperturas.length
+  salida.stdout = JSON.stringify({ ...PANEL, acciones: [{ ...PEDIDO, id: 'pedido:9', tecla: 'b', etiqueta: '⬆ Actualizar qdd a 2.9.7', version_nueva: '2.9.7' }] })
+  await clock.advance(2000)
+  expect(aperturas.length).toBe(antes)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-pedido:9' })).toMatchObject({ props: { hotkey: 'b' } })
+})

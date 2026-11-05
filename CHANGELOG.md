@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **El panel avisa de una versión nueva de qdd y la instala con una tecla:** una vez por hora pregunta a npm, aparte y sin
+  demorar al panel, y deja el pedido opcional «⬆ Actualizar qdd a X» del canal instalado. Corre solo si confirmas con
+  «s  Sí»; el modo goal no lo lanza. Un binario que no vino de npm no pregunta nada. En Windows, el panel avisa con lo que
+  hay que hacer y no ofrece botón, porque npm no puede reemplazar `qdd.exe` mientras algo lo usa (issue #107).
+
 ## [2.10.0-rc.1] - 2026-11-05
 
 ### Cambiado

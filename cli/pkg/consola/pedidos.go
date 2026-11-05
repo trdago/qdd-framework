@@ -102,6 +102,13 @@ type Pedido struct {
 	Avisado bool   `json:"avisado,omitempty"`
 	// PR es el pull request que ofrece un pedido opcional de qdd (prs.go); 0 en uno de la IA.
 	PR int `json:"pr,omitempty"`
+	// Version es la versión de qdd que ofrece un pedido opcional (version_nueva.go); vacía en uno de la IA.
+	Version string `json:"version,omitempty"`
+}
+
+// Opcional: lo ofrece qdd por su cuenta, no la IA. No abre el panel, no es una espera ni lo lanza el modo goal.
+func (p Pedido) Opcional() bool {
+	return p.PR != 0 || p.Version != ""
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
@@ -477,6 +484,9 @@ func Descartar(root, idOTecla string) error {
 			if p.ID == id && p.PR != 0 {
 				anotarDescartado(root, p.PR)
 			}
+			if p.ID == id && p.Version != "" {
+				anotarVersionDescartada(root, p.Version)
+			}
 			if p.ID != id {
 				resto = append(resto, p)
 			}
@@ -498,7 +508,7 @@ func accionesDePedidos(root string) []Accion {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
-			Sesion: p.Sesion, PR: p.PR, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
+			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
 		}
 		if p.porAvisar() {
 			a.Avisar, a.Mensaje = true, mensajeAviso(p)

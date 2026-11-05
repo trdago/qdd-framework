@@ -56,7 +56,34 @@ func prsAlDia(root string) {
 	consola.PRsAlDia(root, bin, time.Now())
 }
 
+// qdd consola version-nueva (oculto): lo lanza el panel cada hora, aparte; pregunta a npm y ofrece la versión nueva.
+var consolaVersionNuevaCmd = &cobra.Command{
+	Use:    "version-nueva",
+	Short:  "Pregunta a npm por una versión nueva de qdd y la ofrece en el panel (interno)",
+	Hidden: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		root := consolaRaiz
+		if root == "" {
+			root = estadoRaiz()
+		}
+		if err := consola.TraerVersion(root, Version, time.Now()); err != nil {
+			fmt.Fprintf(os.Stderr, "[!] %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+// versionAlDia pregunta aparte, a lo más cada hora, sin demorar al panel. Desde las pruebas no lanza nada.
+func versionAlDia(root string) {
+	bin, err := os.Executable()
+	if err != nil || strings.HasSuffix(bin, ".test") {
+		return
+	}
+	consola.VersionAlDia(root, bin, Version, time.Now())
+}
+
 func init() {
 	consolaPRsCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto")
-	consolaCmd.AddCommand(consolaPRsCmd, consolaMergearPRCmd)
+	consolaVersionNuevaCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto")
+	consolaCmd.AddCommand(consolaPRsCmd, consolaMergearPRCmd, consolaVersionNuevaCmd)
 }

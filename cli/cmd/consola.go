@@ -178,6 +178,7 @@ func datosPanel(root string, now time.Time, con []string) consola.DatosConsola {
 	datos := consola.Panel(root, now, con...)
 	datos.Version = Version
 	datos.Ejecutar = remoto.OpcionesEjecutar(root, remoto.PlanLocal(), now)
+	datos.AvisoVersion = consola.AvisoDeVersion(root, Version)
 	return datos
 }
 

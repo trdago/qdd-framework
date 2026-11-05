@@ -377,8 +377,8 @@ function enCurso(Text, f) {
 async function abrirSiLlegaUnPedido($) {
   const nuevos = pedidos(datos?.acciones || []).filter((a) => ejecutable(a) && !pedidosVistos.has(a.id))
   for (const a of nuevos) pedidosVistos.add(a.id)
-  // Un PR abierto (a.pr) es opcional: se ofrece, pero no abre el panel.
-  if (!iniciado || !nuevos.some((a) => !a.pr)) return
+  // Un PR abierto (a.pr) o una versión nueva de qdd (a.version_nueva) son opcionales: se ofrecen, pero no abren el panel.
+  if (!iniciado || !nuevos.some((a) => !a.pr && !a.version_nueva)) return
   await $.ui.open({ id: PANE, title: TITULO })
 }
 
@@ -533,7 +533,8 @@ function cabecera(Box, Text, Button, $, e, lista) {
       ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
     ],
   })
-  if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila, herramientas] })
+  const avisoVersion = datos.aviso_version ? [Text({ key: 'aviso-version', color: COLOR.espera, wrap: 'wrap', children: [datos.aviso_version] })] : []
+  if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila, ...avisoVersion, herramientas] })
   const aviso = e.viejo
     ? [Text({ key: 'viejo', color: COLOR.espera, wrap: 'wrap', children: ['⚠ Sin actualizar ' + e.hace + ': lo que dice ⏳ puede haber cambiado'] })]
     : []
@@ -562,6 +563,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
         children: conPuntos,
       }),
       ...aviso,
+      ...avisoVersion,
       herramientas,
     ],
   })

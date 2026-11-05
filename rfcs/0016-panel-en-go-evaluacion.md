@@ -48,6 +48,8 @@ Lo que estas mediciones no dicen:
 - Es Linux. En Windows, MEJ-020 midió ~370 ms de CPU por lectura (`cmd`, `node` y `qdd.exe`) y unos 20 % de un núcleo por
   sesión. Se espera más ganancia allá, pero no está medido: el CI solo comprueba que el flujo funcione.
 - Es en reposo y con un tablero que no cambia durante la prueba.
+- En Windows, cada sesión deja un `qdd.exe` corriendo. Antes ya había una ventana con el archivo abierto (issue #107); ahora
+  está abierto siempre, así que `npm i -g` exige cerrar las sesiones hasta resolver ese issue.
 - Bubble Tea y Wails no incluyen el mod mínimo que seguiría haciendo falta (ver abajo), y una sesión sin panel es solo
   el piso de ese costo.
 

@@ -51,6 +51,7 @@ func init() {
 func lecturaPanel(root string, con []string) func() ([]byte, error) {
 	return func() ([]byte, error) {
 		prsAlDia(root)
+		versionAlDia(root)
 		datos := datosPanel(root, time.Now(), con)
 		conEfectos(&datos)
 		return json.Marshal(datos)

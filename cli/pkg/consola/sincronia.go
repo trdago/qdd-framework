@@ -30,7 +30,7 @@ const (
 func Esperas(root string, now time.Time) []string {
 	var out []string
 	for _, p := range PedidosA(root, now) {
-		if !p.Ejecutable() || p.PR != 0 || len(EsperaDe(root, p.ID)) > 0 {
+		if !p.Ejecutable() || p.Opcional() || len(EsperaDe(root, p.ID)) > 0 {
 			continue
 		}
 		out = append(out, fmt.Sprintf("pedido %s «%s»", p.Tecla, recortar(p.Motivo, maxTextoEspera)))
