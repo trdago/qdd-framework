@@ -12,6 +12,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   todo el proyecto, y qué quedó sin revisar, por qué y dónde. Un 100 ya no sugiere que se revisó todo. No cambia el puntaje
   ni lo que bloquea. También aparece en `qdd certify` y en las tools MCP.
 
+## [2.9.10] - 2026-11-05
+
+### Corregido
+
+- **El gate ya no deja pasar un finding sin estado (MEJ-002):** un finding sin `status` no se contaba como abierto ni como
+  resuelto, y nadie se enteraba. Ahora bloquea, y QDD no lo infiere: escribe `open`, `resolved` o `wontfix`. Desde 2026-11-06,
+  un finding resuelto también tiene que decir en `test_result` qué lo prueba; los anteriores no se revisan.
+
 ## [2.9.9] - 2026-11-05
 
 ### Corregido

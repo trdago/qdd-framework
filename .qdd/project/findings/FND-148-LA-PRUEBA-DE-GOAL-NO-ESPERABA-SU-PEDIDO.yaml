@@ -1,0 +1,9 @@
+id: "FND-148"
+title: "Una prueba de goal no esperaba a su pedido y rompía el CI al azar"
+description: "TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR lanza el pedido con el binario de pruebas, en un proceso aparte, y terminaba sin esperarlo. Ese proceso seguía escribiendo la cola en el TempDir mientras la limpieza de la prueba lo borraba: «TempDir RemoveAll cleanup: directory not empty». En una máquina con systemd de usuario, systemd-run retrasa al hijo y la falla casi no se ve; en CI el hijo arranca directo."
+impact: "El CI fallaba sin relación con el cambio. En el #129 (commit e29d4fc, run 42096123600) dejó el pedido «Mergear #129» en «falló (código 1)», aunque el código estaba bien. No afecta al producto: es solo la prueba."
+action_taken: "La prueba espera a que el pedido llegue a «hecho» y comprueba que su comando corrió, lo que antes no miraba."
+test_result: "cli/pkg/consola/goal_test.go (TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR). Sin systemd-run en el PATH, 24 procesos a la vez y 40 vueltas cada uno: antes 77 fallos de 960, después 0 de 960."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"
