@@ -238,3 +238,40 @@
   por_que: >-
     Lo que se envía a un proveedor de IA sale del sistema: un secreto en el
     prompt queda en manos de terceros.
+
+- id: P-FINDINGS-COMPLETE
+  nombre: Cada finding dice su estado y qué lo prueba
+  categoria: auditabilidad
+  alcance: repositorio
+  reglas: [FND-01-SIN-ESTADO, FND-02-SIN-PRUEBA]
+  por_que: >-
+    Un finding sin estado no se cuenta como abierto ni como resuelto, y nadie
+    se entera. Sin decir qué lo prueba, no se puede comprobar que sigue arreglado.
+
+- id: P-TASK-STATE-VALID
+  nombre: El estado de las tareas es válido
+  categoria: auditabilidad
+  alcance: repositorio
+  reglas: [EPF-01-CHECK]
+  por_que: >-
+    Quien retoma el trabajo y el panel leen ese archivo. Si no es válido, el
+    avance que muestran no se puede creer.
+
+- id: P-TOOLS-DEFINED
+  nombre: Las herramientas del proyecto están bien definidas
+  categoria: correccion
+  alcance: repositorio
+  reglas: [HER-01-DEFINICION]
+  por_que: >-
+    Una definición que no se lee no se puede usar, y una que trae un secreto lo
+    deja en el repositorio.
+
+- id: P-SEMVER-RELEASES
+  nombre: Cada versión respeta SemVer y está probada
+  categoria: madurez
+  alcance: repositorio
+  politicas: [versioning]
+  reglas: [VER-01-INVALID-SEMVER, VER-02-VERSION-REGRESSION, VER-03-UNDERSIZED-BUMP, VER-04-CHANGELOG-MISSING, VER-05-UNPROVEN-RELEASE]
+  por_que: >-
+    Quien actualiza decide por el número de versión. Si el número no dice cuánto
+    cambió, o la versión sale sin uso medido, el riesgo lo asume esa persona.

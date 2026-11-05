@@ -49,7 +49,7 @@ func TestPrincipios_CadaReglaDelMotorTienePrincipio(t *testing.T) {
 	ids := map[string]bool{}
 	categorias := map[string]bool{}
 	patronCategoria := regexp.MustCompile(`Category:\s*"([^"]+)"`)
-	patron := regexp.MustCompile(`"((?:OWASP|QA|CLEAN|12F|CI|HEART|BP|DB|CERT|TRC|ISO\d+|SOC2)-[A-Z0-9]+(?:-[A-Z0-9]+)*)"`)
+	patron := regexp.MustCompile(`"((?:OWASP|QA|CLEAN|12F|CI|HEART|BP|DB|CERT|TRC|ISO\d+|SOC2|FND|EPF|VER|HER)-[A-Z0-9]+(?:-[A-Z0-9]+)*)"`)
 	for _, dir := range []string{".", "../blueprints"} {
 		archivos, _ := filepath.Glob(filepath.Join(dir, "*.go"))
 		for _, a := range archivos {

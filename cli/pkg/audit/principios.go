@@ -121,6 +121,10 @@ var detectores = map[string]detector{
 	"P-NO-PROMPT-INJECTION":   {stacks: lenguajesDeIA, limite: limiteDeIA},
 	"P-AI-OUTPUT-VALIDATED":   {stacks: lenguajesDeIA, limite: limiteDeIA},
 	"P-NO-SECRETS-IN-PROMPTS": {stacks: lenguajesDeIA, limite: limiteDeIA},
+	"P-FINDINGS-COMPLETE":     {limite: "revisa que los campos existan, no corre la prueba que nombran"},
+	"P-TASK-STATE-VALID":      {},
+	"P-TOOLS-DEFINED":         {limite: "no corre las herramientas ni exige su ejecutable"},
+	"P-SEMVER-RELEASES":       {},
 }
 
 // esRepositorioGit: sin git, el chequeo de commits no tiene qué revisar.

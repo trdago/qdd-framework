@@ -209,6 +209,7 @@ func politicaActiva(p QDDPolicies, clave string) bool {
 		"ai_governance":   p.AIGovernance,
 		"data_uniqueness": p.DataUniqueness,
 		"deploy_gate":     p.DeployGateEnabled(),
+		"versioning":      p.VersioningEnabled(),
 	}
 	return activas[clave]
 }
