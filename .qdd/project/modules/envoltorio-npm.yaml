@@ -14,7 +14,7 @@ objetivo_tecnologico:
     decisiones:
         - En Windows, install.js deja qdd.exe en %LOCALAPPDATA%/qdd/bin/<versión>/qdd.exe y escribe bin/actual.txt al terminar, después de actualizar el panel, porque lo que corre se cierra apenas cambia; conserva esta versión y la anterior, y lo que sigue corriendo se borra en otra actualización. Reinstalar la misma versión no descarga ni reemplaza (FND-142).
         - 'npm 12 bloquea el postinstall por defecto, y sin él no hay binario: toda instrucción de instalación de qdd lleva --allow-scripts=qdd-framework y el mensaje de binario ausente lo dice (FND-143). npm 10 y 11 toleran la bandera.'
-        - 'Binario ausente: primero lo baja con install.js --primer-uso (FND-143, decisión de la persona, 2026-11-05: quien instala sin la bandera no queda sin qdd); un turno evita que varios qdd bajen cada uno el suyo y lo del instalador va a stderr.'
+        - 'Binario ausente: primero lo baja con install.js --primer-uso (FND-143; opción recomendada que eligió el modo goal, 2026-11-05, falta que la persona la confirme: quien instala sin la bandera no queda sin qdd); un turno evita que varios qdd bajen cada uno el suyo y lo del instalador va a stderr.'
         - 'Binario que sigue ausente (ENOENT) sale con 75, el «todavía no» de los pedidos (FND-135): no se distingue una reinstalación de una instalación rota, así que el mensaje cubre las dos. Cualquier otro error de lanzarlo sale con 1.'
     invariantes:
         - Linux y macOS mantienen el binario dentro del paquete.
@@ -26,4 +26,4 @@ pruebas:
     comandos:
         - cd npm && node --test
 ultima_revision: "2026-11-05"
-revisado_en_commit: 5d5fe39570de
+revisado_en_commit: bbbc1dbfd20c
