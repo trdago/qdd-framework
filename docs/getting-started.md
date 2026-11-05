@@ -7,7 +7,7 @@ Bienvenido a Quality-Driven Development. QDD no es un asistente de programación
 ## Paso 0: Instalación
 
 ```bash
-npm install -g qdd-framework
+npm install -g qdd-framework --allow-scripts=qdd-framework
 ```
 
 Sin Node, descarga el binario de tu sistema desde [Releases](https://github.com/trdago/qdd-framework/releases/latest). Más opciones en el [README](../README.md#instalación).
