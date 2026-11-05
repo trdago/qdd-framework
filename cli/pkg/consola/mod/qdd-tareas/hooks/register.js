@@ -1735,14 +1735,18 @@ function vistaConfig($, Box, Text, Button, Input, ancho) {
 }
 
 // COMANDO_QDD: qdd en posición de comando (al inicio o tras ; & | ( ` o un salto de línea), con asignaciones VAR=…
-// delante, con o sin ruta (./qdd, $S/qdd, ~/.local/bin/qdd) y con o sin sufijo (qdd-rc10, qdd.exe). Una carpeta o un
-// archivo llamado qdd en los argumentos no cuenta (FND-106).
-const COMANDO_QDD = /(?:^|[;&|(\n`])\s*(?:\w+=\S*\s+)*(?:\S*\/)?qdd(?:[-.][\w.-]*)?(?=\s|$)/
+// delante, con o sin ruta (./qdd, $S/qdd, ~/.local/bin/qdd, .\qdd.exe, C:\tools\qdd.exe), con la ruta entre comillas si
+// lleva espacios (& "C:\Program Files\qdd.exe") y con o sin sufijo (qdd-rc10, qdd.exe). Una carpeta o un archivo llamado
+// qdd en los argumentos no cuenta (FND-106, FND-146).
+const COMANDO_QDD = /(?:^|[;&|(\n`])\s*(?:\w+=\S*\s+)*(?:(["'])(?:[^"'\n]*[/\\])?qdd(?:[-.][\w.-]*)?\1|(?:\S*[/\\])?qdd(?:[-.][\w.-]*)?)(?=\s|$)/
+
+// HERRAMIENTAS_SHELL: las que corren un comando; en Windows Claude Code también tiene PowerShell (FND-146).
+const HERRAMIENTAS_SHELL = new Set(['Bash', 'PowerShell'])
 
 // cambiaElPanel: una tool MCP de qdd o un comando de shell que corre qdd.
 function cambiaElPanel(e) {
   if (/__qdd_/.test(String(e.tool || ''))) return true
-  return e.tool === 'Bash' && COMANDO_QDD.test(String(e.command || ''))
+  return HERRAMIENTAS_SHELL.has(e.tool) && COMANDO_QDD.test(String(e.command || ''))
 }
 
 // cicloConContexto marca el ciclo y devuelve lo que el panel espera de la persona ('' si nada cambió). Un qdd anterior
@@ -2034,10 +2038,10 @@ async function pedirCicloMejoras($) {
 // está haciendo algo. Todo lo decide qdd, sin modelos: qué elegir, cuándo recordar y cuándo detenerse. Si devuelve un
 // mensaje, la IA lo recibe (empieza con 🎯: nunca se lee como «!» ni «/»); si devuelve un aviso, le llega a la persona.
 // Solo la persona lo activa: el botón del panel pasa por su confirmación y es lo único que limpia CLAUDECODE. Una IA que
-// lo intenta por Bash recibe una negativa aquí y, si lo esquiva, un rechazo de qdd.
+// lo intenta por una herramienta de shell recibe una negativa aquí y, si lo esquiva, un rechazo de qdd (FND-146).
 const GOAL_MS = 5000
 const ACCION_GOAL = 'goal-activar'
-const ACTIVA_GOAL = /\bqdd(\.exe)?\s+(goal\s+activar|consola\s+accion\s+goal-activar)\b/
+const ACTIVA_GOAL = /\bqdd(?:[-.][\w.-]*)?["']?\s+(goal\s+activar|consola\s+accion\s+goal-activar)\b/
 const MOTIVOS_GOAL = {
   sin_consola: 'sin una sesión abierta',
   sin_avance: '3 recordatorios sin avance',
@@ -2182,7 +2186,7 @@ export function register(on) {
   on('tool.call', async ($, e, next) => {
     pulsar($, 'agente')
     hubo()
-    if (e.tool === 'Bash' && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
+    if (HERRAMIENTAS_SHELL.has(e.tool) && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
     const seguir = !e.agentId && e.tool_use_id
     if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
     try {

@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.6] - 2026-11-05
+
+### Corregido
+
+- **El panel ve los comandos qdd corridos por PowerShell o con una ruta entre comillas (FND-146, MEJ-016):** se relee tras
+  ellos, y la negativa a que una IA active el modo goal también los cubre.
+
 ## [2.10.0-rc.5] - 2026-11-05
 
 Trae también lo de 2.9.9 (FND-143).

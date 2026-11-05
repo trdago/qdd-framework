@@ -818,6 +818,42 @@ test('un qdd con ruta o con sufijo también relee el panel; una carpeta llamada 
   }
 })
 
+// FND-146 (MEJ-016): en Windows, Claude Code también corre comandos con la herramienta PowerShell, y ahí las rutas llevan
+// \, comillas y el operador &. Bash con una ruta entre comillas tampoco se reconocía.
+test('un qdd por PowerShell o con ruta de Windows también relee el panel; lo demás no (FND-146)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const lecturas = () => llamadas.filter((a) => a[2] === 'panel').length
+  const releen = [
+    'qdd estado',
+    '& "C:\\x y\\qdd.exe" estado',
+    "& 'C:\\x y\\qdd.cmd' estado",
+    '.\\qdd.exe consola panel',
+    'C:\\tools\\qdd.exe consola panel',
+    'cd C:\\x; qdd consola descartar a',
+    '$env:A="1"; qdd estado',
+    '"/opt/x y/qdd" estado',
+  ]
+  const noReleen = ['Get-Content qdd', 'Get-Content .\\qdd', 'cd C:\\proyectos\\qdd', 'ls "C:\\x\\qdd.exe"', 'echo qdd']
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const command of releen) {
+      const antes = lecturas()
+      await $.tool.call({ tool, command })
+      expect([tool, command, lecturas()]).toEqual([tool, command, antes + 1])
+    }
+    for (const command of noReleen) {
+      const antes = lecturas()
+      await $.tool.call({ tool, command })
+      expect([tool, command, lecturas()]).toEqual([tool, command, antes])
+    }
+  }
+  const antes = lecturas()
+  await $.tool.call({ tool: 'Grep', command: 'qdd estado' })
+  expect(lecturas()).toBe(antes)
+})
+
 // Materializar (pedido del usuario, 2026-11-01): lo que cambia aparece como sus ventanas (hypr-materialize); qdd
 // calcula los cuadros y el Client del panel solo los reproduce.
 const EFECTOS = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400, cuadro_ms: 40, origen: 'hypr-materialize' }

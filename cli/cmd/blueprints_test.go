@@ -44,6 +44,11 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
+	// La acción del panel que activa el modo goal relanza este binario como «qdd goal» (FND-146).
+	if len(os.Args) > 1 && os.Args[1] == "goal" {
+		Execute()
+		os.Exit(0)
+	}
 	home, err := os.MkdirTemp("", "qdd-home-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
