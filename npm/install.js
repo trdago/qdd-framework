@@ -276,7 +276,7 @@ function codigoDeFalla(env) {
 
 function fallar(motivo) {
   console.error(`[QDD] La instalación falló: ${motivo}`);
-  console.error('[QDD] Para reintentar: npm install -g qdd-framework');
+  console.error('[QDD] Para reintentar: npm install -g qdd-framework --allow-scripts=qdd-framework');
   process.exit(codigoDeFalla(process.env));
 }
 

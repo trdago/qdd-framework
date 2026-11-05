@@ -8,12 +8,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [2.10.0-rc.4] - 2026-11-05
 
+Trae también lo de 2.9.8 (FND-143).
+
 ### Cambiado
 
 - **La barra de estado ya no arranca Node cada 2 s:** llama al binario de qdd por su ruta y, si esa ruta ya no existe, a
   `qdd` como antes. Cada llamada gasta unas 4 veces menos CPU (en Linux, de 50-65 ms a 12-16 ms); en Windows no está
   medido. `settings.json` guarda la ruta, y `qdd consola activar` o `qdd doctor --fix` la renuevan al actualizar. Un
   binario compilado a mano no la escribe, y una barra propia no se toca.
+
+### Corregido
+
+- **El botón «⬆ Actualizar qdd» ya no deja a qdd sin binario con npm 12 (FND-143):** instala con
+  `--allow-scripts=qdd-framework`, igual que el aviso de Windows.
 
 ## [2.10.0-rc.3] - 2026-11-05
 
@@ -56,6 +63,15 @@ Trae también lo de 2.9.7 (FND-141).
 
 - **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
 - **`k` ya no es a la vez Config y Modo goal (FND-139).**
+
+## [2.9.8] - 2026-11-05
+
+### Corregido
+
+- **Con npm 12, instalar o actualizar qdd lo dejaba sin binario (FND-143):** npm 12 bloquea por defecto los scripts de
+  instalación, y terminaba bien aunque qdd quedara sin funcionar. El comando correcto es ahora `npm install -g qdd-framework
+  --allow-scripts=qdd-framework`, y es el que indican la documentación y los mensajes de qdd. Si ya te pasó, ese comando lo
+  arregla.
 
 ## [2.9.7] - 2026-11-05
 

@@ -193,7 +193,7 @@ Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a l
 | `qdd goal ciclo [--json] [--silencio <s>] [--ocupada] [--sesion <id>]` | Una vuelta del vigilante. La llama el panel cada 5 s con el modo activo. |
 
 ### 📏 Uso real medido y canal preview (RFC 0010)
-Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
+Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview --allow-scripts=qdd-framework`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
 
 | Comando | Descripción |
 |---------|-------------|
