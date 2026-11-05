@@ -822,7 +822,7 @@ test('un qdd con ruta o con sufijo también relee el panel; una carpeta llamada 
 // calcula los cuadros y el Client del panel solo los reproduce.
 const EFECTOS = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400, cuadro_ms: 40, origen: 'hypr-materialize' }
 
-function prepararMat(on, panel: () => unknown, mats: { lineas: { texto: string }[][]; abrir: boolean }[]) {
+function prepararMat(on, panel: () => unknown, mats: any) {
   const clock = mock.clock(on)
   mock.env(on, {})
   on('session.start', () => ({ cwd: '/work' }))
@@ -830,9 +830,10 @@ function prepararMat(on, panel: () => unknown, mats: { lineas: { texto: string }
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('process.run', ($, e) => {
     if (e.argv[2] !== 'materializar') return { value: ok(panel()) }
-    const p = JSON.parse(e.init.stdin)
-    mats.push(p)
-    return { value: ok({ cuadro_ms: 40, cuadros: [[[{ texto: '#', color: '#bbfff4' }]], p.lineas] }) }
+    const { lote } = JSON.parse(e.init.stdin)
+    mats.push(...lote)
+    mats.procesos = (mats.procesos || 0) + 1
+    return { value: ok({ lote: lote.map((p) => ({ cuadro_ms: 40, cuadros: [[[{ texto: '#', color: '#bbfff4' }]], p.lineas] })) }) }
   })
   return clock
 }
@@ -849,6 +850,34 @@ test('lo que aparece se materializa y vuelve a ser lo de siempre (materializar)'
   await ui.advance(200)
   expect(await ui.find({ type: 'Client' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: 'yellow' } })
+})
+
+test('abrir el panel pide todos los cuadros en un solo proceso (MEJ-017)', async ($, on) => {
+  const mats: any = []
+  prepararMat(on, () => ({ ...PANEL, efectos: EFECTOS }), mats)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.find({ type: 'Client' })
+  expect(mats.length).toBeGreaterThan(1)
+  expect(mats.procesos).toBe(1)
+})
+
+test('si qdd no entrega el lote, el panel dibuja lo de siempre (materializar)', async ($, on) => {
+  const clock = mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    if (e.argv[2] !== 'materializar') return { value: ok({ ...PANEL, efectos: EFECTOS }) }
+    return { value: ok({ cuadro_ms: 40, cuadros: [] }) }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await clock.advance(100)
+  await ui.advance(100)
+  expect(await ui.find({ type: 'Client' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toBeDefined()
 })
 
 test('con los efectos apagados el panel no pide cuadros (materializar)', async ($, on) => {

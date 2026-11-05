@@ -34,6 +34,7 @@ const ACENTO = 'cyan'
 // materializar'); el elemento Client del panel (materializar.js) solo los reproduce. Sin Client (otra superficie) o
 // sin cuadros, se dibuja lo de siempre.
 const vistos = new Map() // clave → huella de lo último dibujado
+const cuadrosPorPedir = [] // lo que pidió el dibujo en curso
 const animaciones = new Map() // clave → { huella, n, cuadros, ms, fallo } (lo que se materializa)
 const fantasmas = new Map() // clave → { lineas, n, cuadros, ms, fallo } (un pedido que se va)
 const tarjetasVistas = new Map() // id de pedido → sus líneas, para que al irse se vaya materializando
@@ -69,19 +70,35 @@ function enBlanco(Text, clave, lineas) {
   return Text({ key: 'blanco-' + clave, children: [lineas.map((l) => l.map((x) => blanco(x.texto)).join('')).join('\n')] })
 }
 
-async function pedirCuadros($, anim, lineas, abrir) {
-  try {
-    const bin = await binario($)
-    const pedido = { lineas, abrir, semilla: anim.n, acento: datos?.efectos?.acento || ACENTO }
-    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify(pedido), timeoutMs: TOPE_MS })
-    const j = r.exitCode === 0 ? JSON.parse(r.stdout) : null
+// pedirCuadros junta lo que pide un mismo dibujo y lo manda en un solo proceso, al terminar de dibujar (MEJ-017: abrir
+// el panel lanzaba uno por celda).
+function pedirCuadros($, anim, lineas, abrir) {
+  cuadrosPorPedir.push({ anim, pedido: { lineas, abrir, semilla: anim.n, acento: datos?.efectos?.acento || ACENTO } })
+  if (cuadrosPorPedir.length === 1) Promise.resolve().then(() => vaciarCuadros($))
+}
+
+async function vaciarCuadros($) {
+  const pendientes = cuadrosPorPedir.splice(0)
+  const lote = await loteDeCuadros($, pendientes.map((p) => p.pedido))
+  pendientes.forEach(({ anim }, i) => {
+    const j = lote[i]
     anim.cuadros = Array.isArray(j?.cuadros) && j.cuadros.length ? j.cuadros : null
     anim.ms = j?.cuadro_ms || 40
     anim.fallo = !anim.cuadros
-  } catch {
-    anim.fallo = true
-  }
+  })
   $.ui.invalidate('ui.render')
+}
+
+// loteDeCuadros: sin respuesta (o de un qdd que no conoce el lote), ningún cuadro: se dibuja lo de siempre.
+async function loteDeCuadros($, pedidos) {
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify({ lote: pedidos }), timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0) return []
+    return JSON.parse(r.stdout).lote || []
+  } catch {
+    return []
+  }
 }
 
 // seVan: los pedidos que estaban y ya no están se van materializando al revés (0,4 s), en el lugar del final.

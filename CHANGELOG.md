@@ -15,6 +15,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   medir todavía en Windows. A cambio suma unos 25 MB de memoria por sesión.
 - **El panel llama directo al binario:** deja de pasar por el envoltorio de Node y, en Windows, por `cmd`.
 - **Las sesiones sin terminal (`claude -p`) ya no leen el panel cada 2 s.**
+- **Abrir el panel pide los cuadros de los efectos en un solo proceso (MEJ-017):** antes lanzaba uno por cada celda que
+  cambiaba. Un qdd anterior no entiende el lote y el panel se dibuja sin efecto.
 
 ## [2.9.5] - 2026-11-05
 

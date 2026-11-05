@@ -51,6 +51,19 @@ Lo que estas mediciones no dicen:
 - Bubble Tea y Wails no incluyen el mod mínimo que seguiría haciendo falta (ver abajo), y una sesión sin panel es solo
   el piso de ese costo.
 
+### La barra de estado
+
+Tres rondas alternadas de 120 s, con cinco sesiones sin panel, la barra del usuario y el MCP de qdd:
+
+| Ronda | Con envoltorio de Node | Binario directo |
+|---|---:|---:|
+| 1 | 2,27 | 1,04 |
+| 2 | 2,17 | 0,98 |
+| 3 | 2,30 | 1,04 |
+
+El envoltorio suma cerca de 1,2 puntos por sesión, más que todo lo que cuesta el panel con flujo. La medición no separa
+la barra del MCP: las dos cambian juntas al poner el binario directo en el `PATH`.
+
 ## Lo que un programa aparte no puede hacer
 
 El panel de la derecha es una superficie de Claude Code: un programa aparte no puede acoplarse ahí. Queda en otra
