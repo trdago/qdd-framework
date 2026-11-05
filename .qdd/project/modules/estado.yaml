@@ -36,7 +36,7 @@ objetivo_tecnologico:
     decisiones:
         - El aviso sin botón de una versión nueva queda solo para una instalación de Windows con qdd.exe dentro del paquete; con el binario en su carpeta de versión (FND-142), Windows tiene el botón. En ese esquema, el flujo vigila bin/actual.txt en vez del binario.
         - 'qdd estado tiene sus propios hooks vacíos: no escribe .qdd/working, no migra ni exige contexto, porque la barra lo ejecuta a cada rato.'
-        - 'Barra directa (decisión de la persona, 2026-11-05; RFC 0016): con un qdd instalado por npm, statusLine.command es «"<binario>" consola statusline || qdd consola statusline», sin arrancar Node cada 2 s. La ruta la renuevan qdd consola activar y qdd doctor --fix, cambiando solo el comando. Un binario compilado a mano no la escribe ni cambia la barra puesta; una ruta con comillas, $, `, % o saltos de línea usa ComandoBarra.'
+        - 'Barra directa (elegida por el modo goal, opción recomendada por la IA, 2026-11-05; la persona puede revertirla; RFC 0016): con un qdd instalado por npm, statusLine.command es «"<binario>" consola statusline || qdd consola statusline», sin arrancar Node cada 2 s. La ruta la renuevan qdd consola activar y qdd doctor --fix, cambiando solo el comando. Un binario compilado a mano no la escribe ni cambia la barra puesta; una ruta con comillas, $, `, % o saltos de línea usa ComandoBarra.'
         - 'statusline nunca falla ni escribe en stderr y corta a los 50 ms: si algo sale mal, la barra no muestra el segmento.'
         - 'Una escritura solo se rechaza por violaciones del frente que toca: un error previo en otro frente no bloquea el trabajo, pero check y audit lo siguen reportando.'
         - 'Las abreviaturas del panel son únicas: si dos etapas se leen igual (sin distinguir mayúsculas, FND-087), se usa la primera letra más la siguiente que las distinga y no repita otra columna.'
@@ -102,6 +102,7 @@ objetivo_tecnologico:
         - statusline no imprime nada si no hay archivo o está ilegible, y nunca sale con error.
         - Sin estado.yaml, qdd audit no reporta EPF-01-CHECK.
         - Ninguna línea del panel es más ancha que la terminal.
+        - 'Materializar nunca deja un hueco en blanco por más de 250 ms: si los cuadros no llegan a tiempo, el proceso se corta y se dibuja el texto sin efecto (FND-144).'
         - 'Materializar nunca cambia el ancho de lo que anima ni lo mueve de lugar: cada cuadro mide lo mismo que el texto final, y el último cuadro al abrir es el texto tal cual.'
         - Sin efectos encendidos, o sin Client en la superficie, el panel no pide cuadros y dibuja lo de siempre.
         - Ver los blueprints, traer el catálogo, actualizar e instalar nunca le escriben a la IA; solo ✦ Aplicar lo hace, y lo que escribe el lockfile no corre sin «s  Sí».
@@ -157,4 +158,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-05"
-revisado_en_commit: 5d5fe39570de
+revisado_en_commit: 1340ac1bac15

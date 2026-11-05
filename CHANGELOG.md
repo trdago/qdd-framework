@@ -14,6 +14,9 @@ Trae también lo de 2.9.9 (FND-143).
 
 - **La barra de estado ya no queda viva si nadie cierra su stdin (FND-145, MEJ-018):** corta a los 3 s y sale sin imprimir
   nada ni fallar.
+- **Los efectos del panel ya no dejan un hueco en blanco largo (FND-144, issue #111):** si los cuadros tardan más de 250 ms,
+  el proceso se corta y se dibuja el texto sin efecto. Antes, en una máquina lenta, el hueco podía durar hasta 3 s. Abrir el
+  panel ya pedía todos los cuadros en un solo proceso desde 2.10.0-rc.1.
 
 ## [2.10.0-rc.4] - 2026-11-05
 
