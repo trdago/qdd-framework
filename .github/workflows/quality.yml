@@ -57,4 +57,4 @@ jobs:
 
       - name: Pruebas del flujo
         working-directory: cli
-        run: go test ./pkg/consola/ -run "Seguir|SenalesDelPanel|BinarioCambio" -count=1 -v
+        run: go test ./pkg/consola/ -run "Seguir|SenalesDelPanel|BinarioCambio|TestBarra_" -count=1 -v

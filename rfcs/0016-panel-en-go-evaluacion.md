@@ -66,6 +66,17 @@ Tres rondas alternadas de 120 s, con cinco sesiones sin panel, la barra del usua
 El envoltorio suma cerca de 1,2 puntos por sesión, más que todo lo que cuesta el panel con flujo. La medición no separa
 la barra del MCP: las dos cambian juntas al poner el binario directo en el `PATH`.
 
+Medida aparte, con los dos comandos exactos que puede tener `statusLine` y 60 llamadas alternadas en dos corridas, en una
+máquina con otras sesiones trabajando:
+
+| Comando | CPU por llamada | A 2 s, % de un núcleo |
+|---|---:|---:|
+| `qdd consola statusline` | 65,4 y 50,5 ms | 3,27 y 2,52 |
+| `"<binario>" consola statusline \|\| qdd consola statusline` | 16,0 y 12,0 ms | 0,80 y 0,60 |
+
+Decisión de la persona (2026-11-05): la barra llama al binario por su ruta, con `qdd` de respaldo. No está medido en
+Windows ni en una sesión real con el cambio.
+
 ## Lo que un programa aparte no puede hacer
 
 El panel de la derecha es una superficie de Claude Code: un programa aparte no puede acoplarse ahí. Queda en otra
