@@ -95,7 +95,7 @@ func (b *Bucle) contestar(ctx context.Context, s Solicitud, respuesta string) {
 	if lugar == "" {
 		lugar = "un teléfono"
 	}
-	_, err := consola.ResponderPregunta(s.Ruta, s.Pregunta, respuesta, lugar, b.ahora())
+	respondida, err := consola.ResponderPregunta(s.Ruta, s.Pregunta, respuesta, lugar, b.ahora())
 	var cerrada *consola.PreguntaCerrada
 	if errors.As(err, &cerrada) && cerrada.Pregunta.Estado == consola.PreguntaVencida {
 		b.cerrar(ctx, s, EstadoVencida, "la pregunta venció: "+cerrada.Pregunta.Motivo)
@@ -118,8 +118,13 @@ func (b *Bucle) contestar(ctx context.Context, s Solicitud, respuesta string) {
 		b.cerrar(ctx, s, EstadoFallo, err.Error())
 		return
 	}
-	b.cerrar(ctx, s, EstadoHecha, "respuesta entregada a la consola del PC")
 	b.marcar()
+	if respondida.Instruccion != "" {
+		s.Instruccion = respondida.Instruccion
+		b.cerrar(ctx, s, EstadoEjecutando, "entregándola a la sesión de Claude Code abierta en el proyecto")
+		return
+	}
+	b.cerrar(ctx, s, EstadoHecha, "respuesta entregada a la consola del PC")
 }
 
 // seguirPreguntas corrige una respuesta del teléfono que el terminal le ganó: el mod la cerró en el PC después de que

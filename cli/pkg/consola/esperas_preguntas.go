@@ -188,7 +188,8 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 		}
 		cerrada := now.UTC()
 		p.Estado, p.RespondidaEn, p.Lugar, p.Respuesta, p.Cerrada = PreguntaRespondida, EnTelefono, strings.TrimSpace(lugar), r, &cerrada
-		instruccion := Ejecucion{Solicitud: fmt.Sprintf("%s-%d", p.ID, now.Unix()), Tipo: EjecutarIA, Texto: mensajeEspera(p), Nombre: p.Lugar}
+		p.Instruccion = fmt.Sprintf("%s-%d", p.ID, now.Unix())
+		instruccion := Ejecucion{Solicitud: p.Instruccion, Tipo: EjecutarIA, Texto: mensajeEspera(p), Nombre: p.Lugar}
 		if _, err := RegistrarEjecucion(root, instruccion, now); err != nil {
 			return nil, err
 		}
@@ -196,6 +197,18 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 		return append([]Pregunta{p}, cola...), nil
 	})
 	return out, err
+}
+
+// ReabrirEspera vuelve a preguntar un ⏳ cuya respuesta no llegó a ninguna sesión (FND-141). Solo si la respuesta
+// guardada es la de esa instrucción: una más nueva no se toca.
+func ReabrirEspera(root, id, instruccion string, now time.Time) error {
+	return conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
+		i := indicePregunta(cola, id)
+		if i < 0 || cola[i].Instruccion != instruccion {
+			return cola, nil
+		}
+		return append(cola[:i], cola[i+1:]...), nil
+	})
 }
 
 // mensajeEspera es lo que lee la IA: a qué ⏳ responde, la respuesta tal cual y cómo reflejarla.

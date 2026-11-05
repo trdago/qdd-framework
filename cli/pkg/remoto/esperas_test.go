@@ -48,7 +48,7 @@ func TestResponder_UnEsperaDeLaPersonaSePublicaYSuRespuestaLlegaALaIA(t *testing
 	tr.eventos <- telefono("d1", "")
 	tr.esperar(t, time.Second, "estado")
 	mandarRespuesta(tr, respuestaFirmada("3b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, id, `{"q1": {"otra": "sí, fuera"}}`, "d1", ahoraEn()))
-	for _, want := range []string{EstadoRecibida, EstadoHecha} {
+	for _, want := range []string{EstadoRecibida, EstadoEjecutando} {
 		if got := estadoDe(t, tr, 5*time.Second); got.Estado != want {
 			t.Fatalf("esperaba %s: %+v", want, got)
 		}
@@ -56,6 +56,67 @@ func TestResponder_UnEsperaDeLaPersonaSePublicaYSuRespuestaLlegaALaIA(t *testing
 	ejecuciones := consola.EjecucionesA(root, time.Now())
 	if len(ejecuciones) != 1 || ejecuciones[0].Tipo != consola.EjecutarIA || !strings.Contains(ejecuciones[0].Texto, "sí, fuera") || ejecuciones[0].Nombre != "Pixel de d1" {
 		t.Fatalf("la respuesta queda para la IA, del teléfono que respondió: %+v", ejecuciones)
+	}
+}
+
+// respuestaAEspera manda una respuesta al ⏳ del proyecto, con una sesión abierta, y espera a que quede ejecutando.
+func respuestaAEspera(t *testing.T, solicitud string) (string, *transporteFalso, consola.Ejecucion) {
+	t.Helper()
+	homeTemporal(t)
+	root := proyecto(t, "app", true)
+	if err := os.WriteFile(filepath.Join(root, estado.Ruta), []byte(estadoConEspera), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	registro.Anotar(root, time.Now())
+	clave, _ := registro.ClaveDe(root)
+	if err := consola.LatirSesion(root, "s1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	for _, p := range consola.PreguntasA(root, time.Now()) {
+		id = p.ID
+	}
+	_, tr, _ := bucleConFirma(t)
+	tr.eventos <- telefono("d1", "")
+	tr.esperar(t, time.Second, "estado")
+	mandarRespuesta(tr, respuestaFirmada(solicitud, clave, id, `{"q1": {"otra": "sí, fuera"}}`, "d1", ahoraEn()))
+	estadoDe(t, tr, 5*time.Second)
+	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoEjecutando || strings.Contains(got.Resultado, "entregada") {
+		t.Fatalf("todavía no la tomó nadie: no dice entregada: %+v", got)
+	}
+	return root, tr, consola.EjecucionesA(root, time.Now())[0]
+}
+
+// FND-141: el teléfono decía «entregada» al dejar la respuesta en la cola, antes de que una sesión la tomara.
+func TestResponder_UnEsperaEsHechaSoloCuandoLaSesionConfirma_FND141(t *testing.T) {
+	root, tr, x := respuestaAEspera(t, "4b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50")
+	if _, err := consola.TomarParaEntregar(root, "s1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := consola.ConfirmarEntrega(root, x.Solicitud, "s1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoHecha || !strings.Contains(got.Resultado, "entregada") {
+		t.Fatalf("recién ahora está entregada: %+v", got)
+	}
+	if p := consola.PreguntasA(root, time.Now())[0]; p.Estado != consola.PreguntaRespondida {
+		t.Fatalf("entregada, no se vuelve a preguntar: %+v", p)
+	}
+}
+
+func TestResponder_UnEsperaQueNoSeEntregoFallaYVuelveAPreguntarse_FND141(t *testing.T) {
+	root, tr, x := respuestaAEspera(t, "5b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50")
+	if _, err := consola.TomarParaEntregar(root, "s1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := consola.FallarEntrega(root, x.Solicitud, "s1", "Claude Code la descartó", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoFallo || !strings.Contains(got.Resultado, "descartó") {
+		t.Fatalf("el teléfono ve que falló y por qué: %+v", got)
+	}
+	if p := consola.PreguntasA(root, time.Now())[0]; p.Estado != consola.PreguntaPendiente {
+		t.Fatalf("la persona puede responder de nuevo: %+v", p)
 	}
 }
 
