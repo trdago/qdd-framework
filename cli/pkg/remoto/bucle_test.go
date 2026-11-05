@@ -206,7 +206,12 @@ func TestBucle_ConTelefonoEstadoSyncYDeltasAgrupados(t *testing.T) {
 	a, b := proyecto(t, "a", true), proyecto(t, "b", true)
 	registro.Anotar(a, time.Now())
 	registro.Anotar(b, time.Now().Add(-time.Minute))
-	_, tr, _, _ := bucleDePrueba(t)
+	// FND-149: con la ventana de 30 ms y el sondeo cada 40 ms, una ventana abierta por el sondeo se cerraba entre los dos
+	// pedidos en un CI cargado. Aquí la abre solo el primer cambio, y dura más que lo que tardan dos pedidos.
+	_, tr, _, _ := bucleDePrueba(t, func(b *Bucle) {
+		b.Agrupar = 200 * time.Millisecond
+		b.CadaSondeo = time.Hour
+	})
 	tr.eventos <- telefono("d1", "")
 	e := tr.esperar(t, time.Second, "estado")
 	var est Estado
