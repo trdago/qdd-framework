@@ -17,15 +17,16 @@ objetivo_tecnologico:
     decisiones:
         - 'La razón del cero else (pedido del usuario, 2026-10-31): cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo; con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto. Vale en cualquier lenguaje.'
         - 'La regla de autorización suma la sincronía con el panel: lo que el panel espera y la persona resuelve en el chat se refleja en el acto (2026-11-01).'
+        - 'El bloque de instrucciones y la forma de trabajo piden declarar la tarea en curso (MEJ-021): ninguna regla lo decía y el tablero y el teléfono casi nunca la mostraban.'
     invariantes:
         - Toda superficie donde una IA lee el cero 'else' dice también su razón (pruebas TestMetodoDeTrabajo_CeroElseDiceElPorQue, TestProtocol_CeroElseConSuRazon, TestCleanCode_ElseDiceComoYPorQue y TestCore_CeroElseConSuRazon).
         - La razón se escribe una vez en Go (modules.PorQueCeroElse); el núcleo la repite con las mismas palabras.
 pruebas:
     comandos:
-        - cd cli && go test ./pkg/modules/ ./pkg/integration/ ./pkg/audit/ ./cmd/ -run 'CeroElse|ElseDiceComoYPorQue'
+        - cd cli && go test ./pkg/modules/ ./pkg/integration/ ./pkg/audit/ ./cmd/ -run 'CeroElse|ElseDiceComoYPorQue|MEJ021'
 fuentes:
     - cli/pkg/modules/context.go
     - cli/pkg/integration/types.go
     - cli/pkg/audit/clean_code.go
-ultima_revision: "2026-11-01"
-revisado_en_commit: 47c9cf394f6b
+ultima_revision: "2026-11-06"
+revisado_en_commit: e816a03c75e0

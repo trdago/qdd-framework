@@ -59,7 +59,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoEscritura(err, "tarea creada: "+id)
 	}
 	if accion == "set" {
-		return resultadoEscritura(estado.Set(root, cambioDesde(request), now), "celda actualizada")
+		return resultadoSet(root, cambioDesde(request), now)
 	}
 	if accion == "cerrar" {
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
@@ -148,6 +148,22 @@ func resultadoEscritura(err error, ok string) (*mcp.CallToolResult, error) {
 		return mcp.NewToolResultError("no se escribió: " + err.Error()), nil
 	}
 	return mcp.NewToolResultText(ok + " en " + estado.Ruta + "."), nil
+}
+
+// resultadoSet recuerda declarar la tarea en el momento en que se la ve avanzar sin declarar (MEJ-021). No la enciende:
+// un ✅ también puede ser el último de una tarea ya terminada, y el teléfono diría «Trabajando» sin nadie trabajando.
+func resultadoSet(root string, c estado.Cambio, now time.Time) (*mcp.CallToolResult, error) {
+	if err := estado.Set(root, c, now); err != nil {
+		return resultadoEscritura(err, "")
+	}
+	hecho := "celda actualizada en " + estado.Ruta + "."
+	if estado.NormalizarEstado(c.Estado) != estado.Hecho {
+		return mcp.NewToolResultText(hecho), nil
+	}
+	if estado.TareaDeLaSesion(estado.LeerActividad(root), estado.SesionActual(), now) != "" {
+		return mcp.NewToolResultText(hecho), nil
+	}
+	return mcp.NewToolResultText(hecho + " Sin tarea en curso: si sigues en una, declárala con accion=activar."), nil
 }
 
 func resultadoCheck(e estado.Estado, root, respuesta string, now time.Time) *mcp.CallToolResult {
