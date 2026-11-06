@@ -16,6 +16,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Cambiado
 
+- **Mensajes, sesiones y herramientas ya no esperan a qdd (MEJ-015, #113):** un mensaje y el inicio de sesión esperan a lo más
+  400 ms; si qdd tarda más, lo que tenía que decirle a la IA viaja con el mensaje siguiente en vez de perderse. El final de una
+  herramienta no espera nada, y una ráfaga de herramientas de qdd lanza una lectura en curso y una más, no una por cada una.
 - **Menos mensajes de Realtime:** `hace`, el pulso de una tarea en curso y los reintentos de un pedido ya no mandan el panel
   entero al teléfono por sí solos. Viajan con el siguiente cambio real, así que en la app pueden estar atrasados hasta
   entonces.

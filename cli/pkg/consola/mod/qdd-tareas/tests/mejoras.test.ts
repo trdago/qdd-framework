@@ -35,7 +35,8 @@ function preparar(on, r) {
 const nuevo = (extra = {}) => ({ llamadas: [] as string[][], enviados: [] as string[], ciclos: [] as any[], ...extra })
 const ciclos = (r) => r.llamadas.filter((a) => a[1] === 'mejoras')
 
-test('cada minuto pide el ciclo con --si-toca y le da a la IA las tareas nuevas, una vez', async ($, on) => {
+// Avanza 3 minutos de reloj, con el latido y las lecturas de cada uno: con el equipo cargado pasaba de los 5 s por defecto (FND).
+test('cada minuto pide el ciclo con --si-toca y le da a la IA las tareas nuevas, una vez', { timeoutMs: 30000 }, async ($, on) => {
   const r = nuevo({ ciclos: ['', { tareas: ['MEJ-001'], mensaje: MENSAJE }] })
   const clock = preparar(on, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })

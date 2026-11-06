@@ -31,10 +31,11 @@ function preparar(on, r) {
     r.notas.push(e)
     return { value: undefined }
   })
-  on('process.run', ($, e) => {
+  on('process.run', async ($, e) => {
     const argv = [...e.argv]
     r.llamadas.push(argv)
     if (argv[2] !== 'pregunta') return { value: ok(PANEL) }
+    if (argv[3] === 'cerrar' && r.cerrarLento) await r.cerrarLento
     if (argv[3] === 'registrar') {
       r.registrados.push(JSON.parse(e.init.stdin))
       return { value: ok({ id: r.id, accion: 'pregunta:' + r.id }) }
@@ -98,7 +99,30 @@ test('si la terminal responde primero, el panel la cierra en el PC y no decide n
   await llamada
   const res = await permiso
   expect(res?.decision).toBeUndefined()
+  await new Promise((res) => setTimeout(res, 20))
   expect(deQDD(r, 'cerrar')).toEqual([['qdd', 'consola', 'pregunta', 'cerrar', 'p1']])
+})
+
+// MEJ-015: la herramienta ya terminó; cerrar su pregunta en el PC no la hace esperar.
+test('el final de una herramienta no espera a que qdd cierre su pregunta', async ($, on) => {
+  let soltarCierre: () => void = () => {}
+  const r = nuevo({ cerrarLento: new Promise<void>((res) => (soltarCierre = res)) })
+  preparar(on, r)
+  let soltar: () => void = () => {}
+  const diálogo = new Promise<void>((res) => (soltar = res))
+  const motor = $
+  on('tool.call', async (_, e) => {
+    motor.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: e.command } })
+    await diálogo
+    return { result: 'hecho' }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const llamada = $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  while (r.esperados < 3) await new Promise((res) => setTimeout(res, 1))
+  soltar()
+  const fin = await Promise.race([llamada, new Promise((res) => setTimeout(() => res('esperó el cierre'), 20))])
+  expect(fin).toEqual({ result: 'hecho' })
+  soltarCierre()
 })
 
 test('sin QDD Móvil, en un subagente o sin terminal no se registra ni se espera nada', async ($, on) => {
