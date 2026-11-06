@@ -33,6 +33,7 @@ const (
 	itemMovilProyecto   = "Este proyecto se publica (REM-08)"
 	itemMovilEnvio      = "El último envío al teléfono salió (REM-09)"
 	itemMovilColas      = "Colas del teléfono sin apartar (REM-10)"
+	itemMovilDirectorio = "El relay coincide con su directorio firmado (REM-11)"
 
 	movilSinAnotar     = "no está en el registro"
 	maxLatidosPerdidos = 3
@@ -53,7 +54,7 @@ func buildMovilChecks(root string, now time.Time) *CheckGroup {
 		g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Error: "no corre y el teléfono no recibe nada (qdd doctor --fix lo arranca)"}, itemMovilProyectoDe(root))
 		return conItemColas(g, root)
 	}
-	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilRelayDe(now), itemMovilProyectoDe(root))
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilDirectorioDe(), itemMovilRelayDe(now), itemMovilProyectoDe(root))
 	return conItemColas(conItemEnvio(g), root)
 }
 
@@ -106,6 +107,20 @@ func itemMovilRelayDe(now time.Time) *CheckItem {
 		return &CheckItem{Name: itemMovilRelay, Error: fmt.Sprintf("sin respuesta del relay hace %d min: revisa la red y el registro de qdd remoto", int(hace.Minutes()))}
 	}
 	return &CheckItem{Name: itemMovilRelay, Success: true}
+}
+
+// itemMovilDirectorioDe dice lo que pasó la última vez, sin usar la red: una consulta fallida no apaga nada, pero un PC
+// que no puede confirmar su relay no se enteraría de una mudanza. Un relay propio no consulta.
+func itemMovilDirectorioDe() *CheckItem {
+	c, err := remoto.LeerRelay()
+	if err != nil || c.Propio {
+		return &CheckItem{Name: itemMovilDirectorio, Success: true}
+	}
+	u := remoto.LeerConsultaDirectorio()
+	if u.En.IsZero() || u.OK {
+		return &CheckItem{Name: itemMovilDirectorio, Success: true}
+	}
+	return &CheckItem{Name: itemMovilDirectorio, Error: "sigue con el relay guardado: " + u.Motivo}
 }
 
 func itemMovilProyectoDe(root string) *CheckItem {

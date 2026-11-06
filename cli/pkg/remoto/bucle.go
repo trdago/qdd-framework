@@ -59,6 +59,13 @@ type Bucle struct {
 	Bin   string    // el qdd que ejecuta las acciones
 	Log   io.Writer // una línea por suceso
 	Ahora func() time.Time
+	// Consultar pregunta al directorio por el relay si la conexión no vuelve (directorio.go); sin ella, no consulta.
+	Consultar      func(context.Context) (bool, error)
+	CadaConsulta   time.Duration
+	EsperaConsulta time.Duration
+	caidoDesde     time.Time
+	consultadoEn   time.Time
+	consultas      chan resultadoConsulta
 
 	Agrupar    time.Duration
 	CadaLatido time.Duration
@@ -126,6 +133,13 @@ func (b *Bucle) iniciar() {
 	b.plan = PlanGratis()
 	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]string{}, map[string]string{}
 	b.latidos, b.avisos = make(chan resultadoLatido, 1), make(chan error, 8)
+	b.consultas = make(chan resultadoConsulta, 1)
+	if b.CadaConsulta <= 0 {
+		b.CadaConsulta = CadaConsulta
+	}
+	if b.EsperaConsulta <= 0 {
+		b.EsperaConsulta = EsperaConsulta
+	}
 	if b.Agrupar <= 0 {
 		b.Agrupar = Agrupar
 	}
@@ -141,7 +155,7 @@ func (b *Bucle) iniciar() {
 }
 
 // Correr es el bucle; vuelve con ErrCredenciales si el relay ya no reconoce la máquina (se quitó desde el teléfono) y
-// con ErrActualizado si su qdd se reemplazó en el disco.
+// con ErrActualizado si su qdd se reemplazó en el disco, o con ErrRelayCambio si el directorio dio otro relay.
 func (b *Bucle) Correr(ctx context.Context) error {
 	b.iniciar()
 	go b.vigia.correr(ctx)
@@ -175,7 +189,16 @@ func (b *Bucle) Correr(ctx context.Context) error {
 				b.logf("%v", ErrActualizado)
 				return ErrActualizado
 			}
+			b.quizasConsultar(ctx)
 			b.marcar()
+		case r := <-b.consultas:
+			if r.err != nil {
+				b.logf("directorio del relay: %v", r.err)
+			}
+			if r.cambio {
+				b.logf("%v", ErrRelayCambio)
+				return ErrRelayCambio
+			}
 		case <-b.vigia.Cambios():
 			b.marcar()
 		case <-agrupado:
@@ -209,11 +232,13 @@ func (b *Bucle) marcar() {
 func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	if e.Tipo == TipoConectado {
 		b.logf("conectado al relay")
+		b.anotarConexion()
 		b.track(ctx)
 		return
 	}
 	if e.Tipo == TipoDesconectado {
 		b.logf("desconectado del relay: %s", e.Motivo)
+		b.anotarCaida(b.ahora())
 		b.base = false
 		return
 	}

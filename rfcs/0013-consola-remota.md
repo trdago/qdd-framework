@@ -71,6 +71,9 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
     rechazada aunque tenga la sesión abierta.
 19. Un pedido ya aprobado en otro lugar (el PC u otro teléfono) responde `ya_aprobado` con el lugar y no se ejecuta otra
     vez (protección de la cola, FND-070).
+20. **El PC solo cambia de relay con una respuesta firmada.** El relay administrado sale de un directorio firmado con una
+    clave cuya privada no está en el servidor que lo sirve, y su serie nunca baja. Un relay dado con banderas es de la
+    persona y el directorio no lo toca.
 
 ## Diseño
 
@@ -157,7 +160,14 @@ existen y el nuestro no se configura a mano.
 | `qdd_remoto_latido(p_topico, p_firma, p_en_curso, p_consola_min, p_mensajes)` | PC | Cada minuto: latido, consumo; responde el plan y si la consola sigue permitida. |
 | `qdd_remoto_desactivar(p_topico, p_firma)` | PC | `qdd remoto desactivar`. |
 
-- **Login (issue #102):** `qdd login` es `qdd remoto activar` sin banderas: usa el relay guardado o, la primera vez, el que trae qdd. El PC muestra el QR y necesita hablar con el relay antes del escaneo, así que la app no puede entregárselo en el QR. Desde 2.9.1 qdd trae ese relay, solo con su clave publicable.
+- **Login (issue #102):** `qdd login` es `qdd remoto activar` sin banderas: usa el relay guardado, confirmado con el directorio, o, la primera vez, el que diga el directorio. El PC muestra el QR y necesita hablar con el relay antes del escaneo, así que la app no puede entregárselo en el QR.
+- **El relay sale de un directorio firmado (2026-11-06, decisión de la persona, inv. 20).** Si el relay cambia, cambia la URL y no el código.
+  - `GET https://qdd-movile.3ldago.workers.dev/` responde `{"url","clave","serie","firma"}`. La firma es ed25519, en base64 estándar, sobre los bytes UTF-8 de `url|clave|serie`. qdd trae la clave pública, y la privada no está en el servidor: quien entra a esa cuenta no redirige a nadie.
+  - Por qué firmar: el PC manda su `firma` al relay en sus llamadas, así que un relay falso podría firmar eventos `ejecutar` e instrucciones para la IA.
+  - Se rechaza lo que no sea esa respuesta exacta: campos de más, datos después, firma mala, serie menor que la vista, una URL que no sea https y solo host, una clave que no sea publicable, una redirección, un estado que no sea 200 o más de 4 KB.
+  - Cuándo se consulta: al arrancar el servicio, en `qdd login` y `qdd remoto activar`, y con la conexión caída más de 1 minuto, como mucho cada 10 minutos. Mientras la conexión funciona no se consulta. Un `28000` no consulta: el relay respondió.
+  - Si la respuesta da otro relay, el servicio se reinicia con él (`ErrRelayCambio`). Si la consulta falla, sigue con el recordado y `qdd doctor` lo dice (REM-11), sin usar la red.
+  - La primera vez, sin directorio no hay relay: el error dice cómo dar uno a mano. qdd no trae uno de respaldo.
 - **Emparejar:** `qdd remoto emparejar` genera un código de un solo uso, llama a `qdd_remoto_ofrecer` y muestra un QR con
   `{"v":1,"codigo","topico","nombre"}`. El teléfono llama a `qdd_remoto_aceptar(codigo)`. El PC consulta
   `qdd_remoto_emparejada` hasta ver el id. Un código usado o vencido no sirve.

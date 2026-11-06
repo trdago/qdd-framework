@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -97,8 +99,8 @@ func TestDoctorMovil_TodoSanoEnVerde(t *testing.T) {
 	now := time.Now()
 	movilSano(t, m, now)
 	g := buildMovilChecks(m.raiz, now)
-	if len(g.Items) != 4 {
-		t.Fatalf("emparejado, servicio, relay y proyecto: %+v", g.Items)
+	if len(g.Items) != 5 {
+		t.Fatalf("emparejado, servicio, directorio, relay y proyecto: %+v", g.Items)
 	}
 	for _, i := range g.Items {
 		if !i.Success {
@@ -165,6 +167,37 @@ func TestDoctorMovil_ConElServicioCorriendoNoLoToca(t *testing.T) {
 	repairMovil(m.raiz, buildMovilChecks(m.raiz, now), now)
 	if len(*m.corridos) != 0 {
 		t.Fatalf("no reinicia lo que funciona: %v", *m.corridos)
+	}
+}
+
+func TestDoctorMovil_UnDirectorioQueNoRespondeSeDiceSinUsarLaRed_REM11(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now()
+	movilSano(t, m, now)
+	c := remoto.ConfigRelay{URL: "https://guardado.supabase.co", Clave: "sb_publishable_g", Serie: 1}
+	if err := remoto.GuardarRelay(c); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := remoto.ActualizarRelay(context.Background(), func(context.Context, int) (remoto.ConfigRelay, error) {
+		return remoto.ConfigRelay{}, errors.New("la firma del directorio no es válida")
+	}, c); err == nil {
+		t.Fatal("la consulta debía fallar")
+	}
+	item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilDirectorio)
+	if item.Success || !strings.Contains(item.Error, "sigue con el relay guardado") || !strings.Contains(item.Error, "firma") {
+		t.Fatalf("dice que sigue y por qué: %+v", item)
+	}
+}
+
+func TestDoctorMovil_UnRelayPropioNoMiraElDirectorio_REM11(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now()
+	movilSano(t, m, now)
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: "https://mio.supabase.co", Clave: "sb_publishable_mio", Propio: true}); err != nil {
+		t.Fatal(err)
+	}
+	if item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilDirectorio); !item.Success {
+		t.Fatalf("un relay propio no consulta: %+v", item)
 	}
 }
 

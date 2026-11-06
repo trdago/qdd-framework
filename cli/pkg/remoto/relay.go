@@ -46,6 +46,9 @@ func (e ErrRechazada) Error() string { return e.Texto }
 type ConfigRelay struct {
 	URL   string `json:"url"`
 	Clave string `json:"clave"`
+	// Serie es la última vista en el directorio (directorio.go); Propio, un relay de la persona, que no se consulta.
+	Serie  int  `json:"serie,omitempty"`
+	Propio bool `json:"propio,omitempty"`
 }
 
 // Credenciales es <QDD_HOME>/remoto/credenciales.json: la máquina, su canal y su firma (que solo conocen el PC y el
@@ -136,13 +139,6 @@ func GuardarRelay(c ConfigRelay) error {
 		return err
 	}
 	return guardarPrivado("relay.json", c)
-}
-
-// RelayPorDefecto es el relay de QDD Móvil que qdd usa la primera vez (issue #102); lo opera qdd-movile. Lleva solo la
-// clave publicable: se publica en npm.
-var RelayPorDefecto = ConfigRelay{
-	URL:   "https://dedwoaolrpaqliokrjah.supabase.co",
-	Clave: "sb_publishable_Uzw8SpX1yXoG7TtdOr0BZw_4fmgpPLk",
 }
 
 // LeerRelay devuelve la config guardada; vuelve a validar la clave por si alguien editó el archivo.
