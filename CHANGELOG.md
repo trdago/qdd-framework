@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Un turno único para lo que te espera (RFC 0019):** cada pregunta, ⏳, pedido y ficha recibe de qdd un número que no cambia. «Para ti»
+  es una sola lista en ese orden, con `▶` en lo que sigue y `espera a #N` en lo que depende de otra cosa. QDD Móvil recibe los mismos
+  números; la app todavía tiene que usarlos.
+
 ## [2.10.0-rc.16] - 2026-11-06
 
 ### Agregado

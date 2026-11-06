@@ -279,7 +279,7 @@ func rutaTelefono(root string) (string, error) {
 // ColasApartadas son las colas del teléfono de este proyecto que se apartaron por ilegibles (qdd doctor, REM-10).
 func ColasApartadas(root string) []string {
 	out := []string{}
-	for _, nombre := range []string{"preguntas", "telefono"} {
+	for _, nombre := range []string{"preguntas", "telefono", "turnos"} {
 		ruta, err := RutaLocal(root, nombre)
 		if err != nil {
 			continue
