@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.13] - 2026-11-06
+
 ### Corregido
 
 - **Con QDD Móvil, cada sesión ya no lanza un proceso cada 5 s (MEJ-020, #108):** el proceso `qdd consola seguir`, que ya
