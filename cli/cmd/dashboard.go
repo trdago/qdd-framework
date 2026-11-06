@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
+	"strconv"
 	"syscall"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
@@ -193,8 +195,8 @@ var dashboardCmd = &cobra.Command{
 				return
 			}
 			cwd, _ := os.Getwd()
-			targetPath := filepath.Join(cwd, req.Path)
-			if !strings.HasPrefix(filepath.Clean(targetPath), filepath.Clean(cwd)) {
+			targetPath, dentro := rutaDelProyecto(cwd, req.Path)
+			if !dentro {
 				http.Error(w, "Invalid path", http.StatusForbidden)
 				return
 			}
@@ -213,22 +215,13 @@ var dashboardCmd = &cobra.Command{
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		}))
 
-		port := 8099
-		var listener net.Listener
-		for {
-			addr := fmt.Sprintf(":%d", port)
-			listener, err = net.Listen("tcp", addr)
-			if err == nil {
-				break
-			}
-			port++
-		}
+		listener, port := escucharLocal(8099)
 
 		dashboardURL := fmt.Sprintf("http://localhost:%d", port)
 		fmt.Printf("✅ Servidor listo y escuchando en %s\n", dashboardURL)
 
 		go func() {
-			http.Serve(listener, nil)
+			http.Serve(listener, soloLocal(http.DefaultServeMux))
 		}()
 
 		if err := openBrowser(dashboardURL); err != nil {
@@ -273,6 +266,65 @@ func medirSiFalta(cwd string, certificar func()) bool {
 	data, _ := json.Marshal(dashboard.BuildState())
 	dashboard.Broker.Broadcast(data)
 	return true
+}
+
+// escucharLocal abre el primer puerto libre desde este, solo en este PC (FND-164): el dashboard acepta escrituras sin
+// autenticación, y en todas las interfaces cualquiera en la misma red podía usarlas.
+func escucharLocal(port int) (net.Listener, int) {
+	for {
+		listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+		if err == nil {
+			return listener, port
+		}
+		port++
+	}
+}
+
+// soloLocal atiende solo a este PC y a la página del propio dashboard (FND-164). Escuchar en loopback no basta: una
+// página abierta en el navegador también llega a 127.0.0.1. El Host corta el rebinding de DNS, el Origin a otra página,
+// y exigir JSON evita los envíos que el navegador hace sin preguntar.
+func soloLocal(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !hostLocal(r.Host) || !origenPropio(r) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && !esJSON(r) {
+			http.Error(w, "Unsupported media type", http.StatusUnsupportedMediaType)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func hostLocal(host string) bool {
+	nombre, _, err := net.SplitHostPort(host)
+	if err != nil {
+		return false
+	}
+	return nombre == "localhost" || nombre == "127.0.0.1"
+}
+
+func origenPropio(r *http.Request) bool {
+	origen := r.Header.Get("Origin")
+	if origen == "" {
+		return true
+	}
+	u, err := url.Parse(origen)
+	return err == nil && u.Host == r.Host
+}
+
+func esJSON(r *http.Request) bool {
+	tipo, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	return err == nil && tipo == "application/json"
+}
+
+// rutaDelProyecto resuelve una ruta relativa, y dice si queda dentro del proyecto.
+func rutaDelProyecto(raiz, ruta string) (string, bool) {
+	if ruta == "" || !filepath.IsLocal(ruta) {
+		return "", false
+	}
+	return filepath.Join(raiz, ruta), true
 }
 
 func safeHTTPHandler(next http.HandlerFunc) http.HandlerFunc {
