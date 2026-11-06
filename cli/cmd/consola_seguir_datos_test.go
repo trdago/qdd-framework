@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,4 +80,33 @@ func TestPanel_ElFlujoVigilaLasHerramientas_MEJ020(t *testing.T) {
 		}
 	}
 	t.Fatalf("una herramienta guardada se ve al instante: %v", carpetasDelFlujo(root))
+}
+
+// RFC 0012: los flujos viajan en la línea del panel si se piden; vacía sale [] para que el panel sepa que este qdd los trae.
+func TestPanel_LosFlujosVanSoloSiSePiden(t *testing.T) {
+	root := proyectoParaPanel(t)
+	if _, esta := panelJSON(t, root)["flujos"]; esta {
+		t.Fatal("sin pedirlos no van")
+	}
+	if got := string(panelJSON(t, root, "flujos")["flujos"]); got != "[]" {
+		t.Fatalf("sin flujos, la lista va vacía: %q", got)
+	}
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{ID: "a", Tipo: flujo.TipoPaso, Nombre: "A"}}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(panelJSON(t, root, "flujos")["flujos"]); !strings.Contains(got, `"id":"pago"`) || !strings.Contains(got, `"huella"`) {
+		t.Fatalf("lista: %q", got)
+	}
+}
+
+func TestPanel_ElFlujoVigilaLosFlujos(t *testing.T) {
+	root := proyectoParaPanel(t)
+	carpeta := filepath.Join(root, flujo.Carpeta)
+	for _, c := range carpetasDelFlujo(root) {
+		if c == carpeta {
+			return
+		}
+	}
+	t.Fatalf("un flujo guardado se ve al instante: %v", carpetasDelFlujo(root))
 }

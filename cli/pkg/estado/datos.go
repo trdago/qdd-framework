@@ -258,3 +258,18 @@ func filaPanel(e Estado, fa FilaArbol, objetivo string, d *DatosPanel) FrentePan
 	}
 	return fila
 }
+
+// Simbolos da las celdas de una tarea como las muestra el panel, para quien la nombra desde otro lado (un flujo).
+func (e Estado) Simbolos(id string) ([]string, bool) {
+	i := e.buscar(id)
+	if i < 0 {
+		return nil, false
+	}
+	f := e.Frentes[i]
+	etapas := e.EtapasDe(f)
+	simbolos := make([]string, 0, len(etapas))
+	for _, etapa := range etapas {
+		simbolos = append(simbolos, simbolo(f.Celdas[etapa]))
+	}
+	return simbolos, true
+}

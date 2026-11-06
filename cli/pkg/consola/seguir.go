@@ -60,8 +60,8 @@ func VigiaBinario(bin string) func() bool {
 }
 
 // SenalesDelPanel avisa cuando se escribe en una de las carpetas y, como respaldo, cada tanto: lo que depende de la
-// hora («hace 3 min», un pedido armado) cambia sin que nadie escriba. Una carpeta que no existe no se vigila: la cubre
-// el respaldo.
+// hora («hace 3 min», un pedido armado) cambia sin que nadie escriba. Una carpeta que no existe no se vigila hasta que
+// nace: mientras tanto la cubre el respaldo.
 func SenalesDelPanel(ctx context.Context, carpetas []string, respaldo time.Duration) (<-chan struct{}, error) {
 	vigia, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -71,11 +71,11 @@ func SenalesDelPanel(ctx context.Context, carpetas []string, respaldo time.Durat
 		_ = vigia.Add(c)
 	}
 	senal := make(chan struct{}, 1)
-	go repartirSenales(ctx, vigia, respaldo, senal)
+	go repartirSenales(ctx, vigia, carpetas, respaldo, senal)
 	return senal, nil
 }
 
-func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, respaldo time.Duration, senal chan<- struct{}) {
+func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, carpetas []string, respaldo time.Duration, senal chan<- struct{}) {
 	defer vigia.Close()
 	reloj := time.NewTicker(respaldo)
 	defer reloj.Stop()
@@ -96,6 +96,10 @@ func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, respaldo time
 			pausa.Reset(pausaSenales)
 		case <-vigia.Errors:
 		case <-pausa.C:
+			// Una carpeta nueva (la primera vez que se guarda un flujo) nace dentro de otra que sí se vigila.
+			for _, c := range carpetas {
+				_ = vigia.Add(c)
+			}
 			avisar()
 		case <-reloj.C:
 			avisar()

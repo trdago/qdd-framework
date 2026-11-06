@@ -1,0 +1,37 @@
+id: flujo
+nombre: Flujos del proyecto (qdd flujo)
+estado: aprobado
+rutas:
+    - cli/pkg/flujo
+    - cli/cmd/flujo.go
+objetivo_operativo:
+    problema: Explicar el camino de una solicitud, un pipeline o un proceso en prosa obliga a la otra parte a imaginar su forma. La persona y la IA terminan hablando de dibujos distintos sin saberlo.
+    usuarios: La IA, que crea el flujo para explicar algo, y la persona, que lo ve en el panel. En una fase siguiente, la persona también lo edita.
+    criterio_de_exito: Un flujo guardado con qdd flujo crear aparece en su pestaña del panel, hacia abajo y con scroll, cabe en el ancho de la pestaña y cada nodo se ve. Un cambio se ve en menos de 1 s sin un proceso por lectura. Solo se materializa lo que cambió.
+    caso_real: 'Pedido de la persona, 2026-11-05: «una forma de mostrar grafos en el panel de la derecha […] para entender flujos completos y explicarle al llm como lo queremos». En un panel real: un cambio se ve en 841 ms y un flujo de 50 nodos aparece en 517 ms, con scroll de rueda.'
+objetivo_tecnologico:
+    arquitectura: pkg/flujo es puro y sin terminal. flujo.go lee, valida y guarda cada flujo con escritura atómica en .qdd/project/flujos/<id>.yaml. dibujo.go arma el texto con bloques que se apilan o se juntan lado a lado. El panel recibe la lista con su huella en la línea de qdd consola seguir (--con flujos) y pide el dibujo con qdd flujo ver --ancho N --json solo si cambió el flujo o el ancho.
+    decisiones:
+        - El dibujo lo hace qdd, no el mod, para que otra superficie no repita el trazado. Se pide por ancho porque solo el panel conoce el suyo.
+        - No lleva tool MCP (RFC 0012), porque tools/list está junto a su tope. La IA lo conoce por la forma de trabajo de qdd_project_context y por qdd flujo --help.
+        - Dos salidas o más van lado a lado si a cada una le quedan 14 columnas o más; si no, una debajo de otra, con sangría. Si alinear dos ejes saca el dibujo del ancho, un codo los une.
+        - El encuentro de varias ramas se dibuja una vez, debajo de ellas. Un ciclo se escribe «↺ vuelve a X»; otro nodo ya dibujado, «→ sigue en X».
+        - La lista que abre el panel no abre pestañas; un flujo nuevo o cambiado después sí, sin quitarle el foco a la conversación.
+        - El raíz es el de qdd estado (estadoRaiz), para que el panel y la IA vean la misma carpeta. Desde un worktree dentro de otro proyecto con tablero, el flujo queda en ese proyecto.
+    invariantes:
+        - Un flujo inválido no se escribe.
+        - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.
+        - El id de un flujo no puede salir de la carpeta de flujos.
+        - Todo nodo se alcanza desde el primero, y todo nodo aparece en el dibujo.
+        - El panel solo muestra líneas que entrega qdd; no interpreta el grafo.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/flujo ./cmd -run Flujo
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
+fuentes:
+    - rfcs/0012-grafo-de-trabajo.md
+    - cli/pkg/flujo/flujo.go
+    - cli/pkg/flujo/dibujo.go
+    - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
+ultima_revision: "2026-11-05"
+revisado_en_commit: d2db209d80a3
