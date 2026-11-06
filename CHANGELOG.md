@@ -8,6 +8,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Agregado
 
+- **Editar y comentar un flujo en el panel:** en la pestaña de un flujo, un clic elige un nodo. Se puede comentar, pedir detalle, editar, agregar, mover, poner flechas y quitar. qdd valida cada cambio. La IA recibe un comentario o un detalle en el acto, y las ediciones al pulsar «Enviar a la IA» o con tu próximo mensaje. Responde bajo el mismo nodo con `qdd flujo comentar`. Lo que aún no recibe se puede deshacer. `Flujos` también deja crear uno nuevo desde el panel.
 - **`qdd doctor` revisa QDD Móvil:** dice si este PC está emparejado, si el servicio corre, si llega al relay, si el proyecto se
   publica y si el último envío salió. `--fix` arranca el servicio y anota el proyecto; emparejar sigue siendo con `qdd login`. No
   usa la red ni comprueba lo que dibuja la app.
@@ -16,6 +17,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **Un campo del panel recién abierto no recibía lo que se escribía (FND-166):** se iba al chat, porque el campo necesitaba un segundo clic que nada avisaba. En los flujos el campo toma las teclas solo; si Claude Code no las suelta, el panel lo dice.
 - **Una pregunta abierta en la consola ya no se va del teléfono a los 30 min (FND-165):** seguía abierta en la terminal, con el aviso
   de que se podía responder desde QDD Móvil, pero allí ya no estaba. Ahora sigue en el teléfono mientras la sesión la espere.
 

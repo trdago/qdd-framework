@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/estado"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 )
 
 // Rule: Prohibido usar 'else'
@@ -65,6 +66,9 @@ func ContextoCiclo(root, sesion string, now time.Time) string {
 	partes = append(partes, tomarRetirados(root, sesion, now)...)
 	if esperas := contextoEsperas(root, now); esperas != "" {
 		partes = append(partes, esperas)
+	}
+	if ediciones := flujo.EnviarTodos(root); ediciones != "" {
+		partes = append(partes, ediciones)
 	}
 	return strings.Join(partes, "\n")
 }

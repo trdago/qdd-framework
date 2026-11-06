@@ -41,6 +41,8 @@ type Nodo struct {
 	Descripcion string   `yaml:"descripcion,omitempty" json:"descripcion,omitempty"`
 	Tarea       string   `yaml:"tarea,omitempty" json:"tarea,omitempty"`
 	Siguen      []string `yaml:"siguen,omitempty" json:"siguen,omitempty"`
+
+	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
 }
 
 // Flujo empieza en su primer nodo; todos los demás tienen que poder alcanzarse desde ahí.
@@ -122,6 +124,20 @@ func problemasDeNodo(n Nodo, vistos map[string]bool) []string {
 	if strings.TrimSpace(n.Nombre) == "" {
 		problemas = append(problemas, fmt.Sprintf("el nodo %q está sin nombre", n.ID))
 	}
+	for _, c := range n.Comentarios {
+		problemas = append(problemas, problemasDeComentario(n.ID, c)...)
+	}
+	return problemas
+}
+
+func problemasDeComentario(nodo string, c Comentario) []string {
+	var problemas []string
+	if c.De != DePersona && c.De != DeIA {
+		problemas = append(problemas, fmt.Sprintf("el nodo %q tiene un comentario de %q: usa %s o %s", nodo, c.De, DePersona, DeIA))
+	}
+	if strings.TrimSpace(c.Texto) == "" {
+		problemas = append(problemas, fmt.Sprintf("el nodo %q tiene un comentario vacío", nodo))
+	}
 	return problemas
 }
 
@@ -159,7 +175,7 @@ func ruta(root, id string) string {
 	return filepath.Join(root, Carpeta, id+".yaml")
 }
 
-// Guardar escribe el flujo si es válido, de una vez: un lector nunca ve el archivo a medias.
+// Guardar escribe el flujo si es válido.
 func Guardar(root string, f Flujo) error {
 	if problemas := Validar(f); len(problemas) > 0 {
 		return errors.New(strings.Join(problemas, "\n"))
@@ -171,7 +187,11 @@ func Guardar(root string, f Flujo) error {
 	if err := revisarPeso(datos); err != nil {
 		return err
 	}
-	destino := ruta(root, f.ID)
+	return escribirAtomico(ruta(root, f.ID), datos)
+}
+
+// escribirAtomico escribe de una vez: un lector nunca ve el archivo a medias.
+func escribirAtomico(destino string, datos []byte) error {
 	if err := os.MkdirAll(filepath.Dir(destino), 0755); err != nil {
 		return err
 	}
