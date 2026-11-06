@@ -1,0 +1,9 @@
+id: "FND-163"
+title: "Una salida en vivo larga mostraba lo viejo, no lo último"
+description: "La pestaña de una herramienta guardaba las últimas 2.000 líneas, sin tope de tamaño. Claude Code dibuja solo los primeros 100.000 caracteres de un texto (lo informa el motor: «262377 characters of text are drawn up to the first 100000»). Con una salida mayor, lo último quedaba afuera, y una salida sin saltos de línea crecía sin límite."
+impact: "Quien mira una herramienta ruidosa o una barra de progreso veía el comienzo de la salida, sin saber que había más. Además, cada trozo concatenaba y volvía a dibujar todo el texto."
+action_taken: "recortar deja también los últimos 64 KB, por debajo del límite de Claude Code. Una salida en vivo dibuja el primer trozo en el acto y, después, como mucho cada 100 ms."
+test_result: "tests/herramientas.test.ts: 40 trozos de 1 MB sin saltos de línea, y lo último se ve. Falla si el tope sube a 256 KB (mutación comprobada). El refresco cada 100 ms no tiene una prueba propia."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

@@ -49,6 +49,8 @@ const cuadrosPorPedir = [] // lo que pidió el dibujo en curso
 const animaciones = new Map() // clave → { huella, n, cuadros, ms, fallo } (lo que se materializa)
 const fantasmas = new Map() // clave → { lineas, n, cuadros, ms, fallo } (un pedido que se va)
 const tarjetasVistas = new Map() // id de pedido → sus líneas, para que al irse se vaya materializando
+// TOPE_VISTOS: celdas de tareas que ya no existen. Al llegar se olvida todo: lo peor es materializar otra vez lo visible.
+const TOPE_VISTOS = 2000
 let Client = null
 let contador = 0
 
@@ -122,7 +124,8 @@ function seVan($, Text, ids) {
     fantasmas.set('g:' + id, g)
     pedirCuadros($, g, lineas, false)
   }
-  return [...fantasmas].map(([clave, g]) => (g.fallo ? null : g.cuadros ? reproductor(clave, g) : enBlanco(Text, clave, g.lineas))).filter(Boolean)
+  for (const [clave, g] of fantasmas) if (g.fallo) fantasmas.delete(clave)
+  return [...fantasmas].map(([clave, g]) => (g.cuadros ? reproductor(clave, g) : enBlanco(Text, clave, g.lineas))).filter(Boolean)
 }
 
 // lineasDeTarjeta: lo que se ve de un pedido, como líneas para materializar.
@@ -151,10 +154,11 @@ let rutaDirecta = null // promesa con la ruta del binario (binario)
 let enFlujo = false // hay un 'qdd consola seguir' abierto
 let sinFlujo = false // este qdd no lo trae: se lee como siempre
 let contextoAtrasado = '' // lo que 'consola ciclo' entregó cuando su mensaje ya se había ido
-let releyendo = false // hay una lectura de releerSinEsperar en curso
+let releyendo = false // hay una lectura de leerSinSolapar en curso
 let releerOtra = false // algo cambió mientras se leía: hace falta una más
 let flujoProbado = false // ya entregó una línea: si se corta, se vuelve a abrir
 let lineasDelFlujo = 0 // para que una lectura lenta no pise algo más nuevo
+let lecturasPedidas = 0 // para que una respuesta vieja no pise a una lectura más nueva
 const destellos = {} // id → tics de destello que quedan
 const pulsos = {} // id → último pulso visto en el JSON
 let ultimoEnvio = -Infinity // cuándo se envió el último pulso a la CLI
@@ -222,6 +226,7 @@ async function lineaDelFlujo($, linea) {
 async function leer($) {
   const bin = await binario($)
   const lineasAntes = lineasDelFlujo
+  const esta = ++lecturasPedidas
   let nuevo = null
   let motivo = ''
   try {
@@ -234,8 +239,8 @@ async function leer($) {
     motivo = 'no se pudo ejecutar ' + bin + ': ' + String(err?.message ?? err)
     rutaDirecta = null
   }
-  // Mientras se leía llegó algo del flujo: es más nuevo que esta lectura.
-  if (lineasDelFlujo !== lineasAntes) return avisar($)
+  // Mientras se leía llegó algo del flujo o se pidió otra lectura: son más nuevos que esta.
+  if (lineasDelFlujo !== lineasAntes || esta !== lecturasPedidas) return avisar($)
   await aplicar($, nuevo, motivo)
 }
 
@@ -249,10 +254,26 @@ async function aplicar($, nuevo, motivo) {
   await datosDeLaLinea($, nuevo)
   // Lo aceptado que qdd ya anotó (ejecutando, hecho o con falla) deja de ser local.
   for (const a of nuevo?.acciones || []) if (locales.has(a.id) && a.estado && a.estado !== 'pendiente') locales.delete(a.id)
+  podar(nuevo)
   verPulsos()
   $.ui.invalidate('ui.render')
   await abrirSiLlegaUnPedido($)
   await avisar($)
+}
+
+// podar: lo que ya no está en el panel no se sigue recordando (MEJ-014). Una lectura que falló no dice que algo se haya ido.
+function podar(nuevo) {
+  if (!nuevo) return
+  const acciones = new Set((nuevo.acciones || []).map((a) => a.id))
+  const frentes = new Set((nuevo.estado?.frentes || []).map((f) => f.id))
+  for (const id of pedidosVistos) if (!acciones.has(id)) pedidosVistos.delete(id)
+  for (const id of teclasConfirmadas.keys()) if (!acciones.has(id)) teclasConfirmadas.delete(id)
+  for (const id of locales.keys()) if (!acciones.has(id)) locales.delete(id)
+  for (const id of Object.keys(pulsos)) if (!frentes.has(id)) delete pulsos[id]
+  for (const id of Object.keys(destellos)) if (!frentes.has(id)) delete destellos[id]
+  if (vistos.size < TOPE_VISTOS) return
+  vistos.clear()
+  animaciones.clear()
 }
 
 // datosDeLaLinea toma lo que viaja en el JSON del panel. Un qdd que no lo trae sigue con sus lecturas propias (MEJ-020).
@@ -1520,6 +1541,11 @@ function resultadoBP(Box, Text) {
 const PANE_HERRAMIENTA = 'qdd-herr-'
 const TOPE_HERRAMIENTA_MS = 600000
 const LINEAS_SALIDA = 2000
+// BYTES_SALIDA: una salida sin saltos de línea (una barra de progreso) también tiene tope, y menor a los 100.000 caracteres
+// que Claude Code dibuja de un texto: de ahí para abajo se cortaría justo lo último. REFRESCO_SALIDA_MS: una herramienta
+// ruidosa no redibuja por cada trozo.
+const BYTES_SALIDA = 64 * 1024
+const REFRESCO_SALIDA_MS = 100
 const CADA_LECTURAS = 5 // las herramientas se releen cada 5 lecturas del panel (10 s)
 let herramientas = []
 let firmaHerramientas = ''
@@ -1633,7 +1659,7 @@ async function enVivo($, s, corrida, argv) {
     for await (const { text } of stream) {
       if (corrida.detenida) break
       s.salida = recortar(s.salida + text)
-      $.ui.invalidate('ui.render')
+      refrescarSalida($, corrida)
     }
     if (!corrida.detenida) {
       const r = await stream.result
@@ -1643,6 +1669,25 @@ async function enVivo($, s, corrida, argv) {
     if (!corrida.detenida) s.salida = recortar(s.salida + String(err?.message ?? err))
   }
   terminar($, s, corrida, fin)
+}
+
+// refrescarSalida dibuja el primer trozo en el acto y, después, lo que llegue como mucho cada REFRESCO_SALIDA_MS.
+function refrescarSalida($, corrida) {
+  if (corrida.refrescando) {
+    corrida.porDibujar = true
+    return
+  }
+  corrida.refrescando = true
+  $.ui.invalidate('ui.render')
+  $.clock
+    .sleep(REFRESCO_SALIDA_MS)
+    .then(() => {
+      corrida.refrescando = false
+      if (!corrida.porDibujar) return
+      corrida.porDibujar = false
+      refrescarSalida($, corrida)
+    })
+    .catch((err) => $.ui.log('no se refrescó la salida: ' + String(err?.message ?? err)))
 }
 
 function detener($, s) {
@@ -1661,10 +1706,11 @@ function terminar($, s, corrida, fin) {
   $.ui.invalidate('ui.render')
 }
 
-// recortar deja las últimas LINEAS_SALIDA líneas: la salida no se guarda en disco.
+// recortar deja lo último, hasta BYTES_SALIDA y LINEAS_SALIDA líneas: la salida no se guarda en disco.
 function recortar(texto) {
-  const lineas = texto.split('\n')
-  return lineas.length > LINEAS_SALIDA ? lineas.slice(-LINEAS_SALIDA).join('\n') : texto
+  const acotado = texto.length > BYTES_SALIDA ? texto.slice(-BYTES_SALIDA) : texto
+  const lineas = acotado.split('\n')
+  return lineas.length > LINEAS_SALIDA ? lineas.slice(-LINEAS_SALIDA).join('\n') : acotado
 }
 
 function campoDe($, Input, Select, s, c) {
@@ -1969,22 +2015,33 @@ async function contextoDelMensaje($, modo) {
   return [atrasado, texto].filter(Boolean)
 }
 
-// releerSinEsperar vuelve a leer sin que nadie espere (CCC-C31, MEJ-015). Hay una sola lectura a la vez: lo que llegue mientras tanto
-// pide una más, no una por herramienta.
-function releerSinEsperar($) {
+// leerSinSolapar deja una sola lectura a la vez: lo que llegue mientras tanto pide una más, no una por herramienta.
+async function leerSinSolapar($) {
   if (releyendo) {
     releerOtra = true
     return
   }
   releyendo = true
-  leer($)
-    .catch((err) => $.ui.log('no se releyó el panel: ' + String(err?.message ?? err)))
-    .finally(() => {
-      releyendo = false
-      if (!releerOtra) return
-      releerOtra = false
-      releerSinEsperar($)
-    })
+  try {
+    await leer($)
+  } finally {
+    releyendo = false
+  }
+  if (!releerOtra) return
+  releerOtra = false
+  await leerSinSolapar($)
+}
+
+// releerSinEsperar vuelve a leer sin que nadie espere (CCC-C31, MEJ-015).
+function releerSinEsperar($) {
+  leerSinSolapar($).catch((err) => $.ui.log('no se releyó el panel: ' + String(err?.message ?? err)))
+}
+
+// leerDelReloj: si la lectura anterior sigue en curso, este tic no suma otra; un equipo lento no acumula procesos (MEJ-014).
+async function leerDelReloj($) {
+  if (enFlujo) return avisar($)
+  if (releyendo) return
+  await leerSinSolapar($)
 }
 
 function hayQueMostrar() {
@@ -2380,7 +2437,7 @@ export function register(on) {
         await cicloGoal($)
       })
       $.clock.every(INTERVALO_MS, async () => {
-        await (enFlujo ? avisar($) : leer($))
+        await leerDelReloj($)
         abrirFlujo($)
         lecturas += 1
         if (lecturas % CADA_LECTURAS === 0 && !herramientasEnPanel) await leerHerramientas($)
@@ -2468,7 +2525,6 @@ export function register(on) {
   // panel de la persona (solo si cambió) y va a la IA con el mensaje: si ella lo resolvió en el chat, la IA lo refleja.
   on('classic.UserPromptSubmit', async ($, e, next) => {
     resultado = null
-    for (const [id, l] of locales) if (l.estado === 'hecho') locales.delete(id)
     $.ui.invalidate('ui.render')
     const contexto = await contextoDelMensaje($, String(e.permission_mode || ''))
     const r = await next(e)
