@@ -20,6 +20,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **`qdd audit` nombra la prueba que falló aunque la suite sea larga:** guardaba solo las últimas 60 líneas, así que podía
+  decir «1 fail» sin decir cuál. Ahora también muestra las líneas anteriores que dicen «fail», hasta 40.
 - **`qdd remoto` ya no gasta CPU por cada latido de las sesiones (FND-161):** cada sesión reescribía cada 5 s su cola del
   teléfono aunque siguiera vacía, y el servicio volvía a leer todos los proyectos. Con 7 proyectos y sin teléfono conectado
   usaba del 13 al 21 % de un núcleo. Las colas ya no se escriben si no cambiaron.

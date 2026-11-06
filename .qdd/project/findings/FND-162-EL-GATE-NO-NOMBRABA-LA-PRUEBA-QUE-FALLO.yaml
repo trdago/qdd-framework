@@ -1,0 +1,9 @@
+id: "FND-162"
+title: "qdd audit decía «1 fail» sin nombrar la prueba que falló"
+description: "Al fallar una suite, el gate guardaba solo las últimas 60 líneas de su salida. La suite del mod qdd-tareas imprime casi 200, y su línea (fail) queda antes de ese corte."
+impact: "Una prueba del mod falló dos veces con la máquina cargada (carga 33 la segunda) y pasó al repetir la auditoría. El log no dijo cuál fue."
+action_taken: "logDeFallo agrega al final de la salida las líneas anteriores que dicen «fail», hasta 40. El fallo con carga de una prueba concreta lo trata FND-160; otras pruebas podrían fallar igual, y ahora se sabría cuáles."
+test_result: "cli/pkg/audit/coverage_test.go: TestLogDeFallo_NombraLoQueFallaAunqueQuedeLejosDelFinal y TestLogDeFallo_UnaSalidaCortaQuedaIgualYLasFallasTienenTope."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

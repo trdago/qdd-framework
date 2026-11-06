@@ -221,7 +221,7 @@ func runTestCommand(tc testCommand) (string, error) {
 	if err == nil {
 		return "", nil
 	}
-	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, tailLines(string(out), 60))
+	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, logDeFallo(string(out)))
 	return string(out) + "\n" + err.Error(), err
 }
 
@@ -280,12 +280,26 @@ func hayPruebasDart(testDir string) bool {
 	return encontrado
 }
 
-func tailLines(s string, n int) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) <= n {
-		return strings.Join(lines, "\n")
+const (
+	lineasDelLog   = 60
+	maxFallasEnLog = 40
+)
+
+// logDeFallo es el final de la salida y, antes, las líneas anteriores que dicen «fail» (FND-162): una suite larga deja
+// el nombre de lo que falló lejos del final, y sin él un fallo que no se repite no se puede investigar.
+func logDeFallo(salida string) string {
+	lineas := strings.Split(strings.TrimRight(salida, "\n"), "\n")
+	if len(lineas) <= lineasDelLog {
+		return strings.Join(lineas, "\n")
 	}
-	return strings.Join(lines[len(lines)-n:], "\n")
+	corte := len(lineas) - lineasDelLog
+	var fallas []string
+	for _, l := range lineas[:corte] {
+		if len(fallas) < maxFallasEnLog && strings.Contains(strings.ToLower(l), "fail") {
+			fallas = append(fallas, l)
+		}
+	}
+	return strings.Join(append(fallas, lineas[corte:]...), "\n")
 }
 
 // RunCoverageCheck evalúa que las pruebas del proyecto se ejecuten y pasen
