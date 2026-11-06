@@ -6,11 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.16] - 2026-11-06
+
 ### Agregado
 
 - **Editar y comentar un flujo desde QDD Móvil (lado PC, solo Pro):** el teléfono puede mandar una edición de un flujo, con el
   tipo `flujo` y un esquema cerrado. Se aplica como una edición de la persona en el panel; comentar y pedir detalle llaman a la IA.
-  Los comentarios salen del PC por el ocultador. Falta el relay y la app.
+  Los comentarios salen del PC por el ocultador. Necesita el relay y la app nuevos.
 
 ## [2.10.0-rc.15] - 2026-11-06
 
