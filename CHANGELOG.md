@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.14] - 2026-11-06
+
+### Seguridad
+
+- **Trae el arreglo de `2.9.11` (FND-164):** `qdd dashboard` ya solo atiende a este PC.
+
 ### Cambiado
 
 - **Declarar la tarea en curso ya es una regla (MEJ-021):** el bloque de `AGENTS.md` (revisión 4) y la forma de trabajo piden `activar` al empezar y `terminar` al acabar o quedar esperando. `qdd_estado set` lo recuerda si un ✅ llega sin tarea declarada en la sesión, pero no la enciende. `qdd doctor --fix` renueva el bloque en cada proyecto.
@@ -209,6 +215,17 @@ Trae también lo de 2.9.7 (FND-141).
 
 - **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
 - **`k` ya no es a la vez Config y Modo goal (FND-139).**
+
+## [2.9.11] - 2026-11-06
+
+### Seguridad
+
+- **`qdd dashboard` ya solo atiende a este PC (FND-164):** escuchaba en todas las interfaces y sus endpoints de escritura no
+  pedían autenticación. Mientras estaba abierto, otro equipo de la misma red o una página abierta en el navegador podían
+  leer el estado, cambiar políticas, escribir archivos en el proyecto y enviar instrucciones al LLM configurado. Ahora
+  escucha en `127.0.0.1` y rechaza las peticiones que no vienen de su propia página. Si lo usabas desde otro equipo, ya
+  no se puede: usa un túnel SSH. Actualiza si alguna vez lo abriste en una red compartida, y revisa si hay cambios que no
+  reconoces en esos proyectos.
 
 ## [2.9.10] - 2026-11-05
 
