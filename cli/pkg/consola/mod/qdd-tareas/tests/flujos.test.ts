@@ -65,8 +65,8 @@ test('un flujo que ya estaba no abre una pestaña sola; el botón Flujos la abre
   expect(r.abiertos).toContain('qdd-flujo-pago')
 })
 
-test('sin flujos no hay botón, y un qdd que no los trae tampoco', async ($, on) => {
-  const r = nuevo([])
+test('un qdd que no trae flujos no ofrece el botón', async ($, on) => {
+  const r = nuevo()
   await empezar($, on, r)
   const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
   expect(await ui.find({ key: 'flujos' })).toBeUndefined()

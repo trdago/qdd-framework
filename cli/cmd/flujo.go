@@ -18,8 +18,9 @@ import (
 const anchoFlujoPorDefecto = 60
 
 var (
-	flujoJSON  bool
-	flujoAncho int
+	flujoJSON    bool
+	flujoAncho   int
+	flujoElegido string
 )
 
 var flujoCmd = &cobra.Command{
@@ -29,9 +30,20 @@ var flujoCmd = &cobra.Command{
 	Long: `Un flujo muestra cómo funciona algo complejo con cajas y círculos, para que la persona y la IA vean lo mismo en vez
 de describirlo en prosa. Se guarda en ` + flujo.Carpeta + `/<id>.yaml, versionado. El panel lo abre en su propia pestaña.
 
-  qdd flujo crear <archivo.yaml|->   valida y guarda (o reemplaza) el flujo
-  qdd flujo ver <id> [--ancho N] [--json]
+  qdd flujo crear <archivo.yaml|->   valida y guarda (o reemplaza) el flujo; conserva sus comentarios
+  qdd flujo nuevo "<nombre>"         un flujo con un solo nodo, para seguir editándolo
+  qdd flujo ver <id> [--ancho N] [--elegido <nodo>] [--json]
   qdd flujo lista [--json]
+
+La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambio. Para responderle o cambiarlo:
+
+  qdd flujo comentar <id> <nodo> "<texto>"    responde en el nodo; lo ve debajo de él
+  qdd flujo detalle <id> <nodo> "<texto>"     explica el nodo: es la respuesta a un 🔎
+  qdd flujo agregar <id> <nodo> --nombre N [--tipo paso|resultado] [--descripcion D] [--rama]
+  qdd flujo modificar <id> <nodo> [--nombre N] [--descripcion D] [--tipo T]
+  qdd flujo mover <id> <nodo> --despues-de <otro>
+  qdd flujo quitar <id> <nodo>
+  qdd flujo conectar|desconectar <id> <nodo> --con <otro>
 
 Forma del archivo; empieza en el primer nodo y a todos tiene que poder llegarse desde ahí:
 
@@ -63,8 +75,12 @@ var flujoCrearCmd = &cobra.Command{
 		if err != nil {
 			salirCon("El flujo no es válido:\n%v", err)
 		}
-		if err := flujo.Guardar(estadoRaiz(), f); err != nil {
+		movidos, err := flujo.Reemplazar(estadoRaiz(), f)
+		if err != nil {
 			salirCon("%v", err)
+		}
+		if movidos > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "[!] %d comentario(s) de nodos que ya no están pasaron al primer nodo.\n", movidos)
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "[+] Flujo '%s' guardado en %s/%s.yaml (%d nodos). El panel lo abre en su pestaña.\n", f.ID, flujo.Carpeta, f.ID, len(f.Nodos))
 	},
@@ -79,10 +95,13 @@ func leerArchivoOEntrada(ruta string, entrada io.Reader) ([]byte, error) {
 
 // flujoDibujado es lo que recibe el panel: el dibujo ya hecho, para no repetir el trazado en cada superficie.
 type flujoDibujado struct {
-	ID          string   `json:"id"`
-	Nombre      string   `json:"nombre"`
-	Descripcion string   `json:"descripcion,omitempty"`
-	Lineas      []string `json:"lineas"`
+	ID            string       `json:"id"`
+	Nombre        string       `json:"nombre"`
+	Descripcion   string       `json:"descripcion,omitempty"`
+	Lineas        []string     `json:"lineas"`
+	Nodos         []flujo.Nodo `json:"nodos"`
+	PorEnviar     []string     `json:"por_enviar"`
+	PuedeDeshacer bool         `json:"puede_deshacer"`
 }
 
 var flujoVerCmd = &cobra.Command{
@@ -95,10 +114,13 @@ var flujoVerCmd = &cobra.Command{
 		if err != nil {
 			salirCon("%v", err)
 		}
-		lineas := flujo.Dibujar(f, flujoAncho, estadoDeTarea(root))
+		lineas := flujo.DibujarElegido(f, flujoAncho, estadoDeTarea(root), flujoElegido)
 		salida := cmd.OutOrStdout()
 		if flujoJSON {
-			b, err := json.Marshal(flujoDibujado{ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas})
+			b, err := json.Marshal(flujoDibujado{
+				ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas, Nodos: f.Nodos,
+				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID),
+			})
 			if err != nil {
 				salirCon("%v", err)
 			}
@@ -159,6 +181,7 @@ var flujoListaCmd = &cobra.Command{
 func init() {
 	flujoVerCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoVerCmd.Flags().IntVar(&flujoAncho, "ancho", anchoFlujoPorDefecto, "Columnas disponibles")
+	flujoVerCmd.Flags().StringVar(&flujoElegido, "elegido", "", "Nodo que se dibuja resaltado")
 	flujoListaCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoCmd.AddCommand(flujoCrearCmd, flujoVerCmd, flujoListaCmd)
 	rootCmd.AddCommand(flujoCmd)

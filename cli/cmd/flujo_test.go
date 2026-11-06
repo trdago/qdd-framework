@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/estado"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const flujoDePrueba = `formato: 1
@@ -82,3 +84,117 @@ func TestFlujo_ListaDiceCuandoNoHay(t *testing.T) {
 }
 
 func ahoraDePruebaFlujo() time.Time { return time.Date(2026, 11, 5, 21, 0, 0, 0, time.UTC) }
+
+// correrFlujo corre un subcomando como lo llama el panel, con sus banderas.
+func correrFlujo(t *testing.T, c *cobra.Command, banderas map[string]string, args ...string) string {
+	t.Helper()
+	var salida bytes.Buffer
+	c.SetOut(&salida)
+	for nombre, valor := range banderas {
+		if err := c.Flags().Set(nombre, valor); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c.Run(c, args)
+	c.Flags().VisitAll(func(b *pflag.Flag) {
+		_ = b.Value.Set(b.DefValue)
+		b.Changed = false
+	})
+	return salida.String()
+}
+
+func verFlujo(t *testing.T, id string, banderas map[string]string) flujoDibujado {
+	t.Helper()
+	todas := map[string]string{"json": "true"}
+	for k, v := range banderas {
+		todas[k] = v
+	}
+	var d flujoDibujado
+	if err := json.Unmarshal([]byte(correrFlujo(t, flujoVerCmd, todas, id)), &d); err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func TestFlujo_LaPersonaEditaYLaIARecibeUnaVez(t *testing.T) {
+	proyectoConFlujo(t)
+	correrFlujo(t, flujoAgregarCmd, map[string]string{"nombre": "Cobra", "de": "persona"}, "pago", "a")
+	correrFlujo(t, flujoModificarCmd, map[string]string{"descripcion": "con tarjeta", "de": "persona"}, "pago", "cobra")
+	d := verFlujo(t, "pago", map[string]string{"elegido": "cobra"})
+	if len(d.Nodos) != 3 || d.Nodos[1].ID != "cobra" || d.Nodos[1].Descripcion != "con tarjeta" {
+		t.Fatalf("nodos: %+v", d.Nodos)
+	}
+	if len(d.PorEnviar) != 2 || !d.PuedeDeshacer {
+		t.Fatalf("por enviar: %+v", d)
+	}
+	if !strings.Contains(strings.Join(d.Lineas, "\n"), "┏") {
+		t.Fatalf("no resalta el elegido:\n%s", strings.Join(d.Lineas, "\n"))
+	}
+	var envio flujoEnvio
+	if err := json.Unmarshal([]byte(correrFlujo(t, flujoEnviarCmd, map[string]string{"json": "true"}, "pago")), &envio); err != nil {
+		t.Fatal(err)
+	}
+	if envio.N != 2 || !strings.Contains(envio.Mensaje, "+ cobra") {
+		t.Fatalf("envío: %+v", envio)
+	}
+	correrFlujo(t, flujoDevolverCmd, map[string]string{"n": "2"}, "pago")
+	if d := verFlujo(t, "pago", nil); len(d.PorEnviar) != 2 {
+		t.Fatalf("devolver: %+v", d.PorEnviar)
+	}
+	correrFlujo(t, flujoDeshacerCmd, nil, "pago")
+	if d := verFlujo(t, "pago", nil); d.Nodos[1].Descripcion != "" || len(d.PorEnviar) != 1 {
+		t.Fatalf("deshacer: %+v", d)
+	}
+}
+
+func TestFlujo_LaIARespondeEnElMismoNodoSinLlamarseASiMisma(t *testing.T) {
+	proyectoConFlujo(t)
+	correrFlujo(t, flujoComentarCmd, map[string]string{"de": "persona"}, "pago", "a", "¿por qué publica primero?")
+	correrFlujo(t, flujoPedirDetalleCmd, nil, "pago", "b")
+	var envio flujoEnvio
+	if err := json.Unmarshal([]byte(correrFlujo(t, flujoEnviarCmd, map[string]string{"json": "true"}, "pago")), &envio); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(envio.Mensaje, "💬 a") || !strings.Contains(envio.Mensaje, "🔎 b") || !strings.Contains(envio.Mensaje, "qdd flujo comentar pago a") {
+		t.Fatalf("mensaje: %q", envio.Mensaje)
+	}
+	correrFlujo(t, flujoComentarCmd, nil, "pago", "a", "porque el tag va antes")
+	correrFlujo(t, flujoDetalleCmd, nil, "pago", "b", "cierra el pago")
+	d := verFlujo(t, "pago", nil)
+	if len(d.PorEnviar) != 0 {
+		t.Fatalf("la IA se llamó a sí misma: %v", d.PorEnviar)
+	}
+	c := d.Nodos[0].Comentarios
+	if len(c) != 2 || c[0].De != "persona" || c[1].De != "ia" || d.Nodos[1].Descripcion != "cierra el pago" {
+		t.Fatalf("nodos: %+v", d.Nodos)
+	}
+}
+
+func TestFlujo_CrearNoPierdeLosComentariosYLoDice(t *testing.T) {
+	root := proyectoConFlujo(t)
+	correrFlujo(t, flujoComentarCmd, map[string]string{"de": "persona"}, "pago", "b", "este fin no me convence")
+	archivo := filepath.Join(root, "g.yaml")
+	if err := os.WriteFile(archivo, []byte("formato: 1\nid: pago\nnombre: Otro\nnodos:\n  - {id: a, tipo: paso, nombre: Solo}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	salida := correrFlujo(t, flujoCrearCmd, nil, archivo)
+	if !strings.Contains(salida, "1 comentario") {
+		t.Fatalf("salida: %q", salida)
+	}
+	if d := verFlujo(t, "pago", nil); len(d.Nodos[0].Comentarios) != 1 {
+		t.Fatalf("nodos: %+v", d.Nodos)
+	}
+}
+
+func TestFlujo_NuevoDaElIDParaAbrirlo(t *testing.T) {
+	proyectoConFlujo(t)
+	var f struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(correrFlujo(t, flujoNuevoCmd, map[string]string{"json": "true"}, "Cómo se paga")), &f); err != nil {
+		t.Fatal(err)
+	}
+	if f.ID != "como-se-paga" {
+		t.Fatalf("id: %q", f.ID)
+	}
+}

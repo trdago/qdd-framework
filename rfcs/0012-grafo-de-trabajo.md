@@ -114,3 +114,104 @@ Cada cambio que la persona hace en el panel es una edición con nombre, como en 
 1. La receta `grafo-de-trabajo` (contribute → certify → propose) y la nueva versión de `estado-por-tareas`.
 2. qdd: el modelo en `pkg/estado`, las reglas en `check`, las ediciones en `qdd estado editar` y en la tool MCP.
 3. El panel: dibujar `agente` y `decision`, y las teclas de edición. Cada fase con su prueba en el gate.
+
+## Ampliación propuesta: flujos (2026-11-05)
+
+Fases 1 a 3 implementadas (ver «Lo que se hizo» al final). Origen, pedido de la persona: «una forma de mostrar grafos en el panel de la derecha […] para
+entender flujos completos y explicarle al llm como lo queremos o algún ajuste que no está mirando». La persona eligió que
+esto sea parte de este RFC, no una vista aparte, y que los flujos se versionen en el proyecto.
+
+### El problema que agrega
+
+Este RFC cubre el plan de trabajo. Explicar el camino de una solicitud, un pipeline o un proceso tiene el mismo problema:
+la persona describe en prosa algo que tiene forma, y la IA lo interpreta. Y cuando la IA explica cómo funciona algo, pasa lo
+mismo al revés.
+
+### Un solo grafo
+
+- Es el mismo modelo de nodos y aristas, las mismas ediciones y el mismo canal hacia la IA. Una edición en un flujo se escribe
+  y se valida igual que en el plan.
+- **Dos tipos de nodo nuevos**, que amplían la decisión 2: `paso`, que se dibuja como caja, y `resultado`, que se dibuja como
+  círculo (un inicio, un fin o un resultado). Siguen siendo una lista fija. Llevan nombre y descripción, sin celdas.
+- **Un flujo puede nombrar una tarea** del tablero: una caja que muestra su estado. Es lo que se gana al unirlos.
+- **Los archivos son distintos:** cada flujo es `.qdd/project/flujos/<id>.yaml`, versionado, porque `estado.yaml` no siempre
+  lo está (en este repositorio no). Así se comparte con el equipo y se revisa en un PR.
+
+### La vista
+
+Un flujo hacia abajo, con scroll, en el panel de la derecha:
+
+```text
+      ( Llega la solicitud )
+                │
+      ┌─────────▼─────────┐
+    ▶ │ Valida la firma   │
+      │ rechaza si vence  │
+      └─────────┬─────────┘
+          ┌─────┴─────┐
+       ( ok )     ( rechazo )
+
+ + agregar  m mover  e editar  x quitar  ? detalle
+```
+
+Dos salidas o más van lado a lado si caben en el ancho, y una debajo de otra, con sangría, si no. Un ciclo se dibuja como
+«↺ vuelve a X».
+
+### Las ediciones
+
+Se usan las de la tabla de arriba. Sobre un flujo, además:
+
+- `x` une lo de antes con lo de después del nodo que se quita. El flujo no pide motivo, a diferencia de una tarea.
+- La persona puede cambiar un nodo de lugar con `m`, ↑↓ y Enter, y deshacer con `u`.
+
+### Pedir más detalle
+
+`?` sobre un nodo le pide a la IA que lo explique. Le llega un mensaje que empieza con 🔎 y nombra el flujo y el nodo. Responde
+con `qdd flujo detalle <flujo> <nodo>`: agrega la descripción, o nodos nuevos debajo si el detalle es un subflujo. Gasta tokens
+solo porque la persona lo pidió.
+
+### El efecto materializar
+
+Lo nuevo o cambiado aparece con el efecto del panel: qdd calcula los cuadros (`qdd consola materializar`) y el mod los
+reproduce. Solo se anima lo que cambió, y si el efecto está desactivado se muestra el texto final.
+
+### Cómo llega
+
+- `qdd flujo crear | ver | detalle` es la entrada de la IA. No lleva una tool MCP propia: `tools/list` está junto a su tope de
+  16.000 caracteres.
+- El panel recibe los cambios por `qdd consola seguir` (RFC 0016), que vigila esa carpeta, sin procesos por lectura.
+
+### Lo que no se sabe todavía
+
+La primera fase tiene que medirlo:
+
+- **Mouse:** los botones del panel responden al clic, pero no sé si se puede arrastrar. Por eso «mover» va con teclas.
+- **Ancho:** cuántas ramas lado a lado caben en 40 a 60 columnas.
+- **Rendimiento:** cuánto tarda un flujo de 50 nodos en dibujarse y materializarse, sobre todo en Windows.
+- **Teclas:** si elegir un nodo con ↑↓ convive con el scroll del panel.
+
+### Fases
+
+1. **Ver:** la IA crea un flujo y el panel lo dibuja con scroll y materializar. Ya sirve para que la IA explique algo.
+2. **Editar:** agregar, mover, editar, quitar y deshacer, con las líneas que recibe la IA.
+3. **Detalle:** `?` sobre un nodo y su respuesta.
+4. **El plan en el mismo dibujo:** el tablero usa esta vista y las ediciones del resto de este RFC.
+
+### Lo que se hizo (2026-11-06)
+
+Pedido de la persona, sprint 6: «editar, mirar, modificar, agregar, comentar, con el fin de permitir interacción más
+detallada con el llm y es una interface de trabajo y aclaración entre llm qdd y el humano».
+
+- **Comentarios, que este RFC no traía.** Cada nodo tiene un hilo, en el YAML versionado. La IA responde con
+  `qdd flujo comentar` y la respuesta se ve bajo el nodo. No viajan al teléfono, que todavía no los muestra.
+- **Cuándo se entera la IA.** Una edición espera a «Enviar a la IA» o al próximo mensaje del chat: un turno por cambio
+  gastaría de más. Un comentario y un detalle la llaman en el acto, porque piden una respuesta. Cada línea llega una vez.
+- **Deshacer** vale mientras la IA no la recibe y nadie cambió el flujo después. No pisa lo que hizo la IA.
+- **Registro local:** las ediciones sin enviar viven en `.qdd/working/flujos/<id>.jsonl`, sin versionar.
+- **Elegir y mover con clics, no con flechas.** El dibujo no sabe qué nodo hay en cada columna, así que bajo el dibujo hay una
+  lista de nodos. Mover es un clic en el nodo destino.
+- **`d`, no `?`:** una tecla del panel solo puede ser un dígito o una letra minúscula.
+- **Probado con clics en un panel real, en Linux.** Un campo no toma las teclas por sí solo (FND-166), y un clic en un botón
+  tampoco se las da. No se probó arrastrar ni elegir con flechas, porque no se usan. No se midió en Windows.
+
+Falta: la fase 4, y que `qdd doctor` revise este registro.

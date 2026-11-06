@@ -100,6 +100,7 @@ func (b *Bucle) mensajeFlujo(p ProyectoEstado, r flujo.Resumen) (MensajeFlujo, e
 	o := b.ocultador(p.Ruta)
 	for i, n := range f.Nodos {
 		f.Nodos[i].Nombre, f.Nodos[i].Descripcion, f.Nodos[i].Tarea = o.Ocultar(n.Nombre), o.Ocultar(n.Descripcion), o.Ocultar(n.Tarea)
+		f.Nodos[i].Comentarios = nil // son del panel: la app no los muestra, así que no salen del PC
 	}
 	telefono := FlujoTelefono{ID: r.ID, Nombre: o.Ocultar(f.Nombre), Descripcion: o.Ocultar(f.Descripcion), Huella: r.Huella, Nodos: f.Nodos}
 	return MensajeFlujo{Version: VersionProtocolo, Clave: p.Clave, Flujo: telefono}, nil

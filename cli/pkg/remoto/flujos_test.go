@@ -243,3 +243,28 @@ func TestFlujos_ElMasGrandeQueSePuedeGuardarCabeEnUnMensaje(t *testing.T) {
 		t.Fatalf("el evento pesa %d KB: Supabase lo descartaría en el plan Free", len(b)/1024)
 	}
 }
+
+// Los comentarios del flujo son del panel: no viajan al teléfono, que todavía no los muestra.
+func TestMensajeFlujo_LosComentariosNoSalenDelPC(t *testing.T) {
+	root := t.TempDir()
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{
+		ID: "a", Tipo: flujo.TipoPaso, Nombre: "A",
+		Comentarios: []flujo.Comentario{{De: flujo.DePersona, Texto: "la clave es sb_secret_abcdefghijklmnop", Cuando: "2026-11-06T10:00:00Z"}},
+	}}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+	b := &Bucle{}
+	b.extras.ocultadores = map[string]ocultadorLeido{}
+	m, err := b.mensajeFlujo(ProyectoEstado{Ruta: root, Clave: "c"}, flujo.Resumen{ID: "pago", Huella: "h"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	datos, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(datos), "sb_secret") || strings.Contains(string(datos), "comentarios") {
+		t.Fatalf("salió del PC: %s", datos)
+	}
+}
