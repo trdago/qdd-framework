@@ -1,0 +1,9 @@
+id: "FND-160"
+title: "Una prueba del mod tumbaba el gate con el equipo cargado"
+description: "La prueba 'cada minuto pide el ciclo…' de tests/mejoras.test.ts avanza 3 minutos de reloj falso, con el latido y las lecturas de cada uno, y tarda de 2,7 a 5 s con carga cercana a 30. Falló por el tope de 5 s del kit en 1 de 3 corridas en el commit base 7f9075b, sin ningún cambio, y 1 de 3 con el cambio de MEJ-015."
+impact: "qdd audit puede bloquear un commit correcto, y el motivo es difícil de ver: lo que imprime el gate puede dejar afuera el nombre de la prueba que falló."
+action_taken: "La prueba declara { timeoutMs: 30000 } (opción de test() del kit, confirmada con una prueba de 6 s). Solo cambia su tope: lo que comprueba sigue igual. Otras pruebas largas rondan los 2-3 s y no se tocaron."
+test_result: "No hay prueba que demuestre la ausencia de una falla por carga. Comprobado que timeoutMs deja pasar una prueba de 6 s que sin él falla a los 5 s."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"
