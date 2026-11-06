@@ -991,6 +991,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
     children: [
       Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }),
       Button({ key: 'blueprints', label: 'Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }),
+      Button({ key: 'proyectos', label: 'Proyectos', hotkey: 'y', plain: true, onPress: () => abrirProyectos($) }),
       Button({ key: 'config', label: 'Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) }),
       ...(conoceFlujos ? [Button({ key: 'flujos', label: 'Flujos', plain: true, onPress: () => abrirFlujos($) })] : []),
       ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
@@ -1176,6 +1177,7 @@ function preguntar($, texto) {
 // releer: «l ↻» vuelve a leer el tablero en el acto, sin esperar a la próxima lectura.
 async function releer($) {
   await leer($)
+  if (proyectos) await leerProyectos($)
   $.ui.invalidate('ui.render')
 }
 
@@ -1611,6 +1613,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
   const lista = datos.acciones || []
   if (config) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaConfig($, Box, Text, Button, Input, ancho)] })
   if (bps) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaBlueprints($, Box, Text, Button, ancho)] })
+  if (proyectos) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaProyectos($, Box, Text, Button, ancho)] })
   const cuerpo = e ? [tabla(Box, Text, Button, $, e, lista, ancho)] : [sinEstado(Box, Text, datos.motivo)]
   return Box({
     flexDirection: 'column',
@@ -1664,12 +1667,140 @@ async function atajo($, a, vaciar) {
   if (vaciar) await $.clock.sleep(ESPERA_ATAJO_MS)
   bps = null
   config = null
+  proyectos = null
   pedir($, a)
   if (vaciar) await $.prompt.fill({ text: '', mode: 'replace' }).catch((err) => $.ui.log('no se vació el chat: ' + String(err?.message ?? err)))
   await $.ui.open({ id: PANE, title: TITULO, focus: true })
   if (confirmando?.id !== a.id) return
   const r = await $.ui.focus({ requestId: PANE, key: 'si' }).catch((err) => ({ deny: String(err?.message ?? err) }))
   if (r?.deny) $.ui.log('el panel no tomó el foco: ' + r.deny)
+}
+
+// ── Proyectos (RFC 0018) ──────────────────────────────────────────────────────────────────────────────────────
+// Una fila por proyecto, con las mismas columnas, y el historial del que se elija. Las filas las calcula 'qdd consola
+// proyectos --json': aquí solo se dibujan. Se lee al abrir la vista y con ↻; cerrada no gasta procesos. Es solo lectura
+// y nada le escribe a la IA. null es «sin medir»: nunca se muestra un cero que no se midió.
+let proyectos = null // null | { filas, aviso, falla, elegido }
+const SIN_MEDIR = 'sin medir'
+const SEPARA_PROY = '  '
+const COL_PUNTAJE = 9
+const COL_HACE = 11
+const COL_FINDINGS = 9
+const COL_ESPERAS = 11
+const NOMBRE_MINIMO_PROY = 10
+// El motor dibuja la tecla de un botón como «1: » antes de su texto: se reserva ese ancho, y una fila sin tecla deja el hueco.
+const COL_TECLA_PROY = 3
+const TECLAS_PROY = 9
+const COLUMNAS_PROY_COMPLETAS = [COL_PUNTAJE, COL_HACE, COL_FINDINGS, COL_ESPERAS]
+const COLUMNAS_PROY_ANGOSTAS = [COL_PUNTAJE, COL_ESPERAS]
+
+async function abrirProyectos($) {
+  proyectos = proyectos ? null : {}
+  bps = null
+  config = null
+  if (proyectos) await leerProyectos($)
+  $.ui.invalidate('ui.render')
+}
+
+async function leerProyectos($) {
+  const bin = await binario($)
+  try {
+    const r = await $.process.run([bin, 'consola', 'proyectos', '--json'], { timeoutMs: TOPE_MS })
+    const j = r.exitCode === 0 ? JSON.parse(r.stdout) : null
+    if (!j) throw new Error(((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida')
+    if (proyectos) proyectos = { ...proyectos, filas: j.proyectos || [], aviso: j.aviso || '', falla: '' }
+  } catch (err) {
+    if (proyectos) proyectos = { ...proyectos, falla: String(err?.message ?? err) }
+  }
+}
+
+function elegirProyecto($, clave) {
+  proyectos = { ...proyectos, elegido: proyectos.elegido === clave ? null : clave }
+  $.ui.invalidate('ui.render')
+}
+
+function celdaProy(texto, n) {
+  const corto = alAncho(texto, n)
+  return corto + ' '.repeat(Math.max(0, n - anchoDe(corto)))
+}
+
+function medido(valor) {
+  return valor === null || valor === undefined ? SIN_MEDIR : String(valor)
+}
+
+function esperasProy(f) {
+  if (f.esperan === null || f.esperan === undefined || f.fallan === null || f.fallan === undefined) return SIN_MEDIR
+  return '⏳ ' + f.esperan + ' ❌ ' + f.fallan
+}
+
+// filaProy une las celdas a su ancho. Lo angosto deja proyecto, puntaje y ⏳ y ❌: el resto se ve al elegir la fila.
+function filaProy(conTecla, nombreFila, celdas, columnas, ancho) {
+  const fijo = columnas.reduce((n, c) => n + c + SEPARA_PROY.length, COL_TECLA_PROY)
+  const anchoNombre = Math.max(NOMBRE_MINIMO_PROY, ancho - fijo)
+  return (conTecla ? '' : ' '.repeat(COL_TECLA_PROY)) + [celdaProy(nombreFila, anchoNombre), ...celdas.map((c, i) => celdaProy(c, columnas[i]))].join(SEPARA_PROY).trimEnd()
+}
+
+function vistaProyectos($, Box, Text, Button, ancho) {
+  const titulo = separador(Box, Text, 't-proyectos', 'Proyectos', undefined, 'y cierra', ancho)
+  if (proyectos.falla) return [titulo, Text({ key: 'proy-falla', color: COLOR.falla, wrap: 'wrap', children: ['✗ ' + proyectos.falla] })]
+  if (!proyectos.filas) return [titulo, Text({ key: 'proy-leyendo', dimColor: true, children: ['leyendo…'] })]
+  const aviso = proyectos.aviso ? [Text({ key: 'proy-aviso', color: COLOR.espera, wrap: 'wrap', children: ['⚠ ' + proyectos.aviso] })] : []
+  if (proyectos.filas.length === 0) return [titulo, ...aviso, Text({ key: 'proy-vacio', dimColor: true, wrap: 'wrap', children: ['Todavía no hay proyectos registrados en este PC.'] })]
+  const completas = ancho >= COLUMNAS_PROY_COMPLETAS.reduce((n, c) => n + c + SEPARA_PROY.length, COL_TECLA_PROY + NOMBRE_MINIMO_PROY)
+  const columnas = completas ? COLUMNAS_PROY_COMPLETAS : COLUMNAS_PROY_ANGOSTAS
+  const nombres = completas ? ['Puntaje', 'Hace', 'Findings', '⏳ y ❌'] : ['Puntaje', '⏳ y ❌']
+  const cabeza = Text({ key: 'proy-cabeza', dimColor: true, size: 'caption', wrap: 'truncate-end', children: [filaProy(false, 'Proyecto', nombres, columnas, ancho)] })
+  const filas = proyectos.filas.flatMap((f, i) => filaYDetalleProy($, Box, Text, Button, f, i, columnas, completas, ancho))
+  return [titulo, ...aviso, Box({ key: 'proy-lista', flexDirection: 'column', marginTop: 1, children: [cabeza, ...filas] })]
+}
+
+// Cada fila lleva un número como tecla, porque sin ratón no se llega a ella: la flecha y Enter no mueven el foco en el
+// panel. Las fichas usan los mismos números, pero sus botones no se dibujan mientras esta vista está abierta.
+function filaYDetalleProy($, Box, Text, Button, f, i, columnas, completas, ancho) {
+  const celdas = completas ? [medido(f.puntaje), f.hace || SIN_MEDIR, medido(f.findings_abiertos), esperasProy(f)] : [medido(f.puntaje), esperasProy(f)]
+  const tecla = i < TECLAS_PROY ? String(i + 1) : ''
+  const texto = filaProy(Boolean(tecla), f.nombre, f.existe ? celdas : ['no existe'], columnas, ancho)
+  const fila = Button({
+    key: 'proy-' + f.clave,
+    ...(tecla ? { hotkey: tecla } : {}),
+    plain: true,
+    onPress: () => elegirProyecto($, f.clave),
+    children: [Text({ key: 'proy-texto-' + f.clave, dimColor: !f.existe, wrap: 'truncate-end', children: [texto] })],
+  })
+  if (proyectos.elegido !== f.clave) return [fila]
+  return [fila, detalleProy(Box, Text, f)]
+}
+
+// detalleProy: el historial del proyecto elegido, lo más nuevo primero. Dos escalas no se comparan: se marca aparte.
+function detalleProy(Box, Text, f) {
+  const clave = 'proy-detalle-' + f.clave
+  if (!f.existe) return Box({ key: clave, paddingLeft: 2, children: [Text({ dimColor: true, wrap: 'wrap', children: ['La carpeta ya no existe.'] })] })
+  const titulo = (k, t) => Text({ key: k, dimColor: true, weight: 'semibold', size: 'caption', children: [t] })
+  const abiertos = f.findings_abiertos === null || f.findings_abiertos === undefined ? 'findings ' + SIN_MEDIR : plural(f.findings_abiertos, 'finding abierto', 'findings abiertos')
+  const puntajes = [...(f.puntajes || [])].reverse().map((p, i) => Text({ key: 'proy-p-' + i, wrap: 'wrap', children: [p.fecha + '  ' + p.puntaje + (p.otra_escala ? ' · otra escala, no se compara' : '')] }))
+  const findings = [...(f.findings_por_fecha || [])].reverse().map((d, i) => Text({ key: 'proy-f-' + i, wrap: 'wrap', children: [d.fecha + '  ' + resumenFindings(d)] }))
+  const sinFecha = f.findings_sin_fecha ? [Text({ key: 'proy-sin-fecha', dimColor: true, children: [f.findings_sin_fecha + ' sin fecha'] })] : []
+  const sinFindings = f.findings_abiertos === null || f.findings_abiertos === undefined ? SIN_MEDIR : 'ninguno con fecha'
+  return Box({
+    key: clave,
+    flexDirection: 'column',
+    paddingLeft: 2,
+    marginBottom: 1,
+    children: [
+      Text({ key: 'proy-resumen', dimColor: true, wrap: 'wrap', children: [f.nombre + ' · ' + (f.hace || 'puntaje ' + SIN_MEDIR) + ' · ' + abiertos] }),
+      titulo('proy-t-puntajes', 'Puntajes por día'),
+      ...(puntajes.length ? puntajes : [Text({ key: 'proy-puntajes-vacio', dimColor: true, children: [SIN_MEDIR] })]),
+      titulo('proy-t-findings', 'Findings por fecha'),
+      ...(findings.length || sinFecha.length ? findings : [Text({ key: 'proy-findings-vacio', dimColor: true, children: [sinFindings] })]),
+      ...sinFecha,
+    ],
+  })
+}
+
+function resumenFindings(d) {
+  const partes = [plural(d.abiertos, 'abierto', 'abiertos'), plural(d.cerrados, 'cerrado', 'cerrados')]
+  if (d.sin_estado) partes.push(d.sin_estado + ' sin estado')
+  return partes.join(' · ')
 }
 
 // ── Blueprints (pedido del usuario, 2026-11-01) ───────────────────────────────────────────────────────────────
@@ -1683,6 +1814,7 @@ const ESTADO_BP = { 'con-cambios': 'cambia la receta', 'solo-lock': 'sin la IA',
 async function abrirBlueprints($) {
   bps = bps ? null : {}
   config = null
+  proyectos = null
   if (bps) await leerBlueprints($)
   $.ui.invalidate('ui.render')
 }
@@ -2152,6 +2284,7 @@ function dibujarHerramienta($, Box, Text, Button, Input, Select, id) {
 async function abrirConfig($) {
   config = config ? null : { vista: 'lista' }
   bps = null
+  proyectos = null
   if (config) await leerHerramientas($)
   $.ui.invalidate('ui.render')
 }
