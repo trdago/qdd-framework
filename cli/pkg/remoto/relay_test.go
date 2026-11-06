@@ -168,6 +168,13 @@ func TestRelay_RPCConLaClavePublicableYErroresDelRelay(t *testing.T) {
 	if err := r.Avisar(context.Background(), "t", "f", AvisoPedido, "p", "p-1"); !errors.Is(err, ErrNoDisponible) {
 		t.Fatalf("404 es «no disponible»: %v", err)
 	}
+	f.Responder("/functions/v1/avisar", func(map[string]any) (int, any) {
+		return 400, map[string]string{"error": "tipo inválido: x"}
+	})
+	var rechazada ErrRechazada
+	if err := r.Avisar(context.Background(), "t", "f", AvisoPedido, "p", "p-1"); !errors.As(err, &rechazada) || !strings.Contains(rechazada.Error(), "tipo inválido") {
+		t.Fatalf("400 es un rechazo con su motivo: %v", err)
+	}
 	sinLimite := PlanGratis()
 	sinLimite.Proyectos = nil
 	if sinLimite.LimiteProyectos() != 0 {

@@ -221,6 +221,9 @@ subir `version`. Sirve para ver cuánto queda sin gastar tokens:
 - FCM (Android) y APNs (iOS). El PC llama a la Edge Function `avisar` con un tipo cerrado (`pedido`, `ficha`,
   `termino_bien`, `termino_falla`) y la clave del proyecto: no acepta texto libre, así que nunca lleva un comando ni una
   salida. No pasa por Realtime, no consume mensajes.
+- Cuando un proyecto ya no tiene nada esperando de un tipo, el PC pide `pedido_resuelto` o `ficha_resuelto`. El relay manda
+  un push solo de datos y la app cancela el tag `maquina:clave:<tipo>`. Es de mejor esfuerzo: si el PC está apagado o
+  `qdd remoto` se reinició, no se manda, y la app limpia su bandeja al abrirse.
 - «PC apagado con tareas en curso» no lo puede avisar el PC: el PC da un latido por RPC cada minuto con cuántas tareas
   tiene en curso, y un trabajo de `pg_cron` avisa cuando el latido se corta con tareas en curso.
 
