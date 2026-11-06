@@ -25,18 +25,21 @@ const (
 	TipoAprobar   = "aprobar"
 	TipoComando   = "comando"
 	TipoDescartar = "descartar"
+	TipoYaLoVi    = "ya-lo-vi"
 
 	// MaxTareas es cuántas tareas pendientes muestra el panel: las más nuevas (§3.9).
 	MaxTareas = 4
 
-	// MotivoDescarte es el motivo_cierre de una tarea descartada con la ✕ del panel: nunca desaparece en silencio.
-	MotivoDescarte = "descartada desde el panel de Claude Code (✕)"
+	// MotivoDescarte es el motivo_cierre de una tarea quitada desde el panel: nunca desaparece en silencio, y no dice
+	// que se hizo ni que se rechazó.
+	MotivoDescarte = "la quitó la persona desde el panel"
 
 	// MaxFichas es el tope de fichas en borrador que se ofrecen: una tecla 1…9 por ficha.
 	MaxFichas = 9
 
 	prefijoAprobar   = "aprobar:"
 	prefijoDescartar = "descartar:"
+	prefijoYaLoVi    = "ya-lo-vi:"
 )
 
 // Accion es un botón del panel. Args son los argumentos de qdd para un comando; no salen en el JSON. En un pedido,
@@ -165,7 +168,7 @@ func panel(root string, now time.Time) DatosConsola {
 }
 
 // Acciones lista lo que el panel puede pedir: los comandos que la IA dejó para la persona (§3.9), aprobar cada ficha
-// en borrador (hasta MaxFichas, por id), descartar cada tarea con su ✕ (§3.10), revisar el estado si hay estado.yaml,
+// en borrador (hasta MaxFichas, por id), «✓ Ya lo vi» y «Quitar» en cada tarea (§3.10), revisar el estado si hay estado.yaml,
 // y auditar y abrir la carpeta (§3.10, si el sistema tiene abridor) si la carpeta es un proyecto QDD (tiene .qdd/).
 func Acciones(root string, hayEstado bool) []Accion {
 	acciones := append([]Accion{}, accionesDePedidos(root)...)
@@ -205,17 +208,27 @@ func Acciones(root string, hayEstado bool) []Accion {
 	return append(acciones, a)
 }
 
-// descartes ofrece la ✕ de cada tarea que el panel muestra (§3.9): pasa a «descartado» con MotivoDescarte.
+// descartes ofrece en cada tarea que el panel muestra (§3.9) «Quitar», que la pasa a «descartado» con MotivoDescarte, y
+// «✓ Ya lo vi» si tiene etapas por ver. El id y el tipo «descartar» siguen iguales: una sesión con el mod anterior lo entiende.
 func descartes(root string) []Accion {
 	e, err := estado.Load(root)
 	if err != nil {
 		return nil
 	}
 	var out []Accion
-	for _, f := range estado.DatosPendientes(e, time.Now(), MaxTareas).Frentes {
+	now := time.Now()
+	for _, f := range estado.DatosPendientes(e, now, MaxTareas).Frentes {
 		out = append(out, Accion{
-			ID: prefijoDescartar + f.ID, Tipo: TipoDescartar, Etiqueta: "Descartar «" + f.Nombre + "»",
+			ID: prefijoDescartar + f.ID, Tipo: TipoDescartar, Etiqueta: "Quitar «" + f.Nombre + "»",
 			Detalle: "qdd estado cerrar " + f.ID + " --descartado --motivo \"" + MotivoDescarte + "\"", Confirmar: true, tarea: f.ID,
+		})
+		etapas := e.PorVer(f.ID)
+		if len(etapas) == 0 {
+			continue
+		}
+		out = append(out, Accion{
+			ID: prefijoYaLoVi + f.ID, Tipo: TipoYaLoVi, Etiqueta: "Ya viste «" + f.Nombre + "»",
+			Detalle: "marcar ✅ " + strings.Join(etapas, ", ") + " («" + estado.NotaVista(now) + "»)", Confirmar: true, tarea: f.ID,
 		})
 	}
 	return out
@@ -275,6 +288,9 @@ func (a Accion) Ejecutar(root, bin string, salida io.Writer) int {
 	if a.Tipo == TipoDescartar {
 		return descartar(root, a, salida)
 	}
+	if a.Tipo == TipoYaLoVi {
+		return yaLoVi(root, a, salida)
+	}
 	if a.Tipo == TipoAtender {
 		return atender(a, salida)
 	}
@@ -300,6 +316,21 @@ func descartar(root string, a Accion, salida io.Writer) int {
 		fmt.Fprintf(salida, "[!] No se pudo descartar '%s': %v\n", a.tarea, err)
 		return 1
 	}
-	fmt.Fprintf(salida, "[+] Tarea '%s' descartada: sale del panel y queda en el archivo con su motivo.\n", a.tarea)
+	fmt.Fprintf(salida, "[+] Tarea '%s' quitada: sale del panel y queda en el archivo.\n", a.tarea)
+	return 0
+}
+
+func yaLoVi(root string, a Accion, salida io.Writer) int {
+	v, err := estado.YaLoVio(root, a.tarea, time.Now())
+	if err != nil {
+		fmt.Fprintf(salida, "[!] No se pudo marcar '%s': %v\n", a.tarea, err)
+		return 1
+	}
+	etapas := strings.Join(v.Etapas, ", ")
+	if !v.Cerrada {
+		fmt.Fprintf(salida, "[+] '%s': ✅ %s, la vio la persona. La tarea sigue abierta: le falta trabajo.\n", a.tarea, etapas)
+		return 0
+	}
+	fmt.Fprintf(salida, "[+] '%s': ✅ %s, la vio la persona. Tarea cerrada: sale del panel.\n", a.tarea, etapas)
 	return 0
 }

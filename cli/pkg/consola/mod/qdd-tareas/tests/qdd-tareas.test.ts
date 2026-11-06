@@ -267,27 +267,48 @@ test('sin abridor en el sistema muestra la carpeta pero no el botón', async ($,
   expect(await ui.find({ key: 'b-abrir-carpeta' })).toBeUndefined()
 })
 
-test('cada tarea tiene su ✕: pide «s  Sí» y la descarta; las más antiguas se cuentan (CCC-C22)', async ($, on) => {
+test('cada tarea tiene «Quitar»: pide «s  Sí» y la quita, sin ✕; las más antiguas se cuentan (CCC-C22)', async ($, on) => {
   const llamadas: string[][] = []
-  const descartar = { id: 'descartar:ticket', tipo: 'descartar', etiqueta: 'Descartar «Ticket de MP en logs»', detalle: 'qdd estado cerrar ticket --descartado', confirmar: true }
+  const descartar = { id: 'descartar:ticket', tipo: 'descartar', etiqueta: 'Quitar «Ticket de MP en logs»', detalle: 'qdd estado cerrar ticket --descartado', confirmar: true }
   const conX = { ...PANEL, estado: { ...ESTADO, ocultos: 5 }, acciones: [...ACCIONES, descartar] }
-  preparar(on, ok(conX), llamadas, { exitCode: 0, stdout: "[+] Tarea 'ticket' descartada: sale del panel y queda en el archivo con su motivo.", stderr: '' })
+  preparar(on, ok(conX), llamadas, { exitCode: 0, stdout: "[+] Tarea 'ticket' quitada: sale del panel y queda en el archivo.", stderr: '' })
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
   expect(await ui.find({ type: 'Text', text: '2 de 7 tareas' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '+5 más antiguas · qdd estado ver' })).toBeDefined()
-  expect(await ui.find({ key: 'x-ticket' })).toMatchObject({ props: { label: '✕' } })
-  // Sin acción ofrecida por qdd no hay ✕, y la ✕ no se repite en la lista de acciones.
+  expect(await ui.find({ key: 'x-ticket' })).toMatchObject({ props: { label: 'Quitar' } })
+  // Sin acción ofrecida por qdd no hay botón, y no se repite en la lista de acciones.
   expect(await ui.find({ key: 'x-gemini' })).toBeUndefined()
   expect(await ui.find({ key: 'fila-descartar:ticket' })).toBeUndefined()
 
   await ui.press({ key: 'x-ticket' })
-  expect(await ui.find({ type: 'Text', text: '¿Descartar «Ticket de MP en logs»?' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '¿Quitar «Ticket de MP en logs»?' })).toBeDefined()
   expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
   await ui.press({ key: 'si' })
   expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'descartar:ticket', '--confirmado'])
-  expect(await ui.find({ type: 'Text', text: /Tarea 'ticket' descartada/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Tarea 'ticket' quitada/ })).toBeDefined()
+})
+
+test('«✓ Ya lo vi» aparece si qdd lo ofrece: pide «s  Sí», dice qué marca y responde junto a la tabla', async ($, on) => {
+  const llamadas: string[][] = []
+  const visto = { id: 'ya-lo-vi:ticket', tipo: 'ya-lo-vi', etiqueta: 'Ya viste «Ticket de MP en logs»', detalle: 'marcar ✅ Producción («la vio la persona el 05/11, sin medición»)', confirmar: true }
+  const quitar = { id: 'descartar:ticket', tipo: 'descartar', etiqueta: 'Quitar «Ticket de MP en logs»', detalle: 'qdd estado cerrar ticket --descartado', confirmar: true }
+  preparar(on, ok({ ...PANEL, acciones: [...ACCIONES, visto, quitar] }), llamadas, { exitCode: 0, stdout: "[+] 'ticket': ✅ Producción, la vio la persona.", stderr: '' })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ key: 'v-ticket' })).toMatchObject({ props: { label: '✓' } })
+  expect(await ui.find({ key: 'fila-ya-lo-vi:ticket' })).toBeUndefined()
+  // Una tarea sin nada por ver no tiene ✓.
+  expect(await ui.find({ key: 'v-gemini' })).toBeUndefined()
+
+  await ui.press({ key: 'v-ticket' })
+  expect(await ui.find({ type: 'Text', text: '¿Ya viste «Ticket de MP en logs»?' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /la vio la persona el 05\/11, sin medición/ })).toBeDefined()
+  expect(llamadas.some((a) => a[2] === 'accion')).toBe(false)
+  await ui.press({ key: 'si' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'ya-lo-vi:ticket', '--confirmado'])
 })
 
 const PEDIDO = {

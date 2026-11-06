@@ -43,6 +43,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
   Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
 
+### Cambiado
+
+- **«✓» y «Quitar» reemplazan a la ✕ en cada tarea del panel.** Sirven para las tareas atrapadas por algo que no se puede
+  validar en producción, o que ya no quieres ver. Los dos piden «s  Sí».
+  - **✓ (ya lo vi):** deja cada etapa en ⏳ en ✅ con la nota «la vio la persona el DD/MM, sin medición» y cierra la tarea si
+    no queda nada por hacer. Una etapa con falla o sin empezar, o una aprobación pendiente, sigue como está.
+  - **Quitar:** saca la tarea sin pedir motivo; queda en el historial con «la quitó la persona desde el panel».
+
 ## [2.10.0-rc.8] - 2026-11-05
 
 ### Corregido
