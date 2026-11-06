@@ -17,6 +17,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Corregido
 
 - **Un proyecto que pierde su panel un momento ya no repite el push al volver:** lo que esperaba sigue contado como visto.
+- **Un ⏳ de «usuario» también es de la persona (FND-159):** `esperan_persona` daba 0 en un tablero con 4 de ellos. Ahora
+  cuentan, y si preguntan algo también llegan al teléfono como pregunta y al chat como espera.
 
 ## [2.10.0-rc.9] - 2026-11-05
 
