@@ -168,7 +168,8 @@ type Totales struct {
 
 // DeLaPersona dice si un ⏳ le toca a la persona, según su de_quien.
 func DeLaPersona(deQuien string) bool {
-	return strings.Contains(strings.ToLower(deQuien), "persona")
+	quien := strings.ToLower(deQuien)
+	return strings.Contains(quien, "persona") || strings.Contains(quien, "usuario")
 }
 
 func (e Estado) Totales() Totales {

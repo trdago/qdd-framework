@@ -51,7 +51,7 @@ test('con el flujo abierto los cambios llegan solos y no se lanza un proceso por
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await clock.advance(2000)
   await new Promise((res) => setTimeout(res, 20))
-  expect(r.lanzados).toEqual([['qdd', 'consola', 'seguir', '--con', 'atender']])
+  expect(r.lanzados).toEqual([['qdd', 'consola', 'seguir', '--con', 'atender,herramientas,mejoras']])
   expect(await ui.find({ type: 'Text', text: /primero/ })).toBeDefined()
 
   const antes = lecturas(r)
@@ -228,4 +228,83 @@ test('al cortarse el flujo vuelve a preguntar la ruta del binario: una actualiza
   await clock.advance(2000)
   await new Promise((res) => setTimeout(res, 20))
   expect(r.lanzados.at(-1)?.[0]).toBe('/nuevo/qdd')
+})
+
+// MEJ-020: lo que queda en temporizadores viaja en la línea del panel, sin un proceso por lectura.
+function panelCon(extras: object) {
+  return JSON.stringify({ ...JSON.parse(panel('con datos')), ...extras })
+}
+
+function abrirFlujoCon(on, linea: string) {
+  on('process.spawn', async function* () {
+    yield { stream: 'stdout', text: linea + '\n' }
+    await new Promise(() => {})
+    return { value: { code: 0, signal: null } }
+  })
+}
+
+const conteo = (r, palabra: string) => r.llamadas.filter((a) => a.includes(palabra)).length
+
+test('si la línea trae las herramientas, no se lanza «herramienta listar» (MEJ-020)', async ($, on) => {
+  const r = { llamadas: [] as string[][], lectura: { value: { exitCode: 0, stdout: panelCon({ herramientas: [] }), stderr: '' } } }
+  const clock = preparar(on, r)
+  abrirFlujoCon(on, panelCon({ herramientas: [] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(60000)
+  expect(conteo(r, 'listar')).toBe(0)
+})
+
+test('un qdd cuya línea no trae herramientas sigue con «herramienta listar» (MEJ-020)', async ($, on) => {
+  const r = { llamadas: [] as string[][] }
+  const clock = preparar(on, r)
+  abrirFlujoCon(on, panel('anterior'))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(60000)
+  expect(conteo(r, 'listar')).toBeGreaterThan(1)
+})
+
+test('una herramienta que quitan se cierra aunque llegue por la línea (MEJ-020)', async ($, on) => {
+  const r = { llamadas: [] as string[][], lectura: { value: { exitCode: 0, stdout: panelCon({ herramientas: [{ id: 'bot', nombre: 'Bot', comando: ['bot'], acciones: [] }] }), stderr: '' } } }
+  const clock = preparar(on, r)
+  const cerradas: string[] = []
+  on('ui.close', ($, e) => {
+    cerradas.push(e.id)
+    return { value: undefined }
+  })
+  abrirFlujoCon(on, panelCon({ herramientas: [] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(2000)
+  await new Promise((res) => setTimeout(res, 20))
+  expect(cerradas.some((id) => id.endsWith('bot'))).toBe(true)
+})
+
+test('el ciclo de mejoras solo se lanza si la línea dice que toca (MEJ-020)', async ($, on) => {
+  const r = { llamadas: [] as string[][] }
+  const clock = preparar(on, r)
+  abrirFlujoCon(on, panelCon({ mejoras_toca: false }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(2000)
+  await new Promise((res) => setTimeout(res, 20))
+  await clock.advance(120000)
+  expect(conteo(r, 'mejoras')).toBe(0)
+})
+
+test('si toca, el ciclo de mejoras corre (MEJ-020)', async ($, on) => {
+  const r = { llamadas: [] as string[][] }
+  const clock = preparar(on, r)
+  abrirFlujoCon(on, panelCon({ mejoras_toca: true }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(2000)
+  await new Promise((res) => setTimeout(res, 20))
+  await clock.advance(60000)
+  expect(conteo(r, 'mejoras')).toBeGreaterThan(0)
+})
+
+test('un qdd cuya línea no dice si toca sigue pidiendo el ciclo cada minuto (MEJ-020)', async ($, on) => {
+  const r = { llamadas: [] as string[][] }
+  const clock = preparar(on, r)
+  abrirFlujoCon(on, panel('anterior'))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(120000)
+  expect(conteo(r, 'mejoras')).toBeGreaterThan(1)
 })

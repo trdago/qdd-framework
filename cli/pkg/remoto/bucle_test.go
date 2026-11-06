@@ -84,6 +84,40 @@ func (f *transporteFalso) esperar(t *testing.T, plazo time.Duration, evento stri
 	}
 }
 
+// accionEnDelta busca en todo lo enviado la acción con esa solicitud dentro de un delta. esperar descarta lo que no busca,
+// así que un delta que salió mientras se esperaba otro evento ya no pasa por él (FND-158).
+func (f *transporteFalso) accionEnDelta(t *testing.T, plazo time.Duration, clave, solicitud string) consola.Accion {
+	t.Helper()
+	limite := time.Now().Add(plazo)
+	for time.Now().Before(limite) {
+		if a, ok := accionEnEnviados(f.Enviados(), clave, solicitud); ok {
+			return a
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("ningún delta trajo la solicitud %s", solicitud)
+	return consola.Accion{}
+}
+
+func accionEnEnviados(enviados []enviado, clave, solicitud string) (consola.Accion, bool) {
+	for _, e := range enviados {
+		if e.Evento != "delta" {
+			continue
+		}
+		var d Delta
+		json.Unmarshal(e.Payload, &d)
+		if d.Proyectos[clave] == nil {
+			continue
+		}
+		for _, a := range d.Proyectos[clave].Acciones {
+			if a.Solicitud == solicitud {
+				return a, true
+			}
+		}
+	}
+	return consola.Accion{}, false
+}
+
 // contar dice cuántos eventos de ese tipo se mandaron en total.
 func (f *transporteFalso) contar(evento string) int {
 	n := 0
@@ -418,7 +452,7 @@ func TestEstado_SinLimitesElCampoNoViaja(t *testing.T) {
 
 func TestAvisos_ElModoGoalAvisaAlDetenerseYAlTerminar(t *testing.T) {
 	rl := nuevoRelayBucle()
-	b := &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]bool{}}
+	b := &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]string{}}
 	conGoal := func(estado, motivo string) Estado {
 		g := &consola.Goal{Activo: true, Estado: estado, Motivo: motivo, Elegidas: []consola.Elegida{}}
 		return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Goal: g}}}}
@@ -451,5 +485,122 @@ func TestAvisos_ElModoGoalAvisaAlDetenerseYAlTerminar(t *testing.T) {
 	b.avisarNuevos(context.Background(), conGoal(consola.GoalTerminado, ""))
 	if tipo := recibir(); tipo != AvisoGoalTerminado {
 		t.Fatal(tipo)
+	}
+}
+
+// FND-028 de qdd-movile: con qdd consola descartar, el push «un pedido espera tu aprobación» seguía en la bandeja.
+
+func bucleDeAvisos(rl *relayBucleFalso) *Bucle {
+	return &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]string{}}
+}
+
+func conEsperas(pedidos, fichas []string) Estado {
+	acciones := []consola.Accion{}
+	for _, id := range pedidos {
+		acciones = append(acciones, consola.Accion{ID: id, Tipo: consola.TipoPedido, Estado: consola.EstadoPendiente})
+	}
+	for _, id := range fichas {
+		acciones = append(acciones, consola.Accion{ID: id, Tipo: consola.TipoAprobar})
+	}
+	return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Acciones: acciones}}}}
+}
+
+func esperarAviso(t *testing.T, rl *relayBucleFalso, tipo string) {
+	t.Helper()
+	select {
+	case a := <-rl.avisos:
+		if a.Tipo != tipo || a.Proyecto != "p" || a.Clave != "c" {
+			t.Fatalf("quería %s: %+v", tipo, a)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("sin push %s", tipo)
+	}
+}
+
+func sinAviso(t *testing.T, rl *relayBucleFalso, motivo string) {
+	t.Helper()
+	select {
+	case a := <-rl.avisos:
+		t.Fatalf("%s: %+v", motivo, a)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestAvisos_ResueltoCuandoYaNoQuedaNadaDeEseTipo(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisarNuevos(ctx, conEsperas([]string{"a", "b"}, []string{"f"}))
+	sinAviso(t, rl, "la primera vez es la base")
+	b.avisarNuevos(ctx, conEsperas([]string{"b"}, []string{"f"}))
+	sinAviso(t, rl, "el aviso agrupa los pedidos y todavía espera uno")
+	b.avisarNuevos(ctx, conEsperas(nil, []string{"f"}))
+	esperarAviso(t, rl, AvisoPedidoResuelto)
+	b.avisarNuevos(ctx, conEsperas(nil, nil))
+	esperarAviso(t, rl, AvisoFichaResuelta)
+	b.avisarNuevos(ctx, conEsperas(nil, nil))
+	sinAviso(t, rl, "se avisa una sola vez")
+}
+
+func TestAvisos_UnoQueReemplazaAOtroNoEsResuelto(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisarNuevos(ctx, conEsperas([]string{"a"}, nil))
+	b.avisarNuevos(ctx, conEsperas([]string{"b"}, nil))
+	esperarAviso(t, rl, AvisoPedido)
+	sinAviso(t, rl, "sigue esperando un pedido")
+}
+
+func TestAvisos_UnProyectoSinPanelNoResuelveNiRepite(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisarNuevos(ctx, conEsperas([]string{"a"}, nil))
+	b.avisarNuevos(ctx, Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Error: ErrCarpetaNoExiste}}})
+	sinAviso(t, rl, "sin panel no se sabe qué espera")
+	b.avisarNuevos(ctx, conEsperas([]string{"a"}, nil))
+	sinAviso(t, rl, "el mismo pedido no es nuevo al volver")
+}
+
+func TestAvisos_UnRelayViejoQueRechazaElResueltoNoEsUnaFalla(t *testing.T) {
+	rl := nuevoRelayBucle()
+	rl.errAviso = ErrRechazada{Texto: "el relay respondió 400"}
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisar(ctx, AvisoPedidoResuelto, "p", "c")
+	esperarAviso(t, rl, AvisoPedidoResuelto)
+	select {
+	case err := <-b.avisos:
+		t.Fatalf("no se reporta como falla: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	b.avisar(ctx, AvisoPedido, "p", "c")
+	esperarAviso(t, rl, AvisoPedido)
+	select {
+	case err := <-b.avisos:
+		var rechazada ErrRechazada
+		if !errors.As(err, &rechazada) {
+			t.Fatalf("un aviso normal rechazado sí es una falla: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("un aviso normal rechazado sí se reporta")
+	}
+}
+
+// FND-158: un delta que salió mientras se esperaba otro evento se sigue encontrando.
+func TestAccionEnDelta_EncuentraElDeltaQueEsperarDescarto_FND158(t *testing.T) {
+	tr := nuevoTransporte()
+	d := Delta{Proyectos: map[string]*consola.DatosConsola{"app": {Acciones: []consola.Accion{{ID: "x", Solicitud: "s1"}}}}}
+	ctx := context.Background()
+	if err := tr.Broadcast(ctx, "delta", d); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.Broadcast(ctx, "accion_estado", AccionEstado{}); err != nil {
+		t.Fatal(err)
+	}
+	tr.esperar(t, time.Second, "accion_estado")
+	if a := tr.accionEnDelta(t, time.Second, "app", "s1"); a.ID != "x" {
+		t.Fatalf("acción: %+v", a)
 	}
 }
