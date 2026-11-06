@@ -242,17 +242,9 @@ func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 	if !ok || x.Estado != consola.EstadoHecho || x.Nombre != "Pixel de d1" || strings.Contains(x.Salida, "ghp_") {
 		t.Fatalf("queda en la cola del proyecto, hecha y sin secretos: %+v", x)
 	}
-	var en *consola.Accion
-	ev := tr.esperar(t, 2*time.Second, "delta")
-	var d Delta
-	json.Unmarshal(ev.Payload, &d)
-	for i, a := range d.Proyectos[clave].Acciones {
-		if a.Solicitud == e.Solicitud {
-			en = &d.Proyectos[clave].Acciones[i]
-		}
-	}
-	if en == nil || en.Origen != consola.OrigenTelefono || en.Dispositivo != "Pixel de d1" || strings.Contains(en.Resultado, "ghp_") {
-		t.Fatalf("el panel del teléfono lo trae como pedido del teléfono: %+v", d.Proyectos[clave])
+	en := tr.accionEnDelta(t, 2*time.Second, clave, e.Solicitud)
+	if en.Origen != consola.OrigenTelefono || en.Dispositivo != "Pixel de d1" || strings.Contains(en.Resultado, "ghp_") {
+		t.Fatalf("el panel del teléfono lo trae como pedido del teléfono: %+v", en)
 	}
 	var ejecutadas int
 	for _, l := range lineasLog(t) {
