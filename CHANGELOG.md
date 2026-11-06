@@ -6,6 +6,21 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.21] - 2026-11-06
+
+### Corregido
+
+- **Un relay antiguo guardado ya no da un código sin aviso (FND-171).** `qdd login` y `qdd remoto emparejar` avisan si no
+  pudieron confirmar el relay. `qdd doctor` lo revisa sin red, también sin emparejar y con el servicio apagado, y
+  `qdd doctor --fix` lo compara con el directorio: lo reemplaza si no coincide o muestra el motivo si no puede consultar.
+- **El directorio del relay se sirve desde varios sitios (FND-171).** En una red que bloquea uno, qdd pregunta al siguiente;
+  si fallan todos, dice el motivo de cada uno.
+
+### Cambiado
+
+- **Un relay propio protege solo a un PC emparejado (FND-171).** Sin emparejar, sin banderas, manda el directorio firmado y
+  se avisa; `qdd login --relay <url> --clave <publicable>` lo vuelve a dar.
+
 ## [2.10.0-rc.20] - 2026-11-06
 
 ### Agregado

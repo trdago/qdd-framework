@@ -176,7 +176,6 @@ func TestServicio_RenovarEnLaunchdAgregaLaMarca_FND128(t *testing.T) {
 	}
 }
 
-
 // FND-136: el servicio es uno por usuario, pero QDD_HOME no: desactivar desde otro QDD_HOME borraba el servicio real.
 func TestServicio_QuitarNoTocaElServicioDeOtroQDDHome_FND136(t *testing.T) {
 	for _, so := range []string{"linux", "darwin"} {
@@ -271,5 +270,20 @@ func TestServicio_RenovarBinarioSinTareaNoHaceNada_FND142(t *testing.T) {
 	linux := Servicio{SO: "linux", Bin: "/qdd", Usuario: dir}
 	if err := linux.RenovarBinario(falla); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// FND-171: en Windows, /Run sobre una tarea que corre no la reinicia.
+func TestComandosReiniciar_EnWindowsTerminaAntesDeCorrer_FND171(t *testing.T) {
+	c := Servicio{SO: "windows"}.ComandosReiniciar()
+	if len(c) != 2 || c[0][1] != "/End" || c[1][1] != "/Run" {
+		t.Fatalf("termina y vuelve a correr, sin borrar la tarea: %v", c)
+	}
+}
+
+func TestComandosReiniciar_EnLinuxReinicia_FND171(t *testing.T) {
+	c := Servicio{SO: "linux"}.ComandosReiniciar()
+	if len(c) == 0 || c[len(c)-1][2] != "restart" {
+		t.Fatalf("systemctl restart: %v", c)
 	}
 }

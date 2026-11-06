@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"runtime"
 	"strings"
 	"testing"
@@ -89,7 +90,7 @@ func TestLogin_ConRelayPorDefectoEmparejaSinArgumentos(t *testing.T) {
 func TestLogin_LasBanderasGananAlPorDefecto(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://por-defecto.supabase.co", Clave: "sb_publishable_defecto"})
 	remotoRelayURL, remotoClave = "https://propio.supabase.co", "sb_publishable_propio"
-	c, err := relayDeFlags()
+	c, err := relayDeFlags(io.Discard)
 	if err != nil || c.URL != "https://propio.supabase.co" {
 		t.Fatalf("--relay y --clave mandan: %+v %v", c, err)
 	}
@@ -98,7 +99,7 @@ func TestLogin_LasBanderasGananAlPorDefecto(t *testing.T) {
 // FND-133: un PC sin relay guardado toma el que trae qdd, sin banderas, y lo deja guardado para el servicio.
 func TestLogin_UnPCNuevoUsaElRelayQueTraeQdd_FND133(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://del-directorio.supabase.co", Clave: "sb_publishable_prueba", Serie: 1})
-	c, err := relayDeFlags()
+	c, err := relayDeFlags(io.Discard)
 	if err != nil {
 		t.Fatalf("un PC nuevo no necesita banderas: %v", err)
 	}
@@ -111,14 +112,15 @@ func TestLogin_UnPCNuevoUsaElRelayQueTraeQdd_FND133(t *testing.T) {
 func TestLogin_LasBanderasDejanUnRelayPropio(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://del-directorio.supabase.co", Clave: "sb_publishable_prueba", Serie: 1})
 	remotoRelayURL, remotoClave = "https://mio.supabase.co", "sb_publishable_mio"
-	c, err := relayDeFlags()
+	c, err := relayDeFlags(io.Discard)
 	if err != nil || !c.Propio || c.URL != "https://mio.supabase.co" {
 		t.Fatalf("un relay con banderas es propio: %+v %v", c, err)
 	}
+	emparejarPrueba(t)
 	remotoRelayURL, remotoClave = "", ""
-	c, err = relayDeFlags()
+	c, err = relayDeFlags(io.Discard)
 	if err != nil || c.URL != "https://mio.supabase.co" {
-		t.Fatalf("el directorio no lo pisa: %+v %v", c, err)
+		t.Fatalf("con este PC emparejado, el directorio no lo pisa: %+v %v", c, err)
 	}
 }
 
@@ -127,22 +129,91 @@ func TestLogin_ConsultaDeNuevoYSiFallaSigueConElGuardado(t *testing.T) {
 	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: "https://viejo.supabase.co", Clave: "sb_publishable_v", Serie: 1}); err != nil {
 		t.Fatal(err)
 	}
-	c, err := relayDeFlags()
+	c, err := relayDeFlags(io.Discard)
 	if err != nil || c.URL != "https://nuevo.supabase.co" {
 		t.Fatalf("qdd login vuelve a consultar: %+v %v", c, err)
 	}
 	remotoConsultarRelay = func(context.Context, int) (remoto.ConfigRelay, error) {
 		return remoto.ConfigRelay{}, errors.New("sin red")
 	}
-	c, err = relayDeFlags()
+	c, err = relayDeFlags(io.Discard)
 	if err != nil || c.URL != "https://nuevo.supabase.co" {
 		t.Fatalf("sin directorio sigue con el guardado: %+v %v", c, err)
 	}
 }
 
+// FND-171: un relay guardado como propio, sin este PC emparejado y sin banderas, daba un código que la app no acepta.
+func TestLogin_UnRelayPropioSinEmparejarTomaElDelDirectorioYLoDice_FND171(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{URL: "https://nuevo.supabase.co", Clave: "sb_publishable_n", Serie: 2})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: "https://antiguo.supabase.co", Clave: "sb_publishable_a", Propio: true}); err != nil {
+		t.Fatal(err)
+	}
+	var errs bytes.Buffer
+	c, err := relayDeFlags(&errs)
+	if err != nil || c.URL != "https://nuevo.supabase.co" || c.Propio {
+		t.Fatalf("debe tomar el del directorio: %+v %v", c, err)
+	}
+	for _, parte := range []string{"propio", "--relay"} {
+		if !strings.Contains(errs.String(), parte) {
+			t.Errorf("debe decir %q: %q", parte, errs.String())
+		}
+	}
+	if guardado, err := remoto.LeerRelay(); err != nil || guardado != c {
+		t.Fatalf("queda guardado: %+v %v", guardado, err)
+	}
+}
+
+func TestLogin_UnRelayPropioSinEmparejarQueCoincideNoAvisa_FND171(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{URL: "https://nuevo.supabase.co", Clave: "sb_publishable_n", Serie: 2})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: "https://nuevo.supabase.co", Clave: "sb_publishable_n", Propio: true}); err != nil {
+		t.Fatal(err)
+	}
+	var errs bytes.Buffer
+	if _, err := relayDeFlags(&errs); err != nil || errs.Len() != 0 {
+		t.Fatalf("nada que avisar: %v %q", err, errs.String())
+	}
+}
+
+func TestLogin_SiNoPuedeConfirmarElRelayLoAvisaAntesDelCodigo_FND171(t *testing.T) {
+	for _, propio := range []bool{false, true} {
+		prepararLogin(t, remoto.ConfigRelay{})
+		guardado := remoto.ConfigRelay{URL: "https://antiguo.supabase.co", Clave: "sb_publishable_a", Propio: propio}
+		if err := remoto.GuardarRelay(guardado); err != nil {
+			t.Fatal(err)
+		}
+		var errs bytes.Buffer
+		c, err := relayDeFlags(&errs)
+		if err != nil || c != guardado {
+			t.Fatalf("propio=%v: sigue con el guardado, sin perderlo: %+v %v", propio, c, err)
+		}
+		for _, parte := range []string{"no se pudo confirmar", "no se pudo leer el directorio", "qdd doctor --fix"} {
+			if !strings.Contains(errs.String(), parte) {
+				t.Errorf("propio=%v: debe decir %q: %q", propio, parte, errs.String())
+			}
+		}
+	}
+}
+
+func TestLogin_ConElPCEmparejadoUnRelayPropioNiSeConsulta_FND171(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{URL: "https://nuevo.supabase.co", Clave: "sb_publishable_n", Serie: 2})
+	emparejarPrueba(t)
+	guardado := remoto.ConfigRelay{URL: "https://mio.supabase.co", Clave: "sb_publishable_m", Propio: true}
+	if err := remoto.GuardarRelay(guardado); err != nil {
+		t.Fatal(err)
+	}
+	remotoConsultarRelay = func(context.Context, int) (remoto.ConfigRelay, error) {
+		t.Fatal("un PC emparejado en su relay propio no consulta")
+		return remoto.ConfigRelay{}, nil
+	}
+	var errs bytes.Buffer
+	if c, err := relayDeFlags(&errs); err != nil || c != guardado || errs.Len() != 0 {
+		t.Fatalf("no se toca: %+v %v %q", c, err, errs.String())
+	}
+}
+
 func TestLogin_UnRelayPorDefectoSecretoNoSeGuarda(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://x.supabase.co", Clave: "sb_secret_nunca"})
-	if _, err := relayDeFlags(); err == nil {
+	if _, err := relayDeFlags(io.Discard); err == nil {
 		t.Fatal("la clave por defecto pasa por la misma validación")
 	}
 	if _, err := remoto.LeerRelay(); err == nil {

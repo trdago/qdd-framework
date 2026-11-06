@@ -17,7 +17,7 @@ objetivo_tecnologico:
     arquitectura: 'pkg/remoto/registro guarda los proyectos de la máquina (<QDD_HOME>/proyectos.json, 0600, atómico con pkg/candado); lo anotan qdd init y consola.MarcarCiclo, y no depende de pkg/consola. pkg/remoto arma el estado (Armar: un consola.Panel por proyecto, o su error), habla con el relay (RPC de PostgREST public.qdd_remoto_* y la Edge Function avisar), es un cliente Phoenix de Supabase Realtime (broadcast, presence, heartbeat, reconexión), calcula deltas, verifica y ejecuta acciones firmadas vía pkg/consola, transmite la consola desde el transcript de Claude Code y oculta secretos antes de enviar nada. cmd/remoto.go conecta los subcomandos (estado, activar, emparejar, desactivar, dispositivos, revocar, correr) y cmd/remoto_doctor.go el grupo 9 de doctor.'
     decisiones:
         - 'En Windows, cada versión de qdd vive en su carpeta (FND-142): consola actualizar apunta la tarea a la versión instalada sin arrancarla, lo que corre termina al ver bin/actual.txt y la tarea lo reinicia; doctor lo revisa (REM-04). Un binario compilado a mano no cambia la tarea.'
-        - 'qdd login (issue #102, 2026-11-04): emparejar es el login, igual que qdd remoto activar. Sin banderas consulta el directorio firmado y, si no responde, sigue con lo guardado; --relay y --clave son para quien opera su relay. Decisión de la persona: el remoto es una capacidad de qdd, pero la tecnología del relay (proyecto de Supabase, migraciones, funciones, secretos, app) es de qdd-movile, que desde 2026-11-06 tiene su propio proyecto.'
+        - 'qdd login (issue #102, 2026-11-04): emparejar es el login, igual que qdd remoto activar. Sin banderas consulta el directorio firmado y, si no responde, lo avisa antes de dar el código y sigue con lo guardado; --relay y --clave son para quien opera su relay. Decisión de la persona: el remoto es una capacidad de qdd, pero la tecnología del relay (proyecto de Supabase, migraciones, funciones, secretos, app) es de qdd-movile, que desde 2026-11-06 tiene su propio proyecto.'
         - 'qdd remoto correr mira en cada sondeo el qdd del que arrancó (tamaño y fecha): si se reemplazó en el disco, termina con ErrActualizado y salida 3, y el servicio (systemd Restart=on-failure, launchd KeepAlive, tarea de Windows RestartOnFailure) lo arranca con la versión nueva. Mientras el archivo falta (npm lo está reemplazando) sigue (FND-120).'
         - 'El registro vive en un subpaquete (pkg/remoto/registro) porque pkg/consola lo anota en cada ciclo y pkg/remoto importa pkg/consola: así no hay ciclo de imports. Anotar solo lee si el proyecto está y se vio hace menos de 1 h; anotar es de mejor esfuerzo y no corta ni el ciclo ni init.'
         - 'Un registro ilegible no se trata como vacío (anotar encima perdería los proyectos): Anotar devuelve error, doctor lo señala (REM-02) y --fix lo aparta como proyectos.json.ilegible. REM-01 señala las rutas que ya no existen y --fix las quita.'
@@ -75,7 +75,8 @@ objetivo_tecnologico:
         - Una acción sin firma válida del relay, vieja (más de 5 min), de un dispositivo revocado o de un proyecto desconocido se descarta y queda en el log (inv. 18).
         - 'Un registro de proyectos ilegible nunca se reescribe en silencio: se aparta.'
         - 'Una pregunta se responde una sola vez: gana la primera respuesta, de la terminal o de un teléfono, y el otro lado recibe ya_aprobado con el lugar; un permiso respondido desde el teléfono nunca agrega reglas («permitir siempre»).'
-        - 'El relay sale de un directorio firmado (RFC 0013 inv. 20, decisión de la persona 2026-11-06): solo una respuesta exacta, firmada con la clave que trae qdd y de serie igual o mayor cambia el relay. Sin red sigue con el recordado; un relay dado con banderas no se consulta nunca.'
+        - 'El relay sale de un directorio firmado (RFC 0013 inv. 20, decisión de la persona 2026-11-06): solo una respuesta exacta, firmada con la clave que trae qdd y de serie igual o mayor cambia el relay. Sin red sigue con el recordado. Un relay dado con banderas no se consulta si el PC está emparejado; sin emparejar manda el directorio (FND-171, pedido de la persona por qdd-movile 2026-11-06).'
+        - 'El directorio se sirve desde tres sitios fijos en el código, en orden, con la misma respuesta firmada (FND-171, decisión de la persona 2026-11-06, por qdd-movile): gana la primera que valide. Doctor lo revisa sin red (REM-11, también con el servicio apagado y sin emparejar); --fix es lo único de doctor que consulta, lo repara antes de arrancar el servicio y, si lo cambia con el servicio corriendo, lo reinicia.'
 pruebas:
     comandos:
         - cd cli && go test ./pkg/remoto/...
@@ -87,4 +88,4 @@ pruebas:
 fuentes:
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-06"
-revisado_en_commit: 1a88f3028d96
+revisado_en_commit: c9c0de13c84f

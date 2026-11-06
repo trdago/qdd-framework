@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -17,7 +19,8 @@ import (
 // activó. REM-05: emparejar pide el teléfono de la persona, así que --fix no lo intenta. REM-06: --fix arranca el servicio
 // solo si no corre. REM-07: lo último que dijo el relay. REM-08: --fix anota el proyecto; quedar fuera del plan lo decide
 // la persona. REM-09: el último envío; el texto del error queda en el registro del servicio, nunca en el reporte. REM-10:
-// una cola ilegible se aparta sola y puede traer un mensaje de la persona: doctor la nombra y no la toca.
+// una cola ilegible se aparta sola y puede traer un mensaje de la persona: doctor la nombra y no la toca. REM-11: el relay
+// guardado frente al directorio firmado; es lo único de este grupo que usa la red, y solo con --fix (FND-171).
 
 const grupoMovil = "12. QDD Móvil (teléfono)"
 
@@ -41,21 +44,32 @@ const (
 
 func buildMovilChecks(root string, now time.Time) *CheckGroup {
 	g := &CheckGroup{Name: grupoMovil}
-	_, errCred := remoto.LeerCredenciales()
-	if errCred != nil && !servicioMovilInstalado() {
-		return g
+	if !estaEmparejado() && !servicioMovilInstalado() {
+		return conItemDirectorio(g)
 	}
-	if errCred != nil {
+	if !estaEmparejado() {
 		g.Items = append(g.Items, &CheckItem{Name: itemMovilEmparejado, Error: "falta emparejarlo: ejecuta qdd login y escanea el código con el teléfono"})
-		return g
+		return conItemDirectorio(g)
 	}
 	g.Items = append(g.Items, &CheckItem{Name: itemMovilEmparejado, Success: true})
+	// El directorio va antes que el servicio: --fix repara en este orden y el servicio tiene que arrancar con el relay bueno.
+	g = conItemDirectorio(g)
 	if !remoto.Corriendo() {
 		g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Error: "no corre y el teléfono no recibe nada (qdd doctor --fix lo arranca)"}, itemMovilProyectoDe(root))
 		return conItemColas(g, root)
 	}
-	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilDirectorioDe(), itemMovilRelayDe(now), itemMovilProyectoDe(root))
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilRelayDe(now), itemMovilProyectoDe(root))
 	return conItemColas(conItemEnvio(g), root)
+}
+
+// conItemDirectorio: sin relay guardado no hay nada que comparar, y un PC que nunca activó QDD Móvil no reporta nada.
+func conItemDirectorio(g *CheckGroup) *CheckGroup {
+	c, err := remoto.LeerRelay()
+	if err != nil {
+		return g
+	}
+	g.Items = append(g.Items, itemMovilDirectorioDe(c, estaEmparejado()))
+	return g
 }
 
 func conItemColas(g *CheckGroup, root string) *CheckGroup {
@@ -110,17 +124,23 @@ func itemMovilRelayDe(now time.Time) *CheckItem {
 }
 
 // itemMovilDirectorioDe dice lo que pasó la última vez, sin usar la red: una consulta fallida no apaga nada, pero un PC
-// que no puede confirmar su relay no se enteraría de una mudanza. Un relay propio no consulta.
-func itemMovilDirectorioDe() *CheckItem {
-	c, err := remoto.LeerRelay()
-	if err != nil || c.Propio {
+// que no puede confirmar su relay no se enteraría de una mudanza. Solo un relay propio de un PC emparejado no se compara.
+// El reporte no lleva la URL.
+func itemMovilDirectorioDe(c remoto.ConfigRelay, emparejado bool) *CheckItem {
+	if c.Propio && emparejado {
 		return &CheckItem{Name: itemMovilDirectorio, Success: true}
+	}
+	if c.Propio {
+		return &CheckItem{Name: itemMovilDirectorio, Error: "guardado como propio y sin emparejar: nada lo confirma (qdd doctor --fix lo compara con el directorio)"}
 	}
 	u := remoto.LeerConsultaDirectorio()
-	if u.En.IsZero() || u.OK {
+	if u.OK {
 		return &CheckItem{Name: itemMovilDirectorio, Success: true}
 	}
-	return &CheckItem{Name: itemMovilDirectorio, Error: "sigue con el relay guardado: " + u.Motivo}
+	if u.En.IsZero() {
+		return &CheckItem{Name: itemMovilDirectorio, Error: "nunca se comparó con el directorio (qdd doctor --fix lo compara)"}
+	}
+	return &CheckItem{Name: itemMovilDirectorio, Error: "sigue con el relay guardado: " + u.Motivo + " (qdd doctor --fix lo reintenta)"}
 }
 
 func itemMovilProyectoDe(root string) *CheckItem {
@@ -170,6 +190,11 @@ func repairMovil(root string, g *CheckGroup, now time.Time) {
 		if item.Success {
 			continue
 		}
+		if item.Name == itemMovilDirectorio {
+			fmt.Println("  [~] Comparando el relay con su directorio firmado...")
+			imprimirReparado(repararRelayMovil())
+			continue
+		}
 		if item.Name == itemMovilCorre {
 			fmt.Println("  [~] Arrancando el servicio de qdd remoto...")
 			imprimirReparado([]string{"el servicio quedó arrancado"}, arrancarServicioMovil())
@@ -180,6 +205,50 @@ func repairMovil(root string, g *CheckGroup, now time.Time) {
 			imprimirReparado([]string{"el proyecto se publica desde el próximo cambio"}, registro.Anotar(root, now))
 		}
 	}
+}
+
+// repararRelayMovil dice lo que hizo. Si no puede consultar, no cambia nada y devuelve el motivo. El servicio solo lee el
+// relay al arrancar, así que un cambio con él corriendo lo reinicia.
+func repararRelayMovil() ([]string, error) {
+	actual, err := remoto.LeerRelay()
+	if err != nil {
+		return nil, err
+	}
+	c, cambio, err := remoto.ConfirmarRelay(context.Background(), remotoConsultarRelay, actual, estaEmparejado())
+	if err != nil {
+		return nil, fmt.Errorf("sigue con el relay guardado: %w; desde esta red no se puede confirmar, prueba desde otra", err)
+	}
+	if !cambio {
+		return []string{"el relay coincide con el directorio"}, nil
+	}
+	hecho := []string{fmt.Sprintf("quedó el relay del directorio (serie %d)", c.Serie)}
+	if !remoto.Corriendo() {
+		return hecho, nil
+	}
+	if err := reiniciarServicioMovil(); err != nil {
+		return hecho, err
+	}
+	return append(hecho, "el servicio se reinició con ese relay"), nil
+}
+
+func reiniciarServicioMovil() error {
+	s, err := remotoServicio()
+	if err != nil {
+		return err
+	}
+	instalado, _, err := s.DejaVivoLoLanzado()
+	if err != nil {
+		return err
+	}
+	if !instalado {
+		return errors.New("qdd remoto correr sigue con el relay anterior: ciérralo y vuelve a correrlo")
+	}
+	for _, c := range s.ComandosReiniciar() {
+		if err := remotoEjecutor(c[0], c[1:]...); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func arrancarServicioMovil() error {
