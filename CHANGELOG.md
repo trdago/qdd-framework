@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.10] - 2026-11-05
+
 ### Agregado
 
 - **El aviso del teléfono se quita cuando ya no hace falta (FND-028 de qdd-movile):** cuando un proyecto ya no tiene pedidos
