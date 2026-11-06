@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **El panel muestra qué te preguntan (#149):** la sección «⏳ Te esperan» trae el texto de los ⏳ que esperan a la
+  persona, recortado. Al tocar uno se ve entero y, si es una pregunta, se responde ahí mismo. La respuesta le llega a la
+  IA de esa sesión, y el teléfono ya no vuelve a preguntarla.
+
 ## [2.10.0-rc.11] - 2026-11-05
 
 ### Agregado

@@ -105,6 +105,8 @@ type DatosConsola struct {
 	Herramientas json.RawMessage `json:"herramientas,omitempty"`
 	// Flujos (con «flujos») es la lista de «flujo lista»; vacía sale como []: así el panel sabe que este qdd los trae.
 	Flujos json.RawMessage `json:"flujos,omitempty"`
+	// EsperasPersona son los ⏳ de la persona con su texto, si el panel los pide (issue #149).
+	EsperasPersona []EsperaDelPanel `json:"esperas_persona,omitempty"`
 	// MejorasToca (con «mejoras»): si pasaron los 10 min del ciclo de mejoras. Sin el campo, el panel lo pide cada minuto.
 	MejorasToca *bool `json:"mejoras_toca,omitempty"`
 }

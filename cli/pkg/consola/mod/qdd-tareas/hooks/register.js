@@ -1,7 +1,7 @@
 // Mod de Claude Code con las tareas en curso del proyecto (QDD, RFC 0006 §3.4.1, §3.7, §3.9 y §3.10; blueprint
 // consola-claude-code). Dibuja el panel liviano: una línea de resumen en color, la tabla de las 4 tareas pendientes más
 // nuevas con «✓» y «Quitar» y, separadas por una línea fina, «▶ Para ti» (los comandos que la IA dejó para la
-// persona), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
+// persona), «⏳ Te esperan» (issue #149), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
 // y el resultado de un botón van en su misma sección. Cada pedido se ve en su estado: pendiente (botón con su
 // tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080), «todavía no» (pendiente, con
 // su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod recibe de 'qdd consola seguir' lo mismo que da 'qdd consola panel --json' (sin ese flujo, lo lee cada INTERVALO_MS) y solo dibuja; una
@@ -25,7 +25,7 @@ const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
 // «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
-const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos']
+const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -786,6 +786,11 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   })
 }
 
+// TOPE_ESPERAS: cuántos ⏳ se ven de entrada, para no empujar fuera lo demás; «ver las N» trae el resto.
+const TOPE_ESPERAS = 5
+let esperaAbierta = null
+let esperasTodas = false
+
 // preguntar envía a la conversación la pregunta que qdd da para una tarea u objetivo: la IA responde avance, bloqueos
 // y siguiente paso, y actualiza el estado con evidencia.
 function preguntar($, texto) {
@@ -1112,6 +1117,82 @@ function paraTi(Box, Text, Button, $, lista, ancho) {
   ]
 }
 
+// teEsperan: los ⏳ de la persona con su texto, que la tabla solo muestra como símbolo (issue #149). Se leen recortados;
+// el que se toca se ve entero y, si pregunta algo, se responde ahí. Una nota no trae id: no pregunta nada.
+function teEsperan(Box, Text, Button, Input, $, lista, ancho) {
+  if (lista.length === 0 && !(resultado?.zona === 'esperas')) return []
+  const vistos = esperasTodas ? lista : lista.slice(0, TOPE_ESPERAS)
+  const fila = (q, i) => {
+    const clave = q.id || 'nota:' + q.donde
+    const abierta = esperaAbierta === clave
+    const corto = alAncho(q.texto, Math.max(8, ancho - 2))
+    const donde = Text({ key: 'espera-donde-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
+    const boton = Button({ key: 'espera-' + i, label: corto, plain: true, onPress: () => abrirEspera($, clave) })
+    const lineas = [[{ texto: corto, color: COLOR.espera }], [{ texto: q.donde, tenue: true }]]
+    const plano = Box({ key: 'espera-fila-' + i, flexDirection: 'column', children: [boton, donde] })
+    if (!abierta) return materializa($, Text, 'q:' + clave, lineas, plano, q.texto)
+    return Box({
+      key: 'espera-fila-' + i,
+      flexDirection: 'column',
+      children: [
+        boton,
+        donde,
+        Text({ key: 'espera-entera', wrap: 'wrap', children: [q.texto] }),
+        q.id
+          ? Input({ key: 'espera-respuesta', label: 'Tu respuesta', submitLabel: 'responder', onSubmit: (v) => responderEspera($, q, v) })
+          : Text({ key: 'espera-nota', dimColor: true, size: 'caption', wrap: 'wrap', children: ['Es una nota, no una pregunta: dile lo que sea por el chat.'] }),
+      ],
+    })
+  }
+  const resto = lista.length - vistos.length
+  return [
+    ...(lista.length ? [separador(Box, Text, 't-esperas', '⏳ Te esperan', COLOR.espera, String(lista.length), ancho)] : []),
+    Box({
+      key: 'esperas',
+      flexDirection: 'column',
+      children: [
+        ...vistos.map(fila),
+        ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + lista.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : []),
+      ],
+    }),
+    ...enZona(Box, Text, Button, $, 'esperas'),
+  ]
+}
+
+function abrirEspera($, clave) {
+  esperaAbierta = esperaAbierta === clave ? null : clave
+  $.ui.invalidate('ui.render')
+}
+
+function verTodasLasEsperas($) {
+  esperasTodas = true
+  $.ui.invalidate('ui.render')
+}
+
+// responderEspera: qdd cierra el ⏳ (la primera respuesta gana, también contra un teléfono) y da el mensaje para la IA.
+async function responderEspera($, q, texto) {
+  if (!String(texto || '').trim()) return
+  const bin = await binario($)
+  let r = null
+  try {
+    r = await $.process.run([bin, 'consola', 'pregunta', 'responder', q.id], { stdin: texto, timeoutMs: TOPE_MS })
+  } catch (err) {
+    r = { exitCode: 1, stderr: String(err?.message ?? err) }
+  }
+  if (r.exitCode !== 0) {
+    resultado = { titulo: q.donde, ok: false, texto: (r.stderr || '').trim() || 'no se pudo responder', zona: 'esperas' }
+    await releer($)
+    return
+  }
+  esperaAbierta = null
+  resultado = { titulo: q.donde, ok: true, texto: '→ enviada a la IA', zona: 'esperas' }
+  // Si no se pudo enviar, el ⏳ ya quedó respondido: que se lea el texto para no perderlo.
+  await $.prompt.submit({ text: JSON.parse(r.stdout).mensaje }).catch((err) => {
+    resultado = { titulo: q.donde, ok: false, texto: 'no se envió a la IA (' + String(err?.message ?? err) + '). Tu respuesta: ' + texto, zona: 'esperas' }
+  })
+  await releer($)
+}
+
 // acciones: las herramientas del proyecto en una fila de botones (FND-090); el comando que corre cada una se ve al
 // confirmarla. «Abrir carpeta» va arriba, junto a la carpeta, cada ✕ en la fila de su tarea y los pedidos en «Para ti».
 // Solo los tipos que se dibujan aquí y con tecla: uno que este panel no conoce no sale como «undefined» (FND-092).
@@ -1158,6 +1239,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
       cabecera(Box, Text, Button, $, e, lista),
       ...cuerpo,
       ...paraTi(Box, Text, Button, $, pedidos(lista), ancho),
+      ...teEsperan(Box, Text, Button, Input, $, datos.esperas_persona || [], ancho),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
       Box({ marginTop: 1, children: [pie(Text)] }),

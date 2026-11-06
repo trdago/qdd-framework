@@ -63,7 +63,7 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, version: 'v2.5.0' }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-  expect(llamadas.find((a) => a.includes('panel'))).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender,herramientas,mejoras,flujos'])
+  expect(llamadas.find((a) => a.includes('panel'))).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender,herramientas,mejoras,flujos,esperas_persona'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { weight: 'bold' } })
@@ -663,7 +663,7 @@ test('un tipo de acción que el panel no conoce no sale como botón «undefined�
   expect(await ui.find({ key: 'b-comando-sin-tecla' })).toBeUndefined()
   expect(await ui.find({ text: /undefined/ })).toBeUndefined()
   const lectura = llamadas.find((a) => a[2] === 'panel')
-  expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender,herramientas,mejoras,flujos'])
+  expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender,herramientas,mejoras,flujos,esperas_persona'])
 })
 
 test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND-092, CCC-C26)', async ($, on) => {

@@ -204,6 +204,57 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 	return out, err
 }
 
+// EsperaDelPanel es un ⏳ de la persona como lo dibuja el panel (issue #149): una nota no pregunta nada, así que no trae
+// id y no se responde.
+type EsperaDelPanel struct {
+	ID    string `json:"id,omitempty"`
+	Donde string `json:"donde"`
+	Texto string `json:"texto"`
+}
+
+// EsperasDelPanel son lo que el teléfono pregunta y todavía no se respondió, y después las notas: en el panel tampoco
+// se leían, y solo el símbolo no dice qué se espera.
+func EsperasDelPanel(root string, now time.Time) []EsperaDelPanel {
+	out := []EsperaDelPanel{}
+	for _, p := range PreguntasA(root, now) {
+		if p.Origen != OrigenEstado || p.Estado != PreguntaPendiente {
+			continue
+		}
+		q := p.Preguntas[0]
+		out = append(out, EsperaDelPanel{ID: p.ID, Donde: q.Encabezado, Texto: q.Texto})
+	}
+	for _, n := range EsperasSinPregunta(root, now) {
+		out = append(out, EsperaDelPanel{Donde: n.Tarea + " · " + n.Etapa, Texto: n.Bloqueo})
+	}
+	return out
+}
+
+// ResponderEsperaEnPC aplica la respuesta dada en el panel y devuelve el mensaje que el panel le envía a la IA de su
+// sesión, por eso no deja una instrucción para otra. La primera gana, igual que desde un teléfono. Como en un cierre
+// desde el PC, la cola no guarda el texto: lo guarda la conversación.
+func ResponderEsperaEnPC(root, id, respuesta string, now time.Time) (string, error) {
+	mensaje := ""
+	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
+		if i := indicePregunta(cola, id); i >= 0 {
+			return nil, &PreguntaCerrada{Pregunta: cola[i]}
+		}
+		p, ok := esperaPorID(root, id, now)
+		if !ok {
+			return nil, ErrPreguntaDesconocida
+		}
+		q := p.Preguntas[0]
+		r, err := validarOtra(q, respuesta)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrRespuestaInvalida, err)
+		}
+		cerrada := now.UTC()
+		p.Estado, p.RespondidaEn, p.Cerrada = PreguntaRespondida, EnPC, &cerrada
+		mensaje = mensajeDeRespuesta(q, *r.Otra)
+		return append([]Pregunta{p}, cola...), nil
+	})
+	return mensaje, err
+}
+
 // ReabrirEspera vuelve a preguntar un ⏳ cuya respuesta no llegó a ninguna sesión (FND-141). Solo si la respuesta
 // guardada es la de esa instrucción: una más nueva no se toca.
 func ReabrirEspera(root, id, instruccion string, now time.Time) error {
@@ -223,6 +274,10 @@ func mensajeEspera(p Pregunta) string {
 	if r := p.Respuesta[q.ID]; r.Otra != nil {
 		texto = *r.Otra
 	}
+	return mensajeDeRespuesta(q, texto)
+}
+
+func mensajeDeRespuesta(q ItemPregunta, texto string) string {
 	return "Respondo a tu ⏳ «" + q.Encabezado + ": " + q.Texto + "»:\n\n" + texto +
 		"\n\nCuando lo resuelvas, refléjalo en el estado (qdd_estado set)."
 }
