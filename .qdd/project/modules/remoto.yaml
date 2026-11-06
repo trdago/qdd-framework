@@ -82,5 +82,5 @@ pruebas:
         - cd cli && go test ./pkg/remoto/ -run 'Ejecutar|ArgsPermitidos|ValidarInstruccion|FirmaEjecucion|PlanLocal|GuardaElPlan|AuditarDesdeElTelefono' -race
 fuentes:
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-05"
-revisado_en_commit: 730cd96c154e
+ultima_revision: "2026-11-06"
+revisado_en_commit: b966140c316d
