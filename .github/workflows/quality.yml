@@ -109,3 +109,38 @@ jobs:
           Remove-Item Env:QDD_INSTALL_BINARIO
           Instalar 9.9.2
           qdd --version
+          # La barra y el panel van directo al binario, y actualizar los lleva al nuevo (MEJ-019, issue 109). El claude falso
+          # basta: lo que se prueba es la barra que queda, no el plugin.
+          $env:CLAUDE_CONFIG_DIR = "$env:RUNNER_TEMP\claude-ci"
+          $env:QDD_HOME = "$env:RUNNER_TEMP\qdd-home"
+          $falso = "$env:RUNNER_TEMP\claude-falso"
+          New-Item -ItemType Directory -Force $falso, $env:CLAUDE_CONFIG_DIR | Out-Null
+          Set-Content "$falso\claude.cmd" '@echo []'
+          $env:PATH = "$falso;$env:PATH"
+          function ComandoDeLaBarra { (Get-Content "$env:CLAUDE_CONFIG_DIR\settings.json" -Raw | ConvertFrom-Json).statusLine.command }
+          qdd consola activar
+          if ((ComandoDeLaBarra) -notlike '*qdd/bin/9.9.2/qdd.exe" consola statusline*') { throw "la barra no va directo: $(ComandoDeLaBarra)" }
+          $env:QDD_INSTALL_BINARIO = $bin
+          Instalar 9.9.3
+          Remove-Item Env:QDD_INSTALL_BINARIO
+          $comando = ComandoDeLaBarra
+          if ($comando -notlike '*qdd/bin/9.9.3/qdd.exe" consola statusline*') { throw "actualizar no renovó la barra: $comando" }
+          if ((qdd consola binario) -ne "$dir\9.9.3\qdd.exe") { throw 'el panel no recibe la ruta del binario' }
+          # Sin node ni el envoltorio en el PATH, la barra responde: su respaldo («|| qdd») no tendría a quién llamar.
+          $bash = "$env:ProgramFiles\Git\bin\bash.exe"
+          $guion = "$env:RUNNER_TEMP\barra.sh"
+          Set-Content $guion $comando -NoNewline
+          $conNode = $env:PATH
+          $env:PATH = ($conNode -split ';' | Where-Object { $_ -and -not (Test-Path "$_\node.exe") -and -not (Test-Path "$_\qdd.cmd") }) -join ';'
+          if (Get-Command node, qdd -ErrorAction SilentlyContinue) { throw 'node o qdd siguen en el PATH: la prueba no probaría nada' }
+          '{}' | & $bash $guion
+          # Solo se informa: un tope de tiempo en un runner compartido fallaría por la carga, no por el código.
+          function Mediana($que, [scriptblock]$orden) {
+            $ms = 1..8 | ForEach-Object { (Measure-Command { & $orden | Out-Null }).TotalMilliseconds } | Sort-Object
+            Write-Host ("{0,-22} {1,6:N0} ms" -f $que, $ms[4])
+          }
+          Mediana 'barra directa' { '{}' | & $bash $guion }
+          Mediana 'panel directo' { & "$dir\9.9.3\qdd.exe" consola panel --json }
+          $env:PATH = $conNode
+          Mediana 'barra por envoltorio' { '{}' | & $bash -c 'qdd consola statusline' }
+          Mediana 'panel por envoltorio' { cmd /c qdd consola panel --json }
