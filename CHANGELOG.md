@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.12] - 2026-11-06
+
 ### Agregado
 
 - **El panel muestra qué te preguntan (#149):** la sección «⏳ Te esperan» trae el texto de los ⏳ que esperan a la
