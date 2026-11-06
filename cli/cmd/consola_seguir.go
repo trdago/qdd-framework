@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/herramientas"
 )
 
@@ -62,7 +63,7 @@ func lecturaPanel(root string, con []string) func() ([]byte, error) {
 
 // carpetasDelFlujo: las del panel y las herramientas, que viven en pkg/herramientas (MEJ-020).
 func carpetasDelFlujo(root string) []string {
-	return append(consola.CarpetasDelPanel(root), filepath.Join(root, filepath.Dir(herramientas.Archivo("x"))))
+	return append(consola.CarpetasDelPanel(root), filepath.Join(root, filepath.Dir(herramientas.Archivo("x"))), filepath.Join(root, flujo.Carpeta))
 }
 
 func runConsolaSeguir(cmd *cobra.Command, args []string) {

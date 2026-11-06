@@ -216,3 +216,32 @@ func iguales(a, b []string) bool {
 	}
 	return true
 }
+
+// Una carpeta que nace después de empezar a vigilar se vigila: la primera vez que se guarda un flujo, por ejemplo.
+func TestSenalesDelPanel_UnaCarpetaQueNaceSeVigila(t *testing.T) {
+	root := t.TempDir()
+	nueva := filepath.Join(root, "flujos")
+	ctx, cancelar := context.WithCancel(context.Background())
+	defer cancelar()
+	senal, err := SenalesDelPanel(ctx, []string{root, nueva}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(nueva, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	esperarSenal(t, senal)
+	if err := os.WriteFile(filepath.Join(nueva, "pago.yaml"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	esperarSenal(t, senal)
+}
+
+func esperarSenal(t *testing.T, senal <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-senal:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no llegó la señal")
+	}
+}

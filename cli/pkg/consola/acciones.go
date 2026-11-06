@@ -103,6 +103,8 @@ type DatosConsola struct {
 	// Herramientas (con «herramientas») es la lista de «herramienta listar»; vacía sale como []: así el panel sabe que
 	// este qdd la trae y no lanza un proceso para leerla (MEJ-020).
 	Herramientas json.RawMessage `json:"herramientas,omitempty"`
+	// Flujos (con «flujos») es la lista de «flujo lista»; vacía sale como []: así el panel sabe que este qdd los trae.
+	Flujos json.RawMessage `json:"flujos,omitempty"`
 	// MejorasToca (con «mejoras»): si pasaron los 10 min del ciclo de mejoras. Sin el campo, el panel lo pide cada minuto.
 	MejorasToca *bool `json:"mejoras_toca,omitempty"`
 }

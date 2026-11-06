@@ -22,6 +22,7 @@ var workingMethod = []string{
 	"No se commitea ni se despliega sin pasar el gate (qdd_audit): pruebas del proyecto + reglas QDD.",
 	"Si un módulo tiene un estándar de la organización (blueprint), se construye aplicándolo con qdd_blueprint_apply: sus preguntas las responde el humano (nunca tú) y sus invariantes no se discuten.",
 	"Lo temporal va en ./tmp (git lo ignora): scripts de un solo uso, pruebas manuales, descargas, logs y salidas. Nunca lo dejes en la raíz ni en las carpetas de código; si algo vale la pena conservar, muévelo a su lugar con su prueba.",
+	"Si lo que se explica tiene forma (un proceso, un pipeline, un camino de decisiones), dibújalo con qdd flujo crear (qdd flujo --help): el panel lo abre en su pestaña y la persona ve lo mismo que tú.",
 }
 
 // MetodoDeTrabajo devuelve la forma de trabajo obligatoria, una regla por línea.

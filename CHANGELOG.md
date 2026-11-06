@@ -6,6 +6,28 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Flujos en el panel (RFC 0012, fase 1):** `qdd flujo crear` guarda un flujo de cajas y círculos en
+  `.qdd/project/flujos/`, versionado. El panel lo abre en su propia pestaña, hacia abajo y con scroll, y solo materializa lo
+  que cambió. Por ahora la persona lo ve; editarlo llega en la fase 2.
+
+### Cambiado
+
+- **«✓» y «Quitar» reemplazan a la ✕ en cada tarea del panel.** Sirven para las tareas atrapadas por algo que no se puede
+  validar en producción, o que ya no quieres ver. Los dos piden «s  Sí».
+  - **✓ (ya lo vi):** deja cada etapa en ⏳ en ✅ con la nota «la vio la persona el DD/MM, sin medición» y cierra la tarea si
+    no queda nada por hacer. Una etapa con falla o sin empezar, o una aprobación pendiente, sigue como está.
+  - **Quitar:** saca la tarea sin pedir motivo; queda en el historial con «la quitó la persona desde el panel».
+
+### Corregido
+
+- **El panel lanza menos procesos con el flujo abierto (MEJ-020):** las herramientas y si toca el ciclo de mejoras llegan por
+  `qdd consola seguir`, sin `herramienta listar` cada 10 s ni `mejoras ciclo` cada minuto. El latido del teléfono sigue
+  siendo un proceso.
+- **El CI también corre en los PRs hacia una rama `feat/**`.** Un PR apilado no tenía CI, y su merge desde el panel quedaba
+  esperando para siempre.
+
 ## [2.10.0-rc.10] - 2026-11-05
 
 ### Agregado
@@ -43,14 +65,6 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
   Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
 
-### Cambiado
-
-- **«✓» y «Quitar» reemplazan a la ✕ en cada tarea del panel.** Sirven para las tareas atrapadas por algo que no se puede
-  validar en producción, o que ya no quieres ver. Los dos piden «s  Sí».
-  - **✓ (ya lo vi):** deja cada etapa en ⏳ en ✅ con la nota «la vio la persona el DD/MM, sin medición» y cierra la tarea si
-    no queda nada por hacer. Una etapa con falla o sin empezar, o una aprobación pendiente, sigue como está.
-  - **Quitar:** saca la tarea sin pedir motivo; queda en el historial con «la quitó la persona desde el panel».
-
 ## [2.10.0-rc.8] - 2026-11-05
 
 ### Corregido
@@ -63,9 +77,6 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Agregado
 
-- **El panel lanza menos procesos con el flujo abierto (MEJ-020):** las herramientas y si toca el ciclo de mejoras llegan por
-  `qdd consola seguir`, sin `herramienta listar` cada 10 s ni `mejoras ciclo` cada minuto. El latido del teléfono sigue
-  siendo un proceso.
 - **`qdd estado check` avisa de las tareas desfasadas (MEJ-010):** las abiertas con todo listo y las cerradas que conservan
   un ⏳. No bloquea el gate.
 

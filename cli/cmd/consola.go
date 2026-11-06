@@ -242,6 +242,9 @@ func conLoQuePide(datos *consola.DatosConsola, root string, now time.Time, con [
 		if c == "herramientas" {
 			datos.Herramientas = herramientasDelPanel(root)
 		}
+		if c == "flujos" {
+			datos.Flujos = flujosDelPanel(root)
+		}
 		if c == "mejoras" {
 			toca := mejoras.TocaCiclo(root, now)
 			datos.MejorasToca = &toca

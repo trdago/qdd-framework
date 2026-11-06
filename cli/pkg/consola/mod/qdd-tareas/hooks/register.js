@@ -25,7 +25,7 @@ const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
 // «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
-const OPCIONALES = ['atender', 'herramientas', 'mejoras']
+const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -255,6 +255,80 @@ async function datosDeLaLinea($, nuevo) {
   mejoras.toca = typeof nuevo?.mejoras_toca === 'boolean' ? nuevo.mejoras_toca : null
   herramientasEnPanel = Array.isArray(nuevo?.herramientas)
   if (herramientasEnPanel) await aplicarHerramientas($, nuevo.herramientas)
+  await aplicarFlujos($, Array.isArray(nuevo?.flujos) ? nuevo.flujos : [])
+}
+
+// ── Flujos (RFC 0012, ampliación) ──────────────────────────────────────────────────────────────────────────────────
+// Cada flujo del proyecto tiene su pestaña. qdd lo dibuja para el ancho de la pestaña ('qdd flujo ver') solo cuando el
+// flujo o el ancho cambian; el panel muestra las líneas, y materializa solo las que no estaban.
+const PANE_FLUJO = 'qdd-flujo-'
+let flujos = []
+let flujosLeidos = false // la primera lista no abre nada: lo que ya estaba no le quita lugar a la conversación
+const dibujos = new Map() // id → { huella, ancho, lineas, nombre, descripcion, aviso }
+const dibujandoFlujo = new Set() // id|huella|ancho que ya se pidió
+
+async function aplicarFlujos($, lista) {
+  const antes = flujos
+  flujos = lista
+  const abrir = flujosLeidos ? lista.filter((f) => antes.find((x) => x.id === f.id)?.huella !== f.huella) : []
+  flujosLeidos = true
+  for (const f of abrir) await $.ui.open({ id: PANE_FLUJO + f.id, title: f.nombre })
+  for (const f of antes) {
+    if (lista.some((x) => x.id === f.id)) continue
+    dibujos.delete(f.id)
+    await $.ui.close({ id: PANE_FLUJO + f.id }).catch(() => {})
+  }
+}
+
+async function abrirFlujos($) {
+  for (const f of flujos) await $.ui.open({ id: PANE_FLUJO + f.id, title: f.nombre })
+}
+
+async function pedirDibujo($, f, ancho) {
+  const pedido = [f.id, f.huella, ancho].join('|')
+  if (dibujandoFlujo.has(pedido)) return
+  dibujandoFlujo.add(pedido)
+  const hecho = { huella: f.huella, ancho, lineas: dibujos.get(f.id)?.lineas || [], nombre: f.nombre, descripcion: '', aviso: '' }
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'flujo', 'ver', f.id, '--ancho', String(ancho), '--json'], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0) hecho.aviso = (r.stderr || '').trim() || 'qdd no pudo dibujar este flujo'
+    if (r.exitCode === 0) Object.assign(hecho, JSON.parse(r.stdout))
+  } catch (err) {
+    hecho.aviso = String(err?.message ?? err)
+  }
+  dibujandoFlujo.delete(pedido)
+  dibujos.set(f.id, hecho)
+  $.ui.invalidate('ui.render')
+}
+
+// filasDeFlujo: una línea repetida tiene clave propia, y una línea que solo cambió de lugar no vuelve a materializarse.
+function filasDeFlujo($, Text, id, lineas) {
+  const vecesVista = new Map()
+  return lineas.map((linea) => {
+    const vez = vecesVista.get(linea) || 0
+    vecesVista.set(linea, vez + 1)
+    const clave = 'fl:' + id + ':' + linea + ':' + vez
+    return materializa($, Text, clave, [[{ texto: linea }]], Text({ key: clave, wrap: 'truncate-end', children: [linea] }), linea)
+  })
+}
+
+function dibujarFlujo($, Box, Text, id, ancho) {
+  const f = flujos.find((x) => x.id === id)
+  if (!f) return Text({ dimColor: true, wrap: 'wrap', children: ['Este flujo ya no está en el proyecto.'] })
+  if (f.problema) return Text({ color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + f.problema] })
+  const d = dibujos.get(id)
+  if (!d || d.huella !== f.huella || d.ancho !== ancho) pedirDibujo($, f, ancho)
+  if (!d) return Text({ dimColor: true, children: ['Dibujando…'] })
+  return Box({
+    flexDirection: 'column',
+    children: [
+      Text({ key: 'fl-nombre', weight: 'bold', size: 'title', wrap: 'wrap', children: [d.nombre] }),
+      ...(d.descripcion ? [Text({ key: 'fl-desc', dimColor: true, wrap: 'wrap', children: [d.descripcion] })] : []),
+      ...(d.aviso ? [Text({ key: 'fl-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + d.aviso] })] : []),
+      Box({ key: 'fl-dibujo', flexDirection: 'column', marginTop: 1, children: filasDeFlujo($, Text, id, d.lineas) }),
+    ],
+  })
 }
 
 // Aviso al chat (pedido del usuario, 2026-11-02: «el chat principal tiene que enterarse y verse una leyenda cuando
@@ -544,6 +618,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
       Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }),
       Button({ key: 'blueprints', label: 'Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }),
       Button({ key: 'config', label: 'Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) }),
+      ...(flujos.length ? [Button({ key: 'flujos', label: 'Flujos', plain: true, onPress: () => abrirFlujos($) })] : []),
       ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
     ],
   })
@@ -2308,6 +2383,7 @@ export function register(on) {
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
     Client = cliente || null
+    if (String(e.requestId).startsWith(PANE_FLUJO)) return dibujarFlujo($, Box, Text, e.requestId.slice(PANE_FLUJO.length), e.props.bodyColumns || 40)
     if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length))
     if (e.requestId !== PANE) return next(e)
     return dibujar($, Box, Text, Button, Input, e.props.bodyColumns || 40)
