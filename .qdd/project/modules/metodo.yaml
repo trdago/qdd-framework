@@ -28,5 +28,5 @@ fuentes:
     - cli/pkg/modules/context.go
     - cli/pkg/integration/types.go
     - cli/pkg/audit/clean_code.go
-ultima_revision: "2026-11-01"
-revisado_en_commit: 47c9cf394f6b
+ultima_revision: "2026-11-06"
+revisado_en_commit: e816a03c75e0
