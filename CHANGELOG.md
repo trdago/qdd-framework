@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.20] - 2026-11-06
+
 ### Agregado
 
 - **`qdd consola proyectos --json` (RFC 0018).** Entrega una fila por proyecto de este PC: puntaje, hace cuánto, findings
