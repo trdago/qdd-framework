@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.21] - 2026-11-06
+
 ### Corregido
 
 - **Un relay antiguo guardado ya no da un código sin aviso (FND-171).** `qdd login` y `qdd remoto emparejar` avisan si no
