@@ -32,5 +32,5 @@ fuentes:
     - cli/cmd/dashboard.go
     - rfcs/0005-reglas-como-principios.md
     - cli/cmd/dashboard_local_test.go
-ultima_revision: "2026-10-29"
-revisado_en_commit: 63b3e5f52458
+ultima_revision: "2026-11-06"
+revisado_en_commit: d3768b4a30a7
