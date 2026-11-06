@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **El PC pide Presence de forma explícita al unirse al canal (FND-167):** en el relay nuevo, un cliente que no lo pedía no recibió
+  quién entraba al canal. Sin eso, el PC no sabría que un teléfono lo está mirando.
+
 ### Agregado
 
 - **Un turno único para lo que te espera (RFC 0019):** cada pregunta, ⏳, pedido y ficha recibe de qdd un número que no cambia. «Para ti»

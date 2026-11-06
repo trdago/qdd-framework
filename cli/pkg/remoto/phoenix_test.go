@@ -35,6 +35,9 @@ func TestCanal_SeUneAlCanalPrivadoConLaClavePublicable(t *testing.T) {
 	if cfg["private"] != true || bc["self"] != false || bc["ack"] != false || cfg["presence"].(map[string]any)["key"] != "pc" {
 		t.Fatalf("config del join: %+v", cfg)
 	}
+	if cfg["presence"].(map[string]any)["enabled"] != true {
+		t.Fatalf("sin enabled, el canal puede no avisar quién entra (FND-167): %+v", cfg)
+	}
 	if j["access_token"] != "publicable" {
 		t.Fatalf("el PC es anon: su access_token es la clave publicable: %+v", j)
 	}
