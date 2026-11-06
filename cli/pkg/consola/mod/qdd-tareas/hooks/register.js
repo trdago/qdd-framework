@@ -1,7 +1,7 @@
 // Mod de Claude Code con las tareas en curso del proyecto (QDD, RFC 0006 §3.4.1, §3.7, §3.9 y §3.10; blueprint
 // consola-claude-code). Dibuja el panel liviano: una línea de resumen en color, la tabla de las 4 tareas pendientes más
 // nuevas con «✓» y «Quitar» y, separadas por una línea fina, «▶ Para ti» (los comandos que la IA dejó para la
-// persona), «⏳ Te esperan» (issue #149), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
+// persona y sus preguntas, issue #149), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
 // y el resultado de un botón van en su misma sección. Cada pedido se ve en su estado: pendiente (botón con su
 // tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080), «todavía no» (pendiente, con
 // su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod recibe de 'qdd consola seguir' lo mismo que da 'qdd consola panel --json' (sin ese flujo, lo lee cada INTERVALO_MS) y solo dibuja; una
@@ -826,7 +826,6 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
 
 // TOPE_ESPERAS: cuántos ⏳ se ven de entrada, para no empujar fuera lo demás; «ver las N» trae el resto.
 const TOPE_ESPERAS = 5
-let esperaAbierta = null
 let esperasTodas = false
 
 // preguntar envía a la conversación la pregunta que qdd da para una tarea u objetivo: la IA responde avance, bloqueos
@@ -925,7 +924,7 @@ async function ejecutar($, a) {
 
 // atender pide a qdd el mensaje de una etapa (qdd lo vuelve a calcular: si ya no espera, no hay nada que enviar) y lo
 // envía a la conversación como un mensaje de la persona; la IA lo atiende en cuanto queda libre.
-async function atender($, a) {
+async function atender($, a, zona = 'tabla') {
   if (ocupado) return
   ocupado = true
   confirmando = null
@@ -934,12 +933,12 @@ async function atender($, a) {
   try {
     const r = await $.process.run([bin, 'consola', 'accion', a.id], { timeoutMs: TOPE_MS })
     texto = r.exitCode === 0 ? (r.stdout || '').trim() : ''
-    resultado = { titulo: a.etiqueta, ok: false, texto: ((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida', zona: 'tabla' }
+    resultado = { titulo: a.etiqueta, ok: false, texto: ((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida', zona }
   } catch (err) {
-    resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'tabla' }
+    resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona }
   }
   if (texto) {
-    resultado = { titulo: a.etiqueta, ok: true, texto: '→ enviado a la IA', zona: 'tabla' }
+    resultado = { titulo: a.etiqueta, ok: true, texto: '→ enviado a la IA', zona }
     $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
   }
   ocupado = false
@@ -1134,101 +1133,47 @@ function enZona(Box, Text, Button, $, aqui) {
 // paraTi lista los comandos que la IA dejó para la persona: primero los abiertos, en el orden que da qdd (cada uno
 // después de lo que espera, FND-080), y al final los hechos. El que se está confirmando cambia su tarjeta por la
 // confirmación; los demás siguen en su lugar.
-function paraTi(Box, Text, Button, $, lista, ancho) {
+function paraTi(Box, Text, Button, $, lista, preguntas, ancho) {
   const seVa = seVan($, Text, new Set(lista.map((a) => a.id)))
   for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(a))
-  if (lista.length === 0 && seVa.length === 0) return []
+  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho')
   const porHacer = lista.filter(ejecutable).length
   const enEspera = lista.filter((a) => estadoDe(a).estado === 'espera').length
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
   const armados = lista.filter((a) => estadoDe(a).estado === 'armado').length
-  const nada = corriendo ? [] : ['nada por hacer']
-  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
+  const nada = corriendo || preguntas.length ? [] : ['nada por hacer']
+  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(preguntas.length ? [preguntas.length + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
   const dibujo = (a) => materializa($, Text, 'p:' + a.id, lineasDeTarjeta(a), tarjeta(Box, Text, Button, $, a), estadoDe(a).estado + '|' + a.tecla + '|' + a.etiqueta)
-  const cuerpo = [...[...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))), ...seVa]
+  const vistas = esperasTodas ? preguntas : preguntas.slice(0, TOPE_ESPERAS)
+  const resto = preguntas.length - vistas.length
+  const cuerpo = [
+    ...[...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))),
+    ...seVa,
+    ...vistas.map((q, i) => preguntaDeParaTi(Box, Text, Button, $, q, i, ancho)),
+    ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : []),
+  ]
   return [
-    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer ? COLOR.espera : undefined, resumen, ancho),
+    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || preguntas.length ? COLOR.espera : undefined, resumen, ancho),
     Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: cuerpo }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
 }
 
-// teEsperan: los ⏳ de la persona con su texto, que la tabla solo muestra como símbolo (issue #149). Se leen recortados;
-// el que se toca se ve entero y, si pregunta algo, se responde ahí. Una nota no trae id: no pregunta nada.
-function teEsperan(Box, Text, Button, Input, $, lista, ancho) {
-  if (lista.length === 0 && !(resultado?.zona === 'esperas')) return []
-  const vistos = esperasTodas ? lista : lista.slice(0, TOPE_ESPERAS)
-  const fila = (q, i) => {
-    const clave = q.id || 'nota:' + q.donde
-    const abierta = esperaAbierta === clave
-    const corto = alAncho(q.texto, Math.max(8, ancho - 2))
-    const donde = Text({ key: 'espera-donde-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
-    const boton = Button({ key: 'espera-' + i, label: corto, plain: true, onPress: () => abrirEspera($, clave) })
-    const lineas = [[{ texto: corto, color: COLOR.espera }], [{ texto: q.donde, tenue: true }]]
-    const plano = Box({ key: 'espera-fila-' + i, flexDirection: 'column', children: [boton, donde] })
-    if (!abierta) return materializa($, Text, 'q:' + clave, lineas, plano, q.texto)
-    return Box({
-      key: 'espera-fila-' + i,
-      flexDirection: 'column',
-      children: [
-        boton,
-        donde,
-        Text({ key: 'espera-entera', wrap: 'wrap', children: [q.texto] }),
-        q.id
-          ? Input({ key: 'espera-respuesta', label: 'Tu respuesta', submitLabel: 'responder', onSubmit: (v) => responderEspera($, q, v) })
-          : Text({ key: 'espera-nota', dimColor: true, size: 'caption', wrap: 'wrap', children: ['Es una nota, no una pregunta: dile lo que sea por el chat.'] }),
-      ],
-    })
-  }
-  const resto = lista.length - vistos.length
-  return [
-    ...(lista.length ? [separador(Box, Text, 't-esperas', '⏳ Te esperan', COLOR.espera, String(lista.length), ancho)] : []),
-    Box({
-      key: 'esperas',
-      flexDirection: 'column',
-      children: [
-        ...vistos.map(fila),
-        ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + lista.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : []),
-      ],
-    }),
-    ...enZona(Box, Text, Button, $, 'esperas'),
-  ]
-}
-
-function abrirEspera($, clave) {
-  esperaAbierta = esperaAbierta === clave ? null : clave
-  $.ui.invalidate('ui.render')
+// preguntaDeParaTi: un ⏳ que pregunta algo, con su texto, que la tabla solo muestra como símbolo (issue #149). Al tocarlo
+// llega al chat como un ⏳ de la tabla, y ahí se responde.
+function preguntaDeParaTi(Box, Text, Button, $, q, i, ancho) {
+  const corto = alAncho(q.texto, Math.max(8, ancho - 2))
+  const donde = Text({ key: 'espera-donde-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
+  const boton = Button({ key: 'espera-' + i, label: corto, plain: true, onPress: () => atender($, { id: q.atender, etiqueta: q.donde }, 'pedidos') })
+  const plano = Box({ key: 'espera-fila-' + i, flexDirection: 'column', children: [boton, donde] })
+  return materializa($, Text, 'q:' + q.atender, [[{ texto: corto, color: COLOR.espera }], [{ texto: q.donde, tenue: true }]], plano, q.texto)
 }
 
 function verTodasLasEsperas($) {
   esperasTodas = true
   $.ui.invalidate('ui.render')
-}
-
-// responderEspera: qdd cierra el ⏳ (la primera respuesta gana, también contra un teléfono) y da el mensaje para la IA.
-async function responderEspera($, q, texto) {
-  if (!String(texto || '').trim()) return
-  const bin = await binario($)
-  let r = null
-  try {
-    r = await $.process.run([bin, 'consola', 'pregunta', 'responder', q.id], { stdin: texto, timeoutMs: TOPE_MS })
-  } catch (err) {
-    r = { exitCode: 1, stderr: String(err?.message ?? err) }
-  }
-  if (r.exitCode !== 0) {
-    resultado = { titulo: q.donde, ok: false, texto: (r.stderr || '').trim() || 'no se pudo responder', zona: 'esperas' }
-    await releer($)
-    return
-  }
-  esperaAbierta = null
-  resultado = { titulo: q.donde, ok: true, texto: '→ enviada a la IA', zona: 'esperas' }
-  // Si no se pudo enviar, el ⏳ ya quedó respondido: que se lea el texto para no perderlo.
-  await $.prompt.submit({ text: JSON.parse(r.stdout).mensaje }).catch((err) => {
-    resultado = { titulo: q.donde, ok: false, texto: 'no se envió a la IA (' + String(err?.message ?? err) + '). Tu respuesta: ' + texto, zona: 'esperas' }
-  })
-  await releer($)
 }
 
 // acciones: las herramientas del proyecto en una fila de botones (FND-090); el comando que corre cada una se ve al
@@ -1276,8 +1221,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
     children: [
       cabecera(Box, Text, Button, $, e, lista),
       ...cuerpo,
-      ...paraTi(Box, Text, Button, $, pedidos(lista), ancho),
-      ...teEsperan(Box, Text, Button, Input, $, datos.esperas_persona || [], ancho),
+      ...paraTi(Box, Text, Button, $, pedidos(lista), datos.esperas_persona || [], ancho),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
       Box({ marginTop: 1, children: [pie(Text)] }),
