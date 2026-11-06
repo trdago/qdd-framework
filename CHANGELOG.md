@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.19] - 2026-11-06
+
 ### Corregido
 
 - **`qdd doctor` ya no avisa «sin respuesta del relay» cuando el PC late bien (FND-169).** La hora salía de `plan.json`,
