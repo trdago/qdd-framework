@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,5 +122,41 @@ func TestRunCoverageCheck_WritesNothingToStdout(t *testing.T) {
 	n, _ := r.Read(buf)
 	if n > 0 {
 		t.Errorf("RunCoverageCheck escribió en stdout (rompe MCP): %q", string(buf[:n]))
+	}
+}
+
+// FND-160: el log guardaba las últimas 60 líneas. La suite del mod imprime casi 200, así que el gate decía «1 fail» sin
+// nombrar la prueba, y un fallo que aparece solo con carga no se podía investigar.
+func TestLogDeFallo_NombraLoQueFallaAunqueQuedeLejosDelFinal(t *testing.T) {
+	var lineas []string
+	for i := range 200 {
+		lineas = append(lineas, fmt.Sprintf("(pass) prueba %d", i))
+	}
+	lineas[20] = "(fail) la prueba que falló"
+	lineas = append(lineas, " 199 pass", " 1 fail")
+
+	log := logDeFallo(strings.Join(lineas, "\n"))
+	if !strings.Contains(log, "(fail) la prueba que falló") {
+		t.Fatalf("no nombra la prueba que falló:\n%s", log)
+	}
+	if !strings.Contains(log, " 1 fail") || strings.Contains(log, "(pass) prueba 100") {
+		t.Fatalf("debe seguir mostrando solo el final, más lo que falló:\n%s", log)
+	}
+	if strings.Count(log, " 1 fail") != 1 {
+		t.Fatalf("lo que ya está en el final no se repite:\n%s", log)
+	}
+}
+
+func TestLogDeFallo_UnaSalidaCortaQuedaIgualYLasFallasTienenTope(t *testing.T) {
+	corta := "--- FAIL: TestX\nFAIL\nexit status 1"
+	if got := logDeFallo(corta); got != corta {
+		t.Fatalf("una salida corta se muestra tal cual: %q", got)
+	}
+	var lineas []string
+	for i := range 500 {
+		lineas = append(lineas, fmt.Sprintf("FAIL prueba %d", i))
+	}
+	if got := strings.Count(logDeFallo(strings.Join(lineas, "\n")), "\n") + 1; got > 60+maxFallasEnLog+1 {
+		t.Fatalf("el log no debe crecer sin límite: %d líneas", got)
 	}
 }

@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **`qdd audit` nombra la prueba que falló aunque la suite sea larga:** guardaba solo las últimas 60 líneas, así que podía
+  decir «1 fail» sin decir cuál. Ahora también muestra las líneas anteriores que dicen «fail», hasta 40.
+
 ## [2.10.0-rc.11] - 2026-11-05
 
 ### Agregado
