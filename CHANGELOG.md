@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Flujos para QDD Móvil:** el panel que se publica lleva el resumen de cada flujo, y los nodos viajan en un evento `flujo` aparte, después de cada estado completo y cuando cambia su huella. Un cambio de tarea no reenvía el flujo. Un flujo pesa como mucho 100 KB.
+
 ## [2.10.0-rc.13] - 2026-11-06
 
 ### Corregido

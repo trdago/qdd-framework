@@ -18,6 +18,7 @@ objetivo_tecnologico:
         - El encuentro de varias ramas se dibuja una vez, debajo de ellas. Un ciclo se escribe «↺ vuelve a X»; otro nodo ya dibujado, «→ sigue en X».
         - La lista que abre el panel no abre pestañas; un flujo nuevo o cambiado después sí, sin quitarle el foco a la conversación.
         - El raíz es el de qdd estado (estadoRaiz), para que el panel y la IA vean la misma carpeta. Desde un worktree dentro de otro proyecto con tablero, el flujo queda en ese proyecto.
+        - 'Un flujo pesa como mucho 100 KB (flujo.MaxBytes): viaja entero en un mensaje al teléfono y Supabase descarta en silencio lo que pasa de 256 KB en el plan Free. Uno más pesado no se guarda, y un archivo que pesa de más se ve con su problema.'
     invariantes:
         - Un flujo inválido no se escribe.
         - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.

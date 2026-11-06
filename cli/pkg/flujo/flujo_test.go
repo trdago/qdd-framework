@@ -300,3 +300,24 @@ func TestDibujar_CincuentaNodosEsRapido(t *testing.T) {
 		t.Fatal("dibuja los 50")
 	}
 }
+
+// Un flujo viaja entero en un mensaje al teléfono, y Supabase descarta en silencio lo que pasa de 256 KB en el plan Free.
+func TestFlujo_ElQuePesaDeMasNoSeGuardaYSeVeConSuProblema(t *testing.T) {
+	root := t.TempDir()
+	pesado := Flujo{Formato: 1, ID: "pesado", Nombre: "Pesado", Nodos: []Nodo{
+		{ID: "a", Tipo: TipoResultado, Nombre: "A", Descripcion: strings.Repeat("x", MaxBytes)},
+	}}
+	if err := Guardar(root, pesado); err == nil || !strings.Contains(err.Error(), "tope") {
+		t.Fatalf("no se guarda y dice el tope: %v", err)
+	}
+	if _, err := os.Stat(ruta(root, "pesado")); err == nil {
+		t.Fatal("un flujo que pesa de más no se escribe")
+	}
+	os.MkdirAll(filepath.Join(root, Carpeta), 0755)
+	datos := "formato: 1\nid: pesado\nnombre: Pesado\nnodos:\n  - {id: a, tipo: resultado, nombre: A, descripcion: " + strings.Repeat("x", MaxBytes) + "}\n"
+	os.WriteFile(ruta(root, "pesado"), []byte(datos), 0644)
+	lista := Listar(root, func(string) string { return "" })
+	if len(lista) != 1 || !strings.Contains(lista[0].Problema, "tope") {
+		t.Fatalf("un archivo que pesa de más se ve con su problema: %+v", lista)
+	}
+}

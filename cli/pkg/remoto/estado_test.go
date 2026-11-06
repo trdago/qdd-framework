@@ -85,6 +85,7 @@ func TestArmar_ElPanelEsElDeQddConsolaPanel(t *testing.T) {
 	e := Armar("v1", reg, now, 0)
 	esperado := consola.Panel(root, now)
 	esperado.Version = "v1"
+	esperado.Flujos = json.RawMessage("[]") // opcional, como las preguntas: el panel local lo pide con «flujos»
 	a, _ := json.Marshal(e.Proyectos[0].Panel)
 	b, _ := json.Marshal(esperado)
 	if string(a) != string(b) {
