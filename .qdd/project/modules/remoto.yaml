@@ -54,6 +54,7 @@ objetivo_tecnologico:
         - 'Los pedidos que terminan mientras alguien mira salen como una línea de rol pedido: tecla, motivo, cómo terminó y el final de la salida que guarda la cola.'
         - 'Permiso: hasta el primer latido no se transmite. Si el latido dice consola_permitida false, cada consola mirada recibe una sola vez {pausada: motivo} y no se transmite ni se cuentan minutos; el estado y las acciones siguen. Si vuelve a estar permitida, quien mira recibe de nuevo la cola con inicio. Los minutos de consola se cuentan por tick transmitido (0,5 s) y van en el latido.'
         - 'Límites de Claude (pedido de qdd-movile, 2026-11-04; RFC 0013): la barra los guarda en <QDD_HOME>/claude/limites.json (consola.GuardarLimites) al cambiar o cada minuto; Armar los lee y van en estado y en delta como campo opcional limites, sin subir version. Un delta los lleva solo si cambió usado o reinicia (Huella). Son de la máquina: solo porcentajes y fechas, sin rutas ni el modelo; lo que no vino se omite.'
+        - 'Flujos en QDD Móvil (pedido de qdd-movile, 2026-11-06; RFC 0013): el panel publicado lleva solo el resumen en flujos, con una huella que depende solo del archivo, y cada flujo viaja en un evento flujo aparte, después de cada estado completo (también tras un sync) y cuando cambia su huella. Con los nodos en el panel, cada delta los reenviaría. Los textos pasan por el ocultador (inv. 16).'
     invariantes:
         - qdd remoto desactivar nunca apaga ni borra un servicio que publica otro QDD_HOME (FND-136).
         - El teléfono solo envía ids de acción que el PC ofreció; el PC vuelve a calcular el panel antes de ejecutar y rechaza un id que no ofrece (inv. 1). La única excepción, solo con Pro, es ejecutar desde el teléfono.
@@ -81,5 +82,5 @@ pruebas:
         - cd cli && go test ./pkg/remoto/ -run 'Ejecutar|ArgsPermitidos|ValidarInstruccion|FirmaEjecucion|PlanLocal|GuardaElPlan|AuditarDesdeElTelefono' -race
 fuentes:
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-05"
-revisado_en_commit: 730cd96c154e
+ultima_revision: "2026-11-06"
+revisado_en_commit: b966140c316d

@@ -25,6 +25,10 @@ const (
 	TipoResultado = "resultado" // se dibuja como círculo: un inicio, un fin o un resultado
 
 	maxNodos = 200
+
+	// MaxBytes es el tope de un flujo: viaja entero en un mensaje al teléfono y Supabase descarta en silencio lo que
+	// pasa de 256 KB en el plan Free. Con 100 KB de YAML, el JSON queda holgado.
+	MaxBytes = 100 * 1024
 )
 
 var idValido = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -164,6 +168,9 @@ func Guardar(root string, f Flujo) error {
 	if err != nil {
 		return err
 	}
+	if err := revisarPeso(datos); err != nil {
+		return err
+	}
 	destino := ruta(root, f.ID)
 	if err := os.MkdirAll(filepath.Dir(destino), 0755); err != nil {
 		return err
@@ -186,8 +193,18 @@ func Guardar(root string, f Flujo) error {
 	return os.Rename(temporal.Name(), destino)
 }
 
+func revisarPeso(datos []byte) error {
+	if len(datos) <= MaxBytes {
+		return nil
+	}
+	return fmt.Errorf("el flujo pesa %d KB: el tope es %d KB", len(datos)/1024, MaxBytes/1024)
+}
+
 // Leer interpreta y valida un YAML.
 func Leer(datos []byte) (Flujo, error) {
+	if err := revisarPeso(datos); err != nil {
+		return Flujo{}, err
+	}
 	var f Flujo
 	if err := yaml.Unmarshal(datos, &f); err != nil {
 		return Flujo{}, err

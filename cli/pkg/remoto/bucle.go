@@ -72,6 +72,7 @@ type Bucle struct {
 	enviados    map[string]string // clave → JSON del panel que tienen los teléfonos
 	estructura  map[string]string
 	limites     string                       // huella de los límites de Claude que tienen los teléfonos
+	flujos      map[string]string            // huella de cada flujo que tienen los teléfonos, por proyecto e id
 	vistos      map[string]map[string]string // clave → pedidos y fichas que esperan, con su tipo (para el push)
 	goalVisto   map[string]string            // clave → en qué estaba el modo goal (para el push)
 	mensajes    int
@@ -323,6 +324,8 @@ func (b *Bucle) mandarEstado(ctx context.Context, e Estado) {
 	}
 	b.base = true
 	b.enviados, b.estructura, b.limites = paneles(e), estructuraDe(e), e.Limites.Huella()
+	b.flujos = nil
+	b.mandarFlujos(ctx, e)
 }
 
 // paneles es el JSON de cada panel, para saber cuál cambió.
@@ -433,6 +436,7 @@ func (b *Bucle) mandarCambios(ctx context.Context, e Estado) {
 	if d.Limites != nil {
 		b.limites = d.Limites.Huella()
 	}
+	b.mandarFlujos(ctx, e)
 }
 
 // esperan son los pedidos pendientes y las fichas en borrador de un panel: lo que espera a la persona.
