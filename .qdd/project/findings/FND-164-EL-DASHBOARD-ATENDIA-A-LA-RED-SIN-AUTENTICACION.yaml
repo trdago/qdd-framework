@@ -1,0 +1,9 @@
+id: "FND-164"
+title: "qdd dashboard atendía a toda la red, sin autenticación"
+description: "qdd dashboard escuchaba en todas las interfaces y sus endpoints de escritura no pedían autenticación ni revisaban de dónde venía la petición. La validación de rutas de /api/file comparaba prefijos, así que también aceptaba una carpeta hermana con un nombre que empezara igual."
+impact: "Mientras el dashboard estuviera abierto, otro equipo de la misma red o una página abierta en el navegador podían leer el estado, cambiar políticas, escribir archivos en el proyecto y enviar instrucciones al LLM configurado. Comprobado 2026-11-06 en un proyecto temporal: una petición por la IP de red con un Origin externo escribió un archivo. No se sabe si alguien lo aprovechó: el dashboard no guarda registro de accesos."
+action_taken: "Escucha solo en 127.0.0.1, rechaza otro Host u Origin, exige JSON en lo que no sea lectura y valida las rutas con filepath.IsLocal. La ficha dashboard lo deja como invariante."
+test_result: "cli/cmd/dashboard_local_test.go: TestEscucharLocal_SoloEnEstePC, TestSoloLocal y TestRutaDelProyecto."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

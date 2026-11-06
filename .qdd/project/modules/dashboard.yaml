@@ -22,6 +22,7 @@ objetivo_tecnologico:
         - BuildState solo lee las fuentes del proyecto. Nunca escribe en una ruta que el watcher considere un evento.
         - Con el proyecto quieto, el dashboard no reconstruye el estado, no escribe archivos y no envía mensajes.
         - El puntaje es el de audit.Score de la última certificación. El dashboard no corre la auditoría al refrescar.
+        - 'El dashboard solo atiende a este PC y a su propia página (FND-164): escucha en 127.0.0.1, rechaza otro Host u Origin y exige JSON en lo que no sea lectura. Sus escrituras no tienen autenticación, así que abrirlo a la red o agregar un origen permitido requiere autenticación primero.'
 pruebas:
     comandos:
         - cd cli && go test ./pkg/dashboard/...
@@ -30,5 +31,6 @@ fuentes:
     - cli/pkg/dashboard/state.go
     - cli/cmd/dashboard.go
     - rfcs/0005-reglas-como-principios.md
+    - cli/cmd/dashboard_local_test.go
 ultima_revision: "2026-10-29"
 revisado_en_commit: 63b3e5f52458
