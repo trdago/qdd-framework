@@ -53,6 +53,37 @@ func TestSet_TareaNuevaQuedaSinEmpezarYSigueEnElPanel_FND085(t *testing.T) {
 	}
 }
 
+// FND-156 (qdd-movile, sfrc): esperan 13, esperas 2, ocultos 10. El teléfono decía «2 esperan una consola» con unos 10 ⏳
+// de la persona, porque solo podía contar los de las tareas visibles.
+func TestDatos_EsperanPersonaCuentaTambienLasOcultas_FND156(t *testing.T) {
+	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n" +
+		"  - {id: a, nombre: A, estado: abierto, celdas: {Código: {estado: ⏳, bloqueo: decidir, de_quien: la persona}, Pruebas: {estado: ⏳, bloqueo: revisar, de_quien: Persona}}}\n" +
+		"  - {id: b, nombre: B, estado: abierto, celdas: {Código: {estado: ⏳, bloqueo: CI, de_quien: CI}, Pruebas: {estado: ·}}}\n" +
+		"  - {id: z, nombre: Z, estado: cerrado, celdas: {Código: {estado: ⏳, bloqueo: viejo, de_quien: la persona}, Pruebas: {estado: —}}}\n"
+	d := DatosPendientes(mustParse(t, yaml), ahora, 1)
+	if d.Ocultos != 1 || len(d.Esperas) != 1 {
+		t.Fatalf("la tarea de la persona queda oculta: ocultos=%d esperas=%+v", d.Ocultos, d.Esperas)
+	}
+	if d.EsperanPersona != 2 || d.Esperan != 3 {
+		t.Fatalf("cuenta los ⏳ de la persona de las tareas pendientes, se vean o no: persona=%d esperan=%d", d.EsperanPersona, d.Esperan)
+	}
+}
+
+// FND-159 (qdd-movile, teléfono real con rc.9): fairplay_agent publicaba esperan_persona 0 con 4 de sus 5 ⏳ de «usuario».
+// De 14 valores de de_quien en los tableros de esta máquina, 12 ⏳ dicen «usuario» y 31 «persona» o «la persona».
+func TestDeLaPersona_UsuarioTambienEsLaPersona_FND159(t *testing.T) {
+	for _, deQuien := range []string{"persona", "la persona", "Persona", "usuario", "Usuario", "usuario (autorizar commit)", "usuario o qdd-26"} {
+		if !DeLaPersona(deQuien) {
+			t.Fatalf("%q le toca a la persona", deQuien)
+		}
+	}
+	for _, deQuien := range []string{"", "Claude", "la IA", "CI", "agente", "uso real", "tenderbot", "qdd-movile"} {
+		if DeLaPersona(deQuien) {
+			t.Fatalf("%q no le toca a la persona", deQuien)
+		}
+	}
+}
+
 // FND-086: la barra contaba tareas con algún ⏳ (◧ 1 tarea · ⏳1) y el panel contaba cada ⏳ de las tareas visibles
 // (⏳ 2 esperan): la persona veía dos números distintos para lo mismo.
 func TestResumen_LaBarraYElPanelCuentanLoMismo_FND086(t *testing.T) {

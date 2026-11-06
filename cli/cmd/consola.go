@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/mejoras"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -87,7 +88,19 @@ func init() {
 }
 
 func consolaActual() consola.Consola {
-	return consola.Consola{Version: Version}
+	bin, err := os.Executable()
+	if err != nil {
+		return consola.Consola{Version: Version}
+	}
+	return consola.Consola{Version: Version, Binario: binarioDeLaBarra(bin)}
+}
+
+// binarioDeLaBarra es la ruta que la barra llama directo: solo la de un qdd instalado, nunca la de uno compilado a mano.
+func binarioDeLaBarra(bin string) string {
+	if !consola.InstaladoConNPM(bin) {
+		return ""
+	}
+	return bin
 }
 
 func imprimirHecho(hecho []string, err error) {
@@ -113,6 +126,7 @@ func runConsolaDesactivar(cmd *cobra.Command, args []string) {
 }
 
 func runConsolaActualizar(cmd *cobra.Command, args []string) {
+	seguirVersionEnLaTarea()
 	c := consolaActual()
 	if _, ok := c.LeerRegistro(); !ok {
 		if consolaSiActivo {
@@ -121,6 +135,18 @@ func runConsolaActualizar(cmd *cobra.Command, args []string) {
 		salirCon("la consola no está activada: usa 'qdd consola activar'")
 	}
 	imprimirHecho(c.Reparar())
+}
+
+// seguirVersionEnLaTarea: en Windows, cada versión de qdd vive en su carpeta, y la tarea de qdd remoto tiene que lanzar la
+// nueva (FND-142). Una falla no detiene la instalación: 'qdd doctor --fix' la repara.
+func seguirVersionEnLaTarea() {
+	s, err := remotoServicio()
+	if err != nil {
+		return
+	}
+	if err := s.RenovarBinario(remotoEjecutor); err != nil {
+		fmt.Fprintf(os.Stderr, "[!] No se pudo actualizar la tarea de qdd remoto: %v\n", err)
+	}
 }
 
 func runConsolaEstado(cmd *cobra.Command, args []string) {
@@ -143,11 +169,37 @@ func runConsolaEstado(cmd *cobra.Command, args []string) {
 	}
 }
 
+const (
+	// topeEntradaBarra: Claude Code escribe la entrada de la barra en el acto; nada justifica esperar más.
+	topeEntradaBarra = 3 * time.Second
+	maxEntradaBarra  = 1 << 20
+)
+
+// leerEntradaBarra corta al tope: con un stdin que nadie cierra, la barra quedaba viva para siempre (FND-145). Al salir
+// el proceso, la lectura pendiente termina con él.
+func leerEntradaBarra(r io.Reader, tope time.Duration) ([]byte, bool) {
+	type lectura struct {
+		datos []byte
+		err   error
+	}
+	listo := make(chan lectura, 1)
+	go func() {
+		datos, err := io.ReadAll(io.LimitReader(r, maxEntradaBarra))
+		listo <- lectura{datos, err}
+	}()
+	select {
+	case l := <-listo:
+		return l.datos, l.err == nil
+	case <-time.After(tope):
+		return nil, false
+	}
+}
+
 // runConsolaStatusline nunca falla ni escribe en stderr: con una entrada ilegible no imprime nada.
 func runConsolaStatusline(cmd *cobra.Command, args []string) {
 	defer func() { _ = recover() }()
-	datos, err := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
-	if err != nil {
+	datos, ok := leerEntradaBarra(os.Stdin, topeEntradaBarra)
+	if !ok {
 		return
 	}
 	c := consolaActual()
@@ -166,11 +218,7 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 
 // runConsolaPanel siempre imprime un JSON: sin estado.yaml, el estado es null y el motivo dice cómo crearlo.
 func runConsolaPanel(cmd *cobra.Command, args []string) {
-	root := estadoRaiz()
-	prsAlDia(root)
-	datos := datosPanel(root, time.Now(), consolaCon)
-	conEfectos(&datos)
-	out, err := json.Marshal(datos)
+	out, err := lecturaPanel(estadoRaiz(), consolaCon)()
 	if err != nil {
 		salirCon("%v", err)
 	}
@@ -183,7 +231,34 @@ func datosPanel(root string, now time.Time, con []string) consola.DatosConsola {
 	datos := consola.Panel(root, now, con...)
 	datos.Version = Version
 	datos.Ejecutar = remoto.OpcionesEjecutar(root, remoto.PlanLocal(), now)
+	datos.AvisoVersion = consola.AvisoDeVersion(root, Version)
+	conLoQuePide(&datos, root, now, con)
 	return datos
+}
+
+// conLoQuePide agrega lo que el panel leía con un proceso propio cada tanto, si dice que lo sabe usar (MEJ-020).
+func conLoQuePide(datos *consola.DatosConsola, root string, now time.Time, con []string) {
+	for _, c := range con {
+		if c == "herramientas" {
+			datos.Herramientas = herramientasDelPanel(root)
+		}
+		if c == "mejoras" {
+			toca := mejoras.TocaCiclo(root, now)
+			datos.MejorasToca = &toca
+		}
+	}
+}
+
+func herramientasDelPanel(root string) json.RawMessage {
+	vs, _ := listadoDeHerramientas(root)
+	if len(vs) == 0 {
+		return json.RawMessage("[]")
+	}
+	b, err := json.Marshal(vs)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 // runConsolaAccion vuelve a calcular las acciones: el panel solo pasa el id y qdd decide si existe y si está confirmada.
@@ -249,6 +324,7 @@ var consolaRaiz string
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
+var consolaDeNuevo bool
 var consolaTarea string
 
 // consolaCon son los tipos opcionales que pide el panel (qdd consola panel --con atender).
@@ -264,6 +340,8 @@ se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para c
 Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
 sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+Lo que ya se hizo en las últimas 24 h no se vuelve a pedir, aunque cambie el texto (cerrar el mismo issue, mergear el
+mismo PR): repetirlo de verdad se dice con --de-nuevo.
 --tarea <id> dice qué tarea del estado extiende el pedido (sin él, la tarea en curso). Si después de un mensaje de la
 persona esa tarea sigue cambiando (la persona prefirió seguir trabajando en vez de ejecutarlo), el pedido sale de
 «▶ Para ti». Cuando la tarea vuelva a estar lista, pídelo de nuevo con la misma --tarea: vuelve con su tecla.
@@ -281,7 +359,7 @@ con 'exit 75' y la persona lo vuelve a apretar.
   qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea}
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo}
 		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
@@ -377,6 +455,7 @@ func init() {
 	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "resumen estilo chat (≤ 60 caracteres, con símbolos): qué hace y por qué lo ejecuta la persona")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
+	consolaPedirCmd.Flags().BoolVar(&consolaDeNuevo, "de-nuevo", false, "repetir algo que ya se hizo en las últimas 24 h")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")

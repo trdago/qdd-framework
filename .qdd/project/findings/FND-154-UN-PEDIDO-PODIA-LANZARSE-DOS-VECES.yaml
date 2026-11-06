@@ -1,0 +1,9 @@
+id: "FND-154"
+title: "Lo mismo se podía lanzar dos veces con otro texto o después de hecho"
+description: "qdd solo evitaba duplicar un pedido abierto con el comando idéntico. Dos textos distintos para lo mismo pasaban como pedidos distintos, y un pedido hecho sale de la cola, así que qdd no recordaba que ya había corrido. En modo goal, «Cerrar issue #112» corrió dos veces, a las 16:48 y a las 16:49, y «Cerrar issue #111» también figura dos veces."
+impact: "Tras una tanda en modo goal, la persona no sabía si podía contestar o confirmar lo que quedaba sin repetir algo. En estos casos no hubo daño: el segundo cierre no dejó otro comentario. Confirmar dos veces un mismo pedido ya estaba cubierto (FND-070); con un merge o una publicación escrita con otro comando no había seguro."
+action_taken: "qdd recuerda 24 h, en local, el efecto de lo que terminó bien. Cerrar un issue y mergear un PR valen por su número; el resto, por su texto. Lo ya hecho no se vuelve a pedir sin de_nuevo, y lo abierto con el mismo efecto es el mismo pedido. Lo que falló se puede pedir de nuevo."
+test_result: "cli/pkg/consola/pedidos_seguro_test.go (7 pruebas TestSeguro_*_FND154; las que cubren el seguro fallaban antes de conectarlo) y TestEjecutar_UnPedidoAceptadoNoCorreDosVeces_FND070 actualizada."
+status: resolved
+detectado_por: humano
+date: "2026-11-05"

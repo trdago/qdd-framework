@@ -70,9 +70,9 @@ type Bucle struct {
 	base        bool              // los teléfonos de ahora ya tienen un estado completo
 	enviados    map[string]string // clave → JSON del panel que tienen los teléfonos
 	estructura  map[string]string
-	limites     string                     // huella de los límites de Claude que tienen los teléfonos
-	vistos      map[string]map[string]bool // clave → pedidos y fichas que esperan (para el push)
-	goalVisto   map[string]string          // clave → en qué estaba el modo goal (para el push)
+	limites     string                       // huella de los límites de Claude que tienen los teléfonos
+	vistos      map[string]map[string]string // clave → pedidos y fichas que esperan, con su tipo (para el push)
+	goalVisto   map[string]string            // clave → en qué estaba el modo goal (para el push)
 	mensajes    int
 	consolaSeg  float64
 	sinPush     bool
@@ -117,7 +117,7 @@ func (b *Bucle) logf(formato string, args ...any) {
 func (b *Bucle) iniciar() {
 	b.desde = b.ahora().UTC()
 	b.plan = PlanGratis()
-	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]bool{}, map[string]string{}
+	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]string{}, map[string]string{}
 	b.latidos, b.avisos = make(chan resultadoLatido, 1), make(chan error, 8)
 	if b.Agrupar <= 0 {
 		b.Agrupar = Agrupar
@@ -129,7 +129,7 @@ func (b *Bucle) iniciar() {
 		b.CadaSondeo = CadaSondeo
 	}
 	b.vigia = nuevaVigia()
-	b.huellaBin, b.conHuella = huellaDe(b.Bin)
+	b.huellaBin, b.conHuella = huellaDe(consola.RutaVigilada(b.Bin))
 	b.iniciarExtras()
 }
 
@@ -423,29 +423,41 @@ func esperan(p ProyectoEstado) map[string]string {
 	return out
 }
 
-// avisarNuevos pide un push cuando aparece un pedido o una ficha nueva en un panel. La primera vez que se ve un
-// proyecto es la base: lo que ya esperaba no se avisa.
+// resueltoDe es el push que quita de la bandeja el aviso de un tipo. El aviso agrupa todos los de ese tipo y proyecto,
+// así que se manda solo cuando ya no queda ninguno (FND-028 de qdd-movile).
+var resueltoDe = map[string]string{AvisoPedido: AvisoPedidoResuelto, AvisoFicha: AvisoFichaResuelta}
+
+// avisarNuevos pide un push cuando aparece un pedido o una ficha nueva en un panel, y otro cuando ya no queda ninguno de
+// ese tipo. La primera vez que se ve un proyecto es la base: lo que ya esperaba no se avisa. Sin panel no se sabe qué
+// espera, así que no cambia nada: ni se resuelve ni vuelve a ser nuevo.
 func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 	for _, p := range e.Proyectos {
 		b.avisarGoal(ctx, p)
+		if p.Panel == nil {
+			continue
+		}
 		ahora := esperan(p)
 		antes, conocido := b.vistos[p.Clave]
-		b.vistos[p.Clave] = map[string]bool{}
-		for id := range ahora {
-			b.vistos[p.Clave][id] = true
-		}
+		b.vistos[p.Clave] = ahora
 		if !conocido {
 			continue
 		}
-		tipos := map[string]bool{}
+		nuevos, hay, habia := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		for id, tipo := range ahora {
-			if !antes[id] {
-				tipos[tipo] = true
+			hay[tipo] = true
+			if _, ya := antes[id]; !ya {
+				nuevos[tipo] = true
 			}
 		}
+		for _, tipo := range antes {
+			habia[tipo] = true
+		}
 		for _, tipo := range []string{AvisoPedido, AvisoFicha} {
-			if tipos[tipo] {
+			if nuevos[tipo] {
 				b.avisar(ctx, tipo, p.Nombre, p.Clave)
+			}
+			if habia[tipo] && !hay[tipo] {
+				b.avisar(ctx, resueltoDe[tipo], p.Nombre, p.Clave)
 			}
 		}
 	}
@@ -484,11 +496,19 @@ func (b *Bucle) avisar(ctx context.Context, tipo, nombre, clave string) {
 		c, cancelar := context.WithTimeout(ctx, 15*time.Second)
 		defer cancelar()
 		err := b.R.Avisar(c, b.Cred.Topico, b.Cred.Firma, tipo, nombre, clave)
+		var rechazada ErrRechazada
+		if esResuelto(tipo) && errors.As(err, &rechazada) {
+			return // un relay viejo no lo conoce, y la app igual limpia la bandeja al abrirse
+		}
 		select {
 		case b.avisos <- err:
 		default:
 		}
 	}()
+}
+
+func esResuelto(tipo string) bool {
+	return tipo == AvisoPedidoResuelto || tipo == AvisoFichaResuelta
 }
 
 func (b *Bucle) alAviso(err error) {

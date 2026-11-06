@@ -396,7 +396,7 @@ func recomendadas(q ItemPregunta) ([]string, []string) {
 func correrPedidos(root, bin, sesion string, now time.Time) []Elegida {
 	var elegidas []Elegida
 	for _, a := range accionesDePedidos(root) {
-		if a.PR != 0 || (a.Estado != EstadoPendiente && a.Estado != EstadoEspera) {
+		if a.PR != 0 || a.VersionNueva != "" || (a.Estado != EstadoPendiente && a.Estado != EstadoEspera) {
 			continue
 		}
 		if a.Lanzar(root, bin, sesion, io.Discard) != 0 {

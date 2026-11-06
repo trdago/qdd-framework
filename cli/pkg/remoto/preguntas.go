@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/estado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -143,12 +144,13 @@ func (b *Bucle) seguirPreguntas(ctx context.Context) {
 	}
 }
 
-// ocultarDelPanel pasa por el ocultador lo que se publica de cada pregunta (inv. 16): textos, opciones y el detalle
-// de un permiso (el comando puede traer un token); y de lo mandado desde el teléfono, el texto, el aviso y la salida.
+// ocultarDelPanel pasa por el ocultador todo el texto que se publica (inv. 16): el tablero (FND-157), los pedidos (el
+// comando puede traer un token), las preguntas con sus opciones y el detalle de un permiso, lo mandado desde el teléfono
+// y las elecciones del modo goal. El teléfono actúa por id, así que tapar un comando no cambia lo que se ejecuta.
 func ocultarDelPanel(root string, panel *consola.DatosConsola) {
-	var o *Ocultador
+	o := OcultadorDe(root)
+	ocultarTablero(o, panel.Estado)
 	if panel.Goal != nil && len(panel.Goal.Elegidas) > 0 {
-		o = OcultadorDe(root)
 		elegidas := make([]consola.Elegida, len(panel.Goal.Elegidas))
 		for i, e := range panel.Goal.Elegidas {
 			e.Etiqueta, e.Eleccion = o.Ocultar(e.Etiqueta), o.Ocultar(e.Eleccion)
@@ -157,17 +159,48 @@ func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 		panel.Goal.Elegidas = elegidas
 	}
 	for i, a := range panel.Acciones {
-		if a.Tipo != consola.TipoPregunta && a.Origen != consola.OrigenTelefono {
-			continue
-		}
-		if o == nil {
-			o = OcultadorDe(root)
-		}
-		panel.Acciones[i] = ocultarPregunta(o, a)
+		panel.Acciones[i] = ocultarAccion(o, a)
 	}
 }
 
-func ocultarPregunta(o *Ocultador, a consola.Accion) consola.Accion {
+// ocultarTablero tapa los textos que escribe la IA en el tablero: nombres, criterios, lo que espera y lo que falla.
+func ocultarTablero(o *Ocultador, d *estado.DatosPanel) {
+	if d == nil {
+		return
+	}
+	d.Resumen = o.Ocultar(d.Resumen)
+	for i, f := range d.Frentes {
+		f.Nombre, f.Pregunta = o.Ocultar(f.Nombre), o.Ocultar(f.Pregunta)
+		notas := make([]string, len(f.Notas))
+		for j, n := range f.Notas {
+			notas[j] = o.Ocultar(n)
+		}
+		f.Notas = notas
+		d.Frentes[i] = f
+	}
+	for i, p := range d.Esperas {
+		p.Frente, p.Texto, p.DeQuien = o.Ocultar(p.Frente), o.Ocultar(p.Texto), o.Ocultar(p.DeQuien)
+		d.Esperas[i] = p
+	}
+	for i, p := range d.Fallas {
+		p.Frente, p.Texto = o.Ocultar(p.Frente), o.Ocultar(p.Texto)
+		d.Fallas[i] = p
+	}
+	for i, ob := range d.Objetivos {
+		ob.Nombre, ob.Criterio, ob.Resumen, ob.Pregunta = o.Ocultar(ob.Nombre), o.Ocultar(ob.Criterio), o.Ocultar(ob.Resumen), o.Ocultar(ob.Pregunta)
+		d.Objetivos[i] = ob
+	}
+}
+
+func ocultarAccion(o *Ocultador, a consola.Accion) consola.Accion {
+	a.Mensaje = o.Ocultar(a.Mensaje)
+	if len(a.Espera) > 0 {
+		espera := make([]string, len(a.Espera))
+		for i, l := range a.Espera {
+			espera[i] = o.Ocultar(l)
+		}
+		a.Espera = espera
+	}
 	a.Etiqueta, a.Detalle, a.Resultado, a.Aviso = o.Ocultar(a.Etiqueta), o.Ocultar(a.Detalle), o.Ocultar(a.Resultado), o.Ocultar(a.Aviso)
 	if a.Permiso != nil {
 		permiso := *a.Permiso

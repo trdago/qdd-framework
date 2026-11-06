@@ -40,3 +40,72 @@ jobs:
       - name: Run Architecture Audit
         run: |
           make audit
+
+  panel-windows:
+    # El flujo del panel (RFC 0016) depende de cómo el sistema avisa escrituras y cierra tuberías: se prueba en Windows.
+    name: Flujo del panel en Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Pruebas del flujo
+        working-directory: cli
+        run: go test ./pkg/consola/ ./pkg/remoto/ -run "Seguir|SenalesDelPanel|BinarioCambio|VigiaBinario|RutaVigilada|BinarioPorVersion|RenovarBinario|TareaSinEstaVersion|TestBarra_" -count=1 -v
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Actualizar qdd con el panel abierto (issue 107)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $bin = "$env:RUNNER_TEMP\qdd-ci.exe"
+          # El dashboard no es parte de esta prueba: basta con un archivo para compilar.
+          New-Item -ItemType Directory -Force cli/ui/dist | Out-Null
+          Set-Content cli/ui/dist/index.html ''
+          New-Item -ItemType Directory -Force cli/cmd/core_assets | Out-Null
+          Copy-Item -Recurse .qdd/core cli/cmd/core_assets/core
+          go -C cli build -o $bin .
+          $env:QDD_INSTALL_BINARIO = $bin
+          function Instalar($v) {
+            Push-Location npm
+            npm version $v --no-git-tag-version --allow-same-version | Out-Null
+            $tgz = npm pack --silent
+            npm i -g ".\$tgz"
+            Remove-Item $tgz
+            Pop-Location
+          }
+          $dir = "$env:LOCALAPPDATA\qdd\bin"
+          Instalar 9.9.1
+          if (-not (Test-Path "$dir\9.9.1\qdd.exe")) { throw 'qdd.exe no quedó en la carpeta de su versión' }
+          if ((Get-Content "$dir\actual.txt") -ne '9.9.1') { throw 'el puntero no dice 9.9.1' }
+          $flujo = Start-Process "$dir\9.9.1\qdd.exe" -ArgumentList 'consola','seguir' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\flujo.out" -RedirectStandardError "$env:RUNNER_TEMP\flujo.err"
+          Start-Sleep -Seconds 5
+          if ($flujo.HasExited) { Get-Content "$env:RUNNER_TEMP\flujo.err"; throw 'el flujo no quedó corriendo' }
+          Instalar 9.9.2
+          if (-not (Test-Path "$dir\9.9.2\qdd.exe")) { throw 'qdd.exe no quedó en la carpeta de la versión nueva' }
+          if ((Get-Content "$dir\actual.txt") -ne '9.9.2') { throw 'el puntero no dice 9.9.2' }
+          if (Test-Path "$(npm root -g)\qdd-framework\bin\qdd.exe") { throw 'dentro del paquete no debe quedar qdd.exe' }
+          qdd --version
+          if (-not $flujo.WaitForExit(60000)) { throw 'el flujo no vio la versión nueva' }
+          # La barra termina aunque nadie cierre su stdin (FND-145).
+          $inicio = New-Object System.Diagnostics.ProcessStartInfo "$dir\9.9.2\qdd.exe"
+          $inicio.Arguments = 'consola statusline'
+          $inicio.RedirectStandardInput = $true
+          $inicio.UseShellExecute = $false
+          $barra = [System.Diagnostics.Process]::Start($inicio)
+          if (-not $barra.WaitForExit(10000)) { $barra.Kill(); throw 'la barra quedó viva con stdin abierto' }
+          # Reinstalar la misma versión no descarga nada ni reemplaza el binario.
+          Remove-Item Env:QDD_INSTALL_BINARIO
+          Instalar 9.9.2
+          qdd --version

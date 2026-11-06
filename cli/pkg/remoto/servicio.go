@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode/utf16"
+
+	"github.com/qdd-framework/qdd/pkg/consola"
 )
 
 // Rule: Prohibido usar 'else'
@@ -268,6 +271,61 @@ func (s Servicio) Instalar(correr Ejecutor) (string, error) {
 		}
 	}
 	return archivo, nil
+}
+
+// reComandoTarea es el programa que lanza la tarea de Windows.
+var reComandoTarea = regexp.MustCompile(`<Command>[^<]*</Command>`)
+
+// TareaSinEstaVersion: la tarea de Windows lanza otro binario que el de esta versión. Un binario compilado a mano no
+// cuenta: no es el que la persona instaló.
+func (s Servicio) TareaSinEstaVersion() bool {
+	if s.SO != "windows" || !consola.BinarioPorVersion(s.Bin) {
+		return false
+	}
+	archivo, err := s.Archivo()
+	if err != nil {
+		return false
+	}
+	b, err := os.ReadFile(archivo)
+	if err != nil {
+		return false
+	}
+	return !strings.Contains(desdeUTF16(b), s.comandoTarea())
+}
+
+func (s Servicio) comandoTarea() string {
+	return "<Command>" + escaparXML(s.Bin) + "</Command>"
+}
+
+// RenovarBinario apunta la tarea de Windows al binario de esta versión y deja lo demás como está (FND-142): su carpeta
+// cambia con cada versión. No la arranca: lo que corre termina solo cuando ve la versión nueva y la tarea lo reinicia.
+// Sin tarea instalada, o ya al día, no hace nada.
+func (s Servicio) RenovarBinario(correr Ejecutor) error {
+	if !s.TareaSinEstaVersion() {
+		return nil
+	}
+	archivo, err := s.Archivo()
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(archivo)
+	if err != nil {
+		return err
+	}
+	nuevo := reComandoTarea.ReplaceAllLiteralString(desdeUTF16(b), s.comandoTarea())
+	if err := os.WriteFile(archivo, utf16ConBOM(nuevo), 0o600); err != nil {
+		return err
+	}
+	return correr("schtasks", "/Create", "/TN", tareaWindows, "/XML", archivo, "/F")
+}
+
+// desdeUTF16 lee lo que escribió utf16ConBOM.
+func desdeUTF16(b []byte) string {
+	u := make([]uint16, 0, len(b)/2)
+	for i := 2; i+1 < len(b); i += 2 {
+		u = append(u, uint16(b[i])|uint16(b[i+1])<<8)
+	}
+	return string(utf16.Decode(u))
 }
 
 // ErrServicioDeOtroHome: el servicio instalado publica otro QDD_HOME; quien lo quiera quitar debe correr con ese.

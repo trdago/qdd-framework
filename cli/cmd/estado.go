@@ -223,20 +223,26 @@ func runEstadoInit(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	etapas := estado.EtapasDe(estadoOpciones(root)["etapas"])
 	if estadoEtapas != "" {
-		etapas = nil
-		for _, s := range strings.Split(estadoEtapas, ",") {
-			if t := strings.TrimSpace(s); t != "" {
-				etapas = append(etapas, t)
-			}
-		}
+		etapas = etapasDeLaOpcion(estadoEtapas)
 	}
 	if len(etapas) == 0 {
-		salirCon("la ficha del estado (%s) no define etapas conocidas: pásalas con --etapas \"A,B,C\"", strings.Join(estado.Blueprints, " o "))
+		salirCon("faltan las etapas, las columnas del tablero: ninguna ficha (%s) las define. Elige las tuyas: %s", strings.Join(estado.Blueprints, " o "), estado.ComandoInit)
 	}
 	if err := estado.Init(root, etapas, time.Now()); err != nil {
 		salirCon("%v", err)
 	}
 	fmt.Printf("[+] %s creado con las etapas: %s\n", estado.Ruta, strings.Join(etapas, " · "))
+}
+
+// etapasDeLaOpcion lee --etapas "A, B,C": sin espacios alrededor y sin etapas vacías.
+func etapasDeLaOpcion(opcion string) []string {
+	var etapas []string
+	for _, s := range strings.Split(opcion, ",") {
+		if t := strings.TrimSpace(s); t != "" {
+			etapas = append(etapas, t)
+		}
+	}
+	return etapas
 }
 
 func runEstadoSet(cmd *cobra.Command, args []string) {
@@ -296,12 +302,13 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		vs = append(vs, estado.CheckRespuesta(e, string(data), time.Now())...)
 	}
 	sinPregunta := consola.EsperasSinPregunta(root, time.Now())
+	desfasadas := estado.Desfasadas(e)
 	if estadoJSON {
 		revision := []string{}
 		if estadoResp == "" {
 			revision = []string{"EPF-C08"}
 		}
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...)}, "", "  ")
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "tareas_desfasadas": desfasadas}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -319,7 +326,18 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		fmt.Println(". EPF-C08 (texto y tabla no se contradicen) se revisa con --respuesta <reporte>.")
 	}
 	avisarEsperasSinPregunta(os.Stdout, sinPregunta)
+	avisarDesfasadas(os.Stdout, desfasadas)
 	salirSiHay(vs)
+}
+
+// avisarDesfasadas avisa, sin bloquear, de las tareas cuya tabla ya no dice lo que pasa (MEJ-010).
+func avisarDesfasadas(salida io.Writer, d estado.TareasDesfasadas) {
+	if len(d.Listas) > 0 {
+		fmt.Fprintf(salida, "[i] Tareas con todo listo que siguen abiertas: %d. Si no falta nada, ciérralas con qdd estado cerrar <id>; si falta algo, agrégalo a la tabla: %s\n", len(d.Listas), strings.Join(d.Listas, ", "))
+	}
+	if len(d.CerradasConEspera) > 0 {
+		fmt.Fprintf(salida, "[i] Tareas cerradas que conservan un ⏳: %d. Ya no cuenta como espera; si aún falta algo, ábrelo con qdd estado nueva: %s\n", len(d.CerradasConEspera), strings.Join(d.CerradasConEspera, ", "))
+	}
 }
 
 // avisarEsperasSinPregunta avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta.

@@ -97,11 +97,20 @@ type Pedido struct {
 	ArmadoEn *time.Time `json:"armado_en,omitempty"`
 	Proximo  *time.Time `json:"proximo,omitempty"`
 	Intentos int        `json:"intentos,omitempty"`
+	// Pidio es la sesión de la IA que lo dejó en el panel: si se retira, a ella se le avisa (RFC 0017).
+	Pidio string `json:"pidio,omitempty"`
 	// Sesion es la sesión de Claude Code que lo confirmó y Avisado, que ya recibió su resultado (aviso.go).
 	Sesion  string `json:"sesion,omitempty"`
 	Avisado bool   `json:"avisado,omitempty"`
 	// PR es el pull request que ofrece un pedido opcional de qdd (prs.go); 0 en uno de la IA.
 	PR int `json:"pr,omitempty"`
+	// Version es la versión de qdd que ofrece un pedido opcional (version_nueva.go); vacía en uno de la IA.
+	Version string `json:"version,omitempty"`
+}
+
+// Opcional: lo ofrece qdd por su cuenta, no la IA. No abre el panel, no es una espera ni lo lanza el modo goal.
+func (p Pedido) Opcional() bool {
+	return p.PR != 0 || p.Version != ""
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
@@ -200,13 +209,9 @@ func AnotarHuellas(root string, now time.Time) error {
 	})
 }
 
-// tareaEnCurso es la tarea que la IA tiene activa ahora (qdd estado activar), o "".
+// tareaEnCurso es la tarea que esta sesión tiene activa ahora (qdd estado activar), o "".
 func tareaEnCurso(root string, now time.Time) string {
-	act := estado.LeerActividad(root)
-	if _, ok := estado.EnCurso(act, now)[act.Ultima]; ok {
-		return act.Ultima
-	}
-	return ""
+	return estado.TareaDeLaSesion(estado.LeerActividad(root), estado.SesionActual(), now)
 }
 
 // cicloDe es la hora del último mensaje de la persona (cero si no hay): lo hecho antes ya se vio.
@@ -375,13 +380,20 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
 		cola, preferida := sinRetirados(cola, tarea)
 		usadas := map[string]bool{}
+		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
+				return conOrden(cola, p.ID, orden, &nuevo)
+			}
+			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
 				return conOrden(cola, p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
 			}
+		}
+		if ya := hechoReciente(ColaDe(root, dir), efecto, now); ya != nil && !orden.DeNuevo {
+			return nil, ya
 		}
 		cola = sinAutomaticosQueNombra(cola, motivo, comando)
 		usadas = teclasAbiertas(cola)
@@ -398,7 +410,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if preferida != "" && !usadas[preferida] {
 			tecla = preferida
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea}
+		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual())}
 		return conOrden(append(cola, p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
@@ -477,6 +489,9 @@ func Descartar(root, idOTecla string) error {
 			if p.ID == id && p.PR != 0 {
 				anotarDescartado(root, p.PR)
 			}
+			if p.ID == id && p.Version != "" {
+				anotarVersionDescartada(root, p.Version)
+			}
 			if p.ID != id {
 				resto = append(resto, p)
 			}
@@ -498,7 +513,7 @@ func accionesDePedidos(root string) []Accion {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
-			Sesion: p.Sesion, PR: p.PR, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
+			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
 		}
 		if p.porAvisar() {
 			a.Avisar, a.Mensaje = true, mensajeAviso(p)
@@ -636,7 +651,9 @@ func terminar(root, id string, codigo int, texto string, armar bool) {
 			}
 			if codigo != 0 {
 				cola[i].Estado = EstadoFallo
+				continue
 			}
+			anotarHecho(root, cola[i], fin)
 		}
 		return cola, nil
 	})

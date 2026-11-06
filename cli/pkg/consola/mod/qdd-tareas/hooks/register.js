@@ -4,7 +4,7 @@
 // persona), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
 // y el resultado de un botón van en su misma sección. Cada pedido se ve en su estado: pendiente (botón con su
 // tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080), «todavía no» (pendiente, con
-// su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod lee 'qdd consola panel --json' cada INTERVALO_MS y solo dibuja; una
+// su aviso en gris: FND-082) y con falla (en rojo, con «↻ Reintentar»). La lógica vive en la CLI: el mod recibe de 'qdd consola seguir' lo mismo que da 'qdd consola panel --json' (sin ese flujo, lo lee cada INTERVALO_MS) y solo dibuja; una
 // acción se pide con 'qdd consola accion <id>', que qdd vuelve a comprobar. Lo que escribe pasa antes por «s  Sí».
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
@@ -13,19 +13,26 @@ const PANE = 'qdd-tareas'
 const TITULO = 'Tareas'
 const INTERVALO_MS = 2000
 const TOPE_MS = 3000
+// TOPE_CUADROS_MS es lo más que un efecto deja un hueco en blanco: en Linux un lote de 21 celdas tarda 7 ms, en Windows al
+// menos 200 ms; lo que tarda más se corta y se dibuja sin efecto (MEJ-017).
+const TOPE_CUADROS_MS = 250
 // TOPE_CICLO_MS: el mensaje de la persona espera al ciclo (con lo que el panel espera de ella) a lo más esto.
 const TOPE_CICLO_MS = 1500
 const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
-const OPCIONALES = ['atender']
+// «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
+const OPCIONALES = ['atender', 'herramientas', 'mejoras']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
 const LATIDO_MS = 500
 const PULSO_MIN_MS = 5000
-const ACENTO = 'cyan'
+// Los colores de la marca (qdd-movile/docs/marca/tokens.json, Gruvbox Material): el ámbar es lo que espera a la persona;
+// el texto normal queda en el color de la terminal.
+const COLOR = { espera: '#d8a657', enCurso: '#7daea3', bien: '#a9b665', falla: '#ea6962', texto: '#d4be98', sobreMarca: '#282828' }
+const ACENTO = COLOR.enCurso
 
 // ── Materializar (pedido del usuario, 2026-11-01) ──────────────────────────────────────────────────────────────────
 // Lo que cambia aparece como las ventanas del usuario (hypr-materialize): caracteres en el acento, bloques que se
@@ -34,6 +41,7 @@ const ACENTO = 'cyan'
 // materializar'); el elemento Client del panel (materializar.js) solo los reproduce. Sin Client (otra superficie) o
 // sin cuadros, se dibuja lo de siempre.
 const vistos = new Map() // clave → huella de lo último dibujado
+const cuadrosPorPedir = [] // lo que pidió el dibujo en curso
 const animaciones = new Map() // clave → { huella, n, cuadros, ms, fallo } (lo que se materializa)
 const fantasmas = new Map() // clave → { lineas, n, cuadros, ms, fallo } (un pedido que se va)
 const tarjetasVistas = new Map() // id de pedido → sus líneas, para que al irse se vaya materializando
@@ -63,25 +71,41 @@ function reproductor(clave, a) {
   return Client({ key: 'mat-' + clave + '-' + a.n, module: './materializar.js', props: { cuadros: a.cuadros, ms: a.ms, clave } })
 }
 
-// enBlanco ocupa lo mismo que el texto mientras llegan los cuadros (unos 30 ms): nada se mueve de lugar.
+// enBlanco ocupa lo mismo que el texto mientras llegan los cuadros (hasta TOPE_CUADROS_MS): nada se mueve de lugar.
 function enBlanco(Text, clave, lineas) {
   const blanco = (t) => [...t].map((c) => (c === '\uFE0F' ? '' : c.codePointAt(0) >= 0x1f000 || /[\u2300-\u27bf\u2b00-\u2bff]/.test(c) ? '  ' : ' ')).join('')
   return Text({ key: 'blanco-' + clave, children: [lineas.map((l) => l.map((x) => blanco(x.texto)).join('')).join('\n')] })
 }
 
-async function pedirCuadros($, anim, lineas, abrir) {
-  try {
-    const bin = await binario($)
-    const pedido = { lineas, abrir, semilla: anim.n, acento: datos?.efectos?.acento || ACENTO }
-    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify(pedido), timeoutMs: TOPE_MS })
-    const j = r.exitCode === 0 ? JSON.parse(r.stdout) : null
+// pedirCuadros junta lo que pide un mismo dibujo y lo manda en un solo proceso, al terminar de dibujar (MEJ-017: abrir
+// el panel lanzaba uno por celda).
+function pedirCuadros($, anim, lineas, abrir) {
+  cuadrosPorPedir.push({ anim, pedido: { lineas, abrir, semilla: anim.n, acento: datos?.efectos?.acento || ACENTO } })
+  if (cuadrosPorPedir.length === 1) Promise.resolve().then(() => vaciarCuadros($))
+}
+
+async function vaciarCuadros($) {
+  const pendientes = cuadrosPorPedir.splice(0)
+  const lote = await loteDeCuadros($, pendientes.map((p) => p.pedido))
+  pendientes.forEach(({ anim }, i) => {
+    const j = lote[i]
     anim.cuadros = Array.isArray(j?.cuadros) && j.cuadros.length ? j.cuadros : null
     anim.ms = j?.cuadro_ms || 40
     anim.fallo = !anim.cuadros
-  } catch {
-    anim.fallo = true
-  }
+  })
   $.ui.invalidate('ui.render')
+}
+
+// loteDeCuadros: sin respuesta (o de un qdd que no conoce el lote), ningún cuadro: se dibuja lo de siempre.
+async function loteDeCuadros($, pedidos) {
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'consola', 'materializar'], { stdin: JSON.stringify({ lote: pedidos }), timeoutMs: TOPE_CUADROS_MS })
+    if (r.exitCode !== 0) return []
+    return JSON.parse(r.stdout).lote || []
+  } catch {
+    return []
+  }
 }
 
 // seVan: los pedidos que estaban y ya no están se van materializando al revés (0,4 s), en el lugar del final.
@@ -101,7 +125,7 @@ function seVan($, Text, ids) {
 function lineasDeTarjeta(a) {
   const s = estadoDe(a)
   const marca = { espera: '◌', ejecutando: '⟳', hecho: '✓', fallo: '✗', armado: '◷' }[s.estado]
-  const cabeza = marca ? [{ texto: marca + '  ' + a.etiqueta, tenue: s.estado !== 'fallo', color: s.estado === 'fallo' ? 'red' : undefined }] : [{ texto: a.tecla + '  ' + a.etiqueta, negrita: true }]
+  const cabeza = marca ? [{ texto: marca + '  ' + a.etiqueta, tenue: s.estado !== 'fallo', color: s.estado === 'fallo' ? COLOR.falla : undefined }] : [{ texto: a.tecla + '  ' + a.etiqueta, negrita: true }]
   return [cabeza, [{ texto: '   $ ' + primeraLinea(a.detalle), tenue: true }]]
 }
 
@@ -119,18 +143,78 @@ const pedidosVistos = new Set() // ids de los pedidos que ya abrieron el panel
 // estado): id → { estado, fin }. Así un pedido aceptado nunca vuelve a ofrecerse.
 const locales = new Map()
 let tic = 0 // tics del latido; la fase cambia cada 2
+let rutaDirecta = null // promesa con la ruta del binario (binario)
+let enFlujo = false // hay un 'qdd consola seguir' abierto
+let sinFlujo = false // este qdd no lo trae: se lee como siempre
+let flujoProbado = false // ya entregó una línea: si se corta, se vuelve a abrir
+let lineasDelFlujo = 0 // para que una lectura lenta no pise algo más nuevo
 const destellos = {} // id → tics de destello que quedan
 const pulsos = {} // id → último pulso visto en el JSON
 let ultimoEnvio = -Infinity // cuándo se envió el último pulso a la CLI
 
+// binario: QDD_BIN manda; si no, la ruta real del binario, para no pasar por el envoltorio de Node (y en Windows, por cmd)
+// en cada llamada. Un qdd sin 'consola binario' sigue con 'qdd'.
 async function binario($) {
   const propio = await $.env.get('QDD_BIN')
-  return propio || 'qdd'
+  if (propio) return propio
+  rutaDirecta ??= resolverBinario($)
+  return rutaDirecta
+}
+
+async function resolverBinario($) {
+  try {
+    const r = await $.process.run(['qdd', 'consola', 'binario'], { timeoutMs: TOPE_MS })
+    const ruta = (r.stdout || '').trim()
+    if (r.exitCode === 0 && /^(\/|[A-Za-z]:\\)[^\n]*$/.test(ruta)) return ruta
+  } catch (err) {
+    $.ui.log('no se resolvió el binario de qdd: ' + String(err?.message ?? err))
+  }
+  return 'qdd'
+}
+
+// Flujo (RFC 0016, MEJ-020): un solo proceso, 'qdd consola seguir', trae cada cambio del panel; mientras esté abierto no
+// se lanza un proceso por lectura. Si se corta (qdd se actualizó, por ejemplo), el panel vuelve a leer, pregunta de nuevo
+// la ruta del binario y lo abre otra vez. Un qdd que no lo trae no entrega ni una línea y sigue leyendo como siempre.
+function abrirFlujo($) {
+  if (enFlujo || sinFlujo) return
+  enFlujo = true
+  seguirFlujo($)
+    .catch((err) => {
+      sinFlujo = !flujoProbado
+      $.ui.log('se cortó el flujo del panel: ' + String(err?.message ?? err))
+    })
+    .finally(() => {
+      enFlujo = false
+      rutaDirecta = null
+    })
+}
+
+async function seguirFlujo($) {
+  const bin = await binario($)
+  const stream = $.process.spawn({ argv: [bin, 'consola', 'seguir', '--con', OPCIONALES.join(',')] })
+  let resto = ''
+  for await (const trozo of stream) {
+    if (trozo.stream === 'stderr') continue
+    const lineas = (resto + trozo.text).split('\n')
+    resto = lineas.pop()
+    for (const linea of lineas) {
+      if (linea) await lineaDelFlujo($, linea)
+    }
+  }
+  sinFlujo = !flujoProbado
+}
+
+async function lineaDelFlujo($, linea) {
+  const nuevo = JSON.parse(linea)
+  flujoProbado = true
+  lineasDelFlujo += 1
+  await aplicar($, nuevo, '')
 }
 
 // leer pide el panel a la CLI y redibuja solo si cambió.
 async function leer($) {
   const bin = await binario($)
+  const lineasAntes = lineasDelFlujo
   let nuevo = null
   let motivo = ''
   try {
@@ -141,18 +225,34 @@ async function leer($) {
     nuevo = r.exitCode === 0 ? JSON.parse(r.stdout) : null
   } catch (err) {
     motivo = 'no se pudo ejecutar ' + bin + ': ' + String(err?.message ?? err)
+    rutaDirecta = null
   }
+  // Mientras se leía llegó algo del flujo: es más nuevo que esta lectura.
+  if (lineasDelFlujo !== lineasAntes) return avisar($)
+  await aplicar($, nuevo, motivo)
+}
+
+// aplicar redibuja solo si cambió, venga de una lectura o del flujo.
+async function aplicar($, nuevo, motivo) {
   const huella = JSON.stringify([nuevo, motivo])
   if (huella === firma) return avisar($)
   firma = huella
   datos = nuevo
   falla = motivo
+  await datosDeLaLinea($, nuevo)
   // Lo aceptado que qdd ya anotó (ejecutando, hecho o con falla) deja de ser local.
   for (const a of nuevo?.acciones || []) if (locales.has(a.id) && a.estado && a.estado !== 'pendiente') locales.delete(a.id)
   verPulsos()
   $.ui.invalidate('ui.render')
   await abrirSiLlegaUnPedido($)
   await avisar($)
+}
+
+// datosDeLaLinea toma lo que viaja en el JSON del panel. Un qdd que no lo trae sigue con sus lecturas propias (MEJ-020).
+async function datosDeLaLinea($, nuevo) {
+  mejoras.toca = typeof nuevo?.mejoras_toca === 'boolean' ? nuevo.mejoras_toca : null
+  herramientasEnPanel = Array.isArray(nuevo?.herramientas)
+  if (herramientasEnPanel) await aplicarHerramientas($, nuevo.herramientas)
 }
 
 // Aviso al chat (pedido del usuario, 2026-11-02: «el chat principal tiene que enterarse y verse una leyenda cuando
@@ -202,7 +302,7 @@ function banda($, e, next) {
   const filas = lista.slice(0, Math.max(1, e.props.maxRows || 1)).map((a) => {
     const tecla = teclasConfirmadas.get(a.id)
     const nombre = (tecla ? '[' + tecla + '] ' : '') + a.etiqueta
-    if (estadoDe(a).estado === 'armado') return Text({ key: 'banda-' + a.id, color: 'yellow', children: '◷ ' + nombre + ' · armado: corre solo cuando esté listo' })
+    if (estadoDe(a).estado === 'armado') return Text({ key: 'banda-' + a.id, color: COLOR.espera, children: '◷ ' + nombre + ' · armado: corre solo cuando esté listo' })
     return Text({ key: 'banda-' + a.id, color: ACENTO, children: '▶ ' + nombre + ' · en marcha' })
   })
   return Box({ key: 'banda', flexDirection: 'column', children: filas })
@@ -274,14 +374,14 @@ async function pulsar($, fuente) {
   $.process.run([bin, 'estado', 'pulso', '--fuente', fuente], { timeoutMs: TOPE_MS }).catch(() => {})
 }
 
-// enCurso: «● running» de una tarea en curso; el ● alterna tenue y brillante, y destella en acento con un pulso.
+// enCurso: «● running» de una tarea en curso; el ● alterna tenue y brillante, y destella en claro con un pulso.
 function enCurso(Text, f) {
   if (!f.actividad?.running) return []
   const destella = (destellos[f.id] || 0) > 0
   const brillante = Math.floor(tic / 2) % 2 === 0
   return [
-    Text({ key: 'run-' + f.id, color: destella ? ACENTO : colorFrente(f), dimColor: !destella && !brillante, children: ['●'] }),
-    Text({ key: 'runt-' + f.id, dimColor: true, size: 'caption', children: ['running'] }),
+    Text({ key: 'run-' + f.id, color: destella ? COLOR.texto : COLOR.enCurso, dimColor: !destella && !brillante, children: ['●'] }),
+    Text({ key: 'runt-' + f.id, color: COLOR.enCurso, size: 'caption', children: ['running'] }),
   ]
 }
 
@@ -289,8 +389,8 @@ function enCurso(Text, f) {
 async function abrirSiLlegaUnPedido($) {
   const nuevos = pedidos(datos?.acciones || []).filter((a) => ejecutable(a) && !pedidosVistos.has(a.id))
   for (const a of nuevos) pedidosVistos.add(a.id)
-  // Un PR abierto (a.pr) es opcional: se ofrece, pero no abre el panel.
-  if (!iniciado || !nuevos.some((a) => !a.pr)) return
+  // Un PR abierto (a.pr) o una versión nueva de qdd (a.version_nueva) son opcionales: se ofrecen, pero no abren el panel.
+  if (!iniciado || !nuevos.some((a) => !a.pr && !a.version_nueva)) return
   await $.ui.open({ id: PANE, title: TITULO })
 }
 
@@ -336,9 +436,26 @@ function total(n, lista) {
 
 // colorFrente: la tarea toma el color de su peor etapa.
 function colorFrente(f) {
-  if (f.simbolos.includes('❌')) return 'red'
-  if (f.simbolos.includes('⏳')) return 'yellow'
-  return 'green'
+  if (f.simbolos.includes('❌')) return COLOR.falla
+  if (f.simbolos.includes('⏳')) return COLOR.espera
+  return COLOR.bien
+}
+
+// anchoDe: las columnas de un texto; un emoji ocupa 2.
+function anchoDe(s) {
+  return [...s].reduce((n, c) => n + (/\p{Emoji_Presentation}/u.test(c) ? 2 : 1), 0)
+}
+
+// alAncho: un texto a lo más de n columnas, con «…» si sobra. Un botón dobla su texto sin mirar el wrap de sus hijos:
+// lo que va dentro de uno se corta aquí.
+function alAncho(s, n) {
+  if (anchoDe(s) <= n) return s
+  let cortado = ''
+  for (const c of s) {
+    if (anchoDe(cortado + c) > n - 1) return cortado + '…'
+    cortado += c
+  }
+  return cortado
 }
 
 // nombre: el último segmento de una ruta (con / o \\): del proyecto se ve solo el nombre de la carpeta (FND-090).
@@ -394,49 +511,57 @@ function cuantas(e) {
   return e.ocultos > 0 ? n + ' de ' + (n + e.ocultos) + ' tareas' : n + (n === 1 ? ' tarea' : ' tareas')
 }
 
-// cabecera: el título con la hora y, a la derecha, la carpeta del proyecto (solo su nombre) con el botón para abrirla;
-// debajo, el resumen en una línea con el color de cada conteo. Un conteo en cero no se muestra (FND-090). El panel no
-// abre nada por su cuenta: pide 'abrir-carpeta', que qdd ofrece solo si el sistema tiene abridor.
+// cabecera: el isotipo y el título con la hora; a la derecha, la carpeta del proyecto (solo su nombre) y la versión de
+// qdd. Debajo, el resumen con el color de cada conteo y, en su propia fila, los botones: junto al título no cabían y se
+// pisaban (FND-140). Un conteo en cero no se muestra (FND-090). El panel no abre nada por su cuenta: pide 'abrir-carpeta',
+// que qdd ofrece solo si el sistema tiene abridor.
 function cabecera(Box, Text, Button, $, e, lista) {
   const cuando = e ? e.hace || hora(e.actualizado) : ''
   const abrirla = lista.find((a) => a.id === 'abrir-carpeta')
-  const carpeta = datos.carpeta
-    ? [
-        Box({
-          key: 'carpeta',
-          flexDirection: 'row',
-          flexShrink: 1,
-          columnGap: 2,
-          children: [
-            Text({ key: 'ruta', dimColor: true, wrap: 'truncate-end', children: ['📂 ' + nombre(datos.carpeta)] }),
-            ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
-          ],
-        }),
-      ]
-    : []
+  const donde = [datos.carpeta ? nombre(datos.carpeta) : '', datos.version || ''].filter(Boolean).join(' · ')
   const fila = Box({
     flexDirection: 'row',
     justifyContent: 'space-between',
     columnGap: 2,
     children: [
-      Box({ flexShrink: 0, children: [Text({ key: 'titulo', color: 'cyan', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] })] }),
-      Box({ flexDirection: 'row', flexShrink: 1, columnGap: 2, children: [...carpeta, Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }), Button({ key: 'blueprints', label: '📦 Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }), Button({ key: 'config', label: '⚙ Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) })] }),
+      Box({
+        flexDirection: 'row',
+        flexShrink: 0,
+        columnGap: 1,
+        children: [Text({ key: 'isotipo', color: COLOR.espera, weight: 'bold', children: ['▶_'] }), Text({ key: 'titulo', weight: 'bold', size: 'title', children: [TITULO + (cuando ? ' · ' + cuando : '')] })],
+      }),
+      ...(donde ? [Box({ flexShrink: 1, children: [Text({ key: 'ruta', dimColor: true, wrap: 'truncate-start', children: [donde] })] })] : []),
     ],
   })
-  if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila] })
+  const herramientas = Box({
+    key: 'herramientas',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 2,
+    children: [
+      Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }),
+      Button({ key: 'blueprints', label: 'Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }),
+      Button({ key: 'config', label: 'Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) }),
+      ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
+    ],
+  })
+  const avisoVersion = datos.aviso_version ? [Text({ key: 'aviso-version', color: COLOR.espera, wrap: 'wrap', children: [datos.aviso_version] })] : []
+  if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila, ...avisoVersion, herramientas] })
   const aviso = e.viejo
-    ? [Text({ key: 'viejo', color: 'yellow', wrap: 'wrap', children: ['⚠ Sin actualizar ' + e.hace + ': lo que dice ⏳ puede haber cambiado'] })]
+    ? [Text({ key: 'viejo', color: COLOR.espera, wrap: 'wrap', children: ['⚠ Sin actualizar ' + e.hace + ': lo que dice ⏳ puede haber cambiado'] })]
     : []
   const esperan = total(e.esperan, e.esperas)
   const fallan = total(e.fallan, e.fallas)
   const paraTiN = lista.filter((a) => a.tipo === 'pedido' && ejecutable(a)).length
   const conteos = [
-    ...(esperan ? [Text({ key: 'r-esperas', color: 'yellow', weight: 'semibold', children: ['⏳ ' + etapas(esperan, 'espera', 'esperan')] })] : []),
-    ...(fallan ? [Text({ key: 'r-fallas', color: 'red', weight: 'semibold', children: ['❌ ' + etapas(fallan, 'falla', 'fallan')] })] : []),
-    ...(esperan || fallan || e.frentes.length === 0 ? [] : [Text({ key: 'r-limpio', color: 'green', children: ['✓ nada espera ni falla'] })]),
-    ...(paraTiN ? [Text({ key: 'r-para-ti', color: 'yellow', weight: 'semibold', children: ['▶ ' + paraTiN + ' para ti'] })] : []),
+    ...(paraTiN ? [Text({ key: 'r-para-ti', color: COLOR.sobreMarca, backgroundColor: COLOR.espera, weight: 'bold', children: ['▶ ' + paraTiN + ' para ti'] })] : []),
+    Text({ key: 'r-tareas', children: [cuantas(e)] }),
+    ...(esperan ? [Text({ key: 'r-esperas', color: COLOR.espera, weight: 'semibold', children: ['⏳ ' + etapas(esperan, 'espera', 'esperan')] })] : []),
+    ...(fallan ? [Text({ key: 'r-fallas', color: COLOR.falla, weight: 'semibold', children: ['❌ ' + etapas(fallan, 'falla', 'fallan')] })] : []),
+    ...(esperan || fallan || e.frentes.length === 0 ? [] : [Text({ key: 'r-limpio', color: COLOR.bien, children: ['✓ nada espera ni falla'] })]),
   ]
   const punto = (i) => Text({ key: 'p-' + i, dimColor: true, children: ['·'] })
+  const conPuntos = conteos.flatMap((t, i) => (i === 0 ? [t] : [punto(i), t]))
   return Box({
     key: 'cabecera',
     flexDirection: 'column',
@@ -447,9 +572,11 @@ function cabecera(Box, Text, Button, $, e, lista) {
         flexDirection: 'row',
         flexWrap: 'wrap',
         columnGap: 1,
-        children: [Text({ key: 'r-tareas', color: 'cyan', weight: 'semibold', children: [cuantas(e)] }), ...conteos.flatMap((t, i) => [punto(i), t])],
+        children: conPuntos,
       }),
       ...aviso,
+      ...avisoVersion,
+      herramientas,
     ],
   })
 }
@@ -469,8 +596,9 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   const columnas = 3 * Math.max(e.etapas.length, ...ciclos.map((c) => c.etapas.length)) + 2
   const etiqueta = (f) => (f.prefijo || '') + f.nombre + (f.notas?.length ? ' · ' + f.notas.join(' · ') : '')
   const objetivos = e.objetivos || []
-  const largo = Math.max('Tarea'.length, ...e.frentes.map((f) => etiqueta(f).length), ...objetivos.map((o) => o.nombre.length + 10))
-  const nombreAncho = Math.max(8, Math.min(largo, ancho - columnas - 3))
+  // Las etapas quedan siempre contra el borde derecho; una tarea en curso descuenta su «● running».
+  const running = e.frentes.some((f) => f.actividad?.running) ? 10 : 0
+  const nombreAncho = Math.max(8, ancho - columnas - 3 - running)
   const fila = (key, nombre, derecha, estilo, cierre) =>
     Box({
       key,
@@ -493,44 +621,63 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     const a = lista.find((x) => x.id === 'descartar:' + f.id)
     return a ? [Button({ key: 'x-' + f.id, label: '✕', plain: true, dimColor: true, onPress: () => pedir($, a) })] : []
   }
-  // nombreDe: el prefijo atenuado, el nombre con su color y a quién espera; con pregunta de qdd, todo es un botón.
+  // nombreDe: el prefijo atenuado, el nombre con su color y a quién espera, en una sola fila; con pregunta de qdd, todo
+  // es un botón.
   const nombreDe = (f) => {
+    const notas = f.notas?.length ? ' · ' + f.notas.join(' · ') : ''
+    const resto = nombreAncho - anchoDe(f.prefijo || '')
+    const corto = alAncho(f.nombre, notas ? Math.max(12, resto - anchoDe(notas)) : resto)
     const partes = [
       ...(f.prefijo ? [Text({ key: 'pre', dimColor: true, children: [f.prefijo] })] : []),
-      Text({ key: 'nom', color: colorFrente(f), children: [f.nombre] }),
-      ...(f.notas?.length ? [Text({ key: 'notas', color: 'yellow', dimColor: true, children: [' · ' + f.notas.join(' · ')] })] : []),
+      Text({ key: 'nom', color: colorFrente(f), children: [corto] }),
+      ...(notas ? [Text({ key: 'notas', color: COLOR.espera, dimColor: true, children: [alAncho(notas, resto - anchoDe(corto))] })] : []),
     ]
-    const lineas = [[...(f.prefijo ? [{ texto: f.prefijo, tenue: true }] : []), { texto: f.nombre, color: colorFrente(f) }, ...(f.notas?.length ? [{ texto: ' · ' + f.notas.join(' · '), color: 'yellow', tenue: true }] : [])]]
-    const plano = !f.pregunta ? (f.prefijo || f.notas?.length ? Text({ wrap: 'truncate-end', children: partes }) : f.nombre) : Button({ key: 'n-' + f.id, plain: true, onPress: () => preguntar($, f.pregunta), children: partes })
+    const lineas = [[...(f.prefijo ? [{ texto: f.prefijo, tenue: true }] : []), { texto: corto, color: colorFrente(f) }, ...(notas ? [{ texto: alAncho(notas, resto - anchoDe(corto)), color: COLOR.espera, tenue: true }] : [])]]
+    const plano = !f.pregunta ? (f.prefijo || notas ? Text({ wrap: 'truncate-end', children: partes }) : f.nombre) : Button({ key: 'n-' + f.id, plain: true, onPress: () => preguntar($, f.pregunta), children: partes })
     return materializa($, Text, 'n:' + f.id, lineas, plano, etiqueta(f))
   }
   const filaTarea = (f) => fila('f-' + f.id, nombreDe(f), etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])
-  const cabeceraObjetivo = (o) =>
-    Box({
+  // cabeceraObjetivo: el nombre se recorta y su estado queda siempre a la derecha. Los objetivos sin tareas a la vista
+  // van juntos, sin una línea en blanco entre cada uno.
+  const cabeceraObjetivo = (o, junto) => {
+    const estado = alAncho(o.simbolo + ' ' + o.resumen, Math.max(12, ancho - 26))
+    const titulo = alAncho('🎯 ' + o.nombre + (o.foco ? ' · foco' : ''), ancho - anchoDe(estado) - 2)
+    const color = o.foco ? datos?.efectos?.acento || ACENTO : undefined
+    return Box({
       key: 'o-' + o.id,
       flexDirection: 'row',
-      columnGap: 1,
-      marginTop: 1,
+      justifyContent: 'space-between',
+      columnGap: 2,
+      marginTop: junto ? 0 : 1,
       children: [
-        materializa(
-          $,
-          Text,
-          'o:' + o.id,
-          [[{ texto: '🎯 ' + o.nombre + (o.foco ? ' · foco' : ''), negrita: true, color: o.foco ? datos?.efectos?.acento || ACENTO : undefined }]],
-          Button({ key: 'o-' + o.id + '-nombre', plain: true, onPress: () => preguntar($, o.pregunta), children: [Text({ key: 'o', weight: 'bold', color: o.foco ? ACENTO : undefined, children: ['🎯 ' + o.nombre + (o.foco ? ' · foco' : '')] })] }),
-          o.nombre + (o.foco ? '·foco' : ''),
-        ),
-        Text({ key: 'o-estado', dimColor: true, wrap: 'truncate-end', children: [o.simbolo + ' ' + o.resumen] }),
+        Box({
+          flexShrink: 1,
+          children: [
+            materializa(
+              $,
+              Text,
+              'o:' + o.id,
+              [[{ texto: titulo, negrita: true, color }]],
+              Button({ key: 'o-' + o.id + '-nombre', plain: true, onPress: () => preguntar($, o.pregunta), children: [Text({ key: 'o', weight: 'bold', color, children: [titulo] })] }),
+              o.nombre + (o.foco ? '·foco' : ''),
+            ),
+          ],
+        }),
+        Box({ flexShrink: 0, children: [Text({ key: 'o-estado', dimColor: true, children: [estado] })] }),
       ],
     })
+  }
   const cabeceraCiclo = (o, c) => fila('cab-' + o.id, null, [Text({ dimColor: true, size: 'caption', children: [c.abreviaturas.join(' ')] })], {}, [])
   const filas = []
   if (objetivos.length === 0) filas.push(...e.frentes.map(filaTarea))
+  let anteriorVacio = false
   for (const o of objetivos) {
-    filas.push(cabeceraObjetivo(o))
+    const tareas = e.frentes.filter((f) => f.objetivo === o.id)
+    filas.push(cabeceraObjetivo(o, anteriorVacio && tareas.length === 0))
+    anteriorVacio = tareas.length === 0
     const c = cicloDe(o)
     if (c) filas.push(cabeceraCiclo(o, c))
-    filas.push(...e.frentes.filter((f) => f.objetivo === o.id).map(filaTarea))
+    filas.push(...tareas.map(filaTarea))
   }
   const sueltas = objetivos.length ? e.frentes.filter((f) => !f.objetivo) : []
   if (sueltas.length) {
@@ -549,7 +696,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       ...filasGoal(Text),
       ...filas,
       ...antiguas,
-      ...leyendas.map((l, i) => Text({ key: 'leyenda-' + i, dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: [l] })),
+      ...leyendas.map((l, i) => Text({ key: 'leyenda-' + i, dimColor: true, size: 'caption', wrap: 'wrap', children: [l] })),
       ...enZona(Box, Text, Button, $, 'tabla'),
     ],
   })
@@ -574,13 +721,13 @@ async function releer($) {
 function fallas(Box, Text, items, ancho) {
   if (items.length === 0) return []
   return [
-    separador(Box, Text, 's-fallas', '❌ Fallas', 'red', String(items.length), ancho),
+    separador(Box, Text, 's-fallas', '❌ Fallas', COLOR.falla, String(items.length), ancho),
     ...items.map((p, i) =>
       Box({
         key: 's-fallas-' + i,
         flexDirection: 'column',
         children: [
-          Text({ color: 'red', wrap: 'wrap', children: ['• ' + p.frente + ' › ' + p.etapa] }),
+          Text({ color: COLOR.falla, wrap: 'wrap', children: ['• ' + p.frente + ' › ' + p.etapa] }),
           Text({ dimColor: true, wrap: 'wrap', children: ['  ' + p.texto] }),
         ],
       }),
@@ -607,7 +754,7 @@ function teclas(acciones) {
     if (a.id === 'auditar') asignadas[a.id] = 'u'
     if (a.id === 'abrir-carpeta') asignadas[a.id] = 'o'
     if (a.id === 'mejoras-ciclo') asignadas[a.id] = 'm'
-    if (a.id === ACCION_GOAL || a.id === 'goal-desactivar') asignadas[a.id] = 'k'
+    if (a.id === ACCION_GOAL || a.id === 'goal-desactivar') asignadas[a.id] = 'z'
   }
   return asignadas
 }
@@ -705,13 +852,13 @@ function confirmacion(Box, Text, Button, $) {
     key: 'confirmar',
     flexDirection: 'column',
     borderStyle: 'single',
-    borderColor: 'yellow',
+    borderColor: COLOR.espera,
     paddingX: 1,
     children: [
-      Text({ color: 'yellow', dimColor: true, size: 'caption', children: [a.tipo === 'pedido' ? 'Confirma antes de ejecutar' : 'Escribe en el proyecto'] }),
-      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
+      Text({ color: COLOR.espera, dimColor: true, size: 'caption', children: [a.tipo === 'pedido' ? 'Confirma antes de ejecutar' : 'Escribe en el proyecto'] }),
+      Text({ color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
       Text({ dimColor: a.tipo !== 'pedido', mono: a.tipo === 'pedido', wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
-      ...(a.tipo === 'pedido' && a.estado === 'espera' ? [Text({ color: 'yellow', wrap: 'wrap', children: ['◷ Corre solo cuando ' + esperaDe(a) + ' termine: tu intención queda tomada.'] })] : []),
+      ...(a.tipo === 'pedido' && a.estado === 'espera' ? [Text({ color: COLOR.espera, wrap: 'wrap', children: ['◷ Corre solo cuando ' + esperaDe(a) + ' termine: tu intención queda tomada.'] })] : []),
       ...(a.carpeta ? [Text({ dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['En: ' + enProyecto(a.carpeta)] })] : []),
       Box({
         flexDirection: 'row',
@@ -790,8 +937,8 @@ function tarjeta(Box, Text, Button, $, a) {
     const intento = a.intentos ? ' · intento ' + a.intentos : ''
     const proximo = !a.espera?.length && hora(a.proximo) ? ' · reintenta ' + hora(a.proximo) : ''
     const dijo = a.aviso ? [Text({ key: 'aviso', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   ' + a.aviso.trim().split('\n').slice(-1)[0]] })] : []
-    return caja(Text({ key: 'que', color: 'yellow', weight: 'bold', wrap: 'truncate-end', children: ['◷  ' + a.etiqueta] }), [
-      Text({ key: 'armado', color: 'yellow', wrap: 'wrap', children: ['   Armado · corre solo ' + cuando + intento + proximo] }),
+    return caja(Text({ key: 'que', color: COLOR.espera, weight: 'bold', wrap: 'truncate-end', children: ['◷  ' + a.etiqueta] }), [
+      Text({ key: 'armado', color: COLOR.espera, wrap: 'wrap', children: ['   Armado · corre solo ' + cuando + intento + proximo] }),
       ...dijo,
       comando,
       ...meta(),
@@ -815,9 +962,9 @@ function tarjeta(Box, Text, Button, $, a) {
   }
   if (s.estado === 'fallo') {
     const error = (s.resultado || '').trim().split('\n').slice(-2).join('\n')
-    return caja(Text({ key: 'que', color: 'red', weight: 'semibold', wrap: 'wrap', children: ['✗  ' + a.etiqueta] }), [
+    return caja(Text({ key: 'que', color: COLOR.falla, weight: 'semibold', wrap: 'wrap', children: ['✗  ' + a.etiqueta] }), [
       comando,
-      ...(error ? [Text({ key: 'error', color: 'red', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   ' + error] })] : []),
+      ...(error ? [Text({ key: 'error', color: COLOR.falla, dimColor: true, size: 'caption', wrap: 'wrap', children: ['   ' + error] })] : []),
       ...meta(hora(s.fin) ? 'falló ' + hora(s.fin) : 'falló'),
       Box({ key: 'reintentar', paddingLeft: 3, children: [Button({ key: 'b-' + a.id, label: a.tecla + '  ↻ Reintentar', hotkey: a.tecla, onPress: () => pedir($, a) })] }),
     ])
@@ -826,7 +973,7 @@ function tarjeta(Box, Text, Button, $, a) {
   // dijo. Se puede volver a confirmar.
   const aviso = a.aviso
     ? [
-        Text({ key: 'aviso-t', color: 'yellow', weight: 'bold', size: 'caption', children: ['   ◷ Todavía no' + (hora(a.aviso_en) ? ' · ' + hora(a.aviso_en) : '')] }),
+        Text({ key: 'aviso-t', color: COLOR.espera, weight: 'bold', size: 'caption', children: ['   ◷ Todavía no' + (hora(a.aviso_en) ? ' · ' + hora(a.aviso_en) : '')] }),
         Text({ key: 'aviso', dimColor: true, size: 'caption', wrap: 'wrap', children: ['   ' + a.aviso.trim().split('\n').slice(-1)[0]] }),
       ]
     : []
@@ -839,7 +986,7 @@ function enZona(Box, Text, Button, $, aqui) {
   const pregunta = confirmando && zona(confirmando) === aqui && aqui !== 'pedidos' ? [confirmacion(Box, Text, Button, $)] : []
   if (!resultado || resultado.zona !== aqui) return pregunta
   const marca = resultado.todaviaNo ? '◌ ' : resultado.ok ? '✓ ' : '✗ '
-  const tinte = resultado.todaviaNo ? undefined : resultado.ok ? 'green' : 'red'
+  const tinte = resultado.todaviaNo ? undefined : resultado.ok ? COLOR.bien : COLOR.falla
   return [
     ...pregunta,
     Box({
@@ -875,7 +1022,7 @@ function paraTi(Box, Text, Button, $, lista, ancho) {
   const dibujo = (a) => materializa($, Text, 'p:' + a.id, lineasDeTarjeta(a), tarjeta(Box, Text, Button, $, a), estadoDe(a).estado + '|' + a.tecla + '|' + a.etiqueta)
   const cuerpo = [...[...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))), ...seVa]
   return [
-    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer ? 'yellow' : undefined, resumen, ancho),
+    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer ? COLOR.espera : undefined, resumen, ancho),
     Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: cuerpo }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
@@ -898,9 +1045,9 @@ function acciones(Box, Text, Button, $, todas, ancho) {
   ]
 }
 
-// pie: cómo se usa y la versión de qdd, en una línea atenuada.
-function pie(Text, version) {
-  return Text({ key: 'pie', dimColor: true, italic: true, size: 'caption', wrap: 'wrap', children: ['nombre → ¿cómo vamos? · ⏳/❌ clic → la IA lo atiende · l ↻ · botones: clic o tecla · foco: /tareas' + (version ? ' · ' + version : '')] })
+// pie: cómo se usa lo que no tiene tecla, en una línea atenuada.
+function pie(Text) {
+  return Text({ key: 'pie', dimColor: true, size: 'caption', wrap: 'wrap', children: ['nombre → ¿cómo vamos? · ⏳/❌ → la IA · foco: /tareas'] })
 }
 
 function sinEstado(Box, Text, motivo) {
@@ -909,7 +1056,7 @@ function sinEstado(Box, Text, motivo) {
     flexDirection: 'column',
     children: [
       Text({ dimColor: true, wrap: 'wrap', children: [motivo || 'No hay tareas en este proyecto.'] }),
-      Text({ dimColor: true, wrap: 'wrap', children: ["Se crea con 'qdd estado init' (blueprint estado-por-tareas, destino «archivo»)."] }),
+      Text({ dimColor: true, wrap: 'wrap', children: ['Las etapas son las columnas del tablero: elige las tuyas.'] }),
     ],
   })
 }
@@ -929,7 +1076,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
       ...paraTi(Box, Text, Button, $, pedidos(lista), ancho),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
-      Box({ marginTop: 1, children: [pie(Text, datos.version)] }),
+      Box({ marginTop: 1, children: [pie(Text)] }),
     ],
   })
 }
@@ -980,12 +1127,12 @@ async function atajo($, a, vaciar) {
   if (r?.deny) $.ui.log('el panel no tomó el foco: ' + r.deny)
 }
 
-// ── 📦 Blueprints (pedido del usuario, 2026-11-01) ───────────────────────────────────────────────────────────────
+// ── Blueprints (pedido del usuario, 2026-11-01) ───────────────────────────────────────────────────────────────
 // Los instalados y los disponibles, con sus cuentas, los da 'qdd consola blueprints --json' sin red ni IA. ↻ trae el
 // catálogo; ⬆ Actualizar y ＋ Instalar son comandos de qdd que escriben el lockfile (con «s  Sí»); ✦ Aplicar es lo único
 // que le escribe a la IA, con el mensaje que da qdd. Después de cada acción se relee y se dice cuántos cambiaron.
 let bps = null // null | { inv, acciones, confirmando, resultado, falla }
-const SIMBOLO_BP = { 'con-cambios': ['✦', 'magenta'], 'solo-lock': ['⬆', 'yellow'], 'sin-medir': ['?', undefined], 'al-dia': ['✓', 'green'], disponible: ['＋', undefined] }
+const SIMBOLO_BP = { 'con-cambios': ['✦', COLOR.enCurso], 'solo-lock': ['⬆', COLOR.espera], 'sin-medir': ['?', undefined], 'al-dia': ['✓', COLOR.bien], disponible: ['＋', undefined] }
 const ESTADO_BP = { 'con-cambios': 'cambia la receta', 'solo-lock': 'sin la IA', 'sin-medir': 'sin medir', 'al-dia': 'al día', disponible: 'disponible' }
 
 async function abrirBlueprints($) {
@@ -1080,9 +1227,9 @@ function plural(n, uno, varios) {
 }
 
 function vistaBlueprints($, Box, Text, Button, ancho) {
-  const titulo = separador(Box, Text, 't-blueprints', '📦 Blueprints', undefined, 'p cierra', ancho)
+  const titulo = separador(Box, Text, 't-blueprints', 'Blueprints', undefined, 'p cierra', ancho)
   if (!bps.inv && !bps.falla) return [titulo, Text({ key: 'bp-leyendo', dimColor: true, children: ['leyendo…'] })]
-  if (!bps.inv) return [titulo, Text({ key: 'bp-falla', color: 'red', wrap: 'wrap', children: ['✗ ' + bps.falla] })]
+  if (!bps.inv) return [titulo, Text({ key: 'bp-falla', color: COLOR.falla, wrap: 'wrap', children: ['✗ ' + bps.falla] })]
   const inv = bps.inv
   const acciones = bps.acciones || []
   const deEntrada = (id) => acciones.filter((a) => a.id.endsWith(':' + id) && a.id !== PREFIJO_BP + 'sync')
@@ -1090,7 +1237,7 @@ function vistaBlueprints($, Box, Text, Button, ancho) {
   const generales = acciones.filter((a) => a.id === PREFIJO_BP + 'sync' || a.id === PREFIJO_BP + 'actualizar-sin-ia')
   const teclaGeneral = { [PREFIJO_BP + 'sync']: 'r', [PREFIJO_BP + 'actualizar-sin-ia']: 'u' }
   const botones = generales.map((a) => (bps.confirmando?.id === a.id ? confirmarBP($, Box, Text, Button) : Button({ key: 'bp-' + a.id, label: teclaGeneral[a.id] + '  ' + a.etiqueta, hotkey: teclaGeneral[a.id], plain: true, onPress: () => pedirBP($, a) })))
-  const problemas = (inv.problemas || []).map((p, i) => Text({ key: 'bp-problema-' + i, color: 'yellow', wrap: 'wrap', children: ['⚠ ' + p] }))
+  const problemas = (inv.problemas || []).map((p, i) => Text({ key: 'bp-problema-' + i, color: COLOR.espera, wrap: 'wrap', children: ['⚠ ' + p] }))
   const grupos = [
     ['Para actualizar', inv.entradas.filter((e) => e.estado === 'con-cambios' || e.estado === 'solo-lock')],
     ['Instalados', inv.entradas.filter((e) => e.estado === 'al-dia' || e.estado === 'sin-medir')],
@@ -1143,11 +1290,11 @@ function confirmarBP($, Box, Text, Button) {
     key: 'bp-confirmar',
     flexDirection: 'column',
     borderStyle: 'single',
-    borderColor: 'yellow',
+    borderColor: COLOR.espera,
     paddingX: 1,
     children: [
-      Text({ color: 'yellow', dimColor: true, size: 'caption', children: ['Escribe en el proyecto'] }),
-      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
+      Text({ color: COLOR.espera, dimColor: true, size: 'caption', children: ['Escribe en el proyecto'] }),
+      Text({ color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: ['¿' + a.etiqueta + '?'] }),
       Text({ mono: true, wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
       Box({
         flexDirection: 'row',
@@ -1173,7 +1320,7 @@ function confirmarBP($, Box, Text, Button) {
 function resultadoBP(Box, Text) {
   const r = bps.resultado
   if (!r) return []
-  const tinte = r.ok ? 'green' : 'red'
+  const tinte = r.ok ? COLOR.bien : COLOR.falla
   return [
     Box({
       key: 'bp-resultado',
@@ -1196,7 +1343,7 @@ function resultadoBP(Box, Text) {
 // Cada herramienta guardada (.qdd/herramientas/<id>.yaml) es su propio panel, 'qdd-herr-<id>', con su nombre como
 // pestaña. Sus acciones son botones; cada una abre sus campos y ▶ Correr, que pide 'qdd herramienta correr' (sin shell:
 // cada campo llega como un argumento). La salida va debajo: completa al terminar (una-vez) o mientras corre, hasta
-// ■ Detener (en-vivo). Usarla no le pide nada a la IA. ⚙ Config, en el panel de tareas, las lista para abrirlas o
+// ■ Detener (en-vivo). Usarla no le pide nada a la IA. Config, en el panel de tareas, las lista para abrirlas o
 // quitarlas y guía para agregar una: la IA arma su definición una vez, con el mensaje que da qdd, y QDD la valida, la
 // prueba y la guarda. La lógica vive en la CLI; el panel solo dibuja y pide.
 const PANE_HERRAMIENTA = 'qdd-herr-'
@@ -1206,6 +1353,7 @@ const CADA_LECTURAS = 5 // las herramientas se releen cada 5 lecturas del panel 
 let herramientas = []
 let firmaHerramientas = ''
 let lecturas = 0
+let herramientasEnPanel = false // el JSON del panel las trae: no hace falta «herramienta listar»
 let config = null // null | { vista: 'lista' | 'agregar' | 'ia', candidatos, elegido, quitando, guardada, aviso }
 const sesionesHerr = {} // id → { accion, valores, confirmando, aviso, corrida, salida, fin }
 
@@ -1225,6 +1373,10 @@ async function leerHerramientas($) {
   } catch {
     lista = []
   }
+  await aplicarHerramientas($, lista)
+}
+
+async function aplicarHerramientas($, lista) {
   const huella = JSON.stringify(lista)
   if (huella === firmaHerramientas) return
   firmaHerramientas = huella
@@ -1361,7 +1513,7 @@ function campoDe($, Input, Select, s, c) {
 // formulario: los campos de la acción elegida, ▶ Correr o su «¿Seguro?», y lo que falta.
 function formulario($, Box, Text, Button, Input, Select, h, s, a) {
   const campos = (a.campos || []).map((c) => campoDe($, Input, Select, s, c))
-  const aviso = s.aviso ? [Text({ key: 'h-aviso', color: 'yellow', wrap: 'wrap', children: [s.aviso] })] : []
+  const aviso = s.aviso ? [Text({ key: 'h-aviso', color: COLOR.espera, wrap: 'wrap', children: [s.aviso] })] : []
   const no = () => {
     s.confirmando = false
     $.ui.invalidate('ui.render')
@@ -1370,10 +1522,10 @@ function formulario($, Box, Text, Button, Input, Select, h, s, a) {
     key: 'h-confirmar',
     flexDirection: 'column',
     borderStyle: 'single',
-    borderColor: 'yellow',
+    borderColor: COLOR.espera,
     paddingX: 1,
     children: [
-      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿Seguro? ' + a.nombre] }),
+      Text({ color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: ['¿Seguro? ' + a.nombre] }),
       Box({
         flexDirection: 'row',
         columnGap: 2,
@@ -1395,7 +1547,7 @@ function salidaDe($, Box, Text, Button, s) {
     ? Text({ key: 'h-estado', dimColor: true, children: ['⟳ ' + s.corrida.nombre + ' · corriendo…'] })
     : s.fin.detenida
       ? Text({ key: 'h-estado', dimColor: true, children: ['■ ' + s.fin.nombre + ' · detenida'] })
-      : Text({ key: 'h-estado', color: s.fin.ok ? 'green' : 'red', weight: 'semibold', children: [(s.fin.ok ? '✓ ' : '✗ ') + s.fin.nombre + (s.fin.ok || s.fin.codigo === undefined ? '' : ' · salió con ' + s.fin.codigo)] })
+      : Text({ key: 'h-estado', color: s.fin.ok ? COLOR.bien : COLOR.falla, weight: 'semibold', children: [(s.fin.ok ? '✓ ' : '✗ ') + s.fin.nombre + (s.fin.ok || s.fin.codigo === undefined ? '' : ' · salió con ' + s.fin.codigo)] })
   const detenerla = s.corrida?.enVivo ? [Button({ key: 'h-detener', label: 'd  ■ Detener', hotkey: 'd', onPress: () => detener($, s) })] : []
   const texto = s.salida.replace(/\n+$/, '')
   return [
@@ -1406,7 +1558,7 @@ function salidaDe($, Box, Text, Button, s) {
 
 function dibujarHerramienta($, Box, Text, Button, Input, Select, id) {
   const h = herramientas.find((x) => x.id === id)
-  if (!h) return Text({ dimColor: true, wrap: 'wrap', children: ['Esta herramienta ya no está en el proyecto. ⚙ Config, en el panel de tareas, lista las que hay.'] })
+  if (!h) return Text({ dimColor: true, wrap: 'wrap', children: ['Esta herramienta ya no está en el proyecto. Config, en el panel de tareas, lista las que hay.'] })
   const s = sesionHerr(id)
   const a = h.acciones.find((x) => x.id === s.accion)
   const botones = h.acciones.map((x, i) =>
@@ -1415,9 +1567,9 @@ function dibujarHerramienta($, Box, Text, Button, Input, Select, id) {
   return Box({
     flexDirection: 'column',
     children: [
-      Text({ key: 'h-nombre', color: 'cyan', weight: 'bold', size: 'title', children: [h.nombre] }),
+      Text({ key: 'h-nombre', weight: 'bold', size: 'title', children: [h.nombre] }),
       ...(h.descripcion ? [Text({ key: 'h-desc', dimColor: true, wrap: 'wrap', children: [h.descripcion] })] : []),
-      ...(h.aviso ? [Text({ key: 'h-falta', color: 'yellow', wrap: 'wrap', children: ['⚠ ' + h.aviso] })] : []),
+      ...(h.aviso ? [Text({ key: 'h-falta', color: COLOR.espera, wrap: 'wrap', children: ['⚠ ' + h.aviso] })] : []),
       Box({ key: 'h-acciones', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, marginTop: 1, children: botones }),
       ...(a ? formulario($, Box, Text, Button, Input, Select, h, s, a) : [Text({ key: 'h-elige', dimColor: true, size: 'caption', children: ['Elige una acción.'] })]),
       ...salidaDe($, Box, Text, Button, s),
@@ -1426,7 +1578,7 @@ function dibujarHerramienta($, Box, Text, Button, Input, Select, id) {
   })
 }
 
-// ⚙ Config (en el panel de tareas): las herramientas del proyecto y el paso a paso para agregar una.
+// Config (en el panel de tareas): las herramientas del proyecto y el paso a paso para agregar una.
 async function abrirConfig($) {
   config = config ? null : { vista: 'lista' }
   bps = null
@@ -1496,7 +1648,7 @@ function filaHerramienta($, Box, Text, Button, h) {
         flexDirection: 'column',
         flexShrink: 1,
         children: [
-          Text({ key: 'h-n-' + h.id, color: h.aviso ? 'yellow' : undefined, weight: 'semibold', wrap: 'truncate-end', children: [h.nombre] }),
+          Text({ key: 'h-n-' + h.id, color: h.aviso ? COLOR.espera : undefined, weight: 'semibold', wrap: 'truncate-end', children: [h.nombre] }),
           Text({ key: 'h-d-' + h.id, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [h.aviso ? '⚠ ' + h.aviso : h.acciones.length + (h.acciones.length === 1 ? ' acción' : ' acciones') + ' · ' + h.comando.join(' ')] }),
         ],
       }),
@@ -1526,10 +1678,10 @@ function confirmarQuitar($, Box, Text, Button, h) {
     key: 'h-confirmar-quitar',
     flexDirection: 'column',
     borderStyle: 'single',
-    borderColor: 'yellow',
+    borderColor: COLOR.espera,
     paddingX: 1,
     children: [
-      Text({ color: 'yellow', weight: 'bold', wrap: 'wrap', children: ['¿Quitar «' + h.nombre + '»?'] }),
+      Text({ color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: ['¿Quitar «' + h.nombre + '»?'] }),
       Text({ dimColor: true, wrap: 'wrap', children: ['Borra ' + h.archivo + ' y cierra su pestaña.'] }),
       Box({
         flexDirection: 'row',
@@ -1564,12 +1716,12 @@ function vistaConfig($, Box, Text, Button, Input, ancho) {
       $.ui.invalidate('ui.render')
     },
   })
-  const aviso = config.aviso ? [Text({ key: 'h-config-aviso', color: 'red', wrap: 'wrap', children: [config.aviso] })] : []
+  const aviso = config.aviso ? [Text({ key: 'h-config-aviso', color: COLOR.falla, wrap: 'wrap', children: [config.aviso] })] : []
   let cuerpo = []
   if (config.vista === 'lista') {
     const filas = herramientas.map((h) => (config.quitando === h.id ? confirmarQuitar($, Box, Text, Button, h) : filaHerramienta($, Box, Text, Button, h)))
     cuerpo = [
-      ...(config.guardada ? [Text({ key: 'h-guardada', color: 'green', wrap: 'wrap', children: ['✓ ' + config.guardada + ' quedó guardada: ya es una pestaña'] })] : []),
+      ...(config.guardada ? [Text({ key: 'h-guardada', color: COLOR.bien, wrap: 'wrap', children: ['✓ ' + config.guardada + ' quedó guardada: ya es una pestaña'] })] : []),
       ...(filas.length ? filas : [Text({ key: 'h-vacio', dimColor: true, wrap: 'wrap', children: ['No hay herramientas. Agrega un ejecutable del proyecto (un simulador, un visor de logs, un migrador) y queda como pestaña.'] })]),
       Box({ key: 'h-agregar-fila', children: [Button({ key: 'h-agregar', label: '+ Agregar herramienta', variant: 'primary', onPress: () => agregar($) })] }),
     ]
@@ -1585,33 +1737,38 @@ function vistaConfig($, Box, Text, Button, Input, ancho) {
   }
   if (config.vista === 'ia') {
     cuerpo = [
-      Text({ key: 'h-paso-1', color: 'green', wrap: 'truncate-end', children: ['✓ 1 · ' + config.elegido] }),
-      ...PASOS.map((p, i) => Text({ key: 'h-paso-' + (i + 2), dimColor: i > 0, color: i === 0 ? 'yellow' : undefined, wrap: 'wrap', children: [(i === 0 ? '⟳ ' : '· ') + (i + 2) + ' · ' + p] })),
+      Text({ key: 'h-paso-1', color: COLOR.bien, wrap: 'truncate-end', children: ['✓ 1 · ' + config.elegido] }),
+      ...PASOS.map((p, i) => Text({ key: 'h-paso-' + (i + 2), dimColor: i > 0, color: i === 0 ? COLOR.espera : undefined, wrap: 'wrap', children: [(i === 0 ? '⟳ ' : '· ') + (i + 2) + ' · ' + p] })),
       cancelar,
     ]
   }
   return [
-    separador(Box, Text, 't-config', '⚙ Herramientas del proyecto', undefined, 'k cierra', ancho),
+    separador(Box, Text, 't-config', 'Herramientas del proyecto', undefined, 'k cierra', ancho),
     Box({ key: 'h-config', flexDirection: 'column', rowGap: 1, children: [...aviso, ...cuerpo] }),
   ]
 }
 
 // COMANDO_QDD: qdd en posición de comando (al inicio o tras ; & | ( ` o un salto de línea), con asignaciones VAR=…
-// delante, con o sin ruta (./qdd, $S/qdd, ~/.local/bin/qdd) y con o sin sufijo (qdd-rc10, qdd.exe). Una carpeta o un
-// archivo llamado qdd en los argumentos no cuenta (FND-106).
-const COMANDO_QDD = /(?:^|[;&|(\n`])\s*(?:\w+=\S*\s+)*(?:\S*\/)?qdd(?:[-.][\w.-]*)?(?=\s|$)/
+// delante, con o sin ruta (./qdd, $S/qdd, ~/.local/bin/qdd, .\qdd.exe, C:\tools\qdd.exe), con la ruta entre comillas si
+// lleva espacios (& "C:\Program Files\qdd.exe") y con o sin sufijo (qdd-rc10, qdd.exe). Una carpeta o un archivo llamado
+// qdd en los argumentos no cuenta (FND-106, FND-146).
+const COMANDO_QDD = /(?:^|[;&|(\n`])\s*(?:\w+=\S*\s+)*(?:(["'])(?:[^"'\n]*[/\\])?qdd(?:[-.][\w.-]*)?\1|(?:\S*[/\\])?qdd(?:[-.][\w.-]*)?)(?=\s|$)/
+
+// HERRAMIENTAS_SHELL: las que corren un comando; en Windows Claude Code también tiene PowerShell (FND-146).
+const HERRAMIENTAS_SHELL = new Set(['Bash', 'PowerShell'])
 
 // cambiaElPanel: una tool MCP de qdd o un comando de shell que corre qdd.
 function cambiaElPanel(e) {
   if (/__qdd_/.test(String(e.tool || ''))) return true
-  return e.tool === 'Bash' && COMANDO_QDD.test(String(e.command || ''))
+  return HERRAMIENTAS_SHELL.has(e.tool) && COMANDO_QDD.test(String(e.command || ''))
 }
 
 // cicloConContexto marca el ciclo y devuelve lo que el panel espera de la persona ('' si nada cambió). Un qdd anterior
 // a --contexto igual marca el ciclo.
 async function cicloConContexto($, bin, modo) {
   try {
-    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto'], { timeoutMs: TOPE_CICLO_MS })
+    const mia = await sesionPropia($)
+    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto', ...(mia ? ['--sesion', mia] : [])], { timeoutMs: TOPE_CICLO_MS })
     if (r.exitCode === 0) return (r.stdout || '').trim()
     if (/unknown flag/.test(r.stderr || '')) await $.process.run([bin, 'consola', 'ciclo', '--modo', modo], { timeoutMs: TOPE_MS })
   } catch (err) {
@@ -1852,10 +2009,10 @@ async function cerrarTelefono($) {
 // (nunca se lee como «!» ni «/»). Con un qdd sin «mejoras», deja de pedirlo. El botón «Ciclo de mejoras» del panel lo
 // fuerza sin esperar.
 const MEJORAS_MS = 60000
-const mejoras = { soportado: true, corriendo: false }
+const mejoras = { soportado: true, corriendo: false, toca: null } // toca: lo que dijo el panel; null, no lo dice
 
 async function cicloMejoras($) {
-  if (!interactiva || !mejoras.soportado || mejoras.corriendo) return
+  if (!interactiva || !mejoras.soportado || mejoras.corriendo || mejoras.toca === false) return
   mejoras.corriendo = true
   try {
     await pedirCicloMejoras($)
@@ -1896,10 +2053,10 @@ async function pedirCicloMejoras($) {
 // está haciendo algo. Todo lo decide qdd, sin modelos: qué elegir, cuándo recordar y cuándo detenerse. Si devuelve un
 // mensaje, la IA lo recibe (empieza con 🎯: nunca se lee como «!» ni «/»); si devuelve un aviso, le llega a la persona.
 // Solo la persona lo activa: el botón del panel pasa por su confirmación y es lo único que limpia CLAUDECODE. Una IA que
-// lo intenta por Bash recibe una negativa aquí y, si lo esquiva, un rechazo de qdd.
+// lo intenta por una herramienta de shell recibe una negativa aquí y, si lo esquiva, un rechazo de qdd (FND-146).
 const GOAL_MS = 5000
 const ACCION_GOAL = 'goal-activar'
-const ACTIVA_GOAL = /\bqdd(\.exe)?\s+(goal\s+activar|consola\s+accion\s+goal-activar)\b/
+const ACTIVA_GOAL = /\bqdd(?:[-.][\w.-]*)?["']?\s+(goal\s+activar|consola\s+accion\s+goal-activar)\b/
 const MOTIVOS_GOAL = {
   sin_consola: 'sin una sesión abierta',
   sin_avance: '3 recordatorios sin avance',
@@ -1927,7 +2084,7 @@ function filasGoal(Text) {
   const g = datos?.goal
   if (!g?.activo) return []
   return [
-    Text({ key: 'goal', color: g.estado === 'pausado' ? 'yellow' : undefined, weight: 'bold', wrap: 'truncate-end', children: ['🎯 Modo goal · ' + textoGoal(g)] }),
+    Text({ key: 'goal', color: g.estado === 'pausado' ? COLOR.espera : undefined, weight: 'bold', wrap: 'truncate-end', children: ['🎯 Modo goal · ' + textoGoal(g)] }),
     ...(g.elegidas || []).slice(0, 3).map((x, i) => Text({ key: 'goal-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: ['  ✓ ' + x.etiqueta + ' → ' + x.eleccion] })),
   ]
 }
@@ -1987,7 +2144,7 @@ export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
     await leer($)
-    await leerHerramientas($)
+    if (!herramientasEnPanel) await leerHerramientas($)
     if (interactiva) {
       await latirTelefono($)
       $.clock.every(TELEFONO_MS, async () => {
@@ -1999,15 +2156,17 @@ export function register(on) {
       $.clock.every(GOAL_MS, async () => {
         await cicloGoal($)
       })
+      abrirFlujo($)
+      $.clock.every(INTERVALO_MS, async () => {
+        await (enFlujo ? avisar($) : leer($))
+        abrirFlujo($)
+        lecturas += 1
+        if (lecturas % CADA_LECTURAS === 0 && !herramientasEnPanel) await leerHerramientas($)
+      })
+      $.clock.every(LATIDO_MS, async () => {
+        latir($)
+      })
     }
-    $.clock.every(INTERVALO_MS, async () => {
-      await leer($)
-      lecturas += 1
-      if (lecturas % CADA_LECTURAS === 0) await leerHerramientas($)
-    })
-    $.clock.every(LATIDO_MS, async () => {
-      latir($)
-    })
     // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
     if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
     // Cada herramienta guardada es una pestaña, sin quitarle el foco a la conversación (RFC 0011).
@@ -2042,7 +2201,7 @@ export function register(on) {
   on('tool.call', async ($, e, next) => {
     pulsar($, 'agente')
     hubo()
-    if (e.tool === 'Bash' && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
+    if (HERRAMIENTAS_SHELL.has(e.tool) && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
     const seguir = !e.agentId && e.tool_use_id
     if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
     try {

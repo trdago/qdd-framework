@@ -42,6 +42,8 @@ func init() {
 // las duraciones, si no vienen, son los del estilo del usuario.
 type pedidoMaterializar struct {
 	Lineas []materializar.Linea `json:"lineas"`
+	// Lote son varios pedidos de un mismo dibujo, en un solo proceso (MEJ-017): la respuesta trae uno por cada uno, en orden.
+	Lote []pedidoMaterializar `json:"lote"`
 	materializar.Opciones
 }
 
@@ -50,12 +52,36 @@ type respuestaMaterializar struct {
 	Cuadros  [][]materializar.Linea `json:"cuadros"`
 }
 
+type respuestaLote struct {
+	Lote []respuestaMaterializar `json:"lote"`
+}
+
 func consolaMaterializar(in io.Reader, out, errs io.Writer, estilo materializar.Estilo) int {
 	var p pedidoMaterializar
 	if err := json.NewDecoder(in).Decode(&p); err != nil {
 		fmt.Fprintf(errs, "[!] la entrada no es un pedido de cuadros: %v\n", err)
 		return 1
 	}
+	var respuesta any = cuadrosDe(p, estilo)
+	if p.Lote != nil {
+		respuesta = loteDe(p.Lote, estilo)
+	}
+	if err := json.NewEncoder(out).Encode(respuesta); err != nil {
+		fmt.Fprintf(errs, "[!] %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func loteDe(pedidos []pedidoMaterializar, estilo materializar.Estilo) respuestaLote {
+	r := respuestaLote{Lote: make([]respuestaMaterializar, 0, len(pedidos))}
+	for _, p := range pedidos {
+		r.Lote = append(r.Lote, cuadrosDe(p, estilo))
+	}
+	return r
+}
+
+func cuadrosDe(p pedidoMaterializar, estilo materializar.Estilo) respuestaMaterializar {
 	o := p.Opciones
 	if o.Acento == "" {
 		o.Acento = estilo.Acento
@@ -66,12 +92,7 @@ func consolaMaterializar(in io.Reader, out, errs io.Writer, estilo materializar.
 	if o.CuadroMs <= 0 {
 		o.CuadroMs = materializar.CuadroMs
 	}
-	r := respuestaMaterializar{CuadroMs: o.CuadroMs, Cuadros: materializar.Cuadros(p.Lineas, o)}
-	if err := json.NewEncoder(out).Encode(r); err != nil {
-		fmt.Fprintf(errs, "[!] %v\n", err)
-		return 1
-	}
-	return 0
+	return respuestaMaterializar{CuadroMs: o.CuadroMs, Cuadros: materializar.Cuadros(p.Lineas, o)}
 }
 
 func duracionDe(e materializar.Estilo, abrir bool) int {

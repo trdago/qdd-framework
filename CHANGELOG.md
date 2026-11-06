@@ -6,10 +6,146 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.10] - 2026-11-05
+
+### Agregado
+
+- **El aviso del teléfono se quita cuando ya no hace falta (FND-028 de qdd-movile):** cuando un proyecto ya no tiene pedidos
+  o fichas esperando, `qdd remoto` pide `pedido_resuelto` o `ficha_resuelto`. Necesita la app con el receptor (qdd-movile
+  6551f3f).
+
 ### Corregido
 
+- **Un proyecto que pierde su panel un momento ya no repite el push al volver:** lo que esperaba sigue contado como visto.
+- **Un ⏳ de «usuario» también es de la persona (FND-159):** `esperan_persona` daba 0 en un tablero con 4 de ellos. Ahora
+  cuentan, y si preguntan algo también llegan al teléfono como pregunta y al chat como espera.
+
+## [2.10.0-rc.9] - 2026-11-05
+
+### Seguridad
+
+- **El tablero y los pedidos ya no salen al teléfono sin pasar por el ocultador (FND-157):** solo se tapaban las preguntas,
+  lo mandado desde el teléfono y las elecciones del modo goal. El teléfono actúa por id, así que tapar un comando no cambia
+  lo que se ejecuta.
+
+### Corregido
+
+- **El teléfono muestra lo que sigue a la pregunta de un ⏳ (FND-155):** el texto va desde la primera pregunta hasta el final
+  del bloqueo. Lo anterior a la pregunta sigue sin publicarse.
+- **Un seguro contra lanzar dos veces lo mismo (FND-154):** lo que terminó bien en las últimas 24 h no se vuelve a pedir,
+  aunque cambie el texto (cerrar el mismo issue, mergear el mismo PR). Repetirlo de verdad se dice con `--de-nuevo`.
+
+### Agregado
+
+- **`esperan_persona` en el panel (FND-156):** cuenta los ⏳ de la persona de todas las tareas pendientes, incluidas las
+  ocultas, para que el teléfono no muestre menos de los que hay.
+- **La sesión se entera cuando se retira su pedido (RFC 0017 §1, MEJ-010):** antes el pedido solo cambiaba de estado en la
+  cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
+  Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
+
+## [2.10.0-rc.8] - 2026-11-05
+
+### Corregido
+
+- **Un pedido ya no se retira por el trabajo de otra sesión (FND-153, MEJ-010):** sin tarea explícita, solo hereda la tarea
+  en curso de su propia sesión.
+- **Una tarea cerrada ya no aparece en las esperas (FND-151, MEJ-010):** `esperas` y `fallas` solo traen tareas abiertas.
 - **`qdd remoto dispositivos` y `revocar` ya no piden la URL y la clave (issue #102):** en un PC sin relay mandan a
   `qdd login`. La ayuda de `qdd remoto` también dice que esas banderas son solo para quien opera su propio relay.
+
+### Agregado
+
+- **El panel lanza menos procesos con el flujo abierto (MEJ-020):** las herramientas y si toca el ciclo de mejoras llegan por
+  `qdd consola seguir`, sin `herramienta listar` cada 10 s ni `mejoras ciclo` cada minuto. El latido del teléfono sigue
+  siendo un proceso.
+- **`qdd estado check` avisa de las tareas desfasadas (MEJ-010):** las abiertas con todo listo y las cerradas que conservan
+  un ⏳. No bloquea el gate.
+
+## [2.10.0-rc.7] - 2026-11-05
+
+Trae también lo de 2.9.10 (MEJ-002).
+
+### Corregido
+
+- **En un proyecto nuevo el panel da un comando que funciona (FND-147):** `qdd estado init` falla sin `--etapas`, así que
+  el aviso ahora lo incluye y explica que las etapas son las columnas del tablero.
+
+## [2.10.0-rc.6] - 2026-11-05
+
+### Corregido
+
+- **El panel ve los comandos qdd corridos por PowerShell o con una ruta entre comillas (FND-146, MEJ-016):** se relee tras
+  ellos, y la negativa a que una IA active el modo goal también los cubre.
+
+## [2.10.0-rc.5] - 2026-11-05
+
+Trae también lo de 2.9.9 (FND-143).
+
+### Corregido
+
+- **La barra de estado ya no queda viva si nadie cierra su stdin (FND-145, MEJ-018):** corta a los 3 s y sale sin imprimir
+  nada ni fallar.
+- **Los efectos del panel ya no dejan un hueco en blanco largo (FND-144, issue #111):** si los cuadros tardan más de 250 ms,
+  el proceso se corta y se dibuja el texto sin efecto. Antes, en una máquina lenta, el hueco podía durar hasta 3 s. Abrir el
+  panel ya pedía todos los cuadros en un solo proceso desde 2.10.0-rc.1.
+
+## [2.10.0-rc.4] - 2026-11-05
+
+Trae también lo de 2.9.8 (FND-143).
+
+### Cambiado
+
+- **La barra de estado ya no arranca Node cada 2 s:** llama al binario de qdd por su ruta y, si esa ruta ya no existe, a
+  `qdd` como antes. Cada llamada gasta unas 4 veces menos CPU (en Linux, de 50-65 ms a 12-16 ms); en Windows no está
+  medido. `settings.json` guarda la ruta, y `qdd consola activar` o `qdd doctor --fix` la renuevan al actualizar. Un
+  binario compilado a mano no la escribe, y una barra propia no se toca.
+
+### Corregido
+
+- **El botón «⬆ Actualizar qdd» ya no deja a qdd sin binario con npm 12 (FND-143):** instala con
+  `--allow-scripts=qdd-framework`, igual que el aviso de Windows.
+
+## [2.10.0-rc.3] - 2026-11-05
+
+### Corregido
+
+- **En Windows, npm ya puede actualizar qdd con sesiones abiertas (FND-142, issue #107):** `qdd.exe` vive fuera del paquete,
+  en `%LOCALAPPDATA%\qdd\bin\<versión>`, así que lo que corre no se interpone. Lo que corre se cierra solo al ver la
+  versión nueva, y el panel lo reabre. Windows tiene ahora el mismo botón «⬆ Actualizar qdd» que Linux y macOS. `qdd doctor`
+  revisa que la tarea de `qdd remoto` lance la versión instalada (REM-04). La primera actualización desde una versión
+  anterior todavía pide cerrar las sesiones.
+
+## [2.10.0-rc.2] - 2026-11-05
+
+Trae también lo de 2.9.7 (FND-141).
+
+### Agregado
+
+- **El panel avisa de una versión nueva de qdd y la instala con una tecla:** una vez por hora pregunta a npm, aparte y sin
+  demorar al panel, y deja el pedido opcional «⬆ Actualizar qdd a X» del canal instalado. Corre solo si confirmas con
+  «s  Sí»; el modo goal no lo lanza. Un binario que no vino de npm no pregunta nada. En Windows, el panel avisa con lo que
+  hay que hacer y no ofrece botón, porque npm no puede reemplazar `qdd.exe` mientras algo lo usa (issue #107).
+
+## [2.10.0-rc.1] - 2026-11-05
+
+### Cambiado
+
+- **El panel ya no lanza un proceso cada 2 s (RFC 0016, MEJ-020):** recibe los cambios de un solo proceso, `qdd consola
+  seguir`. En Linux, en reposo, su costo de CPU baja entre 71 % y 82 %, y un cambio llega a la pantalla en unos 500 ms. Sin
+  medir todavía en Windows. A cambio suma unos 25 MB de memoria por sesión.
+- **El panel llama directo al binario:** deja de pasar por el envoltorio de Node y, en Windows, por `cmd`.
+- **Las sesiones sin terminal (`claude -p`) ya no leen el panel cada 2 s.**
+- **Abrir el panel pide los cuadros de los efectos en un solo proceso (MEJ-017):** antes lanzaba uno por cada celda que
+  cambiaba. Un qdd anterior no entiende el lote y el panel se dibuja sin efecto.
+- **El panel se ve como QDD Móvil:** usa los colores de la marca en cualquier terminal, y el ámbar relleno marca «▶ N para
+  ti». Cada tarea ocupa una fila y el estado de cada objetivo queda a la derecha. La versión pasa a la cabecera y el pie se
+  acorta. En un tema claro de terminal, el ámbar y el verde pierden contraste.
+- **El botón Modo goal pasa a la tecla `z`.**
+
+### Corregido
+
+- **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
+- **`k` ya no es a la vez Config y Modo goal (FND-139).**
 
 ## [2.9.10] - 2026-11-05
 
@@ -1212,8 +1348,6 @@ Medimos el recorrido de alguien nuevo (init, doctor, audit, evolution, report, m
 #### ⚡ Deterministic Architecture Discovery
 - **`qdd init` Nativo y Zero-LLM**: Refactorización del flujo de inicialización que elimina la latencia y la incerteza de los LLMs. Ahora escanea directamente `go.mod`, `package.json` y otros manifiestos clave (usando parsers puros en Go) para detectar si un proyecto es de Go, Node, React, o Serverless Functions, asegurando determinismo 100%.
 - **Zero-Else**: Continuación de la filosofía de guard clauses. Flujos simplificados que abortan ante errores antes de generar árboles de decisión ambiguos.
-
-
 
 ## [v1.8.0] - 2026-07-08
 

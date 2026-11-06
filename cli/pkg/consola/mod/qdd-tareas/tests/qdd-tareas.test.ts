@@ -63,19 +63,19 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   const llamadas: string[][] = []
   preparar(on, ok({ ...PANEL, version: 'v2.5.0' }), llamadas)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
-  expect(llamadas[0]).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender'])
+  expect(llamadas.find((a) => a.includes('panel'))).toEqual(['qdd', 'consola', 'panel', '--json', '--con', 'atender,herramientas,mejoras'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { color: 'cyan', weight: 'bold' } })
+  expect(await ui.find({ type: 'Text', text: /^Tareas · \d\d:\d\d$/ })).toMatchObject({ props: { weight: 'bold' } })
   expect(await ui.find({ type: 'Text', text: 'v2.5.0' })).toMatchObject({ props: { dimColor: true } })
-  expect(await ui.find({ type: 'Text', text: '2 tareas' })).toMatchObject({ props: { color: 'cyan' } })
-  expect(await ui.find({ type: 'Text', text: '⏳ 1 etapa espera' })).toMatchObject({ props: { color: 'yellow' } })
-  expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: '2 tareas' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '⏳ 1 etapa espera' })).toMatchObject({ props: { color: '#d8a657' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: '#ea6962' } })
   // Sin números grandes ni recuadro en la cabecera.
   expect(await ui.find({ type: 'Text', text: '▀▀█' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /Có Pu Po Va/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: 'yellow' } })
-  expect(await ui.find({ type: 'Text', text: 'Ticket de MP en logs' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: '#d8a657' } })
+  expect(await ui.find({ type: 'Text', text: 'Ticket de MP en logs' })).toMatchObject({ props: { color: '#ea6962' } })
   // Sin sección «Esperando» (pedido del usuario, 2026-10-30): el ⏳ ya está en la tabla y en el resumen.
   expect(await ui.find({ type: 'Text', text: /Esperando/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '• Gemini retirado › Validación real' })).toBeUndefined()
@@ -118,7 +118,7 @@ test('revisar el estado corre sin confirmación y muestra el resultado (CCC-C12)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'b-revisar-estado' })
   expect(llamadas).toContainEqual(['qdd', 'consola', 'accion', 'revisar-estado'])
-  expect(await ui.find({ type: 'Text', text: '✗ Revisar estado' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: '✗ Revisar estado' })).toMatchObject({ props: { color: '#ea6962' } })
   expect(await ui.find({ type: 'Text', text: /EPF-C03: falta la evidencia/ })).toBeDefined()
 })
 
@@ -143,6 +143,9 @@ test('sin estado.yaml dice cómo crearlo y sigue ofreciendo las fichas por aprob
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /qdd estado init/ })).toBeDefined()
+  // FND-147: el comando va en el aviso de qdd; aquí no se repite uno que falla sin --etapas.
+  expect(await ui.find({ type: 'Text', text: /Se crea con 'qdd estado init'/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Las etapas son las columnas del tablero/ })).toBeDefined()
   expect(await ui.find({ key: 'b-aprobar:pagos' })).toBeDefined()
 })
 
@@ -158,8 +161,8 @@ test('el resumen usa los totales de qdd, los mismos que la barra, y «·» es si
   preparar(on, ok({ ...PANEL, estado: { ...ESTADO, frentes: [...ESTADO.frentes, nuevo], tareas: 3, esperan: 2, fallan: 1 } }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '⏳ 2 etapas esperan' })).toMatchObject({ props: { color: 'yellow' } })
-  expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: '⏳ 2 etapas esperan' })).toMatchObject({ props: { color: '#d8a657' } })
+  expect(await ui.find({ type: 'Text', text: '❌ 1 etapa falla' })).toMatchObject({ props: { color: '#ea6962' } })
   // Cada etapa es una celda propia: las tres «·» de Login, alineadas con su abreviatura (2 columnas).
   expect((await ui.findAll({ type: 'Text', text: /^·\s*$/ })).map((n) => n.props.children?.[0] ?? n.text).filter((t) => t === '· ')).toHaveLength(3)
 })
@@ -208,8 +211,8 @@ test('la cabecera dice hace cuánto se actualizó y avisa si el tablero quedó v
   preparar(on, ok({ ...PANEL, estado: { ...ESTADO, hace: 'hace 9 h', viejo: true } }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: 'Tareas · hace 9 h' })).toMatchObject({ props: { color: 'cyan' } })
-  expect(await ui.find({ type: 'Text', text: /^⚠ Sin actualizar hace 9 h/ })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: 'Tareas · hace 9 h' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^⚠ Sin actualizar hace 9 h/ })).toMatchObject({ props: { color: '#d8a657' } })
 })
 
 test('un tablero al día no avisa nada (FND-088)', async ($, on) => {
@@ -232,7 +235,7 @@ test('se redibuja solo cuando el panel cambia', async ($, on) => {
   // FND-090: un conteo en cero no se muestra; sin esperas ni fallas, el resumen lo dice en verde.
   expect(await ui.find({ type: 'Text', text: /etapas? esperan?$/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /etapas? fallan?$/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '✓ nada espera ni falla' })).toMatchObject({ props: { color: 'green' } })
+  expect(await ui.find({ type: 'Text', text: '✓ nada espera ni falla' })).toMatchObject({ props: { color: '#a9b665' } })
 })
 
 // FND-090 (captura del usuario, 2026-10-31): el panel mostraba «~/Documents/proyectos/qdd o: o Abrir carpeta». Del
@@ -245,7 +248,7 @@ test('muestra solo el nombre de la carpeta del proyecto y la abre con «o» sin 
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/ana/proyectos/tienda' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
-  expect(await ui.find({ type: 'Text', text: '📂 tienda' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'tienda' })).toBeDefined()
   expect((await ui.findAll({ type: 'Text' })).some((n) => /\/home|~\//.test(n.text))).toBe(false)
   expect(await ui.find({ key: 'b-abrir-carpeta' })).toMatchObject({ props: { hotkey: 'o', plain: true, label: 'Abrir carpeta' } })
   // No se repite en la lista de acciones de abajo.
@@ -260,7 +263,7 @@ test('sin abridor en el sistema muestra la carpeta pero no el botón', async ($,
   preparar(on, ok({ ...PANEL, carpeta: '/srv/app' }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/srv/app' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '📂 app' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'app' })).toBeDefined()
   expect(await ui.find({ key: 'b-abrir-carpeta' })).toBeUndefined()
 })
 
@@ -482,7 +485,7 @@ test('un pedido que falló muestra su error y se puede reintentar con su misma t
   preparar(on, ok({ ...PANEL, acciones: [fallo] }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /✗ .*Publicar v2\.5\.1/ })).toMatchObject({ props: { color: 'red' } })
+  expect(await ui.find({ type: 'Text', text: /✗ .*Publicar v2\.5\.1/ })).toMatchObject({ props: { color: '#ea6962' } })
   expect(await ui.find({ type: 'Text', text: /Permission denied/ })).toBeDefined()
   const reintentar = await ui.find({ key: 'b-pedido:1' })
   expect(reintentar).toMatchObject({ props: { hotkey: 'a' } })
@@ -514,7 +517,7 @@ test('la tarea en curso dice «● running» y el ● alterna tenue y brillante 
   const clock = preparar(on, ok(EN_CURSO('2026-10-30T10:00:00-03:00')))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: 'running' })).toMatchObject({ props: { dimColor: true } })
+  expect(await ui.find({ type: 'Text', text: 'running' })).toMatchObject({ props: { color: '#7daea3' } })
   expect(await ui.findAll({ type: 'Text', text: '●' })).toHaveLength(1)
   const brillo = async () => !!(await ui.find({ type: 'Text', text: '●' }))?.props?.dimColor
   const antes = await brillo()
@@ -530,12 +533,12 @@ test('un pulso nuevo en el JSON hace destellar el ● en acento (EPT-C09)', asyn
   const clock = preparar(on, salida)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '●' })).not.toMatchObject({ props: { color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: '#7daea3' } })
   salida.stdout = JSON.stringify(EN_CURSO('2026-10-30T10:00:07-03:00'))
   await clock.advance(2000)
-  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: '#d4be98' } })
   await clock.advance(1000)
-  expect(await ui.find({ type: 'Text', text: '●' })).not.toMatchObject({ props: { color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: '#7daea3' } })
 })
 
 test('cada herramienta del agente late la tarea sin demorarla, con un pulso a la CLI cada 5 s como mucho (EPT-C10)', async ($, on) => {
@@ -548,7 +551,7 @@ test('cada herramienta del agente late la tarea sin demorarla, con un pulso a la
   const pulsos = () => llamadas.filter((a) => a[1] === 'estado' && a[2] === 'pulso')
 
   expect(await $.tool.call({ tool: 'Bash', command: 'ls' })).toMatchObject({ result: 'hecho' })
-  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: '#d4be98' } })
   await $.tool.call({ tool: 'Read', file_path: '/work/a' })
   expect(pulsos()).toEqual([['qdd', 'estado', 'pulso', '--fuente', 'agente']])
 
@@ -577,7 +580,7 @@ test('el resumen cuenta «▶ N para ti» solo con los pedidos que se pueden eje
   const clock = preparar(on, salida)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '▶ 1 para ti' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '▶ 1 para ti' })).toMatchObject({ props: { backgroundColor: '#d8a657' } })
   salida.stdout = JSON.stringify({ ...PANEL, acciones: [hecho, ...ACCIONES] })
   await clock.advance(2000)
   expect(await ui.find({ type: 'Text', text: /para ti$/ })).toBeUndefined()
@@ -609,7 +612,7 @@ test('un pedido que dijo «todavía no» se ve pendiente con su aviso destacado,
   preparar(on, ok({ ...PANEL, acciones: [todaviaNo] }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /◷ Todavía no/ })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: /◷ Todavía no/ })).toMatchObject({ props: { color: '#d8a657' } })
   expect(await ui.find({ type: 'Text', text: /Falta el tag v2\.7\.0/ })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: /✗/ })).toBeUndefined()
   expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
@@ -639,7 +642,7 @@ test('un tipo de acción que el panel no conoce no sale como botón «undefined�
   expect(await ui.find({ key: 'b-comando-sin-tecla' })).toBeUndefined()
   expect(await ui.find({ text: /undefined/ })).toBeUndefined()
   const lectura = llamadas.find((a) => a[2] === 'panel')
-  expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender'])
+  expect(lectura?.slice(2)).toEqual(['panel', '--json', '--con', 'atender,herramientas,mejoras'])
 })
 
 test('con un qdd anterior a --con, el panel se lee igual sin los opcionales (FND-092, CCC-C26)', async ($, on) => {
@@ -681,10 +684,10 @@ test('dibuja el árbol: el foco primero, cada objetivo con su estado y sus tarea
   preparar(on, ok({ ...PANEL, estado: ARBOL }))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: '🎯 Objetivos y árbol · foco' })).toMatchObject({ props: { weight: 'bold', color: 'cyan' } })
+  expect(await ui.find({ type: 'Text', text: '🎯 Objetivos y árbol · foco' })).toMatchObject({ props: { weight: 'bold', color: '#7daea3' } })
   expect(await ui.find({ type: 'Text', text: '⏳ 0/2 tareas listas' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '🎯 Publicar 2.8.0' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '⏳ tareas listas, falta verificar el criterio' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^⏳ tareas listas, falta/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '   └─ ' })).toMatchObject({ props: { dimColor: true } })
   expect(await ui.find({ type: 'Text', text: ' · espera a modelo' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '🎯 sin objetivo' })).toBeDefined()
@@ -818,11 +821,58 @@ test('un qdd con ruta o con sufijo también relee el panel; una carpeta llamada 
   }
 })
 
+// FND-146 (MEJ-016): en Windows, Claude Code también corre comandos con la herramienta PowerShell, y ahí las rutas llevan
+// \, comillas y el operador &. Bash con una ruta entre comillas tampoco se reconocía.
+test('un qdd por PowerShell o con ruta de Windows también relee el panel; lo demás no (FND-146)', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const lecturas = () => llamadas.filter((a) => a[2] === 'panel').length
+  const releen = [
+    'qdd estado',
+    '& "C:\\x y\\qdd.exe" estado',
+    "& 'C:\\x y\\qdd.cmd' estado",
+    '.\\qdd.exe consola panel',
+    'C:\\tools\\qdd.exe consola panel',
+    'cd C:\\x; qdd consola descartar a',
+    '$env:A="1"; qdd estado',
+    '"/opt/x y/qdd" estado',
+  ]
+  const noReleen = ['Get-Content qdd', 'Get-Content .\\qdd', 'cd C:\\proyectos\\qdd', 'ls "C:\\x\\qdd.exe"', 'echo qdd']
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const command of releen) {
+      const antes = lecturas()
+      await $.tool.call({ tool, command })
+      expect([tool, command, lecturas()]).toEqual([tool, command, antes + 1])
+    }
+    for (const command of noReleen) {
+      const antes = lecturas()
+      await $.tool.call({ tool, command })
+      expect([tool, command, lecturas()]).toEqual([tool, command, antes])
+    }
+  }
+  const antes = lecturas()
+  await $.tool.call({ tool: 'Grep', command: 'qdd estado' })
+  expect(lecturas()).toBe(antes)
+})
+
+// RFC 0017: qdd le avisa a la sesión que pidió un pedido retirado, así que el ciclo dice qué sesión es.
+test('el ciclo le dice a qdd qué sesión es', async ($, on) => {
+  const llamadas: string[][] = []
+  preparar(on, ok(PANEL), llamadas)
+  on('session.id', () => ({ value: 'sesion-1' }))
+  on('classic.UserPromptSubmit', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.UserPromptSubmit({ prompt: 'sigue', permission_mode: 'auto' })
+  expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto', '--contexto', '--sesion', 'sesion-1'])
+})
+
 // Materializar (pedido del usuario, 2026-11-01): lo que cambia aparece como sus ventanas (hypr-materialize); qdd
 // calcula los cuadros y el Client del panel solo los reproduce.
 const EFECTOS = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400, cuadro_ms: 40, origen: 'hypr-materialize' }
 
-function prepararMat(on, panel: () => unknown, mats: { lineas: { texto: string }[][]; abrir: boolean }[]) {
+function prepararMat(on, panel: () => unknown, mats: any) {
   const clock = mock.clock(on)
   mock.env(on, {})
   on('session.start', () => ({ cwd: '/work' }))
@@ -830,9 +880,10 @@ function prepararMat(on, panel: () => unknown, mats: { lineas: { texto: string }
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('process.run', ($, e) => {
     if (e.argv[2] !== 'materializar') return { value: ok(panel()) }
-    const p = JSON.parse(e.init.stdin)
-    mats.push(p)
-    return { value: ok({ cuadro_ms: 40, cuadros: [[[{ texto: '#', color: '#bbfff4' }]], p.lineas] }) }
+    const { lote } = JSON.parse(e.init.stdin)
+    mats.push(...lote)
+    mats.procesos = (mats.procesos || 0) + 1
+    return { value: ok({ lote: lote.map((p) => ({ cuadro_ms: 40, cuadros: [[[{ texto: '#', color: '#bbfff4' }]], p.lineas] })) }) }
   })
   return clock
 }
@@ -848,7 +899,57 @@ test('lo que aparece se materializa y vuelve a ser lo de siempre (materializar)'
   expect(await ui.find({ type: 'Client' })).toBeDefined()
   await ui.advance(200)
   expect(await ui.find({ type: 'Client' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toMatchObject({ props: { color: '#d8a657' } })
+})
+
+test('abrir el panel pide todos los cuadros en un solo proceso (MEJ-017)', async ($, on) => {
+  const mats: any = []
+  prepararMat(on, () => ({ ...PANEL, efectos: EFECTOS }), mats)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.find({ type: 'Client' })
+  expect(mats.length).toBeGreaterThan(1)
+  expect(mats.procesos).toBe(1)
+})
+
+test('si qdd no entrega el lote, el panel dibuja lo de siempre (materializar)', async ($, on) => {
+  const clock = mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    if (e.argv[2] !== 'materializar') return { value: ok({ ...PANEL, efectos: EFECTOS }) }
+    return { value: ok({ cuadro_ms: 40, cuadros: [] }) }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await clock.advance(100)
+  await ui.advance(100)
+  expect(await ui.find({ type: 'Client' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toBeDefined()
+})
+
+// MEJ-017: el hueco en blanco duraba lo que tardara el proceso, hasta 3 s. Los efectos solo decoran: si no llegan a
+// tiempo, se corta el proceso y se dibuja lo de siempre.
+test('si los cuadros no llegan a tiempo, se corta y se dibuja lo de siempre, sin hueco (MEJ-017)', async ($, on) => {
+  mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  const topes: number[] = []
+  on('process.run', ($, e) => {
+    if (e.argv[2] !== 'materializar') return { value: ok({ ...PANEL, efectos: EFECTOS }) }
+    topes.push(e.init.timeoutMs)
+    throw new Error('process timed out')
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: 'Gemini retirado' })).toBeDefined()
+  expect(await ui.find({ type: 'Client' })).toBeUndefined()
+  expect(topes.length).toBe(1)
+  expect(topes[0]).toBeLessThanOrEqual(250)
 })
 
 test('con los efectos apagados el panel no pide cuadros (materializar)', async ($, on) => {

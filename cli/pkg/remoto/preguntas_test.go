@@ -2,6 +2,8 @@ package remoto
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -212,6 +214,33 @@ func TestArmar_LaPreguntaSalePublicadaSinSecretos(t *testing.T) {
 	b, _ := json.Marshal(a)
 	if strings.Contains(string(b), "ghp_") || !strings.Contains(a.Permiso.Detalle, Oculto) || !strings.Contains(a.Detalle, Oculto) {
 		t.Fatalf("el comando del permiso sale sin el secreto: %s", b)
+	}
+}
+
+// FND-157: ocultarDelPanel solo pasaba las preguntas y lo mandado desde el teléfono; el tablero y los pedidos salían tal cual.
+func TestArmar_ElTableroYLosPedidosSalenSinSecretos_FND157(t *testing.T) {
+	homeTemporal(t)
+	root := proyecto(t, "app", true)
+	const token = "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+	tablero := "formato: 1\netapas: [Código, Pruebas]\nobjetivos:\n" +
+		"  - {id: o, nombre: \"Obj " + token + "\", criterio: \"Crit " + token + "\", estado: abierto}\n" +
+		"frentes:\n" +
+		"  - {id: a, nombre: \"Tarea " + token + "\", estado: abierto, objetivo: o, celdas: {" +
+		"Código: {estado: ⏳, bloqueo: \"usa " + token + "\", de_quien: CI}, Pruebas: {estado: ❌, falla: \"401 con " + token + "\"}}}\n"
+	if err := os.WriteFile(filepath.Join(root, ".qdd", "project", "estado.yaml"), []byte(tablero), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := consola.Pedir(root, "curl -H 'Authorization: Bearer "+token+"' https://api.github.com", "Publicar "+token, root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	reg := registro.Registro{Proyectos: []registro.Proyecto{{Ruta: root, Clave: "app-1"}}}
+	p := Armar("v", reg, time.Now(), 0).Proyectos[0]
+	if p.Panel == nil || p.Panel.Estado == nil || len(p.Panel.Estado.Esperas) != 1 || len(p.Panel.Estado.Fallas) != 1 || len(p.Panel.Acciones) == 0 {
+		t.Fatalf("la prueba necesita el tablero y el pedido publicados: %+v", p.Panel)
+	}
+	b, _ := json.Marshal(p)
+	if strings.Contains(string(b), "ghp_") {
+		t.Fatalf("inv. 16: %s", b)
 	}
 }
 

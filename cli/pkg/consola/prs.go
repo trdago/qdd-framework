@@ -147,10 +147,11 @@ func sinAutomaticosQueNombra(cola []Pedido, motivo, comando string) []Pedido {
 	return queda
 }
 
-// cederUnPR quita el pedido de PR pendiente más viejo para que entre uno de la IA; false si no hay ninguno.
+// cederUnPR quita el pedido opcional pendiente más viejo (un PR o una versión de qdd) para que entre uno de la IA; false
+// si no hay ninguno.
 func cederUnPR(cola []Pedido) ([]Pedido, bool) {
 	for i, p := range cola {
-		if p.PR != 0 && p.Estado == EstadoPendiente {
+		if p.Opcional() && p.Estado == EstadoPendiente {
 			return append(append([]Pedido{}, cola[:i]...), cola[i+1:]...), true
 		}
 	}
