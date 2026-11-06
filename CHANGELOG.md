@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Una salida en vivo larga ahora muestra lo último (FND-163):** Claude Code dibuja solo los primeros 100.000 caracteres de un
+  texto, así que una herramienta ruidosa o una barra de progreso mostraban lo viejo. El panel guarda lo último, hasta 64 KB, y
+  redibuja como mucho cada 100 ms.
+- **El panel ya no acumula lo que dejó de existir (MEJ-014, #114):** olvida las tareas y los pedidos que ya no están, no suma
+  lecturas si la anterior sigue en curso, y una respuesta vieja no pisa a una más nueva.
+
 ## [2.10.0-rc.12] - 2026-11-06
 
 ### Agregado
