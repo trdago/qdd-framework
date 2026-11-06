@@ -68,8 +68,8 @@ func cicloPropio(o Objetivo) string {
 // día (lo que dice ⏳ ya pudo pasar).
 const TableroViejo = 2 * time.Hour
 
-// hace dice cuánto pasó, redondeado hacia abajo: «hace 20 min», «hace 9 h», «hace 2 d».
-func hace(d time.Duration) string {
+// Hace dice cuánto pasó, redondeado hacia abajo: «hace 20 min», «hace 9 h», «hace 2 d».
+func Hace(d time.Duration) string {
 	if d < time.Hour {
 		return fmt.Sprintf("hace %d min", int(d.Minutes()))
 	}
@@ -213,7 +213,7 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
 	}
 	if cuando, err := time.Parse(time.RFC3339, e.Actualizado); err == nil && !now.Before(cuando) {
-		d.Hace = hace(now.Sub(cuando))
+		d.Hace = Hace(now.Sub(cuando))
 		d.Viejo = t.Tareas > 0 && now.Sub(cuando) > TableroViejo
 	}
 	var usados []Objetivo

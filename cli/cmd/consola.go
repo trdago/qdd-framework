@@ -64,6 +64,7 @@ var consolaEstadoCmd = &cobra.Command{Use: "estado", Short: "Dice si la consola 
 var consolaActualizarCmd = &cobra.Command{Use: "actualizar", Short: "Deja el panel en la versión de esta CLI", Run: runConsolaActualizar}
 var consolaStatuslineCmd = &cobra.Command{Use: "statusline", Short: "Barra de estado de Claude Code (JSON por la entrada estándar); nunca falla", Run: runConsolaStatusline}
 var consolaPanelCmd = &cobra.Command{Use: "panel", Short: "Lo que dibuja el panel, en JSON (tareas y acciones); nunca falla", Run: runConsolaPanel}
+var consolaProyectosCmd = &cobra.Command{Use: "proyectos", Short: "Una fila por proyecto de este PC, en JSON (puntaje, findings, ⏳ y ❌); solo lee y nunca falla", Run: runConsolaProyectos}
 var consolaAccionCmd = &cobra.Command{
 	Use:   "accion <id>",
 	Short: "Ejecuta una acción que ofrece 'qdd consola panel' (lo que escribe, solo con --confirmado)",
@@ -79,11 +80,12 @@ func init() {
 	consolaActualizarCmd.Flags().BoolVar(&consolaSiActivo, "si-activo", false, "no hace nada si la consola no se activó (para instaladores)")
 	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
 	consolaPanelCmd.Flags().StringSliceVar(&consolaCon, "con", nil, "tipos de acción opcionales que este panel sabe dibujar (atender, pregunta, telefono); sin esto no se ofrecen (FND-092)")
+	consolaProyectosCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
 	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
 	consolaAccionCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión de Claude Code que confirma un pedido: recibe su resultado al terminar")
 	consolaAvisadoCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión que recibió el aviso (la que confirmó el pedido)")
 	consolaCmd.AddCommand(consolaActivarCmd, consolaDesactivarCmd, consolaEstadoCmd, consolaActualizarCmd, consolaStatuslineCmd,
-		consolaPanelCmd, consolaAccionCmd, consolaAvisadoCmd)
+		consolaPanelCmd, consolaProyectosCmd, consolaAccionCmd, consolaAvisadoCmd)
 	rootCmd.AddCommand(consolaCmd)
 }
 
@@ -223,6 +225,15 @@ func runConsolaPanel(cmd *cobra.Command, args []string) {
 		salirCon("%v", err)
 	}
 	fmt.Println(string(out))
+}
+
+// runConsolaProyectos entrega las filas de la vista «Proyectos» (RFC 0018): el panel las dibuja y no decide nada.
+func runConsolaProyectos(cmd *cobra.Command, args []string) {
+	out, err := json.Marshal(consola.Proyectos(time.Now()))
+	if err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), string(out))
 }
 
 // datosPanel es el panel con la versión de qdd y, con QDD Móvil activado y Pro, lo que este PC acepta ejecutar desde

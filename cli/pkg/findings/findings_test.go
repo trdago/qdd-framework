@@ -123,3 +123,53 @@ func TestEscribirCanonicos(t *testing.T) {
 		}
 	}
 }
+
+// FND-170: cada proyecto guarda la fecha con otro nombre. Cuando la encuentra; Fecha sigue siendo solo date, porque el
+// gate decide con ella qué findings exigen prueba (FND-02) y no debe empezar a bloquear findings de otros proyectos.
+func TestLeer_CuandoEncuentraLaFechaEnSusTresNombres_FND170(t *testing.T) {
+	dir := t.TempDir()
+	escribir(t, dir, "a.yaml", "id: A\nstatus: open\ndate: \"2026-11-01\"\ncreated_at: 2026-11-02T10:00:00-03:00\ndiscovered_at: \"2026-11-03\"\n")
+	escribir(t, dir, "b.yaml", "id: B\nstatus: open\ncreated_at: 2026-11-02T10:00:00-03:00\ndiscovered_at: \"2026-11-03\"\n")
+	escribir(t, dir, "c.yaml", "id: C\nstatus: open\ndiscovered_at: \"2026-11-03T09:00:00Z\"  # derivado de: documento\n")
+	escribir(t, dir, "d.yaml", "id: D\nstatus: open\ndate: 2026-11-04\n")
+	escribir(t, dir, "e.yaml", "id: E\nstatus: open\n")
+
+	fs, err := Leer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	quiere := []struct{ cuando, fecha string }{
+		{"2026-11-01", "2026-11-01"},
+		{"2026-11-02T10:00:00-03:00", ""},
+		{"2026-11-03T09:00:00Z", ""},
+		{"2026-11-04", "2026-11-04"},
+		{"", ""},
+	}
+	if len(fs) != len(quiere) {
+		t.Fatalf("deben ser %d: %+v", len(quiere), fs)
+	}
+	for i, q := range quiere {
+		if fs[i].Cuando != q.cuando {
+			t.Errorf("%s: Cuando = %q; quiere %q", fs[i].ID, fs[i].Cuando, q.cuando)
+		}
+		if fs[i].Fecha != q.fecha {
+			t.Errorf("%s: Fecha = %q; quiere %q (el gate decide con ella)", fs[i].ID, fs[i].Fecha, q.fecha)
+		}
+	}
+}
+
+func TestLeer_UnaFechaConOtraFormaNoBorraElFinding_FND170(t *testing.T) {
+	dir := t.TempDir()
+	escribir(t, dir, "a.yaml", "id: A\nstatus: open\ncreated_at:\n  dia: 3\ndiscovered_at: [1, 2]\n")
+	escribir(t, dir, "b.yaml", "id: B\nstatus: open\ncreated_at:\ndiscovered_at: \"2026-11-03\"\n")
+	fs, err := Leer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) != 2 {
+		t.Fatalf("una fecha rara no debe cambiar los conteos: %+v", fs)
+	}
+	if fs[0].Cuando != "" || fs[1].Cuando != "2026-11-03" {
+		t.Errorf("Cuando = %q y %q", fs[0].Cuando, fs[1].Cuando)
+	}
+}
