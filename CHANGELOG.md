@@ -14,6 +14,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **`qdd doctor` revisa también las colas del teléfono y los flujos:** nombra una cola apartada por ilegible y los flujos que no se
   pueden usar. No los toca, porque corregirlos lo decide la persona.
 
+### Corregido
+
+- **Una pregunta abierta en la consola ya no se va del teléfono a los 30 min (FND-165):** seguía abierta en la terminal, con el aviso
+  de que se podía responder desde QDD Móvil, pero allí ya no estaba. Ahora sigue en el teléfono mientras la sesión la espere.
+
 ### Cambiado
 
 - **Las preguntas ahora están en «▶ Para ti» (issue #149):** se quita la sección «⏳ Te esperan», que duplicaba esa lista y a la

@@ -47,8 +47,6 @@ const (
 	// LatidoPregunta: una pendiente cuya sesión no la volvió a esperar (qdd consola pregunta esperar) en este tiempo,
 	// vence: Claude Code se cerró o se cayó sin avisar.
 	LatidoPregunta = time.Minute
-	// VidaPregunta es lo más que una pregunta espera al teléfono; el terminal la sigue esperando.
-	VidaPregunta = 30 * time.Minute
 	// VidaCerrada es cuánto se sigue viendo una respondida o vencida («ya respondida en el PC»).
 	VidaCerrada = 5 * time.Minute
 	// MaxPreguntasCola es el tope de la cola (las más nuevas).
@@ -593,14 +591,11 @@ func indicePregunta(cola []Pregunta, id string) int {
 	return -1
 }
 
-// normalizarPreguntas vence las pendientes que su sesión dejó de esperar o que pasaron VidaPregunta, quita las
+// normalizarPreguntas vence las pendientes que su sesión dejó de esperar (FND-165: mientras la espera, no vencen), quita las
 // cerradas hace más de VidaCerrada y deja las MaxPreguntasCola más nuevas.
 func normalizarPreguntas(cola []Pregunta, now time.Time) []Pregunta {
 	out := make([]Pregunta, 0, len(cola))
 	for _, p := range cola {
-		if p.Estado == PreguntaPendiente && now.Sub(p.Creada) > VidaPregunta {
-			p = cerrarEnPC(p, PreguntaVencida, "pasaron "+VidaPregunta.String()+" sin respuesta desde el teléfono; sigue esperando en la consola del PC", now)
-		}
 		if p.Estado == PreguntaPendiente && now.Sub(p.Vista) > LatidoPregunta {
 			p = cerrarEnPC(p, PreguntaVencida, "la sesión de Claude Code ya no la espera (se cerró o se cortó)", now)
 		}
