@@ -1,6 +1,6 @@
 // Mod de Claude Code con las tareas en curso del proyecto (QDD, RFC 0006 §3.4.1, §3.7, §3.9 y §3.10; blueprint
 // consola-claude-code). Dibuja el panel liviano: una línea de resumen en color, la tabla de las 4 tareas pendientes más
-// nuevas con su ✕ para descartarlas y, separadas por una línea fina, «▶ Para ti» (los comandos que la IA dejó para la
+// nuevas con «✓» y «Quitar» y, separadas por una línea fina, «▶ Para ti» (los comandos que la IA dejó para la
 // persona), ❌ Fallas y la fila de Acciones (FND-090). Del proyecto se ve solo el nombre de la carpeta. La confirmación
 // y el resultado de un botón van en su misma sección. Cada pedido se ve en su estado: pendiente (botón con su
 // tecla), en espera de otro, ejecutando o hecho (en gris, sin botón: FND-070, FND-080), «todavía no» (pendiente, con
@@ -12,6 +12,8 @@
 const PANE = 'qdd-tareas'
 const TITULO = 'Tareas'
 const INTERVALO_MS = 2000
+// BOTONES_FILA: lo que ocupan «✓» y «Quitar» al final de la fila, con su separación.
+const BOTONES_FILA = 10
 const TOPE_MS = 3000
 // TOPE_CUADROS_MS es lo más que un efecto deja un hueco en blanco: en Linux un lote de 21 celdas tarda 7 ms, en Windows al
 // menos 200 ms; lo que tarda más se corta y se dibuja sin efecto (MEJ-017).
@@ -475,7 +477,7 @@ function enProyecto(ruta) {
 // zona: la sección donde van la confirmación y el resultado de una acción, la del botón que se pulsó.
 function zona(a) {
   if (a.tipo === 'pedido') return 'pedidos'
-  if (a.tipo === 'descartar') return 'tabla'
+  if (a.tipo === 'descartar' || a.tipo === 'ya-lo-vi') return 'tabla'
   return 'acciones'
 }
 
@@ -581,7 +583,8 @@ function cabecera(Box, Text, Button, $, e, lista) {
   })
 }
 
-// tabla: una fila por tarea con sus etapas y, al final, la ✕ que la descarta (pide «s  Sí»: escribe en estado.yaml).
+// tabla: una fila por tarea con sus etapas y, al final, «✓» (ya la vio, si hay etapas por ver) y «Quitar»; los dos piden
+// «s  Sí» porque escriben en estado.yaml.
 // Cada etapa ⏳ o ❌ que qdd ofrece atender es un botón: le envía a la IA el mensaje de qdd para que se pronuncie.
 // La ✕ y las etapas se pulsan con el mouse; las tareas más antiguas que no entran se cuentan debajo.
 // Árbol (blueprint estado-por-tareas, objetivos y dependencias): qdd entrega las filas en orden, cada una con su
@@ -598,7 +601,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   const objetivos = e.objetivos || []
   // Las etapas quedan siempre contra el borde derecho; una tarea en curso descuenta su «● running».
   const running = e.frentes.some((f) => f.actividad?.running) ? 10 : 0
-  const nombreAncho = Math.max(8, ancho - columnas - 3 - running)
+  const nombreAncho = Math.max(8, ancho - columnas - BOTONES_FILA - running)
   const fila = (key, nombre, derecha, estilo, cierre) =>
     Box({
       key,
@@ -617,9 +620,15 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       if (a) return materializa($, Text, 'c:' + f.id + ':' + i, lineas, Button({ key: 'e-' + f.id + '-' + i, label: s, plain: true, onPress: () => atender($, a) }), s)
       return materializa($, Text, 'c:' + f.id + ':' + i, lineas, Text({ key: 'c-' + f.id + '-' + i, color: colorFrente(f), children: [celda(s)] }), s)
     })
-  const equis = (f) => {
-    const a = lista.find((x) => x.id === 'descartar:' + f.id)
-    return a ? [Button({ key: 'x-' + f.id, label: '✕', plain: true, dimColor: true, onPress: () => pedir($, a) })] : []
+  // Sin ✓ queda el hueco, para que «Quitar» no se mueva de una fila a otra.
+  const botonesFila = (f) => {
+    const quitar = lista.find((x) => x.id === 'descartar:' + f.id)
+    if (!quitar) return []
+    const visto = lista.find((x) => x.id === 'ya-lo-vi:' + f.id)
+    return [
+      visto ? Button({ key: 'v-' + f.id, label: '✓', plain: true, onPress: () => pedir($, visto) }) : Text({ key: 'v-' + f.id, children: [' '] }),
+      Button({ key: 'x-' + f.id, label: 'Quitar', plain: true, dimColor: true, onPress: () => pedir($, quitar) }),
+    ]
   }
   // nombreDe: el prefijo atenuado, el nombre con su color y a quién espera, en una sola fila; con pregunta de qdd, todo
   // es un botón.
@@ -636,7 +645,7 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
     const plano = !f.pregunta ? (f.prefijo || notas ? Text({ wrap: 'truncate-end', children: partes }) : f.nombre) : Button({ key: 'n-' + f.id, plain: true, onPress: () => preguntar($, f.pregunta), children: partes })
     return materializa($, Text, 'n:' + f.id, lineas, plano, etiqueta(f))
   }
-  const filaTarea = (f) => fila('f-' + f.id, nombreDe(f), etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...equis(f)])
+  const filaTarea = (f) => fila('f-' + f.id, nombreDe(f), etapasDe(f), { color: colorFrente(f) }, [...enCurso(Text, f), ...botonesFila(f)])
   // cabeceraObjetivo: el nombre se recorta y su estado queda siempre a la derecha. Los objetivos sin tareas a la vista
   // van juntos, sin una línea en blanco entre cada uno.
   const cabeceraObjetivo = (o, junto) => {
