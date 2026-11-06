@@ -203,7 +203,7 @@ Pedido de la persona, sprint 6: «editar, mirar, modificar, agregar, comentar, c
 detallada con el llm y es una interface de trabajo y aclaración entre llm qdd y el humano».
 
 - **Comentarios, que este RFC no traía.** Cada nodo tiene un hilo, en el YAML versionado. La IA responde con
-  `qdd flujo comentar` y la respuesta se ve bajo el nodo. No viajan al teléfono, que todavía no los muestra.
+  `qdd flujo comentar` y la respuesta se ve bajo el nodo. Viajan al teléfono pasados por el ocultador, y desde allí también se comenta y se edita (RFC 0013).
 - **Cuándo se entera la IA.** Una edición espera a «Enviar a la IA» o al próximo mensaje del chat: un turno por cambio
   gastaría de más. Un comentario y un detalle la llaman en el acto, porque piden una respuesta. Cada línea llega una vez.
 - **Deshacer** vale mientras la IA no la recibe y nadie cambió el flujo después. No pisa lo que hizo la IA.

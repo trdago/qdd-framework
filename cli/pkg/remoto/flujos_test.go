@@ -245,11 +245,11 @@ func TestFlujos_ElMasGrandeQueSePuedeGuardarCabeEnUnMensaje(t *testing.T) {
 }
 
 // Los comentarios del flujo son del panel: no viajan al teléfono, que todavía no los muestra.
-func TestMensajeFlujo_LosComentariosNoSalenDelPC(t *testing.T) {
+func TestMensajeFlujo_LosComentariosSalenSinSecretos(t *testing.T) {
 	root := t.TempDir()
 	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{
 		ID: "a", Tipo: flujo.TipoPaso, Nombre: "A",
-		Comentarios: []flujo.Comentario{{De: flujo.DePersona, Texto: "la clave es sb_secret_abcdefghijklmnop", Cuando: "2026-11-06T10:00:00Z"}},
+		Comentarios: []flujo.Comentario{{De: flujo.DePersona, Texto: "¿y la clave ghp_abcdefghijklmnopqrstuvwxyz0123456789?", Cuando: "2026-11-06T10:00:00Z", DeNodo: "ghp_abcdefghijklmnopqrstuvwxyz0123456789"}},
 	}}}
 	if err := flujo.Guardar(root, f); err != nil {
 		t.Fatal(err)
@@ -264,7 +264,29 @@ func TestMensajeFlujo_LosComentariosNoSalenDelPC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(datos), "sb_secret") || strings.Contains(string(datos), "comentarios") {
-		t.Fatalf("salió del PC: %s", datos)
+	if strings.Contains(string(datos), "ghp_") {
+		t.Fatalf("salió un secreto del PC (inv. 16): %s", datos)
+	}
+	got := m.Flujo.Nodos[0].Comentarios
+	if len(got) != 1 || got[0].De != flujo.DePersona || got[0].Cuando != "2026-11-06T10:00:00Z" || !strings.Contains(got[0].Texto, "¿y la clave") {
+		t.Fatalf("el comentario llega con lo demás intacto: %+v", got)
+	}
+}
+
+func TestResumenDeFlujos_LlevaLoPorEnviar(t *testing.T) {
+	root := t.TempDir()
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{ID: "a", Tipo: flujo.TipoPaso, Nombre: "A"}}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := flujo.Editar(root, "pago", flujo.DePersona, time.Now(), flujo.Comentar("a", "hola", flujo.DePersona, time.Now())); err != nil {
+		t.Fatal(err)
+	}
+	var lista []map[string]any
+	if err := json.Unmarshal(resumenDeFlujos(root), &lista); err != nil {
+		t.Fatal(err)
+	}
+	if lista[0]["por_enviar"] != float64(1) || lista[0]["puede_deshacer"] != true {
+		t.Fatalf("resumen: %v", lista[0])
 	}
 }

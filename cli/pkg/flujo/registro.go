@@ -140,7 +140,7 @@ func Enviar(root, id string) (string, int) {
 	if f, err := Cargar(root, id); err == nil {
 		nombre = f.Nombre
 	}
-	partes := []string{fmt.Sprintf("✎ La persona trabajó en el flujo «%s» desde el panel:", nombre)}
+	partes := []string{fmt.Sprintf("✎ La persona trabajó en el flujo «%s»:", nombre)}
 	partes = append(partes, lineas...)
 	partes = append(partes, fmt.Sprintf("Lo ves con: qdd flujo ver %s", id))
 	partes = append(partes, pistas...)

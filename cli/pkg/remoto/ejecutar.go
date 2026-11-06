@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
@@ -28,6 +29,8 @@ import (
 // proyecto; una instrucción queda en la cola del teléfono (pkg/consola) para la sesión de Claude Code del proyecto.
 // Responde accion_estado {solicitud, accion_id: ejecutar, estado, resultado}: recibida → ejecutando → hecha | fallo,
 // o rechazada (o vencida, una instrucción que nadie tomó) con el motivo.
+// Una edición de un flujo (tipo flujo, decisión de la persona, 2026-11-06) no es un comando: su texto es una operación
+// JSON (flujo.LeerOperacion) que se aplica aquí mismo, como una edición de la persona en el panel.
 
 const (
 	// AccionEjecutar es el accion_id con que el PC responde una ejecución (no es una acción del panel).
@@ -105,14 +108,19 @@ func (e EjecucionFirmada) Verificar(firmaMaquina string, now time.Time) error {
 }
 
 // ValidarTexto vuelve a hacer en el PC lo que exige el relay: un comando qdd de la lista permitida (ArgsPermitidos);
-// una instrucción de 1 a MaxTextoIA caracteres, sin más controles que saltos de línea y tabulaciones.
+// una operación de un flujo que cumpla su esquema; una instrucción de 1 a MaxTextoIA caracteres, sin más controles que
+// saltos de línea y tabulaciones.
 func ValidarTexto(tipo, texto string) error {
 	if tipo == consola.EjecutarQDD {
 		_, err := ArgsPermitidos(texto)
 		return err
 	}
+	if tipo == consola.EjecutarFlujo {
+		_, err := flujo.LeerOperacion(texto)
+		return err
+	}
 	if tipo != consola.EjecutarIA {
-		return fmt.Errorf("tipo «%s» desconocido: solo qdd o ia", tipo)
+		return fmt.Errorf("tipo «%s» desconocido: solo qdd, ia o flujo", tipo)
 	}
 	if !utf8.ValidString(texto) || strings.TrimSpace(texto) == "" {
 		return errors.New("la instrucción está vacía o no es texto")
@@ -330,7 +338,7 @@ func OpcionesEjecutar(root string, plan Plan, now time.Time) *consola.OpcionesEj
 	if !plan.Pro() {
 		return nil
 	}
-	return &consola.OpcionesEjecutar{QDD: true, IA: consola.HaySesion(root, now), Sugeridos: append([]string{}, Sugeridos...)}
+	return &consola.OpcionesEjecutar{QDD: true, IA: consola.HaySesion(root, now), Flujos: true, Sugeridos: append([]string{}, Sugeridos...)}
 }
 
 // ConEjecutar pone el ejecutar de cada panel del estado según el plan (sin Pro, ninguno).
@@ -393,6 +401,10 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		b.cerrar(ctx, s, EstadoRechazada, err.Error())
 		return
 	}
+	if e.Tipo == consola.EjecutarFlujo {
+		b.aplicarFlujo(ctx, s, e.Texto)
+		return
+	}
 	if e.Tipo == consola.EjecutarQDD && b.correEnElProyecto(s.Ruta) {
 		b.cerrar(ctx, s, EstadoRechazada, "ya corre otro comando mandado desde el teléfono en este proyecto: espera a que termine")
 		return
@@ -408,6 +420,50 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		return
 	}
 	b.correrComando(ctx, s, e.Texto)
+}
+
+// aplicarFlujo aplica una edición validada. Va bajo el candado del flujo y tarda milisegundos, así que no espera a un
+// comando que corra: una audit no detiene un comentario.
+func (b *Bucle) aplicarFlujo(ctx context.Context, s Solicitud, texto string) {
+	op, err := flujo.LeerOperacion(texto)
+	if err != nil {
+		b.cerrar(ctx, s, EstadoRechazada, err.Error())
+		return
+	}
+	if op.Op == flujo.OpEnviar {
+		b.enviarFlujo(ctx, s, op.Flujo, "no había nada por enviar")
+		return
+	}
+	linea, err := op.Aplicar(s.Ruta, b.ahora())
+	if err != nil {
+		b.cerrar(ctx, s, EstadoRechazada, err.Error())
+		return
+	}
+	if op.LlamaALaIA() {
+		b.enviarFlujo(ctx, s, op.Flujo, linea)
+		return
+	}
+	b.cerrar(ctx, s, EstadoHecha, linea)
+	b.marcar()
+}
+
+// enviarFlujo reclama lo pendiente del flujo y lo deja como instrucción para la sesión. Si no llega, cerrarSinEntregar
+// lo devuelve: no se pierde lo que la persona escribió. Sin nada que reclamar, responde sinNada.
+func (b *Bucle) enviarFlujo(ctx context.Context, s Solicitud, id, sinNada string) {
+	mensaje, n := flujo.Enviar(s.Ruta, id)
+	if n == 0 {
+		b.cerrar(ctx, s, EstadoHecha, sinNada)
+		b.marcar()
+		return
+	}
+	s.Ejecutar, s.Flujo, s.Lineas = consola.EjecutarIA, id, n
+	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: consola.EjecutarIA, Texto: mensaje, Dispositivo: s.Dispositivo, Nombre: s.Nombre}
+	if _, err := consola.RegistrarEjecucion(s.Ruta, x, b.ahora()); err != nil {
+		b.cerrarSinEntregar(ctx, s, EstadoFallo, err.Error())
+		return
+	}
+	b.marcar()
+	b.encolarInstruccion(ctx, s)
 }
 
 // correEnElProyecto dice si un comando qdd del teléfono corre ahora en esa carpeta: uno por proyecto a la vez (dos
@@ -522,6 +578,12 @@ func (b *Bucle) seguirInstruccion(ctx context.Context, s Solicitud) {
 // cerrarSinEntregar cierra una instrucción que no llegó a ninguna sesión; si era la respuesta a un ⏳, este vuelve a
 // preguntarse para que la persona pueda responder de nuevo (FND-141).
 func (b *Bucle) cerrarSinEntregar(ctx context.Context, s Solicitud, estado, resultado string) {
+	if s.Flujo != "" {
+		if err := flujo.Devolver(s.Ruta, s.Flujo, s.Lineas); err != nil {
+			b.logf("no se pudo devolver lo pendiente del flujo %s: %v", s.Flujo, err)
+		}
+		b.marcar()
+	}
 	if s.Instruccion != "" {
 		if err := consola.ReabrirEspera(s.Ruta, s.Pregunta, s.Instruccion, b.ahora()); err != nil {
 			b.logf("no se pudo volver a preguntar %s: %v", s.Pregunta, err)

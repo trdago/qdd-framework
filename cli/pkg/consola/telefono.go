@@ -29,9 +29,11 @@ const (
 	// ConTelefono es lo que pide qdd consola panel --con para recibir lo mandado desde el teléfono.
 	ConTelefono = "telefono"
 
-	// EjecutarQDD y EjecutarIA son los únicos tipos: un comando qdd o una instrucción para la IA.
-	EjecutarQDD = "qdd"
-	EjecutarIA  = "ia"
+	// EjecutarQDD y EjecutarIA son los tipos de esta cola: un comando qdd o una instrucción para la IA. EjecutarFlujo no
+	// entra en ella: una edición de un flujo se aplica al recibirla y queda en el registro del flujo.
+	EjecutarQDD   = "qdd"
+	EjecutarIA    = "ia"
+	EjecutarFlujo = "flujo"
 
 	// EstadoVencida: una instrucción que ninguna sesión tomó a tiempo. EstadoRetirada: la retiró el teléfono antes.
 	EstadoVencida  = "vencida"

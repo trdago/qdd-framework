@@ -93,7 +93,7 @@ func TestConsolaPanel_EjecutarSoloConQDDMovilYPro(t *testing.T) {
 		t.Fatalf("con Pro: comandos qdd y, sin sesión, sin instrucciones: %+v", d.Ejecutar)
 	}
 	b, _ := json.Marshal(d)
-	if !strings.Contains(string(b), `"ejecutar":{"qdd":true,"ia":false,"sugeridos":["audit"`) {
+	if !strings.Contains(string(b), `"ejecutar":{"qdd":true,"ia":false,"flujos":true,"sugeridos":["audit"`) {
 		t.Fatalf("el JSON del panel: %s", b)
 	}
 }

@@ -37,8 +37,12 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 1. El teléfono solo envía **ids de acción** que el PC ofreció en `qdd consola panel --json`. Nunca texto libre que se
    ejecute. El PC vuelve a calcular la acción antes de ejecutarla (`qdd consola accion <id> --confirmado`). La única
    excepción es **solo para Pro** (decisión del usuario, 2026-11-03): «Ejecutar desde el teléfono», un comando qdd de
-   la lista que permite el PC, sin shell, o una instrucción para la IA, que llega como un mensaje de la persona.
-2. Toda acción que escribe o ejecuta pasa por la confirmación de la persona en el teléfono (biometría o PIN).
+   la lista que permite el PC, sin shell, o una instrucción para la IA, que llega como un mensaje de la persona. También
+   solo con Pro (decisión de la persona, 2026-11-06), una edición de un flujo, en el esquema cerrado de «Editar un flujo
+   desde el teléfono».
+2. Toda acción que escribe o ejecuta pasa por la confirmación de la persona en el teléfono (biometría o PIN). Las
+   ediciones de un flujo se confirman una vez, al entrar a editar (decisión de la persona, 2026-11-06); lo exige la app:
+   el PC no ve la biometría de ninguna acción.
 3. Cada acción tiene un **id de solicitud único** y es idempotente: si llega dos veces, se ejecuta una sola vez.
 4. Cada acción recibe su respuesta: `recibida` → `ejecutando` → `hecha` | `fallo`. Sin `recibida` en 5 s, el teléfono
    reintenta con el mismo id.
@@ -46,7 +50,8 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 6. La consola se transmite solo mientras alguien la mira (Presence de espectadores).
 7. La consola es de solo lectura. **Solo con Pro** (decisión del usuario, 2026-11-03) el teléfono puede mandar a un
    proyecto un comando qdd de la lista permitida y una instrucción para la IA de la sesión abierta (ver «Ejecutar desde
-   el teléfono»); la instrucción entra a la conversación como un mensaje de la persona, nunca como un comando.
+   el teléfono»); la instrucción entra a la conversación como un mensaje de la persona, nunca como un comando. Con Pro
+   también edita y comenta los flujos del proyecto (decisión de la persona, 2026-11-06).
 8. Un PC sin conexión nunca aparece «encendido»: lo decide Presence, no el último mensaje.
 9. Las credenciales del PC viven en `<QDD_HOME>/remoto/` con permisos `0600`. El PC y la app nunca usan la service key
    (la clave secreta se usa solo para aplicar las migraciones del relay); nada de credenciales en un repositorio.
@@ -166,7 +171,7 @@ existen y el nuestro no se configura a mano.
 | `sync` | teléfono → PC | Pide el estado completo. |
 | `estado` | PC → teléfono | El JSON de `qdd remoto estado --json`, con `seq`. |
 | `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}, limites?}`: los proyectos cuyo panel cambió (null: salió) y los límites de Claude si cambiaron. Si falta un `seq`, el teléfono pide `sync`. |
-| `flujo` | PC → teléfono | `{version, clave, flujo: {id, nombre, descripcion?, huella, nodos: [{id, tipo, nombre, descripcion?, tarea?, siguen?}]}}`, uno por flujo, sin `seq`: después de cada `estado` (también tras un `sync`) y cuando cambia su `huella`. El panel publicado lleva solo el resumen, en `flujos`: `[{id, nombre, nodos, huella, problema?}]`. La huella depende solo del archivo; un flujo con `problema` no trae evento. |
+| `flujo` | PC → teléfono | `{version, clave, flujo: {id, nombre, descripcion?, huella, nodos: [{id, tipo, nombre, descripcion?, tarea?, siguen?, comentarios?: [{de, texto, cuando, de_nodo?}]}]}}`, uno por flujo, sin `seq`: después de cada `estado` (también tras un `sync`) y cuando cambia su `huella`. El panel publicado lleva solo el resumen, en `flujos`: `[{id, nombre, nodos, huella, problema?, por_enviar, puede_deshacer}]`. La huella depende solo del archivo; un flujo con `problema` no trae evento. Los textos, también los comentarios, pasan por el ocultador. |
 | `accion` | relay → PC | El teléfono llama a `qdd_remoto_accion(maquina, solicitud, proyecto, accion_id)`; el relay sella `dispositivo`, verifica que no esté revocado y lo envía con `realtime.send` y `firma = hmac_sha256(firma_maquina, solicitud\|proyecto\|accion_id\|dispositivo\|en)`. El PC descarta lo que no traiga una firma válida. |
 | `responder` | relay → PC | El teléfono responde una pregunta de la consola con `qdd_remoto_responder`; el relay lo firma como `accion`, con la respuesta entre la pregunta y el dispositivo (ver «Preguntas desde el teléfono»). |
 | `ejecutar` | relay → PC | Solo Pro: el teléfono llama a `qdd_remoto_ejecutar`; el relay lo firma como `responder`, con el tipo y el texto (ver «Ejecutar desde el teléfono»). |
@@ -349,7 +354,7 @@ Con Pro, la persona manda desde la app (Proyecto → «Ejecutar», con biometrí
 
 - `firma = hmac_sha256_hex(concat_ws('|', solicitud, proyecto, tipo, texto, dispositivo, en), firma_maquina)`, el mismo
   esquema de `responder`. `nombre` es solo para mostrar y no va firmado.
-- `tipo` es `qdd` o `ia`. `qdd`: una línea de 1 a 1000 caracteres, sin la palabra `qdd` del principio y sin caracteres
+- `tipo` es `qdd`, `ia` o `flujo` (abajo). `qdd`: una línea de 1 a 1000 caracteres, sin la palabra `qdd` del principio y sin caracteres
   de control. `ia`: de 1 a 4000 caracteres; admite saltos de línea y tabulaciones, ningún otro control.
 - El relay no guarda ni el comando ni su salida.
 
@@ -398,6 +403,32 @@ Con Pro, la persona manda desde la app (Proyecto → «Ejecutar», con biometrí
 - La salida de un comando pasa entera por el ocultador de secretos (inv. 16). Al teléfono va su final: como mucho 4000
   caracteres, con «…» delante si se cortó.
 - Se usa `fallo` y no `fallida`: es la fase que la app conoce.
+
+**Editar un flujo desde el teléfono** (solo Pro, decisión de la persona, 2026-11-06). El `tipo` es `flujo`, y el `texto`, un
+objeto JSON de hasta 8000 caracteres sin controles crudos. El relay solo revisa eso; el PC verifica la firma sobre el
+texto tal cual y después aplica el esquema (`flujo.LeerOperacion`). Rechaza un campo desconocido, un campo que no sea de
+esa operación o datos después del objeto:
+
+| `op` | Exige, además de `flujo` | Admite |
+|---|---|---|
+| `comentar` | `nodo`, `texto` (hasta 2000) | |
+| `pedir-detalle` | `nodo` | |
+| `agregar` | `nodo`, `nombre` | `descripcion`, `tipo`, `rama` |
+| `modificar` | `nodo` y uno de los que admite | `nombre`, `descripcion`, `tipo` |
+| `mover` | `nodo`, `despues_de` | |
+| `quitar` | `nodo` | |
+| `conectar`, `desconectar` | `nodo`, `con` | |
+| `deshacer`, `enviar` | | |
+
+- No hay campo `de`: lo que llega por aquí siempre es de la persona. No corre un comando ni pasa por una shell: el PC usa
+  las mismas funciones que `qdd flujo`.
+- Se aplica al recibirla, bajo el candado del flujo, sin esperar a un comando que corra. No entra a la cola del teléfono;
+  queda en el log, en el flujo y en su registro local.
+- `comentar` y `pedir-detalle` llaman a la IA en el acto, como en el panel. Una edición espera a `enviar` o al próximo
+  mensaje de la persona.
+- La respuesta es `hecha` con una línea de lo que hizo, o `rechazada` con el motivo si no escribió nada. Lo que llama a la
+  IA sigue como una instrucción: si no llega, lo pendiente vuelve a `por_enviar`.
+- El panel dice `ejecutar.flujos: true` cuando el PC las recibe.
 
 **Cola del teléfono.** Lo mandado vive en `<QDD_HOME>/claude/telefono/<proyecto>.json` (`RutaLocal`, como los pedidos),
 con candado y escritura atómica. Guarda las 10 más nuevas, y lo cerrado sale a los 30 min.
