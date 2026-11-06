@@ -119,6 +119,9 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	if g := buildGoalChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
+	if g := buildMovilChecks(projectPath, time.Now()); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	return list
 }
 
@@ -520,6 +523,10 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 		}
 		if g.Name == grupoRemoto {
 			repairRemoto(g)
+			continue
+		}
+		if g.Name == grupoMovil {
+			repairMovil(projectPath, g, time.Now())
 			continue
 		}
 		if g.Name == grupoMejoras {

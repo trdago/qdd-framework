@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd doctor` revisa QDD Móvil:** dice si este PC está emparejado, si el servicio corre, si llega al relay, si el proyecto se
+  publica y si el último envío salió. `--fix` arranca el servicio y anota el proyecto; emparejar sigue siendo con `qdd login`. No
+  usa la red ni comprueba lo que dibuja la app.
+
 ### Cambiado
 
 - **Las preguntas ahora están en «▶ Para ti» (issue #149):** se quita la sección «⏳ Te esperan», que duplicaba esa lista y a la

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -277,6 +278,50 @@ func LeerPlan() (Plan, error) {
 		return Plan{}, err
 	}
 	return g.Plan, nil
+}
+
+// UltimoLatido es cuándo el relay respondió por última vez a este PC.
+func UltimoLatido() (time.Time, error) {
+	var g planGuardado
+	if err := leerPrivado("plan.json", &g); err != nil {
+		return time.Time{}, err
+	}
+	return g.En, nil
+}
+
+type publicacionGuardada struct {
+	Formato int       `json:"formato"`
+	OK      bool      `json:"ok"`
+	En      time.Time `json:"en"`
+}
+
+// GuardarPublicacion deja si el último envío al teléfono salió, sin el texto del error: lo lee qdd doctor y un error
+// del transporte no tiene por qué llegar a su reporte.
+func GuardarPublicacion(ok bool, now time.Time) error {
+	return guardarPrivado("publicacion.json", publicacionGuardada{Formato: 1, OK: ok, En: now.UTC()})
+}
+
+// LeerPublicacion es lo que dejó GuardarPublicacion.
+func LeerPublicacion() (bool, time.Time, error) {
+	var g publicacionGuardada
+	if err := leerPrivado("publicacion.json", &g); err != nil {
+		return false, time.Time{}, err
+	}
+	return g.OK, g.En, nil
+}
+
+// Corriendo dice si el proceso de qdd remoto de esta máquina sigue vivo.
+func Corriendo() bool {
+	ruta, err := rutaRemoto("correr.pid")
+	if err != nil {
+		return false
+	}
+	b, err := os.ReadFile(ruta)
+	if err != nil {
+		return false
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	return err == nil && pid > 0 && consola.ProcesoVivo(pid)
 }
 
 // OpcionesEjecutar es el ejecutar del panel de un proyecto: nada sin Pro; con Pro, comandos qdd de la lista y, si hay
