@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/mejoras"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -230,7 +232,33 @@ func datosPanel(root string, now time.Time, con []string) consola.DatosConsola {
 	datos.Version = Version
 	datos.Ejecutar = remoto.OpcionesEjecutar(root, remoto.PlanLocal(), now)
 	datos.AvisoVersion = consola.AvisoDeVersion(root, Version)
+	conLoQuePide(&datos, root, now, con)
 	return datos
+}
+
+// conLoQuePide agrega lo que el panel leía con un proceso propio cada tanto, si dice que lo sabe usar (MEJ-020).
+func conLoQuePide(datos *consola.DatosConsola, root string, now time.Time, con []string) {
+	for _, c := range con {
+		if c == "herramientas" {
+			datos.Herramientas = herramientasDelPanel(root)
+		}
+		if c == "mejoras" {
+			toca := mejoras.TocaCiclo(root, now)
+			datos.MejorasToca = &toca
+		}
+	}
+}
+
+func herramientasDelPanel(root string) json.RawMessage {
+	vs, _ := listadoDeHerramientas(root)
+	if len(vs) == 0 {
+		return json.RawMessage("[]")
+	}
+	b, err := json.Marshal(vs)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 // runConsolaAccion vuelve a calcular las acciones: el panel solo pasa el id y qdd decide si existe y si está confirmada.
