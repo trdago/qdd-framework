@@ -1,4 +1,4 @@
-id: "FND-161"
+id: "FND-162"
 title: "qdd audit decía «1 fail» sin nombrar la prueba que falló"
 description: "Al fallar una suite, el gate guardaba solo las últimas 60 líneas de su salida. La suite del mod qdd-tareas imprime casi 200, y su línea (fail) queda antes de ese corte."
 impact: "Una prueba del mod falló dos veces con la máquina cargada (carga 33 la segunda) y pasó al repetir la auditoría. El log no dijo cuál fue."
