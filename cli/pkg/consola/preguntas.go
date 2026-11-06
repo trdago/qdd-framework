@@ -138,6 +138,8 @@ type Pregunta struct {
 	Instruccion  string                   `json:"instruccion,omitempty"` // la instrucción que lleva la respuesta a un ⏳ (FND-141)
 	Creada       time.Time                `json:"creada"`
 	Vista        time.Time                `json:"vista"` // la última vez que su sesión la esperó
+	claveTurno   string                   // lo que identifica su turno (RFC 0019), solo de un ⏳ vivo
+	tareaTurno   string                   // la tarea del ⏳
 	Cerrada      *time.Time               `json:"cerrada,omitempty"`
 }
 
@@ -684,6 +686,7 @@ func accionesDePreguntas(root string, now time.Time) []Accion {
 			ID: prefijoPregunta + p.ID, Tipo: TipoPregunta, Etiqueta: p.Etiqueta, Detalle: p.Preguntas[0].Texto,
 			Estado: p.Estado, Sesion: p.Sesion, Origen: p.Origen, RespondidaEn: p.RespondidaEn,
 			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo,
+			claveTurno: p.claveTurno, tareaTurno: p.tareaTurno,
 		}
 		if p.Permiso != nil {
 			a.Detalle = p.Permiso.Detalle

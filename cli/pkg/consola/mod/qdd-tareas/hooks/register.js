@@ -27,7 +27,7 @@ const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
 // «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
-const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona']
+const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona', 'pregunta']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -924,7 +924,7 @@ function enProyecto(ruta) {
 
 // zona: la sección donde van la confirmación y el resultado de una acción, la del botón que se pulsó.
 function zona(a) {
-  if (a.tipo === 'pedido') return 'pedidos'
+  if (a.tipo === 'pedido' || a.turno) return 'pedidos'
   if (a.tipo === 'descartar' || a.tipo === 'ya-lo-vi') return 'tabla'
   return 'acciones'
 }
@@ -1003,7 +1003,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
     : []
   const esperan = total(e.esperan, e.esperas)
   const fallan = total(e.fallan, e.fallas)
-  const paraTiN = lista.filter((a) => a.tipo === 'pedido' && ejecutable(a)).length
+  const paraTiN = lista.filter((a) => (a.tipo === 'pedido' && ejecutable(a)) || (a.tipo !== 'pedido' && a.turno)).length
   const conteos = [
     ...(paraTiN ? [Text({ key: 'r-para-ti', color: COLOR.sobreMarca, backgroundColor: COLOR.espera, weight: 'bold', children: ['▶ ' + paraTiN + ' para ti'] })] : []),
     Text({ key: 'r-tareas', children: [cuantas(e)] }),
@@ -1345,7 +1345,18 @@ function confirmacion(Box, Text, Button, $) {
 }
 
 function esperaDe(a) {
+  if (a.espera_turno?.length) return numeros(a)
   return (a.espera || []).map((t) => '[' + t + ']').join(' ') || 'otro pedido'
+}
+
+// RFC 0019: el número, lo que sigue y lo que espera vienen de qdd; el panel solo los escribe.
+function numeros(a) {
+  return (a.espera_turno || []).map((n) => '#' + n).join(' ')
+}
+
+function conNumero(a) {
+  if (!a.turno) return a
+  return { ...a, etiqueta: (a.siguiente ? '▶ ' : '') + '#' + a.turno + ' ' + a.etiqueta }
 }
 
 // desarmar es «✕ Dejar de esperar»: el pedido armado vuelve a pendiente (qdd consola desarmar).
@@ -1466,35 +1477,84 @@ function enZona(Box, Text, Button, $, aqui) {
   ]
 }
 
-// paraTi lista los comandos que la IA dejó para la persona: primero los abiertos, en el orden que da qdd (cada uno
-// después de lo que espera, FND-080), y al final los hechos. El que se está confirmando cambia su tarjeta por la
-// confirmación; los demás siguen en su lugar.
-function paraTi(Box, Text, Button, $, lista, preguntas, ancho) {
+// paraTi es una sola lista de lo que espera a la persona, en el orden que da qdd (RFC 0019): pedidos, ⏳, fichas y lo
+// abierto en la terminal, cada uno con su número. Al final lo que no lleva turno y los hechos. Lo que se está confirmando
+// cambia su tarjeta por la confirmación; lo demás sigue en su lugar.
+function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
+  const lista = pedidos(todas)
+  const turnos = todas.filter((a) => a.turno)
   const seVa = seVan($, Text, new Set(lista.map((a) => a.id)))
-  for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(a))
-  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0) return []
+  for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(conNumero(a)))
+  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
-  const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho')
-  const porHacer = lista.filter(ejecutable).length
+  const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho' && !a.turno)
+  const fichas = turnos.filter((a) => a.tipo === 'aprobar')
+  const enTerminal = turnos.filter(esDeLaTerminal)
+  const porHacer = lista.filter(ejecutable).length + fichas.length
   const enEspera = lista.filter((a) => estadoDe(a).estado === 'espera').length
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
   const armados = lista.filter((a) => estadoDe(a).estado === 'armado').length
-  const nada = corriendo || preguntas.length ? [] : ['nada por hacer']
-  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(preguntas.length ? [preguntas.length + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
-  const dibujo = (a) => materializa($, Text, 'p:' + a.id, lineasDeTarjeta(a), tarjeta(Box, Text, Button, $, a), estadoDe(a).estado + '|' + a.tecla + '|' + a.etiqueta)
-  const vistas = esperasTodas ? preguntas : preguntas.slice(0, TOPE_ESPERAS)
-  const resto = preguntas.length - vistas.length
+  const porResponder = preguntas.length + enTerminal.length
+  const nada = corriendo || porResponder ? [] : ['nada por hacer']
+  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(porResponder ? [porResponder + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
+  const dibujo = (a) => {
+    const v = conNumero(a)
+    return materializa($, Text, 'p:' + a.id, lineasDeTarjeta(v), tarjeta(Box, Text, Button, $, v), estadoDe(a).estado + '|' + a.tecla + '|' + v.etiqueta)
+  }
+  const tarjetaDe = (a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))
+  const conLugar = new Set(turnos.map((a) => a.id))
+  const sueltas = preguntas.filter((q) => !conLugar.has(q.pregunta))
+  const puestas = []
+  const espera = (q) => {
+    if (!esperasTodas && puestas.length >= TOPE_ESPERAS) return []
+    puestas.push(q)
+    return [preguntaDeParaTi(Box, Text, Button, $, q, puestas.length - 1, ancho)]
+  }
+  const preguntaEn = new Map(preguntas.map((q) => [q.pregunta, q]))
+  const teclasFichas = teclas(fichas)
+  const fila = (a) => {
+    if (a.tipo === 'pedido') return [tarjetaDe(a)]
+    if (a.tipo === 'aprobar') return [confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : filaDeFicha(Button, $, a, teclasFichas[a.id])]
+    if (esDeLaTerminal(a)) return [filaDeTerminal(Text, a)]
+    const q = preguntaEn.get(a.id)
+    if (!q) return []
+    return espera(conLugarEnLaLista(q, a))
+  }
+  const enTurno = turnos.flatMap(fila)
+  const sinLugar = sueltas.flatMap(espera)
+  const resto = preguntas.length - puestas.length
   const cuerpo = [
-    ...[...abiertos, ...hechos].map((a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))),
+    ...enTurno,
+    ...[...abiertos, ...hechos].map(tarjetaDe),
     ...seVa,
-    ...vistas.map((q, i) => preguntaDeParaTi(Box, Text, Button, $, q, i, ancho)),
+    ...sinLugar,
     ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : []),
   ]
   return [
-    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || preguntas.length ? COLOR.espera : undefined, resumen, ancho),
+    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
     Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: cuerpo }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
+}
+
+// esDeLaTerminal: una pregunta o un permiso que Claude Code tiene abierto en su diálogo; un ⏳ se responde en el chat.
+function esDeLaTerminal(a) {
+  return a.tipo === 'pregunta' && a.turno && a.origen !== 'estado'
+}
+
+function filaDeTerminal(Text, a) {
+  const v = conNumero(a)
+  return Text({ key: 'terminal-' + a.id, color: COLOR.espera, wrap: 'wrap', children: [v.etiqueta + ' · en la terminal'] })
+}
+
+function filaDeFicha(Button, $, a, tecla) {
+  const v = conNumero(a)
+  return Button({ key: 'b-' + a.id, label: tecla + '  ' + v.etiqueta, hotkey: tecla, onPress: () => pedir($, a) })
+}
+
+function conLugarEnLaLista(q, a) {
+  const donde = a.espera_turno?.length ? q.donde + ' · espera ' + numeros(a) : q.donde
+  return { ...q, texto: conNumero({ ...a, etiqueta: q.texto }).etiqueta, donde }
 }
 
 // preguntaDeParaTi: un ⏳ que pregunta algo, con su texto, que la tabla solo muestra como símbolo (issue #149). Al tocarlo
@@ -1516,7 +1576,7 @@ function verTodasLasEsperas($) {
 // confirmarla. «Abrir carpeta» va arriba, junto a la carpeta, cada ✕ en la fila de su tarea y los pedidos en «Para ti».
 // Solo los tipos que se dibujan aquí y con tecla: uno que este panel no conoce no sale como «undefined» (FND-092).
 function acciones(Box, Text, Button, $, todas, ancho) {
-  const conocidas = todas.filter((a) => a.tipo === 'aprobar' || a.tipo === 'comando')
+  const conocidas = todas.filter((a) => (a.tipo === 'aprobar' && !a.turno) || a.tipo === 'comando')
   const todasTeclas = teclas(conocidas)
   const lista = conocidas.filter((a) => todasTeclas[a.id])
   if (lista.length === 0) return []
@@ -1558,7 +1618,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
       cabecera(Box, Text, Button, $, e, lista),
       ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE),
       ...cuerpo,
-      ...paraTi(Box, Text, Button, $, pedidos(lista), datos.esperas_persona || [], ancho),
+      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
       Box({ marginTop: 1, children: [pie(Text)] }),

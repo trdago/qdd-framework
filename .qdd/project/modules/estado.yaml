@@ -44,7 +44,8 @@ objetivo_tecnologico:
         - 'Dependencias: golang.org/x/term v0.40.0 (compatible con Go 1.24 del CI) y golang.org/x/sys para el modo VT de Windows.'
         - qdd_estado no crea el archivo (init es del humano) ni marca aprobaciones por su cuenta.
         - El mod qdd-tareas dibuja lo que entrega qdd consola panel --json (estado y acciones) y solo pide acciones por id con qdd consola accion; no interpreta reglas ni lee el YAML (RFC 0006 §3.7, consola-claude-code v3.0.0).
-        - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
+        - 'Turno único (pedido de la persona, 2026-11-06; RFC 0019): qdd da una sola vez a cada pregunta, permiso, ⏳, pedido y ficha un número del proyecto que no cambia ni se reutiliza, y entrega el orden, lo siguiente y lo que cada uno espera. Panel y teléfono no lo recalculan.'
+        - 'Acciones del panel: aprobar cada ficha en borrador (hasta 9, teclas 1…9, en su turno de «Para ti»), revisar el estado (c, solo lectura) y auditar (u); aprobar usa el mismo código que qdd modules approve.'
         - "Barra de la consola (blueprint consola-claude-code v7, pedido del usuario, 2026-10-31): a la izquierda el modelo y el modo de la IA (el que anotó qdd consola ciclo en las últimas 12 h); a la derecha, uno por línea y terminando 6 columnas antes del borde (FND-091: el relleno empieza con U+2800, que Claude Code no borra), contexto, 5h y semana. El ancho sale de la terminal de la sesión (/dev/tty, CONOUT$ en Windows, o COLUMNS); sin ancho, la lista va sin relleno. Debajo del modelo, a la izquierda, la carpeta del proyecto con solo su nombre («\U0001F4C2 qdd», pedido del usuario, 2026-11-01); el resumen de tareas no: está en el panel."
         - 'Línea de recursos de la barra, al final y a la derecha (qdd consola activar --recursos): D disco del proyecto, G0…Gn % de uso de cada GPU (NVIDIA con nvidia-smi cada 5 s como mucho; las demás por /sys/class/drm), R RAM y C CPU entre dos lecturas, con caché en <QDD_HOME>/claude/recursos.json y tope total de 400 ms.'
         - 'Orden de las secciones del panel (FND-090): estado por tarea (cabecera y tabla), «▶ Para ti», ❌ Fallas y Acciones en una fila de botones, separadas por una línea fina; la confirmación y el resultado van en la sección del botón pulsado. Del proyecto se ve solo el nombre de la carpeta; la de un pedido, desde la del proyecto. Sin sección «Esperando» (pedido del usuario, 2026-10-30): el ⏳ ya está en la tabla y en el resumen, y su detalle en qdd estado ver.'
@@ -105,6 +106,7 @@ objetivo_tecnologico:
         - 'Seguro contra lanzar dos veces lo mismo (FND-154, pedido de la persona, 2026-11-05): qdd recuerda 24 h, en local, el efecto de cada pedido que terminó bien. Cerrar un issue y mergear un PR valen por su número, aunque cambie el texto; un comando encadenado u otro cualquiera valen por su texto. Lo ya hecho no se vuelve a pedir sin de_nuevo, y lo abierto con el mismo efecto es el mismo pedido. Si esa memoria no se puede leer, no bloquea nada.'
         - 'qdd_estado set recuerda declarar la tarea si el avance es un ✅ y esta sesión no tiene una en curso, pero no la enciende: un ✅ también puede cerrar lo ya terminado, y el teléfono diría «Trabajando» sin nadie trabajando (MEJ-021).'
     invariantes:
+        - 'Un turno no cambia mientras su ítem espera y nunca se reutiliza, salvo si el registro quedó ilegible. El orden nunca impide contestar otra cosa: solo un pedido espera de verdad a otro.'
         - La barra termina sola aunque nadie cierre su stdin (FND-145).
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
         - Un pedido tiene un solo dueño vivo; un proceso que dejó de serlo termina sin correrlo (FND-125).
@@ -169,4 +171,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-06"
-revisado_en_commit: ba25d5e7c91c
+revisado_en_commit: ffd69093b9d6

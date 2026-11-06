@@ -510,6 +510,7 @@ func accionesDePedidos(root string) []Accion {
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
 			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
+			despues: p.Despues, tareaTurno: p.Tarea,
 		}
 		if p.porAvisar() {
 			a.Avisar, a.Mensaje = true, mensajeAviso(p)

@@ -132,6 +132,8 @@ func preguntaDeEspera(f estado.Frente, etapa, bloqueo string, now time.Time) Pre
 		Etiqueta:  recortar("⏳ "+donde+": "+pregunta, MaxMotivo),
 		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: pregunta, Otra: true}},
 		Creada:    now.UTC(), Vista: now.UTC(),
+		// El turno no depende del texto: reescribir la pregunta no la manda al final (RFC 0019).
+		claveTurno: prefijoEspera + f.ID + ":" + etapa, tareaTurno: f.ID,
 	}
 }
 
@@ -208,9 +210,10 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 // EsperaDelPanel es una pregunta de la persona como la dibuja «▶ Para ti» (issue #149). Atender es la acción que la
 // envía al chat, donde se responde.
 type EsperaDelPanel struct {
-	Atender string `json:"atender"`
-	Donde   string `json:"donde"`
-	Texto   string `json:"texto"`
+	Pregunta string `json:"pregunta"` // el id de su acción, que da su lugar en la lista (RFC 0019)
+	Atender  string `json:"atender"`
+	Donde    string `json:"donde"`
+	Texto    string `json:"texto"`
 }
 
 // EsperasDelPanel son lo que el teléfono pregunta y todavía no se respondió, en el orden de la tabla. Una nota no
@@ -232,7 +235,7 @@ func EsperasDelPanel(root string, now time.Time) []EsperaDelPanel {
 				continue
 			}
 			q := p.Preguntas[0]
-			out = append(out, EsperaDelPanel{Atender: prefijoAtender + f.ID + ":" + strconv.Itoa(i), Donde: q.Encabezado, Texto: q.Texto})
+			out = append(out, EsperaDelPanel{Pregunta: prefijoPregunta + p.ID, Atender: prefijoAtender + f.ID + ":" + strconv.Itoa(i), Donde: q.Encabezado, Texto: q.Texto})
 		}
 	}
 	return out
