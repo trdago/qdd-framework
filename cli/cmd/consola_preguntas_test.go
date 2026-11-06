@@ -3,14 +3,11 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
-	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 )
 
@@ -118,31 +115,3 @@ func entregaDe(t *testing.T, b []byte) consola.Entrega {
 
 // Issue #149: el panel responde un ⏳ con «qdd consola pregunta responder»; la respuesta entra por stdin porque es texto
 // de la persona, y lo que devuelve es lo que el panel le envía a la IA.
-func TestConsolaPregunta_ResponderUnaEspera(t *testing.T) {
-	t.Setenv("QDD_HOME", t.TempDir())
-	root := t.TempDir()
-	ruta := filepath.Join(root, estado.Ruta)
-	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	yaml := "formato: 1\netapas: [PR]\nfrentes:\n  - {id: barra, nombre: Barra, estado: abierto, celdas: {PR: {estado: \"⏳\", bloqueo: \"¿Mergeamos?\", de_quien: la persona}}}\n"
-	if err := os.WriteFile(ruta, []byte(yaml), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	esperas := consola.EsperasDelPanel(root, time.Now())
-	if len(esperas) != 1 {
-		t.Fatalf("%+v", esperas)
-	}
-	var salida, errores bytes.Buffer
-	if codigo := preguntaResponder(root, esperas[0].ID, strings.NewReader("sí"), &salida, &errores); codigo != 0 {
-		t.Fatalf("%d %s", codigo, errores.String())
-	}
-	var r struct{ Mensaje string }
-	if err := json.Unmarshal(salida.Bytes(), &r); err != nil || !strings.Contains(r.Mensaje, "¿Mergeamos?") || !strings.Contains(r.Mensaje, "sí") {
-		t.Fatalf("%v %s", err, salida.String())
-	}
-	errores.Reset()
-	if codigo := preguntaResponder(root, esperas[0].ID, strings.NewReader("no"), &salida, &errores); codigo != 1 || !strings.Contains(errores.String(), "ya respondida") {
-		t.Fatalf("la segunda no cuenta: %d %s", codigo, errores.String())
-	}
-}

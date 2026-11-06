@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -204,55 +205,37 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 	return out, err
 }
 
-// EsperaDelPanel es un ⏳ de la persona como lo dibuja el panel (issue #149): una nota no pregunta nada, así que no trae
-// id y no se responde.
+// EsperaDelPanel es una pregunta de la persona como la dibuja «▶ Para ti» (issue #149). Atender es la acción que la
+// envía al chat, donde se responde.
 type EsperaDelPanel struct {
-	ID    string `json:"id,omitempty"`
-	Donde string `json:"donde"`
-	Texto string `json:"texto"`
+	Atender string `json:"atender"`
+	Donde   string `json:"donde"`
+	Texto   string `json:"texto"`
 }
 
-// EsperasDelPanel son lo que el teléfono pregunta y todavía no se respondió, y después las notas: en el panel tampoco
-// se leían, y solo el símbolo no dice qué se espera.
+// EsperasDelPanel son lo que el teléfono pregunta y todavía no se respondió, en el orden de la tabla. Una nota no
+// pregunta nada: sigue como ⏳ en la tabla.
 func EsperasDelPanel(root string, now time.Time) []EsperaDelPanel {
 	out := []EsperaDelPanel{}
-	for _, p := range PreguntasA(root, now) {
-		if p.Origen != OrigenEstado || p.Estado != PreguntaPendiente {
-			continue
-		}
-		q := p.Preguntas[0]
-		out = append(out, EsperaDelPanel{ID: p.ID, Donde: q.Encabezado, Texto: q.Texto})
+	e, err := estado.Load(root)
+	if err != nil {
+		return out
 	}
-	for _, n := range EsperasSinPregunta(root, now) {
-		out = append(out, EsperaDelPanel{Donde: n.Tarea + " · " + n.Etapa, Texto: n.Bloqueo})
+	pendientes := map[string]bool{}
+	for _, p := range PreguntasA(root, now) {
+		pendientes[p.ID] = p.Origen == OrigenEstado && p.Estado == PreguntaPendiente
+	}
+	for _, f := range e.Abiertos() {
+		for i, etapa := range e.EtapasDe(f) {
+			p := preguntaDeEspera(f, etapa, strings.TrimSpace(f.Celdas[etapa].Bloqueo), now)
+			if !pendientes[p.ID] {
+				continue
+			}
+			q := p.Preguntas[0]
+			out = append(out, EsperaDelPanel{Atender: prefijoAtender + f.ID + ":" + strconv.Itoa(i), Donde: q.Encabezado, Texto: q.Texto})
+		}
 	}
 	return out
-}
-
-// ResponderEsperaEnPC aplica la respuesta dada en el panel y devuelve el mensaje que el panel le envía a la IA de su
-// sesión, por eso no deja una instrucción para otra. La primera gana, igual que desde un teléfono. Como en un cierre
-// desde el PC, la cola no guarda el texto: lo guarda la conversación.
-func ResponderEsperaEnPC(root, id, respuesta string, now time.Time) (string, error) {
-	mensaje := ""
-	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
-		if i := indicePregunta(cola, id); i >= 0 {
-			return nil, &PreguntaCerrada{Pregunta: cola[i]}
-		}
-		p, ok := esperaPorID(root, id, now)
-		if !ok {
-			return nil, ErrPreguntaDesconocida
-		}
-		q := p.Preguntas[0]
-		r, err := validarOtra(q, respuesta)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrRespuestaInvalida, err)
-		}
-		cerrada := now.UTC()
-		p.Estado, p.RespondidaEn, p.Cerrada = PreguntaRespondida, EnPC, &cerrada
-		mensaje = mensajeDeRespuesta(q, *r.Otra)
-		return append([]Pregunta{p}, cola...), nil
-	})
-	return mensaje, err
 }
 
 // ReabrirEspera vuelve a preguntar un ⏳ cuya respuesta no llegó a ninguna sesión (FND-141). Solo si la respuesta

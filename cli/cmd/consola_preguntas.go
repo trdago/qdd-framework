@@ -63,13 +63,6 @@ var consolaPreguntaCerrarCmd = &cobra.Command{
 	},
 }
 
-var consolaPreguntaResponderCmd = &cobra.Command{
-	Use: "responder <id>", Short: "Responde desde el panel un ⏳ de la persona (el texto entra por stdin); entrega el mensaje para la IA", Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(preguntaResponder(estadoRaiz(), args[0], os.Stdin, os.Stdout, os.Stderr))
-	},
-}
-
 var consolaPreguntaVencerCmd = &cobra.Command{
 	Use: "vencer --sesion <id>", Short: "Vence las preguntas pendientes de una sesión de Claude Code que se cerró", Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -91,23 +84,8 @@ func init() {
 	consolaPreguntaVencerCmd.Flags().StringVar(&preguntaSesion, "sesion", "", "la sesión de Claude Code que se cerró")
 	consolaPreguntaVencerCmd.Flags().StringVar(&preguntaMotivo, "motivo", "", "por qué venció (por defecto, que se cerró la sesión)")
 	consolaPreguntaListaCmd.Flags().BoolVar(&preguntaJSON, "json", false, "salida JSON")
-	consolaPreguntaCmd.AddCommand(consolaPreguntaRegistrarCmd, consolaPreguntaEsperarCmd, consolaPreguntaCerrarCmd, consolaPreguntaResponderCmd, consolaPreguntaVencerCmd, consolaPreguntaListaCmd)
+	consolaPreguntaCmd.AddCommand(consolaPreguntaRegistrarCmd, consolaPreguntaEsperarCmd, consolaPreguntaCerrarCmd, consolaPreguntaVencerCmd, consolaPreguntaListaCmd)
 	consolaCmd.AddCommand(consolaPreguntaCmd)
-}
-
-// preguntaResponder aplica la respuesta dada en el panel. Entra por stdin porque es texto de la persona.
-func preguntaResponder(root, id string, entrada io.Reader, salida, errores io.Writer) int {
-	texto, err := io.ReadAll(io.LimitReader(entrada, consola.MaxRespuesta+1))
-	if err != nil {
-		fmt.Fprintf(errores, "[!] %v\n", err)
-		return 1
-	}
-	mensaje, err := consola.ResponderEsperaEnPC(root, id, string(texto), time.Now())
-	if err != nil {
-		fmt.Fprintf(errores, "[!] %v\n", err)
-		return 1
-	}
-	return jsonPregunta(salida, map[string]string{"mensaje": mensaje})
 }
 
 // preguntaRegistrar registra la pregunta solo si este PC tiene QDD Móvil activado: sin teléfono no hay a quién más
