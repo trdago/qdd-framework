@@ -8,6 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **Con QDD Móvil, cada sesión ya no lanza un proceso cada 5 s (MEJ-020, #108):** el proceso `qdd consola seguir`, que ya
+  estaba abierto, hace el latido y entrega lo mandado desde el teléfono. Con una versión anterior de qdd, el panel sigue
+  latiendo como antes.
 - **Una salida en vivo larga ahora muestra lo último (FND-163):** Claude Code dibuja solo los primeros 100.000 caracteres de un
   texto, así que una herramienta ruidosa o una barra de progreso mostraban lo viejo. El panel guarda lo último, hasta 64 KB, y
   redibuja como mucho cada 100 ms.

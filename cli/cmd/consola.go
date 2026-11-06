@@ -248,6 +248,9 @@ func conLoQuePide(datos *consola.DatosConsola, root string, now time.Time, con [
 		if c == "esperas_persona" {
 			datos.EsperasPersona = consola.EsperasDelPanel(root, now)
 		}
+		if strings.HasPrefix(c, prefijoTelefonoEnFlujo) {
+			datos.TelefonoEnFlujo = true
+		}
 		if c == "mejoras" {
 			toca := mejoras.TocaCiclo(root, now)
 			datos.MejorasToca = &toca

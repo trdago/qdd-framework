@@ -107,6 +107,8 @@ type DatosConsola struct {
 	Flujos json.RawMessage `json:"flujos,omitempty"`
 	// EsperasPersona son los ⏳ de la persona con su texto, si el panel los pide (issue #149).
 	EsperasPersona []EsperaDelPanel `json:"esperas_persona,omitempty"`
+	// TelefonoEnFlujo: el flujo late y entrega lo del teléfono; el panel no necesita un proceso por latido (MEJ-020).
+	TelefonoEnFlujo bool `json:"telefono_en_flujo,omitempty"`
 	// MejorasToca (con «mejoras»): si pasaron los 10 min del ciclo de mejoras. Sin el campo, el panel lo pide cada minuto.
 	MejorasToca *bool `json:"mejoras_toca,omitempty"`
 }
