@@ -17,6 +17,7 @@ objetivo_tecnologico:
         - La tendencia del puntaje sale de certificate_history.json, que escribe audit/certify. Se toma el último puntaje de cada día con la escala actual. El dashboard no escribe historiales.
         - Un cliente SSE nuevo recibe el último estado difundido. Solo se reconstruye si todavía no hay ninguno.
         - Los findings y las certificaciones se cuentan con sus lectores únicos (pkg/findings, pkg/certificaciones). La UI muestra los conteos del backend y no los recalcula. Una certificación del catálogo se muestra como disponible, nunca como cumplida (FND-060).
+        - 'Obsoleto desde 2026-11-06 (RFC 0018), por decisión de la persona: avisa al arrancar por la salida de errores, sigue funcionando y solo recibe arreglos de fallas y de seguridad. El panel que sigue es qdd-tareas. Quitarlo es una decisión aparte de la persona.'
     invariantes:
         - Los datos simulados y los mocks solo existen en las pruebas. Si un indicador no tiene una fuente real, el dashboard muestra 'sin medir'.
         - BuildState solo lee las fuentes del proyecto. Nunca escribe en una ruta que el watcher considere un evento.
@@ -33,4 +34,4 @@ fuentes:
     - rfcs/0005-reglas-como-principios.md
     - cli/cmd/dashboard_local_test.go
 ultima_revision: "2026-11-06"
-revisado_en_commit: d3768b4a30a7
+revisado_en_commit: e61cc0ae63de

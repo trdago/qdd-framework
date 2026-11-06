@@ -23,10 +23,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RFC 0018: el panel que sigue es qdd-tareas. Hasta que la persona decida quitarlo, el dashboard solo recibe arreglos.
+const avisoDashboardObsoleto = "⚠️  qdd dashboard está obsoleto: sigue funcionando, pero ya no recibe funciones nuevas. " +
+	"El panel que sigue es qdd-tareas; se instala con qdd consola activar."
+
 var dashboardCmd = &cobra.Command{
 	Use:     "dashboard",
 	Aliases: []string{"ui"},
-	Short:   "Inicia el Centro de Comando Web (Frontend embebido)",
+	Short:   "Obsoleto: inicia el Centro de Comando Web. El panel que sigue es qdd-tareas",
+	PreRun: func(cmd *cobra.Command, args []string) {
+		fmt.Fprintln(cmd.ErrOrStderr(), avisoDashboardObsoleto)
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("🚀 Preparando QDD Dashboard...")
 

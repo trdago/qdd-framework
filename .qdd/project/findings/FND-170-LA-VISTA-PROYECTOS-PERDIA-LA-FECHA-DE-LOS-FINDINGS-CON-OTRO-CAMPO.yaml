@@ -1,0 +1,9 @@
+id: "FND-170"
+title: "La vista Proyectos perdía la fecha de los findings que la guardan en otro campo"
+description: "El lector único de findings solo leía date, pero cada proyecto la guarda con otro nombre: date, created_at o discovered_at. Al correr qdd consola proyectos contra los 8 proyectos de este PC, el historial del notificador dejó 207 de 208 findings sin fecha. Se vio antes de publicar la función: no llegó a ninguna versión."
+impact: "El historial de findings por fecha, que pide el RFC 0018, habría salido casi vacío en la mayoría de los proyectos. No cambiaba ningún conteo ni el gate."
+action_taken: "Finding suma el campo Cuando, con la primera de las tres fechas tal como está escrita. Fecha sigue siendo solo date, porque el gate decide con ella qué findings exigen prueba (FND-02): ampliarla habría empezado a bloquear findings de otros proyectos. created_at y discovered_at se leen como yaml.Node, para que una fecha con otra forma no invalide el archivo ni cambie los conteos."
+test_result: "cli/pkg/findings/findings_test.go: TestLeer_CuandoEncuentraLaFechaEnSusTresNombres_FND170 y TestLeer_UnaFechaConOtraFormaNoBorraElFinding_FND170. cli/pkg/consola/proyectos_test.go: TestProyectos_FindingConFechaEnOtroCampoCuentaEnSuDia_FND170, que falló antes del arreglo. Con los datos reales del notificador, los findings sin fecha bajaron de 207 a 0 y los abiertos siguieron en 151."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd consola proyectos --json` (RFC 0018).** Entrega una fila por proyecto de este PC: puntaje, hace cuánto, findings
+  abiertos, ⏳ y ❌, con su historial. Lo que no tiene fuente sale como `null` («sin medir»). Solo lee archivos locales. La
+  vista del panel que lo dibuja viene después.
+
+### Obsoleto
+
+- **`qdd dashboard` queda obsoleto (RFC 0018).** Avisa al arrancar y sigue funcionando igual, pero solo recibe arreglos.
+  El panel que sigue es `qdd-tareas`, que se instala con `qdd consola activar`. Quitarlo es una decisión aparte.
+
 ## [2.10.0-rc.19] - 2026-11-06
 
 ### Corregido
