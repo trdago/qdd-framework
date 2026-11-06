@@ -6,10 +6,25 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **El panel muestra qué te preguntan (#149):** la sección «⏳ Te esperan» trae el texto de los ⏳ que esperan a la
+  persona, recortado. Al tocar uno se ve entero y, si es una pregunta, se responde ahí mismo. La respuesta le llega a la
+  IA de esa sesión, y el teléfono ya no vuelve a preguntarla.
+
+### Cambiado
+
+- **Mensajes, sesiones y herramientas ya no esperan a qdd (MEJ-015, #113):** un mensaje y el inicio de sesión esperan a lo más
+  400 ms; si qdd tarda más, lo que tenía que decirle a la IA viaja con el mensaje siguiente en vez de perderse. El final de una
+  herramienta no espera nada, y una ráfaga de herramientas de qdd lanza una lectura en curso y una más, no una por cada una.
+
 ### Corregido
 
 - **`qdd audit` nombra la prueba que falló aunque la suite sea larga:** guardaba solo las últimas 60 líneas, así que podía
   decir «1 fail» sin decir cuál. Ahora también muestra las líneas anteriores que dicen «fail», hasta 40.
+- **`qdd remoto` ya no gasta CPU por cada latido de las sesiones (FND-161):** cada sesión reescribía cada 5 s su cola del
+  teléfono aunque siguiera vacía, y el servicio volvía a leer todos los proyectos. Con 7 proyectos y sin teléfono conectado
+  usaba del 13 al 21 % de un núcleo. Las colas ya no se escriben si no cambiaron.
 
 ## [2.10.0-rc.11] - 2026-11-05
 
@@ -21,9 +36,6 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Cambiado
 
-- **Mensajes, sesiones y herramientas ya no esperan a qdd (MEJ-015, #113):** un mensaje y el inicio de sesión esperan a lo más
-  400 ms; si qdd tarda más, lo que tenía que decirle a la IA viaja con el mensaje siguiente en vez de perderse. El final de una
-  herramienta no espera nada, y una ráfaga de herramientas de qdd lanza una lectura en curso y una más, no una por cada una.
 - **Menos mensajes de Realtime:** `hace`, el pulso de una tarea en curso y los reintentos de un pedido ya no mandan el panel
   entero al teléfono por sí solos. Viajan con el siguiente cambio real, así que en la app pueden estar atrasados hasta
   entonces.

@@ -324,3 +324,83 @@ func TestEspera_ReabrirNoTocaUnaRespuestaMasNueva_FND141(t *testing.T) {
 		t.Fatalf("otra instrucción no reabre esta respuesta: %+v", v)
 	}
 }
+
+// Issue #149: el panel solo mostraba el símbolo; «no veo las preguntas en el tablero». Muestra lo mismo que el teléfono,
+// y una nota de la persona también, porque ahí tampoco se leía.
+func TestEsperasDelPanel_TraeLaPreguntaEnteraYLasNotasSinID(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "Probé en Linux. ¿Pruebas tú en Windows? Hace falta un PC real.")
+	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "Código", Estado: "⏳", Bloqueo: "Lo pruebas cuando puedas", DeQuien: "usuario"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	got := EsperasDelPanel(root, enCola)
+	if len(got) != 2 {
+		t.Fatalf("una pregunta y una nota de la persona; el ⏳ de otro no: %+v", got)
+	}
+	p, n := got[0], got[1]
+	if p.ID == "" || p.ID != esperaDe(t, root, enCola).ID || p.Donde != "Barra · PR" || p.Texto != "¿Pruebas tú en Windows? Hace falta un PC real." {
+		t.Fatalf("la pregunta va primero, con el id del teléfono, y entera desde el ¿: %+v", p)
+	}
+	if n.ID != "" || n.Donde != "Barra · Código" || n.Texto != "Lo pruebas cuando puedas" {
+		t.Fatalf("una nota no se responde: no trae id: %+v", n)
+	}
+}
+
+func TestEsperasDelPanel_LoCubiertoPorUnPedidoNoSeRepite(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd, err := Pedir(root, "aws configure", "Configurar AWS", root, enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conEspera(t, root, "¿Corres ["+pd.Tecla+"] para desplegar?")
+	if got := EsperasDelPanel(root, enCola); len(got) != 0 {
+		t.Fatalf("el pedido ya lo muestra el panel: %+v", got)
+	}
+}
+
+func TestResponderEsperaEnPC_DaElMensajeYNoSeVuelveAPreguntar(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
+	p := esperaDe(t, root, enCola)
+
+	mensaje, err := ResponderEsperaEnPC(root, p.ID, "  sí, mergea  ", enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(mensaje, "Barra · PR: ¿mergeamos el #8?") || !strings.Contains(mensaje, "\nsí, mergea\n") || !strings.Contains(mensaje, "qdd_estado") {
+		t.Fatalf("la IA lee a qué ⏳ responde, la respuesta y cómo reflejarla: %q", mensaje)
+	}
+	if got := EsperasDelPanel(root, enCola); len(got) != 0 {
+		t.Fatalf("ya respondida no se ofrece: %+v", got)
+	}
+	r := esperaDe(t, root, enCola)
+	if r.Estado != PreguntaRespondida || r.RespondidaEn != EnPC || len(EjecucionesA(root, enCola)) != 0 {
+		t.Fatalf("queda respondida en el PC, sin instrucción para otra sesión: %+v", r)
+	}
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"no"}}`, "Pixel", enCola); err == nil || !strings.Contains(err.Error(), "ya respondida en PC") {
+		t.Fatalf("el teléfono llega tarde y lo sabe: %v", err)
+	}
+}
+
+func TestResponderEsperaEnPC_LaPrimeraGanaYLaVaciaNoCuenta(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "¿mergeamos el #8?")
+	conSesionAbierta(t, root)
+	p := esperaDe(t, root, enCola)
+	if _, err := ResponderEsperaEnPC(root, "espera-otra", "sí", enCola); !errors.Is(err, ErrPreguntaDesconocida) {
+		t.Fatalf("un ⏳ que ya no existe: %v", err)
+	}
+	if _, err := ResponderEsperaEnPC(root, p.ID, "   ", enCola); !errors.Is(err, ErrRespuestaInvalida) {
+		t.Fatalf("sin texto no hay respuesta: %v", err)
+	}
+	if e := esperaDe(t, root, enCola); e.Estado != PreguntaPendiente {
+		t.Fatalf("una respuesta rechazada no la cierra: %+v", e)
+	}
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
+		t.Fatal(err)
+	}
+	var cerrada *PreguntaCerrada
+	if _, err := ResponderEsperaEnPC(root, p.ID, "no", enCola); !errors.As(err, &cerrada) || !strings.Contains(err.Error(), "Pixel") {
+		t.Fatalf("dice que ya la respondió el teléfono: %v", err)
+	}
+}
