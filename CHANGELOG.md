@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Cambiado
+
+- **El relay de QDD Móvil ya no está en el código: sale de un directorio firmado.** Si el relay cambia, cambia la URL y no qdd. El PC lo
+  consulta al arrancar, en `qdd login` y `qdd remoto activar`, y si la conexión sigue caída; mientras funciona, usa el que recuerda. Solo acepta una
+  respuesta firmada con la clave que trae qdd. Si la consulta falla sigue con el recordado y `qdd doctor` lo dice (REM-11). Un relay dado con
+  `--relay` y `--clave` es tuyo y no se consulta. Un PC que nunca consultó y no alcanza el directorio no puede emparejarse hasta que responda o
+  le des un relay a mano: qdd ya no trae uno de respaldo.
+
 ## [2.10.0-rc.17] - 2026-11-06
 
 ### Corregido

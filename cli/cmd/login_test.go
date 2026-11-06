@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -19,13 +20,18 @@ func prepararLogin(t *testing.T, porDefecto remoto.ConfigRelay) *bytes.Buffer {
 	t.Helper()
 	t.Setenv("QDD_HOME", t.TempDir())
 	usuario := t.TempDir()
-	antesEjecutor, antesUsuario, antesDefecto := remotoEjecutor, remotoUsuario, remotoRelayPorDefecto
+	antesEjecutor, antesUsuario, antesConsultar := remotoEjecutor, remotoUsuario, remotoConsultarRelay
 	remotoEjecutor = func(string, ...string) error { return nil }
 	remotoUsuario = func() (string, error) { return usuario, nil }
-	remotoRelayPorDefecto = porDefecto
+	remotoConsultarRelay = func(context.Context, int) (remoto.ConfigRelay, error) {
+		if porDefecto.URL == "" {
+			return porDefecto, errors.New("no se pudo leer el directorio del relay")
+		}
+		return porDefecto, nil
+	}
 	remotoCadaEspera, remotoRelayURL, remotoClave, remotoSinServ = 5*time.Millisecond, "", "", false
 	t.Cleanup(func() {
-		remotoEjecutor, remotoUsuario, remotoRelayPorDefecto = antesEjecutor, antesUsuario, antesDefecto
+		remotoEjecutor, remotoUsuario, remotoConsultarRelay = antesEjecutor, antesUsuario, antesConsultar
 		remotoCadaEspera, remotoRelayURL, remotoClave, remotoSinServ = 0, "", "", false
 	})
 	return &bytes.Buffer{}
@@ -80,18 +86,6 @@ func TestLogin_ConRelayPorDefectoEmparejaSinArgumentos(t *testing.T) {
 	}
 }
 
-func TestLogin_LoGuardadoGanaAlPorDefecto(t *testing.T) {
-	prepararLogin(t, remoto.ConfigRelay{URL: "https://por-defecto.supabase.co", Clave: "sb_publishable_defecto"})
-	propio := remoto.ConfigRelay{URL: "https://propio.supabase.co", Clave: "sb_publishable_propio"}
-	if err := remoto.GuardarRelay(propio); err != nil {
-		t.Fatal(err)
-	}
-	c, err := relayDeFlags()
-	if err != nil || c.URL != propio.URL {
-		t.Fatalf("un PC con su relay no cambia de relay: %+v %v", c, err)
-	}
-}
-
 func TestLogin_LasBanderasGananAlPorDefecto(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://por-defecto.supabase.co", Clave: "sb_publishable_defecto"})
 	remotoRelayURL, remotoClave = "https://propio.supabase.co", "sb_publishable_propio"
@@ -103,7 +97,7 @@ func TestLogin_LasBanderasGananAlPorDefecto(t *testing.T) {
 
 // FND-133: un PC sin relay guardado toma el que trae qdd, sin banderas, y lo deja guardado para el servicio.
 func TestLogin_UnPCNuevoUsaElRelayQueTraeQdd_FND133(t *testing.T) {
-	prepararLogin(t, remoto.RelayPorDefecto)
+	prepararLogin(t, remoto.ConfigRelay{URL: "https://del-directorio.supabase.co", Clave: "sb_publishable_prueba", Serie: 1})
 	c, err := relayDeFlags()
 	if err != nil {
 		t.Fatalf("un PC nuevo no necesita banderas: %v", err)
@@ -111,6 +105,38 @@ func TestLogin_UnPCNuevoUsaElRelayQueTraeQdd_FND133(t *testing.T) {
 	guardado, err := remoto.LeerRelay()
 	if err != nil || guardado != c {
 		t.Fatalf("queda guardado: %v", err)
+	}
+}
+
+func TestLogin_LasBanderasDejanUnRelayPropio(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{URL: "https://del-directorio.supabase.co", Clave: "sb_publishable_prueba", Serie: 1})
+	remotoRelayURL, remotoClave = "https://mio.supabase.co", "sb_publishable_mio"
+	c, err := relayDeFlags()
+	if err != nil || !c.Propio || c.URL != "https://mio.supabase.co" {
+		t.Fatalf("un relay con banderas es propio: %+v %v", c, err)
+	}
+	remotoRelayURL, remotoClave = "", ""
+	c, err = relayDeFlags()
+	if err != nil || c.URL != "https://mio.supabase.co" {
+		t.Fatalf("el directorio no lo pisa: %+v %v", c, err)
+	}
+}
+
+func TestLogin_ConsultaDeNuevoYSiFallaSigueConElGuardado(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{URL: "https://nuevo.supabase.co", Clave: "sb_publishable_n", Serie: 2})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: "https://viejo.supabase.co", Clave: "sb_publishable_v", Serie: 1}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := relayDeFlags()
+	if err != nil || c.URL != "https://nuevo.supabase.co" {
+		t.Fatalf("qdd login vuelve a consultar: %+v %v", c, err)
+	}
+	remotoConsultarRelay = func(context.Context, int) (remoto.ConfigRelay, error) {
+		return remoto.ConfigRelay{}, errors.New("sin red")
+	}
+	c, err = relayDeFlags()
+	if err != nil || c.URL != "https://nuevo.supabase.co" {
+		t.Fatalf("sin directorio sigue con el guardado: %+v %v", c, err)
 	}
 }
 

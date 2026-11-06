@@ -34,7 +34,7 @@ var (
 	remotoPlazo                      = remoto.VigenciaOferta
 	remotoCadaEspera time.Duration
 
-	remotoRelayPorDefecto = remoto.RelayPorDefecto
+	remotoConsultarRelay = remoto.DirectorioDeFabrica().Consultar
 )
 
 func ejecutarSistema(nombre string, args ...string) error {
@@ -92,19 +92,25 @@ func contexto(ctx context.Context) context.Context {
 	return ctx
 }
 
-// relayDeFlags: las banderas mandan y se guardan; si no, lo guardado; la primera vez, el relay que trae qdd (issue #102).
+// relayDeFlags: las banderas mandan y dejan el relay como propio; si no, lo guardado, confirmado con el directorio; la
+// primera vez, lo que diga el directorio. Una consulta fallida sigue con lo guardado: doctor dice por qué.
 func relayDeFlags() (remoto.ConfigRelay, error) {
 	if remotoRelayURL != "" || remotoClave != "" {
-		return guardarYLeerRelay(remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave})
+		return guardarYLeerRelay(remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave, Propio: true})
 	}
 	c, err := remoto.LeerRelay()
+	if err == nil {
+		c, _, _ = remoto.ActualizarRelay(context.Background(), remotoConsultarRelay, c)
+		return c, nil
+	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return c, err
 	}
-	if remotoRelayPorDefecto.URL == "" {
-		return c, errors.New("falta el relay: esta versión de qdd no trae uno por defecto; usa 'qdd login --relay <url> --clave <publicable>'")
+	c, err = remotoConsultarRelay(context.Background(), 0)
+	if err != nil {
+		return c, fmt.Errorf("falta el relay: %v; vuelve a intentarlo o usa 'qdd login --relay <url> --clave <publicable>'", err)
 	}
-	return guardarYLeerRelay(remotoRelayPorDefecto)
+	return guardarYLeerRelay(c)
 }
 
 func guardarYLeerRelay(c remoto.ConfigRelay) (remoto.ConfigRelay, error) {
@@ -260,6 +266,10 @@ func remotoCorrer(errores io.Writer) int {
 	defer soltar()
 	ctx, cancelar := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelar()
+	c, _, err = remoto.ActualizarRelay(ctx, remotoConsultarRelay, c)
+	if err != nil {
+		fmt.Fprintf(errores, "[i] sigue con el relay guardado: %v\n", err)
+	}
 	canal := remoto.NuevoCanal(remoto.ConfigCanal{Relay: c.URL, Clave: c.Clave, Topico: cred.Topico, PresenceKey: "pc"})
 	go canal.Correr(ctx)
 	bin, _ := os.Executable()
@@ -269,7 +279,19 @@ func remotoCorrer(errores io.Writer) int {
 			fmt.Fprintf(errores, "[i] no se anotó el último envío: %v\n", err)
 		}
 	}
+	b.Consultar = func(ctx context.Context) (bool, error) {
+		actual, err := remoto.LeerRelay()
+		if err != nil {
+			return false, err
+		}
+		_, cambio, err := remoto.ActualizarRelay(ctx, remotoConsultarRelay, actual)
+		return cambio, err
+	}
 	err = b.Correr(ctx)
+	if errors.Is(err, remoto.ErrRelayCambio) {
+		fmt.Fprintf(errores, "[i] %v.\n", err)
+		return codigoReiniciar
+	}
 	if errors.Is(err, remoto.ErrCredenciales) {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
 		return 0
