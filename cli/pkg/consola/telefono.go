@@ -1,6 +1,7 @@
 package consola
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -446,6 +447,15 @@ func guardarJSON(ruta string, v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
+	}
+	return escribirSiCambio(ruta, b)
+}
+
+// escribirSiCambio no toca un archivo que ya dice lo mismo: quien vigila su carpeta (qdd remoto y el flujo de cada panel)
+// vería un cambio que no hubo y volvería a leer todos los proyectos (FND-161).
+func escribirSiCambio(ruta string, b []byte) error {
+	if actual, err := os.ReadFile(ruta); err == nil && bytes.Equal(actual, b) {
+		return nil
 	}
 	tmp := ruta + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
