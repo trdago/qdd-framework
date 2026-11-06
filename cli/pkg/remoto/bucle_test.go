@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -602,5 +603,61 @@ func TestAccionEnDelta_EncuentraElDeltaQueEsperarDescarto_FND158(t *testing.T) {
 	tr.esperar(t, time.Second, "accion_estado")
 	if a := tr.accionEnDelta(t, time.Second, "app", "s1"); a.ID != "x" {
 		t.Fatalf("acción: %+v", a)
+	}
+}
+
+// Pedido de qdd-movile y de la persona (2026-11-05): en 3 min el panel de qdd cambió 14 de 18 muestras, casi siempre solo en
+// «hace» y en los reintentos de un pedido armado, y cada cambio mandaba el panel entero.
+func panelConVolatil(etiqueta, hace, pulso string, intentos int, proximo time.Time) Estado {
+	d := &estado.DatosPanel{Hace: hace, Frentes: []estado.FrentePanel{{ID: "t", Actividad: &estado.ActividadPanel{Running: true, Pulso: pulso, Fuente: estado.FuenteAgente}}}}
+	a := consola.Accion{ID: "p", Tipo: consola.TipoPedido, Etiqueta: etiqueta, Estado: consola.EstadoPendiente, Intentos: intentos, Proximo: &proximo, Inicio: &proximo, AvisoEn: &proximo}
+	return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Estado: d, Acciones: []consola.Accion{a}}}}}
+}
+
+func TestDelta_LoVolatilSoloNoGastaUnMensaje(t *testing.T) {
+	tr := nuevoTransporte()
+	ctx := context.Background()
+	t0 := time.Now()
+	primero := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	b := &Bucle{T: tr, enviados: paneles(primero), estructura: estructuraDe(primero)}
+	b.mandarCambios(ctx, panelConVolatil("Publicar", "hace 2 min", "pulso-2", 2, t0.Add(time.Minute)))
+	tr.nada(t, 50*time.Millisecond)
+
+	ultimo := t0.Add(2 * time.Minute)
+	real := panelConVolatil("Publicar otra cosa", "hace 3 min", "pulso-3", 3, ultimo)
+	b.mandarCambios(ctx, real)
+	e := tr.esperar(t, time.Second, "delta")
+	var d Delta
+	if err := json.Unmarshal(e.Payload, &d); err != nil {
+		t.Fatal(err)
+	}
+	p := d.Proyectos["c"]
+	if p == nil || p.Estado.Hace != "hace 3 min" || p.Estado.Frentes[0].Actividad.Pulso != "pulso-3" {
+		t.Fatalf("un cambio real lleva lo volátil al día: %s", e.Payload)
+	}
+	a := p.Acciones[0]
+	if a.Intentos != 3 || a.Proximo == nil || !a.Proximo.Equal(ultimo) || a.Inicio == nil || a.AvisoEn == nil {
+		t.Fatalf("un cambio real lleva los reintentos al día: %s", e.Payload)
+	}
+}
+
+func TestDelta_QueLaTareaDejeDeEstarEnCursoEsUnCambioReal(t *testing.T) {
+	tr := nuevoTransporte()
+	t0 := time.Now()
+	primero := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	b := &Bucle{T: tr, enviados: paneles(primero), estructura: estructuraDe(primero)}
+	sinActividad := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	sinActividad.Proyectos[0].Panel.Estado.Frentes[0].Actividad = nil
+	b.mandarCambios(context.Background(), sinActividad)
+	tr.esperar(t, time.Second, "delta")
+}
+
+func TestPaneles_NoTocaLoQueSePublica(t *testing.T) {
+	t0 := time.Now()
+	e := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	paneles(e)
+	p := e.Proyectos[0].Panel
+	if p.Estado.Hace == "" || p.Estado.Frentes[0].Actividad.Pulso == "" || p.Acciones[0].Intentos != 1 || p.Acciones[0].Proximo == nil {
+		t.Fatalf("la huella trabaja sobre una copia: %+v", p)
 	}
 }

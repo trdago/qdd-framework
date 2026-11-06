@@ -14,6 +14,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Cambiado
 
+- **Menos mensajes de Realtime:** `hace`, el pulso de una tarea en curso y los reintentos de un pedido ya no mandan el panel
+  entero al teléfono por sí solos. Viajan con el siguiente cambio real, así que en la app pueden estar atrasados hasta
+  entonces.
 - **«✓» y «Quitar» reemplazan a la ✕ en cada tarea del panel.** Sirven para las tareas atrapadas por algo que no se puede
   validar en producción, o que ya no quieres ver. Los dos piden «s  Sí».
   - **✓ (ya lo vi):** deja cada etapa en ⏳ en ✅ con la nota «la vio la persona el DD/MM, sin medición» y cierra la tarea si

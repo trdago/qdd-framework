@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"time"
 
@@ -328,10 +329,38 @@ func (b *Bucle) mandarEstado(ctx context.Context, e Estado) {
 func paneles(e Estado) map[string]string {
 	out := map[string]string{}
 	for _, p := range e.Proyectos {
-		b, _ := json.Marshal(p.Panel)
+		b, _ := json.Marshal(sinLoVolatil(p.Panel))
 		out[p.Clave] = string(b)
 	}
 	return out
+}
+
+// sinLoVolatil es la copia del panel con la que se decide si vale un mensaje: lo que avanza solo con el reloj o con cada
+// herramienta (hace, el pulso de una tarea en curso y los reintentos de un pedido armado) no gasta uno. Viaja igual, al
+// día, con el siguiente cambio real. Que una tarea deje de estar en curso o cambie el estado de un pedido sí es real.
+func sinLoVolatil(panel *consola.DatosConsola) *consola.DatosConsola {
+	if panel == nil {
+		return nil
+	}
+	p := *panel
+	p.Acciones = slices.Clone(panel.Acciones)
+	for i := range p.Acciones {
+		a := &p.Acciones[i]
+		a.Proximo, a.Intentos, a.Inicio, a.AvisoEn = nil, 0, nil, nil
+	}
+	if panel.Estado == nil {
+		return &p
+	}
+	d := *panel.Estado
+	d.Hace = ""
+	d.Frentes = slices.Clone(panel.Estado.Frentes)
+	for i, f := range d.Frentes {
+		if f.Actividad != nil {
+			d.Frentes[i].Actividad = &estado.ActividadPanel{Running: f.Actividad.Running}
+		}
+	}
+	p.Estado = &d
+	return &p
 }
 
 // estructuraDe es lo que un delta no puede decir de cada proyecto (nombre, ruta y error) y cuántos quedaron fuera
