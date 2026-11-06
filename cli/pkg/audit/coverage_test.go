@@ -125,7 +125,7 @@ func TestRunCoverageCheck_WritesNothingToStdout(t *testing.T) {
 	}
 }
 
-// FND-160: el log guardaba las últimas 60 líneas. La suite del mod imprime casi 200, así que el gate decía «1 fail» sin
+// FND-161: el log guardaba las últimas 60 líneas. La suite del mod imprime casi 200, así que el gate decía «1 fail» sin
 // nombrar la prueba, y un fallo que aparece solo con carga no se podía investigar.
 func TestLogDeFallo_NombraLoQueFallaAunqueQuedeLejosDelFinal(t *testing.T) {
 	var lineas []string

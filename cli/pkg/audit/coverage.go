@@ -285,7 +285,7 @@ const (
 	maxFallasEnLog = 40
 )
 
-// logDeFallo es el final de la salida y, antes, las líneas anteriores que dicen «fail» (FND-160): una suite larga deja
+// logDeFallo es el final de la salida y, antes, las líneas anteriores que dicen «fail» (FND-161): una suite larga deja
 // el nombre de lo que falló lejos del final, y sin él un fallo que no se repite no se puede investigar.
 func logDeFallo(salida string) string {
 	lineas := strings.Split(strings.TrimRight(salida, "\n"), "\n")
