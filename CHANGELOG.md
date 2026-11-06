@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Cambiado
+
+- **Las preguntas ahora están en «▶ Para ti» (issue #149):** se quita la sección «⏳ Te esperan», que duplicaba esa lista y a la
+  persona no le dejaba contestar. Al tocar una pregunta, llega al chat y se responde ahí.
+
 ## [2.10.0-rc.14] - 2026-11-06
 
 ### Seguridad
