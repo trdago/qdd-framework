@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.18] - 2026-11-06
+
 ### Cambiado
 
 - **El relay de QDD Móvil ya no está en el código: sale de un directorio firmado.** Si el relay cambia, cambia la URL y no qdd. El PC lo
