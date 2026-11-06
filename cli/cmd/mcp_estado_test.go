@@ -141,3 +141,46 @@ func TestEstadoTool_NuevaDaElIDYUnIDDesconocidoSugiere_FND109(t *testing.T) {
 		t.Fatalf("con aunque_exista se crea: %q", txt)
 	}
 }
+
+// MEJ-021: un avance sin tarea declarada lo recuerda ahí mismo, pero no la enciende: el teléfono diría «Trabajando» por
+// una tarea que quizá ya se terminó.
+func TestEstadoTool_SetRecuerdaDeclararLaTareaSinEncenderla_MEJ021(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "esta")
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	set := func(cambios map[string]interface{}) string {
+		t.Helper()
+		pedido := map[string]interface{}{"accion": "set", "frente": "x", "nombre": "X", "etapa": "Código"}
+		for k, v := range cambios {
+			pedido[k] = v
+		}
+		res, _ := handleEstadoTool(context.Background(), toolRequest(pedido))
+		if res.IsError {
+			t.Fatalf("el set falló: %q", resultText(t, res))
+		}
+		return resultText(t, res)
+	}
+	if texto := set(map[string]interface{}{"estado": "espera", "bloqueo": "¿sigo?", "de_quien": "persona"}); strings.Contains(texto, "accion=activar") {
+		t.Errorf("una tarea que queda esperando a alguien no es trabajo en curso: %q", texto)
+	}
+	if texto := set(map[string]interface{}{"estado": "falla", "falla": "rompe"}); strings.Contains(texto, "accion=activar") {
+		t.Errorf("una tarea que queda fallando no es trabajo en curso: %q", texto)
+	}
+	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "1/1 pruebas"}); !strings.Contains(texto, "accion=activar") {
+		t.Errorf("un avance sin tarea declarada debe recordarlo: %q", texto)
+	}
+	if len(estado.EnCurso(estado.LeerActividad(root), time.Now())) != 0 {
+		t.Error("el set no enciende la tarea: la declara el agente")
+	}
+	handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "activar", "frente": "x"}))
+	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "2/2 pruebas"}); strings.Contains(texto, "accion=activar") {
+		t.Errorf("con la tarea declarada sobra el recordatorio: %q", texto)
+	}
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "otra")
+	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "3/3 pruebas"}); !strings.Contains(texto, "accion=activar") {
+		t.Errorf("la tarea declarada por otra sesión no cuenta como la de esta (FND-153): %q", texto)
+	}
+}

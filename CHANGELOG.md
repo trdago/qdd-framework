@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Cambiado
+
+- **Declarar la tarea en curso ya es una regla (MEJ-021):** el bloque de `AGENTS.md` (revisión 4) y la forma de trabajo piden `activar` al empezar y `terminar` al acabar o quedar esperando. `qdd_estado set` lo recuerda si un ✅ llega sin tarea declarada en la sesión, pero no la enciende. `qdd doctor --fix` renueva el bloque en cada proyecto.
+
 ## [2.10.0-rc.13] - 2026-11-06
 
 ### Corregido

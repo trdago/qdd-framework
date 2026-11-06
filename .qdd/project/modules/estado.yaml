@@ -103,6 +103,7 @@ objetivo_tecnologico:
         - 'Las herramientas y si toca el ciclo de mejoras viajan en el JSON del panel si el mod los pide (--con herramientas,mejoras), en vez de un proceso cada 10 s y cada minuto (MEJ-020). Un qdd que no los trae sigue con esas lecturas. El latido del teléfono sigue siendo un proceso: entrega instrucciones que no se pueden perder si el flujo se corta.'
         - La lista de flujos del proyecto viaja en la línea del panel con --con flujos, y qdd consola seguir vigila su carpeta. Una carpeta que nace después de empezar a vigilar se agrega al siguiente aviso (RFC 0012).
         - 'Seguro contra lanzar dos veces lo mismo (FND-154, pedido de la persona, 2026-11-05): qdd recuerda 24 h, en local, el efecto de cada pedido que terminó bien. Cerrar un issue y mergear un PR valen por su número, aunque cambie el texto; un comando encadenado u otro cualquiera valen por su texto. Lo ya hecho no se vuelve a pedir sin de_nuevo, y lo abierto con el mismo efecto es el mismo pedido. Si esa memoria no se puede leer, no bloquea nada.'
+        - 'qdd_estado set recuerda declarar la tarea si el avance es un ✅ y esta sesión no tiene una en curso, pero no la enciende: un ✅ también puede cerrar lo ya terminado, y el teléfono diría «Trabajando» sin nadie trabajando (MEJ-021).'
     invariantes:
         - La barra termina sola aunque nadie cierre su stdin (FND-145).
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
