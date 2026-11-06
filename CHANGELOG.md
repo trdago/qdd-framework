@@ -11,6 +11,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **`qdd remoto dispositivos` y `revocar` ya no piden la URL y la clave (issue #102):** en un PC sin relay mandan a
   `qdd login`. La ayuda de `qdd remoto` también dice que esas banderas son solo para quien opera su propio relay.
 
+## [2.9.11] - 2026-11-06
+
+### Seguridad
+
+- **`qdd dashboard` ya solo atiende a este PC (FND-164):** escuchaba en todas las interfaces y sus endpoints de escritura no
+  pedían autenticación. Mientras estaba abierto, otro equipo de la misma red o una página abierta en el navegador podían
+  leer el estado, cambiar políticas, escribir archivos en el proyecto y enviar instrucciones al LLM configurado. Ahora
+  escucha en `127.0.0.1` y rechaza las peticiones que no vienen de su propia página. Si lo usabas desde otro equipo, ya
+  no se puede: usa un túnel SSH. Actualiza si alguna vez lo abriste en una red compartida, y revisa si hay cambios que no
+  reconoces en esos proyectos.
+
 ## [2.9.10] - 2026-11-05
 
 ### Corregido
