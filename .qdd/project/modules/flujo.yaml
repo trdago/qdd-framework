@@ -34,4 +34,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-05"
-revisado_en_commit: 550569caee79
+revisado_en_commit: d2db209d80a3
