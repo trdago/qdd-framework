@@ -9,6 +9,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Agregado
 
 - **Editar y comentar un flujo en el panel:** en la pestaña de un flujo, un clic elige un nodo. Se puede comentar, pedir detalle, editar, agregar, mover, poner flechas y quitar. qdd valida cada cambio. La IA recibe un comentario o un detalle en el acto, y las ediciones al pulsar «Enviar a la IA» o con tu próximo mensaje. Responde bajo el mismo nodo con `qdd flujo comentar`. Lo que aún no recibe se puede deshacer. `Flujos` también deja crear uno nuevo desde el panel.
+- **`qdd doctor` revisa QDD Móvil:** dice si este PC está emparejado, si el servicio corre, si llega al relay, si el proyecto se
+  publica y si el último envío salió. `--fix` arranca el servicio y anota el proyecto; emparejar sigue siendo con `qdd login`. No
+  usa la red ni comprueba lo que dibuja la app.
+- **`qdd doctor` revisa también las colas del teléfono y los flujos:** nombra una cola apartada por ilegible y los flujos que no se
+  pueden usar. No los toca, porque corregirlos lo decide la persona.
 
 ### Corregido
 

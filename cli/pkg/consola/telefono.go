@@ -274,6 +274,21 @@ func rutaTelefono(root string) (string, error) {
 	return RutaLocal(root, "telefono")
 }
 
+// ColasApartadas son las colas del teléfono de este proyecto que se apartaron por ilegibles (qdd doctor, REM-10).
+func ColasApartadas(root string) []string {
+	out := []string{}
+	for _, nombre := range []string{"preguntas", "telefono"} {
+		ruta, err := RutaLocal(root, nombre)
+		if err != nil {
+			continue
+		}
+		if _, err := os.Stat(ruta + ".ilegible"); err == nil {
+			out = append(out, ruta+".ilegible")
+		}
+	}
+	return out
+}
+
 // leerTelefono lee la cola; una ilegible se aparta como .ilegible (no se pierde) si apartar, y se empieza de cero.
 func leerTelefono(root string, apartar bool) []Ejecucion {
 	var cola []Ejecucion

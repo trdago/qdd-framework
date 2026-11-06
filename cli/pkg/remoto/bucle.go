@@ -86,6 +86,11 @@ type Bucle struct {
 	extras      extrasBucle
 	huellaBin   huella
 	conHuella   bool
+
+	// AlPublicar recibe si un envío al teléfono salió, solo cuando cambia (qdd doctor, REM-09).
+	AlPublicar       func(ok bool)
+	publicacionVista bool
+	publicacionOK    bool
 }
 
 type resultadoLatido struct {
@@ -305,10 +310,21 @@ func (b *Bucle) recalcular(ctx context.Context) {
 func (b *Bucle) broadcast(ctx context.Context, evento string, payload any) bool {
 	if err := b.T.Broadcast(ctx, evento, payload); err != nil {
 		b.logf("no se pudo mandar %s: %v", evento, err)
+		b.anotarPublicacion(false)
 		return false
 	}
 	b.mensajes++
+	b.anotarPublicacion(true)
 	return true
+}
+
+// anotarPublicacion avisa solo cuando cambia: no escribe un archivo por mensaje.
+func (b *Bucle) anotarPublicacion(ok bool) {
+	if b.AlPublicar == nil || (b.publicacionVista && b.publicacionOK == ok) {
+		return
+	}
+	b.publicacionVista, b.publicacionOK = true, ok
+	b.AlPublicar(ok)
 }
 
 // mandarEstado manda el estado completo con el siguiente seq: es la base de los deltas.

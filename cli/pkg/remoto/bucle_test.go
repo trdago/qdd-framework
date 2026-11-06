@@ -661,3 +661,24 @@ func TestPaneles_NoTocaLoQueSePublica(t *testing.T) {
 		t.Fatalf("la huella trabaja sobre una copia: %+v", p)
 	}
 }
+
+// qdd doctor (REM-09) lee si el último envío salió; se anota solo cuando cambia, no un archivo por mensaje.
+func TestBucle_AvisaDelEnvioSoloCuandoCambia(t *testing.T) {
+	var vistos []bool
+	tr := nuevoTransporte()
+	b := &Bucle{T: tr, AlPublicar: func(ok bool) { vistos = append(vistos, ok) }}
+	b.broadcast(context.Background(), "x", nil)
+	b.broadcast(context.Background(), "x", nil)
+	tr.mu.Lock()
+	tr.falla = errors.New("caído")
+	tr.mu.Unlock()
+	b.broadcast(context.Background(), "x", nil)
+	b.broadcast(context.Background(), "x", nil)
+	tr.mu.Lock()
+	tr.falla = nil
+	tr.mu.Unlock()
+	b.broadcast(context.Background(), "x", nil)
+	if len(vistos) != 3 || !vistos[0] || vistos[1] || !vistos[2] {
+		t.Fatalf("salió, falló y volvió a salir: %v", vistos)
+	}
+}
