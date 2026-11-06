@@ -18,8 +18,10 @@ const TOPE_MS = 3000
 // TOPE_CUADROS_MS es lo más que un efecto deja un hueco en blanco: en Linux un lote de 21 celdas tarda 7 ms, en Windows al
 // menos 200 ms; lo que tarda más se corta y se dibuja sin efecto (MEJ-017).
 const TOPE_CUADROS_MS = 250
-// TOPE_CICLO_MS: el mensaje de la persona espera al ciclo (con lo que el panel espera de ella) a lo más esto.
-const TOPE_CICLO_MS = 1500
+// PRESUPUESTO_MS es lo más que un mensaje de la persona o el inicio de una sesión esperan a qdd (MEJ-015): lo que tarde más
+// sigue en segundo plano. Directo, qdd tarda de 50 a 400 ms en Windows (issue 109), así que en un equipo cargado lo normal
+// aún llega a tiempo y la línea de CCC-C30 viaja con su mensaje.
+const PRESUPUESTO_MS = 400
 const TOPE_ACCION_MS = 60000
 const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
@@ -148,6 +150,9 @@ let tic = 0 // tics del latido; la fase cambia cada 2
 let rutaDirecta = null // promesa con la ruta del binario (binario)
 let enFlujo = false // hay un 'qdd consola seguir' abierto
 let sinFlujo = false // este qdd no lo trae: se lee como siempre
+let contextoAtrasado = '' // lo que 'consola ciclo' entregó cuando su mensaje ya se había ido
+let releyendo = false // hay una lectura de releerSinEsperar en curso
+let releerOtra = false // algo cambió mientras se leía: hace falta una más
 let flujoProbado = false // ya entregó una línea: si se corta, se vuelve a abrir
 let lineasDelFlujo = 0 // para que una lectura lenta no pise algo más nuevo
 const destellos = {} // id → tics de destello que quedan
@@ -1852,13 +1857,52 @@ function cambiaElPanel(e) {
 async function cicloConContexto($, bin, modo) {
   try {
     const mia = await sesionPropia($)
-    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto', ...(mia ? ['--sesion', mia] : [])], { timeoutMs: TOPE_CICLO_MS })
+    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto', ...(mia ? ['--sesion', mia] : [])], { timeoutMs: TOPE_MS })
     if (r.exitCode === 0) return (r.stdout || '').trim()
     if (/unknown flag/.test(r.stderr || '')) await $.process.run([bin, 'consola', 'ciclo', '--modo', modo], { timeoutMs: TOPE_MS })
   } catch (err) {
     $.ui.log('no se marcó el ciclo: ' + String(err?.message ?? err))
   }
   return ''
+}
+
+// contextoDelMensaje marca el ciclo sin que el mensaje espere más que PRESUPUESTO_MS. Lo que qdd entregue después no se
+// pierde: qdd ya lo dio por dicho, así que viaja con el mensaje siguiente, antes que lo nuevo.
+async function contextoDelMensaje($, modo) {
+  const atrasado = contextoAtrasado
+  contextoAtrasado = ''
+  let seFue = false
+  const ciclo = binario($)
+    .then((bin) => cicloConContexto($, bin, modo))
+    .then((texto) => {
+      if (!seFue) return texto
+      contextoAtrasado = [contextoAtrasado, texto].filter(Boolean).join('\n')
+      return ''
+    })
+  const tope = $.clock.sleep(PRESUPUESTO_MS).then(() => {
+    seFue = true
+    return ''
+  })
+  const texto = await Promise.race([ciclo, tope])
+  return [atrasado, texto].filter(Boolean)
+}
+
+// releerSinEsperar vuelve a leer sin que nadie espere (CCC-C31, MEJ-015). Hay una sola lectura a la vez: lo que llegue mientras tanto
+// pide una más, no una por herramienta.
+function releerSinEsperar($) {
+  if (releyendo) {
+    releerOtra = true
+    return
+  }
+  releyendo = true
+  leer($)
+    .catch((err) => $.ui.log('no se releyó el panel: ' + String(err?.message ?? err)))
+    .finally(() => {
+      releyendo = false
+      if (!releerOtra) return
+      releerOtra = false
+      releerSinEsperar($)
+    })
 }
 
 function hayQueMostrar() {
@@ -1978,10 +2022,12 @@ async function preguntarAlTelefono($, e, next) {
 async function cerrarPreguntasDe($, llamada) {
   const vivas = [...preguntasVivas].filter(([, v]) => v.llamada === llamada || v.candidatas.has(llamada))
   if (vivas.length === 0) return
-  const bin = await binario($)
   for (const [id, v] of vivas) {
     preguntasVivas.delete(id)
     v.cerrada = true
+  }
+  const bin = await binario($)
+  for (const [id] of vivas) {
     await $.process.run([bin, 'consola', 'pregunta', 'cerrar', id], { timeoutMs: TOPE_MS }).catch((err) => $.ui.log('qdd: no se cerró la pregunta: ' + String(err?.message ?? err), { to: 'debug' }))
   }
 }
@@ -2224,13 +2270,24 @@ async function pedirCicloGoal($) {
   }
 }
 
+// primeraLectura es lo que abre la sesión. Primero el panel, que es lo que se ve; 'iniciado' marca que los pedidos que ya
+// existían se vieron, y lo siguiente que llegue vuelve a abrirlo.
+async function primeraLectura($) {
+  await leer($)
+  // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
+  if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
+  iniciado = true
+  if (interactiva) abrirFlujo($)
+  if (!herramientasEnPanel) await leerHerramientas($)
+  // Cada herramienta guardada es una pestaña, sin quitarle el foco a la conversación (RFC 0011).
+  await abrirHerramientas($)
+  if (interactiva) await latirTelefono($)
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
-    await leer($)
-    if (!herramientasEnPanel) await leerHerramientas($)
     if (interactiva) {
-      await latirTelefono($)
       $.clock.every(TELEFONO_MS, async () => {
         await latirTelefono($)
       })
@@ -2240,7 +2297,6 @@ export function register(on) {
       $.clock.every(GOAL_MS, async () => {
         await cicloGoal($)
       })
-      abrirFlujo($)
       $.clock.every(INTERVALO_MS, async () => {
         await (enFlujo ? avisar($) : leer($))
         abrirFlujo($)
@@ -2251,16 +2307,13 @@ export function register(on) {
         latir($)
       })
     }
-    // Se abre solo si hay tareas, fichas por aprobar o comandos pedidos; después, cada pedido nuevo lo vuelve a abrir.
-    if (hayQueMostrar()) await $.ui.open({ id: PANE, title: TITULO })
-    // Cada herramienta guardada es una pestaña, sin quitarle el foco a la conversación (RFC 0011).
-    await abrirHerramientas($)
-    iniciado = true
     try {
       await $.command.register({ name: 'tareas', description: 'Abre el panel de tareas (/tareas cerrar lo cierra)', immediate: true })
     } catch (err) {
       $.ui.log('no se registró /tareas: ' + String(err?.message ?? err))
     }
+    const lectura = primeraLectura($).catch((err) => $.ui.log('no se leyó el panel al abrir: ' + String(err?.message ?? err)))
+    await Promise.race([lectura, $.clock.sleep(PRESUPUESTO_MS)])
     return next(e)
   })
 
@@ -2279,7 +2332,7 @@ export function register(on) {
   // Pulsos de vida (§3.13): cada herramienta del agente y cada subagente laten la tarea en curso. next(e) va primero
   // y sin esperar al pulso.
   // Una tool de qdd o un comando qdd cambian lo que el panel muestra: se relee en el acto, sin esperar a la próxima
-  // lectura (sincronía panel–chat, 2026-11-01).
+  // lectura (sincronía panel–chat, 2026-11-01), y sin que la IA espere a esa lectura.
   // Cada herramienta de la conversación principal queda en curso hasta que termina: si preguntó algo (un permiso) y el
   // teléfono no decidió, la respondió la terminal.
   on('tool.call', async ($, e, next) => {
@@ -2291,12 +2344,12 @@ export function register(on) {
     try {
       if (!cambiaElPanel(e)) return await next(e)
       const r = await next(e)
-      await leer($)
+      releerSinEsperar($)
       return r
     } finally {
       if (seguir) {
         llamadas.delete(e.tool_use_id)
-        await cerrarPreguntasDe($, e.tool_use_id)
+        cerrarPreguntasDe($, e.tool_use_id).catch((err) => $.ui.log('no se cerró la pregunta: ' + String(err?.message ?? err)))
       }
     }
   })
@@ -2335,11 +2388,10 @@ export function register(on) {
     resultado = null
     for (const [id, l] of locales) if (l.estado === 'hecho') locales.delete(id)
     $.ui.invalidate('ui.render')
-    const bin = await binario($)
-    const contexto = await cicloConContexto($, bin, String(e.permission_mode || ''))
+    const contexto = await contextoDelMensaje($, String(e.permission_mode || ''))
     const r = await next(e)
-    if (!contexto) return r
-    return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), contexto] }
+    if (contexto.length === 0) return r
+    return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), ...contexto] }
   })
 
   // Atajo desde el chat: la tecla de lo que te espera y Enter lo abren en el panel, sin enviarle nada a la IA.

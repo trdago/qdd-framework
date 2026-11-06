@@ -801,6 +801,9 @@ test('sin nada nuevo que esperar el mensaje va sin contexto extra, y un qdd viej
   expect(llamadas).toContainEqual(['qdd', 'consola', 'ciclo', '--modo', 'auto'])
 })
 
+// La relectura corre al lado: la tool ya devolvió su resultado (MEJ-015).
+const lecturaEnCurso = () => new Promise((res) => setTimeout(res, 20))
+
 test('una tool de qdd o un comando qdd releen el panel en el acto (CCC-C31)', async ($, on) => {
   const llamadas: string[][] = []
   preparar(on, ok(PANEL), llamadas)
@@ -809,10 +812,13 @@ test('una tool de qdd o un comando qdd releen el panel en el acto (CCC-C31)', as
   const lecturas = () => llamadas.filter((a) => a[2] === 'panel').length
   const antes = lecturas()
   await $.tool.call({ tool: 'Read', file_path: '/work/a' })
+  await lecturaEnCurso()
   expect(lecturas()).toBe(antes)
   await $.tool.call({ tool: 'mcp__qdd__qdd_estado', accion: 'set' })
+  await lecturaEnCurso()
   expect(lecturas()).toBe(antes + 1)
   await $.tool.call({ tool: 'Bash', command: 'cd cli && qdd consola descartar a' })
+  await lecturaEnCurso()
   expect(lecturas()).toBe(antes + 2)
 })
 
@@ -832,12 +838,14 @@ test('un qdd con ruta o con sufijo también relee el panel; una carpeta llamada 
   for (const command of releen) {
     const antes = lecturas()
     await $.tool.call({ tool: 'Bash', command })
+    await lecturaEnCurso()
     expect(lecturas()).toBe(antes + 1)
   }
   const noReleen = ['cd /home/x/qdd && ls', 'ls proyectos/qdd ', 'cat qdd-notas.txt', 'echo qdd']
   for (const command of noReleen) {
     const antes = lecturas()
     await $.tool.call({ tool: 'Bash', command })
+    await lecturaEnCurso()
     expect(lecturas()).toBe(antes)
   }
 })
@@ -865,6 +873,7 @@ test('un qdd por PowerShell o con ruta de Windows también relee el panel; lo de
     for (const command of releen) {
       const antes = lecturas()
       await $.tool.call({ tool, command })
+      await lecturaEnCurso()
       expect([tool, command, lecturas()]).toEqual([tool, command, antes + 1])
     }
     for (const command of noReleen) {
