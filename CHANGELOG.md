@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **`qdd doctor` ya no avisa «sin respuesta del relay» cuando el PC late bien (FND-169).** La hora salía de `plan.json`,
+  que solo se escribe si el plan cambia: sin teléfonos conectados, REM-07 se ponía rojo a los 3 minutos. Cada latido
+  respondido anota ahora su hora en `latido.json`. Si el relay deja de responder, REM-07 sigue avisando.
+
 ## [2.10.0-rc.18] - 2026-11-06
 
 ### Cambiado

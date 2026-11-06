@@ -288,11 +288,30 @@ func LeerPlan() (Plan, error) {
 	return g.Plan, nil
 }
 
-// UltimoLatido es cuándo el relay respondió por última vez a este PC.
+// latidoGuardado es <QDD_HOME>/remoto/latido.json: cuándo respondió el relay por última vez. Va aparte del plan porque
+// plan.json solo se escribe si el plan cambia, y sin teléfonos conectados puede pasar horas igual con el PC latiendo bien.
+type latidoGuardado struct {
+	Formato int       `json:"formato"`
+	En      time.Time `json:"en"`
+}
+
+// GuardarLatido anota que el relay acaba de responder (0600).
+func GuardarLatido(now time.Time) error {
+	return guardarPrivado("latido.json", latidoGuardado{Formato: 1, En: now.UTC()})
+}
+
+// UltimoLatido es cuándo el relay respondió por última vez a este PC. Mira también plan.json porque un servicio de una
+// versión anterior solo escribe ese.
 func UltimoLatido() (time.Time, error) {
+	var l latidoGuardado
+	errLatido := leerPrivado("latido.json", &l)
 	var g planGuardado
-	if err := leerPrivado("plan.json", &g); err != nil {
-		return time.Time{}, err
+	errPlan := leerPrivado("plan.json", &g)
+	if errLatido != nil && errPlan != nil {
+		return time.Time{}, errPlan
+	}
+	if l.En.After(g.En) {
+		return l.En, nil
 	}
 	return g.En, nil
 }

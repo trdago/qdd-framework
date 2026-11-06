@@ -682,3 +682,72 @@ func TestBucle_AvisaDelEnvioSoloCuandoCambia(t *testing.T) {
 		t.Fatalf("salió, falló y volvió a salir: %v", vistos)
 	}
 }
+
+// FND-169: sin teléfonos el plan no cambia y plan.json se queda quieto, pero el relay sigue respondiendo.
+func TestAlLatido_PlanSinCambiosRenuevaElUltimoLatido_FND169(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	inicio := time.Date(2026, 11, 6, 18, 55, 20, 0, time.UTC)
+	ahora := inicio
+	b := &Bucle{Ahora: func() time.Time { return ahora }}
+	if err := b.alLatido(resultadoLatido{plan: PlanGratis()}); err != nil {
+		t.Fatal(err)
+	}
+	ahora = inicio.Add(9 * time.Minute)
+	if err := b.alLatido(resultadoLatido{plan: PlanGratis()}); err != nil {
+		t.Fatal(err)
+	}
+	ultimo, err := UltimoLatido()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ultimo.Equal(ahora) {
+		t.Fatalf("el relay respondió a las %s y se anotó %s", ahora, ultimo)
+	}
+	var g planGuardado
+	if err := leerPrivado("plan.json", &g); err != nil {
+		t.Fatal(err)
+	}
+	if !g.En.Equal(inicio) {
+		t.Fatalf("un plan igual no reescribe plan.json: %s", g.En)
+	}
+}
+
+func TestAlLatido_SinRespuestaNoRenuevaElUltimoLatido_FND169(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	inicio := time.Date(2026, 11, 6, 18, 55, 20, 0, time.UTC)
+	ahora := inicio
+	b := &Bucle{Ahora: func() time.Time { return ahora }}
+	if err := b.alLatido(resultadoLatido{plan: PlanGratis()}); err != nil {
+		t.Fatal(err)
+	}
+	ahora = inicio.Add(9 * time.Minute)
+	if err := b.alLatido(resultadoLatido{err: errors.New("sin red")}); err != nil {
+		t.Fatal(err)
+	}
+	ultimo, err := UltimoLatido()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ultimo.Equal(inicio) {
+		t.Fatalf("REM-07 debe seguir viendo la última respuesta real: %s", ultimo)
+	}
+}
+
+// Un servicio de una versión anterior solo escribe plan.json mientras qdd doctor ya es el nuevo.
+func TestUltimoLatido_SinArchivoPropioUsaElPlan_FND169(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	if _, err := UltimoLatido(); err == nil {
+		t.Fatal("sin latidos no hay hora que dar")
+	}
+	en := time.Date(2026, 11, 6, 18, 55, 20, 0, time.UTC)
+	if err := GuardarPlan(PlanGratis(), en); err != nil {
+		t.Fatal(err)
+	}
+	ultimo, err := UltimoLatido()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ultimo.Equal(en) {
+		t.Fatalf("usa la hora del plan: %s", ultimo)
+	}
+}

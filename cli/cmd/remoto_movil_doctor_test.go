@@ -210,6 +210,19 @@ func TestDoctorMovil_LatidoViejoFalla(t *testing.T) {
 	}
 }
 
+// FND-169: plan.json se queda quieto si el plan no cambia, y eso no es falta de respuesta del relay.
+func TestDoctorMovil_PlanViejoConLatidoRecienteNoAlarma_FND169(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now()
+	movilSano(t, m, now.Add(-10*time.Minute))
+	if err := remoto.GuardarLatido(now.Add(-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilRelay); !item.Success {
+		t.Fatalf("el PC late bien: %+v", item)
+	}
+}
+
 func TestDoctorMovil_ProyectoSinAnotarSeAnota(t *testing.T) {
 	m := movilPrueba(t)
 	now := time.Now()
