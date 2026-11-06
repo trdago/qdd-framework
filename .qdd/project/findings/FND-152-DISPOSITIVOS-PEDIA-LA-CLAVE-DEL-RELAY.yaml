@@ -1,0 +1,9 @@
+id: "FND-152"
+title: "qdd remoto dispositivos y revocar pedían la URL y la clave del relay"
+description: "En un PC sin relay guardado, qdd remoto dispositivos y revocar respondían «falta el relay: usa 'qdd remoto activar --relay <url> --clave <publicable>'». Desde 2.9.1 no hace falta: qdd login trae el relay. La ayuda de qdd remoto también presentaba esas banderas como obligatorias."
+impact: "Quien solo tiene la app recibía la instrucción que el issue #102 pedía eliminar, y no sabe de dónde sacar esos valores. qdd login funcionaba bien: el problema estaba en esos dos mensajes."
+action_taken: "Los dos comandos mandan a qdd login. La ayuda muestra las banderas como opcionales y dice que son para quien opera su propio relay."
+test_result: "cli/cmd/login_test.go: TestRemoto_SinRelayMandaAQddLoginYNoPideLaClave_FND152 y TestRemoto_LaAyudaNoPideLaClaveParaActivar_FND152."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

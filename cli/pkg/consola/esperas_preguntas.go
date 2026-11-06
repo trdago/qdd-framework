@@ -19,7 +19,7 @@ import (
 // preguntar lo mismo durante VidaEsperaRespondida) y le llega a la IA como una instrucción del teléfono.
 // MEJ-004 (qdd-movile, 2026-11-03): de 11 ⏳ publicados, casi todos eran notas de avance o esperaban un pedido ya armado
 // en el panel. Un ⏳ es pregunta solo si pregunta algo (¿…?) y no nombra con [tecla] un pedido abierto, que ya lo cubre;
-// el teléfono ve solo la pregunta, no el historial de la tarea.
+// el teléfono ve desde la pregunta, no el historial de la tarea.
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta la respuesta se perdía (la instrucción vence a los 30 min y la
 // pregunta seguía «respondida» 24 h): esa respuesta se rechaza, y qdd remoto no publica el ⏳ (sinEsperasSinSesion).
 
@@ -40,9 +40,14 @@ var (
 	teclaNombrada = regexp.MustCompile(`\[([a-z0-9])\]`)
 )
 
-// preguntaDelBloqueo son las preguntas (¿…?) del bloqueo, juntas; vacío si no pregunta nada.
+// preguntaDelBloqueo es el bloqueo desde su primera pregunta (¿…?): lo que sigue suele decir qué hacer (FND-155), y lo
+// anterior es historial (MEJ-004). Vacío si no pregunta nada.
 func preguntaDelBloqueo(bloqueo string) string {
-	return strings.Join(frasePregunta.FindAllString(bloqueo, -1), " ")
+	inicio := frasePregunta.FindStringIndex(bloqueo)
+	if inicio == nil {
+		return ""
+	}
+	return bloqueo[inicio[0]:]
 }
 
 // cubiertaPorPedido: un ⏳ que nombra la tecla de un pedido abierto ([b]) ya lo cubre el panel.

@@ -97,6 +97,8 @@ type Pedido struct {
 	ArmadoEn *time.Time `json:"armado_en,omitempty"`
 	Proximo  *time.Time `json:"proximo,omitempty"`
 	Intentos int        `json:"intentos,omitempty"`
+	// Pidio es la sesión de la IA que lo dejó en el panel: si se retira, a ella se le avisa (RFC 0017).
+	Pidio string `json:"pidio,omitempty"`
 	// Sesion es la sesión de Claude Code que lo confirmó y Avisado, que ya recibió su resultado (aviso.go).
 	Sesion  string `json:"sesion,omitempty"`
 	Avisado bool   `json:"avisado,omitempty"`
@@ -207,13 +209,9 @@ func AnotarHuellas(root string, now time.Time) error {
 	})
 }
 
-// tareaEnCurso es la tarea que la IA tiene activa ahora (qdd estado activar), o "".
+// tareaEnCurso es la tarea que esta sesión tiene activa ahora (qdd estado activar), o "".
 func tareaEnCurso(root string, now time.Time) string {
-	act := estado.LeerActividad(root)
-	if _, ok := estado.EnCurso(act, now)[act.Ultima]; ok {
-		return act.Ultima
-	}
-	return ""
+	return estado.TareaDeLaSesion(estado.LeerActividad(root), estado.SesionActual(), now)
 }
 
 // cicloDe es la hora del último mensaje de la persona (cero si no hay): lo hecho antes ya se vio.
@@ -382,13 +380,20 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
 		cola, preferida := sinRetirados(cola, tarea)
 		usadas := map[string]bool{}
+		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
+				return conOrden(cola, p.ID, orden, &nuevo)
+			}
+			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
 				return conOrden(cola, p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
 			}
+		}
+		if ya := hechoReciente(ColaDe(root, dir), efecto, now); ya != nil && !orden.DeNuevo {
+			return nil, ya
 		}
 		cola = sinAutomaticosQueNombra(cola, motivo, comando)
 		usadas = teclasAbiertas(cola)
@@ -405,7 +410,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if preferida != "" && !usadas[preferida] {
 			tecla = preferida
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea}
+		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual())}
 		return conOrden(append(cola, p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
@@ -646,7 +651,9 @@ func terminar(root, id string, codigo int, texto string, armar bool) {
 			}
 			if codigo != 0 {
 				cola[i].Estado = EstadoFallo
+				continue
 			}
+			anotarHecho(root, cola[i], fin)
 		}
 		return cola, nil
 	})

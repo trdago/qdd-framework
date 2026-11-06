@@ -38,7 +38,7 @@ func init() {
 func relayYCredenciales() (*remoto.Relay, remoto.Credenciales, error) {
 	c, err := remoto.LeerRelay()
 	if err != nil {
-		return nil, remoto.Credenciales{}, fmt.Errorf("falta el relay: usa 'qdd remoto activar --relay <url> --clave <publicable>'")
+		return nil, remoto.Credenciales{}, fmt.Errorf("falta el relay: usa 'qdd login'")
 	}
 	cred, err := remoto.LeerCredenciales()
 	if err != nil {

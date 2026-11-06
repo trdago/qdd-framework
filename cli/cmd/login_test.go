@@ -123,3 +123,32 @@ func TestLogin_UnRelayPorDefectoSecretoNoSeGuarda(t *testing.T) {
 		t.Fatal("no se guarda")
 	}
 }
+
+// FND-152: en un PC sin relay, dispositivos y revocar pedían la URL y la clave, justo lo que qdd login evita (issue #102).
+func TestRemoto_SinRelayMandaAQddLoginYNoPideLaClave_FND152(t *testing.T) {
+	prepararLogin(t, remoto.ConfigRelay{})
+	var salida, errores bytes.Buffer
+	if c := remotoDispositivos(context.Background(), &salida, &errores); c != 1 {
+		t.Fatalf("sin relay, dispositivos falla: %d", c)
+	}
+	if !strings.Contains(errores.String(), "qdd login") || strings.Contains(errores.String(), "--clave") {
+		t.Fatalf("manda a qdd login, sin pedir la clave: %q", errores.String())
+	}
+	errores.Reset()
+	if c := remotoRevocar(context.Background(), "d1", &salida, &errores); c != 1 {
+		t.Fatalf("sin relay, revocar falla: %d", c)
+	}
+	if !strings.Contains(errores.String(), "qdd login") || strings.Contains(errores.String(), "--clave") {
+		t.Fatalf("manda a qdd login, sin pedir la clave: %q", errores.String())
+	}
+}
+
+// FND-152: la ayuda de qdd remoto presenta qdd login como el camino, y las banderas como opción avanzada (issue #102).
+func TestRemoto_LaAyudaNoPideLaClaveParaActivar_FND152(t *testing.T) {
+	if strings.Contains(remotoCmd.Long, "qdd remoto activar --relay <url> --clave <publicable>\n") {
+		t.Fatal("activar no exige banderas: son para quien opera su propio relay")
+	}
+	if !strings.Contains(remotoCmd.Long, "qdd remoto activar [--relay <url> --clave <publicable>]") {
+		t.Fatalf("la ayuda dice que las banderas son opcionales: %s", remotoCmd.Long)
+	}
+}

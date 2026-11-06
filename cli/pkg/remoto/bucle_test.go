@@ -84,6 +84,40 @@ func (f *transporteFalso) esperar(t *testing.T, plazo time.Duration, evento stri
 	}
 }
 
+// accionEnDelta busca en todo lo enviado la acción con esa solicitud dentro de un delta. esperar descarta lo que no busca,
+// así que un delta que salió mientras se esperaba otro evento ya no pasa por él (FND-158).
+func (f *transporteFalso) accionEnDelta(t *testing.T, plazo time.Duration, clave, solicitud string) consola.Accion {
+	t.Helper()
+	limite := time.Now().Add(plazo)
+	for time.Now().Before(limite) {
+		if a, ok := accionEnEnviados(f.Enviados(), clave, solicitud); ok {
+			return a
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("ningún delta trajo la solicitud %s", solicitud)
+	return consola.Accion{}
+}
+
+func accionEnEnviados(enviados []enviado, clave, solicitud string) (consola.Accion, bool) {
+	for _, e := range enviados {
+		if e.Evento != "delta" {
+			continue
+		}
+		var d Delta
+		json.Unmarshal(e.Payload, &d)
+		if d.Proyectos[clave] == nil {
+			continue
+		}
+		for _, a := range d.Proyectos[clave].Acciones {
+			if a.Solicitud == solicitud {
+				return a, true
+			}
+		}
+	}
+	return consola.Accion{}, false
+}
+
 // contar dice cuántos eventos de ese tipo se mandaron en total.
 func (f *transporteFalso) contar(evento string) int {
 	n := 0
@@ -206,7 +240,12 @@ func TestBucle_ConTelefonoEstadoSyncYDeltasAgrupados(t *testing.T) {
 	a, b := proyecto(t, "a", true), proyecto(t, "b", true)
 	registro.Anotar(a, time.Now())
 	registro.Anotar(b, time.Now().Add(-time.Minute))
-	_, tr, _, _ := bucleDePrueba(t)
+	// FND-149: con la ventana de 30 ms y el sondeo cada 40 ms, una ventana abierta por el sondeo se cerraba entre los dos
+	// pedidos en un CI cargado. Aquí la abre solo el primer cambio, y dura más que lo que tardan dos pedidos.
+	_, tr, _, _ := bucleDePrueba(t, func(b *Bucle) {
+		b.Agrupar = 200 * time.Millisecond
+		b.CadaSondeo = time.Hour
+	})
 	tr.eventos <- telefono("d1", "")
 	e := tr.esperar(t, time.Second, "estado")
 	var est Estado
@@ -446,5 +485,22 @@ func TestAvisos_ElModoGoalAvisaAlDetenerseYAlTerminar(t *testing.T) {
 	b.avisarNuevos(context.Background(), conGoal(consola.GoalTerminado, ""))
 	if tipo := recibir(); tipo != AvisoGoalTerminado {
 		t.Fatal(tipo)
+	}
+}
+
+// FND-158: un delta que salió mientras se esperaba otro evento se sigue encontrando.
+func TestAccionEnDelta_EncuentraElDeltaQueEsperarDescarto_FND158(t *testing.T) {
+	tr := nuevoTransporte()
+	d := Delta{Proyectos: map[string]*consola.DatosConsola{"app": {Acciones: []consola.Accion{{ID: "x", Solicitud: "s1"}}}}}
+	ctx := context.Background()
+	if err := tr.Broadcast(ctx, "delta", d); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.Broadcast(ctx, "accion_estado", AccionEstado{}); err != nil {
+		t.Fatal(err)
+	}
+	tr.esperar(t, time.Second, "accion_estado")
+	if a := tr.accionEnDelta(t, time.Second, "app", "s1"); a.ID != "x" {
+		t.Fatalf("acción: %+v", a)
 	}
 }

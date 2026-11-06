@@ -1,0 +1,9 @@
+id: "FND-153"
+title: "Un pedido quedaba asociado a la tarea en curso de otra sesión y se retiraba con ella"
+description: "Un pedido sin tarea explícita heredaba la última tarea activada del proyecto, y ese dato se comparte entre todas las sesiones del repositorio. El 2026-11-05, el pedido que mergeaba el #132 quedó asociado a mej-002, la tarea que trabajaba otra sesión; al cerrarla esa sesión, el pedido se retiró sin avisar a quien lo pidió, y hubo que pedirlo de nuevo. Es el error derivado que reportó sfrc en MEJ-010, donde se retiraron 3 pedidos de otra sesión."
+impact: "Un pedido de merge o de publicación podía desaparecer del panel por trabajo ajeno. Se notaba solo si alguien revisaba la cola."
+action_taken: "La actividad anota la sesión que encendió la tarea (CLAUDE_CODE_SESSION_ID, que llega a Bash y al servidor MCP), y un pedido sin tarea solo hereda la de su propia sesión; si no es suya, queda sin tarea y no se retira. Sin id de sesión (otra IA o una terminal) sigue como antes. Sin cambiar: un pedido de una tarea propia se sigue retirando sin avisar a la sesión, y un pulso sin id sigue haciendo latir la última tarea activada aunque sea de otra sesión, porque el panel pulsa sin saber cuál es."
+test_result: "cli/pkg/consola/pedidos_sesion_test.go (FND153), que reproducía el retiro antes del cambio. El id de sesión se comprobó en el entorno de Bash y de los servidores MCP de sesiones reales de esta máquina, en Linux."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

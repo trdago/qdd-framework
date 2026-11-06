@@ -26,22 +26,22 @@ func TestEsperas_PedidosFichasYEtapasQueEsperanALaPersona(t *testing.T) {
 
 func TestContextoCiclo_SoloCuandoCambiaLoQueEspera(t *testing.T) {
 	root := proyectoConTareas(t)
-	primero := ContextoCiclo(root, enCola)
+	primero := ContextoCiclo(root, "", enCola)
 	if !strings.Contains(primero, "Espera a la persona") || !strings.Contains(primero, "--hecho") {
 		t.Fatalf("el primer mensaje lo dice, con cómo reflejarlo:\n%s", primero)
 	}
-	if again := ContextoCiclo(root, enCola.Add(time.Minute)); again != "" {
+	if again := ContextoCiclo(root, "", enCola.Add(time.Minute)); again != "" {
 		t.Fatalf("sin cambios no gasta tokens: %q", again)
 	}
 	mustPedir(t, root, "gh pr merge 7", "Merge #7", "")
-	if nuevo := ContextoCiclo(root, enCola.Add(2*time.Minute)); !strings.Contains(nuevo, "«Merge #7»") {
+	if nuevo := ContextoCiclo(root, "", enCola.Add(2*time.Minute)); !strings.Contains(nuevo, "«Merge #7»") {
 		t.Fatalf("un pedido nuevo vuelve a decirlo:\n%s", nuevo)
 	}
 }
 
 func TestContextoCiclo_SinNadaQueEsperarNoDiceNada(t *testing.T) {
 	root := proyectoConCola(t)
-	if got := ContextoCiclo(root, enCola); got != "" {
+	if got := ContextoCiclo(root, "", enCola); got != "" {
 		t.Fatalf("sin esperas: %q", got)
 	}
 }

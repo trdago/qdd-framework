@@ -1767,7 +1767,8 @@ function cambiaElPanel(e) {
 // a --contexto igual marca el ciclo.
 async function cicloConContexto($, bin, modo) {
   try {
-    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto'], { timeoutMs: TOPE_CICLO_MS })
+    const mia = await sesionPropia($)
+    const r = await $.process.run([bin, 'consola', 'ciclo', '--modo', modo, '--contexto', ...(mia ? ['--sesion', mia] : [])], { timeoutMs: TOPE_CICLO_MS })
     if (r.exitCode === 0) return (r.stdout || '').trim()
     if (/unknown flag/.test(r.stderr || '')) await $.process.run([bin, 'consola', 'ciclo', '--modo', modo], { timeoutMs: TOPE_MS })
   } catch (err) {

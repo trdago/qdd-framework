@@ -1,0 +1,9 @@
+id: "FND-158"
+title: "La prueba de ejecutar desde el teléfono perdía su delta y fallaba al azar"
+description: "TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos espera tres accion_estado y después un delta. El ayudante esperar descarta todo lo que no busca, así que un delta que salió antes se perdía y la prueba terminaba con «no se mandó delta»."
+impact: "Puso en rojo el CI del PR #142 sin que ese PR tocara pkg/remoto, y el mismo fallo podía frenar cualquier publicación. El producto no tenía el problema: el delta sí se mandaba."
+action_taken: "La prueba busca el delta en todo lo enviado con accionEnDelta, en vez de esperarlo en el canal. Solo cambian las pruebas."
+test_result: "cli/pkg/remoto/bucle_test.go, TestAccionEnDelta_EncuentraElDeltaQueEsperarDescarto_FND158. Bajo carga, sin systemd-run en PATH y con 24 procesos a la vez: antes 8 fallos de 144; después 0 de 288. Los otros tres usos de esperar con delta en bucle_test.go no se cambiaron: no se vio que fallen."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

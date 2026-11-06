@@ -1,0 +1,9 @@
+id: "FND-155"
+title: "El teléfono cortaba el ⏳ en la pregunta y perdía lo que la persona tenía que hacer"
+description: "Reportado por qdd-movile con un teléfono real (compilación 69, qdd v2.10.0-rc.7). Desde MEJ-004, el texto de un ⏳ publicado como pregunta eran solo sus frases ¿…?. El tablero decía «¿Ves el modo goal arriba en el proyecto? Si lo ves, toca Apagar; si no, dime qué ves en esa pantalla.» y el teléfono mostraba solo la primera frase."
+impact: "La persona respondía sin ver la instrucción. qdd-movile sospecha que por eso responde «ok» o «dale», pero no lo confirmó con ella."
+action_taken: "El texto va desde la primera pregunta hasta el final del bloqueo. Lo anterior a la pregunta sigue sin publicarse, como pidió MEJ-004, y el ⏳ que no pregunta nada sigue sin llegar. El campo y el protocolo no cambian, y el texto pasa por el ocultador como antes."
+test_result: "cli/pkg/consola/esperas_preguntas_test.go: TestEspera_ElTelefonoVeLoQueSigueALaPregunta_FND155 con el texto real del reporte, y TestEspera_ElTelefonoNoVeElHistorial_MEJ004. Ambas fallaron antes del cambio. Falta confirmarlo en un teléfono real."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"
