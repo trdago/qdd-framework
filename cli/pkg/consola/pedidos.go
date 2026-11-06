@@ -339,11 +339,7 @@ func guardarCola(ruta string, cola []Pedido) error {
 	if err != nil {
 		return err
 	}
-	tmp := ruta + ".tmp"
-	if err := os.WriteFile(tmp, b, 0600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, ruta)
+	return escribirSiCambio(ruta, b)
 }
 
 // Pedir agrega un comando a la cola. Sin carpeta, corre en la raíz del proyecto. El mismo comando en la misma
