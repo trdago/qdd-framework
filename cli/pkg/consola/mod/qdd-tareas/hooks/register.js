@@ -197,12 +197,15 @@ function abrirFlujo($) {
     .finally(() => {
       enFlujo = false
       rutaDirecta = null
+      telefono.enFlujo = false
     })
 }
 
 async function seguirFlujo($) {
   const bin = await binario($)
-  const stream = $.process.spawn({ argv: [bin, 'consola', 'seguir', '--con', OPCIONALES.join(',')] })
+  const mia = await sesionPropia($)
+  const con = [...OPCIONALES, ...(mia ? ['telefono:' + mia] : [])]
+  const stream = $.process.spawn({ argv: [bin, 'consola', 'seguir', '--con', con.join(',')] })
   let resto = ''
   for await (const trozo of stream) {
     if (trozo.stream === 'stderr') continue
@@ -218,6 +221,11 @@ async function seguirFlujo($) {
 async function lineaDelFlujo($, linea) {
   const nuevo = JSON.parse(linea)
   flujoProbado = true
+  // Sin esperar: darle el mensaje a la IA puede tardar, y el panel debe seguir recibiendo sus líneas.
+  if (nuevo.telefono_entregar) {
+    entregarDelFlujo($, nuevo.telefono_entregar).catch((err) => $.ui.log('qdd: no se entregó lo del teléfono: ' + String(err?.message ?? err), { to: 'debug' }))
+    return
+  }
   lineasDelFlujo += 1
   await aplicar($, nuevo, '')
 }
@@ -279,6 +287,10 @@ function podar(nuevo) {
 // datosDeLaLinea toma lo que viaja en el JSON del panel. Un qdd que no lo trae sigue con sus lecturas propias (MEJ-020).
 async function datosDeLaLinea($, nuevo) {
   mejoras.toca = typeof nuevo?.mejoras_toca === 'boolean' ? nuevo.mejoras_toca : null
+  if (nuevo?.telefono_en_flujo) {
+    telefono.enFlujo = true
+    telefono.latio = true
+  }
   herramientasEnPanel = Array.isArray(nuevo?.herramientas)
   if (herramientasEnPanel) await aplicarHerramientas($, nuevo.herramientas)
   await aplicarFlujos($, Array.isArray(nuevo?.flujos) ? nuevo.flujos : [])
@@ -2193,10 +2205,11 @@ const TELEFONO_MS = 5000
 const TELEFONO_PAUSA = 12
 // El latido toma instrucciones: cortarlo después de tomarlas las pierde. Tras horas sin uso qdd puede tardar en arrancar.
 const TOPE_LATIR_MS = 15000
-const telefono = { soportado: true, latio: false, saltar: 0, latiendo: false }
+// enFlujo: qdd late dentro de 'consola seguir' y entrega por ahí (MEJ-020), así que no hace falta un proceso cada 5 s.
+const telefono = { soportado: true, latio: false, saltar: 0, latiendo: false, enFlujo: false }
 
 async function latirTelefono($) {
-  if (!interactiva || !telefono.soportado || telefono.latiendo) return
+  if (!interactiva || !telefono.soportado || telefono.latiendo || telefono.enFlujo) return
   if (telefono.saltar > 0) {
     telefono.saltar -= 1
     return
@@ -2234,6 +2247,12 @@ async function recibirDelTelefono($, mia) {
   }
   telefono.latio = true
   for (const x of l.entregar || []) await entregarDelTelefono($, bin, mia, x)
+}
+
+async function entregarDelFlujo($, entregas) {
+  const bin = await binario($)
+  const mia = await sesionPropia($)
+  for (const x of entregas) await entregarDelTelefono($, bin, mia, x)
 }
 
 // motivoDeRechazo: por qué Claude Code no aceptó el mensaje, o vacío si lo aceptó. Rechazarlo no siempre lanza un error:
