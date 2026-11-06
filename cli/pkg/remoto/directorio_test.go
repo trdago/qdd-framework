@@ -80,8 +80,16 @@ func TestDirectorioDeFabrica_TraeUnaClavePublicaValida(t *testing.T) {
 	if len(d.Publica) != ed25519.PublicKeySize {
 		t.Fatalf("clave pública: %d bytes", len(d.Publica))
 	}
-	if !strings.HasPrefix(d.URL, "https://") {
-		t.Fatalf("url: %s", d.URL)
+	if len(d.URLs) != 3 {
+		t.Fatalf("tres sitios, en este orden: %v", d.URLs)
+	}
+	for _, u := range d.URLs {
+		if !strings.HasPrefix(u, "https://") {
+			t.Fatalf("url: %s", u)
+		}
+	}
+	if d.URLs[0] != "https://qdd-movile.3ldago.workers.dev/" {
+		t.Fatalf("los PC de hoy siguen preguntando primero donde siempre: %v", d.URLs)
 	}
 }
 
@@ -96,7 +104,7 @@ func directorioDePrueba(t *testing.T, publica ed25519.PublicKey, responder func(
 		_, _ = w.Write(cuerpo)
 	}))
 	t.Cleanup(s.Close)
-	return Directorio{URL: s.URL, Publica: publica}, &veces
+	return Directorio{URLs: []string{s.URL}, Publica: publica}, &veces
 }
 
 func TestActualizarRelay_ElRelayQueCambioSeGuardaConSuSerie(t *testing.T) {
@@ -180,6 +188,75 @@ func TestActualizarRelay_UnRelayPropioNoConsultaNunca(t *testing.T) {
 	}
 }
 
+// FND-171: Propio protege a un PC emparejado. Sin emparejar no hay nada que perder, y un código de un relay retirado gasta
+// los intentos de la persona.
+func TestConfirmarRelay_ConElPCEmparejadoNoConsultaUnRelayPropio_FND171(t *testing.T) {
+	homeTemporal(t)
+	publica, privada := clavesDirectorio(t)
+	d, veces := directorioDePrueba(t, publica, func() (int, []byte) {
+		return 200, directorioFirmado(privada, relayPrueba, "sb_publishable_n", 2)
+	})
+	propio := ConfigRelay{URL: "https://mio.supabase.co", Clave: "sb_publishable_m", Propio: true}
+	c, cambio, err := ConfirmarRelay(context.Background(), d.Consultar, propio, true)
+	if err != nil || cambio || c != propio || *veces != 0 {
+		t.Fatalf("no se pisa: %+v %v %v, %d consultas", c, cambio, err, *veces)
+	}
+}
+
+func TestConfirmarRelay_SinEmparejarElDirectorioReemplazaUnPropio_FND171(t *testing.T) {
+	homeTemporal(t)
+	publica, privada := clavesDirectorio(t)
+	d, _ := directorioDePrueba(t, publica, func() (int, []byte) {
+		return 200, directorioFirmado(privada, relayPrueba, "sb_publishable_n", 2)
+	})
+	propio := ConfigRelay{URL: "https://antiguo.supabase.co", Clave: "sb_publishable_a", Propio: true}
+	if err := GuardarRelay(propio); err != nil {
+		t.Fatal(err)
+	}
+	c, cambio, err := ConfirmarRelay(context.Background(), d.Consultar, propio, false)
+	if err != nil || !cambio || c.URL != relayPrueba || c.Propio || c.Serie != 2 {
+		t.Fatalf("toma el firmado: %+v %v %v", c, cambio, err)
+	}
+	if guardado, err := LeerRelay(); err != nil || guardado != c {
+		t.Fatalf("queda guardado: %+v %v", guardado, err)
+	}
+	if u := LeerConsultaDirectorio(); !u.OK {
+		t.Fatalf("doctor ve que se confirmó: %+v", u)
+	}
+}
+
+func TestConfirmarRelay_SinEmparejarUnPropioQueCoincideDejaDeSerlo_FND171(t *testing.T) {
+	homeTemporal(t)
+	publica, privada := clavesDirectorio(t)
+	d, _ := directorioDePrueba(t, publica, func() (int, []byte) {
+		return 200, directorioFirmado(privada, relayPrueba, "sb_publishable_n", 2)
+	})
+	c, cambio, err := ConfirmarRelay(context.Background(), d.Consultar, ConfigRelay{URL: relayPrueba, Clave: "sb_publishable_n", Propio: true}, false)
+	if err != nil || cambio || c.Propio || c.Serie != 2 {
+		t.Fatalf("es el mismo relay, ahora confirmado: %+v %v %v", c, cambio, err)
+	}
+}
+
+func TestConfirmarRelay_SiLaConsultaFallaNoCambiaNadaYDejaElMotivo_FND171(t *testing.T) {
+	homeTemporal(t)
+	publica, _ := clavesDirectorio(t)
+	d, _ := directorioDePrueba(t, publica, func() (int, []byte) { return 500, nil })
+	propio := ConfigRelay{URL: "https://antiguo.supabase.co", Clave: "sb_publishable_a", Propio: true}
+	if err := GuardarRelay(propio); err != nil {
+		t.Fatal(err)
+	}
+	c, cambio, err := ConfirmarRelay(context.Background(), d.Consultar, propio, false)
+	if err == nil || cambio || c != propio {
+		t.Fatalf("sigue igual y dice por qué: %+v %v %v", c, cambio, err)
+	}
+	if guardado, err := LeerRelay(); err != nil || guardado != propio {
+		t.Fatalf("el archivo no cambia: %+v %v", guardado, err)
+	}
+	if u := LeerConsultaDirectorio(); u.OK || u.Motivo == "" {
+		t.Fatalf("doctor ve el motivo: %+v", u)
+	}
+}
+
 func TestConsultar_NoSigueRedireccionesNiLeeDeMas(t *testing.T) {
 	publica, privada := clavesDirectorio(t)
 	buena := directorioFirmado(privada, relayPrueba, "sb_publishable_n", 2)
@@ -187,7 +264,7 @@ func TestConsultar_NoSigueRedireccionesNiLeeDeMas(t *testing.T) {
 	defer falso.Close()
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, falso.URL, http.StatusFound) }))
 	defer s.Close()
-	if _, err := (Directorio{URL: s.URL, Publica: publica}).Consultar(context.Background(), 0); err == nil {
+	if _, err := (Directorio{URLs: []string{s.URL}, Publica: publica}).Consultar(context.Background(), 0); err == nil {
 		t.Fatal("una redirección no se sigue")
 	}
 	grande := append(append([]byte{}, buena...), []byte(strings.Repeat(" ", maxDirectorio))...)
@@ -253,5 +330,99 @@ func TestBucle_UnRelayQueCambioTerminaElBucleParaReiniciar(t *testing.T) {
 func TestErrRelayCambio_NoEsUnErrorDeCredenciales(t *testing.T) {
 	if errors.Is(ErrRelayCambio, ErrCredenciales) {
 		t.Fatal("un cambio de relay no significa que quitaron el PC")
+	}
+}
+
+// FND-171: en una red que bloquea un sitio, un PC no tenía cómo enterarse de una mudanza y uno nuevo no tenía relay. La
+// firma es lo que da confianza, no el sitio: la misma respuesta puede venir de cualquiera.
+func sitioDePrueba(t *testing.T, codigo int, cuerpo []byte) (string, *int) {
+	t.Helper()
+	veces := 0
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		veces++
+		w.WriteHeader(codigo)
+		_, _ = w.Write(cuerpo)
+	}))
+	t.Cleanup(s.Close)
+	return s.URL, &veces
+}
+
+func TestConsultar_SeQuedaConElPrimerSitioQueValidaYNoPreguntaMas_FND171(t *testing.T) {
+	publica, privada := clavesDirectorio(t)
+	primero, _ := sitioDePrueba(t, 200, directorioFirmado(privada, relayPrueba, "sb_publishable_1", 2))
+	segundo, veces := sitioDePrueba(t, 200, directorioFirmado(privada, relayPrueba, "sb_publishable_2", 2))
+	c, err := Directorio{URLs: []string{primero, segundo}, Publica: publica}.Consultar(context.Background(), 0)
+	if err != nil || c.Clave != "sb_publishable_1" || *veces != 0 {
+		t.Fatalf("%+v %v, el segundo se consultó %d veces", c, err, *veces)
+	}
+}
+
+func TestConsultar_CualquierFalloDeUnSitioPasaAlSiguiente_FND171(t *testing.T) {
+	publica, privada := clavesDirectorio(t)
+	_, otraPrivada := clavesDirectorio(t)
+	bueno := directorioFirmado(privada, relayPrueba, "sb_publishable_bueno", 3)
+	casos := map[string]struct {
+		codigo int
+		cuerpo []byte
+	}{
+		"bloqueado":      {403, nil},
+		"caído":          {500, nil},
+		"no se entiende": {200, []byte("<html>")},
+		"firma de otro":  {200, directorioFirmado(otraPrivada, relayPrueba, "sb_publishable_x", 3)},
+		"serie vieja":    {200, directorioFirmado(privada, relayPrueba, "sb_publishable_viejo", 1)},
+	}
+	for nombre, caso := range casos {
+		t.Run(nombre, func(t *testing.T) {
+			malo, _ := sitioDePrueba(t, caso.codigo, caso.cuerpo)
+			sano, _ := sitioDePrueba(t, 200, bueno)
+			c, err := Directorio{URLs: []string{malo, sano}, Publica: publica}.Consultar(context.Background(), 2)
+			if err != nil || c.Clave != "sb_publishable_bueno" {
+				t.Fatalf("toma el del sitio sano: %+v %v", c, err)
+			}
+		})
+	}
+}
+
+func TestConsultar_UnSitioQueRedirigePasaAlSiguienteSinSeguirla_FND171(t *testing.T) {
+	publica, privada := clavesDirectorio(t)
+	falso, vecesFalso := sitioDePrueba(t, 200, directorioFirmado(privada, relayPrueba, "sb_publishable_falso", 2))
+	redirige := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, falso, http.StatusFound) }))
+	t.Cleanup(redirige.Close)
+	sano, _ := sitioDePrueba(t, 200, directorioFirmado(privada, relayPrueba, "sb_publishable_sano", 2))
+	c, err := Directorio{URLs: []string{redirige.URL, sano}, Publica: publica}.Consultar(context.Background(), 0)
+	if err != nil || c.Clave != "sb_publishable_sano" || *vecesFalso != 0 {
+		t.Fatalf("%+v %v, la redirección se siguió %d veces", c, err, *vecesFalso)
+	}
+}
+
+func TestConsultar_SiTodosFallanDiceElMotivoDeCadaUnoSinNombrarlos_FND171(t *testing.T) {
+	publica, _ := clavesDirectorio(t)
+	primero, _ := sitioDePrueba(t, 403, nil)
+	segundo, _ := sitioDePrueba(t, 500, nil)
+	_, err := Directorio{URLs: []string{primero, segundo}, Publica: publica}.Consultar(context.Background(), 0)
+	if err == nil {
+		t.Fatal("todos fallaron")
+	}
+	for _, parte := range []string{"sitio 1", "403", "sitio 2", "500"} {
+		if !strings.Contains(err.Error(), parte) {
+			t.Errorf("debe decir %q: %v", parte, err)
+		}
+	}
+	if strings.Contains(err.Error(), "127.0.0.1") {
+		t.Errorf("el motivo llega al reporte de doctor: sin hosts: %v", err)
+	}
+}
+
+func TestConsultar_UnContextoCanceladoNoSigueConLosDemas_FND171(t *testing.T) {
+	publica, _ := clavesDirectorio(t)
+	primero, _ := sitioDePrueba(t, 500, nil)
+	segundo, veces := sitioDePrueba(t, 500, nil)
+	ctx, cancelar := context.WithCancel(context.Background())
+	cancelar()
+	if _, err := (Directorio{URLs: []string{primero, segundo}, Publica: publica}).Consultar(ctx, 0); err == nil {
+		t.Fatal("no hay respuesta")
+	}
+	if *veces != 0 {
+		t.Fatalf("se apagó: no pregunta más: %d", *veces)
 	}
 }

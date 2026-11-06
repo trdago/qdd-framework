@@ -22,8 +22,6 @@ import (
 // a esa cuenta no alcanza para redirigir a nadie. Serie solo sube: una respuesta vieja no lleva a un proyecto abandonado.
 
 const (
-	// URLDirectorio es de donde sale el relay de QDD Móvil.
-	URLDirectorio = "https://qdd-movile.3ldago.workers.dev/"
 	// ClavePublicaDirectorio es la ed25519 que firma el directorio, en base64.
 	ClavePublicaDirectorio = "UPJa3bDOYZj49cdpGn18nNpsHm5/iwahV+ZxsQz8Am8="
 
@@ -35,26 +33,48 @@ const (
 	EsperaConsulta = time.Minute
 )
 
+// sitiosDirectorio son de donde sale el relay de QDD Móvil, en orden. Sirven la misma respuesta firmada: la confianza está en
+// la firma, no en el sitio, y una red que bloquea uno no deja a un PC sin relay (FND-171). La lista no se descarga.
+var sitiosDirectorio = []string{
+	"https://qdd-movile.3ldago.workers.dev/",
+	"https://dedwoaolrpaqliokrjah.supabase.co/functions/v1/directorio",
+	"https://raw.githubusercontent.com/trdago/qdd-directorio/main/directorio.json",
+}
+
 // ErrRelayCambio: el directorio dio otro relay y hay que volver a conectar con él.
 var ErrRelayCambio = errors.New("el directorio dio otro relay: qdd remoto vuelve a arrancar con él")
 
-// Directorio es la URL que dice cuál es el relay y la clave que firma su respuesta.
+// Directorio son los sitios que dicen cuál es el relay y la clave que firma su respuesta.
 type Directorio struct {
-	URL     string
+	URLs    []string
 	Publica ed25519.PublicKey
 }
 
 // DirectorioDeFabrica es el que trae qdd.
 func DirectorioDeFabrica() Directorio {
 	publica, _ := base64.StdEncoding.DecodeString(ClavePublicaDirectorio)
-	return Directorio{URL: URLDirectorio, Publica: publica}
+	return Directorio{URLs: sitiosDirectorio, Publica: publica}
 }
 
-// Consultar lee el directorio. No sigue redirecciones: la URL es esta y ninguna otra.
+// Consultar pregunta a los sitios de a uno y se queda con la primera respuesta que valide. Cualquier fallo pasa al siguiente;
+// si todos fallan, dice el motivo de cada uno por su número: este texto llega al reporte de doctor, y sin hosts.
 func (d Directorio) Consultar(ctx context.Context, serieMinima int) (ConfigRelay, error) {
+	motivos := []string{}
+	for i, sitio := range d.URLs {
+		c, err := d.consultarSitio(ctx, sitio, serieMinima)
+		if err == nil {
+			return c, nil
+		}
+		motivos = append(motivos, fmt.Sprintf("sitio %d: %v", i+1, err))
+	}
+	return ConfigRelay{}, errors.New(strings.Join(motivos, "; "))
+}
+
+// consultarSitio lee un sitio. No sigue redirecciones: la URL es esta y ninguna otra.
+func (d Directorio) consultarSitio(ctx context.Context, sitio string, serieMinima int) (ConfigRelay, error) {
 	c, cancelar := context.WithTimeout(ctx, topeDirectorio)
 	defer cancelar()
-	pedido, err := http.NewRequestWithContext(c, http.MethodGet, d.URL, nil)
+	pedido, err := http.NewRequestWithContext(c, http.MethodGet, sitio, nil)
 	if err != nil {
 		return ConfigRelay{}, err
 	}
@@ -157,6 +177,22 @@ func ActualizarRelay(ctx context.Context, consultar func(context.Context, int) (
 	}
 	_ = guardarPrivado("directorio.json", ConsultaDirectorio{En: time.Now().UTC(), OK: true, Serie: nuevo.Serie})
 	return nuevo, nuevo.URL != actual.URL || nuevo.Clave != actual.Clave, nil
+}
+
+// ConfirmarRelay compara el relay guardado con el directorio. Propio protege solo a un PC emparejado, que perdería su cuenta
+// si se lo pisan; sin emparejar no hay nada que perder, y un relay retirado da un código que el teléfono no acepta (FND-171).
+// Si la consulta falla devuelve el relay tal como estaba, con su marca, y el motivo.
+func ConfirmarRelay(ctx context.Context, consultar func(context.Context, int) (ConfigRelay, error), actual ConfigRelay, emparejado bool) (ConfigRelay, bool, error) {
+	if actual.Propio && emparejado {
+		return actual, false, nil
+	}
+	sinMarca := actual
+	sinMarca.Propio = false
+	c, cambio, err := ActualizarRelay(ctx, consultar, sinMarca)
+	if err != nil {
+		return actual, false, err
+	}
+	return c, cambio, nil
 }
 
 // anotarCaida guarda cuándo empezó: una caída que sigue no reinicia la cuenta.

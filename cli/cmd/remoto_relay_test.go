@@ -226,3 +226,32 @@ func TestRemoto_EmparejarAvisaQueSinServicioNoPublica_FND136(t *testing.T) {
 		t.Fatalf("avisa qué falta: %d %s %s", c, out.String(), errs.String())
 	}
 }
+
+// FND-171: emparejar tampoco puede dar un código de un relay retirado.
+func TestRemoto_EmparejarUsaElRelayDelDirectorio_FND171(t *testing.T) {
+	antiguo, urlAntiguo := nuevoRelayCmd(t)
+	nuevo, urlNuevo := nuevoRelayCmd(t)
+	prepararLogin(t, remoto.ConfigRelay{URL: urlNuevo, Clave: "sb_publishable_prueba", Serie: 1})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: urlAntiguo, Clave: "sb_publishable_prueba"}); err != nil {
+		t.Fatal(err)
+	}
+	var out, errs bytes.Buffer
+	if c := remotoEmparejar(context.Background(), &out, &errs); c != 0 {
+		t.Fatalf("empareja: %d %s", c, errs.String())
+	}
+	if len(antiguo.llamadas) != 0 || len(nuevo.llamadas) == 0 {
+		t.Fatalf("el código sale del relay del directorio: antiguo %v, nuevo %v", antiguo.llamadas, nuevo.llamadas)
+	}
+}
+
+func TestRemoto_EmparejarAvisaSiNoPudoConfirmarElRelay_FND171(t *testing.T) {
+	_, url := nuevoRelayCmd(t)
+	prepararLogin(t, remoto.ConfigRelay{})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: url, Clave: "sb_publishable_prueba"}); err != nil {
+		t.Fatal(err)
+	}
+	var out, errs bytes.Buffer
+	if c := remotoEmparejar(context.Background(), &out, &errs); c != 0 || !strings.Contains(errs.String(), "no se pudo confirmar") {
+		t.Fatalf("avisa antes del código: %d %q", c, errs.String())
+	}
+}

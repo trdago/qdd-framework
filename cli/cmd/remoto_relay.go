@@ -93,15 +93,14 @@ func contexto(ctx context.Context) context.Context {
 }
 
 // relayDeFlags: las banderas mandan y dejan el relay como propio; si no, lo guardado, confirmado con el directorio; la
-// primera vez, lo que diga el directorio. Una consulta fallida sigue con lo guardado: doctor dice por qué.
-func relayDeFlags() (remoto.ConfigRelay, error) {
+// primera vez, lo que diga el directorio.
+func relayDeFlags(errores io.Writer) (remoto.ConfigRelay, error) {
 	if remotoRelayURL != "" || remotoClave != "" {
 		return guardarYLeerRelay(remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave, Propio: true})
 	}
 	c, err := remoto.LeerRelay()
 	if err == nil {
-		c, _, _ = remoto.ActualizarRelay(context.Background(), remotoConsultarRelay, c)
-		return c, nil
+		return relayConfirmado(context.Background(), c, errores), nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return c, err
@@ -113,6 +112,25 @@ func relayDeFlags() (remoto.ConfigRelay, error) {
 	return guardarYLeerRelay(c)
 }
 
+// relayConfirmado es el relay con el que se sigue. Nunca calla (FND-171): quien va a escanear un código tiene que saber si
+// nada confirmó el relay o si se reemplazó el que tenía guardado como propio.
+func relayConfirmado(ctx context.Context, actual remoto.ConfigRelay, errores io.Writer) remoto.ConfigRelay {
+	c, cambio, err := remoto.ConfirmarRelay(ctx, remotoConsultarRelay, actual, estaEmparejado())
+	if err != nil {
+		fmt.Fprintf(errores, "[!] no se pudo confirmar el relay con el directorio (%v): sigue con el guardado, que puede estar retirado. Si el teléfono no conecta, usa 'qdd doctor --fix' desde otra red.\n", err)
+		return c
+	}
+	if cambio && actual.Propio {
+		fmt.Fprintln(errores, "[i] El relay guardado como propio no coincide con el directorio y este PC no estaba emparejado: se reemplazó. Si el tuyo es otro, usa 'qdd login --relay <url> --clave <publicable>'.")
+	}
+	return c
+}
+
+func estaEmparejado() bool {
+	_, err := remoto.LeerCredenciales()
+	return err == nil
+}
+
 func guardarYLeerRelay(c remoto.ConfigRelay) (remoto.ConfigRelay, error) {
 	if err := remoto.GuardarRelay(c); err != nil {
 		return c, err
@@ -122,7 +140,7 @@ func guardarYLeerRelay(c remoto.ConfigRelay) (remoto.ConfigRelay, error) {
 
 func remotoActivar(ctx context.Context, salida, errores io.Writer) int {
 	ctx = contexto(ctx)
-	c, err := relayDeFlags()
+	c, err := relayDeFlags(errores)
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
@@ -181,7 +199,7 @@ func remotoEmparejar(ctx context.Context, salida, errores io.Writer) int {
 		fmt.Fprintln(errores, "[!] falta el relay: usa 'qdd login'")
 		return 1
 	}
-	if _, err := emparejarYGuardar(ctx, c, salida); err != nil {
+	if _, err := emparejarYGuardar(ctx, relayConfirmado(ctx, c, errores), salida); err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}

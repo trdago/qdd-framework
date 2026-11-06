@@ -206,6 +206,15 @@ func utf16ConBOM(s string) []byte {
 	return out
 }
 
+// ComandosReiniciar: encender ya reinicia en Linux y macOS. En Windows, /Run sobre una tarea que corre no la reinicia, así
+// que primero se termina.
+func (s Servicio) ComandosReiniciar() [][]string {
+	if s.SO == "windows" {
+		return [][]string{{"schtasks", "/End", "/TN", tareaWindows}, {"schtasks", "/Run", "/TN", tareaWindows}}
+	}
+	return s.Comandos(true)
+}
+
 // Comandos son lo que se corre para encender (despues de escribir el archivo) o apagar el servicio.
 func (s Servicio) Comandos(encender bool) [][]string {
 	archivo, _ := s.Archivo()
