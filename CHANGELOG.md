@@ -30,6 +30,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **`qdd remoto` ya no gasta CPU por cada latido de las sesiones (FND-161):** cada sesión reescribía cada 5 s su cola del
+  teléfono aunque siguiera vacía, y el servicio volvía a leer todos los proyectos. Con 7 proyectos y sin teléfono conectado
+  usaba del 13 al 21 % de un núcleo. Las colas ya no se escriben si no cambiaron.
 - **El panel lanza menos procesos con el flujo abierto (MEJ-020):** las herramientas y si toca el ciclo de mejoras llegan por
   `qdd consola seguir`, sin `herramienta listar` cada 10 s ni `mejoras ciclo` cada minuto. El latido del teléfono sigue
   siendo un proceso.
