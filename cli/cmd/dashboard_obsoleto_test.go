@@ -23,7 +23,7 @@ func TestDashboard_AvisaQueEstaObsoletoAlArrancar(t *testing.T) {
 	dashboardCmd.PreRun(dashboardCmd, nil)
 
 	aviso := errores.String()
-	for _, parte := range []string{"obsoleto", "sigue funcionando", "qdd-tareas", "qdd consola activar"} {
+	for _, parte := range []string{"obsoleto", "sigue funcionando", "qdd-tareas", "Proyectos", "qdd consola activar"} {
 		if !strings.Contains(aviso, parte) {
 			t.Errorf("el aviso debe decir %q: %q", parte, aviso)
 		}
