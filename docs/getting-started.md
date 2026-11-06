@@ -58,7 +58,7 @@ Para exigirlo todo desde el día uno: `adopcion: estricta` en `.qdd/policies.yam
 
 ```bash
 qdd evolution   # te dice cuál es la siguiente mejora que más conviene
-qdd dashboard   # Centro de Comando Web con el puntaje y las métricas
+qdd dashboard   # Obsoleto: Centro de Comando Web con el puntaje y las métricas; el panel que sigue es qdd-tareas
 ```
 
 ## Paso 3: Los estándares de tu organización (blueprints)

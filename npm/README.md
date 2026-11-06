@@ -36,7 +36,7 @@ qdd audit     # corre las pruebas y las reglas de QDD; funciona desde cualquier 
 - `qdd doctor`: Diagnóstico determinista de salud del entorno.
 - `qdd report`: Reporte ejecutivo consolidado en formato Texto, Markdown o JSON para CI/CD.
 - `qdd evolution`: Recomienda la siguiente mejora del proyecto.
-- `qdd dashboard`: Centro de Comando Web interactivo con streaming en tiempo real (SSE) y ejecución de agentes.
+- `qdd dashboard` (obsoleto; el panel que sigue es `qdd-tareas`): Centro de Comando Web interactivo con streaming en tiempo real (SSE) y ejecución de agentes.
 - `qdd run`: Pipeline secuencial de comandos con rollback, o modo supervisor con auto-reparación (`qdd run --keep-alive`).
 
 ---

@@ -58,7 +58,7 @@ qdd init
 Corre las pruebas del proyecto y las reglas de QDD, y visualiza tu deuda técnica en el panel de control interactivo.
 ```bash
 qdd audit       # Lo que bloquea vs. lo que es recomendación
-qdd dashboard   # Visualiza el Centro de Comando (ver captura de arriba)
+qdd dashboard   # Obsoleto: Centro de Comando (ver captura de arriba); el panel que sigue es qdd-tareas
 ```
 
 ### 3. Estándares de tu Organización y Fichas de Módulo
