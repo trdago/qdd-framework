@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.15] - 2026-11-06
+
 ### Agregado
 
 - **Editar y comentar un flujo en el panel:** en la pestaña de un flujo, un clic elige un nodo. Se puede comentar, pedir detalle, editar, agregar, mover, poner flechas y quitar. qdd valida cada cambio. La IA recibe un comentario o un detalle en el acto, y las ediciones al pulsar «Enviar a la IA» o con tu próximo mensaje. Responde bajo el mismo nodo con `qdd flujo comentar`. Lo que aún no recibe se puede deshacer. `Flujos` también deja crear uno nuevo desde el panel.
