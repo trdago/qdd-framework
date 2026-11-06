@@ -11,6 +11,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Una pregunta abierta en la consola ya no se va del teléfono a los 30 min (FND-165):** seguía abierta en la terminal, con el aviso
   de que se podía responder desde QDD Móvil, pero allí ya no estaba. Ahora sigue en el teléfono mientras la sesión la espere.
 
+## [2.10.0-rc.14] - 2026-11-06
+
+### Seguridad
+
+- **Trae el arreglo de `2.9.11` (FND-164):** `qdd dashboard` ya solo atiende a este PC.
+
 ### Agregado
 
 - **Flujos para QDD Móvil:** el panel que se publica lleva el resumen de cada flujo, y los nodos viajan en un evento `flujo` aparte, después de cada estado completo y cuando cambia su huella. Un cambio de tarea no reenvía el flujo. Un flujo pesa como mucho 100 KB.
@@ -218,6 +224,17 @@ Trae también lo de 2.9.7 (FND-141).
 
 - **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
 - **`k` ya no es a la vez Config y Modo goal (FND-139).**
+
+## [2.9.11] - 2026-11-06
+
+### Seguridad
+
+- **`qdd dashboard` ya solo atiende a este PC (FND-164):** escuchaba en todas las interfaces y sus endpoints de escritura no
+  pedían autenticación. Mientras estaba abierto, otro equipo de la misma red o una página abierta en el navegador podían
+  leer el estado, cambiar políticas, escribir archivos en el proyecto y enviar instrucciones al LLM configurado. Ahora
+  escucha en `127.0.0.1` y rechaza las peticiones que no vienen de su propia página. Si lo usabas desde otro equipo, ya
+  no se puede: usa un túnel SSH. Actualiza si alguna vez lo abriste en una red compartida, y revisa si hay cambios que no
+  reconoces en esos proyectos.
 
 ## [2.9.10] - 2026-11-05
 
