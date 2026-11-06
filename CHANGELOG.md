@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.17] - 2026-11-06
+
 ### Corregido
 
 - **Una instalación nueva se empareja en el relay nuevo de QDD Móvil (FND-168):** el valor por defecto seguía apuntando al relay anterior.
