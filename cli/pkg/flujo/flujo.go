@@ -61,6 +61,9 @@ type Resumen struct {
 	Nodos    int    `json:"nodos"`
 	Huella   string `json:"huella"`
 	Problema string `json:"problema,omitempty"`
+
+	PorEnviar     int  `json:"por_enviar"`
+	PuedeDeshacer bool `json:"puede_deshacer"`
 }
 
 // Validar lista todo lo que impide usar el flujo.
@@ -260,7 +263,9 @@ func Listar(root string, estadoDe func(string) string) []Resumen {
 	sort.Strings(archivos)
 	lista := []Resumen{}
 	for _, a := range archivos {
-		lista = append(lista, resumir(a, estadoDe))
+		r := resumir(a, estadoDe)
+		r.PorEnviar, r.PuedeDeshacer = len(PorEnviar(root, r.ID)), PuedeDeshacer(root, r.ID)
+		lista = append(lista, r)
 	}
 	return lista
 }

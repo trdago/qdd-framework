@@ -21,7 +21,7 @@ objetivo_tecnologico:
         - Las ediciones son comandos de qdd flujo, usados igual por el panel y la IA. Solo --de persona las deja por enviar, para que la IA no se llame a sí misma.
         - Un comentario y un pedido de detalle llaman a la IA en el acto, porque piden respuesta. Una edición espera a «Enviar a la IA» o al próximo mensaje del chat, para no gastar un turno por cambio.
         - Los comentarios viven en el YAML versionado. Lo que falta enviar y lo que se puede deshacer vive en .qdd/working/flujos/<id>.jsonl, sin versionar, con tope de 50.
-        - Los comentarios no viajan al teléfono mientras la app no los muestre.
+        - 'Los comentarios viajan al teléfono pasados por el ocultador, y el teléfono edita y comenta con Pro (decisión de la persona, 2026-11-06; RFC 0013). Una operación del teléfono es un JSON de esquema cerrado (flujo.LeerOperacion) sin campo de autor: siempre es de la persona.'
         - Un nodo se elige en una lista bajo el dibujo, porque el dibujo no sabe qué nodo hay en cada columna. Mover y las flechas se eligen con un clic en el otro nodo.
         - Un formulario abre con el campo enfocado. Claude Code no le da las teclas a una pestaña nueva mientras otra tiene el foco, así que crear un flujo se hace ahí mismo donde se pulsó (FND-166).
         - 'Un flujo pesa como mucho 100 KB (flujo.MaxBytes): viaja entero en un mensaje al teléfono y Supabase descarta en silencio lo que pasa de 256 KB en el plan Free. Uno más pesado no se guarda, y un archivo que pesa de más se ve con su problema.'
@@ -49,4 +49,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-06"
-revisado_en_commit: 75bdec51b30a
+revisado_en_commit: 4d83d316f196

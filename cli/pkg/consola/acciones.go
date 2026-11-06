@@ -118,6 +118,7 @@ type DatosConsola struct {
 type OpcionesEjecutar struct {
 	QDD       bool     `json:"qdd"`
 	IA        bool     `json:"ia"`
+	Flujos    bool     `json:"flujos"`
 	Sugeridos []string `json:"sugeridos"`
 }
 
