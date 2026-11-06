@@ -634,6 +634,9 @@ func (b *Bucle) alLatido(r resultadoLatido) error {
 	limiteAntes, proAntes := b.plan.LimiteProyectos(), b.plan.Pro()
 	b.plan = r.plan
 	b.guardarPlan()
+	if err := GuardarLatido(b.ahora()); err != nil {
+		b.logf("latido guardado: %v", err)
+	}
 	b.alCambiarPlan()
 	if b.plan.Pro() != proAntes {
 		b.marcar()
