@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Una pregunta abierta en la consola ya no se va del teléfono a los 30 min (FND-165):** seguía abierta en la terminal, con el aviso
+  de que se podía responder desde QDD Móvil, pero allí ya no estaba. Ahora sigue en el teléfono mientras la sesión la espere.
+
 ### Agregado
 
 - **Flujos para QDD Móvil:** el panel que se publica lleva el resumen de cada flujo, y los nodos viajan en un evento `flujo` aparte, después de cada estado completo y cuando cambia su huella. Un cambio de tarea no reenvía el flujo. Un flujo pesa como mucho 100 KB.

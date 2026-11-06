@@ -1,0 +1,9 @@
+id: "FND-165"
+title: "Una pregunta abierta en la consola se iba del teléfono a los 30 min"
+description: "Una pregunta de la consola vencía para el teléfono a los 30 min aunque la sesión la siguiera esperando. A los 5 min más desaparecía de la cola, y el diálogo de la terminal seguía abierto con el aviso «También se puede responder desde QDD Móvil»."
+impact: "2026-11-06: según qdd-movile-f6, un AskUserQuestion dejó la consola de qdd detenida de 02:29 a 04:33. No se pudo responder desde el teléfono, y los mensajes enviados desde allí a las 07:10, 07:12 y 07:16 UTC quedaron como fallo. La persona escribió «no contesta la consola de claude». La pregunta ya no estaba en la cola, así que la causa se dedujo del código; no se observó el vencimiento."
+action_taken: "normalizarPreguntas ya no vence una pendiente por tiempo. Solo vence si su sesión deja de esperarla durante LatidoPregunta o si la sesión se cierra."
+test_result: "cli/pkg/consola/preguntas_test.go: TestPregunta_MientrasLaSesionLaEsperaNoSeVaDelTelefono falló antes del cambio. No se probó en una sesión real de 2 h: si Claude Code corta el hook antes, la pregunta vence igual por falta de latido."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

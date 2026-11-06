@@ -257,12 +257,22 @@ func TestPregunta_VenceSiLaSesionDejaDeEsperarla(t *testing.T) {
 	if !errors.As(err, &cerrada) || cerrada.Pregunta.Estado != PreguntaVencida {
 		t.Fatalf("una vencida no se responde: %v", err)
 	}
+}
+
+// FND-165: la consola siguió detenida 2 h en un AskUserQuestion, pero a los 30 min la pregunta se fue del teléfono y
+// nadie la podía responder desde allí. Mientras la sesión la espera, sigue viva.
+func TestPregunta_MientrasLaSesionLaEsperaNoSeVaDelTelefono(t *testing.T) {
+	root := proyectoConCola(t)
 	q := registrarAsk(t, root)
-	for n := time.Duration(1); n*LatidoPregunta/2 < VidaPregunta+time.Minute; n++ {
+	dosHoras := 2 * time.Hour
+	for n := time.Duration(1); n*LatidoPregunta/2 <= dosHoras; n++ {
 		LatirPregunta(root, q.ID, enPregunta.Add(n*LatidoPregunta/2))
 	}
-	if got, _ := PreguntaDe(root, q.ID, enPregunta.Add(VidaPregunta+time.Minute)); got.Estado != PreguntaVencida {
-		t.Fatalf("aunque la sesión siga, pasado VidaPregunta vence para el teléfono: %+v", got)
+	if got, _ := PreguntaDe(root, q.ID, enPregunta.Add(dosHoras)); got.Estado != PreguntaPendiente {
+		t.Fatalf("la sesión la sigue esperando: tiene que seguir pendiente: %+v", got)
+	}
+	if _, err := ResponderPregunta(root, q.ID, `{"q1":{"opciones":["a"]},"q2":{"opciones":["a"]}}`, "Pixel", enPregunta.Add(dosHoras)); err != nil {
+		t.Fatalf("tiene que poder responderse desde el teléfono: %v", err)
 	}
 }
 
