@@ -94,6 +94,7 @@ objetivo_tecnologico:
         - 'El flujo late con una línea vacía cada vez que lee sin cambios: un proceso cuyo lector murió se entera al escribir, en cualquier sistema (os.Getppid no sirve en Windows). Si el binario cambió, termina con 0 y el panel lo reabre con el nuevo.'
         - qdd consola binario le da al panel la ruta real del binario, que evita el envoltorio de Node (y cmd en Windows) en cada llamada; se vuelve a preguntar cada vez que el flujo se corta.
         - 'Una sesión sin terminal (claude -p) no abre el flujo ni lee cada 2 s: no hay panel que dibujar.'
+        - 'Las herramientas y si toca el ciclo de mejoras viajan en el JSON del panel si el mod los pide (--con herramientas,mejoras), en vez de un proceso cada 10 s y cada minuto (MEJ-020). Un qdd que no los trae sigue con esas lecturas. El latido del teléfono sigue siendo un proceso: entrega instrucciones que no se pueden perder si el flujo se corta.'
         - 'Seguro contra lanzar dos veces lo mismo (FND-154, pedido de la persona, 2026-11-05): qdd recuerda 24 h, en local, el efecto de cada pedido que terminó bien. Cerrar un issue y mergear un PR valen por su número, aunque cambie el texto; un comando encadenado u otro cualquiera valen por su texto. Lo ya hecho no se vuelve a pedir sin de_nuevo, y lo abierto con el mismo efecto es el mismo pedido. Si esa memoria no se puede leer, no bloquea nada.'
     invariantes:
         - La barra termina sola aunque nadie cierre su stdin (FND-145).
@@ -160,4 +161,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-05"
-revisado_en_commit: d8d60de074b4
+revisado_en_commit: 92a95c7be540
