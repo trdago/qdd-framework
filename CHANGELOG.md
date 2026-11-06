@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Cambiado
+
+- **Menos mensajes de Realtime:** `hace`, el pulso de una tarea en curso y los reintentos de un pedido ya no mandan el panel
+  entero al teléfono por sí solos. Viajan con el siguiente cambio real, así que en la app pueden estar atrasados hasta
+  entonces.
+
 ## [2.10.0-rc.10] - 2026-11-05
 
 ### Agregado
