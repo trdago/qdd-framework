@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.11] - 2026-11-05
+
 ### Agregado
 
 - **Flujos en el panel (RFC 0012, fase 1):** `qdd flujo crear` guarda un flujo de cajas y círculos en
