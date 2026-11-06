@@ -119,6 +119,7 @@ objetivo_tecnologico:
         - 'Leer, cambiar y escribir la actividad, la cola de pedidos y el registro de uso es uno a la vez entre procesos con un archivo de bloqueo (pkg/candado; uno de más de 10 s es de un proceso que murió): los pulsos corren en segundo plano, uno por herramienta, y sin bloqueo uno que leyó antes borraba lo que otro escribió (FND-097).'
         - 'La actividad (tarea en curso y pulsos, blueprint estado-por-tareas) vive fuera del repositorio (<QDD_HOME>/claude/actividad/, misma clave por proyecto que la cola de pedidos: RutaLocal) y nunca cambia estado.yaml; no usa .qdd/working, que es el archivo del comando qdd en curso (FND-079).'
         - Una tarea sin pulsos durante 120 s deja de estar en curso; cerrarla o descartarla la apaga.
+        - 'La extensión de Antigravity y VS Code (RFC 0014, mod/vscode) solo dibuja lo que entrega qdd y solo lee mientras la vista está visible: oculta no deja ningún proceso de qdd. Ejecuta el binario sin shell, con argumentos fijos, y todo texto entra al webview con textContent bajo una CSP sin contenido remoto ni en línea.'
         - Un pulso nunca demora la herramienta, el subagente ni el comando que lo produce; sin tarea en curso no hace nada.
 pruebas:
     comandos:
@@ -128,6 +129,7 @@ pruebas:
         - cd cli && go test ./pkg/consola/...
         - cd cli && go test ./pkg/materializar/ && go test ./cmd/ -run 'ConsolaMaterializar|ConsolaEfectos|DoctorEfectos'
         - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
+        - cd cli/pkg/consola/mod/vscode && node --test
         - cd cli && go test ./cmd/ -run ConsolaAccion
         - cd cli && go test ./pkg/consola/ -run Pregunta && go test ./cmd/ -run ConsolaPregunta
         - cd cli && go test ./pkg/consola/ -run Telefono && go test ./cmd/ -run 'ConsolaTelefono|ConsolaPanel_Ejecutar'
@@ -142,5 +144,5 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-04"
-revisado_en_commit: 054d22919c67
+ultima_revision: "2026-11-05"
+revisado_en_commit: e845f37c50ab

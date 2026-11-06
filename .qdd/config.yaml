@@ -22,6 +22,7 @@ test_commands:
     - cd cli && go test ./...
     - cd npm && npm test
     - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
+    - cd cli/pkg/consola/mod/vscode && node --test
     - comando: cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
       requiere: [claude]
 # Repositorio de blueprints de la organización (lo administra 'qdd blueprint add').
