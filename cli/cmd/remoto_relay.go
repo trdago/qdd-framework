@@ -264,6 +264,11 @@ func remotoCorrer(errores io.Writer) int {
 	go canal.Correr(ctx)
 	bin, _ := os.Executable()
 	b := &remoto.Bucle{QDD: Version, Cred: cred, T: canal, R: remoto.NuevoRelay(c), Bin: bin, Log: errores}
+	b.AlPublicar = func(ok bool) {
+		if err := remoto.GuardarPublicacion(ok, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el último envío: %v\n", err)
+		}
+	}
 	err = b.Correr(ctx)
 	if errors.Is(err, remoto.ErrCredenciales) {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
