@@ -144,5 +144,5 @@ fuentes:
     - cli/pkg/estado/render.go
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-04"
-revisado_en_commit: 054d22919c67
+ultima_revision: "2026-11-05"
+revisado_en_commit: e845f37c50ab
