@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/estado"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
@@ -14,9 +16,15 @@ import (
 // QDD Móvil (RFC 0013): doctor dice por qué un proyecto no llegaría al teléfono, sin usar la red y solo si este PC lo
 // activó. REM-05: emparejar pide el teléfono de la persona, así que --fix no lo intenta. REM-06: --fix arranca el servicio
 // solo si no corre. REM-07: lo último que dijo el relay. REM-08: --fix anota el proyecto; quedar fuera del plan lo decide
-// la persona. REM-09: el último envío; el texto del error queda en el registro del servicio, nunca en el reporte.
+// la persona. REM-09: el último envío; el texto del error queda en el registro del servicio, nunca en el reporte. REM-10:
+// una cola ilegible se aparta sola y puede traer un mensaje de la persona: doctor la nombra y no la toca.
 
 const grupoMovil = "12. QDD Móvil (teléfono)"
+
+const (
+	grupoFlujos       = "13. Flujos (qdd flujo)"
+	itemFlujosValidos = "Flujos del proyecto válidos (FLU-01)"
+)
 
 const (
 	itemMovilEmparejado = "Este PC está emparejado (REM-05)"
@@ -24,6 +32,7 @@ const (
 	itemMovilRelay      = "Este PC llega al relay (REM-07)"
 	itemMovilProyecto   = "Este proyecto se publica (REM-08)"
 	itemMovilEnvio      = "El último envío al teléfono salió (REM-09)"
+	itemMovilColas      = "Colas del teléfono sin apartar (REM-10)"
 
 	movilSinAnotar     = "no está en el registro"
 	maxLatidosPerdidos = 3
@@ -42,10 +51,40 @@ func buildMovilChecks(root string, now time.Time) *CheckGroup {
 	g.Items = append(g.Items, &CheckItem{Name: itemMovilEmparejado, Success: true})
 	if !remoto.Corriendo() {
 		g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Error: "no corre y el teléfono no recibe nada (qdd doctor --fix lo arranca)"}, itemMovilProyectoDe(root))
-		return g
+		return conItemColas(g, root)
 	}
 	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilRelayDe(now), itemMovilProyectoDe(root))
-	return conItemEnvio(g)
+	return conItemColas(conItemEnvio(g), root)
+}
+
+func conItemColas(g *CheckGroup, root string) *CheckGroup {
+	apartadas := consola.ColasApartadas(root)
+	if len(apartadas) == 0 {
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilColas, Error: "se apartaron por ilegibles y pueden traer un mensaje tuyo; revísalas: " + strings.Join(apartadas, ", ")})
+	return g
+}
+
+// buildFlujosChecks nombra los flujos que no se pueden usar (FLU-01). Corregirlos es decisión de quien los escribió.
+func buildFlujosChecks(root string) *CheckGroup {
+	g := &CheckGroup{Name: grupoFlujos}
+	lista := flujo.Listar(root, func(string) string { return "" })
+	if len(lista) == 0 {
+		return g
+	}
+	rotos := []string{}
+	for _, r := range lista {
+		if r.Problema != "" {
+			rotos = append(rotos, r.ID+": "+r.Problema)
+		}
+	}
+	if len(rotos) == 0 {
+		g.Items = append(g.Items, &CheckItem{Name: itemFlujosValidos, Success: true})
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemFlujosValidos, Error: strings.Join(rotos, "; ")})
+	return g
 }
 
 func servicioMovilInstalado() bool {

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
@@ -227,5 +228,49 @@ func TestDoctorMovil_UnEnvioFallidoFallaYSeQuitaAlVolverAMandar(t *testing.T) {
 	}
 	if item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilEnvio); !item.Success {
 		t.Fatalf("%+v", item)
+	}
+}
+
+func TestDoctorMovil_UnaColaApartadaFallaYNoSeTocaSola(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now()
+	movilSano(t, m, now)
+	ruta, err := consola.RutaLocal(m.raiz, "telefono")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(ruta), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	apartada := ruta + ".ilegible"
+	if err := os.WriteFile(apartada, []byte("{roto"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	g := buildMovilChecks(m.raiz, now)
+	item := itemMovil(t, g, itemMovilColas)
+	if item.Success || !strings.Contains(item.Error, apartada) {
+		t.Fatalf("dice cuál: %+v", item)
+	}
+	repairMovil(m.raiz, g, now)
+	if _, err := os.Stat(apartada); err != nil {
+		t.Fatalf("puede traer un mensaje de la persona: no se borra: %v", err)
+	}
+}
+
+func TestDoctorFlujos_SinFlujosNoReportaYUnoRotoSeNombra(t *testing.T) {
+	root := t.TempDir()
+	if g := buildFlujosChecks(root); len(g.Items) != 0 {
+		t.Fatalf("sin flujos no opina: %+v", g.Items)
+	}
+	dir := filepath.Join(root, ".qdd", "project", "flujos")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "roto.yaml"), []byte("id: [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g := buildFlujosChecks(root)
+	if len(g.Items) != 1 || g.Items[0].Success || !strings.Contains(g.Items[0].Error, "roto") {
+		t.Fatalf("%+v", g.Items)
 	}
 }
