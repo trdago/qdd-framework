@@ -1,6 +1,6 @@
 # RFC 0018: Comparar proyectos en el panel y dejar obsoleto `qdd dashboard`
 
-- Estado: propuesto (2026-11-06).
+- Estado: aceptado (2026-11-06). Fases 1 a 3 hechas en una rama, sin publicar; la fase 4 espera la confirmación de la persona.
 - Origen: tarea `dash`. La persona aceptó «comparar proyectos lado a lado e historial de auditorías y findings», y luego
   decidió que el panel que sigue es `qdd-tareas` y que `qdd dashboard` se descontinúa, primero marcándolo como obsoleto.
 

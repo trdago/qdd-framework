@@ -25,7 +25,7 @@ import (
 
 // RFC 0018: el panel que sigue es qdd-tareas. Hasta que la persona decida quitarlo, el dashboard solo recibe arreglos.
 const avisoDashboardObsoleto = "⚠️  qdd dashboard está obsoleto: sigue funcionando, pero ya no recibe funciones nuevas. " +
-	"El panel que sigue es qdd-tareas; se instala con qdd consola activar."
+	"El panel que sigue es qdd-tareas, con su vista Proyectos (tecla y); se instala con qdd consola activar."
 
 var dashboardCmd = &cobra.Command{
 	Use:     "dashboard",
