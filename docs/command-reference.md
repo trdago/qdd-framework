@@ -136,6 +136,19 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo crear <archivo.yaml\|->` | Valida y guarda un flujo en `.qdd/project/flujos/<id>.yaml`. El panel lo abre en su pestaña. |
 | `qdd flujo ver <id> [--ancho N] [--json]` | Dibuja un flujo hacia abajo, en el ancho que se pida. |
 | `qdd flujo lista [--json]` | Los flujos del proyecto; uno roto sale con su problema. |
+| `qdd flujo nuevo <nombre> [--json]` | Crea un flujo con un solo nodo, para seguirlo desde su pestaña. |
+| `qdd flujo agregar <flujo> <nodo> --nombre N [--tipo paso\|resultado] [--descripcion D] [--rama]` | Agrega un nodo después de otro; con `--rama`, como una salida más. |
+| `qdd flujo modificar <flujo> <nodo> [--nombre N] [--descripcion D] [--tipo T]` | Cambia un nodo. |
+| `qdd flujo mover <flujo> <nodo> --despues-de <otro>` | Cuelga un nodo después de otro. |
+| `qdd flujo quitar <flujo> <nodo>` | Quita un nodo y une lo de antes con lo de después; sus comentarios pasan al primero. |
+| `qdd flujo conectar <flujo> <nodo> --con <otro>` | Pone una flecha hacia otro nodo. |
+| `qdd flujo desconectar <flujo> <nodo> --con <otro>` | Quita una flecha hacia otro nodo. |
+| `qdd flujo comentar <flujo> <nodo> <texto>` | Comenta un nodo; se ve debajo de él en el panel. |
+| `qdd flujo detalle <flujo> <nodo> <texto>` | Explica un nodo: es la respuesta de la IA a un «Detalle». |
+| `qdd flujo deshacer <flujo>` | Deshace la última edición de la persona, si la IA todavía no la recibe y nadie cambió el flujo. |
+| `qdd flujo pedir-detalle <flujo> <nodo>` | Deja por enviar la pregunta de la persona por un nodo; lo usa el panel. |
+| `qdd flujo enviar <flujo> [--json]` | Reclama lo pendiente y escribe el mensaje para la IA; lo usa el panel. |
+| `qdd flujo devolver <flujo> --n N` | Deja como pendientes las últimas N líneas, si no se pudieron entregar; lo usa el panel. |
 | `qdd herramienta candidatos [--json]` | Los ejecutables del proyecto que se pueden agregar como pestaña del panel: `bin/`, `scripts/`, `cmd/*` de Go, `target/release` de Rust, los scripts de `package.json` y los objetivos del `Makefile`; marca los ya agregados. **Seguro.** (RFC 0011) |
 | `qdd herramienta ayuda <comando…>` | Corre su `--help` (si no, `-h` y `help`), sin entrada y con 5 s por intento, para que la IA arme la definición. |
 | `qdd herramienta configurar <comando…>` | Imprime el mensaje con que la IA arma la definición: leer su ayuda, proponerle las acciones a la persona y guardarla con `qdd herramienta guardar`, con el formato y las reglas. Es lo que el panel le envía a la conversación desde Config → + Agregar herramienta. **Seguro.** |

@@ -23,10 +23,15 @@ type bloque struct {
 
 // Dibujar es el flujo en líneas de texto, de hasta ancho columnas. estadoDe da los símbolos de una tarea del tablero.
 func Dibujar(f Flujo, ancho int, estadoDe func(string) string) []string {
+	return DibujarElegido(f, ancho, estadoDe, "")
+}
+
+// DibujarElegido resalta un nodo, sin moverlo: el que la persona está editando en el panel.
+func DibujarElegido(f Flujo, ancho int, estadoDe func(string) string, elegido string) []string {
 	if len(f.Nodos) == 0 {
 		return nil
 	}
-	d := dibujante{f: f, porID: map[string]Nodo{}, hechos: map[string]bool{}, camino: map[string]bool{}, estadoDe: estadoDe}
+	d := dibujante{f: f, porID: map[string]Nodo{}, hechos: map[string]bool{}, camino: map[string]bool{}, estadoDe: estadoDe, elegido: elegido}
 	for _, n := range f.Nodos {
 		d.porID[n.ID] = n
 	}
@@ -40,6 +45,7 @@ type dibujante struct {
 	hechos   map[string]bool
 	camino   map[string]bool // lo que está encima del nodo actual: volver a uno de ellos es un ciclo
 	estadoDe func(string) string
+	elegido  string
 }
 
 // secuencia dibuja desde id hasta una de las paradas (que no dibuja) o hasta el final.
@@ -201,10 +207,38 @@ func (d *dibujante) nodo(n Nodo, ancho int) bloque {
 	if n.Tarea != "" {
 		textos = append(textos, d.estadoDe(n.Tarea))
 	}
+	b := caja(textos)
 	if n.Tipo == TipoResultado {
-		return circulo(textos)
+		b = circulo(textos)
 	}
-	return caja(textos)
+	if n.ID == d.elegido {
+		b.lineas = resaltar(b.lineas, n.Tipo)
+	}
+	return b
+}
+
+// resaltar cambia solo los bordes: el nodo elegido ocupa lo mismo, y el dibujo no salta al elegir otro.
+func resaltar(lineas []string, tipo string) []string {
+	resaltadas := make([]string, len(lineas))
+	for i, l := range lineas {
+		interior := []rune(l)
+		interior = interior[1 : len(interior)-1]
+		resaltadas[i] = bordeResaltado(string(interior), tipo, i == 0, i == len(lineas)-1)
+	}
+	return resaltadas
+}
+
+func bordeResaltado(interior, tipo string, primera, ultima bool) string {
+	if tipo == TipoResultado {
+		return "▶" + interior + "◀"
+	}
+	if primera {
+		return "┏" + strings.ReplaceAll(interior, "─", "━") + "┓"
+	}
+	if ultima {
+		return "┗" + strings.ReplaceAll(interior, "─", "━") + "┛"
+	}
+	return "┃" + interior + "┃"
 }
 
 func caja(textos []string) bloque {

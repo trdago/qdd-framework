@@ -1,0 +1,45 @@
+qdd_certificate:
+  version: "1.1"
+  sprint_id: "6"
+  status: "FAILING"
+  goal: "El flujo en el panel qdd-tareas es una interfaz de trabajo y aclaración entre la persona, la IA y qdd: además de mirar, la persona agrega, modifica, mueve, quita, comenta y pide detalle de un nodo, y la IA recibe cada cambio como una línea estructurada y responde en el mismo flujo."
+  
+  scenarios:
+    happy_path:
+      - "Dado un flujo abierto en su pestaña, cuando la persona elige un nodo y agrega, modifica, mueve o quita, entonces qdd valida, guarda y el dibujo cambia materializando solo lo nuevo"
+      - "Dado un nodo elegido, cuando la persona escribe un comentario, entonces queda en el flujo y la IA recibe de inmediato un mensaje con el flujo, el nodo y las ediciones pendientes"
+      - "Dado ese mensaje, cuando la IA responde con qdd flujo comentar, entonces la respuesta se ve bajo el nodo"
+      - "Dado un nodo, cuando la persona pide detalle, entonces la IA recibe un mensaje 🔎 y agrega la descripción con qdd flujo detalle"
+      - "Dado ediciones sin enviar, cuando la persona pulsa Enviar a la IA o escribe en el chat, entonces la IA las recibe una sola vez, en una línea cada una"
+      - "Dado una edición sin enviar, cuando la persona deshace, entonces el flujo vuelve a como estaba"
+      - "Dado un proyecto sin flujos, cuando la persona pulsa Flujos, entonces puede crear uno desde el panel"
+    error_paths:
+      - "Una edición que deja un nodo sin alcanzar o quita el único nodo se rechaza con el porqué, no escribe nada y la IA no la ve"
+      - "quitar el primer nodo con dos salidas se rechaza diciendo por qué"
+      - "deshacer cuando la IA ya cambió el flujo se rechaza y no pisa su trabajo"
+      - "deshacer una edición ya enviada se rechaza"
+      - "un nodo que ya no existe da un aviso en el panel"
+      - "qdd flujo crear no borra en silencio los comentarios de la persona"
+      - "un flujo que pasaría el tope de peso no se guarda"
+      - "un fallo al enviar a la IA deja la edición como pendiente"
+    edge_cases:
+      - "Dos escrituras a la vez (la IA y la persona) no pierden ninguna"
+      - "un comentario con caracteres de control o saltos de línea no rompe el dibujo ni la línea que recibe la IA"
+      - "ancho de 40 columnas"
+      - "el mod reinicia con ediciones sin enviar"
+      - "texto con forma de secreto en un comentario no sale al teléfono"
+
+  technical_constraints:
+    - "pkg/flujo puro y sin terminal"
+    - "el panel no interpreta el grafo, solo muestra lo que entrega qdd"
+    - "sin tool MCP nueva por el tope de tools/list"
+    - "cero else y pruebas primero"
+    - "sin procesos ni timers mientras no se edita"
+    - "las ediciones sin enviar y la historia para deshacer son locales y no se versionan"
+    - "los comentarios viven en el YAML versionado"
+    - "se verifica con clics reales en un panel aislado"
+
+  executable_tests:
+    - "cd cli && go test ./pkg/flujo ./cmd -run Flujo"
+    - "cd cli/pkg/consola/mod/qdd-tareas && claude plugin test"
+    - "qdd audit"

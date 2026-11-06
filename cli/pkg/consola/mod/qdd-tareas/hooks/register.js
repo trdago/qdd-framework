@@ -293,7 +293,8 @@ async function datosDeLaLinea($, nuevo) {
   }
   herramientasEnPanel = Array.isArray(nuevo?.herramientas)
   if (herramientasEnPanel) await aplicarHerramientas($, nuevo.herramientas)
-  await aplicarFlujos($, Array.isArray(nuevo?.flujos) ? nuevo.flujos : [])
+  conoceFlujos = Array.isArray(nuevo?.flujos)
+  await aplicarFlujos($, conoceFlujos ? nuevo.flujos : [])
 }
 
 // ── Flujos (RFC 0012, ampliación) ──────────────────────────────────────────────────────────────────────────────────
@@ -301,6 +302,7 @@ async function datosDeLaLinea($, nuevo) {
 // flujo o el ancho cambian; el panel muestra las líneas, y materializa solo las que no estaban.
 const PANE_FLUJO = 'qdd-flujo-'
 let flujos = []
+let conoceFlujos = false // un qdd sin flujos no los trae: no se ofrece crear uno
 let flujosLeidos = false // la primera lista no abre nada: lo que ya estaba no le quita lugar a la conversación
 const dibujos = new Map() // id → { huella, ancho, lineas, nombre, descripcion, aviso }
 const dibujandoFlujo = new Set() // id|huella|ancho que ya se pidió
@@ -314,22 +316,25 @@ async function aplicarFlujos($, lista) {
   for (const f of antes) {
     if (lista.some((x) => x.id === f.id)) continue
     dibujos.delete(f.id)
+    ediciones.delete(f.id)
     await $.ui.close({ id: PANE_FLUJO + f.id }).catch(() => {})
   }
 }
 
 async function abrirFlujos($) {
+  if (flujos.length === 0) await abrirFlujoNuevo($, PANE)
   for (const f of flujos) await $.ui.open({ id: PANE_FLUJO + f.id, title: f.nombre })
 }
 
-async function pedirDibujo($, f, ancho) {
-  const pedido = [f.id, f.huella, ancho].join('|')
+async function pedirDibujo($, f, ancho, elegido, generacion) {
+  const pedido = [f.id, f.huella, ancho, elegido, generacion].join('|')
   if (dibujandoFlujo.has(pedido)) return
   dibujandoFlujo.add(pedido)
-  const hecho = { huella: f.huella, ancho, lineas: dibujos.get(f.id)?.lineas || [], nombre: f.nombre, descripcion: '', aviso: '' }
+  const previo = dibujos.get(f.id)
+  const hecho = { huella: f.huella, ancho, elegido, generacion, lineas: previo?.lineas || [], nodos: previo?.nodos || [], por_enviar: previo?.por_enviar || [], puede_deshacer: !!previo?.puede_deshacer, nombre: f.nombre, descripcion: '', aviso: '' }
   try {
     const bin = await binario($)
-    const r = await $.process.run([bin, 'flujo', 'ver', f.id, '--ancho', String(ancho), '--json'], { timeoutMs: TOPE_MS })
+    const r = await $.process.run([bin, 'flujo', 'ver', f.id, '--ancho', String(ancho), '--json', ...(elegido ? ['--elegido', elegido] : [])], { timeoutMs: TOPE_MS })
     if (r.exitCode !== 0) hecho.aviso = (r.stderr || '').trim() || 'qdd no pudo dibujar este flujo'
     if (r.exitCode === 0) Object.assign(hecho, JSON.parse(r.stdout))
   } catch (err) {
@@ -340,23 +345,29 @@ async function pedirDibujo($, f, ancho) {
   $.ui.invalidate('ui.render')
 }
 
+// sinResaltar: elegir un nodo solo cambia sus bordes; no es un cambio del flujo, así que no se materializa.
+const RESALTADO = { '┏': '┌', '┓': '┐', '┗': '└', '┛': '┘', '━': '─', '┃': '│', '▶': '(', '◀': ')' }
+const sinResaltar = (linea) => linea.replace(/[┏┓┗┛━┃▶◀]/g, (c) => RESALTADO[c])
+
 // filasDeFlujo: una línea repetida tiene clave propia, y una línea que solo cambió de lugar no vuelve a materializarse.
 function filasDeFlujo($, Text, id, lineas) {
   const vecesVista = new Map()
   return lineas.map((linea) => {
-    const vez = vecesVista.get(linea) || 0
-    vecesVista.set(linea, vez + 1)
-    const clave = 'fl:' + id + ':' + linea + ':' + vez
-    return materializa($, Text, clave, [[{ texto: linea }]], Text({ key: clave, wrap: 'truncate-end', children: [linea] }), linea)
+    const base = sinResaltar(linea)
+    const vez = vecesVista.get(base) || 0
+    vecesVista.set(base, vez + 1)
+    const clave = 'fl:' + id + ':' + base + ':' + vez
+    return materializa($, Text, clave, [[{ texto: linea }]], Text({ key: clave, wrap: 'truncate-end', children: [linea] }), base)
   })
 }
 
-function dibujarFlujo($, Box, Text, id, ancho) {
+function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
   const f = flujos.find((x) => x.id === id)
   if (!f) return Text({ dimColor: true, wrap: 'wrap', children: ['Este flujo ya no está en el proyecto.'] })
   if (f.problema) return Text({ color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + f.problema] })
+  const s = edicionDe(id)
   const d = dibujos.get(id)
-  if (!d || d.huella !== f.huella || d.ancho !== ancho) pedirDibujo($, f, ancho)
+  if (!d || d.huella !== f.huella || d.ancho !== ancho || (d.elegido || '') !== s.elegido || d.generacion !== s.generacion) pedirDibujo($, f, ancho, s.elegido, s.generacion)
   if (!d) return Text({ dimColor: true, children: ['Dibujando…'] })
   return Box({
     flexDirection: 'column',
@@ -365,8 +376,333 @@ function dibujarFlujo($, Box, Text, id, ancho) {
       ...(d.descripcion ? [Text({ key: 'fl-desc', dimColor: true, wrap: 'wrap', children: [d.descripcion] })] : []),
       ...(d.aviso ? [Text({ key: 'fl-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + d.aviso] })] : []),
       Box({ key: 'fl-dibujo', flexDirection: 'column', marginTop: 1, children: filasDeFlujo($, Text, id, d.lineas) }),
+      ...nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho),
+      ...pendientesDelFlujo($, Box, Text, Button, id, s, d, ancho),
+      Box({ key: 'fl-nuevo-fila', marginTop: 1, children: [Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, dimColor: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJO + id) })] }),
+      ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE_FLUJO + id),
     ],
   })
+}
+
+// ── Editar y comentar un flujo (RFC 0012, fases 2 y 3; sprint 6) ───────────────────────────────────────────────────────
+// La persona elige un nodo con un clic y lo trabaja. qdd valida cada cambio y dice qué le llega a la IA; el panel solo
+// arma el comando y muestra lo que qdd entrega. Una edición espera a «Enviar» o al próximo mensaje del chat, para no
+// gastar un turno por cambio; un comentario y un «?» llaman a la IA en el acto, porque piden una respuesta.
+const ediciones = new Map() // id → { elegido, modo, valores, aviso, ocupado, generacion }
+
+function edicionDe(id) {
+  if (!ediciones.has(id)) ediciones.set(id, { elegido: '', modo: '', valores: {}, aviso: '', pista: '', ocupado: false, generacion: 0 })
+  return ediciones.get(id)
+}
+
+const sinMarcaDeQdd = (texto) => String(texto || '').trim().replace(/^\[!\]\s*/, '')
+
+// correrFlujo corre una edición y vuelve a dibujar. Si qdd la rechaza, el formulario queda como estaba, con el porqué.
+async function correrFlujo($, id, args, llamarALaIA = false) {
+  const s = edicionDe(id)
+  if (s.ocupado) return
+  s.ocupado = true
+  s.aviso = ''
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'flujo', ...args], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0) {
+      s.aviso = sinMarcaDeQdd(r.stderr) || 'qdd no pudo hacer ese cambio'
+      return
+    }
+    s.modo = ''
+    s.valores = {}
+    s.pista = ''
+    if (llamarALaIA) await enviarFlujo($, bin, id)
+  } catch (err) {
+    s.aviso = String(err?.message ?? err)
+  } finally {
+    s.ocupado = false
+    s.generacion++
+    $.ui.invalidate('ui.render')
+  }
+}
+
+// enviarFlujo reclama lo pendiente: qdd no lo entrega dos veces. Si la IA no pudo recibirlo, vuelve a quedar pendiente.
+async function enviarFlujo($, bin, id) {
+  const s = edicionDe(id)
+  const r = await $.process.run([bin, 'flujo', 'enviar', '--json', '--', id], { timeoutMs: TOPE_MS })
+  if (r.exitCode !== 0) {
+    s.aviso = sinMarcaDeQdd(r.stderr) || 'qdd no pudo preparar el envío'
+    return
+  }
+  const { mensaje, n } = JSON.parse(r.stdout)
+  if (!n) return
+  const motivo = await motivoDeRechazo($, mensaje)
+  if (!motivo) return
+  await $.process.run([bin, 'flujo', 'devolver', '--n', String(n), '--', id], { timeoutMs: TOPE_MS }).catch(() => {})
+  s.aviso = 'La IA no lo recibió (' + motivo + '). Queda por enviar.'
+}
+
+async function enviarAhora($, id) {
+  const s = edicionDe(id)
+  if (s.ocupado) return
+  s.ocupado = true
+  s.aviso = ''
+  try {
+    await enviarFlujo($, await binario($), id)
+  } catch (err) {
+    s.aviso = String(err?.message ?? err)
+  } finally {
+    s.ocupado = false
+    s.generacion++
+    $.ui.invalidate('ui.render')
+  }
+}
+
+function cambiarModo($, id, s, modo, valores = {}) {
+  s.modo = modo
+  s.valores = valores
+  s.aviso = ''
+  s.pista = ''
+  $.ui.invalidate('ui.render')
+  if (CAMPO_DE_MODO[modo]) enfocarCampo($, PANE_FLUJO + id, s, CAMPO_DE_MODO[modo])
+}
+
+// Sin esto lo que se escribe se va al chat: un clic en un botón no le da las teclas a la pestaña, y el campo necesitaría
+// un segundo clic que nada avisa. Si el chat tiene texto, Claude Code no suelta las teclas, y entonces se le dice a la persona.
+const CAMPO_DE_MODO = { comentar: 'fl-texto', despues: 'fl-nombre', rama: 'fl-nombre', editar: 'fl-nombre' }
+
+async function enfocarCampo($, sitio, s, key) {
+  const titulo = sitio === PANE ? TITULO : flujos.find((f) => PANE_FLUJO + f.id === sitio)?.nombre || sitio
+  const r = await $.ui
+    .open({ id: sitio, title: titulo, focus: true })
+    .then(() => $.ui.focus({ requestId: sitio, key }))
+    .catch((err) => ({ deny: String(err?.message ?? err) }))
+  if (!r?.deny) return
+  s.pista = 'Haz clic en el campo para escribir aquí.'
+  $.ui.invalidate('ui.render')
+}
+
+// pulsarNodo: el clic elige el nodo o, si se está moviendo o conectando, dice cuál es el otro.
+function pulsarNodo($, id, s, d, n) {
+  if (s.modo === 'mover' && n.id !== s.elegido) return correrFlujo($, id, ['mover', '--de', 'persona', '--despues-de', n.id, '--', id, s.elegido])
+  if (s.modo === 'flechas' && n.id !== s.elegido) return correrFlujo($, id, [saleDe(d, s.elegido, n.id) ? 'desconectar' : 'conectar', '--de', 'persona', '--con', n.id, '--', id, s.elegido])
+  s.elegido = s.elegido === n.id ? '' : n.id
+  cambiarModo($, id, s, '')
+}
+
+const saleDe = (d, desde, hacia) => (d.nodos.find((n) => n.id === desde)?.siguen || []).includes(hacia)
+
+function acortar(texto, ancho) {
+  const letras = [...texto]
+  return letras.length <= ancho ? texto : letras.slice(0, Math.max(1, ancho - 1)).join('') + '…'
+}
+
+// envolver parte un texto por palabras: cada línea se materializa por su cuenta, y una palabra larga se corta.
+function envolver(texto, ancho) {
+  const lineas = []
+  let actual = ''
+  for (const palabra of texto.split(' ')) {
+    const junto = actual ? actual + ' ' + palabra : palabra
+    if ([...junto].length <= ancho) {
+      actual = junto
+      continue
+    }
+    if (actual) lineas.push(actual)
+    actual = acortar(palabra, ancho)
+  }
+  if (actual) lineas.push(actual)
+  return lineas
+}
+
+function nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho) {
+  if (d.nodos.length === 0) return []
+  const avisoDeModo = { mover: 'Elige el nodo después del que va.', flechas: 'Elige un nodo: un clic pone o quita la flecha (→).' }[s.modo]
+  return [
+    Box({ key: 'fl-nodos', marginTop: 1, children: [Text({ weight: 'semibold', wrap: 'truncate-end', children: [avisoDeModo || 'Nodos · elige uno para editarlo o comentarlo'] })] }),
+    ...(s.aviso ? [Text({ key: 'fl-edicion-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + s.aviso] })] : []),
+    ...(s.pista ? [Text({ key: 'fl-edicion-pista', color: COLOR.espera, wrap: 'wrap', children: [s.pista] })] : []),
+    ...d.nodos.flatMap((n) => filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho)),
+  ]
+}
+
+function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho) {
+  const abierto = s.elegido === n.id
+  const comentarios = n.comentarios || []
+  const marca = abierto ? '▾ ' : s.modo === 'flechas' && saleDe(d, s.elegido, n.id) ? '→ ' : '▸ '
+  const notas = comentarios.length ? ' · ' + comentarios.length + ' ✎' : ''
+  const texto = acortar(n.nombre + notas, Math.max(1, ancho - 4))
+  const clave = 'fl-n-' + n.id
+  const boton = Button({ key: clave, label: marca + texto, plain: true, onPress: () => pulsarNodo($, id, s, d, n) })
+  const fila = materializa($, Text, 'fln:' + id + ':' + n.id, [[{ texto: marca + texto }]], boton, n.nombre + notas)
+  if (!abierto) return [fila]
+  return [fila, Box({ key: 'fl-ficha', flexDirection: 'column', paddingLeft: 2, children: fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, Math.max(10, ancho - 4)) })]
+}
+
+function fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, ancho) {
+  const descripcion = n.descripcion ? [Text({ key: 'fl-n-desc', dimColor: true, wrap: 'wrap', children: [n.descripcion] })] : []
+  return [...descripcion, ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+}
+
+// hiloDeNodo: los comentarios de la persona y de la IA, en orden. Un comentario nuevo se materializa.
+function hiloDeNodo($, Text, id, n, ancho) {
+  return (n.comentarios || []).flatMap((c, i) => {
+    const quien = c.de === 'ia' ? 'IA: ' : 'Tú: '
+    const origen = c.de_nodo ? ' (de «' + c.de_nodo + '»)' : ''
+    return envolver(quien + c.texto + origen, ancho).map((linea, j) => {
+      const clave = 'flc:' + id + ':' + n.id + ':' + i + ':' + j
+      return materializa($, Text, clave, [[{ texto: linea }]], Text({ key: clave, color: c.de === 'ia' ? COLOR.bien : undefined, wrap: 'truncate-end', children: [linea] }), linea)
+    })
+  })
+}
+
+function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
+  const cancelar = Button({ key: 'fl-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarModo($, id, s, '') })
+  if (s.modo === 'mover' || s.modo === 'flechas') return [cancelar]
+  if (s.modo === 'comentar') return [Input({ key: 'fl-texto', label: 'Comentario', placeholder: 'qué ves, qué falta, qué no se entiende', submitLabel: 'enviar', onSubmit: (v) => correrFlujo($, id, ['comentar', '--de', 'persona', '--', id, n.id, v], true) }), cancelar]
+  if (s.modo === 'despues' || s.modo === 'rama') return formularioAgregar($, Input, Select, id, s, n, cancelar)
+  if (s.modo === 'editar') return formularioEditar($, Box, Button, Input, Select, id, s, n, cancelar)
+  const accion = (key, tecla, etiqueta, onPress) => Button({ key, label: etiqueta, hotkey: tecla, plain: true, onPress })
+  return [
+    Box({
+      key: 'fl-acciones',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      columnGap: 2,
+      children: [
+        accion('fl-comentar', 'c', 'Comentar', () => cambiarModo($, id, s, 'comentar')),
+        accion('fl-detalle', 'd', 'Detalle', () => correrFlujo($, id, ['pedir-detalle', '--', id, n.id], true)),
+        accion('fl-editar', 'e', 'Editar', () => cambiarModo($, id, s, 'editar', { nombre: n.nombre, descripcion: n.descripcion || '', tipo: n.tipo })),
+        accion('fl-despues', 'a', 'Después', () => cambiarModo($, id, s, 'despues', { tipo: 'paso' })),
+        accion('fl-rama', 'r', 'Rama', () => cambiarModo($, id, s, 'rama', { tipo: 'paso' })),
+        accion('fl-mover', 'm', 'Mover', () => cambiarModo($, id, s, 'mover')),
+        accion('fl-flechas', 'f', 'Flechas', () => cambiarModo($, id, s, 'flechas')),
+        accion('fl-quitar', 'x', 'Quitar', () => correrFlujo($, id, ['quitar', '--de', 'persona', '--', id, n.id])),
+      ],
+    }),
+  ]
+}
+
+function campoTipo($, Select, s) {
+  return Select({
+    key: 'fl-tipo',
+    label: 'Tipo',
+    options: [{ value: 'paso', label: 'paso (caja)' }, { value: 'resultado', label: 'resultado (círculo)' }],
+    value: s.valores.tipo,
+    onSelect: (v) => {
+      s.valores.tipo = v
+      $.ui.invalidate('ui.render')
+    },
+  })
+}
+
+function formularioAgregar($, Input, Select, id, s, n, cancelar) {
+  const agregar = (nombre) => correrFlujo($, id, ['agregar', '--de', 'persona', '--nombre', nombre, '--tipo', s.valores.tipo, ...(s.modo === 'rama' ? ['--rama'] : []), '--', id, n.id])
+  return [campoTipo($, Select, s), Input({ key: 'fl-nombre', label: s.modo === 'rama' ? 'Nombre de la rama' : 'Nombre del nodo', submitLabel: 'agregar', onSubmit: agregar }), cancelar]
+}
+
+function formularioEditar($, Box, Button, Input, Select, id, s, n, cancelar) {
+  const campo = (key, nombre, etiqueta) => Input({
+    key,
+    label: etiqueta,
+    value: s.valores[nombre],
+    submitLabel: 'listo',
+    onInput: (v) => {
+      s.valores[nombre] = v
+      $.ui.invalidate('ui.render')
+    },
+    onSubmit: (v) => {
+      s.valores[nombre] = v
+      $.ui.invalidate('ui.render')
+    },
+  })
+  const guardar = () => correrFlujo($, id, ['modificar', '--de', 'persona', '--nombre', s.valores.nombre, '--descripcion', s.valores.descripcion, '--tipo', s.valores.tipo, '--', id, n.id])
+  return [
+    campo('fl-nombre', 'nombre', 'Nombre'),
+    campo('fl-descripcion', 'descripcion', 'Descripción'),
+    campoTipo($, Select, s),
+    Box({ key: 'fl-guardar-fila', flexDirection: 'row', columnGap: 2, children: [Button({ key: 'fl-guardar', label: 'Guardar', variant: 'primary', onPress: guardar }), cancelar] }),
+  ]
+}
+
+// pendientesDelFlujo: lo que la IA todavía no recibe. Mientras tanto, se puede deshacer.
+function pendientesDelFlujo($, Box, Text, Button, id, s, d, ancho) {
+  const lista = d.por_enviar || []
+  if (lista.length === 0 && !d.puede_deshacer) return []
+  const enviar = lista.length ? [Button({ key: 'fl-enviar', label: 'v  Enviar a la IA (' + lista.length + ')', hotkey: 'v', variant: 'primary', onPress: () => enviarAhora($, id) })] : []
+  const deshacer = d.puede_deshacer ? [Button({ key: 'fl-deshacer', label: 'u  Deshacer', hotkey: 'u', onPress: () => correrFlujo($, id, ['deshacer', '--', id]) })] : []
+  return [
+    Box({ key: 'fl-pendientes', marginTop: 1, children: [Text({ weight: 'semibold', wrap: 'truncate-end', children: ['Por enviar a la IA · también va con tu próximo mensaje'] })] }),
+    ...lista.map((linea, i) => Text({ key: 'fl-pendiente-' + i, dimColor: true, wrap: 'truncate-end', children: [acortar(linea, ancho)] })),
+    Box({ key: 'fl-pendientes-acciones', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: [...enviar, ...deshacer] }),
+  ]
+}
+
+// lleveDelChat: el mensaje que la persona acaba de escribir se llevó lo pendiente; las pestañas lo vuelven a leer.
+function lleveDelChat($) {
+  for (const [id, d] of dibujos) if (d.por_enviar?.length) edicionDe(id).generacion++
+  $.ui.invalidate('ui.render')
+}
+
+// Un flujo nuevo, para que la persona pueda empezar uno sin pedírselo a la IA. El campo se abre donde se pulsó: una
+// pestaña aparte quedaría atrás y sin teclas, porque Claude Code no se las da mientras otra pestaña tiene el foco.
+const flujoNuevo = { sitio: '', aviso: '', pista: '', hecho: '', ocupado: false }
+
+async function abrirFlujoNuevo($, sitio) {
+  Object.assign(flujoNuevo, { sitio, aviso: '', pista: '', hecho: '' })
+  $.ui.invalidate('ui.render')
+  await enfocarCampo($, sitio, flujoNuevo, 'fl-nuevo-nombre')
+}
+
+async function crearFlujo($, nombre) {
+  if (flujoNuevo.ocupado) return
+  flujoNuevo.ocupado = true
+  flujoNuevo.aviso = ''
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'flujo', 'nuevo', '--json', '--', nombre], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0) {
+      flujoNuevo.aviso = sinMarcaDeQdd(r.stderr) || 'qdd no pudo crear el flujo'
+      return
+    }
+    flujoNuevo.hecho = '✓ «' + JSON.parse(r.stdout).nombre + '» ya es una pestaña, arriba'
+    flujoNuevo.pista = ''
+    await releer($)
+  } catch (err) {
+    flujoNuevo.aviso = String(err?.message ?? err)
+  } finally {
+    flujoNuevo.ocupado = false
+    $.ui.invalidate('ui.render')
+  }
+}
+
+function cerrarFlujoNuevo($) {
+  Object.assign(flujoNuevo, { sitio: '', aviso: '', pista: '', hecho: '' })
+  $.ui.invalidate('ui.render')
+}
+
+function formularioFlujoNuevo($, Box, Text, Button, Input, sitio) {
+  if (flujoNuevo.sitio !== sitio) return []
+  if (flujoNuevo.hecho) {
+    return [
+      Box({
+        key: 'fl-nuevo-hecho',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        columnGap: 2,
+        children: [Text({ key: 'fl-nuevo-listo', color: COLOR.bien, wrap: 'wrap', children: [flujoNuevo.hecho] }), Button({ key: 'fl-nuevo-cerrar', label: 'Listo', plain: true, dimColor: true, onPress: () => cerrarFlujoNuevo($) })],
+      }),
+    ]
+  }
+  return [
+    Box({
+      key: 'fl-nuevo-form',
+      flexDirection: 'column',
+      children: [
+        Text({ key: 'fl-nuevo-ayuda', dimColor: true, wrap: 'wrap', children: ['Un flujo muestra cómo funciona algo, con nodos. Parte con un nodo y lo sigues desde su pestaña.'] }),
+        ...(flujoNuevo.aviso ? [Text({ key: 'fl-nuevo-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + flujoNuevo.aviso] })] : []),
+        ...(flujoNuevo.pista ? [Text({ key: 'fl-nuevo-pista', color: COLOR.espera, wrap: 'wrap', children: [flujoNuevo.pista] })] : []),
+        Input({ key: 'fl-nuevo-nombre', label: 'Nombre', placeholder: 'qué explica este flujo', submitLabel: 'crear', onSubmit: (v) => crearFlujo($, v) }),
+        Button({ key: 'fl-nuevo-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cerrarFlujoNuevo($) }),
+      ],
+    }),
+  ]
 }
 
 // Aviso al chat (pedido del usuario, 2026-11-02: «el chat principal tiene que enterarse y verse una leyenda cuando
@@ -656,7 +992,7 @@ function cabecera(Box, Text, Button, $, e, lista) {
       Button({ key: 'leer', label: '↻', hotkey: 'l', plain: true, onPress: () => releer($) }),
       Button({ key: 'blueprints', label: 'Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }),
       Button({ key: 'config', label: 'Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) }),
-      ...(flujos.length ? [Button({ key: 'flujos', label: 'Flujos', plain: true, onPress: () => abrirFlujos($) })] : []),
+      ...(conoceFlujos ? [Button({ key: 'flujos', label: 'Flujos', plain: true, onPress: () => abrirFlujos($) })] : []),
       ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
     ],
   })
@@ -1220,6 +1556,7 @@ function dibujar($, Box, Text, Button, Input, ancho) {
     flexDirection: 'column',
     children: [
       cabecera(Box, Text, Button, $, e, lista),
+      ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE),
       ...cuerpo,
       ...paraTi(Box, Text, Button, $, pedidos(lista), datos.esperas_persona || [], ancho),
       ...fallas(Box, Text, e?.fallas || [], ancho),
@@ -2490,6 +2827,7 @@ export function register(on) {
     resultado = null
     $.ui.invalidate('ui.render')
     const contexto = await contextoDelMensaje($, String(e.permission_mode || ''))
+    lleveDelChat($)
     const r = await next(e)
     if (contexto.length === 0) return r
     return { ...(r || {}), additionalContext: [...((r && r.additionalContext) || []), ...contexto] }
@@ -2536,7 +2874,7 @@ export function register(on) {
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
     Client = cliente || null
-    if (String(e.requestId).startsWith(PANE_FLUJO)) return dibujarFlujo($, Box, Text, e.requestId.slice(PANE_FLUJO.length), e.props.bodyColumns || 40)
+    if (String(e.requestId).startsWith(PANE_FLUJO)) return dibujarFlujo($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_FLUJO.length), e.props.bodyColumns || 40)
     if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length))
     if (e.requestId !== PANE) return next(e)
     return dibujar($, Box, Text, Button, Input, e.props.bodyColumns || 40)

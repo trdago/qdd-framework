@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/flujo"
 )
 
 // Sincronía panel–chat (pedido del usuario, 2026-11-01): si la persona acepta, rechaza, cambia o deja sin efecto en el
@@ -73,5 +75,23 @@ func TestDescartar_AceptaLaTeclaQueVeLaPersona(t *testing.T) {
 	}
 	if len(Pedidos(root)) != 0 {
 		t.Fatal("descartado por su tecla")
+	}
+}
+
+// Las ediciones de un flujo que la persona no envió viajan con su próximo mensaje, una sola vez.
+func TestContextoCiclo_LlevaLasEdicionesSinEnviarDeUnFlujo(t *testing.T) {
+	root := proyectoConCola(t)
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{ID: "a", Tipo: flujo.TipoPaso, Nombre: "A"}}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := flujo.Editar(root, "pago", flujo.DePersona, enCola, flujo.Agregar("a", "Cobra", flujo.TipoPaso, "", false)); err != nil {
+		t.Fatal(err)
+	}
+	if texto := ContextoCiclo(root, "", enCola); !strings.Contains(texto, "+ cobra «Cobra»") {
+		t.Fatalf("contexto: %q", texto)
+	}
+	if texto := ContextoCiclo(root, "", enCola.Add(time.Minute)); strings.Contains(texto, "Cobra") {
+		t.Fatalf("llegó dos veces: %q", texto)
 	}
 }
