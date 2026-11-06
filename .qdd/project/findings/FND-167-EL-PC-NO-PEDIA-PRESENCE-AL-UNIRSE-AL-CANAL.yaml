@@ -1,0 +1,9 @@
+id: "FND-167"
+title: "El PC no pedía Presence de forma explícita al unirse al canal"
+description: "phoenix.go mandaba presence con su clave, sin enabled. En el proyecto de relay nuevo, un cliente sin enabled no recibió ningún evento de Presence, y con enabled en los dos clientes recibió presence_diff."
+impact: "Sin daño medido en el PC: con rc.16, sin enabled, un cliente que se unió como la app vio al PC en el relay nuevo y recibió su estado. La falla se midió con dos clientes de prueba, sin aislar de qué lado depende. No se probó si el PC recibe la salida de un teléfono sin enabled, ni la app real."
+action_taken: "El join manda enabled: true, la forma con la que qdd-movile sí recibió presence_diff."
+test_result: "cli/pkg/remoto/phoenix_test.go comprueba el join con un servidor falso. Es preventivo: no se reprodujo una falla del PC."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

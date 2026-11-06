@@ -193,7 +193,7 @@ func (c *Canal) unirse(ctx context.Context, respuestas <-chan Mensaje, errLectur
 	payload := map[string]any{
 		"config": map[string]any{
 			"broadcast":        map[string]bool{"self": false, "ack": false},
-			"presence":         map[string]string{"key": c.cfg.PresenceKey},
+			"presence":         map[string]any{"key": c.cfg.PresenceKey, "enabled": true},
 			"postgres_changes": []any{},
 			"private":          true,
 		},
