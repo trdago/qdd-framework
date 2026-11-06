@@ -8,6 +8,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **Una instalación nueva se empareja en el relay nuevo de QDD Móvil (FND-168):** el valor por defecto seguía apuntando al relay anterior.
+  Un PC ya emparejado no cambia por esto: usa el que tiene guardado.
 - **El PC pide Presence de forma explícita al unirse al canal (FND-167):** es preventivo: un cliente de prueba que no lo pedía no recibió
   quién entraba al canal, aunque un PC con rc.16 sí se vio en el relay nuevo.
 

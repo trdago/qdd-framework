@@ -296,6 +296,9 @@ func TestCredenciales_PrivadasYSeBorran(t *testing.T) {
 // FND-133: sin relay de fábrica, qdd login fallaba en todo PC nuevo. Va completo y solo con la clave publicable.
 func TestRelayPorDefecto_VaCompletoYPublicable_FND133(t *testing.T) {
 	c := RelayPorDefecto
+	if strings.Contains(c.URL, "vrozxrlkyvbeikxbgdgb") {
+		t.Fatalf("una instalación nueva no se empareja en el relay que se dejó (FND-168): %s", c.URL)
+	}
 	if err := ValidarURL(c.URL); err != nil {
 		t.Fatal(err)
 	}

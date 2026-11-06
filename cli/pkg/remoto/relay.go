@@ -141,8 +141,8 @@ func GuardarRelay(c ConfigRelay) error {
 // RelayPorDefecto es el relay de QDD Móvil que qdd usa la primera vez (issue #102); lo opera qdd-movile. Lleva solo la
 // clave publicable: se publica en npm.
 var RelayPorDefecto = ConfigRelay{
-	URL:   "https://vrozxrlkyvbeikxbgdgb.supabase.co",
-	Clave: "sb_publishable_WFcy-WCo4ZtaV1JIlEaPkw_q4ECzs3T",
+	URL:   "https://dedwoaolrpaqliokrjah.supabase.co",
+	Clave: "sb_publishable_Uzw8SpX1yXoG7TtdOr0BZw_4fmgpPLk",
 }
 
 // LeerRelay devuelve la config guardada; vuelve a validar la clave por si alguien editó el archivo.
