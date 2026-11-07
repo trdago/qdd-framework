@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **`qdd audit --verificar-rutas` ya no confunde lo instalado con rutas incompletas (FND-175):** la copia aislada no traía
+  `node_modules` y una suite que lo necesita fallaba con un falso «incompletas». Ahora la copia enlaza las carpetas que git
+  ignora. Los archivos ignorados, como un `.env`, no entran.
+
 ## [2.10.0-rc.23] - 2026-11-07
 
 ### Agregado

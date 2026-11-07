@@ -285,3 +285,47 @@ func TestRunAll_LasPruebasCorrenDespuesDeLasReglas(t *testing.T) {
 		t.Fatalf("ficha en %d, prueba en %d", ficha, prueba)
 	}
 }
+
+// FND-175: medido en sfrc, cuatro suites decían «incompletas» solo porque la copia no traía node_modules.
+func TestVerificarRutas_LoQueGitIgnoraSeAlcanzaDesdeLaCopia_FND175(t *testing.T) {
+	r := repoConSuite(t, "true")
+	writeFile(t, filepath.Join(r.raiz, ".gitignore"), "node_modules/\nweb/dist/\n")
+	writeFile(t, filepath.Join(r.raiz, "node_modules", "dep", "bin"), "x")
+	writeFile(t, filepath.Join(r.raiz, "web", "dist", "app.js"), "x")
+	r.config(t, "  - comando: 'cat node_modules/dep/bin web/dist/app.js ui/boton.css'\n    rutas: [ui]\n")
+	if got := estadoDe(t, r); got.Estado != RutasCompletas {
+		t.Fatalf("lo instalado no se declara: %+v", got)
+	}
+}
+
+func TestVerificarRutas_UnArchivoSinDeclararSeDetectaAunqueHayaLoInstalado_FND175(t *testing.T) {
+	r := repoConSuite(t, "true")
+	writeFile(t, filepath.Join(r.raiz, ".gitignore"), "node_modules/\n")
+	writeFile(t, filepath.Join(r.raiz, "node_modules", "dep", "bin"), "x")
+	r.config(t, "  - comando: 'cat node_modules/dep/bin reglas/negocio.go'\n    rutas: [ui]\n")
+	if got := estadoDe(t, r); got.Estado != RutasIncompletas {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestVerificarRutas_UnArchivoIgnoradoComoElEnvNoEntraALaCopia_FND175(t *testing.T) {
+	r := repoConSuite(t, "true")
+	writeFile(t, filepath.Join(r.raiz, ".gitignore"), ".env\n")
+	writeFile(t, filepath.Join(r.raiz, ".env"), "CLAVE=secreta")
+	r.config(t, "  - comando: 'test ! -e .env && cat ui/boton.css'\n    rutas: [ui]\n")
+	if got := estadoDe(t, r); got.Estado != RutasCompletas {
+		t.Fatalf("un .env no debe llegar a la copia: %+v", got)
+	}
+}
+
+func TestVerificarRutas_AlTerminarLoInstaladoSigueEnSuLugar_FND175(t *testing.T) {
+	r := repoConSuite(t, "true")
+	writeFile(t, filepath.Join(r.raiz, ".gitignore"), "node_modules/\n")
+	instalado := filepath.Join(r.raiz, "node_modules", "dep", "bin")
+	writeFile(t, instalado, "x")
+	r.config(t, "  - comando: 'cat ui/boton.css'\n    rutas: [ui]\n")
+	estadoDe(t, r)
+	if _, err := os.Stat(instalado); err != nil {
+		t.Fatalf("borrar la copia no debe tocar lo instalado: %v", err)
+	}
+}
