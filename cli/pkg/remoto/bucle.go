@@ -254,6 +254,10 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 		b.reenviarSolicitudes(ctx)
 		return
 	}
+	if e.Evento == "sincronizar" {
+		b.alSincronizar(ctx)
+		return
+	}
 	if e.Evento == "accion" {
 		b.alAccion(ctx, e.Payload)
 	}
