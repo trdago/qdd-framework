@@ -1,7 +1,7 @@
 # RFC 0021: colaboración en vivo entre consolas
 
-**Estado:** propuesta (2026-11-07). La persona aprobó el flujo `colaboracion-en-vivo` («me parece bien el flujo, continúa»).
-Quedan abiertas las tres decisiones del final.
+**Estado:** aceptada (2026-11-07). La persona aprobó el flujo `colaboracion-en-vivo` («me parece bien el flujo, continúa»)
+y eligió las tres decisiones del final. Se implementa la fase 1.
 
 ## Problema
 
@@ -100,14 +100,12 @@ del contrato, y el relay llevaría el aviso.
 - Una señal ilegible en `<QDD_HOME>/equipo/`: se aparta.
 - Un `usa` que nombra un proyecto o contrato que no está en el registro.
 
-## Decisiones abiertas (de la persona)
+## Decisiones (de la persona, 2026-11-07)
 
-1. **Alcance:** ¿solo tus consolas o también otras personas? **Recomiendo** empezar por la fase 1 (mismo PC), que no
-   necesita al relay, y medir antes de seguir.
-2. **Ref oculto (desde la fase 2):** ¿QDD lo sube solo o pregunta? **Recomiendo** que lo suba solo si el proyecto lo
-   declara (`equipo.subir_contratos: true`), porque publicar algo sale del PC.
-3. **«Integrar todo»:** ¿mergea directo o primero muestra qué trae? **Recomiendo** mostrar primero y mergear con un clic,
-   como los pedidos.
+1. **Alcance:** empezar por la fase 1 (mismo PC), que no necesita al relay, y medir antes de seguir.
+2. **Ref oculto (desde la fase 2):** QDD lo sube solo si el proyecto lo declara (`equipo.subir_contratos: true`), porque
+   publicar algo sale del PC.
+3. **«Integrar todo»:** primero muestra qué trae, y mergea con un clic, como los pedidos.
 
 ## Lo que no hace
 
