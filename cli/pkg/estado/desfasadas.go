@@ -11,7 +11,8 @@ type TareasDesfasadas struct {
 	CerradasConEspera []string `json:"cerradas_con_espera"`
 }
 
-// Desfasadas revisa cada tarea: abierta con todo listo, o cerrada con un ⏳ que ya no espera a nadie.
+// Desfasadas revisa cada tarea: abierta con todo listo, o cerrada o descartada con un ⏳ que ya no espera a nadie.
+// FND-177 (qdd-movile, 2026-11-07): solo miraba las cerradas, y una descartada con su ⏳ quedaba sin aviso.
 func Desfasadas(e Estado) TareasDesfasadas {
 	d := TareasDesfasadas{Listas: []string{}, CerradasConEspera: []string{}}
 	for _, f := range e.Frentes {
@@ -19,7 +20,8 @@ func Desfasadas(e Estado) TareasDesfasadas {
 		if f.Estado == EstadoAbierto && f.Terminado(etapas) {
 			d.Listas = append(d.Listas, f.ID)
 		}
-		if f.Estado == EstadoCerrado && conservaEspera(f, etapas) {
+		terminada := f.Estado == EstadoCerrado || f.Estado == EstadoDescartado
+		if terminada && conservaEspera(f, etapas) {
 			d.CerradasConEspera = append(d.CerradasConEspera, f.ID)
 		}
 	}

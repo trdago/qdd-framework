@@ -92,6 +92,9 @@ type Pedido struct {
 	// cambia después, la persona siguió trabajando en vez de ejecutarlo y el pedido se retira.
 	Tarea  string `json:"tarea,omitempty"`
 	Huella string `json:"huella,omitempty"`
+	// Confirmado es cuándo la persona le dio «s  Sí». Uno confirmado que vuelve a pendiente (dejó de esperar, o salió
+	// con «todavía no») no se retira: la persona no siguió trabajando en vez de ejecutarlo (FND-178).
+	Confirmado *time.Time `json:"confirmado,omitempty"`
 	// Armado (armado.go): desde cuándo espera con la intención de la persona, cuándo vuelve a intentarlo y cuántas
 	// veces corrió.
 	ArmadoEn *time.Time `json:"armado_en,omitempty"`
@@ -256,7 +259,7 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 		if p.Estado == EstadoRetirado && p.Fin != nil && now.Sub(*p.Fin) > VidaRetirado {
 			continue
 		}
-		if ahora := huella(p.Tarea); p.Ejecutable() && p.Tarea != "" && p.Huella != "" && ahora != "" && ahora != p.Huella {
+		if ahora := huella(p.Tarea); p.Ejecutable() && p.Confirmado == nil && p.Tarea != "" && p.Huella != "" && ahora != "" && ahora != p.Huella {
 			retirado := now
 			p.Estado, p.Fin, p.Huella = EstadoRetirado, &retirado, ""
 		}

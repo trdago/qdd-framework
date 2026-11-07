@@ -361,3 +361,68 @@ func TestEsperasDelPanel_LoCubiertoPorUnPedidoNoSeRepite(t *testing.T) {
 		t.Fatalf("el pedido ya lo muestra el panel: %+v", got)
 	}
 }
+
+// FND-176 (qdd-movile, 2026-11-07): «¿Confirmas [a]?» se ocultaba solo mientras [a] estaba abierto. Al terminar, [a] sale
+// de la cola y la pregunta volvía al teléfono, ya respondida.
+func TestEspera_UnPedidoHechoDeSuTareaNoLaVuelveAPreguntar_FND176(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd := mustPedirEnOrden(t, root, "aws configure", Orden{Tarea: "barra"})
+	conEspera(t, root, "¿Confirmas ["+pd.Tecla+"] para desplegar?")
+	anotarHecho(root, pd, enCola)
+	marcarHecho(t, root, pd.ID)
+	sacarDeLaCola(t, root, pd.ID)
+	if ps := delEstado(root); len(ps) != 0 {
+		t.Fatalf("[%s] ya se hizo: el teléfono no vuelve a preguntarlo: %+v", pd.Tecla, ps)
+	}
+	tras := EsperasTrasPedido(root, enCola)
+	if len(tras) != 1 || tras[0].Tarea != "Barra" || tras[0].Etapa != "PR" {
+		t.Fatalf("el check le pide a la IA actualizar ese ⏳: %+v", tras)
+	}
+	otro := mustPedirEnOrden(t, root, "aws sso login", Orden{Tarea: "barra"})
+	if otro.Tecla != pd.Tecla {
+		t.Fatalf("la tecla libre se reutiliza: %q, %q", otro.Tecla, pd.Tecla)
+	}
+	if tras := EsperasTrasPedido(root, enCola); len(tras) != 0 {
+		t.Fatalf("un pedido abierto con esa tecla cubre el ⏳: no hay nada que actualizar: %+v", tras)
+	}
+}
+
+func TestEspera_UnPedidoHechoDeOtraTareaNoLaCubre_FND176(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd := mustPedirEnOrden(t, root, "aws configure", Orden{Tarea: "otra"})
+	conEspera(t, root, "¿Confirmas ["+pd.Tecla+"] para desplegar?")
+	anotarHecho(root, pd, enCola)
+	sacarDeLaCola(t, root, pd.ID)
+	if ps := delEstado(root); len(ps) != 1 {
+		t.Fatalf("la tecla se reutiliza: un pedido de otra tarea no responde esta pregunta: %+v", ps)
+	}
+	if tras := EsperasTrasPedido(root, enCola); len(tras) != 0 {
+		t.Fatalf("%+v", tras)
+	}
+}
+
+func TestEspera_UnPedidoHechoHaceMasDeUnDiaNoLaCubre_FND176(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd := mustPedirEnOrden(t, root, "aws configure", Orden{Tarea: "barra"})
+	conEspera(t, root, "¿Confirmas ["+pd.Tecla+"] para desplegar?")
+	anotarHecho(root, pd, enCola.Add(-VidaHechos-time.Minute))
+	sacarDeLaCola(t, root, pd.ID)
+	if ps := delEstado(root); len(ps) != 1 {
+		t.Fatalf("lo hecho se recuerda VidaHechos: después vuelve a ser pregunta: %+v", ps)
+	}
+}
+
+func sacarDeLaCola(t *testing.T, root, id string) {
+	t.Helper()
+	if err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		var out []Pedido
+		for _, p := range cola {
+			if p.ID != id {
+				out = append(out, p)
+			}
+		}
+		return out, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

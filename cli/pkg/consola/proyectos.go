@@ -10,6 +10,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -39,6 +40,9 @@ type FilaProyecto struct {
 	Puntajes         []PuntajeDelDia  `json:"puntajes"`
 	FindingsPorFecha []FindingsDelDia `json:"findings_por_fecha"`
 	FindingsSinFecha int              `json:"findings_sin_fecha"`
+	// ReglasAtrasadas son los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos):
+	// qdd doctor --fix los renueva. null si la carpeta no existe.
+	ReglasAtrasadas []string `json:"reglas_atrasadas"`
 }
 
 // PuntajeDelDia es el último puntaje de un día. Dos escalas no se comparan: OtraEscala lo marca aparte.
@@ -85,6 +89,7 @@ func filaDe(p registro.Proyecto, now time.Time) FilaProyecto {
 	llenarPuntaje(&fila, p.Ruta, now)
 	llenarFindings(&fila, p.Ruta)
 	llenarEstado(&fila, p.Ruta)
+	fila.ReglasAtrasadas = append([]string{}, integration.BloquesViejos(p.Ruta)...)
 	return fila
 }
 

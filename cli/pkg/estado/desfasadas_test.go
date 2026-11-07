@@ -37,8 +37,9 @@ func TestDesfasadas_DiceCadaTareaQueYaNoDiceLoQuePasa_MEJ010(t *testing.T) {
 	if len(got.Listas) != 1 || got.Listas[0] != "lista" {
 		t.Fatalf("abierta con todo listo: %+v", got.Listas)
 	}
-	if len(got.CerradasConEspera) != 1 || got.CerradasConEspera[0] != "cerrada" {
-		t.Fatalf("cerrada que conserva un ⏳: %+v", got.CerradasConEspera)
+	// FND-177 (qdd-movile, 2026-11-07): una descartada con un ⏳ tampoco espera a nadie, y el check no la nombraba.
+	if len(got.CerradasConEspera) != 2 || got.CerradasConEspera[0] != "cerrada" || got.CerradasConEspera[1] != "descartada" {
+		t.Fatalf("cerrada o descartada que conserva un ⏳: %+v", got.CerradasConEspera)
 	}
 }
 

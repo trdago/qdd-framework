@@ -59,6 +59,10 @@ var doctorCmd = &cobra.Command{
 	Short: "Verifica que el entorno QDD esté completamente funcional (Checklist Determinista)",
 	Long:  `Ejecuta pruebas deterministas para asegurar que la estructura y las integraciones del framework QDD están operando correctamente, evaluando de forma rígida cada aspecto del framework.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if doctorTodosFlag {
+			correrDoctorTodos()
+			return
+		}
 		cwd, err := os.Getwd()
 		if err != nil {
 			fmt.Printf("[!] Error obteniendo directorio actual: %v\n", err)
