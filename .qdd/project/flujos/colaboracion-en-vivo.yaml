@@ -1,0 +1,90 @@
+formato: 1
+id: colaboracion-en-vivo
+nombre: Colaboración en vivo entre consolas (propuesta)
+nodos:
+    - id: inicio
+      tipo: resultado
+      nombre: Dos o más consolas con qdd remoto activo
+      descripcion: En el mismo PC o en otros. Cada una trabaja en su rama; nadie espera a nadie.
+      siguen:
+        - acordar
+        - cambio
+    - id: acordar
+      tipo: paso
+      nombre: Acordar mirando el mismo flujo
+      descripcion: 'El flujo ya viaja en vivo al teléfono (evento flujo, con huella: solo se reenvía lo que cambió). El mismo evento llega a las otras consolas. Cada nodo lleva un ✓ por participante; con todos, queda acordado.'
+      siguen:
+        - tarea-del-nodo
+    - id: tarea-del-nodo
+      tipo: paso
+      nombre: Del nodo acordado nace una tarea
+      descripcion: 'El nodo ya puede apuntar a una tarea (tarea: <id>), y su estado se ve en el flujo de todos. Cuando esa tarea termina, es un cambio más.'
+      siguen:
+        - cambio
+    - id: cambio
+      tipo: resultado
+      nombre: Una consola termina un cambio
+      descripcion: Al hacer commit o marcar ✅ una tarea; nunca por cada tecla. Así hay pocos eventos.
+      siguen:
+        - clasificar
+    - id: clasificar
+      tipo: paso
+      nombre: ¿Cambia un contrato? (sin LLM)
+      descripcion: 'Criterio: ¿rompe a quien no lo sabe? QDD compara los archivos tocados con los contratos del proyecto: migraciones y esquema, API, eventos, .env.example, invariantes de fichas y blueprints. Es determinista, como las rutas del RFC 0020. La IA que hizo el cambio solo escribe la línea de resumen, que ya tiene en su sesión.'
+      siguen:
+        - senal-contrato
+        - senal-resumen
+    - id: senal-contrato
+      tipo: paso
+      nombre: ⚡ Señal de contrato, en segundos
+      descripcion: 'Un mensaje de ~1 KB por el canal de qdd remoto: quién, rama, módulo, qué contrato, la línea de resumen y una huella. No lleva código.'
+      siguen:
+        - ref-oculta
+        - receptor
+    - id: ref-oculta
+      tipo: paso
+      nombre: El contenido viaja por git, no por el relay
+      descripcion: 'En el mismo PC no sube nada: git trae el commit directo desde la carpeta del otro proyecto (git fetch <ruta>). Desde otro PC, QDD subiría un ref oculto (refs/qdd/senales/<id>) solo con los archivos del contrato. El relay lleva solo el aviso.'
+      siguen:
+        - receptor
+    - id: receptor
+      tipo: paso
+      nombre: La otra consola ve si le importa (sin LLM)
+      descripcion: ¿Su rama o sus fichas usan ese módulo o contrato? Si no, va solo al resumen y no la interrumpe.
+      siguen:
+        - adaptar
+        - resumen
+    - id: adaptar
+      tipo: paso
+      nombre: Su IA lo descubre y se adapta
+      descripcion: En el siguiente mensaje, qdd le pone la señal en el contexto (como hoy los pedidos). Con «traer» baja solo el contrato del ref oculto y se adapta. Es el único paso que gasta tokens, y solo cuando le importa.
+      siguen:
+        - resumen
+    - id: senal-resumen
+      tipo: paso
+      nombre: "\U0001F4CB Lo demás espera el merge"
+      descripcion: 'Los cambios internos no interrumpen a nadie: entran agrupados a la viñeta Resumen.'
+      siguen:
+        - resumen
+    - id: resumen
+      tipo: paso
+      nombre: Viñeta «Resumen» en el panel
+      descripcion: "Como la de flujos: una línea por cambio, por consola y rama, con los ⚡ arriba. Cada línea puede pedir \U0001F514 «avísame cuando esté en git»."
+      siguen:
+        - en-git
+        - integrar
+    - id: en-git
+      tipo: paso
+      nombre: "\U0001F514 Avisa cuando llega a git"
+      descripcion: Quien sube su rama manda una señal de push. Sin ella, un git ls-remote barato cada pocos minutos. La línea queda «disponible».
+      siguen:
+        - integrar
+    - id: integrar
+      tipo: paso
+      nombre: Botón «Integrar todo a mi rama»
+      descripcion: Hace fetch de las ramas de las otras consolas y las mergea en la mía. Los conflictos los resuelve mi IA con el resumen como contexto. Es el branch mejorado.
+      siguen:
+        - listo
+    - id: listo
+      tipo: resultado
+      nombre: Mi rama al día con el equipo
