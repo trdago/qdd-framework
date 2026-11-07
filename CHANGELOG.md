@@ -14,6 +14,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   proyectos y los vuelve a publicar. Después responde `sincronizado` con lo que el tablero de cada proyecto con una consola
   abierta ya no dice bien: ⏳ cuyo pedido ya terminó, tareas listas sin cerrar, cerradas o descartadas con ⏳ y flujos
   inválidos. No corrige nada. En el PC, `qdd sincronizar [--json]` da lo mismo.
+- **El teléfono ve qué proyecto tiene las reglas de las IAs atrasadas:** cada proyecto publicado trae `reglas_atrasadas`.
 
 ## [2.10.0-rc.26] - 2026-11-07
 

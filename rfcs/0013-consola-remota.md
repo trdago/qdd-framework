@@ -121,6 +121,8 @@ Lo que el PC publicaría, sin red. El mismo JSON es el contenido del evento `est
 
 - `panel` es exactamente `consola.Panel(root, now)`: la app dibuja lo mismo que el panel y no hay un segundo modelo.
 - Un proyecto que falla trae `error` y no `panel`; nunca un panel inventado o vacío como si estuviera bien.
+- `reglas_atrasadas` (2026-11-07): los archivos con el bloque de reglas de un qdd anterior; `[]` es al día y sin el campo no se
+  midió (la carpeta no está). Renovarlas manda un `estado` completo, porque un `delta` no lo lleva.
 - Orden: por `visto`, el más reciente primero.
 - Sin `--json` imprime una línea por proyecto: nombre, foco, tareas, esperan, fallan.
 

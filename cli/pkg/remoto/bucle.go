@@ -8,6 +8,7 @@ import (
 	"io"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
@@ -416,9 +417,17 @@ func sinLoVolatil(panel *consola.DatosConsola) *consola.DatosConsola {
 func estructuraDe(e Estado) map[string]string {
 	out := map[string]string{"": fmt.Sprint(e.FueraDelPlan)}
 	for _, p := range e.Proyectos {
-		out[p.Clave] = p.Nombre + "\x00" + p.Ruta + "\x00" + p.Error
+		out[p.Clave] = p.Nombre + "\x00" + p.Ruta + "\x00" + p.Error + "\x00" + reglasDe(p)
 	}
 	return out
+}
+
+// reglasDe es reglas_atrasadas en una línea, para la estructura: renovarlas manda el estado completo.
+func reglasDe(p ProyectoEstado) string {
+	if p.ReglasAtrasadas == nil {
+		return "-"
+	}
+	return strings.Join(*p.ReglasAtrasadas, ",")
 }
 
 // pideEstado: cambió algo que un delta no dice (un proyecto nuevo, un nombre, un error, los de fuera del plan). Que
