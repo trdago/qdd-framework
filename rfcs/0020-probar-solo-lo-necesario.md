@@ -54,7 +54,8 @@ Medido el 2026-11-07 en este repositorio, sobre los últimos 300 commits. Cambi�
 
 ## Límites
 
-- **`rutas` lo declara una persona o una IA.** Una suite que dependa de algo que no declara no se repetirá cuando eso cambie. La red de seguridad es el CI, que corre todo antes de mergear y publicar.
+- **`rutas` lo declara una persona o una IA.** Una suite que dependa de algo que no declara no se repetirá cuando eso cambie. La red de seguridad es el CI, que corre todo antes de mergear y publicar, salvo una suite cuya herramienta no instale: esa queda «sin medir». Por eso el CI instala Claude Code (FND-174). Hasta este arreglo, la suite del panel no corría en el CI.
+- **Las dependencias también son rutas.** Si una suite usa un lockfile o una configuración fuera de su carpeta, se declaran: `rutas: [src/ui, package-lock.json]`. Los archivos ignorados por git no cuentan, y `node_modules` es uno de ellos.
 - **Por archivo no se distingue un color de una regla.** Si estilos y lógica viven en un archivo, ambos cambian la huella. Se separan en suites distintas solo si viven en archivos distintos.
 - **Una herramienta puede cambiar sin que cambie un archivo.** Por eso lo recordado vence a las 24 h.
 - **Otros lenguajes pueden tener el mismo agujero de caché que FND-173.** Un proyecto que use la caché de su ejecutor tiene que declarar lo que esas pruebas leen.

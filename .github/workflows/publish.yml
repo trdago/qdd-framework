@@ -42,6 +42,10 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      # La suite del panel (requiere: claude) quedaba «sin medir» y nunca corría en el CI (FND-174). No usa credenciales.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.319
+
       - name: Build Framework
         run: make build
 
