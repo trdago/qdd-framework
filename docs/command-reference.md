@@ -223,7 +223,7 @@ Una captura pegada en la terminal (Ctrl+Shift+V) llega como bytes de PNG y la IA
 
 | Comando | Descripción |
 |---------|-------------|
-| `qdd foto [--de auto\|portapapeles\|captura]` | Trae la imagen del portapapeles (wl-paste o xclip en Linux, PowerShell en Windows, osascript en macOS) y la deja en `tmp/fotos` (git no la ve); sin imagen en el portapapeles, usa la última captura de pantalla. Imprime la ruta para decirle a la IA «mira <ruta>». Máximo 5 MB. **Seguro.** (qdd 2.8.0) |
+| `qdd foto [--de auto\|portapapeles\|captura] [--json] [--hay]` | Trae la imagen del portapapeles (wl-paste o xclip en Linux, PowerShell en Windows, osascript en macOS) y la deja en `tmp/fotos` (git no la ve); sin imagen en el portapapeles, usa la última captura de pantalla. Imprime la ruta para decirle a la IA «mira <ruta>». Máximo 5 MB. **Seguro.** (qdd 2.8.0) `--json` da la ruta (y `ruta_corta`) o el error; `--hay` solo dice `si`, `no` o `no_se` sin copiar la imagen. El panel de Claude Code usa los dos para su botón **📷 Foto** (tecla `t`): aparece con una imagen copiada y deja «mira <ruta>» en el chat. |
 
 ### 🤖 Solo vía MCP — pedile a tu IDE con IA que las invoque
 Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP — tipear `qdd learn` (por ejemplo) en una terminal no hace nada útil:
