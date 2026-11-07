@@ -36,6 +36,7 @@ objetivo_tecnologico:
         - Una línea por enviar le llega a la IA una sola vez; si no pudo recibirla, vuelve a quedar pendiente.
         - Deshacer no pisa lo que otro cambió después ni lo que la IA ya recibió.
         - Reescribir un flujo con qdd flujo crear o quitar un nodo no pierde comentarios.
+        - 'Preguntar (pedido de la persona, 2026-11-07): la persona le pregunta a un nodo, o al flujo completo, qué hace o qué significa una palabra. La pregunta queda marcada (pregunta: true) bajo el nodo o en Flujo.Comentarios, y le llega a la IA en el acto con el contexto del nodo en la pista (descripción, de dónde viene y qué sigue), para que responda orientada a ese nodo sin releer el flujo. La IA responde con qdd flujo responder <flujo> [<nodo>] "<texto>", que no la vuelve a llamar. En el panel: botón Preguntar (g) en cada nodo y «Preguntar sobre el flujo» (i) sobre los nodos; en el teléfono, la operación preguntar. Los comentarios del flujo completo viajan al teléfono pasados por el ocultador, como los de un nodo.'
 pruebas:
     comandos:
         - cd cli && go test ./pkg/flujo ./cmd -run Flujo
@@ -48,5 +49,5 @@ fuentes:
     - cli/cmd/flujo_editar.go
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
-ultima_revision: "2026-11-06"
-revisado_en_commit: 4d83d316f196
+ultima_revision: "2026-11-07"
+revisado_en_commit: 7294a58555a4

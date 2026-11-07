@@ -52,6 +52,9 @@ type Flujo struct {
 	Nombre      string `yaml:"nombre" json:"nombre"`
 	Descripcion string `yaml:"descripcion,omitempty" json:"descripcion,omitempty"`
 	Nodos       []Nodo `yaml:"nodos" json:"nodos"`
+
+	// Comentarios son las preguntas de la persona sobre el flujo completo y las respuestas de la IA.
+	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
 }
 
 // Resumen es lo que el panel necesita para saber que un flujo existe o cambió, sin dibujarlo.
@@ -77,6 +80,9 @@ func Validar(f Flujo) []string {
 	}
 	if strings.TrimSpace(f.Nombre) == "" {
 		problemas = append(problemas, "el flujo no tiene nombre")
+	}
+	for _, c := range f.Comentarios {
+		problemas = append(problemas, problemasDeComentario("el flujo", c)...)
 	}
 	if len(f.Nodos) == 0 {
 		return append(problemas, "el flujo no tiene ningún nodo")
@@ -128,18 +134,18 @@ func problemasDeNodo(n Nodo, vistos map[string]bool) []string {
 		problemas = append(problemas, fmt.Sprintf("el nodo %q está sin nombre", n.ID))
 	}
 	for _, c := range n.Comentarios {
-		problemas = append(problemas, problemasDeComentario(n.ID, c)...)
+		problemas = append(problemas, problemasDeComentario(fmt.Sprintf("el nodo %q", n.ID), c)...)
 	}
 	return problemas
 }
 
-func problemasDeComentario(nodo string, c Comentario) []string {
+func problemasDeComentario(donde string, c Comentario) []string {
 	var problemas []string
 	if c.De != DePersona && c.De != DeIA {
-		problemas = append(problemas, fmt.Sprintf("el nodo %q tiene un comentario de %q: usa %s o %s", nodo, c.De, DePersona, DeIA))
+		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de %q: usa %s o %s", donde, c.De, DePersona, DeIA))
 	}
 	if strings.TrimSpace(c.Texto) == "" {
-		problemas = append(problemas, fmt.Sprintf("el nodo %q tiene un comentario vacío", nodo))
+		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario vacío", donde))
 	}
 	return problemas
 }

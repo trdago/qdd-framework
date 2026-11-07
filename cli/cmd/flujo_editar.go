@@ -98,6 +98,42 @@ func textoDeArgs(args []string) string {
 	return args[2]
 }
 
+// preguntaDeArgs: el nodo es opcional; sin él, la pregunta o la respuesta es sobre el flujo completo.
+func preguntaDeArgs(args []string) (string, string) {
+	if len(args) == 2 {
+		return "", args[1]
+	}
+	return args[1], args[2]
+}
+
+var flujoPreguntarCmd = &cobra.Command{
+	Use:   "preguntar <flujo> [<nodo>] <texto>",
+	Short: "La persona pregunta por un nodo o por el flujo completo; queda por enviar a la IA",
+	Args:  cobra.RangeArgs(2, 3),
+	Run: func(cmd *cobra.Command, args []string) {
+		nodo, texto := preguntaDeArgs(args)
+		_, linea, err := flujo.Editar(estadoRaiz(), args[0], flujo.DePersona, time.Now(), flujo.Preguntar(nodo, texto, time.Now()))
+		if err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), linea)
+	},
+}
+
+var flujoResponderCmd = &cobra.Command{
+	Use:   "responder <flujo> [<nodo>] <texto>",
+	Short: "La IA responde un ❓ de la persona, bajo el nodo o en el flujo completo",
+	Args:  cobra.RangeArgs(2, 3),
+	Run: func(cmd *cobra.Command, args []string) {
+		nodo, texto := preguntaDeArgs(args)
+		_, linea, err := flujo.Editar(estadoRaiz(), args[0], flujo.DeIA, time.Now(), flujo.Responder(nodo, texto, time.Now()))
+		if err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), linea)
+	},
+}
+
 var flujoPedirDetalleCmd = &cobra.Command{
 	Use:   "pedir-detalle <flujo> <nodo>",
 	Short: "Deja por enviar la pregunta de la persona por un nodo",
@@ -191,5 +227,5 @@ func init() {
 	flujoEnviarCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoNuevoCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoDevolverCmd.Flags().IntVar(&flujoN, "n", 0, "Cuántas líneas")
-	flujoCmd.AddCommand(append(ediciones, flujoPedirDetalleCmd, flujoDeshacerCmd, flujoEnviarCmd, flujoDevolverCmd, flujoNuevoCmd)...)
+	flujoCmd.AddCommand(append(ediciones, flujoPreguntarCmd, flujoResponderCmd, flujoPedirDetalleCmd, flujoDeshacerCmd, flujoEnviarCmd, flujoDevolverCmd, flujoNuevoCmd)...)
 }

@@ -382,6 +382,7 @@ function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
       ...(d.descripcion ? [Text({ key: 'fl-desc', dimColor: true, wrap: 'wrap', children: [d.descripcion] })] : []),
       ...(d.aviso ? [Text({ key: 'fl-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + d.aviso] })] : []),
       Box({ key: 'fl-dibujo', flexDirection: 'column', marginTop: 1, children: filasDeFlujo($, Text, id, d.lineas) }),
+      ...preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho),
       ...nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho),
       ...pendientesDelFlujo($, Box, Text, Button, id, s, d, ancho),
       Box({ key: 'fl-nuevo-fila', marginTop: 1, children: [Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, dimColor: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJO + id) })] }),
@@ -472,7 +473,7 @@ function cambiarModo($, id, s, modo, valores = {}) {
 
 // Sin esto lo que se escribe se va al chat: un clic en un botón no le da las teclas a la pestaña, y el campo necesitaría
 // un segundo clic que nada avisa. Si el chat tiene texto, Claude Code no suelta las teclas, y entonces se le dice a la persona.
-const CAMPO_DE_MODO = { comentar: 'fl-texto', despues: 'fl-nombre', rama: 'fl-nombre', editar: 'fl-nombre' }
+const CAMPO_DE_MODO = { comentar: 'fl-texto', preguntar: 'fl-pregunta', 'preguntar-flujo': 'fl-pregunta-flujo', despues: 'fl-nombre', rama: 'fl-nombre', editar: 'fl-nombre' }
 
 async function enfocarCampo($, sitio, s, key) {
   const titulo = sitio === PANE ? TITULO : flujos.find((f) => PANE_FLUJO + f.id === sitio)?.nombre || sitio
@@ -517,6 +518,16 @@ function envolver(texto, ancho) {
   return lineas
 }
 
+// preguntasDelFlujo: lo que la persona le preguntó al flujo completo y lo que la IA respondió, y el botón para preguntar.
+function preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho) {
+  const lista = d.comentarios || []
+  const cancelar = Button({ key: 'fl-cancelar-pregunta', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarModo($, id, s, '') })
+  const campo = s.modo === 'preguntar-flujo'
+    ? [Input({ key: 'fl-pregunta-flujo', label: 'Pregunta sobre el flujo', placeholder: 'para qué sirve, qué significa una palabra', submitLabel: 'preguntar', onSubmit: (v) => correrFlujo($, id, ['preguntar', '--', id, v], true) }), cancelar]
+    : [Button({ key: 'fl-preguntar-flujo', label: 'Preguntar sobre el flujo', hotkey: 'i', plain: true, onPress: () => cambiarModo($, id, s, 'preguntar-flujo') })]
+  return [Box({ key: 'fl-preguntas', flexDirection: 'column', marginTop: 1, children: [...hilo($, Text, id + ':', lista, ancho), ...campo] })]
+}
+
 function nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho) {
   if (d.nodos.length === 0) return []
   const avisoDeModo = { mover: 'Elige el nodo después del que va.', flechas: 'Elige un nodo: un clic pone o quita la flecha (→).' }[s.modo]
@@ -546,13 +557,17 @@ function fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, ancho) {
   return [...descripcion, ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
 }
 
-// hiloDeNodo: los comentarios de la persona y de la IA, en orden. Un comentario nuevo se materializa.
+// hiloDeNodo: los comentarios de la persona y de la IA, en orden; una pregunta va con ❓. Un comentario nuevo se materializa.
 function hiloDeNodo($, Text, id, n, ancho) {
-  return (n.comentarios || []).flatMap((c, i) => {
-    const quien = c.de === 'ia' ? 'IA: ' : 'Tú: '
+  return hilo($, Text, id + ':' + n.id, n.comentarios || [], ancho)
+}
+
+function hilo($, Text, donde, comentarios, ancho) {
+  return comentarios.flatMap((c, i) => {
+    const quien = c.de === 'ia' ? 'IA: ' : c.pregunta ? '❓ Tú: ' : 'Tú: '
     const origen = c.de_nodo ? ' (de «' + c.de_nodo + '»)' : ''
     return envolver(quien + c.texto + origen, ancho).map((linea, j) => {
-      const clave = 'flc:' + id + ':' + n.id + ':' + i + ':' + j
+      const clave = 'flc:' + donde + ':' + i + ':' + j
       return materializa($, Text, clave, [[{ texto: linea }]], Text({ key: clave, color: c.de === 'ia' ? COLOR.bien : undefined, wrap: 'truncate-end', children: [linea] }), linea)
     })
   })
@@ -561,6 +576,7 @@ function hiloDeNodo($, Text, id, n, ancho) {
 function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
   const cancelar = Button({ key: 'fl-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarModo($, id, s, '') })
   if (s.modo === 'mover' || s.modo === 'flechas') return [cancelar]
+  if (s.modo === 'preguntar') return [Input({ key: 'fl-pregunta', label: 'Pregunta sobre este nodo', placeholder: 'qué hace, qué significa una palabra', submitLabel: 'preguntar', onSubmit: (v) => correrFlujo($, id, ['preguntar', '--', id, n.id, v], true) }), cancelar]
   if (s.modo === 'comentar') return [Input({ key: 'fl-texto', label: 'Comentario', placeholder: 'qué ves, qué falta, qué no se entiende', submitLabel: 'enviar', onSubmit: (v) => correrFlujo($, id, ['comentar', '--de', 'persona', '--', id, n.id, v], true) }), cancelar]
   if (s.modo === 'despues' || s.modo === 'rama') return formularioAgregar($, Input, Select, id, s, n, cancelar)
   if (s.modo === 'editar') return formularioEditar($, Box, Button, Input, Select, id, s, n, cancelar)
@@ -573,6 +589,7 @@ function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
       columnGap: 2,
       children: [
         accion('fl-comentar', 'c', 'Comentar', () => cambiarModo($, id, s, 'comentar')),
+        accion('fl-preguntar', 'g', 'Preguntar', () => cambiarModo($, id, s, 'preguntar')),
         accion('fl-detalle', 'd', 'Detalle', () => correrFlujo($, id, ['pedir-detalle', '--', id, n.id], true)),
         accion('fl-editar', 'e', 'Editar', () => cambiarModo($, id, s, 'editar', { nombre: n.nombre, descripcion: n.descripcion || '', tipo: n.tipo })),
         accion('fl-despues', 'a', 'Después', () => cambiarModo($, id, s, 'despues', { tipo: 'paso' })),

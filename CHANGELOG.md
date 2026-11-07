@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.30] - 2026-11-07
+
+### Agregado
+
+- **Preguntarle a un nodo o al flujo completo:** al mirar un flujo, cada nodo tiene **Preguntar** (`g`), y sobre los nodos
+  está **Preguntar sobre el flujo** (`i`). La IA recibe la pregunta en el acto, con el contexto del nodo (su descripción,
+  de dónde viene y qué sigue), y responde ahí mismo, orientada a ese nodo. Sirve para entender un sistema nuevo palabra
+  por palabra. El teléfono manda la misma operación (`preguntar`). Nuevos `qdd flujo preguntar` y `qdd flujo responder`.
+
 ## [2.10.0-rc.29] - 2026-11-07
 
 ### Agregado

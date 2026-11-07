@@ -18,6 +18,8 @@ type FlujoTelefono struct {
 	Descripcion string       `json:"descripcion,omitempty"`
 	Huella      string       `json:"huella"`
 	Nodos       []flujo.Nodo `json:"nodos"`
+
+	Comentarios []flujo.Comentario `json:"comentarios,omitempty"` // preguntas y respuestas sobre el flujo completo
 }
 
 // MensajeFlujo es el evento «flujo».
@@ -104,6 +106,9 @@ func (b *Bucle) mensajeFlujo(p ProyectoEstado, r flujo.Resumen) (MensajeFlujo, e
 			f.Nodos[i].Comentarios[j].Texto, f.Nodos[i].Comentarios[j].DeNodo = o.Ocultar(c.Texto), o.Ocultar(c.DeNodo)
 		}
 	}
-	telefono := FlujoTelefono{ID: r.ID, Nombre: o.Ocultar(f.Nombre), Descripcion: o.Ocultar(f.Descripcion), Huella: r.Huella, Nodos: f.Nodos}
+	for j, c := range f.Comentarios {
+		f.Comentarios[j].Texto = o.Ocultar(c.Texto)
+	}
+	telefono := FlujoTelefono{ID: r.ID, Nombre: o.Ocultar(f.Nombre), Descripcion: o.Ocultar(f.Descripcion), Huella: r.Huella, Nodos: f.Nodos, Comentarios: f.Comentarios}
 	return MensajeFlujo{Version: VersionProtocolo, Clave: p.Clave, Flujo: telefono}, nil
 }
