@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.27] - 2026-11-07
+
+### Agregado
+
+- **Sincronizar desde QDD Móvil:** el botón manda `sincronizar` y el PC relee de cero el estado y los flujos de todos sus
+  proyectos y los vuelve a publicar. Después responde `sincronizado` con lo que el tablero de cada proyecto con una consola
+  abierta ya no dice bien: ⏳ cuyo pedido ya terminó, tareas listas sin cerrar, cerradas o descartadas con ⏳ y flujos
+  inválidos. No corrige nada. En el PC, `qdd sincronizar [--json]` da lo mismo.
+
 ## [2.10.0-rc.26] - 2026-11-07
 
 ### Agregado
