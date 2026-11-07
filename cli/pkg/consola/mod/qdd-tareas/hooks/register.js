@@ -142,6 +142,12 @@ let firma = ''
 let confirmando = null // la acción que espera el segundo paso
 let resultado = null // { titulo, ok, texto, zona }
 let ocupado = false
+// Botón 📷 (pedido de la persona, 2026-11-07): fotoHay es lo que dijo «qdd foto --hay» (si, no, no_se; null con un qdd que
+// no lo conoce) y fotoAviso, cómo terminó el último 📷, que se borra solo a las FOTO_AVISO_LECTURAS lecturas.
+let fotoHay = null
+let fotoAviso = null
+const FOTO_AVISO_LECTURAS = 5
+const TOPE_FOTO_MS = 15000
 let iniciado = false // ya pasó la primera lectura de session.start
 // CODIGO_TODAVIA_NO es la salida de un pedido cuya condición aún no se cumple (qdd: consola.CodigoTodaviaNo).
 const CODIGO_TODAVIA_NO = 75
@@ -993,11 +999,15 @@ function cabecera(Box, Text, Button, $, e, lista) {
       Button({ key: 'blueprints', label: 'Blueprints', hotkey: 'p', plain: true, onPress: () => abrirBlueprints($) }),
       Button({ key: 'proyectos', label: 'Proyectos', hotkey: 'y', plain: true, onPress: () => abrirProyectos($) }),
       Button({ key: 'config', label: 'Config', hotkey: 'k', plain: true, onPress: () => abrirConfig($) }),
+      ...(fotoHay === 'si' || fotoHay === 'no_se' ? [Button({ key: 'foto', label: '📷 Foto', hotkey: 't', plain: true, onPress: () => traerFoto($) })] : []),
       ...(conoceFlujos ? [Button({ key: 'flujos', label: 'Flujos', plain: true, onPress: () => abrirFlujos($) })] : []),
       ...(abrirla ? [Button({ key: 'b-abrir-carpeta', label: 'Abrir carpeta', hotkey: 'o', plain: true, onPress: () => pedir($, abrirla) })] : []),
     ],
   })
-  const avisoVersion = datos.aviso_version ? [Text({ key: 'aviso-version', color: COLOR.espera, wrap: 'wrap', children: [datos.aviso_version] })] : []
+  const avisoVersion = [
+    ...(datos.aviso_version ? [Text({ key: 'aviso-version', color: COLOR.espera, wrap: 'wrap', children: [datos.aviso_version] })] : []),
+    ...(fotoAviso ? [Text({ key: 'aviso-foto', color: fotoAviso.ok ? COLOR.bien : COLOR.falla, wrap: 'wrap', children: [fotoAviso.texto] })] : []),
+  ]
   if (!e) return Box({ key: 'cabecera', flexDirection: 'column', children: [fila, ...avisoVersion, herramientas] })
   const aviso = e.viejo
     ? [Text({ key: 'viejo', color: COLOR.espera, wrap: 'wrap', children: ['⚠ Sin actualizar ' + e.hace + ': lo que dice ⏳ puede haber cambiado'] })]
@@ -1280,6 +1290,50 @@ async function atender($, a, zona = 'tabla') {
     $.prompt.submit({ text: texto }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
   }
   ocupado = false
+  $.ui.invalidate('ui.render')
+}
+
+// revisarFoto pregunta si hay una imagen copiada: solo lista los tipos del portapapeles (≈7 ms en Linux). Donde no se
+// puede saber barato (no_se), no vuelve a preguntar y el botón queda siempre.
+async function revisarFoto($) {
+  if (fotoAviso && ++fotoAviso.lecturas >= FOTO_AVISO_LECTURAS) {
+    fotoAviso = null
+    $.ui.invalidate('ui.render')
+  }
+  if (fotoHay === 'no_se') return
+  const bin = await binario($)
+  let hay = null
+  try {
+    const r = await $.process.run([bin, 'foto', '--hay'], { timeoutMs: TOPE_MS })
+    const v = (r.stdout || '').trim()
+    hay = r.exitCode === 0 && ['si', 'no', 'no_se'].includes(v) ? v : null
+  } catch {
+    hay = null
+  }
+  if (hay === fotoHay) return
+  fotoHay = hay
+  $.ui.invalidate('ui.render')
+}
+
+// traerFoto trae la imagen con qdd foto y deja «mira <ruta>» en el cursor del chat, sin enviarlo: la IA no tiene que
+// descubrir qdd foto. Donde no se sabe si hay imagen, qdd foto también prueba con la última captura.
+async function traerFoto($) {
+  const bin = await binario($)
+  const argv = fotoHay === 'si' ? [bin, 'foto', '--de', 'portapapeles', '--json'] : [bin, 'foto', '--json']
+  let r = null
+  try {
+    const salida = await $.process.run(argv, { timeoutMs: TOPE_FOTO_MS })
+    r = JSON.parse(salida.stdout || '{}')
+  } catch (err) {
+    r = { error: String(err?.message ?? err) }
+  }
+  if (!r.ruta_corta) {
+    fotoAviso = { ok: false, texto: '📷 ' + (r.error || 'qdd foto no trajo una imagen'), lecturas: 0 }
+    $.ui.invalidate('ui.render')
+    return
+  }
+  await $.prompt.fill({ text: 'mira ' + r.ruta_corta + ' ', mode: 'insert' }).catch((err) => $.ui.log('no se escribió en el chat: ' + String(err?.message ?? err)))
+  fotoAviso = { ok: true, texto: '📷 ' + r.ruta_corta + ' quedó en el chat', lecturas: 0 }
   $.ui.invalidate('ui.render')
 }
 
@@ -2936,6 +2990,7 @@ export function register(on) {
       })
       $.clock.every(INTERVALO_MS, async () => {
         await leerDelReloj($)
+        await revisarFoto($)
         abrirFlujo($)
         lecturas += 1
         if (lecturas % CADA_LECTURAS === 0 && !herramientasEnPanel) await leerHerramientas($)
