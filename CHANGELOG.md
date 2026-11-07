@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.26] - 2026-11-07
+
+### Agregado
+
+- **Reglas de las IAs al día en todos los proyectos:** `qdd doctor --todos` corre doctor (con `--fix` si lo pides) en cada
+  proyecto registrado en la máquina y resume una línea por proyecto. La vista Proyectos del panel marca con ⚑ el proyecto
+  cuyas reglas son de un qdd anterior (`reglas_atrasadas` en `qdd consola proyectos`). Nada se renueva solo: `--fix` deja
+  cambios en git en cada repositorio.
+
 ## [2.10.0-rc.25] - 2026-11-07
 
 ### Corregido
