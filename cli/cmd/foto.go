@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,11 @@ import (
 // qdd foto y la tool MCP qdd_foto (pedido del usuario, 2026-10-31): una captura pegada en la terminal llega como bytes
 // de PNG. qdd trae la imagen del portapapeles o la última captura, en Linux, Windows y macOS, para que la IA la vea.
 
-var fotoDe string
+var (
+	fotoDe       string
+	fotoHay      bool
+	fotoJSONFlag bool
+)
 
 var fotoCmd = &cobra.Command{
 	Use:   "foto",
@@ -32,7 +37,16 @@ pantalla. Imprime la ruta para decirle a la IA «mira <ruta>»; por MCP, qdd_fot
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 	Run: func(cmd *cobra.Command, args []string) {
 		cwd, _ := os.Getwd()
+		if fotoHay {
+			fmt.Println(foto.HayImagen(cmd.Context(), foto.EntornoReal(runtime.GOOS), foto.CorrerConsulta))
+			return
+		}
 		f, err := foto.Traer(cmd.Context(), integration.FindProjectRoot(cwd), fotoDe, foto.EntornoReal(runtime.GOOS), time.Now())
+		if fotoJSONFlag {
+			b, codigo := fotoJSON(cwd, f, err)
+			fmt.Println(string(b))
+			os.Exit(codigo)
+		}
 		if err != nil {
 			salirCon("%v", err)
 		}
@@ -43,7 +57,19 @@ pantalla. Imprime la ruta para decirle a la IA «mira <ruta>»; por MCP, qdd_fot
 
 func init() {
 	fotoCmd.Flags().StringVar(&fotoDe, "de", foto.DeAuto, "auto | portapapeles | captura")
+	fotoCmd.Flags().BoolVar(&fotoHay, "hay", false, "Solo dice si el portapapeles tiene una imagen: si, no o no_se (para el panel; no la copia)")
+	fotoCmd.Flags().BoolVar(&fotoJSONFlag, "json", false, "Salida en JSON: ruta, ruta_corta, fuente, tipo y bytes, o error")
 	rootCmd.AddCommand(fotoCmd)
+}
+
+// fotoJSON es la salida de qdd foto --json: lo que el panel pone en el chat (ruta_corta) o el error, con su código.
+func fotoJSON(cwd string, f foto.Foto, err error) ([]byte, int) {
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"error": err.Error()})
+		return b, 1
+	}
+	b, _ := json.Marshal(map[string]any{"ruta": f.Ruta, "ruta_corta": rutaCorta(cwd, f.Ruta), "fuente": f.Fuente, "tipo": f.Tipo, "bytes": f.Bytes})
+	return b, 0
 }
 
 // rutaCorta es la ruta relativa a la carpeta actual si queda dentro, o la absoluta.
