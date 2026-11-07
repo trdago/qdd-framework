@@ -41,7 +41,7 @@ func aceptar(root, id, sesion string, now time.Time) (string, error) {
 			estado = EstadoArmado
 		}
 		cola[i].Estado, cola[i].Fin, cola[i].Salida, cola[i].PID, cola[i].Hijo = estado, nil, "", os.Getpid(), 0
-		cola[i].Inicio, cola[i].Sesion, cola[i].Avisado = &now, sesionValida(sesion), false
+		cola[i].Inicio, cola[i].Sesion, cola[i].Avisado, cola[i].Confirmado = &now, sesionValida(sesion), false, &now
 		// Armado, lo toma el proceso que lo va a esperar (anotarLanzado, tomarTurno), no quien lo lanzó.
 		if estado == EstadoArmado {
 			cola[i].ArmadoEn, cola[i].Proximo, cola[i].Inicio, cola[i].PID = &now, &now, nil, 0

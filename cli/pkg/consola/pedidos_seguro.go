@@ -63,10 +63,13 @@ func (y *YaHecho) Error() string {
 	return fmt.Sprintf("ya se hizo el %s («%s»): no se pide de nuevo. Si de verdad hay que repetirlo, pídelo con de_nuevo (--de-nuevo)", y.Fin.Local().Format("02/01 15:04"), y.Motivo)
 }
 
+// hechoAnotado es un pedido que terminó bien. Tecla y Tarea dicen qué ⏳ ya quedó respondido (FND-176).
 type hechoAnotado struct {
 	Efecto string    `json:"efecto"`
 	Motivo string    `json:"motivo"`
 	Fin    time.Time `json:"fin"`
+	Tecla  string    `json:"tecla,omitempty"`
+	Tarea  string    `json:"tarea,omitempty"`
 }
 
 func rutaHechos(root string) (string, error) {
@@ -107,7 +110,7 @@ func anotarHecho(root string, p Pedido, fin time.Time) {
 	if err != nil {
 		return
 	}
-	hechos := []hechoAnotado{{Efecto: efectoDe(p.Comando, p.Carpeta), Motivo: p.Motivo, Fin: fin}}
+	hechos := []hechoAnotado{{Efecto: efectoDe(p.Comando, p.Carpeta), Motivo: p.Motivo, Fin: fin, Tecla: p.Tecla, Tarea: p.Tarea}}
 	for _, h := range leerHechos(root) {
 		if fin.Sub(h.Fin) < VidaHechos {
 			hechos = append(hechos, h)
@@ -125,4 +128,19 @@ func anotarHecho(root string, p Pedido, fin time.Time) {
 		return
 	}
 	_ = os.Rename(tmp, ruta)
+}
+
+// teclasHechas son, por tarea, las teclas de sus pedidos que terminaron bien en las últimas VidaHechos.
+func teclasHechas(root string, now time.Time) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, h := range leerHechos(root) {
+		if h.Tarea == "" || h.Tecla == "" || now.Sub(h.Fin) >= VidaHechos {
+			continue
+		}
+		if out[h.Tarea] == nil {
+			out[h.Tarea] = map[string]bool{}
+		}
+		out[h.Tarea][h.Tecla] = true
+	}
+	return out
 }

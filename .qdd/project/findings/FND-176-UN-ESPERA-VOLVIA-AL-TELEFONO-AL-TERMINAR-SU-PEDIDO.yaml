@@ -1,0 +1,9 @@
+id: "FND-176"
+title: "Un ⏳ volvía al teléfono cuando terminaba el pedido que lo cubría"
+description: "Un ⏳ de la persona que nombra un pedido con [tecla] no se publica mientras el pedido está abierto (MEJ-004). Al terminar, el pedido sale de la cola y la tecla ya no está abierta: «¿Confirmas [a]?» volvía al teléfono como pregunta, ya respondida. Lo reportó qdd-movile el 2026-11-07, después de que la persona viera en el teléfono preguntas que ya había contestado."
+impact: "El teléfono le preguntaba a la persona algo que ya había hecho, y una respuesta ahí le llegaba a la IA como instrucción nueva."
+action_taken: "El historial de pedidos hechos (pedidos-hechos) guarda la tecla y la tarea. Un ⏳ que nombra un pedido de su misma tarea que terminó bien en las últimas 24 h no se publica, salvo que otro pedido abierto tenga esa tecla. qdd estado check lo lista («⏳ de la persona cuyo pedido ya terminó», esperas_tras_pedido en --json) para que la IA actualice la fila. Una tecla sin pedido sigue siendo pregunta (MEJ-004)."
+test_result: "cli/pkg/consola/esperas_preguntas_test.go: TestEspera_UnPedidoHechoDeSuTareaNoLaVuelveAPreguntar_FND176, TestEspera_UnPedidoHechoDeOtraTareaNoLaCubre_FND176, TestEspera_UnPedidoHechoHaceMasDeUnDiaNoLaCubre_FND176; cli/cmd/estado_sin_pregunta_test.go: TestAvisarEsperasTrasPedido_PideActualizarElEstado_FND176."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

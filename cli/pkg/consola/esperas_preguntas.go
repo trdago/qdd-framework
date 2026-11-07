@@ -21,6 +21,10 @@ import (
 // MEJ-004 (qdd-movile, 2026-11-03): de 11 ⏳ publicados, casi todos eran notas de avance o esperaban un pedido ya armado
 // en el panel. Un ⏳ es pregunta solo si pregunta algo (¿…?) y no nombra con [tecla] un pedido abierto, que ya lo cubre;
 // el teléfono ve desde la pregunta, no el historial de la tarea.
+// FND-176 (qdd-movile, 2026-11-07): el pedido cubría su ⏳ solo mientras seguía abierto. Al terminar salía de la cola, y
+// «¿Confirmas [a]?» volvía al teléfono ya respondida. Un ⏳ que nombra un pedido hecho de su misma tarea (en las últimas
+// VidaHechos) ya no pregunta nada: 'qdd estado check' le pide a la IA actualizarlo (EsperasTrasPedido). Una tecla que
+// nunca tuvo pedido sigue siendo pregunta.
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta la respuesta se perdía (la instrucción vence a los 30 min y la
 // pregunta seguía «respondida» 24 h): esa respuesta se rechaza, y qdd remoto no publica el ⏳ (sinEsperasSinSesion).
 
@@ -61,6 +65,14 @@ func cubiertaPorPedido(bloqueo string, abiertas map[string]bool) bool {
 	return false
 }
 
+// respondidaPorPedido: el ⏳ nombra un pedido de su tarea que ya terminó bien, y ninguno abierto con esa tecla.
+func respondidaPorPedido(tarea, bloqueo string, abiertas map[string]bool, hechas map[string]map[string]bool) bool {
+	if cubiertaPorPedido(bloqueo, abiertas) {
+		return false
+	}
+	return cubiertaPorPedido(bloqueo, hechas[tarea])
+}
+
 // esperasDeLaPersona son las preguntas pendientes de los ⏳ de la persona de las tareas abiertas.
 func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 	e, err := estado.Load(root)
@@ -69,6 +81,7 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 	}
 	var out []Pregunta
 	abiertas := teclasAbiertas(PedidosA(root, now))
+	hechas := teclasHechas(root, now)
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
@@ -76,7 +89,7 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) == "" {
 				continue
 			}
-			if cubiertaPorPedido(bloqueo, abiertas) {
+			if cubiertaPorPedido(bloqueo, abiertas) || respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
 				continue
 			}
 			out = append(out, preguntaDeEspera(f, etapa, bloqueo, now))
@@ -107,6 +120,7 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 	}
 	var out []EsperaSinPregunta
 	abiertas := teclasAbiertas(PedidosA(root, now))
+	hechas := teclasHechas(root, now)
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
@@ -114,7 +128,33 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" {
 				continue
 			}
-			if cubiertaPorPedido(bloqueo, abiertas) {
+			if cubiertaPorPedido(bloqueo, abiertas) || respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
+				continue
+			}
+			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})
+		}
+	}
+	return out
+}
+
+// EsperasTrasPedido son los ⏳ de la persona que esperan un pedido que ya terminó bien (FND-176): el teléfono ya no los
+// pregunta, y 'qdd estado check' le pide a la IA reflejar en la tabla lo que pasó.
+func EsperasTrasPedido(root string, now time.Time) []EsperaSinPregunta {
+	e, err := estado.Load(root)
+	if err != nil {
+		return nil
+	}
+	var out []EsperaSinPregunta
+	abiertas := teclasAbiertas(PedidosA(root, now))
+	hechas := teclasHechas(root, now)
+	for _, f := range e.Abiertos() {
+		for _, etapa := range e.EtapasDe(f) {
+			c := f.Celdas[etapa]
+			bloqueo := strings.TrimSpace(c.Bloqueo)
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) {
+				continue
+			}
+			if !respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
 				continue
 			}
 			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})

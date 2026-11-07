@@ -302,13 +302,14 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		vs = append(vs, estado.CheckRespuesta(e, string(data), time.Now())...)
 	}
 	sinPregunta := consola.EsperasSinPregunta(root, time.Now())
+	trasPedido := consola.EsperasTrasPedido(root, time.Now())
 	desfasadas := estado.Desfasadas(e)
 	if estadoJSON {
 		revision := []string{}
 		if estadoResp == "" {
 			revision = []string{"EPF-C08"}
 		}
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "tareas_desfasadas": desfasadas}, "", "  ")
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "esperas_tras_pedido": append([]consola.EsperaSinPregunta{}, trasPedido...), "tareas_desfasadas": desfasadas}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -326,6 +327,7 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		fmt.Println(". EPF-C08 (texto y tabla no se contradicen) se revisa con --respuesta <reporte>.")
 	}
 	avisarEsperasSinPregunta(os.Stdout, sinPregunta)
+	avisarEsperasTrasPedido(os.Stdout, trasPedido)
 	avisarDesfasadas(os.Stdout, desfasadas)
 	salirSiHay(vs)
 }
@@ -336,7 +338,7 @@ func avisarDesfasadas(salida io.Writer, d estado.TareasDesfasadas) {
 		fmt.Fprintf(salida, "[i] Tareas con todo listo que siguen abiertas: %d. Si no falta nada, ciérralas con qdd estado cerrar <id>; si falta algo, agrégalo a la tabla: %s\n", len(d.Listas), strings.Join(d.Listas, ", "))
 	}
 	if len(d.CerradasConEspera) > 0 {
-		fmt.Fprintf(salida, "[i] Tareas cerradas que conservan un ⏳: %d. Ya no cuenta como espera; si aún falta algo, ábrelo con qdd estado nueva: %s\n", len(d.CerradasConEspera), strings.Join(d.CerradasConEspera, ", "))
+		fmt.Fprintf(salida, "[i] Tareas cerradas o descartadas que conservan un ⏳: %d. Ya no cuenta como espera; si aún falta algo, ábrelo con qdd estado nueva: %s\n", len(d.CerradasConEspera), strings.Join(d.CerradasConEspera, ", "))
 	}
 }
 
@@ -346,6 +348,17 @@ func avisarEsperasSinPregunta(salida io.Writer, esperas []consola.EsperaSinPregu
 		return
 	}
 	fmt.Fprintf(salida, "[i] ⏳ de la persona que no le llegan como pregunta: %d. Si le pides algo, escríbelo como ¿…? o nombra su pedido con [tecla]; si es una nota de avance, déjala:\n", len(esperas))
+	for _, e := range esperas {
+		fmt.Fprintf(salida, "    %s\n", e.Linea())
+	}
+}
+
+// avisarEsperasTrasPedido avisa, sin bloquear, de los ⏳ de la persona que esperan un pedido que ya terminó (FND-176).
+func avisarEsperasTrasPedido(salida io.Writer, esperas []consola.EsperaSinPregunta) {
+	if len(esperas) == 0 {
+		return
+	}
+	fmt.Fprintf(salida, "[i] ⏳ de la persona cuyo pedido ya terminó: %d. El teléfono ya no los pregunta; refleja lo que pasó con qdd_estado set:\n", len(esperas))
 	for _, e := range esperas {
 		fmt.Fprintf(salida, "    %s\n", e.Linea())
 	}

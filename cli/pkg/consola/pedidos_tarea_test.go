@@ -164,3 +164,38 @@ func TestPedidos_LaAccionDiceSuTarea(t *testing.T) {
 	}
 	t.Fatal("el pedido no aparece como acción")
 }
+
+// FND-178 (qdd-movile, 2026-11-07): la persona confirmó un pedido que esperaba a otro y el panel lo retiró porque la IA
+// cambió una celda de su tarea. Retirar supone que la persona prefirió seguir trabajando; si lo confirmó, no fue así.
+func TestPedido_UnoConfirmadoNoSeRetiraAunqueSuTareaCambie_FND178(t *testing.T) {
+	root := proyectoConTareas(t)
+	primero := mustPedirEnOrden(t, root, "exit 0 # publicar", Orden{})
+	p := mustPedirEnOrden(t, root, "gh pr merge 42", Orden{Tarea: "barra", Despues: []string{primero.Tecla}})
+	if estado, err := aceptar(root, p.ID, "", enCola); err != nil || estado != EstadoArmado {
+		t.Fatalf("confirmado, queda armado: %q %v", estado, err)
+	}
+	if err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		for i := range cola {
+			if cola[i].ID == p.ID {
+				cola[i].PID = 2147483646
+			}
+		}
+		return cola, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := pedidoDe(t, root, p.ID, enCola); got.Estado != EstadoPendiente {
+		t.Fatalf("murió el proceso que lo esperaba: vuelve a pendiente: %+v", got)
+	}
+	// El panel guarda la cola al dibujarla: «dejó de esperar» queda escrito.
+	if err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) { return cola, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := MarcarCiclo(root, "auto", enCola.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	cambiarTarea(t, root, "barra", "commit b2")
+	if got := pedidoDe(t, root, p.ID, enCola.Add(2*time.Minute)); got.Estado == EstadoRetirado {
+		t.Fatalf("la persona ya lo confirmó: no sale de «Para ti»: %+v", got)
+	}
+}
