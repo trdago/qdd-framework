@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.23] - 2026-11-07
+
 ### Agregado
 
 - **Docker en desarrollo, solo para la base de datos.** La app corre directo en el PC. Si un compose o un `.devcontainer` la
