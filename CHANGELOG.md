@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Las pruebas ya no lanzan un agente real (FND-172):** cuatro pruebas de Go corrían `claude -p` o `agentapi` en cada
+  `go test` con un agente instalado: gastaban tokens y sumaban 127 s. `go test ./...` sin caché pasó de 101 s a 33 s, sin
+  saltarse ninguna prueba.
+- **La caché de Go ya no aprueba pruebas con archivos rotos (FND-173):** Go solo vigila los archivos de `cli/`, así que las
+  pruebas que leen docs o workflows pasaban desde la caché aunque esos archivos cambiaran. El gate las corre sin caché.
+
 ## [2.10.0-rc.21] - 2026-11-06
 
 ### Corregido

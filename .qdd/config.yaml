@@ -20,6 +20,8 @@ plugins:
 project: auto-detected
 test_commands:
     - cd cli && go test ./...
+    # Sin caché: sus pruebas leen fuera de cli/ (docs, workflows, plantillas) y Go no ve esos archivos (FND-173).
+    - cd cli && go test -count=1 ./cmd/ ./pkg/blueprints/
     - cd npm && npm test
     - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
     - comando: cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test

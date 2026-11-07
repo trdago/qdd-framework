@@ -17,8 +17,9 @@ objetivo_tecnologico:
     invariantes:
         - Una suite que corre y falla siempre bloquea el gate (QA-01).
         - Una suite que no se pudo correr nunca se informa como aprobada.
+        - Una prueba que lee fuera del módulo de Go corre sin caché en el gate (FND-173), porque Go no vigila esos archivos.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones'
-ultima_revision: "2026-10-31"
-revisado_en_commit: 92afc0ab8c09
+ultima_revision: "2026-11-07"
+revisado_en_commit: 3725110e2b81
