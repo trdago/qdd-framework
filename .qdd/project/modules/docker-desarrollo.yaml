@@ -1,0 +1,29 @@
+id: docker-desarrollo
+nombre: Docker en desarrollo solo para la base de datos
+estado: aprobado
+rutas:
+    - cli/pkg/audit/docker_desarrollo.go
+    - docs/docker-en-desarrollo.md
+objetivo_operativo:
+    problema: La persona recuerda el desarrollo muy lento con front y back en Docker. Nada en QDD lo impedía, y una IA podía proponerlo sin decir lo que cuesta.
+    usuarios: Las personas y las IAs que desarrollan con QDD en cualquier proyecto.
+    criterio_de_exito: Quien pone la app en Docker para desarrollar se entera de que será más lento y por qué, y decide. Una base de datos en Docker no genera ningún aviso.
+    caso_real: '2026-11-07: en sfrc la persona pidió que QDD no ponga Docker en desarrollo salvo para la base de datos; si alguien igual lo quiere, avisar que aumenta la lentitud y explicar por qué.'
+objetivo_tecnologico:
+    arquitectura: RunDockerDesarrolloCheck recorre el proyecto y lee cada compose de desarrollo y .devcontainer. Da una recomendación DEV-01-APP-EN-DOCKER. La forma de trabajo le pide a la IA avisar antes de proponerlo. La explicación con fuentes está en docs/docker-en-desarrollo.md.
+    decisiones:
+        - 'Avisa y no bloquea: decisión de la persona (2026-11-07). Quien igual lo quiera puede usarlo.'
+        - Un servicio es app si construye su imagen o monta código del proyecto, y no es de datos. Se tratan como datos Postgres, MySQL, Mongo, Redis, Elasticsearch, MinIO y similares; ampliar la base de datos a esos servicios lo decidió la IA.
+        - 'Un solo aviso por proyecto: es una sola decisión, y un aviso por archivo le restaba 10 puntos a un proyecto real con cinco composes.'
+        - No se miran composes de producción, despliegue o pruebas, ni un Dockerfile, que puede ser solo para producción. Una carpeta deploy cuenta solo con .local o .dev, porque un proyecto real tenía ahí su compose de desarrollo.
+    invariantes:
+        - DEV-01-APP-EN-DOCKER nunca bloquea el gate, tampoco en adopción estricta.
+        - Una base de datos en Docker nunca genera un aviso.
+        - Un compose ilegible no se adivina.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/audit/ -run DockerDesarrollo
+        - cd cli && go test ./pkg/modules/ -run DockerSolo
+        - cd cli && go test ./cmd/ -run ExplicaPorQueDocker
+ultima_revision: "2026-11-07"
+revisado_en_commit: 90438f56e4e5

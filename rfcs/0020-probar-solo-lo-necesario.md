@@ -82,7 +82,7 @@ Con esa carga, los tres últimos casos no permiten decir que algo mejoró ni emp
 Otras comprobaciones reales:
 
 - **Actualizar la herramienta:** con un `claude` que dice otra versión, la suite se repitió una vez (15,8 s) y a la siguiente corrida quedó recordada.
-- **`--verificar-rutas`:** 16 s en este repo, «completas» en la suite del panel. Agrega ese tiempo a cada CI.
+- **`--verificar-rutas`:** 16 s en este repo, «completas» en la suite del panel. En el CI suma 28 s por PR (#197), porque esa suite corre dos veces: en la auditoría y en la copia aislada. Se podría comprobar solo cuando cambian sus `rutas` o su declaración; aún no se hizo.
 - **Falta la detección con una suite real:** la del panel no sirve para probarla, porque `claude plugin test` solo deja importar archivos del propio plugin. La detección está probada con suites de prueba y mutaciones.
 
 ## Límites
