@@ -174,3 +174,23 @@ func TestAuditar_SePruebaLoBaratoPrimero_RFC0020(t *testing.T) {
 		}
 	}
 }
+
+// La explicación de por qué Docker es lento en desarrollo existe, cita sus fuentes y la regla que avisa está documentada.
+func TestDocs_ExplicaPorQueDockerEsLentoEnDesarrollo(t *testing.T) {
+	guia, err := os.ReadFile("../../docs/docker-en-desarrollo.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, debe := range []string{"DEV-01-APP-EN-DOCKER", "Por qué la base de datos sí", "https://docs.docker.com/", "https://vite.dev/"} {
+		if !strings.Contains(string(guia), debe) {
+			t.Errorf("la guía no dice %q", debe)
+		}
+	}
+	referencia, err := os.ReadFile("../../docs/command-reference.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(referencia), "`DEV-01-APP-EN-DOCKER`") {
+		t.Error("docs/command-reference.md no documenta la regla")
+	}
+}

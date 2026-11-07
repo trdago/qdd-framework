@@ -308,6 +308,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `QA-02-E2E-TESTS` | No hay pruebas E2E. | recomendación en adopción gradual |
 | `QA-03-SIN-MEDIR` | Una suite declarada como `{comando, requiere: [programas]}` no se corrió porque falta uno de esos programas en esta máquina (p. ej. la CLI de Claude en el CI). Queda sin medir: ni aprobada ni fallida. | recomendación (no bloquea) |
 | `QA-04-PRUEBAS-PENDIENTES` | Una regla ya bloquea el gate, así que las pruebas no se corrieron todavía. Ni aprobadas ni fallidas: corren cuando se arregle esa regla, con `--completo` y siempre en el CI. | recomendación (no bloquea por sí sola) |
+| `DEV-01-APP-EN-DOCKER` | Un compose o un `.devcontainer` pone la app en Docker para desarrollar. Se puede usar, pero es más lento: Docker queda para la base de datos ([por qué](docker-en-desarrollo.md)). | recomendación (no bloquea) |
 | `FND-01-SIN-ESTADO` | Un finding no dice su estado, o dice uno que QDD no reconoce. Bloquea: QDD no lo infiere. |
 | `FND-02-SIN-PRUEBA` | Un finding resuelto, con fecha desde 2026-11-06, no dice en `test_result` qué lo prueba. Bloquea. |
 | `CI-01-UNGATED-DEPLOY` | Un pipeline despliega sin depender de un job de pruebas (GitHub Actions, Azure, GitLab, Bitbucket). | `deploy_gate` (activa por defecto) |
