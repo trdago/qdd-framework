@@ -39,6 +39,7 @@ La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambi
 
   qdd flujo comentar <id> <nodo> "<texto>"    responde en el nodo; lo ve debajo de él
   qdd flujo detalle <id> <nodo> "<texto>"     explica el nodo: es la respuesta a un 🔎
+  qdd flujo responder <id> [<nodo>] "<texto>" responde un ❓ de la persona, en el nodo o en el flujo completo
   qdd flujo agregar <id> <nodo> --nombre N [--tipo paso|resultado] [--descripcion D] [--rama]
   qdd flujo modificar <id> <nodo> [--nombre N] [--descripcion D] [--tipo T]
   qdd flujo mover <id> <nodo> --despues-de <otro>
@@ -102,6 +103,8 @@ type flujoDibujado struct {
 	Nodos         []flujo.Nodo `json:"nodos"`
 	PorEnviar     []string     `json:"por_enviar"`
 	PuedeDeshacer bool         `json:"puede_deshacer"`
+
+	Comentarios []flujo.Comentario `json:"comentarios,omitempty"` // preguntas y respuestas sobre el flujo completo
 }
 
 var flujoVerCmd = &cobra.Command{
@@ -119,7 +122,7 @@ var flujoVerCmd = &cobra.Command{
 		if flujoJSON {
 			b, err := json.Marshal(flujoDibujado{
 				ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas, Nodos: f.Nodos,
-				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID),
+				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID), Comentarios: f.Comentarios,
 			})
 			if err != nil {
 				salirCon("%v", err)

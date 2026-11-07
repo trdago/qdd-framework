@@ -148,6 +148,8 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo comentar <flujo> <nodo> <texto>` | Comenta un nodo; se ve debajo de él en el panel. |
 | `qdd flujo detalle <flujo> <nodo> <texto>` | Explica un nodo: es la respuesta de la IA a un «Detalle». |
 | `qdd flujo deshacer <flujo>` | Deshace la última edición de la persona, si la IA todavía no la recibe y nadie cambió el flujo. |
+| `qdd flujo preguntar <flujo> [<nodo>] <texto>` | La persona pregunta por un nodo (qué hace, qué significa una palabra) o, sin nodo, por el flujo completo. Queda marcada (❓) bajo el nodo o en el flujo, y la IA la recibe con el contexto del nodo: su descripción, de dónde viene y qué sigue. Lo usa el panel; el teléfono manda la operación `preguntar`. (qdd 2.10.0) |
+| `qdd flujo responder <flujo> [<nodo>] <texto>` | La IA responde un ❓ de la persona, bajo el nodo o en el flujo completo. No vuelve a llamar a la IA. (qdd 2.10.0) |
 | `qdd flujo pedir-detalle <flujo> <nodo>` | Deja por enviar la pregunta de la persona por un nodo; lo usa el panel. |
 | `qdd flujo enviar <flujo> [--json]` | Reclama lo pendiente y escribe el mensaje para la IA; lo usa el panel. |
 | `qdd flujo devolver <flujo> --n N` | Deja como pendientes las últimas N líneas, si no se pudieron entregar; lo usa el panel. |

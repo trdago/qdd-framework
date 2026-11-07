@@ -432,6 +432,7 @@ esa operación o datos después del objeto:
 |---|---|---|
 | `comentar` | `nodo`, `texto` (hasta 2000) | |
 | `pedir-detalle` | `nodo` | |
+| `preguntar` | `texto` (hasta 2000) | `nodo`; sin él, la pregunta es sobre el flujo completo |
 | `agregar` | `nodo`, `nombre` | `descripcion`, `tipo`, `rama` |
 | `modificar` | `nodo` y uno de los que admite | `nombre`, `descripcion`, `tipo` |
 | `mover` | `nodo`, `despues_de` | |
@@ -443,7 +444,9 @@ esa operación o datos después del objeto:
   las mismas funciones que `qdd flujo`.
 - Se aplica al recibirla, bajo el candado del flujo, sin esperar a un comando que corra. No entra a la cola del teléfono;
   queda en el log, en el flujo y en su registro local.
-- `comentar` y `pedir-detalle` llaman a la IA en el acto, como en el panel. Una edición espera a `enviar` o al próximo
+- `comentar`, `pedir-detalle` y `preguntar` llaman a la IA en el acto, como en el panel. Una pregunta queda marcada
+  (`pregunta: true`) bajo el nodo o en `comentarios` del flujo, y la respuesta de la IA llega igual, como un comentario
+  `de: ia` (2026-11-07). Una edición espera a `enviar` o al próximo
   mensaje de la persona.
 - La respuesta es `hecha` con una línea de lo que hizo, o `rechazada` con el motivo si no escribió nada. Lo que llama a la
   IA sigue como una instrucción: si no llega, lo pendiente vuelve a `por_enviar`.

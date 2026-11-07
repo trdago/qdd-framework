@@ -28,12 +28,14 @@ const (
 	esperaCandado   = 3 * time.Second
 )
 
-// Comentario es una conversación pegada a un nodo. DeNodo dice dónde se escribió, si ese nodo ya no está.
+// Comentario es una conversación pegada a un nodo o al flujo. DeNodo dice dónde se escribió, si ese nodo ya no está.
+// Pregunta marca lo que la persona preguntó con «Preguntar»: la IA lo responde orientado a ese nodo.
 type Comentario struct {
-	De     string `yaml:"de" json:"de"`
-	Texto  string `yaml:"texto" json:"texto"`
-	Cuando string `yaml:"cuando" json:"cuando"`
-	DeNodo string `yaml:"de_nodo,omitempty" json:"de_nodo,omitempty"`
+	De       string `yaml:"de" json:"de"`
+	Texto    string `yaml:"texto" json:"texto"`
+	Cuando   string `yaml:"cuando" json:"cuando"`
+	DeNodo   string `yaml:"de_nodo,omitempty" json:"de_nodo,omitempty"`
+	Pregunta bool   `yaml:"pregunta,omitempty" json:"pregunta,omitempty"`
 }
 
 // hecho es lo que un cambio le cuenta a la IA. Entera marca una línea que no se corta: las palabras de la persona.
@@ -320,6 +322,96 @@ func Comentar(nodo, texto, de string, ahora time.Time) Cambio {
 	}
 }
 
+// Preguntar deja la pregunta de la persona bajo el nodo, o en el flujo si nodo está vacío, y le lleva a la IA el contexto
+// que necesita para responder sin releer todo el flujo: la descripción del nodo, de dónde viene y qué sigue.
+func Preguntar(nodo, texto string, ahora time.Time) Cambio {
+	return func(f *Flujo) (hecho, error) {
+		texto, err := textoDeComentario(texto)
+		if err != nil {
+			return hecho{}, err
+		}
+		c := Comentario{De: DePersona, Texto: texto, Cuando: ahora.UTC().Format(time.RFC3339), Pregunta: true}
+		if nodo == "" {
+			f.Comentarios = append(f.Comentarios, c)
+			return hecho{
+				linea:  fmt.Sprintf("❓ Sobre el flujo completo: %s", texto),
+				pista:  fmt.Sprintf("Responde sobre el flujo completo, en palabras simples, con: qdd flujo responder %s \"…\"", f.ID),
+				entera: true,
+			}, nil
+		}
+		i, err := indiceDe(f, nodo)
+		if err != nil {
+			return hecho{}, err
+		}
+		n := &f.Nodos[i]
+		n.Comentarios = append(n.Comentarios, c)
+		return hecho{
+			linea:  fmt.Sprintf("❓ %s «%s»: %s", n.ID, n.Nombre, texto),
+			pista:  fmt.Sprintf("%s: %s. Responde orientado a ese nodo (qué hace ahí y qué significa cada término que no sea obvio), en palabras simples, con: qdd flujo responder %s %s \"…\"", n.ID, contextoDe(*f, *n), f.ID, n.ID),
+			entera: true,
+		}, nil
+	}
+}
+
+// contextoDe resume el nodo en una línea: su descripción, de dónde se llega y qué sigue.
+func contextoDe(f Flujo, n Nodo) string {
+	nombres := func(ids []string) string {
+		var out []string
+		for _, id := range ids {
+			if i := slices.IndexFunc(f.Nodos, func(x Nodo) bool { return x.ID == id }); i >= 0 {
+				out = append(out, "«"+f.Nodos[i].Nombre+"»")
+			}
+		}
+		if len(out) == 0 {
+			return "—"
+		}
+		return strings.Join(out, ", ")
+	}
+	var antes []string
+	for _, x := range f.Nodos {
+		if contiene(x.Siguen, n.ID) {
+			antes = append(antes, x.ID)
+		}
+	}
+	descripcion := n.Descripcion
+	if descripcion == "" {
+		descripcion = "sin descripción"
+	}
+	return fmt.Sprintf("%s · viene de %s · sigue %s", descripcion, nombres(antes), nombres(n.Siguen))
+}
+
+// Responder deja la respuesta de la IA bajo el nodo, o en el flujo si nodo está vacío.
+func Responder(nodo, texto string, ahora time.Time) Cambio {
+	return func(f *Flujo) (hecho, error) {
+		texto, err := textoDeComentario(texto)
+		if err != nil {
+			return hecho{}, err
+		}
+		c := Comentario{De: DeIA, Texto: texto, Cuando: ahora.UTC().Format(time.RFC3339)}
+		if nodo == "" {
+			f.Comentarios = append(f.Comentarios, c)
+			return hecho{linea: "💡 respondido sobre el flujo completo"}, nil
+		}
+		i, err := indiceDe(f, nodo)
+		if err != nil {
+			return hecho{}, err
+		}
+		f.Nodos[i].Comentarios = append(f.Nodos[i].Comentarios, c)
+		return hecho{linea: fmt.Sprintf("💡 respondido en %s «%s»", nodo, f.Nodos[i].Nombre)}, nil
+	}
+}
+
+func textoDeComentario(texto string) (string, error) {
+	texto = limpiar(texto)
+	if texto == "" {
+		return "", fmt.Errorf("el texto está vacío")
+	}
+	if largo := len([]rune(texto)); largo > maxComentario {
+		return "", fmt.Errorf("el texto tiene %d caracteres: el tope es %d", largo, maxComentario)
+	}
+	return texto, nil
+}
+
 // Detalle pone en el nodo la explicación que la persona pidió con «?».
 func Detalle(nodo, texto string) Cambio {
 	return Modificar(nodo, nil, &texto, nil)
@@ -380,6 +472,9 @@ func conservarComentarios(previo Flujo, f *Flujo) int {
 		}
 	}
 	f.Nodos[0].Comentarios = append(f.Nodos[0].Comentarios, huerfanos...)
+	if len(f.Comentarios) == 0 {
+		f.Comentarios = previo.Comentarios
+	}
 	return len(huerfanos)
 }
 

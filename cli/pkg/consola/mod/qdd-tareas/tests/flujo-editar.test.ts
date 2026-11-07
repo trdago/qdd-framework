@@ -307,3 +307,37 @@ test('si Claude Code no suelta las teclas (hay texto en el chat), se le dice a l
   await esperar()
   expect(await ui.find({ type: 'Text', text: 'Haz clic en el campo para escribir aquí.' })).toBeDefined()
 })
+
+// Pedido de la persona (2026-11-07): preguntarle a un nodo, o al flujo completo, y ver la respuesta ahí mismo.
+test('preguntar a un nodo llega a la IA en el acto', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrir($, on, r)
+  await elegir(ui)
+  await ui.press({ key: 'fl-preguntar' })
+  await ui.input({ key: 'fl-pregunta', text: '¿Qué significa «solicitud» aquí?' })
+  await esperar()
+  expect(comandos(r, 'preguntar')[0]).toEqual(['qdd', 'flujo', 'preguntar', '--', 'pago', 'llega', '¿Qué significa «solicitud» aquí?'])
+  expect(r.enviados).toEqual(['✎ La persona trabajó'])
+})
+
+test('preguntar al flujo completo, sin elegir un nodo', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrir($, on, r)
+  await ui.press({ key: 'fl-preguntar-flujo' })
+  await ui.input({ key: 'fl-pregunta-flujo', text: '¿Para qué sirve este flujo?' })
+  await esperar()
+  expect(comandos(r, 'preguntar')[0]).toEqual(['qdd', 'flujo', 'preguntar', '--', 'pago', '¿Para qué sirve este flujo?'])
+  expect(r.enviados.length).toBe(1)
+})
+
+test('las preguntas y sus respuestas se ven en el nodo y en el flujo', async ($, on) => {
+  const r = nuevo()
+  r.dibujo.nodos[0].comentarios = [{ de: 'persona', texto: '¿Qué es la solicitud?', cuando: 'x', pregunta: true }, { de: 'ia', texto: 'El pedido de cobro.', cuando: 'x' }]
+  r.dibujo.comentarios = [{ de: 'persona', texto: '¿Para qué sirve?', cuando: 'x', pregunta: true }, { de: 'ia', texto: 'Cobra un pago.', cuando: 'x' }]
+  const ui = await abrir($, on, r)
+  expect(await ui.find({ type: 'Text', text: /❓ Tú: ¿Para qué sirve\?/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /IA: Cobra un pago\./ })).toBeDefined()
+  await elegir(ui)
+  expect(await ui.find({ type: 'Text', text: /❓ Tú: ¿Qué es la solicitud\?/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /IA: El pedido de cobro\./ })).toBeDefined()
+})

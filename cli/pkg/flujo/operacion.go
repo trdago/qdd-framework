@@ -21,6 +21,7 @@ import (
 const (
 	OpComentar     = "comentar"
 	OpPedirDetalle = "pedir-detalle"
+	OpPreguntar    = "preguntar"
 	OpAgregar      = "agregar"
 	OpModificar    = "modificar"
 	OpMover        = "mover"
@@ -52,6 +53,7 @@ type Operacion struct {
 var camposDe = map[string]struct{ exige, admite []string }{
 	OpComentar:     {exige: []string{"nodo", "texto"}},
 	OpPedirDetalle: {exige: []string{"nodo"}},
+	OpPreguntar:    {exige: []string{"texto"}, admite: []string{"nodo"}},
 	OpAgregar:      {exige: []string{"nodo", "nombre"}, admite: []string{"descripcion", "tipo", "rama"}},
 	OpModificar:    {exige: []string{"nodo"}, admite: []string{"nombre", "descripcion", "tipo"}},
 	OpMover:        {exige: []string{"nodo", "despues_de"}},
@@ -144,7 +146,7 @@ func (o Operacion) presentes() []string {
 // LlamaALaIA dice si la operación pide respuesta, como en el panel: una edición espera a «enviar», para no gastar un turno
 // por cambio.
 func (o Operacion) LlamaALaIA() bool {
-	return o.Op == OpComentar || o.Op == OpPedirDetalle
+	return o.Op == OpComentar || o.Op == OpPedirDetalle || o.Op == OpPreguntar
 }
 
 // Aplicar hace la edición como de la persona y dice en una línea qué hizo. Enviar no se aplica aquí: reclama lo pendiente
@@ -177,6 +179,8 @@ func (o Operacion) cambio(ahora time.Time) Cambio {
 		return Conectar(o.Nodo, o.Con)
 	case OpDesconectar:
 		return Desconectar(o.Nodo, o.Con)
+	case OpPreguntar:
+		return Preguntar(o.Nodo, o.Texto, ahora)
 	}
 	return Comentar(o.Nodo, o.Texto, DePersona, ahora)
 }

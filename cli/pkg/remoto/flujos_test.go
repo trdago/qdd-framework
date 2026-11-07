@@ -290,3 +290,26 @@ func TestResumenDeFlujos_LlevaLoPorEnviar(t *testing.T) {
 		t.Fatalf("resumen: %v", lista[0])
 	}
 }
+
+// Las preguntas sobre el flujo completo (2026-11-07) viajan al teléfono como las de un nodo: sin secretos (inv. 16).
+func TestMensajeFlujo_LasPreguntasDelFlujoSalenSinSecretos(t *testing.T) {
+	root := t.TempDir()
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{ID: "a", Tipo: flujo.TipoPaso, Nombre: "A"}},
+		Comentarios: []flujo.Comentario{{De: flujo.DePersona, Texto: "¿y ghp_abcdefghijklmnopqrstuvwxyz0123456789?", Cuando: "2026-11-07T10:00:00Z", Pregunta: true}}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+	b := &Bucle{}
+	b.extras.ocultadores = map[string]ocultadorLeido{}
+	m, err := b.mensajeFlujo(ProyectoEstado{Ruta: root, Clave: "c"}, flujo.Resumen{ID: "pago", Huella: "h"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	datos, _ := json.Marshal(m)
+	if strings.Contains(string(datos), "ghp_") {
+		t.Fatalf("salió un secreto del PC (inv. 16): %s", datos)
+	}
+	if got := m.Flujo.Comentarios; len(got) != 1 || !got[0].Pregunta || !strings.HasPrefix(got[0].Texto, "¿y") {
+		t.Fatalf("la pregunta llega marcada: %+v", got)
+	}
+}

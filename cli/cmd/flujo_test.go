@@ -198,3 +198,29 @@ func TestFlujo_NuevoDaElIDParaAbrirlo(t *testing.T) {
 		t.Fatalf("id: %q", f.ID)
 	}
 }
+
+// Pedido de la persona (2026-11-07): preguntarle a un nodo o al flujo completo, y que la IA responda ahí mismo.
+func TestFlujo_PreguntarAUnNodoYAlFlujoYLaIARespondeAhi(t *testing.T) {
+	proyectoConFlujo(t)
+	correrFlujo(t, flujoPreguntarCmd, nil, "pago", "a", "¿Qué significa publicar aquí?")
+	correrFlujo(t, flujoPreguntarCmd, nil, "pago", "¿Para qué sirve este flujo?")
+	var envio flujoEnvio
+	if err := json.Unmarshal([]byte(correrFlujo(t, flujoEnviarCmd, map[string]string{"json": "true"}, "pago")), &envio); err != nil {
+		t.Fatal(err)
+	}
+	if envio.N != 2 || !strings.Contains(envio.Mensaje, "qdd flujo responder pago a") || !strings.Contains(envio.Mensaje, "qdd flujo responder pago \"") {
+		t.Fatalf("las dos preguntas llegan con cómo responder: %+v", envio)
+	}
+	correrFlujo(t, flujoResponderCmd, nil, "pago", "a", "Subir la versión a npm.")
+	correrFlujo(t, flujoResponderCmd, nil, "pago", "Publica una versión.")
+	d := verFlujo(t, "pago", nil)
+	if len(d.PorEnviar) != 0 {
+		t.Fatalf("la IA no se llama a sí misma: %v", d.PorEnviar)
+	}
+	if c := d.Nodos[0].Comentarios; len(c) != 2 || !c[0].Pregunta || c[1].De != "ia" {
+		t.Fatalf("pregunta y respuesta bajo el nodo: %+v", c)
+	}
+	if len(d.Comentarios) != 2 || !d.Comentarios[0].Pregunta || d.Comentarios[1].De != "ia" {
+		t.Fatalf("y en el flujo: %+v", d.Comentarios)
+	}
+}
