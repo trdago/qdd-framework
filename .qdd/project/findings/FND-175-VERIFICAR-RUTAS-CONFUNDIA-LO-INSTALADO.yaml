@@ -1,0 +1,9 @@
+id: "FND-175"
+title: "qdd audit --verificar-rutas confundía lo instalado con rutas incompletas"
+description: "La copia aislada solo traía los archivos declarados, y lo que git ignora, como node_modules, quedaba fuera. Una suite que necesita lo instalado fallaba en la copia, y solo se reconocía la causa si la salida traía un texto conocido. Medido en sfrc: cuatro suites con Postgres portable dijeron «incompletas» por «falta el binario; corre npm install»."
+impact: "Un proyecto con dependencias instaladas recibía un falso «incompletas» y salida 1, también en su CI si activaba la verificación. Solo afecta a qdd audit --verificar-rutas, publicado en la 2.10.0-rc.22: qdd audit no lo corre."
+action_taken: "La copia enlaza las carpetas que git ignora. Son lo instalado: no entran en la huella ni se pueden declarar. Los archivos ignorados, como un .env, no entran. Se conserva la clasificación por texto para lo que falte de todos modos."
+test_result: "cli/pkg/audit/capas_test.go: TestVerificarRutas_*_FND175. Y la corrida real en un clon de sfrc: ver RFC 0020."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

@@ -22,6 +22,7 @@ objetivo_tecnologico:
         - qdd audit --verificar-rutas corre cada suite con rutas en una copia con solo esos archivos (idea de las capas de Docker, pedido de la persona 2026-11-07). Una falla se repite en el árbol para separar una suite rota de unas rutas incompletas. El CI lo corre en cada PR.
         - La versión de cada programa de requiere entra en la huella. Si no se puede saber, la suite corre.
         - 'Las reglas van antes que las pruebas. qdd audit y qdd_audit piden ParandoAlBloquear: si una regla ya bloquea, las pruebas quedan en QA-04-PRUEBAS-PENDIENTES.'
+        - La copia de --verificar-rutas enlaza las carpetas que git ignora, como node_modules, y deja fuera los archivos ignorados, como un .env (FND-175).
     invariantes:
         - 'Una suite solo se salta si pasó con la misma huella en las últimas 24 h. Lo que no se puede asegurar corre: sin rutas, una ruta sin archivos, fuera de git, en el CI, con qdd audit --completo y al certificar.'
         - Una suite que falla nunca se recuerda.
@@ -34,4 +35,4 @@ pruebas:
     comandos:
         - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones|Suite|VerificarRutas|InformeDeRutas|ParandoAlBloquear|RunAll'
 ultima_revision: "2026-11-07"
-revisado_en_commit: b55df0c34021
+revisado_en_commit: 469cf132e120

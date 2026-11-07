@@ -83,7 +83,29 @@ Otras comprobaciones reales:
 
 - **Actualizar la herramienta:** con un `claude` que dice otra versión, la suite se repitió una vez (15,8 s) y a la siguiente corrida quedó recordada.
 - **`--verificar-rutas`:** 16 s en este repo, «completas» en la suite del panel. En el CI suma 28 s por PR (#197), porque esa suite corre dos veces: en la auditoría y en la copia aislada. Se podría comprobar solo cuando cambian sus `rutas` o su declaración; aún no se hizo.
-- **Falta la detección con una suite real:** la del panel no sirve para probarla, porque `claude plugin test` solo deja importar archivos del propio plugin. La detección está probada con suites de prueba y mutaciones.
+- **Detección:** la suite del panel no sirve para probarla, porque `claude plugin test` solo deja importar archivos del propio plugin. Se probó en sfrc.
+
+### Medición en sfrc
+
+Un proyecto ajeno, con Go, migraciones y 5 suites que ya no usan Docker (pedido de la persona, 2026-11-07). Se midió un clon de su commit 09fa78f, sin `.env`. Mediana de 3 corridas, con la carga en torno a 4 a 7 en 16 hilos.
+
+| Caso | Sin `rutas` | Con `rutas` | Suites que corren |
+| --- | --- | --- | --- |
+| Nada cambió | 13,6 s | 1,1 s | 0 de 5 |
+| Cambio en el frontend | 13,6 s (se espera, porque corre todo) | 1,0 s | 0 de 5 |
+| Cambio en un `.go` | sin medir | 9,4 s | 2 de 5 |
+| Cambio en un workflow | sin medir | 9,3 s | 2 de 5 |
+| Cambio en las pruebas de `supabase/` | sin medir | 12,5 s | 3 de 5 |
+| Una regla rota | 13,8 s antes de lo barato primero; 5,2 s después | 1,0 s | 0 de 5 |
+
+Los errores siguen bloqueando, una corrida de cada uno, siempre con salida 1: una migración inválida (3,6 s), un `.go` que no compila (19,7 s) y un workflow sin sus pasos (8,9 s).
+
+Lo que enseñó:
+
+- **`--verificar-rutas` encontró un error real, el mío.** Declaré `rutas: [backend]` para las pruebas de Go, y estas leen `.github/workflows`, `scripts` y `e2e/simulador`. Con esas rutas, un workflow sin sus pasos habría pasado el gate.
+- **También encontró su propio bug (FND-175):** cuatro suites dijeron «incompletas» porque la copia no traía `node_modules`. La copia ahora enlaza las carpetas que git ignora.
+- **El ahorro es proporcional, no siempre grande:** son unos 12 s por corrida en un gate de 14 s. Pesa porque una IA audita muchas veces, pero el CI de sfrc (95 a 249 s) no cambia, porque ahí corre todo.
+- **Sin `rutas` no se ahorra nada,** y cada proyecto tiene que declararlas: `qdd init` todavía no las sugiere.
 
 ## Límites
 
@@ -95,6 +117,5 @@ Otras comprobaciones reales:
 
 ## Pendiente
 
-- **sfrc como referencia real** (pedido de la persona, 2026-11-07): medir antes y después en un clon, y probar ahí la detección con una suite real. Su `qdd audit` tarda 17,8 s (medido una vez por su sesión, con la rc.21): se verá cuánto ahorra `rutas` en un proyecto ajeno.
 - **Elegir pruebas dentro de una suite** (por ejemplo, `jest --findRelatedTests`): se declara como comando del proyecto, sin regla nueva de QDD.
 - **Pruebas inestables:** la suite del plugin falló 2 pruebas por tiempo de espera en una corrida de la medición y pasó en la siguiente, sin cambios. Saltarla menos veces no la arregla.

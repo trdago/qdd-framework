@@ -65,6 +65,7 @@ func verificarSuite(tc testCommand) ResultadoRutas {
 			return r
 		}
 	}
+	enlazarLoIgnorado(tc.Dir, copia)
 	aislada := tc
 	aislada.Dir = copia
 	salida, err := salidaDeSuite(aislada)
@@ -78,6 +79,26 @@ func verificarSuite(tc testCommand) ResultadoRutas {
 		return r
 	}
 	return clasificarFalloAislado(r, salida)
+}
+
+// enlazarLoIgnorado alcanza desde la copia las carpetas que git ignora, como node_modules: son lo instalado, no entran en
+// la huella ni se pueden declarar (FND-175). Son enlaces: borrar la copia no las toca. Los archivos ignorados, como un
+// .env, no entran. Si un enlace no se puede crear, la suite falla y lo clasifica clasificarFalloAislado.
+func enlazarLoIgnorado(origen, copia string) {
+	salida, err := gitDeSuites(origen, "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z")
+	if err != nil {
+		return
+	}
+	for _, ruta := range strings.FieldsFunc(salida, func(r rune) bool { return r == 0 }) {
+		if !strings.HasSuffix(ruta, "/") {
+			continue
+		}
+		hacia := filepath.Join(copia, ruta)
+		if os.MkdirAll(filepath.Dir(hacia), 0o755) != nil {
+			continue
+		}
+		_ = os.Symlink(filepath.Join(origen, ruta), hacia)
+	}
 }
 
 var moduloQueFalta = regexp.MustCompile(`Cannot find (?:module|package) ['"]([^'"]+)['"]`)
