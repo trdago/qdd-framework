@@ -1614,13 +1614,47 @@ function conLugarEnLaLista(q, a) {
 }
 
 // preguntaDeParaTi: un ⏳ que pregunta algo, con su texto, que la tabla solo muestra como símbolo (issue #149). Al tocarlo
-// llega al chat como un ⏳ de la tabla, y ahí se responde.
+// llega al chat como un ⏳ de la tabla, y ahí se responde. Debajo, los botones del teléfono (BOTONES_ESPERA), si qdd
+// trae el id de su pregunta.
 function preguntaDeParaTi(Box, Text, Button, $, q, i, ancho) {
   const corto = alAncho(q.texto, Math.max(8, ancho - 2))
   const donde = Text({ key: 'espera-donde-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
   const boton = Button({ key: 'espera-' + i, label: corto, plain: true, onPress: () => atender($, { id: q.atender, etiqueta: q.donde }, 'pedidos') })
   const plano = Box({ key: 'espera-fila-' + i, flexDirection: 'column', children: [boton, donde] })
-  return materializa($, Text, 'q:' + q.atender, [[{ texto: corto, color: COLOR.espera }], [{ texto: q.donde, tenue: true }]], plano, q.texto)
+  const texto = materializa($, Text, 'q:' + q.atender, [[{ texto: corto, color: COLOR.espera }], [{ texto: q.donde, tenue: true }]], plano, q.texto)
+  if (!q.pregunta) return texto
+  const botones = BOTONES_ESPERA.map(([valor, label]) => Button({ key: 'espera-' + valor + '-' + i, label, plain: true, dimColor: true, onPress: () => responderEspera($, q, valor) }))
+  return Box({ key: 'espera-con-botones-' + i, flexDirection: 'column', children: [texto, Box({ key: 'espera-botones-' + i, flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: botones })] })
+}
+
+// Los botones de un ⏳, los mismos del teléfono: el valor que entiende «qdd consola pregunta responder» y su etiqueta.
+const BOTONES_ESPERA = [
+  ['hecho', 'Ya lo hice'],
+  ['todavia_no', 'Todavía no'],
+  ['ya_no_va', 'Ya no va'],
+]
+
+// responderEspera escribe la respuesta en el estado (qdd lo hace aunque no haya sesión) y, si qdd trae un mensaje, se lo
+// envía a la IA como atender.
+async function responderEspera($, q, valor) {
+  if (ocupado) return
+  ocupado = true
+  confirmando = null
+  const bin = await binario($)
+  let r = null
+  try {
+    const salida = await $.process.run([bin, 'consola', 'pregunta', 'responder', q.pregunta, valor], { timeoutMs: TOPE_MS })
+    r = salida.exitCode === 0 ? JSON.parse(salida.stdout || '{}') : null
+    resultado = { titulo: q.donde, ok: false, texto: ((salida.stdout || '') + (salida.stderr || '')).trim() || 'sin salida', zona: 'pedidos' }
+  } catch (err) {
+    resultado = { titulo: q.donde, ok: false, texto: String(err?.message ?? err), zona: 'pedidos' }
+  }
+  if (r) {
+    resultado = { titulo: q.donde, ok: true, texto: r.aplicado || 'respondida', zona: 'pedidos' }
+    if (r.mensaje) $.prompt.submit({ text: r.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  }
+  ocupado = false
+  $.ui.invalidate('ui.render')
 }
 
 function verTodasLasEsperas($) {

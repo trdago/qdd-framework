@@ -69,8 +69,8 @@ func TestEspera_UnEsperaDeLaPersonaEsUnaPreguntaDeRespuestaLibre(t *testing.T) {
 		t.Fatalf("pendiente, con un id propio y la tarea y etapa a la vista: %+v", p)
 	}
 	q := p.Preguntas[0]
-	if len(p.Preguntas) != 1 || q.ID != "q1" || q.Texto != "¿mergeamos el #8?" || q.Encabezado != "Barra · PR" || !q.Otra || len(q.Opciones) != 0 {
-		t.Fatalf("una pregunta: lo que espera, de respuesta libre: %+v", p.Preguntas)
+	if len(p.Preguntas) != 1 || q.ID != "q1" || q.Texto != "¿mergeamos el #8?" || q.Encabezado != "Barra · PR" || !q.Otra {
+		t.Fatalf("una pregunta: lo que espera, también de respuesta libre: %+v", p.Preguntas)
 	}
 	if again := esperaDe(t, root, enCola.Add(time.Hour)); again.ID != p.ID {
 		t.Fatalf("la misma espera tiene el mismo id en cada lectura: %q != %q", again.ID, p.ID)
@@ -87,7 +87,7 @@ func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 	conSesionAbierta(t, root)
 	p := esperaDe(t, root, enCola)
 	if _, err := ResponderPregunta(root, prefijoPregunta+p.ID, `{"q1":{"opciones":["a"]}}`, "Pixel", enCola); !errors.Is(err, ErrRespuestaInvalida) {
-		t.Fatalf("no tiene opciones: solo texto: %v", err)
+		t.Fatalf("«a» no es una de sus opciones: %v", err)
 	}
 	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"ya lo mergeé"}}`, "Pixel", enCola); err != nil {
 		t.Fatal(err)
@@ -109,22 +109,6 @@ func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 	}
 	if n := len(EjecucionesA(root, enCola.Add(time.Minute))); n != 1 {
 		t.Fatalf("la segunda respuesta no llega a la IA: %d", n)
-	}
-}
-
-func TestEspera_RespondidaNoSeVuelveAOfrecerMientrasLaCeldaNoCambie(t *testing.T) {
-	root := proyectoConTareas(t)
-	conEspera(t, root, "¿mergeamos el #8?")
-	conSesionAbierta(t, root)
-	p := esperaDe(t, root, enCola)
-	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"ya lo mergeé"}}`, "Pixel", enCola); err != nil {
-		t.Fatal(err)
-	}
-	if r := esperaDe(t, root, enCola.Add(2*time.Hour)); r.Estado != PreguntaRespondida {
-		t.Fatalf("pasado VidaCerrada sigue respondida, no vuelve a preguntar lo mismo: %+v", r)
-	}
-	if r := esperaDe(t, root, enCola.Add(VidaEsperaRespondida+time.Minute)); r.Estado != PreguntaPendiente {
-		t.Fatalf("si la IA nunca la reflejó, al día vuelve a preguntar: %+v", r)
 	}
 }
 
@@ -243,30 +227,26 @@ func TestEsperasSinPregunta_SoloLasQueNoPreguntanNiTienenPedido(t *testing.T) {
 }
 
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta, la respuesta a un ⏳ quedaba como instrucción que vence a los
-// 30 min, mientras la pregunta seguía «respondida» 24 h: la respuesta se perdía sin que nadie lo supiera.
-
+// 30 min, mientras la pregunta seguía «respondida» 24 h: la respuesta se perdía sin que nadie lo supiera. Desde los
+// botones (2026-11-07) la respuesta queda en el estado, así que no depende de una sesión.
 func TestEspera_SinSesionLaRespuestaNoSePierde_FND124(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
 	p := esperaDe(t, root, enCola)
-	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); !errors.Is(err, ErrPreguntaDesconocida) {
-		t.Fatalf("sin sesión no hay quien la reciba: se rechaza: %v", err)
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
+		t.Fatalf("sin sesión se responde: %v", err)
 	}
 	if e := EjecucionesA(root, enCola); len(e) != 0 {
 		t.Fatalf("no queda una instrucción que vaya a vencer: %+v", e)
 	}
-	if r := esperaDe(t, root, enCola); r.Estado != PreguntaPendiente {
-		t.Fatalf("sigue pendiente, no «respondida»: %+v", r)
-	}
-	conSesionAbierta(t, root)
-	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
-		t.Fatalf("con una sesión abierta, se responde: %v", err)
+	if c := celdaPR(t, root); !strings.Contains(c.Bloqueo, "«sí»") {
+		t.Fatalf("la respuesta queda en el estado: %+v", c)
 	}
 }
 
 // FND-141: la respuesta a un ⏳ se guardaba como respondida aunque ninguna sesión la tomara, y ya no se podía volver a
-// responder en 24 h. La pregunta recuerda qué instrucción lleva su respuesta para que qdd remoto la siga.
-func TestEspera_LaRespuestaDiceQueInstruccionLaLleva_FND141(t *testing.T) {
+// responder en 24 h. Ahora la respuesta queda en el estado: no viaja en una instrucción que qdd remoto tenga que seguir.
+func TestEspera_LaRespuestaNoDependeDeUnaInstruccion_FND141(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
 	conSesionAbierta(t, root)
@@ -275,37 +255,14 @@ func TestEspera_LaRespuestaDiceQueInstruccionLaLleva_FND141(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ejecuciones := EjecucionesA(root, enCola)
-	if len(ejecuciones) != 1 || r.Instruccion == "" || r.Instruccion != ejecuciones[0].Solicitud {
-		t.Fatalf("la pregunta apunta a su instrucción: %q, %+v", r.Instruccion, ejecuciones)
+	if r.Instruccion != "" || len(EjecucionesA(root, enCola)) != 1 {
+		t.Fatalf("la IA se entera, pero la respuesta no espera a que llegue: %+v", r)
 	}
-}
-
-func TestEspera_UnaRespuestaQueNoLlegoSePuedeResponderDeNuevo_FND141(t *testing.T) {
-	root := proyectoConTareas(t)
-	conEspera(t, root, "¿mergeamos el #8?")
-	conSesionAbierta(t, root)
-	p := esperaDe(t, root, enCola)
-	r, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola)
-	if err != nil {
+	if err := ReabrirEspera(root, p.ID, "", enCola); err != nil {
 		t.Fatal(err)
 	}
-	if err := ReabrirEspera(root, p.ID, r.Instruccion, enCola.Add(time.Second)); err != nil {
-		t.Fatal(err)
-	}
-	if v := esperaDe(t, root, enCola.Add(time.Second)); v.Estado != PreguntaPendiente {
-		t.Fatalf("vuelve a preguntarse: %+v", v)
-	}
-	otra := enCola.Add(2 * time.Second)
-	if err := LatirSesion(root, "s1", otra); err != nil {
-		t.Fatal(err)
-	}
-	segunda, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí, de nuevo"}}`, "Pixel", otra)
-	if err != nil {
-		t.Fatalf("se responde otra vez: %v", err)
-	}
-	if segunda.Instruccion == r.Instruccion {
-		t.Fatalf("la segunda respuesta es otra instrucción: %q", segunda.Instruccion)
+	if v := esperaDe(t, root, enCola); v.Estado != PreguntaRespondida {
+		t.Fatalf("sin instrucción no hay nada que reabrir: %+v", v)
 	}
 }
 

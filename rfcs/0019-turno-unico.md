@@ -62,8 +62,6 @@ sale sin turnos y la siguiente los trae.
 
 ## Sin resolver
 
-- Sin una sesión abierta, el teléfono no ofrece los ⏳ (FND-124), porque no hay quien reciba la respuesta. Esos números faltan
-  en el teléfono y siguen en el panel.
 - La app ordena con sus propios grupos. Hasta que use este orden, los números ayudan solo en el panel.
 
 ## Fases

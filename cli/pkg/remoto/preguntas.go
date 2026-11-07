@@ -125,6 +125,10 @@ func (b *Bucle) contestar(ctx context.Context, s Solicitud, respuesta string) {
 		b.cerrar(ctx, s, EstadoEjecutando, "entregándola a la sesión de Claude Code abierta en el proyecto")
 		return
 	}
+	if respondida.Aplicado != "" {
+		b.cerrar(ctx, s, EstadoHecha, respondida.Aplicado)
+		return
+	}
 	b.cerrar(ctx, s, EstadoHecha, "respuesta entregada a la consola del PC")
 }
 

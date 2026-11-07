@@ -6,6 +6,20 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.29] - 2026-11-07
+
+### Agregado
+
+- **Botones en cada ⏳ tuyo: «Ya lo hice», «Todavía no» y «Ya no va»,** en el panel del PC (bajo cada pregunta de «Para
+  ti») y en QDD Móvil. La respuesta queda en el estado aunque no haya una sesión de Claude Code abierta: «Ya lo hice» pasa
+  el ⏳ a la IA para que lo verifique, «Ya no va» deja la etapa en — y «Todavía no» lo vuelve a preguntar al día. Si hay
+  una sesión, la IA se entera al tiro. En el PC, `qdd consola pregunta responder <id> <opción>`.
+
+### Cambiado
+
+- **QDD Móvil muestra los ⏳ aunque el proyecto no tenga una sesión abierta** (`sin_sesion: true`). Una respuesta escrita
+  con «Otra» también queda en el estado, para la IA.
+
 ## [2.10.0-rc.28] - 2026-11-07
 
 ### Agregado
@@ -13,6 +27,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Botón 📷 Foto en el panel:** con una imagen copiada aparece 📷 (tecla `t`). Al pulsarlo trae la foto con `qdd foto` y deja
   «mira <ruta>» en el chat, sin enviarlo, así la IA no gasta tokens en descubrir la herramienta. En Windows y macOS, donde
   no hay una consulta barata del portapapeles, el botón está siempre. `qdd foto` suma `--json` y `--hay`.
+
 ## [2.10.0-rc.27] - 2026-11-07
 
 ### Agregado
