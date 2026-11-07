@@ -60,7 +60,7 @@ Estos comandos puedes ejecutarlos sin miedo directo en la terminal. Su único tr
 
 | Comando | Descripción |
 |---------|-------------|
-| `qdd audit [--completo]` | Revisa el proyecto contra las reglas del framework: corre las pruebas del proyecto y revisa OWASP, Cero `else`, despliegues, fichas y blueprints. Una suite que declara `rutas` en `test_commands` no se repite si ya pasó con esos mismos archivos; `--completo` las corre todas. Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. Ver [Reglas del gate](#reglas-del-gate). **Seguro.** |
+| `qdd audit [--completo] [--verificar-rutas]` | Revisa el proyecto contra las reglas del framework: corre las pruebas del proyecto y revisa OWASP, Cero `else`, despliegues, fichas y blueprints. Una suite que declara `rutas` en `test_commands` no se repite si ya pasó con esos mismos archivos; `--completo` las corre todas. Las reglas van antes que las pruebas y, si una regla ya bloquea, no espera a las pruebas: lo dice con `QA-04-PRUEBAS-PENDIENTES` y sale con 1. `--verificar-rutas` corre cada suite que declara `rutas` en una copia con solo esos archivos y dice si le falta algo; el CI lo hace en cada PR. Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. Ver [Reglas del gate](#reglas-del-gate). **Seguro.** |
 | `qdd certify` | Audita el proyecto, calcula el puntaje y lo guarda en el historial para medir la tendencia. **Seguro.** |
 | `qdd doctor [--fix]` | Verifica que el entorno QDD esté completamente funcional (checklist determinista), incluidos los blueprints de la organización: sin copias en el proyecto, íntegros en la carpeta central, acceso al repositorio y al día. `--fix` migra, reconstruye desde el lockfile (otro PC) y sincroniza; nunca borra copias editadas ni actualiza blueprints por su cuenta. **Seguro.** |
 | `qdd report` | Genera el reporte integral y consolidado de auditoría, certificaciones, findings y telemetría en formato Text, Markdown o JSON. **Seguro.** |
@@ -307,6 +307,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `QA-01-ALL-TESTS-PASS` | Las pruebas del proyecto fallan o no compilan. | siempre |
 | `QA-02-E2E-TESTS` | No hay pruebas E2E. | recomendación en adopción gradual |
 | `QA-03-SIN-MEDIR` | Una suite declarada como `{comando, requiere: [programas]}` no se corrió porque falta uno de esos programas en esta máquina (p. ej. la CLI de Claude en el CI). Queda sin medir: ni aprobada ni fallida. | recomendación (no bloquea) |
+| `QA-04-PRUEBAS-PENDIENTES` | Una regla ya bloquea el gate, así que las pruebas no se corrieron todavía. Ni aprobadas ni fallidas: corren cuando se arregle esa regla, con `--completo` y siempre en el CI. | recomendación (no bloquea por sí sola) |
 | `FND-01-SIN-ESTADO` | Un finding no dice su estado, o dice uno que QDD no reconoce. Bloquea: QDD no lo infiere. |
 | `FND-02-SIN-PRUEBA` | Un finding resuelto, con fecha desde 2026-11-06, no dice en `test_result` qué lo prueba. Bloquea. |
 | `CI-01-UNGATED-DEPLOY` | Un pipeline despliega sin depender de un job de pruebas (GitHub Actions, Azure, GitLab, Bitbucket). | `deploy_gate` (activa por defecto) |

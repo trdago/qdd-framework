@@ -136,3 +136,41 @@ func TestCI_InstalaLasHerramientasDeLasSuitesDelGate_FND174(t *testing.T) {
 		}
 	}
 }
+
+func TestAudit_TieneLaBanderaVerificarRutas_RFC0020(t *testing.T) {
+	if auditCmd.Flags().Lookup("verificar-rutas") == nil {
+		t.Fatal("qdd audit --verificar-rutas comprueba que las rutas estén completas")
+	}
+}
+
+// Una dependencia nueva se agrega sin tocar las rutas: por eso se comprueba en cada PR, no solo cuando cambian.
+func TestCI_CompruebaLasRutas_RFC0020(t *testing.T) {
+	contenido, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "quality.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contenido), "qdd audit --verificar-rutas") {
+		t.Fatal("quality.yml no comprueba las rutas")
+	}
+}
+
+// RFC 0020: quien itera se entera primero de lo barato. Lo que mide (report, score) no pasa por aquí.
+func TestAuditar_SePruebaLoBaratoPrimero_RFC0020(t *testing.T) {
+	for archivo, desde := range map[string]string{"audit.go": "func runAudit", "mcp_tools.go": "func registerAuditTool"} {
+		fuente, err := os.ReadFile(archivo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, cuerpo, ok := strings.Cut(string(fuente), desde)
+		if !ok {
+			t.Fatalf("%s no tiene %s", archivo, desde)
+		}
+		fin := strings.Index(cuerpo, "\nfunc ")
+		if fin >= 0 {
+			cuerpo = cuerpo[:fin]
+		}
+		if !strings.Contains(cuerpo, ".ParandoAlBloquear()") {
+			t.Errorf("%s: %s tiene que usar ParandoAlBloquear", archivo, desde)
+		}
+	}
+}

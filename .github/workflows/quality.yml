@@ -45,6 +45,10 @@ jobs:
         run: |
           make audit
 
+      # Una dependencia nueva se agrega sin tocar las rutas (RFC 0020).
+      - name: Check Suite Paths
+        run: qdd audit --verificar-rutas
+
   panel-windows:
     # El flujo del panel (RFC 0016) depende de cómo el sistema avisa escrituras y cierra tuberías: se prueba en Windows.
     name: Flujo del panel en Windows

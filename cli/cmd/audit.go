@@ -22,11 +22,16 @@ No genera ni guarda el Certificado Histórico (eso es tarea de 'qdd certify').`,
 }
 
 func init() {
-	auditCmd.Flags().Bool("completo", false, "Corre todas las suites, aunque ya hayan pasado con estos mismos archivos")
+	auditCmd.Flags().Bool("completo", false, "Corre todas las suites, aunque ya hayan pasado con estos mismos archivos o una regla ya bloquee")
+	auditCmd.Flags().Bool("verificar-rutas", false, "Solo comprueba las rutas: corre cada suite en una copia con únicamente los archivos que declara")
 	rootCmd.AddCommand(auditCmd)
 }
 
 func runAudit(cmd *cobra.Command, args []string) {
+	if soloRutas, _ := cmd.Flags().GetBool("verificar-rutas"); soloRutas {
+		runVerificarRutas()
+		return
+	}
 	fmt.Println("[+] Iniciando Auditoría Técnica de QDD...")
 	if completo, _ := cmd.Flags().GetBool("completo"); completo {
 		audit.PedirPruebasCompletas()
@@ -38,12 +43,24 @@ func runAudit(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	engine := audit.NewEngine(cwd)
+	engine := audit.NewEngine(cwd).ParandoAlBloquear()
 	fmt.Println("[+] Ejecutando motor de auditoría...")
 	violations := engine.RunAll()
 
 	fmt.Print(formatAuditResult(violations))
 	if len(audit.Bloqueantes(violations)) > 0 {
+		os.Exit(1)
+	}
+}
+
+func runVerificarRutas() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("[✗] Error obteniendo directorio actual: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("[+] Comprobando las rutas de cada suite en una copia aislada...")
+	if audit.InformeDeRutas(os.Stdout, audit.VerificarRutas(cwd)) {
 		os.Exit(1)
 	}
 }

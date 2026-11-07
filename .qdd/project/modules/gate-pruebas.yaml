@@ -5,6 +5,9 @@ rutas:
     - cli/pkg/audit/coverage.go
     - cli/pkg/audit/adopcion.go
     - cli/pkg/audit/suites_recordadas.go
+    - cli/pkg/audit/verificar_rutas.go
+    - cli/pkg/audit/engine.go
+    - cli/cmd/audit.go
 objetivo_operativo:
     problema: 'El gate (qdd audit) es la única puerta antes de un commit o un despliegue: si una suite del proyecto no corre ahí, nadie sabe si pasa. Algunas suites necesitan una herramienta que no está en todas las máquinas (p. ej. la CLI de Claude para probar un mod de consola): sin ella, el gate no puede fingir que pasaron ni romper el CI que no la tiene.'
     usuarios: Las personas y las IAs que corren qdd audit, localmente y en el CI.
@@ -16,14 +19,19 @@ objetivo_tecnologico:
         - 'Una suite con requiere cuyos programas no están en el PATH no se corre: queda QA-03-SIN-MEDIR, una recomendación que no bloquea y dice qué falta. No es aprobada ni fallida: se mide donde está la herramienta (pedido del usuario, 2026-10-31: «testear el panel de la derecha y verificar que pase todas las pruebas»).'
         - 'La adopción gradual solo suma recomendaciones: nunca le quita esa marca a lo que la regla ya marcó como recomendación (FND-101: QA-03-SIN-MEDIR bloqueaba el gate en un proyecto con adopción gradual).'
         - 'Una suite puede declarar rutas (RFC 0020, pedido de la persona 2026-11-07, para ganar velocidad sin perder calidad): si ya pasó con esos mismos archivos no se repite. Se decide por una huella del contenido, no por contra qué rama se compara, porque aquí main está muy atrás y casi todo parecería cambiado. Tampoco se eligen por los comandos de las fichas: en el caso del relay, el filtro de la ficha remoto alcanzaba 3 de las 41 pruebas de esos archivos.'
+        - qdd audit --verificar-rutas corre cada suite con rutas en una copia con solo esos archivos (idea de las capas de Docker, pedido de la persona 2026-11-07). Una falla se repite en el árbol para separar una suite rota de unas rutas incompletas. El CI lo corre en cada PR.
+        - La versión de cada programa de requiere entra en la huella. Si no se puede saber, la suite corre.
+        - 'Las reglas van antes que las pruebas. qdd audit y qdd_audit piden ParandoAlBloquear: si una regla ya bloquea, las pruebas quedan en QA-04-PRUEBAS-PENDIENTES.'
     invariantes:
         - 'Una suite solo se salta si pasó con la misma huella en las últimas 24 h. Lo que no se puede asegurar corre: sin rutas, una ruta sin archivos, fuera de git, en el CI, con qdd audit --completo y al certificar.'
         - Una suite que falla nunca se recuerda.
+        - 'ParandoAlBloquear nunca aprueba: solo deja de correr pruebas si otra regla ya bloquea, y la salida sigue siendo 1. El CI, --completo, qdd certify y quien solo mide corren siempre las pruebas.'
+        - Unas rutas incompletas o una suite que falla en la verificación dan salida 1; lo que no se pudo comprobar se dice y no se informa como completo.
         - Una suite que corre y falla siempre bloquea el gate (QA-01).
         - Una suite que no se pudo correr nunca se informa como aprobada.
         - Una prueba que lee fuera del módulo de Go corre sin caché en el gate (FND-173), porque Go no vigila esos archivos.
 pruebas:
     comandos:
-        - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones'
+        - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones|Suite|VerificarRutas|InformeDeRutas|ParandoAlBloquear|RunAll'
 ultima_revision: "2026-11-07"
-revisado_en_commit: e68d7628bed7
+revisado_en_commit: b55df0c34021

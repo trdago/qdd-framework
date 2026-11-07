@@ -6,12 +6,21 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.22] - 2026-11-07
+
 ### Agregado
 
 - **Una suite no se repite si no cambió nada de lo suyo (RFC 0020).** En `test_commands`, una suite puede declarar
   `rutas: [carpetas]`: si ya pasó con esos mismos archivos en las últimas 24 h, `qdd audit` la salta y lo dice. Sirve para
   cualquier lenguaje: un cambio de estilos no repite las pruebas de reglas de negocio. El CI, `qdd certify` y
   `qdd audit --completo` corren siempre todo. Cada suite muestra además cuánto tardó.
+- **`qdd audit` no espera a las pruebas si una regla ya bloquea.** Las reglas van primero. En este repo, con una ficha rota y
+  un cambio en el panel, pasó de 37 s a 1,6 s. Sigue saliendo con 1 y dice que las pruebas quedaron pendientes
+  (`QA-04-PRUEBAS-PENDIENTES`). El CI, `--completo` y `qdd certify` corren siempre las pruebas.
+- **`qdd audit --verificar-rutas`:** corre cada suite que declara `rutas` en una copia con solo esos archivos y dice si le
+  falta algo. El CI lo hace en cada PR, para que unas `rutas` incompletas no dejen pasar un cambio sin probar.
+- **Actualizar una herramienta repite su suite:** la versión de cada programa de `requiere` entra en la huella. Si no se
+  puede saber la versión, la suite corre.
 
 ### Corregido
 

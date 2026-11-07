@@ -217,15 +217,21 @@ func pythonBin(cwd string) string {
 // fallo de pruebas: antes se trataba como "ignorable" y el gate aprobaba.
 // Devuelve también la salida, para explicar el fallo (pistaDeFallo).
 func runTestCommand(tc testCommand) (string, error) {
+	out, err := salidaDeSuite(tc)
+	if err == nil {
+		return "", nil
+	}
+	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, logDeFallo(out))
+	return out + "\n" + err.Error(), err
+}
+
+// salidaDeSuite corre la suite sin imprimir nada.
+func salidaDeSuite(tc testCommand) (string, error) {
 	cmd := exec.Command(tc.Args[0], tc.Args[1:]...)
 	cmd.Dir = tc.Dir
 	cmd.Env = append(os.Environ(), tc.Env...)
 	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return "", nil
-	}
-	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, logDeFallo(string(out)))
-	return string(out) + "\n" + err.Error(), err
+	return string(out), err
 }
 
 // señalesDeDependencias delatan que las pruebas no llegaron a correr porque
