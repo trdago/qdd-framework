@@ -235,3 +235,14 @@ test('es una vista a la vez: Blueprints la cierra, y al abrirla cierra Blueprint
   expect(await ui.find({ type: 'Text', text: /notificador/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /p cierra/ })).toBeUndefined()
 })
+
+test('un proyecto con las reglas de las IAs atrasadas va marcado, y al elegirlo dice dónde y cómo renovarlas', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrir($, on, [{ ...COMPLETO, reglas_atrasadas: ['AGENTS.md', '.cursorrules'] }, { ...SIN_MEDIR, reglas_atrasadas: [] }], r)
+  expect(await ui.find({ type: 'Text', text: /⚑ notificador/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /⚑ sin-datos/ })).toBeUndefined()
+  await ui.press({ key: 'proy-c1' })
+  expect(await ui.find({ type: 'Text', text: /Reglas para las IAs atrasadas en AGENTS\.md, \.cursorrules: qdd doctor --fix las renueva/ })).toBeDefined()
+  await ui.press({ key: 'proy-c2' })
+  expect(await ui.find({ type: 'Text', text: /Reglas para las IAs atrasadas/ })).toBeUndefined()
+})

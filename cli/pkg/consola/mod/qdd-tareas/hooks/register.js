@@ -1759,7 +1759,9 @@ function vistaProyectos($, Box, Text, Button, ancho) {
 function filaYDetalleProy($, Box, Text, Button, f, i, columnas, completas, ancho) {
   const celdas = completas ? [medido(f.puntaje), f.hace || SIN_MEDIR, medido(f.findings_abiertos), esperasProy(f)] : [medido(f.puntaje), esperasProy(f)]
   const tecla = i < TECLAS_PROY ? String(i + 1) : ''
-  const texto = filaProy(Boolean(tecla), f.nombre, f.existe ? celdas : ['no existe'], columnas, ancho)
+  // ⚑: las reglas de las IAs son de un qdd anterior (reglas_atrasadas); el detalle dice dónde.
+  const nombre = (f.reglas_atrasadas || []).length ? '⚑ ' + f.nombre : f.nombre
+  const texto = filaProy(Boolean(tecla), nombre, f.existe ? celdas : ['no existe'], columnas, ancho)
   const fila = Button({
     key: 'proy-' + f.clave,
     ...(tecla ? { hotkey: tecla } : {}),
@@ -1781,6 +1783,8 @@ function detalleProy(Box, Text, f) {
   const findings = [...(f.findings_por_fecha || [])].reverse().map((d, i) => Text({ key: 'proy-f-' + i, wrap: 'wrap', children: [d.fecha + '  ' + resumenFindings(d)] }))
   const sinFecha = f.findings_sin_fecha ? [Text({ key: 'proy-sin-fecha', dimColor: true, children: [f.findings_sin_fecha + ' sin fecha'] })] : []
   const sinFindings = f.findings_abiertos === null || f.findings_abiertos === undefined ? SIN_MEDIR : 'ninguno con fecha'
+  const atrasadas = f.reglas_atrasadas || []
+  const reglas = atrasadas.length ? [Text({ key: 'proy-reglas', color: COLOR.espera, wrap: 'wrap', children: ['Reglas para las IAs atrasadas en ' + atrasadas.join(', ') + ': qdd doctor --fix las renueva en ese proyecto (o qdd doctor --fix --todos en todos)'] })] : []
   return Box({
     key: clave,
     flexDirection: 'column',
@@ -1788,6 +1792,7 @@ function detalleProy(Box, Text, f) {
     marginBottom: 1,
     children: [
       Text({ key: 'proy-resumen', dimColor: true, wrap: 'wrap', children: [f.nombre + ' · ' + (f.hace || 'puntaje ' + SIN_MEDIR) + ' · ' + abiertos] }),
+      ...reglas,
       titulo('proy-t-puntajes', 'Puntajes por día'),
       ...(puntajes.length ? puntajes : [Text({ key: 'proy-puntajes-vacio', dimColor: true, children: [SIN_MEDIR] })]),
       titulo('proy-t-findings', 'Findings por fecha'),
