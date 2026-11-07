@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.25] - 2026-11-07
+
+### Corregido
+
+- **El teléfono ya no vuelve a preguntar un ⏳ cuyo pedido terminó (FND-176):** «¿Confirmas [a]?» se ocultaba solo mientras
+  [a] estaba abierto. Ahora un ⏳ que nombra un pedido de su misma tarea que terminó bien en las últimas 24 h no se publica,
+  y `qdd estado check` le pide a la IA actualizar la fila.
+- **`qdd estado check` nombra también las tareas descartadas que conservan un ⏳ (FND-177).**
+- **El panel ya no retira un pedido que la persona confirmó (FND-178):** si volvía a pendiente (dejó de esperar o salió con
+  75), el siguiente cambio de su tarea lo sacaba de «Para ti».
+
 ## [2.10.0-rc.24] - 2026-11-07
 
 ### Corregido
