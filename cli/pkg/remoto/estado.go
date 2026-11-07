@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -35,6 +36,9 @@ type ProyectoEstado struct {
 	Ruta   string                `json:"ruta"`
 	Panel  *consola.DatosConsola `json:"panel,omitempty"`
 	Error  string                `json:"error,omitempty"`
+	// ReglasAtrasadas son los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos; pedido de
+	// qdd-movile, 2026-11-07). Sin el campo no se midió (la carpeta no está); [] es al día.
+	ReglasAtrasadas *[]string `json:"reglas_atrasadas,omitempty"`
 }
 
 // Estado es lo que publica el PC: qdd remoto estado --json y el evento estado (con Seq).
@@ -86,6 +90,8 @@ func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 		out.Error = ErrCarpetaNoExiste
 		return out
 	}
+	reglas := append([]string{}, integration.BloquesViejos(p.Ruta)...)
+	out.ReglasAtrasadas = &reglas
 	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono)
 	panel.Flujos = resumenDeFlujos(p.Ruta)
 	sinEsperasSinSesion(p.Ruta, &panel, now)

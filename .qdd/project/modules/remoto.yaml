@@ -8,6 +8,7 @@ rutas:
     - cli/cmd/remoto_relay.go
     - cli/cmd/remoto_dispositivos.go
     - cli/cmd/login.go
+    - cli/cmd/sincronizar.go
 objetivo_operativo:
     problema: El panel de QDD solo existe al lado de la conversación, en el PC. Fuera del escritorio no hay forma de ver qué falta para cumplir el objetivo en foco de cada proyecto, aprobar los pedidos y las fichas que esperan a la persona, ni ver qué hace la IA en este momento; y la persona trabaja en varios proyectos y en más de un PC.
     usuarios: La persona que trabaja con QDD en uno o varios PCs y quiere seguir y aprobar desde el teléfono (app QDD Móvil); la app y cualquier cliente futuro del protocolo.
@@ -35,6 +36,8 @@ objetivo_tecnologico:
         - 'FND-118: una acción aprobada desde el teléfono que corre en segundo plano (auditar, revisar, aprobar) responde con el final de su salida (600 caracteres), pasada entera por el ocultador: el veredicto de audit está al final.'
         - 'Sin tools MCP nuevas: la CLI basta y tools/list está al borde del presupuesto.'
         - 'FND-128: el servicio deja vivo lo que lanzó al reiniciarse (KillMode=process en systemd, AbandonProcessGroup en launchd): qdd remoto termina al ver un qdd nuevo, y un pedido que lo está instalando tiene que seguir. Doctor reconoce un servicio de antes (REM-03) y --fix solo le agrega esa línea: el binario, el PATH y QDD_HOME son los que eligió la persona al activarlo.'
+        - 'Reglas atrasadas en el teléfono (pedido de qdd-movile, 2026-11-07): cada proyecto publicado trae reglas_atrasadas (integration.BloquesViejos), fuera del panel; [] es al día y sin el campo no se midió. Está en la estructura, así que un cambio manda el estado completo.'
+        - 'Sincronizar (la persona por qdd-movile, 2026-11-07; eligió «releer y avisar»): el evento sincronizar del teléfono, sin payload ni firma y gratis porque no escribe nada, hace que el PC relea de cero, mande un estado completo y responda al final sincronizado con, por cada proyecto con una sesión de Claude Code viva, lo que el tablero ya no dice bien: espera_tras_pedido, lista_sin_cerrar, terminada_con_espera y flujo_invalido. No corrige nada y no toca las reglas de las IAs. qdd sincronizar da lo mismo en el PC.'
         - 'Modo goal (RFC 0015): qdd_remoto_ejecutar acepta goal activar y goal desactivar, sin banderas y fuera de Sugeridos. Un comando del teléfono corre sin CLAUDECODE: lo mandó la persona. Los avisos goal_pausado y goal_terminado se piden al llegar a ese estado.'
         - 'Dependencias nuevas (rc.2): github.com/coder/websocket v1.8.14 (sin dependencias propias, mantenida por Coder, sucesora de nhooyr/websocket; go.mod no tenía WebSocket) y rsc.io/qr v0.2.0 (QR sin dependencias, de Russ Cox) para dibujar el QR con medios bloques.'
         - 'Cliente de Realtime propio (phoenix.go): Phoenix v1 al escribir (vsn=1.0.0) y v1/v2 al leer; join con config {broadcast:{self:false, ack:false}, presence:{key:"pc"}, private:true} y access_token = la clave publicable (el PC es anon). Heartbeat cada 25 s; sin respuesta antes del siguiente, la conexión está muerta. Reconexión con espera exponencial (1 s a 30 s) y jitter entre la mitad y el total; al volver repite el join y su track.'
@@ -87,5 +90,5 @@ pruebas:
         - cd cli && go test ./pkg/remoto/ -run 'Ejecutar|ArgsPermitidos|ValidarInstruccion|FirmaEjecucion|PlanLocal|GuardaElPlan|AuditarDesdeElTelefono' -race
 fuentes:
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-06"
-revisado_en_commit: c9c0de13c84f
+ultima_revision: "2026-11-07"
+revisado_en_commit: b1eaad80246c
