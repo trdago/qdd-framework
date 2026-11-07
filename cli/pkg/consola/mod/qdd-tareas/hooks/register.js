@@ -473,7 +473,7 @@ function cambiarModo($, id, s, modo, valores = {}) {
 
 // Sin esto lo que se escribe se va al chat: un clic en un botón no le da las teclas a la pestaña, y el campo necesitaría
 // un segundo clic que nada avisa. Si el chat tiene texto, Claude Code no suelta las teclas, y entonces se le dice a la persona.
-const CAMPO_DE_MODO = { comentar: 'fl-texto', preguntar: 'fl-pregunta', 'preguntar-flujo': 'fl-pregunta-flujo', despues: 'fl-nombre', rama: 'fl-nombre', editar: 'fl-nombre' }
+const CAMPO_DE_MODO = { comentar: 'fl-texto', item: 'fl-item-texto', preguntar: 'fl-pregunta', 'preguntar-flujo': 'fl-pregunta-flujo', despues: 'fl-nombre', rama: 'fl-nombre', editar: 'fl-nombre' }
 
 async function enfocarCampo($, sitio, s, key) {
   const titulo = sitio === PANE ? TITULO : flujos.find((f) => PANE_FLUJO + f.id === sitio)?.nombre || sitio
@@ -543,7 +543,7 @@ function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho) {
   const abierto = s.elegido === n.id
   const comentarios = n.comentarios || []
   const marca = abierto ? '▾ ' : s.modo === 'flechas' && saleDe(d, s.elegido, n.id) ? '→ ' : '▸ '
-  const notas = comentarios.length ? ' · ' + comentarios.length + ' ✎' : ''
+  const notas = (comentarios.length ? ' · ' + comentarios.length + ' ✎' : '') + resumenDeItems(n.items || [])
   const texto = acortar(n.nombre + notas, Math.max(1, ancho - 4))
   const clave = 'fl-n-' + n.id
   const boton = Button({ key: clave, label: marca + texto, plain: true, onPress: () => pulsarNodo($, id, s, d, n) })
@@ -554,7 +554,61 @@ function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho) {
 
 function fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, ancho) {
   const descripcion = n.descripcion ? [Text({ key: 'fl-n-desc', dimColor: true, wrap: 'wrap', children: [n.descripcion] })] : []
-  return [...descripcion, ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+  return [...descripcion, ...itemsDeNodo($, Box, Text, Button, id, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+}
+
+// ── Ítems de un nodo (pedido de la persona, 2026-11-07) ───────────────────────────────────────────────────────────────
+// Al probar con qdd-human son las pruebas del paso, cada una pendiente (☐), pasada (✓) o fallada (✗); en cualquier flujo,
+// notas, características y funciones. Agregar uno es una edición más: espera a «Enviar» o al próximo mensaje.
+const SIMBOLO_PRUEBA = { pendiente: '☐', pasa: '✓', falla: '✗' }
+const TIPOS_DE_ITEM = [
+  { value: 'prueba', label: 'prueba' },
+  { value: 'nota', label: 'nota' },
+  { value: 'caracteristica', label: 'característica' },
+  { value: 'funcion', label: 'función' },
+]
+
+// resumenDeItems: cuántas pruebas pasan, fallan y faltan, y cuántos ítems más tiene, para la fila del nodo.
+function resumenDeItems(items) {
+  const pruebas = items.filter((it) => it.tipo === 'prueba')
+  const cuenta = (estado) => pruebas.filter((it) => it.estado === estado).length
+  const partes = [['✓', cuenta('pasa')], ['✗', cuenta('falla')], ['☐', cuenta('pendiente')]].filter(([, n]) => n).map(([s, n]) => s + n)
+  const otros = items.length - pruebas.length
+  return (partes.length ? ' · ' + partes.join(' ') : '') + (otros ? ' · ' + otros + ' 📝' : '')
+}
+
+function itemsDeNodo($, Box, Text, Button, id, n) {
+  return (n.items || []).map((it) => {
+    const prueba = it.tipo === 'prueba'
+    const etiqueta = TIPOS_DE_ITEM.find((t) => t.value === it.tipo)?.label || it.tipo
+    const texto = prueba ? SIMBOLO_PRUEBA[it.estado] + ' ' + it.texto : etiqueta + ': ' + it.texto
+    const color = it.estado === 'falla' ? COLOR.falla : it.estado === 'pasa' ? COLOR.bien : undefined
+    const marcar = (estado) => correrFlujo($, id, ['item', 'marcar', '--de', 'persona', '--evidencia', 'a mano', '--', id, n.id, it.id, estado])
+    const botones = [
+      ...(prueba ? [Button({ key: 'fl-item-pasa-' + it.id, label: '✓', plain: true, onPress: () => marcar('pasa') }), Button({ key: 'fl-item-falla-' + it.id, label: '✗', plain: true, onPress: () => marcar('falla') })] : []),
+      Button({ key: 'fl-item-quitar-' + it.id, label: '−', plain: true, dimColor: true, onPress: () => correrFlujo($, id, ['item', 'quitar', '--de', 'persona', '--', id, n.id, it.id]) }),
+    ]
+    const evidencia = it.evidencia ? [Text({ key: 'fl-item-ev-' + it.id, dimColor: true, size: 'caption', wrap: 'truncate-end', children: ['  ' + it.evidencia] })] : []
+    return Box({
+      key: 'fl-item-' + it.id,
+      flexDirection: 'column',
+      children: [Box({ key: 'fl-item-fila-' + it.id, flexDirection: 'row', columnGap: 1, children: [Text({ key: 'fl-item-t-' + it.id, color, wrap: 'wrap', children: [texto] }), ...botones] }), ...evidencia],
+    })
+  })
+}
+
+function formularioItem($, Input, Select, id, s, n, cancelar) {
+  const tipo = s.valores.tipoItem || 'prueba'
+  const elegir = (v) => {
+    s.valores.tipoItem = v
+    $.ui.invalidate('ui.render')
+  }
+  const agregar = (texto) => correrFlujo($, id, ['item', 'agregar', '--de', 'persona', '--', id, n.id, s.valores.tipoItem || 'prueba', texto])
+  return [
+    Select({ key: 'fl-item-tipo', label: 'Tipo', options: TIPOS_DE_ITEM, value: tipo, onSelect: elegir }),
+    Input({ key: 'fl-item-texto', label: tipo === 'prueba' ? 'Qué probar' : 'Texto', placeholder: tipo === 'prueba' ? 'algo específico que tiene que pasar' : 'una nota, una característica, una función', submitLabel: 'agregar', onSubmit: agregar }),
+    cancelar,
+  ]
 }
 
 // hiloDeNodo: los comentarios de la persona y de la IA, en orden; una pregunta va con ❓. Un comentario nuevo se materializa.
@@ -576,6 +630,7 @@ function hilo($, Text, donde, comentarios, ancho) {
 function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
   const cancelar = Button({ key: 'fl-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarModo($, id, s, '') })
   if (s.modo === 'mover' || s.modo === 'flechas') return [cancelar]
+  if (s.modo === 'item') return formularioItem($, Input, Select, id, s, n, cancelar)
   if (s.modo === 'preguntar') return [Input({ key: 'fl-pregunta', label: 'Pregunta sobre este nodo', placeholder: 'qué hace, qué significa una palabra', submitLabel: 'preguntar', onSubmit: (v) => correrFlujo($, id, ['preguntar', '--', id, n.id, v], true) }), cancelar]
   if (s.modo === 'comentar') return [Input({ key: 'fl-texto', label: 'Comentario', placeholder: 'qué ves, qué falta, qué no se entiende', submitLabel: 'enviar', onSubmit: (v) => correrFlujo($, id, ['comentar', '--de', 'persona', '--', id, n.id, v], true) }), cancelar]
   if (s.modo === 'despues' || s.modo === 'rama') return formularioAgregar($, Input, Select, id, s, n, cancelar)
@@ -590,6 +645,7 @@ function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
       children: [
         accion('fl-comentar', 'c', 'Comentar', () => cambiarModo($, id, s, 'comentar')),
         accion('fl-preguntar', 'g', 'Preguntar', () => cambiarModo($, id, s, 'preguntar')),
+        accion('fl-item', 'b', 'Ítem', () => cambiarModo($, id, s, 'item')),
         accion('fl-detalle', 'd', 'Detalle', () => correrFlujo($, id, ['pedir-detalle', '--', id, n.id], true)),
         accion('fl-editar', 'e', 'Editar', () => cambiarModo($, id, s, 'editar', { nombre: n.nombre, descripcion: n.descripcion || '', tipo: n.tipo })),
         accion('fl-despues', 'a', 'Después', () => cambiarModo($, id, s, 'despues', { tipo: 'paso' })),

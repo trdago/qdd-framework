@@ -341,3 +341,51 @@ test('las preguntas y sus respuestas se ven en el nodo y en el flujo', async ($,
   expect(await ui.find({ type: 'Text', text: /❓ Tú: ¿Qué es la solicitud\?/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /IA: El pedido de cobro\./ })).toBeDefined()
 })
+
+// Ítems de un nodo (pedido de la persona, 2026-11-07): las pruebas de qdd-human con su estado, y notas o características.
+const conItems = (r) => {
+  r.dibujo.nodos[0].items = [
+    { id: 'i1', tipo: 'prueba', texto: 'rechaza una firma vencida', estado: 'falla', evidencia: '.qdd/evidence/run_1' },
+    { id: 'i2', tipo: 'prueba', texto: 'acepta una firma buena', estado: 'pasa' },
+    { id: 'i3', tipo: 'prueba', texto: 'avisa por correo', estado: 'pendiente' },
+    { id: 'i4', tipo: 'nota', texto: 'ojo con la hora del servidor' },
+  ]
+  return r
+}
+
+test('la fila del nodo resume sus pruebas y la ficha lista cada ítem', async ($, on) => {
+  const r = conItems(nuevo())
+  const ui = await abrir($, on, r)
+  expect((await ui.find({ key: 'fl-n-llega' })).props.label).toMatch(/✓1 ✗1 ☐1/)
+  await elegir(ui)
+  expect(await ui.find({ type: 'Text', text: /✗ rechaza una firma vencida/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /run_1/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /✓ acepta una firma buena/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /☐ avisa por correo/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /nota: ojo con la hora/ })).toBeDefined()
+  expect(await ui.find({ key: 'fl-item-pasa-i4' })).toBeUndefined()
+})
+
+test('una prueba se marca desde el nodo', async ($, on) => {
+  const r = conItems(nuevo())
+  const ui = await abrir($, on, r)
+  await elegir(ui)
+  await ui.press({ key: 'fl-item-pasa-i3' })
+  await esperar()
+  expect(comandos(r, 'item')[0]).toEqual(['qdd', 'flujo', 'item', 'marcar', '--de', 'persona', '--evidencia', 'a mano', '--', 'pago', 'llega', 'i3', 'pasa'])
+  await ui.press({ key: 'fl-item-quitar-i4' })
+  await esperar()
+  expect(comandos(r, 'item')[1]).toEqual(['qdd', 'flujo', 'item', 'quitar', '--de', 'persona', '--', 'pago', 'llega', 'i4'])
+})
+
+test('agregar un ítem elige su tipo y no llama a la IA en el acto', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrir($, on, r)
+  await elegir(ui)
+  await ui.press({ key: 'fl-item' })
+  await ui.select({ key: 'fl-item-tipo', value: 'prueba' })
+  await ui.input({ key: 'fl-item-texto', text: 'rechaza una firma vencida' })
+  await esperar()
+  expect(comandos(r, 'item')[0]).toEqual(['qdd', 'flujo', 'item', 'agregar', '--de', 'persona', '--', 'pago', 'llega', 'prueba', 'rechaza una firma vencida'])
+  expect(comandos(r, 'enviar')).toEqual([])
+})

@@ -470,6 +470,9 @@ func conservarComentarios(previo Flujo, f *Flujo) int {
 		if len(f.Nodos[i].Comentarios) == 0 {
 			f.Nodos[i].Comentarios = antes.Comentarios
 		}
+		if len(f.Nodos[i].Items) == 0 {
+			f.Nodos[i].Items = antes.Items
+		}
 	}
 	f.Nodos[0].Comentarios = append(f.Nodos[0].Comentarios, huerfanos...)
 	if len(f.Comentarios) == 0 {

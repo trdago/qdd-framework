@@ -433,6 +433,9 @@ esa operación o datos después del objeto:
 | `comentar` | `nodo`, `texto` (hasta 2000) | |
 | `pedir-detalle` | `nodo` | |
 | `preguntar` | `texto` (hasta 2000) | `nodo`; sin él, la pregunta es sobre el flujo completo |
+| `item-agregar` | `nodo`, `tipo` (`prueba`, `nota`, `caracteristica` o `funcion`), `texto` (hasta 500) | |
+| `item-marcar` | `nodo`, `item`, `estado` (`pendiente`, `pasa` o `falla`) | `evidencia` (hasta 300) |
+| `item-quitar` | `nodo`, `item` | |
 | `agregar` | `nodo`, `nombre` | `descripcion`, `tipo`, `rama` |
 | `modificar` | `nodo` y uno de los que admite | `nombre`, `descripcion`, `tipo` |
 | `mover` | `nodo`, `despues_de` | |

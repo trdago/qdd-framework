@@ -40,6 +40,8 @@ La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambi
   qdd flujo comentar <id> <nodo> "<texto>"    responde en el nodo; lo ve debajo de él
   qdd flujo detalle <id> <nodo> "<texto>"     explica el nodo: es la respuesta a un 🔎
   qdd flujo responder <id> [<nodo>] "<texto>" responde un ❓ de la persona, en el nodo o en el flujo completo
+  qdd flujo item marcar <id> <nodo> <item> pasa|falla --evidencia E   marca una prueba del nodo (qdd-human)
+  qdd flujo item agregar <id> <nodo> <prueba|nota|caracteristica|funcion> "<texto>"
   qdd flujo agregar <id> <nodo> --nombre N [--tipo paso|resultado] [--descripcion D] [--rama]
   qdd flujo modificar <id> <nodo> [--nombre N] [--descripcion D] [--tipo T]
   qdd flujo mover <id> <nodo> --despues-de <otro>

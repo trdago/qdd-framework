@@ -22,6 +22,9 @@ const (
 	OpComentar     = "comentar"
 	OpPedirDetalle = "pedir-detalle"
 	OpPreguntar    = "preguntar"
+	OpItemAgregar  = "item-agregar"
+	OpItemMarcar   = "item-marcar"
+	OpItemQuitar   = "item-quitar"
 	OpAgregar      = "agregar"
 	OpModificar    = "modificar"
 	OpMover        = "mover"
@@ -47,6 +50,9 @@ type Operacion struct {
 	Con         string  `json:"con"`
 	Rama        bool    `json:"rama"`
 	Texto       string  `json:"texto"`
+	Item        string  `json:"item"`
+	Estado      string  `json:"estado"`
+	Evidencia   string  `json:"evidencia"`
 }
 
 // camposDe dice qué exige y qué admite cada operación, además de op y flujo.
@@ -54,6 +60,9 @@ var camposDe = map[string]struct{ exige, admite []string }{
 	OpComentar:     {exige: []string{"nodo", "texto"}},
 	OpPedirDetalle: {exige: []string{"nodo"}},
 	OpPreguntar:    {exige: []string{"texto"}, admite: []string{"nodo"}},
+	OpItemAgregar:  {exige: []string{"nodo", "tipo", "texto"}},
+	OpItemMarcar:   {exige: []string{"nodo", "item", "estado"}, admite: []string{"evidencia"}},
+	OpItemQuitar:   {exige: []string{"nodo", "item"}},
 	OpAgregar:      {exige: []string{"nodo", "nombre"}, admite: []string{"descripcion", "tipo", "rama"}},
 	OpModificar:    {exige: []string{"nodo"}, admite: []string{"nombre", "descripcion", "tipo"}},
 	OpMover:        {exige: []string{"nodo", "despues_de"}},
@@ -109,12 +118,15 @@ func (o Operacion) validar() error {
 	if o.Op == OpModificar && len(presentes) == 1 {
 		return errors.New("«modificar» necesita nombre, descripcion o tipo")
 	}
-	for _, id := range []string{o.Nodo, o.DespuesDe, o.Con} {
+	for _, id := range []string{o.Nodo, o.DespuesDe, o.Con, o.Item} {
 		if id != "" && !idValido.MatchString(id) {
 			return fmt.Errorf("id de nodo %q: usa minúsculas, números y guiones", id)
 		}
 	}
-	if o.Tipo != nil && *o.Tipo != TipoPaso && *o.Tipo != TipoResultado {
+	if o.Op == OpItemAgregar && !slices.Contains(tiposDeItem, *o.Tipo) {
+		return fmt.Errorf("tipo de ítem %q: usa %s", *o.Tipo, strings.Join(tiposDeItem, ", "))
+	}
+	if o.Op != OpItemAgregar && o.Tipo != nil && *o.Tipo != TipoPaso && *o.Tipo != TipoResultado {
 		return fmt.Errorf("tipo %q: usa %s o %s", *o.Tipo, TipoPaso, TipoResultado)
 	}
 	return nil
@@ -135,6 +147,9 @@ func (o Operacion) presentes() []string {
 		{"con", o.Con != ""},
 		{"rama", o.Rama},
 		{"texto", limpiar(o.Texto) != ""},
+		{"item", o.Item != ""},
+		{"estado", o.Estado != ""},
+		{"evidencia", o.Evidencia != ""},
 	} {
 		if c.viene {
 			lista = append(lista, c.campo)
@@ -181,6 +196,12 @@ func (o Operacion) cambio(ahora time.Time) Cambio {
 		return Desconectar(o.Nodo, o.Con)
 	case OpPreguntar:
 		return Preguntar(o.Nodo, o.Texto, ahora)
+	case OpItemAgregar:
+		return AgregarItem(o.Nodo, *o.Tipo, o.Texto, ahora)
+	case OpItemMarcar:
+		return MarcarItem(o.Nodo, o.Item, o.Estado, o.Evidencia, ahora)
+	case OpItemQuitar:
+		return QuitarItem(o.Nodo, o.Item)
 	}
 	return Comentar(o.Nodo, o.Texto, DePersona, ahora)
 }

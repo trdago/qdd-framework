@@ -105,6 +105,9 @@ func (b *Bucle) mensajeFlujo(p ProyectoEstado, r flujo.Resumen) (MensajeFlujo, e
 		for j, c := range n.Comentarios {
 			f.Nodos[i].Comentarios[j].Texto, f.Nodos[i].Comentarios[j].DeNodo = o.Ocultar(c.Texto), o.Ocultar(c.DeNodo)
 		}
+		for j, it := range n.Items {
+			f.Nodos[i].Items[j].Texto, f.Nodos[i].Items[j].Evidencia = o.Ocultar(it.Texto), o.Ocultar(it.Evidencia)
+		}
 	}
 	for j, c := range f.Comentarios {
 		f.Comentarios[j].Texto = o.Ocultar(c.Texto)

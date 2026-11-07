@@ -134,6 +134,48 @@ var flujoResponderCmd = &cobra.Command{
 	},
 }
 
+var flujoEvidencia string
+
+var flujoItemCmd = &cobra.Command{
+	Use:   "item",
+	Short: "Ítems de un nodo: pruebas (pendiente, pasa, falla), notas, características y funciones",
+}
+
+var flujoItemAgregarCmd = &cobra.Command{
+	Use:   "agregar <flujo> <nodo> <prueba|nota|caracteristica|funcion> <texto>",
+	Short: "Agrega un ítem a un nodo; una prueba nace pendiente",
+	Args:  cobra.ExactArgs(4),
+	Run: func(cmd *cobra.Command, args []string) {
+		editarFlujo(cmd, args[0], flujoDe, flujo.AgregarItem(args[1], args[2], args[3], time.Now()))
+	},
+}
+
+var flujoItemMarcarCmd = &cobra.Command{
+	Use:   "marcar <flujo> <nodo> <item> <pendiente|pasa|falla>",
+	Short: "Marca una prueba de un nodo, con --evidencia (la carpeta del run de qdd-human, un commit…)",
+	Args:  cobra.ExactArgs(4),
+	Run: func(cmd *cobra.Command, args []string) {
+		editarFlujo(cmd, args[0], flujoDe, flujo.MarcarItem(args[1], args[2], args[3], flujoEvidencia, time.Now()))
+	},
+}
+
+var flujoItemQuitarCmd = &cobra.Command{
+	Use:   "quitar <flujo> <nodo> <item>",
+	Short: "Quita un ítem de un nodo",
+	Args:  cobra.ExactArgs(3),
+	Run: func(cmd *cobra.Command, args []string) {
+		editarFlujo(cmd, args[0], flujoDe, flujo.QuitarItem(args[1], args[2]))
+	},
+}
+
+func editarFlujo(cmd *cobra.Command, id, de string, cambio flujo.Cambio) {
+	_, linea, err := flujo.Editar(estadoRaiz(), id, de, time.Now(), cambio)
+	if err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), linea)
+}
+
 var flujoPedirDetalleCmd = &cobra.Command{
 	Use:   "pedir-detalle <flujo> <nodo>",
 	Short: "Deja por enviar la pregunta de la persona por un nodo",
@@ -227,5 +269,10 @@ func init() {
 	flujoEnviarCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoNuevoCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoDevolverCmd.Flags().IntVar(&flujoN, "n", 0, "Cuántas líneas")
-	flujoCmd.AddCommand(append(ediciones, flujoPreguntarCmd, flujoResponderCmd, flujoPedirDetalleCmd, flujoDeshacerCmd, flujoEnviarCmd, flujoDevolverCmd, flujoNuevoCmd)...)
+	for _, c := range []*cobra.Command{flujoItemAgregarCmd, flujoItemMarcarCmd, flujoItemQuitarCmd} {
+		c.Flags().StringVar(&flujoDe, "de", flujo.DeIA, "Quién la hace: ia o persona, que la deja por enviar")
+	}
+	flujoItemMarcarCmd.Flags().StringVar(&flujoEvidencia, "evidencia", "", "De dónde sale la marca: la carpeta del run, un commit, «a mano»")
+	flujoItemCmd.AddCommand(flujoItemAgregarCmd, flujoItemMarcarCmd, flujoItemQuitarCmd)
+	flujoCmd.AddCommand(append(ediciones, flujoItemCmd, flujoPreguntarCmd, flujoResponderCmd, flujoPedirDetalleCmd, flujoDeshacerCmd, flujoEnviarCmd, flujoDevolverCmd, flujoNuevoCmd)...)
 }
