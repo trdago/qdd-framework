@@ -1,0 +1,22 @@
+id: cognitive
+nombre: Motor cognitivo local (QDD le pregunta a un agente)
+estado: aprobado
+rutas:
+    - cli/pkg/cognitive
+objetivo_operativo:
+    problema: 'Algunas decisiones no se pueden resolver con una regla fija: QDD le pregunta a un agente instalado en la máquina (Antigravity, Claude Code, Cursor) o a un motor local (Ollama, LM Studio), sin atarse a uno.'
+    usuarios: Las personas que usan qdd report, el dashboard y las herramientas MCP con un agente en su máquina.
+    criterio_de_exito: Con un motor disponible responde el primero que pueda; sin ninguno, QDD lo dice y sigue en modo consultivo. Una prueba nunca lanza un agente real.
+    caso_real: '2026-11-07: cuatro pruebas lanzaban claude -p en cada go test, 127 s y tokens de la persona por corrida (FND-172).'
+objetivo_tecnologico:
+    arquitectura: Backend y RepairCapable separan preguntar de reparar con permisos de escritura. defaultBackends da los agentes en orden y DetectLocalLLM detecta el motor. ejecutarIntento recibe el motor y la forma de preguntar, y eso permite probarlo sin ninguno real.
+    decisiones:
+        - 'Bajo go test no hay motor (FND-172): defaultBackends y DetectLocalLLM lo deciden con flag.Lookup("test.v"), porque la regla CLEAN-02 no deja importar testing en producción. Rige para cualquier paquete, también los que se agreguen.'
+    invariantes:
+        - Una prueba nunca lanza un agente real ni consulta un motor de la máquina a través de DetectLocalLLM, defaultBackends, Ask o AttemptRepair.
+        - Reparar con permisos de escritura va solo por RepairCapable, nunca por Ask.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/cognitive/
+ultima_revision: "2026-11-07"
+revisado_en_commit: 3725110e2b81

@@ -15,16 +15,22 @@ var auditCmd = &cobra.Command{
 Si algún problema bloquea el gate, termina con código distinto de cero (falla en CI).
 En adopción gradual (lo que deja 'qdd init' en un proyecto nuevo) las prácticas de
 madurez —E2E, ADR, Conventional Commits— se informan como recomendaciones sin bloquear.
+Una suite que declara sus rutas no se repite si ya pasó con esos mismos archivos; --completo las
+corre todas, igual que el CI.
 No genera ni guarda el Certificado Histórico (eso es tarea de 'qdd certify').`,
 	Run: runAudit,
 }
 
 func init() {
+	auditCmd.Flags().Bool("completo", false, "Corre todas las suites, aunque ya hayan pasado con estos mismos archivos")
 	rootCmd.AddCommand(auditCmd)
 }
 
 func runAudit(cmd *cobra.Command, args []string) {
 	fmt.Println("[+] Iniciando Auditoría Técnica de QDD...")
+	if completo, _ := cmd.Flags().GetBool("completo"); completo {
+		audit.PedirPruebasCompletas()
+	}
 
 	cwd, err := os.Getwd()
 	if err != nil {

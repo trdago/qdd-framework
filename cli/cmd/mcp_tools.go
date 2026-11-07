@@ -37,7 +37,7 @@ func registerCertifyTool(s *server.MCPServer) {
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
 		engine := audit.NewEngine(cwd)
-		violations := engine.RunAll()
+		violations := engine.RunAllCompleto()
 		
 		if len(audit.Bloqueantes(violations)) == 0 {
 			return mcp.NewToolResultText("CERTIFICADO! Listo para release.\n" + formatRecomendaciones(audit.Recomendaciones(violations))), nil

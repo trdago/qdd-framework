@@ -12,6 +12,7 @@ package cognitive
 import (
 	"context"
 	"errors"
+	"flag"
 	"strings"
 )
 
@@ -26,7 +27,16 @@ type Backend interface {
 // they're tried. Antigravity and Claude are verified against real CLIs;
 // Cursor is best-effort (see cursor.go).
 func defaultBackends() []Backend {
+	if enUnaPrueba() {
+		return nil
+	}
 	return []Backend{&AntigravityBackend{}, &ClaudeBackend{}, &CursorBackend{}}
+}
+
+// enUnaPrueba: go test registra sus banderas antes de correr. Una prueba nunca lanza un agente real (FND-172): gasta tokens,
+// tarda y corre con permisos dentro del árbol que se está probando. Rige para cualquier paquete que llegue hasta aquí.
+func enUnaPrueba() bool {
+	return flag.Lookup("test.v") != nil
 }
 
 // Ask tries each available backend in order and returns the first successful

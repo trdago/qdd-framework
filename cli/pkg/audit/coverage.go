@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,16 +19,18 @@ type testCommand struct {
 	Args     []string
 	Env      []string // variables extra (ver sinCacheEnElProyecto)
 	Requiere []string // programas que la suite necesita; sin ellos queda sin medir
+	Rutas    []string // de qué depende; con los mismos archivos no se repite (RFC 0020)
 }
 
 type qddTestConfig struct {
 	TestCommands []comandoDePrueba `yaml:"test_commands"`
 }
 
-// comandoDePrueba es un texto o {comando, requiere: [programas]} en test_commands.
+// comandoDePrueba es un texto o {comando, requiere: [programas], rutas: [carpetas]} en test_commands.
 type comandoDePrueba struct {
 	Comando  string   `yaml:"comando"`
 	Requiere []string `yaml:"requiere"`
+	Rutas    []string `yaml:"rutas"`
 }
 
 func (c *comandoDePrueba) UnmarshalYAML(node *yaml.Node) error {
@@ -82,7 +85,7 @@ func declaredTestCommands(cwd string) []testCommand {
 		if c == "" {
 			continue
 		}
-		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}, Requiere: tc.Requiere})
+		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}, Requiere: tc.Requiere, Rutas: tc.Rutas})
 	}
 	return cmds
 }
@@ -328,7 +331,13 @@ func RunCoverageCheck(cwd string) []Violation {
 			})
 			continue
 		}
+		huella := huellaDeSuite(tc)
+		if en, ok := yaPasoConEsaHuella(tc.Dir, huella); ok {
+			fmt.Fprintf(os.Stderr, "[QA] SIN CAMBIOS: %s (pasó a las %s con estos mismos archivos; qdd audit --completo la repite)\n", tc.Label, en.Local().Format("15:04"))
+			continue
+		}
 		fmt.Fprintf(os.Stderr, "[QA] Ejecutando pruebas: %s (en %s)\n", tc.Label, tc.Dir)
+		inicio := time.Now()
 		if salida, err := runTestCommand(tc); err != nil {
 			fmt.Fprintf(os.Stderr, "[QA] FALLÓ: %s\n", tc.Label)
 			violations = append(violations, Violation{
@@ -338,7 +347,8 @@ func RunCoverageCheck(cwd string) []Violation {
 			})
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "[QA] OK: %s\n", tc.Label)
+		recordarSuite(tc.Dir, huella)
+		fmt.Fprintf(os.Stderr, "[QA] OK: %s (%s)\n", tc.Label, time.Since(inicio).Round(100*time.Millisecond))
 	}
 
 	// QA-02-E2E-TESTS: Exigir entorno de pruebas End-to-End

@@ -34,6 +34,9 @@ type ExecutionResult struct {
 // DetectLocalLLM escanea el entorno local en busca de APIs y motores de IA
 // como Antigravity, Ollama, LM Studio, Claude Code y servidores compatibles con OpenAI.
 func DetectLocalLLM() LocalLLMInfo {
+	if enUnaPrueba() {
+		return sinMotorLocal()
+	}
 	if info, found := probeAntigravity(); found {
 		return info
 	}
@@ -50,6 +53,10 @@ func DetectLocalLLM() LocalLLMInfo {
 		return info
 	}
 
+	return sinMotorLocal()
+}
+
+func sinMotorLocal() LocalLLMInfo {
 	return LocalLLMInfo{
 		Detected:      false,
 		Provider:      "None",
@@ -226,13 +233,16 @@ func probeClaudeCode() (LocalLLMInfo, bool) {
 // ExecuteLocalIntent ejecuta una instrucción enviada desde el dashboard
 // utilizando el motor cognitivo local disponible bajo las reglas de gobernanza QDD.
 func ExecuteLocalIntent(ctx context.Context, cwd, intent string) (ExecutionResult, error) {
+	return ejecutarIntento(ctx, DetectLocalLLM(), Ask, intent)
+}
+
+func ejecutarIntento(ctx context.Context, info LocalLLMInfo, preguntar func(context.Context, string) (string, string, error), intent string) (ExecutionResult, error) {
 	start := time.Now()
-	info := DetectLocalLLM()
 
 	promptWithGovernance := buildGovernancePrompt(intent)
 
 	if info.Provider == "Antigravity" || info.Provider == "Claude Code" {
-		resp, backendName, err := Ask(ctx, promptWithGovernance)
+		resp, backendName, err := preguntar(ctx, promptWithGovernance)
 		elapsed := time.Since(start).Milliseconds()
 		if err != nil {
 			return ExecutionResult{
@@ -296,10 +306,10 @@ func ExecuteLocalIntent(ctx context.Context, cwd, intent string) (ExecutionResul
 
 	elapsed := time.Since(start).Milliseconds()
 	return ExecutionResult{
-		Status:          "OFFLINE_GUIDANCE",
-		Provider:        "None",
-		Output:          "No se detectó un motor LLM local activo (Antigravity/Ollama/LM Studio). Conecta tu IDE o inicia Ollama (ollama run llama3) para habilitar ejecución directa.",
-		ExecutionTimeMs: elapsed,
+		Status:           "OFFLINE_GUIDANCE",
+		Provider:         "None",
+		Output:           "No se detectó un motor LLM local activo (Antigravity/Ollama/LM Studio). Conecta tu IDE o inicia Ollama (ollama run llama3) para habilitar ejecución directa.",
+		ExecutionTimeMs:  elapsed,
 		GovernanceChecks: []string{"Modo Consultivo", "Safe Fallback"},
 	}, nil
 }
