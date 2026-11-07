@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.22] - 2026-11-07
+
 ### Agregado
 
 - **Una suite no se repite si no cambió nada de lo suyo (RFC 0020).** En `test_commands`, una suite puede declarar
