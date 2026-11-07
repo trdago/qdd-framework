@@ -76,6 +76,7 @@ type Accion struct {
 	Origen       string           `json:"origen,omitempty"`
 	RespondidaEn string           `json:"respondida_en,omitempty"`
 	Preguntas    []ItemPregunta   `json:"preguntas,omitempty"`
+	SinSesion    bool             `json:"sin_sesion,omitempty"` // un ⏳: se responde aunque no haya una sesión abierta
 	Permiso      *PermisoPregunta `json:"permiso,omitempty"`
 	// Solo pedidos de origen telefono (telefono.go): el nombre del teléfono que lo mandó y la solicitud con que llegó.
 	Dispositivo string     `json:"dispositivo,omitempty"`

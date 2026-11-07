@@ -30,6 +30,7 @@ function preparar(on, r) {
     r.llamadas.push({ argv: [...e.argv], stdin: e.init?.stdin })
     if (e.argv.includes('binario')) return { value: { exitCode: 1, stdout: '', stderr: '' } }
     if (e.argv.includes('accion')) return { value: r.atiende }
+    if (e.argv.includes('responder')) return { value: r.responde }
     if (e.argv.includes('panel')) return { value: { exitCode: 0, stdout: JSON.stringify({ formato: 1, carpeta: '/work', acciones: [], ...(r.esperas ? { esperas_persona: r.esperas } : {}) }), stderr: '' } }
     return { value: { exitCode: 0, stdout: '{}', stderr: '' } }
   })
@@ -40,6 +41,7 @@ const nuevo = (esperas?: object[]) => ({
   enviados: [] as string[],
   esperas,
   atiende: { exitCode: 0, stdout: MENSAJE + '\n', stderr: '' },
+  responde: { exitCode: 0, stdout: JSON.stringify({ aplicado: 'el ⏳ pasa a la IA para que lo verifique', mensaje: 'Respondo a tu ⏳: Ya lo hice.' }) + '\n', stderr: '' },
 })
 const acciones = (r) => r.llamadas.filter((l) => l.argv.includes('accion'))
 const esperar = () => new Promise((res) => setTimeout(res, 20))
@@ -96,4 +98,52 @@ test('muestra 5 y «ver las N» trae el resto', async ($, on) => {
   expect(await ui.find({ key: 'espera-5' })).toBeUndefined()
   await ui.press({ key: 'esperas-todas' })
   expect(await ui.find({ key: 'espera-6' })).toBeDefined()
+})
+
+// Botones de los ⏳ (propuesta de qdd-movile aprobada por la persona, 2026-11-07): los mismos tres del teléfono.
+const CON_BOTONES = { ...PREGUNTA, pregunta: 'pregunta:espera-abc' }
+const respuestas = (r) => r.llamadas.filter((l) => l.argv.includes('responder'))
+
+test('cada ⏳ trae «Ya lo hice», «Todavía no» y «Ya no va»', async ($, on) => {
+  const ui = await montado($, on, nuevo([CON_BOTONES]))
+  expect((await ui.find({ key: 'espera-hecho-0' })).props.label).toBe('Ya lo hice')
+  expect((await ui.find({ key: 'espera-todavia_no-0' })).props.label).toBe('Todavía no')
+  expect((await ui.find({ key: 'espera-ya_no_va-0' })).props.label).toBe('Ya no va')
+})
+
+test('«Ya lo hice» lo deja en el estado, se lo envía a la IA y dice qué quedó', async ($, on) => {
+  const r = nuevo([CON_BOTONES])
+  const ui = await montado($, on, r)
+  await ui.press({ key: 'espera-hecho-0' })
+  await esperar()
+  expect(respuestas(r)[0].argv).toEqual(['qdd', 'consola', 'pregunta', 'responder', 'pregunta:espera-abc', 'hecho'])
+  expect(r.enviados).toEqual(['Respondo a tu ⏳: Ya lo hice.'])
+  expect(await ui.find({ type: 'Text', text: /pasa a la IA para que lo verifique/ })).toBeDefined()
+})
+
+test('«Todavía no» no le envía nada a la IA', async ($, on) => {
+  const r = nuevo([CON_BOTONES])
+  r.responde = { exitCode: 0, stdout: JSON.stringify({ aplicado: 'vuelve a preguntarse en 24 h', mensaje: '' }) + '\n', stderr: '' }
+  const ui = await montado($, on, r)
+  await ui.press({ key: 'espera-todavia_no-0' })
+  await esperar()
+  expect(respuestas(r)[0].argv.at(-1)).toBe('todavia_no')
+  expect(r.enviados).toEqual([])
+  expect(await ui.find({ type: 'Text', text: /vuelve a preguntarse/ })).toBeDefined()
+})
+
+test('si qdd no la acepta, lo dice y no envía nada', async ($, on) => {
+  const r = nuevo([CON_BOTONES])
+  r.responde = { exitCode: 1, stdout: '', stderr: '[!] la pregunta ya no está\n' }
+  const ui = await montado($, on, r)
+  await ui.press({ key: 'espera-ya_no_va-0' })
+  await esperar()
+  expect(r.enviados).toEqual([])
+  expect(await ui.find({ type: 'Text', text: /ya no está/ })).toBeDefined()
+})
+
+test('un qdd que no trae el id de la pregunta no muestra los botones', async ($, on) => {
+  const ui = await montado($, on, nuevo([PREGUNTA]))
+  expect(await ui.find({ key: 'espera-0' })).toBeDefined()
+  expect(await ui.find({ key: 'espera-hecho-0' })).toBeUndefined()
 })

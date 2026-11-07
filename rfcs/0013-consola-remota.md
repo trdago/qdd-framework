@@ -276,8 +276,11 @@ desde la terminal: gana la primera respuesta.
   Solo es pregunta el ⏳ que pregunta algo (MEJ-004, qdd-movile, 2026-11-03: de 11 publicados, casi todos eran notas de
   avance): su bloqueo tiene al menos una frase entre `¿` y `?`, y `texto` es solo esas frases, sin el historial de la
   tarea. Tampoco lo es si nombra con `[tecla]` un pedido abierto de la cola, que ya lo cubre en el panel.
-  Sin una sesión de Claude Code abierta en el proyecto (`ejecutar.ia=false`) no se publica y su respuesta da `vencida`,
-  porque nadie podría resolverlo y la respuesta se perdería (FND-124). Un ⏳ nunca genera push: solo los pedidos y las
+  Trae tres opciones fijas, además de «Otra»: `hecho` («Ya lo hice»), `todavia_no` («Todavía no») y `ya_no_va` («Ya no
+  va»), y `sin_sesion: true` (2026-11-07). La respuesta se escribe en el estado del proyecto, así que se publica y se
+  responde aunque no haya una sesión de Claude Code abierta: `hecho` y «Otra» pasan el ⏳ a la IA para que lo verifique,
+  `ya_no_va` deja la etapa en — y `todavia_no` lo vuelve a preguntar al día. La solicitud se cierra `hecha` con lo que
+  quedó en `resultado`. Antes, sin sesión, no se publicaba (FND-124). Un ⏳ nunca genera push: solo los pedidos y las
   fichas nuevas.
 
 **Cómo se engancha.** El mod `qdd-tareas` escucha `PermissionRequest`, que Claude Code corre **al mismo tiempo** que

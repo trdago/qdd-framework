@@ -136,10 +136,14 @@ type Pregunta struct {
 	Motivo       string                   `json:"motivo,omitempty"` // por qué venció
 	Respuesta    map[string]RespuestaItem `json:"respuesta,omitempty"`
 	Instruccion  string                   `json:"instruccion,omitempty"` // la instrucción que lleva la respuesta a un ⏳ (FND-141)
+	SinSesion    bool                     `json:"sin_sesion,omitempty"`  // un ⏳: se responde aunque no haya una sesión abierta
+	Aplicado     string                   `json:"aplicado,omitempty"`    // qué quedó en el estado al responder un ⏳
 	Creada       time.Time                `json:"creada"`
 	Vista        time.Time                `json:"vista"` // la última vez que su sesión la esperó
 	claveTurno   string                   // lo que identifica su turno (RFC 0019), solo de un ⏳ vivo
 	tareaTurno   string                   // la tarea del ⏳
+	etapa        string                   // la etapa del ⏳
+	bloqueo      string                   // el bloqueo entero del ⏳
 	Cerrada      *time.Time               `json:"cerrada,omitempty"`
 }
 
@@ -376,7 +380,7 @@ func IDPregunta(id string) string {
 func ResponderPregunta(root, id, respuesta, lugar string, now time.Time) (Pregunta, error) {
 	id = IDPregunta(id)
 	if strings.HasPrefix(id, prefijoEspera) {
-		return responderEspera(root, id, respuesta, lugar, now)
+		return responderEspera(root, id, respuesta, lugar, EnTelefono, now)
 	}
 	var out Pregunta
 	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
@@ -581,7 +585,7 @@ func PreguntaDe(root, id string, now time.Time) (Pregunta, bool) {
 // PreguntasA es la cola a la hora now, con los ⏳ de la persona del estado (esperas_preguntas.go): las pendientes
 // primero, después las cerradas, las más nuevas antes.
 func PreguntasA(root string, now time.Time) []Pregunta {
-	return conEsperas(normalizarPreguntas(leerPreguntas(root, false), now), esperasDeLaPersona(root, now))
+	return conEsperas(normalizarPreguntas(leerPreguntas(root, false), now), esperasDeLaPersona(root, now), now)
 }
 
 func indicePregunta(cola []Pregunta, id string) int {
@@ -685,7 +689,7 @@ func accionesDePreguntas(root string, now time.Time) []Accion {
 		a := Accion{
 			ID: prefijoPregunta + p.ID, Tipo: TipoPregunta, Etiqueta: p.Etiqueta, Detalle: p.Preguntas[0].Texto,
 			Estado: p.Estado, Sesion: p.Sesion, Origen: p.Origen, RespondidaEn: p.RespondidaEn,
-			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo,
+			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo, SinSesion: p.SinSesion,
 			claveTurno: p.claveTurno, tareaTurno: p.tareaTurno,
 		}
 		if p.Permiso != nil {

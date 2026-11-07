@@ -26,7 +26,11 @@ import (
 // VidaHechos) ya no pregunta nada: 'qdd estado check' le pide a la IA actualizarlo (EsperasTrasPedido). Una tecla que
 // nunca tuvo pedido sigue siendo pregunta.
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta la respuesta se perdía (la instrucción vence a los 30 min y la
-// pregunta seguía «respondida» 24 h): esa respuesta se rechaza, y qdd remoto no publica el ⏳ (sinEsperasSinSesion).
+// pregunta seguía «respondida» 24 h).
+// Botones (propuesta de qdd-movile aprobada por la persona, 2026-11-07): cada ⏳ trae «Ya lo hice», «Todavía no» y «Ya no
+// va», además de «Otra», y la respuesta se escribe en el estado: no se pierde aunque no haya una sesión (sin_sesion).
+// «Ya lo hice» y «Otra» pasan el ⏳ a la IA para que lo verifique; «Ya no va» deja la etapa en —; «Todavía no» no cambia
+// el estado y vuelve a preguntarse a las VidaEsperaRespondida. Con una sesión abierta, la IA además se entera al tiro.
 
 const (
 	// OrigenEstado es el origen de una pregunta que sale de un ⏳ de la persona en el estado.
@@ -37,8 +41,22 @@ const (
 
 	prefijoEspera = "espera-"
 
+	// Las opciones de un ⏳ (el valor que manda el teléfono o el panel).
+	EsperaHecho     = "hecho"
+	EsperaTodaviaNo = "todavia_no"
+	EsperaYaNoVa    = "ya_no_va"
+
+	// deQuienVerifica: un ⏳ respondido pasa a la IA, que lo verifica y lo refleja.
+	deQuienVerifica = "la IA"
+
 	maxLineaEspera = 160
 )
+
+var opcionesEspera = []OpcionPregunta{
+	{Valor: EsperaHecho, Etiqueta: "Ya lo hice", Descripcion: "La IA lo verifica"},
+	{Valor: EsperaTodaviaNo, Etiqueta: "Todavía no", Descripcion: "Vuelve a preguntarse mañana"},
+	{Valor: EsperaYaNoVa, Etiqueta: "Ya no va", Descripcion: "La etapa queda en —"},
+}
 
 var (
 	frasePregunta = regexp.MustCompile(`¿[^¿?]*\?`)
@@ -170,10 +188,12 @@ func preguntaDeEspera(f estado.Frente, etapa, bloqueo string, now time.Time) Pre
 	return Pregunta{
 		ID: prefijoEspera + hex.EncodeToString(suma[:6]), Origen: OrigenEstado, Estado: PreguntaPendiente,
 		Etiqueta:  recortar("⏳ "+donde+": "+pregunta, MaxMotivo),
-		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: pregunta, Otra: true}},
+		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: pregunta, Otra: true, Opciones: opcionesEspera}},
+		SinSesion: true,
 		Creada:    now.UTC(), Vista: now.UTC(),
 		// El turno no depende del texto: reescribir la pregunta no la manda al final (RFC 0019).
 		claveTurno: prefijoEspera + f.ID + ":" + etapa, tareaTurno: f.ID,
+		etapa: etapa, bloqueo: bloqueo,
 	}
 }
 
@@ -187,8 +207,9 @@ func esperaPorID(root, id string, now time.Time) (Pregunta, bool) {
 }
 
 // conEsperas suma a la cola las esperas vigentes: una respondida ya está en la cola; una que el estado ya no tiene,
-// sale. Las pendientes de la consola van primero, después las esperas, y al final las cerradas.
-func conEsperas(cola, esperas []Pregunta) []Pregunta {
+// sale, salvo la recién respondida (VidaCerrada), para que otro teléfono vea «ya respondida en …». Las pendientes de la
+// consola van primero, después las esperas, y al final las cerradas.
+func conEsperas(cola, esperas []Pregunta, now time.Time) []Pregunta {
 	vigentes := map[string]bool{}
 	for _, e := range esperas {
 		vigentes[e.ID] = true
@@ -196,7 +217,7 @@ func conEsperas(cola, esperas []Pregunta) []Pregunta {
 	enCola := map[string]bool{}
 	var pendientes, cerradas []Pregunta
 	for _, p := range cola {
-		if p.Origen == OrigenEstado && !vigentes[p.ID] {
+		if p.Origen == OrigenEstado && !vigentes[p.ID] && !recienCerrada(p, now) {
 			continue
 		}
 		enCola[p.ID] = true
@@ -215,9 +236,14 @@ func conEsperas(cola, esperas []Pregunta) []Pregunta {
 	return append(pendientes, cerradas...)
 }
 
-// responderEspera aplica la respuesta de un teléfono a un ⏳ de la persona y se la deja a la IA: la primera gana, y
-// una espera que el estado ya no tiene es desconocida.
-func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta, error) {
+func recienCerrada(p Pregunta, now time.Time) bool {
+	return p.Cerrada != nil && now.Sub(*p.Cerrada) <= VidaCerrada
+}
+
+// responderEspera aplica la respuesta a un ⏳ de la persona: la primera gana, y queda en el estado (aplicarAlEstado).
+// Desde un teléfono, si hay una sesión abierta, la IA además la recibe como instrucción; desde el PC, el panel se la
+// envía al chat.
+func responderEspera(root, id, respuesta, lugar, en string, now time.Time) (Pregunta, error) {
 	var out Pregunta
 	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
 		if i := indicePregunta(cola, id); i >= 0 {
@@ -227,24 +253,80 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 		if !ok {
 			return nil, ErrPreguntaDesconocida
 		}
-		if !HaySesion(root, now) {
-			return nil, fmt.Errorf("%w: no hay una sesión de Claude Code abierta en el proyecto que la reciba", ErrPreguntaDesconocida)
-		}
 		r, err := validarRespuesta(p, respuesta)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrRespuestaInvalida, err)
 		}
 		cerrada := now.UTC()
-		p.Estado, p.RespondidaEn, p.Lugar, p.Respuesta, p.Cerrada = PreguntaRespondida, EnTelefono, strings.TrimSpace(lugar), r, &cerrada
-		p.Instruccion = fmt.Sprintf("%s-%d", p.ID, now.Unix())
-		instruccion := Ejecucion{Solicitud: p.Instruccion, Tipo: EjecutarIA, Texto: mensajeEspera(p), Nombre: p.Lugar}
-		if _, err := RegistrarEjecucion(root, instruccion, now); err != nil {
+		p.Estado, p.RespondidaEn, p.Lugar, p.Respuesta, p.Cerrada = PreguntaRespondida, en, strings.TrimSpace(lugar), r, &cerrada
+		aplicado, err := aplicarAlEstado(root, p, now)
+		if err != nil {
+			return nil, err
+		}
+		p.Aplicado = aplicado
+		if err := avisarALaIA(root, p, now); err != nil {
 			return nil, err
 		}
 		out = p
 		return append([]Pregunta{p}, cola...), nil
 	})
 	return out, err
+}
+
+// ResponderEsperaEnPC es un botón del panel del PC sobre un ⏳ («Para ti»): devuelve la pregunta y el mensaje que el
+// panel le envía a la IA (vacío si no hay nada que hacer).
+func ResponderEsperaEnPC(root, id, valor string, now time.Time) (Pregunta, string, error) {
+	id = IDPregunta(id)
+	if !strings.HasPrefix(id, prefijoEspera) {
+		return Pregunta{}, "", ErrPreguntaDesconocida
+	}
+	respuesta := `{"q1":{"opciones":[` + strconv.Quote(valor) + `]}}`
+	p, err := responderEspera(root, id, respuesta, "", EnPC, now)
+	if err != nil {
+		return Pregunta{}, "", err
+	}
+	return p, mensajeEspera(p), nil
+}
+
+// aplicarAlEstado escribe la respuesta en la celda del ⏳ y dice qué quedó, en palabras para el teléfono.
+func aplicarAlEstado(root string, p Pregunta, now time.Time) (string, error) {
+	r := p.Respuesta[p.Preguntas[0].ID]
+	cuando := now.Local().Format("2006-01-02 15:04") + ", " + desdeDonde(p)
+	c := estado.Cambio{Frente: p.tareaTurno, Etapa: p.etapa, Estado: estado.Espera, DeQuien: deQuienVerifica}
+	if r.Otra != nil {
+		c.Bloqueo = "La persona respondió (" + cuando + "): «" + *r.Otra + "». Era: " + p.bloqueo
+		return "el ⏳ pasa a la IA con tu respuesta", estado.Set(root, c, now)
+	}
+	valor := r.Opciones[0]
+	if valor == EsperaTodaviaNo {
+		return "vuelve a preguntarse en " + strconv.Itoa(int(VidaEsperaRespondida.Hours())) + " h", nil
+	}
+	if valor == EsperaYaNoVa {
+		c.Estado, c.DeQuien = estado.NoAplica, ""
+		c.Evidencia = "La persona dice que ya no va (" + cuando + "). Era: " + p.bloqueo
+		return "la etapa queda en — (ya no va)", estado.Set(root, c, now)
+	}
+	c.Bloqueo = "Verificar: la persona dice que ya lo hizo (" + cuando + "). Era: " + p.bloqueo
+	return "el ⏳ pasa a la IA para que lo verifique", estado.Set(root, c, now)
+}
+
+func desdeDonde(p Pregunta) string {
+	if p.RespondidaEn == EnPC {
+		return "desde el PC"
+	}
+	return "desde " + LugarDe(p)
+}
+
+// avisarALaIA deja el mensaje para la sesión abierta cuando responde un teléfono. La respuesta ya está en el estado, así
+// que la pregunta no sigue esta instrucción (FND-141): si no llega, no se pierde nada.
+func avisarALaIA(root string, p Pregunta, now time.Time) error {
+	mensaje := mensajeEspera(p)
+	if p.RespondidaEn != EnTelefono || mensaje == "" || !HaySesion(root, now) {
+		return nil
+	}
+	instruccion := Ejecucion{Solicitud: fmt.Sprintf("%s-%d", p.ID, now.Unix()), Tipo: EjecutarIA, Texto: mensaje, Nombre: p.Lugar}
+	_, err := RegistrarEjecucion(root, instruccion, now)
+	return err
 }
 
 // EsperaDelPanel es una pregunta de la persona como la dibuja «▶ Para ti» (issue #149). Atender es la acción que la
@@ -286,21 +368,29 @@ func EsperasDelPanel(root string, now time.Time) []EsperaDelPanel {
 func ReabrirEspera(root, id, instruccion string, now time.Time) error {
 	return conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
 		i := indicePregunta(cola, id)
-		if i < 0 || cola[i].Instruccion != instruccion {
+		if instruccion == "" || i < 0 || cola[i].Instruccion != instruccion {
 			return cola, nil
 		}
 		return append(cola[:i], cola[i+1:]...), nil
 	})
 }
 
-// mensajeEspera es lo que lee la IA: a qué ⏳ responde, la respuesta tal cual y cómo reflejarla.
+// mensajeEspera es lo que lee la IA: a qué ⏳ responde, la respuesta tal cual y qué hacer. «Todavía no» no le pide nada.
 func mensajeEspera(p Pregunta) string {
 	q := p.Preguntas[0]
-	texto := ""
-	if r := p.Respuesta[q.ID]; r.Otra != nil {
-		texto = *r.Otra
+	r := p.Respuesta[q.ID]
+	if r.Otra != nil {
+		return mensajeDeRespuesta(q, *r.Otra)
 	}
-	return mensajeDeRespuesta(q, texto)
+	valor := r.Opciones[0]
+	if valor == EsperaTodaviaNo {
+		return ""
+	}
+	que := "Quedó en el estado como un ⏳ tuyo: verifícalo y refléjalo (qdd_estado set)."
+	if valor == EsperaYaNoVa {
+		que = "La etapa quedó en — en el estado. Si algo dependía de eso, ajústalo."
+	}
+	return "Respondo a tu ⏳ «" + q.Encabezado + ": " + q.Texto + "»: " + etiquetaDe(q, valor) + ".\n\n" + que
 }
 
 func mensajeDeRespuesta(q ItemPregunta, texto string) string {
