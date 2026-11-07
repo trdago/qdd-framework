@@ -118,3 +118,21 @@ func TestAudit_TieneLaBanderaCompleto_RFC0020(t *testing.T) {
 		t.Fatal("qdd audit --completo es lo que permite repetirlas todas")
 	}
 }
+
+// FND-174: el gate del CI y el de publicar corrían sin claude, así que la suite del panel quedaba «sin medir» en los dos.
+func TestCI_InstalaLasHerramientasDeLasSuitesDelGate_FND174(t *testing.T) {
+	for _, flujo := range []string{"quality.yml", "publish.yml"} {
+		contenido, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", flujo))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, despues, ok := strings.Cut(string(contenido), "npm install -g @anthropic-ai/claude-code@")
+		if !ok {
+			t.Errorf("%s no instala Claude Code", flujo)
+			continue
+		}
+		if !strings.Contains(despues, "make audit") {
+			t.Errorf("%s instala Claude Code después del gate", flujo)
+		}
+	}
+}

@@ -20,6 +20,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   saltarse ninguna prueba.
 - **La caché de Go ya no aprueba pruebas con archivos rotos (FND-173):** Go solo vigila los archivos de `cli/`, así que las
   pruebas que leen docs o workflows pasaban desde la caché aunque esos archivos cambiaran. El gate las corre sin caché.
+- **La suite del panel ya corre en el CI y al publicar (FND-174):** quedaba «sin medir» porque el CI no tenía `claude`, así
+  que sus 221 pruebas solo corrían en el PC de quien auditaba.
 
 ## [2.10.0-rc.21] - 2026-11-06
 
