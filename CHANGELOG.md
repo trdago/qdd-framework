@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.31] - 2026-11-07
+
+### Agregado
+
+- **Ítems en cada nodo de un flujo:** pruebas, notas, características y funciones. Al probar con qdd-human, las pruebas de
+  cada paso se ven en el nodo como ☐ pendiente, ✓ pasa o ✗ falla, con su evidencia, y desde el mismo nodo agregas algo
+  específico que probar. qdd-human las lee del flujo y las marca con la carpeta del run. En el panel: **Ítem** (`b`) en
+  cada nodo, ✓ ✗ para marcar y el resumen en la fila del nodo. El teléfono manda las mismas operaciones. Nuevo
+  `qdd flujo item agregar | marcar | quitar`.
+
 ## [2.10.0-rc.30] - 2026-11-07
 
 ### Agregado

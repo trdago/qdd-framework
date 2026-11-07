@@ -224,3 +224,27 @@ func TestFlujo_PreguntarAUnNodoYAlFlujoYLaIARespondeAhi(t *testing.T) {
 		t.Fatalf("y en el flujo: %+v", d.Comentarios)
 	}
 }
+
+// Ítems de un nodo (pedido de la persona, 2026-11-07): pruebas que qdd-human marca, notas, características y funciones.
+func TestFlujo_ItemsDeUnNodo(t *testing.T) {
+	proyectoConFlujo(t)
+	correrFlujo(t, flujoItemAgregarCmd, map[string]string{"de": "persona"}, "pago", "a", "prueba", "publica con el tag correcto")
+	correrFlujo(t, flujoItemAgregarCmd, map[string]string{"de": "persona"}, "pago", "a", "nota", "corre en CI")
+	var envio flujoEnvio
+	if err := json.Unmarshal([]byte(correrFlujo(t, flujoEnviarCmd, map[string]string{"json": "true"}, "pago")), &envio); err != nil {
+		t.Fatal(err)
+	}
+	if envio.N != 2 || !strings.Contains(envio.Mensaje, "qdd flujo item marcar pago a i1") {
+		t.Fatalf("la IA ve los ítems nuevos y cómo marcar la prueba: %+v", envio)
+	}
+	correrFlujo(t, flujoItemMarcarCmd, map[string]string{"evidencia": ".qdd/evidence/run_1"}, "pago", "a", "i1", "pasa")
+	correrFlujo(t, flujoItemQuitarCmd, nil, "pago", "a", "i2")
+	d := verFlujo(t, "pago", nil)
+	items := d.Nodos[0].Items
+	if len(items) != 1 || items[0].Estado != "pasa" || items[0].Evidencia != ".qdd/evidence/run_1" {
+		t.Fatalf("ítems: %+v", items)
+	}
+	if len(d.PorEnviar) != 0 {
+		t.Fatalf("lo que hace la IA no la llama: %v", d.PorEnviar)
+	}
+}

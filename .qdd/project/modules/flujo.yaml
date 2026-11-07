@@ -36,6 +36,7 @@ objetivo_tecnologico:
         - Una línea por enviar le llega a la IA una sola vez; si no pudo recibirla, vuelve a quedar pendiente.
         - Deshacer no pisa lo que otro cambió después ni lo que la IA ya recibió.
         - Reescribir un flujo con qdd flujo crear o quitar un nodo no pierde comentarios.
+        - 'Ítems de un nodo (pedido de la persona, 2026-11-07): cada nodo lleva items {id i<n>, tipo prueba|nota|caracteristica|funcion, texto hasta 500, y en una prueba estado pendiente|pasa|falla, evidencia hasta 300 y cuándo}, tope 50 por nodo. Al probar con qdd-human son las pruebas de ese paso: el skill las lee del flujo y las marca con qdd flujo item marcar … --evidencia <run>; nunca marca una que no corrió. En cualquier flujo sirven para notas, características y funciones. Agregar, marcar y quitar son ediciones: la de la persona espera a «Enviar» o al próximo mensaje, y una prueba nueva le dice a la IA cómo marcarla. Panel: «Ítem» (b) en cada nodo, ✓ ✗ − por ítem (la persona marca con evidencia «a mano») y el resumen ✓ ✗ ☐ en la fila del nodo. Teléfono: operaciones item-agregar, item-marcar e item-quitar. Texto y evidencia pasan por el ocultador. Reescribir el flujo no pierde los ítems.'
         - 'Preguntar (pedido de la persona, 2026-11-07): la persona le pregunta a un nodo, o al flujo completo, qué hace o qué significa una palabra. La pregunta queda marcada (pregunta: true) bajo el nodo o en Flujo.Comentarios, y le llega a la IA en el acto con el contexto del nodo en la pista (descripción, de dónde viene y qué sigue), para que responda orientada a ese nodo sin releer el flujo. La IA responde con qdd flujo responder <flujo> [<nodo>] "<texto>", que no la vuelve a llamar. En el panel: botón Preguntar (g) en cada nodo y «Preguntar sobre el flujo» (i) sobre los nodos; en el teléfono, la operación preguntar. Los comentarios del flujo completo viajan al teléfono pasados por el ocultador, como los de un nodo.'
 pruebas:
     comandos:
@@ -50,4 +51,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-07"
-revisado_en_commit: 7294a58555a4
+revisado_en_commit: 619a9f9bbc51

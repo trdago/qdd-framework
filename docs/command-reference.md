@@ -150,6 +150,10 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo deshacer <flujo>` | Deshace la última edición de la persona, si la IA todavía no la recibe y nadie cambió el flujo. |
 | `qdd flujo preguntar <flujo> [<nodo>] <texto>` | La persona pregunta por un nodo (qué hace, qué significa una palabra) o, sin nodo, por el flujo completo. Queda marcada (❓) bajo el nodo o en el flujo, y la IA la recibe con el contexto del nodo: su descripción, de dónde viene y qué sigue. Lo usa el panel; el teléfono manda la operación `preguntar`. (qdd 2.10.0) |
 | `qdd flujo responder <flujo> [<nodo>] <texto>` | La IA responde un ❓ de la persona, bajo el nodo o en el flujo completo. No vuelve a llamar a la IA. (qdd 2.10.0) |
+| `qdd flujo item` | Los ítems de un nodo: pruebas (pendiente, pasa, falla, con evidencia), notas, características y funciones. Al probar con qdd-human, las pruebas de cada paso; en cualquier flujo, notas. Se ven y se editan en el nodo, en el panel y en el teléfono. (qdd 2.10.0) |
+| `qdd flujo item agregar <flujo> <nodo> <prueba\|nota\|caracteristica\|funcion> <texto> [--de persona]` | Agrega un ítem al nodo, con id `i1`, `i2`…; una prueba nace pendiente. La IA ve qué hay que probar y cómo marcarlo. (qdd 2.10.0) |
+| `qdd flujo item marcar <flujo> <nodo> <item> <pendiente\|pasa\|falla> [--evidencia E] [--de persona]` | Marca una prueba del nodo. La evidencia es de esa marca: la carpeta del run de qdd-human, un commit o «a mano». (qdd 2.10.0) |
+| `qdd flujo item quitar <flujo> <nodo> <item> [--de persona]` | Quita un ítem del nodo. (qdd 2.10.0) |
 | `qdd flujo pedir-detalle <flujo> <nodo>` | Deja por enviar la pregunta de la persona por un nodo; lo usa el panel. |
 | `qdd flujo enviar <flujo> [--json]` | Reclama lo pendiente y escribe el mensaje para la IA; lo usa el panel. |
 | `qdd flujo devolver <flujo> --n N` | Deja como pendientes las últimas N líneas, si no se pudieron entregar; lo usa el panel. |

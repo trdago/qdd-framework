@@ -43,6 +43,7 @@ type Nodo struct {
 	Siguen      []string `yaml:"siguen,omitempty" json:"siguen,omitempty"`
 
 	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
+	Items       []Item       `yaml:"items,omitempty" json:"items,omitempty"`
 }
 
 // Flujo empieza en su primer nodo; todos los demás tienen que poder alcanzarse desde ahí.
@@ -136,6 +137,7 @@ func problemasDeNodo(n Nodo, vistos map[string]bool) []string {
 	for _, c := range n.Comentarios {
 		problemas = append(problemas, problemasDeComentario(fmt.Sprintf("el nodo %q", n.ID), c)...)
 	}
+	problemas = append(problemas, problemasDeItems(n.ID, n.Items)...)
 	return problemas
 }
 
