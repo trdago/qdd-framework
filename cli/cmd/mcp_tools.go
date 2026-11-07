@@ -22,7 +22,7 @@ func registerAuditTool(s *server.MCPServer) {
 
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cwd, _ := os.Getwd()
-		engine := audit.NewEngine(cwd)
+		engine := audit.NewEngine(cwd).ParandoAlBloquear()
 		violations := engine.RunAll()
 
 		return mcp.NewToolResultText(formatAuditResult(violations)), nil

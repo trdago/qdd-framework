@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -26,6 +27,7 @@ const (
 	envPruebasCompletas = "QDD_PRUEBAS_COMPLETAS"
 	// vigenciaSuite: una herramienta puede cambiar sin que cambie ningún archivo.
 	vigenciaSuite = 24 * time.Hour
+	topeVersion   = 5 * time.Second
 )
 
 // PedirPruebasCompletas hace que este proceso corra todas las suites, ya hayan pasado o no.
@@ -56,6 +58,13 @@ func huellaDeSuite(tc testCommand) string {
 	}
 	h := sha256.New()
 	fmt.Fprintf(h, "%s\x00%s\x00%s\x00", tc.Label, strings.Join(tc.Rutas, "\x00"), runtime.GOOS)
+	for _, programa := range tc.Requiere {
+		version := versionDePrograma(programa)
+		if version == "" {
+			return ""
+		}
+		fmt.Fprintf(h, "%s\x00%s\x00", programa, version)
+	}
 	for _, ruta := range tc.Rutas {
 		archivos := archivosDeRuta(tc.Dir, ruta)
 		if len(archivos) == 0 {
@@ -67,6 +76,18 @@ func huellaDeSuite(tc testCommand) string {
 		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// versionDePrograma es como fijar el digest en un FROM de Docker: al actualizar la herramienta, la huella cambia. Vacía si no
+// se sabe, y entonces la suite corre.
+func versionDePrograma(programa string) string {
+	ctx, cancelar := context.WithTimeout(context.Background(), topeVersion)
+	defer cancelar()
+	salida, err := exec.CommandContext(ctx, programa, "--version").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(salida))
 }
 
 // archivosDeRuta da los archivos que git ve en la ruta, commiteados o no; los ignorados no cuentan.

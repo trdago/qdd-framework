@@ -33,11 +33,22 @@ func (v Violation) Format() string {
 
 // EngineCoordinator orquesta todas las certificaciones
 type EngineCoordinator struct {
-	cwd string
+	cwd             string
+	pararAlBloquear bool
 }
+
+// ReglaPruebasPendientes dice que las pruebas no se corrieron porque una regla ya bloqueaba.
+const ReglaPruebasPendientes = "QA-04-PRUEBAS-PENDIENTES"
 
 func NewEngine(cwd string) *EngineCoordinator {
 	return &EngineCoordinator{cwd: cwd}
+}
+
+// ParandoAlBloquear no corre las pruebas si una regla ya bloquea el gate (RFC 0020): quien itera arregla primero lo barato. Lo
+// usan qdd audit y qdd_audit. El CI y --completo corren todo, y lo que mide (report, score) nunca se detiene.
+func (e *EngineCoordinator) ParandoAlBloquear() *EngineCoordinator {
+	e.pararAlBloquear = true
+	return e
 }
 
 // RunAll ejecuta todas las certificaciones universales y devuelve la lista de violaciones.
@@ -55,12 +66,35 @@ func (e *EngineCoordinator) RunAll() []Violation {
 
 	e.runCoreChecks(p, &allViolations)
 	e.runAdvancedChecks(p, &allViolations)
+	allViolations = append(allViolations, e.pruebasOPendientes(p, allViolations)...)
 
 	// Filtro de supresión Enterprise (Grandfathering)
 	allViolations = FilterIgnoredViolations(allViolations)
 	marcarRecomendaciones(p, allViolations)
 
 	return allViolations
+}
+
+// pruebasOPendientes corre las pruebas, que van al final porque son lo caro, salvo que ya se sepa que el gate no aprueba.
+func (e *EngineCoordinator) pruebasOPendientes(p QDDPolicies, reglas []Violation) []Violation {
+	bloquean := bloqueantesDeReglas(p, reglas)
+	if !e.pararAlBloquear || bloquean == 0 || os.Getenv("CI") != "" || os.Getenv(envPruebasCompletas) != "" {
+		return RunCoverageCheck(e.cwd)
+	}
+	fmt.Fprintf(os.Stderr, "[QA] PRUEBAS PENDIENTES: %d regla(s) ya bloquean el gate; corrígelas primero o usa qdd audit --completo\n", bloquean)
+	return []Violation{{
+		Category:      "COVERAGE",
+		RuleID:        ReglaPruebasPendientes,
+		Description:   "No se corrieron las pruebas porque una regla ya bloquea el gate. Corrígela primero, o usa qdd audit --completo para verlo todo de una vez.",
+		Recomendacion: true,
+	}}
+}
+
+// bloqueantesDeReglas cuenta sobre una copia: lo mismo que hará RunAll al final, sin tocar la lista.
+func bloqueantesDeReglas(p QDDPolicies, reglas []Violation) int {
+	copia := FilterIgnoredViolations(append([]Violation{}, reglas...))
+	marcarRecomendaciones(p, copia)
+	return len(Bloqueantes(copia))
 }
 
 func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation) {
@@ -73,7 +107,6 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	}
 
 	*violations = append(*violations, RunTwelveFactorCheck(e.cwd)...)
-	*violations = append(*violations, RunCoverageCheck(e.cwd)...)
 	if p.DeployGateEnabled() {
 		*violations = append(*violations, RunDeployGateCheck(e.cwd)...)
 	}
