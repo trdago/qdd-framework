@@ -4,17 +4,21 @@ estado: aprobado
 rutas:
     - cli/pkg/audit/coverage.go
     - cli/pkg/audit/adopcion.go
+    - cli/pkg/audit/suites_recordadas.go
 objetivo_operativo:
     problema: 'El gate (qdd audit) es la única puerta antes de un commit o un despliegue: si una suite del proyecto no corre ahí, nadie sabe si pasa. Algunas suites necesitan una herramienta que no está en todas las máquinas (p. ej. la CLI de Claude para probar un mod de consola): sin ella, el gate no puede fingir que pasaron ni romper el CI que no la tiene.'
     usuarios: Las personas y las IAs que corren qdd audit, localmente y en el CI.
-    criterio_de_exito: Cada suite del proyecto corre en el gate; la que no se puede correr en esta máquina queda «sin medir» y lo dice, nunca como aprobada.
+    criterio_de_exito: Cada suite del proyecto corre en el gate, salvo la que declara sus rutas y ya pasó con esos mismos archivos (RFC 0020), que lo dice; la que no se puede correr en esta máquina queda «sin medir» y lo dice, nunca como aprobada.
     caso_real: '2026-10-31: las 41 pruebas del panel de Claude Code y las 9 del panel de OpenCode no estaban en el gate ni en el CI; solo pasaban cuando alguien se acordaba de correrlas.'
 objetivo_tecnologico:
-    arquitectura: 'RunCoverageCheck corre los test_commands de .qdd/config.yaml (o los que detecta: npm, go, flutter, pytest) y cada falla es QA-01-ALL-TESTS-PASS. Un test_command es un texto o {comando, requiere: [programas]}. adopcion.go decide qué bloquea: en adopción gradual, las reglas de madurez pasan a recomendación.'
+    arquitectura: 'RunCoverageCheck corre los test_commands de .qdd/config.yaml (o los que detecta: npm, go, flutter, pytest) y cada falla es QA-01-ALL-TESTS-PASS. Un test_command es un texto o {comando, requiere: [programas], rutas: [carpetas]}. suites_recordadas.go guarda en la carpeta común de git las huellas de lo que pasó. adopcion.go decide qué bloquea: en adopción gradual, las reglas de madurez pasan a recomendación.'
     decisiones:
         - 'Una suite con requiere cuyos programas no están en el PATH no se corre: queda QA-03-SIN-MEDIR, una recomendación que no bloquea y dice qué falta. No es aprobada ni fallida: se mide donde está la herramienta (pedido del usuario, 2026-10-31: «testear el panel de la derecha y verificar que pase todas las pruebas»).'
         - 'La adopción gradual solo suma recomendaciones: nunca le quita esa marca a lo que la regla ya marcó como recomendación (FND-101: QA-03-SIN-MEDIR bloqueaba el gate en un proyecto con adopción gradual).'
+        - 'Una suite puede declarar rutas (RFC 0020, pedido de la persona 2026-11-07, para ganar velocidad sin perder calidad): si ya pasó con esos mismos archivos no se repite. Se decide por una huella del contenido, no por contra qué rama se compara, porque aquí main está muy atrás y casi todo parecería cambiado. Tampoco se eligen por los comandos de las fichas: en el caso del relay, el filtro de la ficha remoto alcanzaba 3 de las 41 pruebas de esos archivos.'
     invariantes:
+        - 'Una suite solo se salta si pasó con la misma huella en las últimas 24 h. Lo que no se puede asegurar corre: sin rutas, una ruta sin archivos, fuera de git, en el CI, con qdd audit --completo y al certificar.'
+        - Una suite que falla nunca se recuerda.
         - Una suite que corre y falla siempre bloquea el gate (QA-01).
         - Una suite que no se pudo correr nunca se informa como aprobada.
         - Una prueba que lee fuera del módulo de Go corre sin caché en el gate (FND-173), porque Go no vigila esos archivos.
@@ -22,4 +26,4 @@ pruebas:
     comandos:
         - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones'
 ultima_revision: "2026-11-07"
-revisado_en_commit: 3725110e2b81
+revisado_en_commit: e68d7628bed7

@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Una suite no se repite si no cambió nada de lo suyo (RFC 0020).** En `test_commands`, una suite puede declarar
+  `rutas: [carpetas]`: si ya pasó con esos mismos archivos en las últimas 24 h, `qdd audit` la salta y lo dice. Sirve para
+  cualquier lenguaje: un cambio de estilos no repite las pruebas de reglas de negocio. El CI, `qdd certify` y
+  `qdd audit --completo` corren siempre todo. Cada suite muestra además cuánto tardó.
+
 ### Corregido
 
 - **Las pruebas ya no lanzan un agente real (FND-172):** cuatro pruebas de Go corrían `claude -p` o `agentapi` en cada

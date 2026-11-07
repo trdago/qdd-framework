@@ -91,3 +91,30 @@ func TestGate_LasPruebasQueLeenFueraDelModuloCorrenSinCache_FND173(t *testing.T)
 		t.Fatal(err)
 	}
 }
+
+// RFC 0020: un certificado no puede salir de suites recordadas.
+func TestCertificar_SiempreEsUnaCorridaCompleta_RFC0020(t *testing.T) {
+	for archivo, desde := range map[string]string{"certify.go": "func runCertify", "mcp_tools.go": "func registerCertifyTool"} {
+		fuente, err := os.ReadFile(archivo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, cuerpo, ok := strings.Cut(string(fuente), desde)
+		if !ok {
+			t.Fatalf("%s no tiene %s", archivo, desde)
+		}
+		fin := strings.Index(cuerpo, "\nfunc ")
+		if fin >= 0 {
+			cuerpo = cuerpo[:fin]
+		}
+		if !strings.Contains(cuerpo, "RunAllCompleto()") || strings.Contains(cuerpo, ".RunAll()") {
+			t.Errorf("%s: %s tiene que usar RunAllCompleto", archivo, desde)
+		}
+	}
+}
+
+func TestAudit_TieneLaBanderaCompleto_RFC0020(t *testing.T) {
+	if auditCmd.Flags().Lookup("completo") == nil {
+		t.Fatal("qdd audit --completo es lo que permite repetirlas todas")
+	}
+}

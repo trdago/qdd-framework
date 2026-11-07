@@ -60,7 +60,7 @@ Estos comandos puedes ejecutarlos sin miedo directo en la terminal. Su único tr
 
 | Comando | Descripción |
 |---------|-------------|
-| `qdd audit` | Revisa el proyecto contra las reglas del framework: corre las pruebas del proyecto y revisa OWASP, Cero `else`, despliegues, fichas y blueprints. Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. Ver [Reglas del gate](#reglas-del-gate). **Seguro.** |
+| `qdd audit [--completo]` | Revisa el proyecto contra las reglas del framework: corre las pruebas del proyecto y revisa OWASP, Cero `else`, despliegues, fichas y blueprints. Una suite que declara `rutas` en `test_commands` no se repite si ya pasó con esos mismos archivos; `--completo` las corre todas. Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. Ver [Reglas del gate](#reglas-del-gate). **Seguro.** |
 | `qdd certify` | Audita el proyecto, calcula el puntaje y lo guarda en el historial para medir la tendencia. **Seguro.** |
 | `qdd doctor [--fix]` | Verifica que el entorno QDD esté completamente funcional (checklist determinista), incluidos los blueprints de la organización: sin copias en el proyecto, íntegros en la carpeta central, acceso al repositorio y al día. `--fix` migra, reconstruye desde el lockfile (otro PC) y sincroniza; nunca borra copias editadas ni actualiza blueprints por su cuenta. **Seguro.** |
 | `qdd report` | Genera el reporte integral y consolidado de auditoría, certificaciones, findings y telemetría en formato Text, Markdown o JSON. **Seguro.** |

@@ -42,7 +42,7 @@ func runCertify(cmd *cobra.Command, args []string) {
 
 	engine := audit.NewEngine(cwd)
 	fmt.Println("[+] Ejecutando motor de auditoría...")
-	violations := engine.RunAll()
+	violations := engine.RunAllCompleto()
 
 	fmt.Print(formatAuditResult(violations))
 
