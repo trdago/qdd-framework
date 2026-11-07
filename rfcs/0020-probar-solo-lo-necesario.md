@@ -28,7 +28,7 @@ Medido el 2026-11-07 en este repositorio, sobre los últimos 300 commits. Cambi�
 | Nada cambió | 9 s | no se repite |
 | Cambio solo en Go | 13 s | no se repite |
 | Cambio en el panel, como un color | 31 s | se repite |
-| `--completo` | 27 s | se repite |
+| `--completo` | 27 a 51 s | se repite |
 
 ## Decisiones
 
