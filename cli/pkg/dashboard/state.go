@@ -445,8 +445,13 @@ func loadStateJson(response *QDDState, qddDir string) {
 	}
 }
 
+// loadWorkingOn lee el comando que corre: en working/comando, o en working como archivo si lo escribió una versión
+// anterior (FND-182).
 func loadWorkingOn(response *QDDState, qddDir string) {
-	workData, err := os.ReadFile(filepath.Join(qddDir, "working"))
+	workData, err := os.ReadFile(filepath.Join(qddDir, "working", "comando"))
+	if err != nil {
+		workData, err = os.ReadFile(filepath.Join(qddDir, "working"))
+	}
 	if err == nil {
 		response.WorkingOn = strings.TrimSpace(string(workData))
 	}
