@@ -6,7 +6,7 @@ rutas:
     - cli/cmd/flujo.go
 objetivo_operativo:
     problema: Explicar el camino de una solicitud, un pipeline o un proceso en prosa obliga a la otra parte a imaginar su forma. La persona y la IA terminan hablando de dibujos distintos sin saberlo.
-    usuarios: La IA, que crea el flujo para explicar algo y responde en él, y la persona, que lo ve, lo edita y lo comenta en el panel.
+    usuarios: La IA, que crea el flujo para explicar algo y responde en él; la persona, que lo ve, lo edita y lo comenta en el panel; y un cliente o un experto sin QDD, que lo revisa en un archivo HTML y propone cambios (RFC 0025).
     criterio_de_exito: Un flujo guardado con qdd flujo crear aparece en la pestaña Flujos del panel, hacia abajo y con scroll, cabe en el ancho de la pestaña y cada nodo se ve. Un cambio se ve en menos de 1 s sin un proceso por lectura. Solo se materializa lo que cambió. Una edición de la persona pasa por las mismas validaciones que la de la IA, y la IA la recibe una sola vez, en una línea.
     caso_real: 'Pedido de la persona, 2026-11-05: «una forma de mostrar grafos en el panel de la derecha […] para entender flujos completos y explicarle al llm como lo queremos». En un panel real: un cambio se ve en 841 ms y un flujo de 50 nodos aparece en 517 ms, con scroll de rueda.'
 objetivo_tecnologico:
@@ -30,6 +30,10 @@ objetivo_tecnologico:
         - 'Niveles y grupos (#186, partes B y C; la persona eligió «Los tres, en orden»). Cada nodo tiene nivel 1 (hito), 2 (paso) o 3 (desvío): se calcula desde el camino principal (el más largo desde el inicio; su inicio y su final son hitos, el resto del camino es paso y lo de fuera desvío) y la persona lo corrige en la tarjeta (Nodo.Nivel; 0 es calculado). Nodo.Grupo junta pasos bajo un nombre.'
         - Plegar arma el flujo de cada vista sin tocar el guardado. Nivel 1 (panorama) dibuja una caja por grupo cerrado (sus hitos, cuántos pasos y desvíos) y, sin grupos, solo los hitos; nivel 2 quita los desvíos y los cuenta en el nodo que llega a ellos; nivel 3 es el flujo entero. Cada nodo visible se une con los visibles a los que llegaba por nodos escondidos, así que el plegado sigue siendo un flujo válido que se dibuja entero (prueba al azar). El inicio y el nodo elegido siempre se ven.
         - 'El panel abre en el panorama los flujos de 15 nodos o más; 1, 2 y 3 cambian el nivel, cada grupo se abre solo, y la tarjeta muestra y edita nivel y grupo. analisis-oportunidades con cuatro grupos: 95 líneas completo, 68 en el camino y 21 en el panorama a 100 columnas.'
+        - 'Toma de requerimientos con clientes (RFC 0025, decisiones de la persona 2026-11-08): un archivo HTML con relay; el cliente y el experto (con su invitación de rol experto) comentan y proponen; el asistente es Claude en el PC del moderador; cada propuesta se aprueba una por una en «Para ti».'
+        - 'Plantillas (RFC 0025): un solo modelo de grafo; la plantilla (proceso, web, datos, agentes) trae los tipos de nodo con su forma (caja o círculo), su ícono, su leyenda y el nombre de cada nivel. Vacía es proceso, con paso y resultado, así que los flujos de antes no cambian.'
+        - 'Versiones (RFC 0025): cada cambio guardado sube Flujo.Revision y deja una línea en <id>.historial.jsonl (versionado, solo crece) con autor y origen. Una versión con nombre guarda la foto entera en versiones/<id>/<n>.yaml. Volver a una es una revisión nueva, nunca reescribe la historia.'
+        - 'Audio (RFC 0025): lo abre el moderador, que tiene la cuenta de QDD, con el acepto de todos; elige whisper local o Claude. La transcripción completa queda en su PC como historia-usuaria de la sesión, fuera de git.'
     invariantes:
         - Un flujo inválido no se escribe.
         - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.
@@ -43,12 +47,16 @@ objetivo_tecnologico:
         - Reescribir un flujo con qdd flujo crear o quitar un nodo no pierde comentarios.
         - 'Ítems de un nodo (pedido de la persona, 2026-11-07): cada nodo lleva items {id i<n>, tipo prueba|nota|caracteristica|funcion, texto hasta 500, y en una prueba estado pendiente|pasa|falla, evidencia hasta 300 y cuándo}, tope 50 por nodo. Al probar con qdd-human son las pruebas de ese paso: el skill las lee del flujo y las marca con qdd flujo item marcar … --evidencia <run>; nunca marca una que no corrió. En cualquier flujo sirven para notas, características y funciones. Agregar, marcar y quitar son ediciones: la de la persona espera a «Enviar» o al próximo mensaje, y una prueba nueva le dice a la IA cómo marcarla. Panel: «Ítem» (b) en cada nodo, ✓ ✗ − por ítem (la persona marca con evidencia «a mano») y el resumen ✓ ✗ ☐ en la fila del nodo. Teléfono: operaciones item-agregar, item-marcar e item-quitar. Texto y evidencia pasan por el ocultador. Reescribir el flujo no pierde los ítems.'
         - 'Preguntar (pedido de la persona, 2026-11-07): la persona le pregunta a un nodo, o al flujo completo, qué hace o qué significa una palabra. La pregunta queda marcada (pregunta: true) bajo el nodo o en Flujo.Comentarios, y le llega a la IA en el acto con el contexto del nodo en la pista (descripción, de dónde viene y qué sigue), para que responda orientada a ese nodo sin releer el flujo. La IA responde con qdd flujo responder <flujo> [<nodo>] "<texto>", que no la vuelve a llamar. En el panel: botón Preguntar (g) en cada nodo y «Preguntar sobre el flujo» (i) sobre los nodos; en el teléfono, la operación preguntar. Los comentarios del flujo completo viajan al teléfono pasados por el ocultador, como los de un nodo.'
+        - Nada de un cliente, un experto, el asistente o una transcripción entra al flujo sin la aprobación de la persona, una propuesta por vez, ni en modo goal.
+        - La foto que va al cliente nunca lleva tareas, pruebas, evidencias, comentarios o notas internas ni rutas del proyecto.
+        - Ni el audio ni la transcripción pasan por el relay ni van a git.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/flujo ./cmd -run Flujo
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
 fuentes:
     - rfcs/0012-grafo-de-trabajo.md
+    - rfcs/0025-flujo-para-clientes.md
     - cli/pkg/flujo/flujo.go
     - cli/pkg/flujo/edicion.go
     - cli/pkg/flujo/registro.go
@@ -56,4 +64,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: ac8067eeda77
+revisado_en_commit: 94e8a24d7e38
