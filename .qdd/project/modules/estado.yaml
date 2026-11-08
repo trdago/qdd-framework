@@ -174,5 +174,5 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
-ultima_revision: "2026-11-07"
-revisado_en_commit: 1db948924f23
+ultima_revision: "2026-11-08"
+revisado_en_commit: a2944a2eac6b
