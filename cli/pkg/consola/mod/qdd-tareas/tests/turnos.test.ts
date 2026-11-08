@@ -1,7 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 // RFC 0019: «no puedo estar adivinando cuál debería contestar primero». Para ti es una sola lista en el orden que da qdd,
-// sin grupos por tipo, con el número de cada cosa, lo que sigue y lo que espera.
+// con el número de cada cosa, lo que sigue y lo que espera. Desde el 2026-11-08 (pedido de la persona) las acciones van
+// primero y las preguntas quedan plegadas en «? N», sin perder su número.
 
 const PANEL = {
   plugin: 'qdd-tareas',
@@ -43,7 +44,9 @@ async function montado($, on, acciones, esperas = [EN_LA_TABLA], estado = null) 
   preparar(on, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await esperar()
-  return { ui: await $.ui.mount({ ...PANEL, surface: 'terminal' }), r }
+  const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
+  if (await ui.find({ key: 'preguntas-ver' })) await ui.press({ key: 'preguntas-ver' })
+  return { ui, r }
 }
 
 async function textoDe(ui) {
@@ -51,13 +54,13 @@ async function textoDe(ui) {
   return nodos.join('\n')
 }
 
-test('todo sale en una lista, en el orden de qdd y con su número', async ($, on) => {
+test('las acciones en el orden de qdd y después las preguntas, todo con su número', async ($, on) => {
   const { ui } = await montado($, on, [PEDIDO, FICHA, ESPERA, ATADO, DIALOGO, CERRADA])
   const texto = await textoDe(ui)
   for (const n of ['#12', '#13', '#14', '#15', '#16']) expect(texto).toContain(n)
   expect(texto).not.toContain('Vieja')
   const botones = (await ui.findAll({ type: 'Button' })).map((b) => b.props.key ?? b.key)
-  const enLista = ['b-' + PEDIDO.id, 'b-' + FICHA.id, 'espera-0', 'b-' + ATADO.id]
+  const enLista = ['b-' + PEDIDO.id, 'b-' + FICHA.id, 'b-' + ATADO.id, 'preguntas-ver', 'espera-0']
   expect(botones.filter((k) => enLista.includes(k))).toEqual(enLista)
 })
 

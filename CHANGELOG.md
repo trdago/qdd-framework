@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.43] - 2026-11-08
+
+### Changed
+- Panel: en «▶ Para ti» van primero las acciones (pedidos y fichas); las preguntas (⏳ y lo abierto en la terminal) quedan plegadas en un botón «▸ ? N» que se despliega si quieres, cada una con su número de turno.
+
 ## [2.10.0-rc.42] - 2026-11-08
 
 ### Added
