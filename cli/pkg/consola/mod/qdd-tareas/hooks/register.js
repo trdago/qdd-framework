@@ -379,7 +379,77 @@ function vistaFlujos($, Box, Text, Button, Input, Select, ancho) {
   }
   const f = flujoElegido()
   if (!f) return mapaDeFlujos($, Box, Text, Button, Input)
-  return Box({ flexDirection: 'column', children: [...navegacionDeFlujos($, Box, Text, Button, f), dibujarFlujo($, Box, Text, Button, Input, Select, f.id, ancho)] })
+  return Box({ flexDirection: 'column', children: [...barraDeFlujo($, Box, Text, Button, f), ...compartido(Box, Text, Button, $, f.id), dibujarFlujo($, Box, Text, Button, Input, Select, f.id, ancho)] })
+}
+
+// barraDeFlujo: la navegación entre flujos y, en la esquina, «Compartir» (RFC 0025, fase 3b).
+function barraDeFlujo($, Box, Text, Button, f) {
+  const s = edicionDe(f.id)
+  const compartir = Button({ key: 'fl-compartir', label: s.compartiendo ? '↗ Compartiendo…' : 'c  ↗ Compartir', hotkey: 'c', plain: true, onPress: () => compartirFlujo($, f.id) })
+  const navegacion = navegacionDeFlujos($, Box, Text, Button, f)
+  return [Box({ key: 'fl-barra', flexDirection: 'row', justifyContent: navegacion.length ? 'space-between' : 'flex-end', children: [...navegacion, compartir] })]
+}
+
+// compartirFlujo (pedido de la persona, 2026-11-08: «debería bastar con un click en una esquina que diga compartir para
+// que genere el enlace»): qdd publica la página en el Worker de Cloudflare de la persona con el token del baúl (la
+// primera vez en esta consola, el baúl pide su permiso en «Para ti») o, sin Cloudflare, escribe el archivo. El enlace
+// lleva la llave de la invitación: se copia y se muestra aquí, nunca en el chat.
+async function compartirFlujo($, id) {
+  const s = edicionDe(id)
+  if (s.compartiendo) return
+  s.compartiendo = true
+  s.compartido = null
+  $.ui.invalidate('ui.render')
+  try {
+    const bin = await binario($)
+    const mia = await sesionPropia($)
+    const r = await $.process.run([bin, 'flujo', 'compartir', '--enlace', '--rol', 'cliente', '--json', ...(mia ? ['--sesion', mia] : []), '--', id], { timeoutMs: TOPE_COMPARTIR_MS })
+    s.compartido = resultadoDeCompartir(r)
+    if (s.compartido.enlace) s.compartido.copiado = await copiar($, s.compartido.enlace)
+  } catch (err) {
+    s.compartido = { error: String(err?.message ?? err) }
+  } finally {
+    s.compartiendo = false
+    $.ui.invalidate('ui.render')
+  }
+}
+
+const TOPE_COMPARTIR_MS = 120000
+
+// resultadoDeCompartir lee la última línea JSON de qdd; sin ella, el error que dio.
+function resultadoDeCompartir(r) {
+  const linea = String(r.stdout || '').trim().split('\n').filter(Boolean).at(-1) || ''
+  try {
+    const x = JSON.parse(linea)
+    if (x && typeof x === 'object') return x
+  } catch {}
+  return { error: sinMarcaDeQdd(r.stderr) || 'qdd no pudo compartir el flujo' }
+}
+
+async function copiar($, texto) {
+  try {
+    const r = await $.ui.copy({ text: texto })
+    return r?.copied !== false
+  } catch {
+    return false
+  }
+}
+
+// compartido: lo que dejó el último «Compartir» de este flujo, bajo la barra.
+function compartido(Box, Text, Button, $, id) {
+  const c = edicionDe(id).compartido
+  if (!c) return []
+  if (c.error) return [Text({ key: 'fl-compartido', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + c.error] })]
+  if (c.permiso) return [Text({ key: 'fl-compartido', color: COLOR.espera, wrap: 'wrap', children: ['🔑 ' + c.mensaje] })]
+  if (!c.enlace) return [Text({ key: 'fl-compartido', wrap: 'wrap', children: ['Archivo: ' + c.archivo] }), Text({ key: 'fl-compartido-nota', dimColor: true, wrap: 'wrap', children: [c.mensaje] })]
+  return [
+    Text({ key: 'fl-compartido', color: COLOR.bien, wrap: 'wrap', children: [c.copiado ? '↗ Enlace copiado: pégalo en un correo o un chat' : '↗ Enlace listo: cópialo de aquí'] }),
+    Text({ key: 'fl-enlace', wrap: 'wrap', children: [c.enlace] }),
+    Box({ key: 'fl-compartido-acciones', flexDirection: 'row', columnGap: 2, children: [
+      Button({ key: 'fl-copiar', label: 'Copiar de nuevo', plain: true, onPress: async () => { c.copiado = await copiar($, c.enlace); $.ui.invalidate('ui.render') } }),
+      Text({ key: 'fl-compartido-nota', dimColor: true, wrap: 'wrap', children: [c.mensaje] }),
+    ] }),
+  ]
 }
 
 // mapaDeFlujos: cada flujo en una fila, con sus nodos, sus pruebas y lo que tiene por enviar; un clic lo abre.

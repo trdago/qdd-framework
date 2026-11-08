@@ -517,7 +517,22 @@
   // solo cuando lo aprueban. El archivo habla solo con el relay (la CSP no deja otro destino) y, sin conexión, guarda lo
   // propuesto en el navegador y lo envía al volver.
 
-  var invitacion = JSON.parse($('enlace').textContent);
+  var invitacion = conToken(JSON.parse($('enlace').textContent));
+
+  // conToken: el archivo trae su token; la página de un enlace (fase 3b) no, porque el token viaja en el fragmento
+  // (#t=…), que el navegador no le manda al Worker. Se guarda en este navegador para volver a abrir el enlace sin él, y se
+  // saca de la barra para que no quede a la vista ni en una captura. Sin token, la página es de solo lectura.
+  function conToken(inv) {
+    if (!inv || inv.token) return inv;
+    var clave = 'qdd-flujo-token-' + inv.invitacion;
+    var m = /(?:^#|&)t=([^&]+)/.exec(window.location.hash || '');
+    if (m) {
+      guardar(clave, decodeURIComponent(m[1]));
+      try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* sin historial, queda en la barra */ }
+    }
+    inv.token = (m && decodeURIComponent(m[1])) || guardado(clave) || '';
+    return inv.token ? inv : null;
+  }
   var SONDEO_MS = 15000;
   var propio = { lista: [], vencida: false, sinRed: false, formulario: '', aviso: '', novedad: '' };
 

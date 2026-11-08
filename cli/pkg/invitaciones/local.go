@@ -54,7 +54,9 @@ type Local struct {
 	Desde         string       `json:"desde,omitempty"`
 	Propuestas    []Vista      `json:"propuestas,omitempty"`
 	FotosPorSubir []string     `json:"fotos_por_subir,omitempty"`
-	Ultimo        *time.Time   `json:"ultimo,omitempty"`
+	// Publicados son los enlaces que este PC subió al Worker de la persona (fase 3b), sin token.
+	Publicados []Publicado `json:"publicados,omitempty"`
+	Ultimo     *time.Time  `json:"ultimo,omitempty"`
 }
 
 func rutaLocal(root string) (string, error) {
@@ -173,4 +175,62 @@ func (l *Local) fotoPorSubir(flujo string) {
 	if !slices.Contains(l.FotosPorSubir, flujo) {
 		l.FotosPorSubir = append(l.FotosPorSubir, flujo)
 	}
+}
+
+// Publicado es una página que este PC subió al Worker de la persona: su id, su enlace sin fragmento y dónde vive. Sin
+// Invitacion es de solo lectura y se reusa al volver a compartir el flujo.
+type Publicado struct {
+	ID         string    `json:"id"`
+	Flujo      string    `json:"flujo"`
+	Invitacion string    `json:"invitacion,omitempty"`
+	URL        string    `json:"url"`
+	Cuenta     string    `json:"cuenta"`
+	Espacio    string    `json:"espacio"`
+	Creado     time.Time `json:"creado"`
+	Quitado    bool      `json:"quitado,omitempty"`
+}
+
+// AnotarPublicado anota el enlace, o lo actualiza si ya estaba (otra subida del mismo).
+func AnotarPublicado(root string, p Publicado) error {
+	return conLocal(root, func(l *Local) error {
+		l.Publicados = slices.DeleteFunc(l.Publicados, func(x Publicado) bool { return x.ID == p.ID })
+		l.Publicados = append(l.Publicados, p)
+		return nil
+	})
+}
+
+// MarcarQuitado anota que el enlace ya no abre.
+func MarcarQuitado(root, id string) error {
+	return conLocal(root, func(l *Local) error {
+		i := slices.IndexFunc(l.Publicados, func(p Publicado) bool { return p.ID == id })
+		if i < 0 {
+			return errors.New("este proyecto no publicó ese enlace: 'qdd flujo invitaciones' dice cuáles hay")
+		}
+		l.Publicados[i].Quitado = true
+		return nil
+	})
+}
+
+// SoloLectura es el enlace de solo lectura vigente del flujo.
+func (l Local) SoloLectura(flujo string) (Publicado, bool) {
+	return l.publicado(func(p Publicado) bool { return p.Flujo == flujo && p.Invitacion == "" })
+}
+
+// DeInvitacion es el enlace vigente de la invitación.
+func (l Local) DeInvitacion(invitacion string) (Publicado, bool) {
+	return l.publicado(func(p Publicado) bool { return p.Invitacion == invitacion })
+}
+
+// Publicado busca un enlace vigente por su id.
+func (l Local) Publicado(id string) (Publicado, bool) {
+	return l.publicado(func(p Publicado) bool { return p.ID == id })
+}
+
+func (l Local) publicado(es func(Publicado) bool) (Publicado, bool) {
+	for _, p := range l.Publicados {
+		if !p.Quitado && es(p) {
+			return p, true
+		}
+	}
+	return Publicado{}, false
 }

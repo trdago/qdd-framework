@@ -7,6 +7,8 @@ rutas:
     - cli/pkg/invitaciones
     - cli/cmd/flujo_compartir.go
     - cli/cmd/flujo_propuestas.go
+    - cli/pkg/enlaces
+    - cli/cmd/flujo_enlace.go
     - cli/cmd/flujo_historias.go
 objetivo_operativo:
     problema: Explicar el camino de una solicitud, un pipeline o un proceso en prosa obliga a la otra parte a imaginar su forma. La persona y la IA terminan hablando de dibujos distintos sin saberlo.
@@ -43,6 +45,7 @@ objetivo_tecnologico:
         - 'Propuestas de invitados (RFC 0025, fase 3): qdd flujo compartir --rol cliente|experto crea la invitación en el relay de qdd-movile, firmada con la llave de la instalación, y el archivo propone solo con ese origen (connect-src). El token va únicamente dentro del archivo: ni en la pantalla ni en el PC, que anota la invitación en <QDD_HOME>/claude/flujo-invitaciones. El panel llama qdd flujo propuestas ciclo --si-toca cada 15 s; el PC revisa cada propuesta con su propio esquema (flujo.LeerOperacion, el rol de su invitación y el autor) y rechaza sola la que no cumple, con su motivo. Cada propuesta válida es un pedido DePersona en el panel, tres a la vez; aprobarla la aplica a nombre «rol:autor» (comentario DeInvitado o nota del experto con su Autor) y descartar el pedido la rechaza. Lo que el relay no supo por falta de red se le avisa en el siguiente ciclo, con la foto nueva.'
         - 'Audio (RFC 0025): lo abre el moderador, que tiene la cuenta de QDD, con el acepto de todos; elige whisper local o Claude. La transcripción completa queda en su PC como historia-usuaria de la sesión, fuera de git.'
         - 'Historias de usuario y notas compartidas (RFC 0025): Flujo.Historias guarda solo las aprobadas {id h<n>, como, quiero, para, criterios hasta 10, nodos, origen, tarea}; quitar un nodo lo saca de ellas y reescribir el flujo las conserva. qdd flujo historia tarea crea la tarea con estado.Nueva y la anota. Item.Visible compartida deja que el cliente vea una nota, característica o función; una prueba nunca. La persona ve en la propuesta si el experto pidió compartirla y puede volverla interna después.'
+        - 'Enlace en Cloudflare (RFC 0025, fase 3b; propuesta de la persona, 2026-11-08): con un token de Cloudflare en el baúl, compartir publica la página en el Worker qdd-flujos de la cuenta de la persona (pkg/enlaces, KV por id al azar de 128 bits) y da un enlace. Sin el token en el entorno, qdd se vuelve a correr con qdd baul usar y el fin «compartir flujos por enlace», así que el permiso es el del baúl. El panel tiene «↗ Compartir» (c) en la esquina de la pestaña Flujos: un clic, invitación de cliente, enlace copiado con $.ui.copy. Sin Cloudflare, el archivo de siempre.'
     invariantes:
         - Un flujo inválido no se escribe.
         - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.
@@ -59,7 +62,7 @@ objetivo_tecnologico:
         - Nada de un cliente, un experto, el asistente o una transcripción entra al flujo sin la aprobación de la persona, una propuesta por vez, ni en modo goal.
         - La foto que va al cliente nunca lleva tareas, pruebas, evidencias, comentarios o notas internas ni rutas del proyecto. De una historia de usuario no lleva su origen ni su tarea.
         - Ni el audio ni la transcripción pasan por el relay ni van a git.
-        - El token de una invitación solo vive en el archivo del invitado; qdd no lo imprime ni lo guarda.
+        - El token de una invitación solo vive en el archivo del invitado o en el fragmento de su enlace; qdd no lo guarda ni lo sube a Cloudflare, y el panel muestra el enlace solo en el panel, nunca en el chat.
         - "Una propuesta la aprueba solo la persona, con el pedido \U0001F4DD que confirmó o en su terminal."
 pruebas:
     comandos:
@@ -75,4 +78,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: 1da9e39d5bc9
+revisado_en_commit: 70fb3f050d5d

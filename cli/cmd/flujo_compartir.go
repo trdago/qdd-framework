@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -34,6 +33,10 @@ var flujoCompartirCmd = &cobra.Command{
 	Args:  cobra.RangeArgs(0, 1),
 	Run: func(cmd *cobra.Command, args []string) {
 		root := estadoRaiz()
+		if flujoQuitarEnlace != "" {
+			quitarEnlace(cmd, root, flujoQuitarEnlace)
+			return
+		}
 		if flujoRevocar != "" {
 			revocarInvitacion(cmd, root)
 			return
@@ -47,6 +50,10 @@ var flujoCompartirCmd = &cobra.Command{
 		}
 		ahora := time.Now()
 		foto := fotoLimpia(root, f, ahora)
+		if flujoEnlace {
+			compartirPorEnlace(cmd, root, f, foto, ahora)
+			return
+		}
 		if flujoRol == "" {
 			escribirArchivo(cmd, root, f, mustArchivo(flujo.ArchivoHTML(foto)))
 			fmt.Fprintf(cmd.OutOrStdout(), "    Archivo de solo lectura (r%d): se abre en cualquier navegador; adjúntalo en un correo o un chat.\n", f.Revision)
@@ -76,6 +83,12 @@ func paraQuien() string {
 
 // invitar crea la invitación en el relay, la anota en el PC (sin el token) y arma el archivo que propone.
 func invitar(root string, f flujo.Flujo, foto flujo.Foto, ahora time.Time) (invitaciones.Invitacion, []byte) {
+	inv, e := crearInvitacion(root, f, foto, ahora)
+	return inv, mustArchivo(flujo.ArchivoParaProponer(foto, e))
+}
+
+// crearInvitacion crea la invitación en el relay y la anota en el PC sin el token; el token va en el Enlace devuelto.
+func crearInvitacion(root string, f flujo.Flujo, foto flujo.Foto, ahora time.Time) (invitaciones.Invitacion, flujo.Enlace) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	cliente, err := clienteDeInvitaciones(ctx)
@@ -95,8 +108,7 @@ func invitar(root string, f flujo.Flujo, foto flujo.Foto, ahora time.Time) (invi
 	if err := invitaciones.Anotar(root, inv); err != nil {
 		salirCon("%v", err)
 	}
-	e := flujo.Enlace{Relay: cliente.Funciones(), Clave: cliente.Relay.Clave, Token: creada.Token, Rol: flujoRol, Invitacion: creada.Invitacion}
-	return inv, mustArchivo(flujo.ArchivoParaProponer(foto, e))
+	return inv, flujo.Enlace{Relay: cliente.Funciones(), Clave: cliente.Relay.Clave, Token: creada.Token, Rol: flujoRol, Invitacion: creada.Invitacion}
 }
 
 func revocarInvitacion(cmd *cobra.Command, root string) {
@@ -113,16 +125,12 @@ func revocarInvitacion(cmd *cobra.Command, root string) {
 		salirCon("%v", err)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "[+] Invitación %s cerrada: su archivo se sigue leyendo, pero ya no propone.\n", flujoRevocar)
+	quitarEnlaceDeInvitacion(cmd, root, flujoRevocar)
 }
 
 func escribirArchivo(cmd *cobra.Command, root string, f flujo.Flujo, html []byte) {
 	destino := archivoDeCompartir(root, f.ID)
-	if err := os.MkdirAll(filepath.Dir(destino), 0o755); err != nil {
-		salirCon("%v", err)
-	}
-	if err := os.WriteFile(destino, html, 0o600); err != nil {
-		salirCon("%v", err)
-	}
+	escribirEn(destino, html)
 	fmt.Fprintf(cmd.OutOrStdout(), "[+] %s\n", destino)
 }
 
@@ -145,6 +153,11 @@ func init() {
 	f.StringVar(&flujoRol, "rol", "", "cliente o experto: crea una invitación y el archivo propone por el relay")
 	f.IntVar(&flujoDias, "dias", 14, "cuántos días vive la invitación (1 a 90)")
 	f.IntVar(&flujoTope, "tope", 50, "cuántas propuestas acepta la invitación (1 a 200)")
-	f.StringVar(&flujoRevocar, "revocar", "", "cierra esa invitación: su archivo deja de proponer")
+	f.StringVar(&flujoRevocar, "revocar", "", "cierra esa invitación: su archivo deja de proponer y su enlace deja de abrir")
+	f.BoolVar(&flujoEnlace, "enlace", false, "publica la página en tu Worker de Cloudflare (token del baúl) y da un enlace; sin Cloudflare, escribe el archivo")
+	f.StringVar(&flujoQuitarEnlace, "quitar-enlace", "", "borra esa página de tu Worker: el enlace deja de abrir")
+	f.StringVar(&flujoCuenta, "cuenta", "", "la cuenta de Cloudflare, si el token ve varias")
+	f.StringVar(&flujoSesion, "sesion", "", "la sesión de Claude Code que pide el permiso del baúl (la pasa el panel)")
+	f.BoolVar(&flujoJSON, "json", false, "salida JSON, para el panel")
 	flujoCmd.AddCommand(flujoCompartirCmd)
 }
