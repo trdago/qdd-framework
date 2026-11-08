@@ -495,6 +495,7 @@ async function pedirDibujo($, f, ancho, elegido, generacion, vista = []) {
   dibujandoFlujo.delete(pedido)
   dibujos.set(f.id, hecho)
   $.ui.invalidate('ui.render')
+  verTarjeta($, edicionDe(f.id), hecho)
 }
 
 // sinResaltar: elegir un nodo solo cambia sus bordes; no es un cambio del flujo, así que no se materializa.
@@ -502,15 +503,71 @@ const RESALTADO = { '┏': '┌', '┓': '┐', '┗': '└', '┛': '┘', '━
 const sinResaltar = (linea) => linea.replace(/[┏┓┗┛━┃▶◀]/g, (c) => RESALTADO[c])
 
 // filasDeFlujo: una línea repetida tiene clave propia, y una línea que solo cambió de lugar no vuelve a materializarse.
-function filasDeFlujo($, Text, id, lineas) {
+// Acciones sobre el nodo en el dibujo (pedido de la persona, 2026-11-08: «no me gusta tener que bajar hasta abajo para una
+// acción al nodo … que fuera directa sobre el elemento para no perder el hilo»): qdd parte cada línea por nodo
+// (segmentos), el nodo es un botón ahí donde se ve, y la tarjeta del elegido se abre justo debajo de su última línea.
+function filasDeFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho) {
   const vecesVista = new Map()
-  return lineas.map((linea) => {
+  const tarjetaEn = ultimaLineaDe(d, s.elegido)
+  return d.lineas.flatMap((linea, i) => {
     const base = sinResaltar(linea)
     const vez = vecesVista.get(base) || 0
     vecesVista.set(base, vez + 1)
     const clave = 'fl:' + id + ':' + base + ':' + vez
-    return materializa($, Text, clave, [[{ texto: linea }]], Text({ key: clave, wrap: 'truncate-end', children: [linea] }), base)
+    const plano = lineaPulsable($, Box, Text, Button, id, s, d, clave, linea, i)
+    const fila = materializa($, Text, clave, [[{ texto: linea }]], plano, base)
+    if (i !== tarjetaEn) return [fila]
+    return [fila, tarjetaEnElDibujo($, Box, Text, Button, Input, Select, id, s, d, ancho)]
   })
+}
+
+// ultimaLineaDe: la última línea del dibujo con un tramo del nodo; -1 si qdd no entrega segmentos (uno anterior) o el
+// nodo no se ve. Con -1, la tarjeta queda en la lista de nodos, como antes.
+function ultimaLineaDe(d, nodo) {
+  if (!nodo || !Array.isArray(d.segmentos)) return -1
+  return d.segmentos.findLastIndex((fila) => (fila || []).some((seg) => seg.nodo === nodo))
+}
+
+function lineaPulsable($, Box, Text, Button, id, s, d, clave, linea, i) {
+  const segmentos = d.segmentos?.[i]
+  if (!segmentos) return Text({ key: clave, wrap: 'truncate-end', children: [linea] })
+  const partes = segmentos.map((seg, j) => {
+    if (!seg.nodo) return Text({ key: clave + ':' + j, wrap: 'truncate-end', children: [seg.texto] })
+    return Button({ key: 'fl-dn:' + seg.nodo + ':' + i, label: seg.texto, plain: true, onPress: () => pulsarEnDibujo($, id, s, d, seg.nodo) })
+  })
+  return Box({ key: clave, flexDirection: 'row', children: partes })
+}
+
+// pulsarEnDibujo: la caja de un grupo en el panorama lo abre o lo pliega; un nodo hace lo mismo que en la lista.
+function pulsarEnDibujo($, id, s, d, nodo) {
+  if (nodo.startsWith('grupo-')) {
+    const grupo = (d.grupos || []).find((g) => 'grupo-' + slugDeGrupo(g) === nodo)
+    if (grupo) alternarGrupo($, s, grupo)
+    return
+  }
+  pulsarNodo($, id, s, d, d.nodos.find((n) => n.id === nodo) || { id: nodo })
+}
+
+function tarjetaEnElDibujo($, Box, Text, Button, Input, Select, id, s, d, ancho) {
+  const n = d.nodos.find((x) => x.id === s.elegido)
+  if (!n) return Box({ key: 'fl-ficha' })
+  return Box({
+    key: 'fl-ficha',
+    flexDirection: 'column',
+    paddingLeft: 2,
+    marginBottom: 1,
+    children: [...avisosDeEdicion(Text, s), ...fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, Math.max(10, ancho - 4))],
+  })
+}
+
+const AVISO_DE_MODO = { mover: 'Elige el nodo después del que va.', flechas: 'Elige un nodo: un clic pone o quita la flecha (→).' }
+
+function avisosDeEdicion(Text, s) {
+  return [
+    ...(AVISO_DE_MODO[s.modo] ? [Text({ key: 'fl-modo-aviso', color: COLOR.espera, wrap: 'wrap', children: [AVISO_DE_MODO[s.modo]] })] : []),
+    ...(s.aviso ? [Text({ key: 'fl-edicion-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + s.aviso] })] : []),
+    ...(s.pista ? [Text({ key: 'fl-edicion-pista', color: COLOR.espera, wrap: 'wrap', children: [s.pista] })] : []),
+  ]
 }
 
 function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
@@ -529,7 +586,7 @@ function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
       ...(d.descripcion ? [Text({ key: 'fl-desc', dimColor: true, wrap: 'wrap', children: [d.descripcion] })] : []),
       ...(d.aviso ? [Text({ key: 'fl-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + d.aviso] })] : []),
       ...vistaDeNiveles($, Box, Button, f, s, d),
-      Box({ key: 'fl-dibujo', flexDirection: 'column', marginTop: 1, children: filasDeFlujo($, Text, id, d.lineas) }),
+      Box({ key: 'fl-dibujo', flexDirection: 'column', marginTop: 1, children: filasDeFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho) }),
       ...preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho),
       ...nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho),
       ...pendientesDelFlujo($, Box, Text, Button, id, s, d, ancho),
@@ -646,7 +703,18 @@ function pulsarNodo($, id, s, d, n) {
   if (s.modo === 'mover' && n.id !== s.elegido) return correrFlujo($, id, ['mover', '--de', 'persona', '--despues-de', n.id, '--', id, s.elegido])
   if (s.modo === 'flechas' && n.id !== s.elegido) return correrFlujo($, id, [saleDe(d, s.elegido, n.id) ? 'desconectar' : 'conectar', '--de', 'persona', '--con', n.id, '--', id, s.elegido])
   s.elegido = s.elegido === n.id ? '' : n.id
+  s.verTarjeta = !!s.elegido
   cambiarModo($, id, s, '')
+}
+
+// verTarjeta: al elegir un nodo, su tarjeta se trae a la vista apenas llega el dibujo que la tiene; si ya se ve, no se
+// mueve nada (nearest).
+function verTarjeta($, s, d) {
+  if (!s.verTarjeta || d.elegido !== s.elegido || ultimaLineaDe(d, s.elegido) < 0) return
+  s.verTarjeta = false
+  Promise.resolve()
+    .then(() => $.ui.scroll({ in: PANE_FLUJOS, to: { key: 'fl-ficha' }, block: 'nearest' }))
+    .catch(() => {})
 }
 
 const saleDe = (d, desde, hacia) => (d.nodos.find((n) => n.id === desde)?.siguen || []).includes(hacia)
@@ -683,18 +751,26 @@ function preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho) {
   return [Box({ key: 'fl-preguntas', flexDirection: 'column', marginTop: 1, children: [...hilo($, Text, id + ':', lista, ancho), ...campo] })]
 }
 
+// nodosDelFlujo: la lista de todos los nodos, para el teclado y para los que el nivel esconde. Si el nodo elegido se ve en
+// el dibujo, su tarjeta está allá, junto a él, y aquí solo queda marcado.
 function nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho) {
   if (d.nodos.length === 0) return []
-  const avisoDeModo = { mover: 'Elige el nodo después del que va.', flechas: 'Elige un nodo: un clic pone o quita la flecha (→).' }[s.modo]
+  const enDibujo = ultimaLineaDe(d, s.elegido) >= 0
+  if (enDibujo) {
+    return [
+      Box({ key: 'fl-nodos', marginTop: 1, children: [Text({ weight: 'semibold', dimColor: true, wrap: 'truncate-end', children: ['Todos los nodos · o tócalos en el dibujo'] })] }),
+      ...d.nodos.flatMap((n) => filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho, false)),
+    ]
+  }
   return [
-    Box({ key: 'fl-nodos', marginTop: 1, children: [Text({ weight: 'semibold', wrap: 'truncate-end', children: [avisoDeModo || 'Nodos · elige uno para editarlo o comentarlo'] })] }),
+    Box({ key: 'fl-nodos', marginTop: 1, children: [Text({ weight: 'semibold', wrap: 'truncate-end', children: [AVISO_DE_MODO[s.modo] || 'Nodos · tócalos en el dibujo o elige uno aquí'] })] }),
     ...(s.aviso ? [Text({ key: 'fl-edicion-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + s.aviso] })] : []),
     ...(s.pista ? [Text({ key: 'fl-edicion-pista', color: COLOR.espera, wrap: 'wrap', children: [s.pista] })] : []),
-    ...d.nodos.flatMap((n) => filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho)),
+    ...d.nodos.flatMap((n) => filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho, true)),
   ]
 }
 
-function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho) {
+function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho, conTarjeta) {
   const abierto = s.elegido === n.id
   const comentarios = n.comentarios || []
   const marca = abierto ? '▾ ' : s.modo === 'flechas' && saleDe(d, s.elegido, n.id) ? '→ ' : '▸ '
@@ -703,7 +779,7 @@ function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho) {
   const clave = 'fl-n-' + n.id
   const boton = Button({ key: clave, label: marca + texto, plain: true, onPress: () => pulsarNodo($, id, s, d, n) })
   const fila = materializa($, Text, 'fln:' + id + ':' + n.id, [[{ texto: marca + texto }]], boton, n.nombre + notas)
-  if (!abierto) return [fila]
+  if (!abierto || !conTarjeta) return [fila]
   return [fila, Box({ key: 'fl-ficha', flexDirection: 'column', paddingLeft: 2, children: fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, Math.max(10, ancho - 4)) })]
 }
 

@@ -62,6 +62,29 @@ func TestFlujo_CrearYVerConElAnchoQueSePide(t *testing.T) {
 	}
 }
 
+// El panel hace pulsable cada nodo donde se ve: cada línea trae sus segmentos con el nodo de cada uno.
+func TestFlujo_VerTraeLosSegmentosDeCadaNodo(t *testing.T) {
+	proyectoConFlujo(t)
+	d := verFlujo(t, "pago", map[string]string{"ancho": "40"})
+	if len(d.Segmentos) != len(d.Lineas) {
+		t.Fatalf("un renglón de segmentos por línea: %d y %d", len(d.Segmentos), len(d.Lineas))
+	}
+	nodos := map[string]bool{}
+	for i, fila := range d.Segmentos {
+		junto := ""
+		for _, s := range fila {
+			junto += s.Texto
+			nodos[s.Nodo] = nodos[s.Nodo] || s.Nodo != ""
+		}
+		if fila != nil && junto != d.Lineas[i] {
+			t.Fatalf("línea %d: %q no es %q", i, junto, d.Lineas[i])
+		}
+	}
+	if !nodos["a"] || !nodos["b"] {
+		t.Fatalf("los dos nodos son pulsables: %v", nodos)
+	}
+}
+
 func TestFlujo_UnaTareaDelTableroMuestraSusSimbolos(t *testing.T) {
 	root := proyectoConFlujo(t)
 	if err := estado.Set(root, estado.Cambio{Frente: "rc", Nombre: "RC", Etapa: "Código", Estado: "ok", Evidencia: "abc", AunqueExista: true}, ahoraDePruebaFlujo()); err != nil {

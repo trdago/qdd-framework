@@ -28,7 +28,7 @@ objetivo_tecnologico:
         - Un comentario y un pedido de detalle llaman a la IA en el acto, porque piden respuesta. Una edición espera a «Enviar a la IA» o al próximo mensaje del chat, para no gastar un turno por cambio.
         - Los comentarios viven en el YAML versionado. Lo que falta enviar y lo que se puede deshacer vive en .qdd/working/flujos/<id>.jsonl, sin versionar, con tope de 50.
         - 'Los comentarios viajan al teléfono pasados por el ocultador, y el teléfono edita y comenta con Pro (decisión de la persona, 2026-11-06; RFC 0013). Una operación del teléfono es un JSON de esquema cerrado (flujo.LeerOperacion) sin campo de autor: siempre es de la persona.'
-        - Un nodo se elige en una lista bajo el dibujo, porque el dibujo no sabe qué nodo hay en cada columna. Mover y las flechas se eligen con un clic en el otro nodo.
+        - 'Un nodo se elige y se trabaja sobre el dibujo (pedido de la persona, 2026-11-08: «no me gusta tener que bajar hasta abajo para una acción al nodo del flujo; me gustaría que fuera directa sobre el elemento para no perder el hilo»). Cada bloque del dibujo lleva sus tramos (qué columnas de qué línea son de qué nodo) y los mueve al apilarse, ponerse lado a lado o colgar con sangría; qdd flujo ver --json entrega cada línea partida en segmentos {texto, nodo}. El panel dibuja el tramo de un nodo como botón ahí donde se ve, la caja de un grupo del panorama lo abre, y la tarjeta del elegido se abre justo debajo de su última línea. La lista de nodos queda debajo, para el teclado y los nodos que el nivel esconde, sin repetir la tarjeta. Mover y las flechas se eligen con un clic en el otro nodo, en el dibujo o en la lista. Un qdd sin segmentos deja la tarjeta en la lista, como antes.'
         - Un formulario abre con el campo enfocado. Claude Code no le da las teclas a una pestaña nueva mientras otra tiene el foco, así que crear un flujo se hace ahí mismo donde se pulsó (FND-166).
         - 'Un flujo pesa como mucho 100 KB (flujo.MaxBytes): viaja entero en un mensaje al teléfono y Supabase descarta en silencio lo que pasa de 256 KB en el plan Free. Uno más pesado no se guarda, y un archivo que pesa de más se ve con su problema.'
         - 'Niveles y grupos (#186, partes B y C; la persona eligió «Los tres, en orden»). Cada nodo tiene nivel 1 (hito), 2 (paso) o 3 (desvío): se calcula desde el camino principal (el más largo desde el inicio; su inicio y su final son hitos, el resto del camino es paso y lo de fuera desvío) y la persona lo corrige en la tarjeta (Nodo.Nivel; 0 es calculado). Nodo.Grupo junta pasos bajo un nombre.'
@@ -75,4 +75,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: 7e2a04a65bc1
+revisado_en_commit: 1da9e39d5bc9

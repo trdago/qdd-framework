@@ -114,13 +114,15 @@ func leerArchivoOEntrada(ruta string, entrada io.Reader) ([]byte, error) {
 
 // flujoDibujado es lo que recibe el panel: el dibujo ya hecho, para no repetir el trazado en cada superficie.
 type flujoDibujado struct {
-	ID            string       `json:"id"`
-	Nombre        string       `json:"nombre"`
-	Descripcion   string       `json:"descripcion,omitempty"`
-	Lineas        []string     `json:"lineas"`
-	Nodos         []flujo.Nodo `json:"nodos"`
-	PorEnviar     []string     `json:"por_enviar"`
-	PuedeDeshacer bool         `json:"puede_deshacer"`
+	ID          string   `json:"id"`
+	Nombre      string   `json:"nombre"`
+	Descripcion string   `json:"descripcion,omitempty"`
+	Lineas      []string `json:"lineas"`
+	// Segmentos parte cada línea por nodo (nil si no tiene): el panel hace pulsable cada nodo donde se ve.
+	Segmentos     [][]flujo.Segmento `json:"segmentos"`
+	Nodos         []flujo.Nodo       `json:"nodos"`
+	PorEnviar     []string           `json:"por_enviar"`
+	PuedeDeshacer bool               `json:"puede_deshacer"`
 
 	Comentarios []flujo.Comentario `json:"comentarios,omitempty"` // preguntas y respuestas sobre el flujo completo
 
@@ -150,11 +152,11 @@ var flujoVerCmd = &cobra.Command{
 		if err != nil {
 			salirCon("%v", err)
 		}
-		lineas := flujo.DibujarElegido(flujo.Plegar(f, flujo.Vista{Nivel: flujoNivel, Abiertos: flujoAbiertos, Mostrar: flujoElegido}), flujoAncho, estadoDeTarea(root), flujoElegido)
+		lineas, segmentos := flujo.DibujarConSegmentos(flujo.Plegar(f, flujo.Vista{Nivel: flujoNivel, Abiertos: flujoAbiertos, Mostrar: flujoElegido}), flujoAncho, estadoDeTarea(root), flujoElegido)
 		salida := cmd.OutOrStdout()
 		if flujoJSON {
 			b, err := json.Marshal(flujoDibujado{
-				ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas, Nodos: f.Nodos,
+				ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas, Segmentos: segmentos, Nodos: f.Nodos,
 				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID), Comentarios: f.Comentarios,
 				Nivel: flujoNivel, Grupos: flujo.Grupos(f), Abiertos: flujoAbiertos, Niveles: flujo.Niveles(f),
 				Plantilla: flujo.PlantillaDe(f).ID, NombresNivel: flujo.NombresDeNivel(f), Revision: f.Revision,
