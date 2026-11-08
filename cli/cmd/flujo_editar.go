@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/flujo"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/spf13/cobra"
 )
 
@@ -217,7 +217,7 @@ var flujoEnviarCmd = &cobra.Command{
 			fmt.Fprintln(cmd.OutOrStdout(), mensaje)
 			return
 		}
-		b, err := json.Marshal(flujoEnvio{Mensaje: mensaje, N: n})
+		b, err := listas.Marshal(flujoEnvio{Mensaje: mensaje, N: n})
 		if err != nil {
 			salirCon("%v", err)
 		}
@@ -249,7 +249,7 @@ var flujoNuevoCmd = &cobra.Command{
 			fmt.Fprintf(cmd.OutOrStdout(), "[+] Flujo '%s' creado.\n", f.ID)
 			return
 		}
-		b, err := json.Marshal(struct {
+		b, err := listas.Marshal(struct {
 			ID     string `json:"id"`
 			Nombre string `json:"nombre"`
 		}{f.ID, f.Nombre})

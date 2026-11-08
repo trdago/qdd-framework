@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -204,7 +205,7 @@ func estadoDePregunta(p consola.Pregunta) string {
 }
 
 func jsonPregunta(salida io.Writer, v any) int {
-	b, err := json.Marshal(v)
+	b, err := listas.Marshal(v)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[!] %v\n", err)
 		return 1

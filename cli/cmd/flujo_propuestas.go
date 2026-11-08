@@ -14,6 +14,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/incidentes"
 	"github.com/qdd-framework/qdd/pkg/invitaciones"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/qdd-framework/qdd/pkg/reportes"
 	"github.com/spf13/cobra"
 )
@@ -89,7 +90,7 @@ func entornoDePropuestas(ctx context.Context, root string, ahora time.Time) (inv
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(fotoLimpia(root, f, ahora))
+		return listas.Marshal(fotoLimpia(root, f, ahora))
 	}
 	return invitaciones.Entorno{Root: root, Relay: cliente, Panel: panelDeConsola{root, ahora}, Foto: foto, Ahora: ahora}, nil
 }

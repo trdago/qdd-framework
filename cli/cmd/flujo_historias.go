@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/flujo"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/spf13/cobra"
 )
 
@@ -94,7 +94,7 @@ var flujoHistoriasCmd = &cobra.Command{
 			if lista == nil {
 				lista = []flujo.Historia{}
 			}
-			b, _ := json.Marshal(lista)
+			b, _ := listas.Marshal(lista)
 			fmt.Fprintln(cmd.OutOrStdout(), string(b))
 			return
 		}

@@ -4,6 +4,7 @@ estado: aprobado
 rutas:
     - cli/pkg/incidentes
     - cli/cmd/incidentes.go
+    - cli/cmd/incidentes_panel.go
 objetivo_operativo:
     problema: Las fallas de QDD mismo (un pánico de la CLI o de una tool MCP, una autorreparación de doctor) se perdían en la máquina de quien las sufría; tienen que llegar al repositorio de QDD con lo justo para que una IA las reproduzca y las repare, sin sacar nada del proyecto.
     usuarios: Quien usa QDD (no hace nada; puede ver y apagar) y la IA que mantiene QDD, que lee el issue, lo reproduce y lo repara.
@@ -18,6 +19,7 @@ objetivo_tecnologico:
         - La firma es tipo, origen, el mensaje sin números y las tres primeras funciones de la traza sin archivo ni línea, para que el mismo defecto sea un issue entre versiones; el comando con marcadores no entra en la firma.
         - Una autorreparación se registra solo cuando doctor reparó datos que QDD escribió y quedaron mal (un registro de uso ilegible, la cola del panel); lo esperable del entorno (primer init, otra máquina, una versión nueva) no es incidente.
         - Los errores de uso de la CLI y de las tools no son incidentes; solo los pánicos atrapados.
+        - 'Una vista del panel que lanza al dibujarse también es incidente (tipo panel, FND-189): el panel llama qdd incidentes panel <vista> <mensaje> --traza <función>… una vez por vista y mensaje. Viajan solo el nombre de la vista, el mensaje anonimizado y recortado a 300 caracteres, y los nombres de las funciones del panel; una vista o una función que no es un nombre no se registra.'
         - QDD_INCIDENTES=off los apaga; en las pruebas solo funcionan con un QDD_HOME explícito y nunca lanzan la publicación.
     invariantes:
         - Nada del proyecto sale de la máquina; el issue es exactamente lo que muestra qdd incidentes ver.
@@ -30,5 +32,5 @@ fuentes:
     - cli/pkg/incidentes/incidentes.go
     - cli/pkg/incidentes/sanitizar.go
     - cli/cmd/incidentes.go
-ultima_revision: "2026-11-01"
-revisado_en_commit: bbecb4430d50
+ultima_revision: "2026-11-08"
+revisado_en_commit: 6f51c1fc41f1

@@ -17,6 +17,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/herramientas"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 )
 
@@ -65,7 +66,7 @@ func lecturaPanel(root string, con []string) func() ([]byte, error) {
 		versionAlDia(root)
 		datos := datosPanel(root, time.Now(), con)
 		conEfectos(&datos)
-		return json.Marshal(datos)
+		return listas.Marshal(datos)
 	}
 }
 

@@ -28,6 +28,8 @@ import (
 const (
 	TipoPanico          = "panico"
 	TipoAutorreparacion = "autorreparacion"
+	// TipoPanel es una vista del panel que lanzó al dibujarse (FND-189): el panel siguió, mostrando la falla.
+	TipoPanel = "panel"
 	Formato             = "qdd-incidente/1"
 	// RepoPorDefecto es el repositorio de QDD; QDD_INCIDENTES_REPO lo cambia (un fork, o pruebas manuales).
 	RepoPorDefecto = "trdago/qdd-framework"
