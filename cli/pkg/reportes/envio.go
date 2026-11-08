@@ -29,7 +29,7 @@ import (
 
 var (
 	// ErrTope: el relay ya recibió los reportes de hoy de esta instalación, o los de esta hora de todas.
-	ErrTope = errors.New("el relay alcanzó su tope de reportes (5 por día por instalación, y uno global por hora): prueba mañana")
+	ErrTope = errors.New("el relay alcanzó su tope de reportes (10 por día por instalación, y uno global por hora): prueba mañana")
 	// ErrSinRelay: el relay todavía no tiene la función que recibe reportes.
 	ErrSinRelay = errors.New("el relay todavía no recibe reportes: el reporte queda guardado; vuelve a intentarlo con una versión nueva")
 )

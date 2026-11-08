@@ -144,7 +144,7 @@ func imprimirPropuestas(w io.Writer, root string, l invitaciones.Local) {
 		return
 	}
 	for _, v := range l.Propuestas {
-		fmt.Fprintf(w, "%-8s %-10s %s (%s): %s\n", v.ID, v.Situacion, v.Autor, v.Rol, describirPropuesta(root, v))
+		fmt.Fprintf(w, "%-8s %-10s %s: %s\n", v.ID, v.Situacion, invitaciones.QuienPropone(v), describirPropuesta(root, v))
 	}
 }
 

@@ -174,7 +174,8 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo historia quitar <flujo> <historia> [--de persona]` | Quita una historia de usuario; su tarea, si tiene, sigue en el tablero. (RFC 0025) |
 | `qdd flujo historias <flujo> [--json]` | Las historias de usuario del flujo, con sus criterios, nodos, origen y tarea. (RFC 0025) |
 | `qdd flujo invitaciones [--json]` | Las invitaciones del proyecto: flujo, rol, para quién, cuándo vencen y si siguen vivas. |
-| `qdd flujo propuestas [--json]` | Lo que propusieron los invitados y en qué quedó cada propuesta (por pedir, pedida, aprobada, rechazada). |
+| `qdd flujo proponer <flujo> '<operación JSON>' [--de asistente] [--minuto mm:ss]` | La IA, como asistente de una conversación con el cliente, propone un nodo, una nota o una historia sin editar el flujo. Queda en la cola de propuestas (`ASI-n`), llega a «Para ti» como pedido 🎙 de la persona y, aprobada, entra con origen `asistente` o `transcripcion@mm:ss`. (RFC 0025, fase 4) |
+| `qdd flujo propuestas [--json]` | Lo que propusieron los invitados y el asistente, y en qué quedó cada propuesta (por pedir, pedida, aprobada, rechazada). |
 | `qdd flujo propuestas ciclo [--si-toca] [--json]` | Lee las propuestas nuevas del relay, rechaza solas las que no cumplen el esquema o el rol, deja cada una como pedido 📝 de la persona en el panel (tres a la vez) y avisa al relay lo resuelto. El panel lo llama en su latido. |
 | `qdd flujo propuestas aprobar <PRO-n>` | Integra la propuesta a nombre de quien la hizo y sube la foto nueva al relay. Corre desde el pedido 📝 que la persona confirmó o en su terminal; nunca desde una IA ni el modo goal. |
 | `qdd flujo propuestas rechazar <PRO-n> [--motivo M]` | La deja fuera sin tocar el flujo; quien la propuso ve el motivo. Lo decide la persona en su terminal (descartar el pedido 📝 también la rechaza). |

@@ -50,6 +50,11 @@ La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambi
   qdd flujo quitar <id> <nodo>
   qdd flujo conectar|desconectar <id> <nodo> --con <otro>
 
+Mientras la persona conversa con un cliente sobre el flujo (RFC 0025), no lo editas: lo que escuchas lo propones y
+ella aprueba cada propuesta en «Para ti».
+
+  qdd flujo proponer <id> '{"op":"historia","nodo":"N","como":"C","quiero":"Q"}' [--minuto mm:ss]
+
 Forma del archivo; empieza en el primer nodo y a todos tiene que poder llegarse desde ahí:
 
   formato: 1
