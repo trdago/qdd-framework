@@ -6,6 +6,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Changed
+- Panel, pestaña Flujos: cada nodo se toca en el dibujo mismo y su tarjeta (comentar, preguntar, editar, mover…) se abre justo debajo de él, sin bajar a la lista. En el panorama, tocar la caja de un grupo lo abre. La lista de nodos sigue debajo para el teclado y los que el nivel esconde. `qdd flujo ver --json` entrega cada línea partida por nodo (`segmentos`).
+
 ## [2.10.0-rc.44] - 2026-11-08
 
 ### Added

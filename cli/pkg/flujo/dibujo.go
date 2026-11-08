@@ -15,11 +15,12 @@ const (
 )
 
 // bloque es un trozo de dibujo. entrada y salida son las columnas por donde se conecta arriba y abajo; una salida -1 dice
-// que por ahí no sigue nada.
+// que por ahí no sigue nada. tramos dice qué columnas de qué línea son de qué nodo (tramos.go): se mueven con el bloque.
 type bloque struct {
 	lineas  []string
 	entrada int
 	salida  int
+	tramos  []tramo
 }
 
 // Dibujar es el flujo en líneas de texto, de hasta ancho columnas. estadoDe da los símbolos de una tarea del tablero.
@@ -29,15 +30,24 @@ func Dibujar(f Flujo, ancho int, estadoDe func(string) string) []string {
 
 // DibujarElegido resalta un nodo, sin moverlo: el que la persona está editando en el panel.
 func DibujarElegido(f Flujo, ancho int, estadoDe func(string) string, elegido string) []string {
+	lineas, _ := DibujarConSegmentos(f, ancho, estadoDe, elegido)
+	return lineas
+}
+
+// DibujarConSegmentos es el mismo dibujo y, por cada línea, sus tramos con el nodo de cada uno (nil si la línea no
+// tiene nodos): el panel hace pulsable cada nodo donde se ve.
+func DibujarConSegmentos(f Flujo, ancho int, estadoDe func(string) string, elegido string) ([]string, [][]Segmento) {
 	if len(f.Nodos) == 0 {
-		return nil
+		return nil, nil
 	}
 	d := dibujante{f: f, porID: map[string]Nodo{}, hechos: map[string]bool{}, camino: map[string]bool{}, estadoDe: estadoDe, elegido: elegido}
 	for _, n := range f.Nodos {
 		d.porID[n.ID] = n
 	}
 	final := d.secuencia(f.Nodos[0].ID, nil, ancho)
-	return centrar(final.lineas, ancho)
+	margen := max(0, (ancho-anchoMayor(final.lineas))/2)
+	lineas := mover(final.lineas, margen)
+	return lineas, segmentar(lineas, moverTramos(final.tramos, 0, margen))
 }
 
 type dibujante struct {
@@ -99,7 +109,8 @@ func (d *dibujante) secuencia(id string, paradas []string, ancho int) bloque {
 
 // referencia es lo que se dibuja al llegar a un nodo que ya está en el dibujo.
 func (d *dibujante) referencia(id string, ancho int) bloque {
-	return bloque{lineas: partir(d.textoReferencia(id, false), max(minAncho, ancho)), salida: -1}
+	lineas := partir(d.textoReferencia(id, false), max(minAncho, ancho))
+	return bloque{lineas: lineas, salida: -1, tramos: tramosDeLineas(lineas, id)}
 }
 
 func (d *dibujante) textoReferencia(id string, ciclo bool) string {
@@ -111,10 +122,19 @@ func (d *dibujante) textoReferencia(id string, ciclo bool) string {
 
 // desvio es una rama corta que no vuelve al camino: se escribe como etiqueta al costado.
 type desvio struct {
-	rama  string
-	texto string
-	nodos []string
-	atajo string // la rama misma, si es un atajo: otra rama que se dibuja tiene que alcanzarla
+	rama    string
+	texto   string
+	nodos   []string
+	atajo   string // la rama misma, si es un atajo: otra rama que se dibuja tiene que alcanzarla
+	destino string // el nodo ya dibujado al que lleva («→ sigue en», «↺ vuelve a», «↷ salta a»), si lo nombra
+}
+
+// candidatos son los nodos que nombra la etiqueta, en orden.
+func (dv desvio) candidatos() []string {
+	if dv.destino == "" {
+		return dv.nodos
+	}
+	return append(append([]string{}, dv.nodos...), dv.destino)
 }
 
 // colgarDesvios cuelga del nodo, al costado de su eje, las ramas que son desvíos (#186): un rechazo, una vuelta atrás o
@@ -143,6 +163,7 @@ func (d *dibujante) colgarDesvios(total bloque, ramas, paradas []string, ancho i
 		return total, ramas
 	}
 	lineas := append([]string{}, total.lineas...)
+	tramos := append([]tramo{}, total.tramos...)
 	margen := strings.Repeat(" ", total.salida)
 	for _, dv := range desvios {
 		for _, n := range dv.nodos {
@@ -153,10 +174,11 @@ func (d *dibujante) colgarDesvios(total bloque, ramas, paradas []string, ancho i
 			if j == 0 {
 				prefijo = "├─ "
 			}
+			tramos = append(tramos, d.tramosDeEtiqueta(parte, len(lineas), total.salida+sangria, dv.candidatos())...)
 			lineas = append(lineas, margen+prefijo+parte)
 		}
 	}
-	return bloque{lineas: lineas, entrada: total.entrada, salida: total.salida}, resto
+	return bloque{lineas: lineas, entrada: total.entrada, salida: total.salida, tramos: tramos}, resto
 }
 
 // atajosAlcanzados: un atajo solo se escribe si una rama que se dibuja llega a su destino. Dos ramas que se alcanzan
@@ -202,10 +224,10 @@ func (d *dibujante) desvio(r string, otras, paradas []string) (desvio, bool) {
 		return desvio{}, false
 	}
 	if d.hechos[r] {
-		return desvio{texto: d.textoReferencia(r, false)}, true
+		return desvio{texto: d.textoReferencia(r, false), destino: r}, true
 	}
 	if d.alcanzaOtra(r, otras) {
-		return desvio{texto: "↷ salta a " + d.porID[r].Nombre, atajo: r}, true
+		return desvio{texto: "↷ salta a " + d.porID[r].Nombre, atajo: r, destino: r}, true
 	}
 	var partes, nodos []string
 	actual := r
@@ -226,7 +248,7 @@ func (d *dibujante) desvio(r string, otras, paradas []string) (desvio, bool) {
 		}
 		actual = n.Siguen[0]
 		if d.hechos[actual] || contiene(nodos, actual) {
-			return desvio{texto: strings.Join(partes, " → ") + " " + d.textoReferencia(actual, contiene(nodos, actual)), nodos: nodos}, true
+			return desvio{texto: strings.Join(partes, " → ") + " " + d.textoReferencia(actual, contiene(nodos, actual)), nodos: nodos, destino: actual}, true
 		}
 	}
 	return desvio{}, false
@@ -322,10 +344,12 @@ func (d *dibujante) bifurcacion(ramas, paradas []string, encuentro string, ancho
 func (d *dibujante) conSangria(ramas, topes []string, ancho int) bloque {
 	interior := max(minAncho, ancho-sangria)
 	var lineas []string
+	var tramos []tramo
 	sigue := false
 	for i, r := range ramas {
 		b := d.secuencia(r, topes, interior)
 		sigue = sigue || b.salida >= 0
+		tramos = append(tramos, moverTramos(b.tramos, len(lineas), sangria)...)
 		primera, resto := "├─ ", "│  "
 		if i == len(ramas)-1 {
 			primera, resto = "└─ ", "   "
@@ -339,13 +363,13 @@ func (d *dibujante) conSangria(ramas, topes []string, ancho int) bloque {
 		}
 	}
 	if !sigue {
-		return bloque{lineas: lineas, salida: -1}
+		return bloque{lineas: lineas, salida: -1, tramos: tramos}
 	}
 	// El encuentro cuelga del mismo tronco: la última rama deja de ser la última.
 	for i, l := range lineas {
 		lineas[i] = reabrirTronco(l)
 	}
-	return bloque{lineas: lineas}
+	return bloque{lineas: lineas, tramos: tramos}
 }
 
 func reabrirTronco(l string) string {
@@ -376,6 +400,7 @@ func (d *dibujante) nodo(n Nodo, ancho int) bloque {
 	if n.ID == d.elegido {
 		b.lineas = resaltar(b.lineas, n.Tipo)
 	}
+	b.tramos = tramosDeLineas(b.lineas, n.ID)
 	return b
 }
 
@@ -436,16 +461,18 @@ func apilar(a bloque, vacio bool, b bloque, ancho int) bloque {
 	desplazaB := max(0, a.salida-b.entrada)
 	if anchoMayor(a.lineas)+desplazaA > ancho || anchoMayor(b.lineas)+desplazaB > ancho {
 		lineas := append(append([]string{}, a.lineas...), lineaDeUnion([]int{b.entrada}, a.salida, true))
-		return bloque{lineas: append(lineas, b.lineas...), entrada: a.entrada, salida: b.salida}
+		tramos := append(append([]tramo{}, a.tramos...), moverTramos(b.tramos, len(lineas), 0)...)
+		return bloque{lineas: append(lineas, b.lineas...), entrada: a.entrada, salida: b.salida, tramos: tramos}
 	}
 	lineas := mover(a.lineas, desplazaA)
 	lineas = append(lineas, strings.Repeat(" ", a.salida+desplazaA)+"│")
+	tramos := append(moverTramos(a.tramos, 0, desplazaA), moverTramos(b.tramos, len(lineas), desplazaB)...)
 	lineas = append(lineas, mover(b.lineas, desplazaB)...)
 	salida := b.salida
 	if salida >= 0 {
 		salida += desplazaB
 	}
-	return bloque{lineas: lineas, entrada: a.entrada + desplazaA, salida: salida}
+	return bloque{lineas: lineas, entrada: a.entrada + desplazaA, salida: salida, tramos: tramos}
 }
 
 func mover(lineas []string, columnas int) []string {
@@ -465,9 +492,11 @@ func ladoALado(ramas []bloque) bloque {
 	anchos := make([]int, len(ramas))
 	entradas := make([]int, len(ramas))
 	var salidas []int
+	var tramos []tramo
 	columna, alto := 0, 0
 	for i, r := range ramas {
 		anchos[i] = anchoMayor(r.lineas)
+		tramos = append(tramos, moverTramos(r.tramos, 1, columna)...)
 		entradas[i] = columna + r.entrada
 		if r.salida >= 0 {
 			salidas = append(salidas, columna+r.salida)
@@ -481,9 +510,9 @@ func ladoALado(ramas []bloque) bloque {
 		lineas = append(lineas, filaLadoALado(ramas, anchos, fila))
 	}
 	if len(salidas) == 0 {
-		return bloque{lineas: lineas, entrada: eje, salida: -1}
+		return bloque{lineas: lineas, entrada: eje, salida: -1, tramos: tramos}
 	}
-	return bloque{lineas: append(lineas, lineaDeUnion(salidas, eje, false)), entrada: eje, salida: eje}
+	return bloque{lineas: append(lineas, lineaDeUnion(salidas, eje, false)), entrada: eje, salida: eje, tramos: tramos}
 }
 
 func filaLadoALado(ramas []bloque, anchos []int, fila int) string {
@@ -611,9 +640,4 @@ func anchoMayor(lineas []string) int {
 
 func rellenar(s string, ancho int) string {
 	return s + strings.Repeat(" ", max(0, ancho-materializar.Ancho(s)))
-}
-
-// centrar deja el dibujo en el medio del ancho disponible.
-func centrar(lineas []string, ancho int) []string {
-	return mover(lineas, max(0, (ancho-anchoMayor(lineas))/2))
 }
