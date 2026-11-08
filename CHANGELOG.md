@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.39] - 2026-11-08
+
+### Corregido
+
+- **Un comentario que qdd no puede guardar ya no se pierde (FND-184, MEJ-037).** Si qdd rechaza un comentario, una
+  pregunta, un ítem o el nombre de un nodo nuevo en la pestaña Flujos, el texto sigue en el campo junto al aviso, para
+  reintentar.
+
 ## [2.10.0-rc.38] - 2026-11-08
 
 ### Agregado

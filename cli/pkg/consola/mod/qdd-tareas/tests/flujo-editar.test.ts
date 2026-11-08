@@ -390,3 +390,21 @@ test('agregar un ítem elige su tipo y no llama a la IA en el acto', async ($, o
   expect(comandos(r, 'item')[0]).toEqual(['qdd', 'flujo', 'item', 'agregar', '--de', 'persona', '--', 'pago', 'llega', 'prueba', 'rechaza una firma vencida'])
   expect(comandos(r, 'enviar')).toEqual([])
 })
+
+// FND-184 (MEJ-037): si qdd no guarda el comentario, el texto de la persona sigue en el campo para reintentar.
+test('un comentario que qdd no guarda no se pierde', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrir($, on, r)
+  await elegir(ui)
+  await ui.press({ key: 'fl-comentar' })
+  r.falla = "mkdir .qdd/working/flujos: not a directory"
+  await ui.input({ key: 'fl-texto', text: 'falta el caso del reembolso' })
+  await esperar()
+  expect(await ui.find({ type: 'Text', text: '⚠ mkdir .qdd/working/flujos: not a directory' })).toBeDefined()
+  expect((await ui.find({ key: 'fl-texto' })).props.value).toBe('falta el caso del reembolso')
+  r.falla = ''
+  await ui.input({ key: 'fl-texto', text: 'falta el caso del reembolso' })
+  await esperar()
+  expect(comandos(r, 'comentar').length).toBe(2)
+  expect(await ui.find({ key: 'fl-texto' })).toBeUndefined()
+})

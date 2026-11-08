@@ -1,0 +1,9 @@
+id: "FND-184"
+title: "El panel perdía el texto de un comentario que qdd no podía guardar"
+description: "Al escribir un comentario, una pregunta, un ítem o el nombre de un nodo nuevo en la pestaña Flujos, si qdd rechazaba el cambio (por ejemplo, con .qdd/working como archivo, FND-182), el formulario quedaba abierto con el aviso pero el campo volvía vacío. La persona perdía lo que había escrito. Lo reportó sfrc en la cola de mejoras (MEJ-037)."
+impact: "La persona tenía que volver a escribir su comentario, y si no lo notaba, el texto se perdía sin guardarse."
+action_taken: "Antes de mandar el texto, el panel lo guarda en el estado del formulario y lo devuelve al campo; correrFlujo lo limpia solo cuando qdd guarda el cambio. Vale para el comentario, las dos preguntas, el ítem y el nombre de un nodo nuevo."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/flujo-editar.test.ts: «un comentario que qdd no guarda no se pierde» (falla antes del arreglo)."
+status: resolved
+detectado_por: persona
+date: "2026-11-08"

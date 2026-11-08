@@ -610,6 +610,13 @@ async function enviarAhora($, id) {
   }
 }
 
+// conTexto guarda lo que la persona escribió antes de mandarlo: si qdd lo rechaza, vuelve al campo (FND-184). Al
+// guardarse, correrFlujo limpia los valores.
+const conTexto = (s, campo, correr) => (v) => {
+  s.valores[campo] = v
+  return correr(v)
+}
+
 function cambiarModo($, id, s, modo, valores = {}) {
   s.modo = modo
   s.valores = valores
@@ -671,7 +678,7 @@ function preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho) {
   const lista = d.comentarios || []
   const cancelar = Button({ key: 'fl-cancelar-pregunta', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarModo($, id, s, '') })
   const campo = s.modo === 'preguntar-flujo'
-    ? [Input({ key: 'fl-pregunta-flujo', label: 'Pregunta sobre el flujo', placeholder: 'para qué sirve, qué significa una palabra', submitLabel: 'preguntar', onSubmit: (v) => correrFlujo($, id, ['preguntar', '--', id, v], true) }), cancelar]
+    ? [Input({ key: 'fl-pregunta-flujo', label: 'Pregunta sobre el flujo', placeholder: 'para qué sirve, qué significa una palabra', value: s.valores.pregunta, submitLabel: 'preguntar', onSubmit: conTexto(s, 'pregunta', (v) => correrFlujo($, id, ['preguntar', '--', id, v], true)) }), cancelar]
     : [Button({ key: 'fl-preguntar-flujo', label: 'Preguntar sobre el flujo', hotkey: 'i', plain: true, onPress: () => cambiarModo($, id, s, 'preguntar-flujo') })]
   return [Box({ key: 'fl-preguntas', flexDirection: 'column', marginTop: 1, children: [...hilo($, Text, id + ':', lista, ancho), ...campo] })]
 }
@@ -763,7 +770,7 @@ function formularioItem($, Input, Select, id, s, n, cancelar) {
   const agregar = (texto) => correrFlujo($, id, ['item', 'agregar', '--de', 'persona', '--', id, n.id, s.valores.tipoItem || 'prueba', texto])
   return [
     Select({ key: 'fl-item-tipo', label: 'Tipo', options: TIPOS_DE_ITEM, value: tipo, onSelect: elegir }),
-    Input({ key: 'fl-item-texto', label: tipo === 'prueba' ? 'Qué probar' : 'Texto', placeholder: tipo === 'prueba' ? 'algo específico que tiene que pasar' : 'una nota, una característica, una función', submitLabel: 'agregar', onSubmit: agregar }),
+    Input({ key: 'fl-item-texto', label: tipo === 'prueba' ? 'Qué probar' : 'Texto', placeholder: tipo === 'prueba' ? 'algo específico que tiene que pasar' : 'una nota, una característica, una función', value: s.valores.texto, submitLabel: 'agregar', onSubmit: conTexto(s, 'texto', agregar) }),
     cancelar,
   ]
 }
@@ -788,8 +795,8 @@ function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
   const cancelar = Button({ key: 'fl-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarModo($, id, s, '') })
   if (s.modo === 'mover' || s.modo === 'flechas') return [cancelar]
   if (s.modo === 'item') return formularioItem($, Input, Select, id, s, n, cancelar)
-  if (s.modo === 'preguntar') return [Input({ key: 'fl-pregunta', label: 'Pregunta sobre este nodo', placeholder: 'qué hace, qué significa una palabra', submitLabel: 'preguntar', onSubmit: (v) => correrFlujo($, id, ['preguntar', '--', id, n.id, v], true) }), cancelar]
-  if (s.modo === 'comentar') return [Input({ key: 'fl-texto', label: 'Comentario', placeholder: 'qué ves, qué falta, qué no se entiende', submitLabel: 'enviar', onSubmit: (v) => correrFlujo($, id, ['comentar', '--de', 'persona', '--', id, n.id, v], true) }), cancelar]
+  if (s.modo === 'preguntar') return [Input({ key: 'fl-pregunta', label: 'Pregunta sobre este nodo', placeholder: 'qué hace, qué significa una palabra', value: s.valores.pregunta, submitLabel: 'preguntar', onSubmit: conTexto(s, 'pregunta', (v) => correrFlujo($, id, ['preguntar', '--', id, n.id, v], true)) }), cancelar]
+  if (s.modo === 'comentar') return [Input({ key: 'fl-texto', label: 'Comentario', placeholder: 'qué ves, qué falta, qué no se entiende', value: s.valores.texto, submitLabel: 'enviar', onSubmit: conTexto(s, 'texto', (v) => correrFlujo($, id, ['comentar', '--de', 'persona', '--', id, n.id, v], true)) }), cancelar]
   if (s.modo === 'despues' || s.modo === 'rama') return formularioAgregar($, Input, Select, id, s, n, cancelar)
   if (s.modo === 'editar') return formularioEditar($, Box, Button, Input, Select, id, s, n, cancelar)
   const accion = (key, tecla, etiqueta, onPress) => Button({ key, label: etiqueta, hotkey: tecla, plain: true, onPress })
@@ -848,7 +855,7 @@ function campoNivel($, Select, s) {
 
 function formularioAgregar($, Input, Select, id, s, n, cancelar) {
   const agregar = (nombre) => correrFlujo($, id, ['agregar', '--de', 'persona', '--nombre', nombre, '--tipo', s.valores.tipo, ...(s.modo === 'rama' ? ['--rama'] : []), '--', id, n.id])
-  return [campoTipo($, Select, s), Input({ key: 'fl-nombre', label: s.modo === 'rama' ? 'Nombre de la rama' : 'Nombre del nodo', submitLabel: 'agregar', onSubmit: agregar }), cancelar]
+  return [campoTipo($, Select, s), Input({ key: 'fl-nombre', label: s.modo === 'rama' ? 'Nombre de la rama' : 'Nombre del nodo', value: s.valores.nombre, submitLabel: 'agregar', onSubmit: conTexto(s, 'nombre', agregar) }), cancelar]
 }
 
 function formularioEditar($, Box, Button, Input, Select, id, s, n, cancelar) {
