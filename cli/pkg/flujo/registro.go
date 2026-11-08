@@ -32,6 +32,16 @@ type entrada struct {
 	Enviada bool   `json:"enviada,omitempty"`
 }
 
+// repararWorking quita el archivo .qdd/working que dejan las versiones anteriores a FND-182 con el nombre del
+// comando que corría: esa ruta es la carpeta de trabajo local y el archivo impedía crear working/flujos.
+func repararWorking(root string) {
+	ruta := filepath.Join(root, ".qdd", "working")
+	if info, err := os.Stat(ruta); err != nil || info.IsDir() {
+		return
+	}
+	_ = os.Remove(ruta)
+}
+
 func carpetaLocal(root string) string {
 	return filepath.Join(root, CarpetaLocal)
 }

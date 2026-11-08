@@ -89,6 +89,7 @@ func tomarFlujo(root, id string) (func(), error) {
 		return nil, fmt.Errorf("id de flujo %q: usa minúsculas, números y guiones", id)
 	}
 	carpeta := carpetaLocal(root)
+	repararWorking(root)
 	if err := os.MkdirAll(carpeta, 0o755); err != nil {
 		return nil, err
 	}

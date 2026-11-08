@@ -86,8 +86,7 @@ Para encadenar comandos con rollback automático si uno falla:
 
 		cwd, _ := os.Getwd()
 		registrarUso(cwd)
-		workingPath := filepath.Join(cwd, ".qdd", "working")
-		os.WriteFile(workingPath, []byte(name), 0644)
+		marcarComando(cwd, name)
 
 		// No exigimos contexto si apenas estamos inicializando, aprendiendo, reparando,
 		// o reportando un error (bug): un proceso supervisado puede fallar incluso en un
@@ -99,7 +98,7 @@ Para encadenar comandos con rollback automático si uno falla:
 		// Para todo lo demás, el Gatekeeper bloquea si falta contexto crítico
 		if err := qcl.CheckMinimumAlignment(); err != nil {
 			fmt.Printf("[🛑 GATEKEEPER] %v\n", err)
-			os.Remove(workingPath)
+			desmarcarComando(cwd)
 			os.Exit(1)
 		}
 		return nil
@@ -110,8 +109,7 @@ Para encadenar comandos con rollback automático si uno falla:
 			return
 		}
 		cwd, _ := os.Getwd()
-		workingPath := filepath.Join(cwd, ".qdd", "working")
-		os.Remove(workingPath)
+		desmarcarComando(cwd)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {

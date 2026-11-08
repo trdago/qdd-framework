@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.35] - 2026-11-08
+
+### Corregido
+
+- **Los flujos ya no fallan con «not a directory» (FND-182, MEJ-036, MEJ-037).** Cada comando dejaba su nombre en
+  `.qdd/working` como archivo, la misma ruta donde los flujos guardan su carpeta; si el comando se cortaba, el archivo
+  quedaba y `qdd flujo crear` o un comentario fallaban. El nombre va ahora en `.qdd/working/comando`, y qdd quita solo
+  el archivo viejo.
+
 ## [2.10.0-rc.34] - 2026-11-07
 
 ### Agregado
