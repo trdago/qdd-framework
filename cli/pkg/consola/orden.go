@@ -23,6 +23,8 @@ type Orden struct {
 	Tarea string
 	// DeNuevo: lo pide aunque ya se haya hecho hace poco o esté abierto con otro texto (seguro, pedidos_seguro.go).
 	DeNuevo bool
+	// DePersona: solo la persona lo puede confirmar; el modo goal no lo lanza (el permiso de un token, RFC 0023).
+	DePersona bool
 }
 
 func (o Orden) vacio() bool {

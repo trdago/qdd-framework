@@ -109,6 +109,22 @@ type Pedido struct {
 	PR int `json:"pr,omitempty"`
 	// Version es la versión de qdd que ofrece un pedido opcional (version_nueva.go); vacía en uno de la IA.
 	Version string `json:"version,omitempty"`
+	// DePersona: solo la persona lo confirma; el modo goal no lo lanza (el permiso de un token del baúl, RFC 0023).
+	DePersona bool `json:"de_persona,omitempty"`
+}
+
+// VarPedido es el id del pedido que corre el comando: con él, «qdd baul permitir» comprueba que la persona lo confirmó.
+const VarPedido = "QDD_PEDIDO"
+
+// PedidoConfirmado dice si el pedido id es de la persona (DePersona), con este comando, y la persona le dio «s  Sí».
+func PedidoConfirmado(root, id, comando string, now time.Time) bool {
+	for _, p := range PedidosA(root, now) {
+		if p.ID != id {
+			continue
+		}
+		return p.DePersona && p.Comando == comando && p.Confirmado != nil && p.Estado == EstadoEjecutando
+	}
+	return false
 }
 
 // Opcional: lo ofrece qdd por su cuenta, no la IA. No abre el panel, no es una espera ni lo lanza el modo goal.
@@ -409,7 +425,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if preferida != "" && !usadas[preferida] {
 			tecla = preferida
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual())}
+		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual()), DePersona: orden.DePersona}
 		return conOrden(append(cola, p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
@@ -513,7 +529,7 @@ func accionesDePedidos(root string) []Accion {
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
 			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
-			despues: p.Despues, tareaTurno: p.Tarea,
+			despues: p.Despues, tareaTurno: p.Tarea, DePersona: p.DePersona,
 		}
 		if p.porAvisar() {
 			a.Avisar, a.Mensaje = true, mensajeAviso(p)
@@ -607,6 +623,7 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 	var copia bytes.Buffer
 	c := exec.Command(shell, flag, a.Detalle)
 	c.Dir = a.Carpeta
+	c.Env = append(os.Environ(), VarPedido+"="+a.pedido)
 	c.Stdout = io.MultiWriter(salida, &copia)
 	c.Stderr = io.MultiWriter(salida, &copia)
 	err := c.Start()
