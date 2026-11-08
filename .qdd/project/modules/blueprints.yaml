@@ -33,6 +33,7 @@ objetivo_tecnologico:
         - 'Blueprints que implementa qdd (FND-102, decisión de la persona, 2026-11-01): el binario los declara con su versión en implementadosPorQDD (estado-por-tareas 1.1.0, consola-claude-code 8.0.0). Un módulo que solo usa uno lo cumple con el qdd instalado si este lo implementa en la misma versión mayor y no más vieja; si no, BP-08 dice si actualizar qdd o el blueprint. La implementación de origen se mide con sus pruebas, una prueba exige que la tabla coincida con las fichas de qdd que implementan, e implementar una versión nueva incluye subirla en la tabla.'
         - 'El id de un escenario cuenta como prueba entero, con «-» o «_», y puede ir pegado a una minúscula (el prefijo Test de Go: TestCVA_C01, FND-103); pegado a una mayúscula, a un dígito o seguido de más caracteres del id, no (OAUTH_01 no es AUTH-01; P-020 no es P-02, FND-100).'
         - "Inventario (pedido del usuario, 2026-11-01, panel \U0001F4E6 Blueprints): InventarioDe lista sin red ni IA los blueprints de las fuentes del proyecto con su estado frente a la última versión de la copia central: al-dia, solo-lock (tag nuevo con la misma receta o solo redacción: Clasificar da patch o nada, se actualiza sin la IA), con-cambios (la receta cambió: hasta 3 razones), disponible y sin-medir (sin copia central). Lo instalado se reconoce por id y repositorio canónico (ssh y https son el mismo)."
+        - 'La huella de un blueprint (HashDir y la de certificación) no depende del sistema: los archivos de texto se hashean con LF, como los guarda git, y los binarios (con un byte NUL) tal cual. Un lockfile escrito en Windows vale en Linux (FND-185, MEJ-038). Importar desde una carpeta local avisa que esa ruta no existe en otro PC.'
     invariantes:
         - 'El inventario nunca usa la red ni inventa una versión: sin copia central de una fuente, sus instalados quedan sin medir y el problema dice cómo traerla.'
         - Una receta con pasos no se propone sin una certificación ciega vigente (aprobada y de esa misma receta); los valores de negocio los decide la persona al aplicar, nunca la IA, y una ficha generada nunca queda con un {{id}} sin reemplazar.
@@ -55,5 +56,5 @@ fuentes:
     - rfcs/0007-fuentes-de-blueprints.md
     - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
-ultima_revision: "2026-11-02"
-revisado_en_commit: 2761d8665ae6
+ultima_revision: "2026-11-08"
+revisado_en_commit: 7997fea4f4f8

@@ -1,0 +1,9 @@
+id: "FND-185"
+title: "La huella de un blueprint dependía del fin de línea del sistema"
+description: "HashDir hasheaba los bytes de cada archivo tal cual. En Windows, git deja los archivos de texto con CRLF al hacer checkout, así que un commit hecho allí dejó en .qdd/blueprints.lock.yaml otras sha256 para los 7 blueprints. En Linux, qdd audit pasó a 0/100 con 14 bloqueos (BP-02-ALTERED, BP-01-INVALID, BP-04-MISSING) y acusó edición a mano sin que la hubiera. El blueprint local quedó además con origen C:\\Users\\..., que en otro PC no existe. Lo reportó sfrc en la cola de mejoras (MEJ-038)."
+impact: "Un equipo con Windows y Linux no podía compartir el lockfile: el gate bloqueaba commits y despliegues en el otro sistema."
+action_taken: "HashDir y la huella de certificación normalizan CRLF a LF en los archivos de texto; un binario (con un byte NUL) se hashea tal cual. Las huellas ya escritas en Linux no cambian. Importar desde una carpeta local avisa que esa ruta no existe en otro PC (qdd blueprint add y qdd_blueprint_add)."
+test_result: "cli/pkg/blueprints/huella_eol_test.go: TestHashDir_LaMismaRecetaConCRLFTieneLaMismaHuella_FND185 y TestHuellaDe_RecetaConCRLFIgual_FND185 fallan antes del arreglo; TestHashDir_UnBinarioSeHasheaTalCual; TestAvisosDeOrigen_UnaCarpetaLocalSeAvisa_FND185."
+status: resolved
+detectado_por: persona
+date: "2026-11-08"

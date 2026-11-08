@@ -1,6 +1,7 @@
 package blueprints
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -449,19 +450,24 @@ func HashDir(dir string) (string, error) {
 	}
 	h := sha256.New()
 	for _, rel := range files {
-		f, err := os.Open(filepath.Join(dir, filepath.FromSlash(rel)))
+		data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
 		if err != nil {
 			return "", err
 		}
 		io.WriteString(h, rel+"\x00")
-		_, err = io.Copy(h, f)
-		f.Close()
-		if err != nil {
-			return "", err
-		}
+		h.Write(sinCRLF(data))
 		h.Write([]byte{0})
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// sinCRLF deja un archivo de texto con LF, como lo guarda git: en Windows, el checkout lo deja con CRLF y la huella no
+// puede depender del sistema (FND-185). Un binario (con un byte NUL, como lo distingue git) se hashea tal cual.
+func sinCRLF(data []byte) []byte {
+	if bytes.IndexByte(data, 0) >= 0 {
+		return data
+	}
+	return bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 }
 
 func copyTree(src, dest string, mode os.FileMode) error {
