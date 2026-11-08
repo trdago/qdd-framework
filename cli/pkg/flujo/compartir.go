@@ -19,7 +19,8 @@ import (
 // Rule: Prohibido usar 'else'
 // Flujo para conversar (RFC 0025, fase 1): la foto que ve el cliente, el colega o quien levanta un proceso, y el archivo
 // HTML que la muestra. La foto lleva solo lo que esa persona puede ver (nombre, descripción, tipo, siguen, grupo y nivel)
-// limpio con la función que da quien la arma; nunca tareas, ítems ni comentarios internos. El archivo es uno solo, sin
+// limpio con la función que da quien la arma, más las notas compartidas y las historias de usuario sin su origen; nunca
+// tareas, pruebas, notas internas ni comentarios. El archivo es uno solo, sin
 // nada de afuera: la CSP deja correr solo su script y su estilo, por hash, y los datos van en un bloque JSON escapado.
 
 const FormatoFoto = 1
@@ -33,6 +34,23 @@ type FotoNodo struct {
 	Grupo       string   `json:"grupo,omitempty"`
 	Nivel       int      `json:"nivel"`
 	Siguen      []string `json:"siguen,omitempty"`
+	// Notas son solo las notas compartidas: una interna nunca sale del PC.
+	Notas []FotoNota `json:"notas,omitempty"`
+}
+
+// FotoNota es una nota técnica que el experto o la persona compartieron con el cliente.
+type FotoNota struct {
+	Texto string `json:"texto"`
+}
+
+// FotoHistoria es una historia de usuario como la ve el cliente: sin su origen ni su tarea.
+type FotoHistoria struct {
+	ID        string   `json:"id"`
+	Como      string   `json:"como,omitempty"`
+	Quiero    string   `json:"quiero"`
+	Para      string   `json:"para,omitempty"`
+	Criterios []string `json:"criterios,omitempty"`
+	Nodos     []string `json:"nodos,omitempty"`
 }
 
 // FotoVistaNodo es un nodo de un nivel ya plegado: el nodo mismo o la caja de un grupo, con lo que esconde.
@@ -52,17 +70,18 @@ type FotoVista struct {
 
 // Foto es lo que lleva el archivo.
 type Foto struct {
-	Formato     int          `json:"formato"`
-	Flujo       string       `json:"flujo"`
-	Nombre      string       `json:"nombre"`
-	Descripcion string       `json:"descripcion,omitempty"`
-	Plantilla   Plantilla    `json:"plantilla"`
-	Revision    int          `json:"revision"`
-	Version     *Version     `json:"version,omitempty"`
-	Grupos      []Grupo      `json:"grupos,omitempty"`
-	Generado    string       `json:"generado"`
-	Nodos       []FotoNodo   `json:"nodos"`
-	Vistas      [3]FotoVista `json:"vistas"`
+	Formato     int            `json:"formato"`
+	Flujo       string         `json:"flujo"`
+	Nombre      string         `json:"nombre"`
+	Descripcion string         `json:"descripcion,omitempty"`
+	Plantilla   Plantilla      `json:"plantilla"`
+	Revision    int            `json:"revision"`
+	Version     *Version       `json:"version,omitempty"`
+	Grupos      []Grupo        `json:"grupos,omitempty"`
+	Generado    string         `json:"generado"`
+	Nodos       []FotoNodo     `json:"nodos"`
+	Vistas      [3]FotoVista   `json:"vistas"`
+	Historias   []FotoHistoria `json:"historias,omitempty"`
 }
 
 // ArmarFoto arma la foto del flujo; limpiar quita del texto lo que no debe salir (rutas, secretos).
@@ -83,13 +102,35 @@ func ArmarFoto(f Flujo, limpiar func(string) string, ahora time.Time) Foto {
 	for _, n := range f.Nodos {
 		foto.Nodos = append(foto.Nodos, FotoNodo{
 			ID: n.ID, Tipo: n.Tipo, Nombre: limpiar(n.Nombre), Descripcion: limpiar(n.Descripcion),
-			Grupo: limpiar(n.Grupo), Nivel: niveles[n.ID], Siguen: n.Siguen,
+			Grupo: limpiar(n.Grupo), Nivel: niveles[n.ID], Siguen: n.Siguen, Notas: notasCompartidas(n, limpiar),
 		})
+	}
+	for _, h := range f.Historias {
+		foto.Historias = append(foto.Historias, historiaDeFoto(h, limpiar))
 	}
 	for i := range foto.Vistas {
 		foto.Vistas[i] = vistaDeFoto(f, i+1, limpiar)
 	}
 	return foto
+}
+
+func notasCompartidas(n Nodo, limpiar func(string) string) []FotoNota {
+	var notas []FotoNota
+	for _, it := range n.Items {
+		if it.Visible != VisibleCompartida || it.Tipo == ItemPrueba {
+			continue
+		}
+		notas = append(notas, FotoNota{Texto: limpiar(it.Texto)})
+	}
+	return notas
+}
+
+func historiaDeFoto(h Historia, limpiar func(string) string) FotoHistoria {
+	criterios := make([]string, 0, len(h.Criterios))
+	for _, c := range h.Criterios {
+		criterios = append(criterios, limpiar(c))
+	}
+	return FotoHistoria{ID: h.ID, Como: limpiar(h.Como), Quiero: limpiar(h.Quiero), Para: limpiar(h.Para), Criterios: criterios, Nodos: h.Nodos}
 }
 
 func vistaDeFoto(f Flujo, nivel int, limpiar func(string) string) FotoVista {

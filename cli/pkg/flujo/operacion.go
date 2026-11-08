@@ -34,6 +34,7 @@ const (
 	OpDeshacer     = "deshacer"
 	OpEnviar       = "enviar"
 	OpNota         = "nota"
+	OpHistoria     = "historia"
 
 	// MaxOperacion es el tope del JSON entero, el mismo que exige el relay.
 	MaxOperacion = 8000
@@ -56,6 +57,12 @@ type Operacion struct {
 	Evidencia   string  `json:"evidencia"`
 	Grupo       *string `json:"grupo"`
 	Nivel       *int    `json:"nivel"`
+	// Compartida pide que la nota la vea el cliente; Como, Quiero, Para y Criterios son de una historia de usuario.
+	Compartida bool     `json:"compartida"`
+	Como       string   `json:"como"`
+	Quiero     string   `json:"quiero"`
+	Para       string   `json:"para"`
+	Criterios  []string `json:"criterios"`
 }
 
 // camposDe dice qué exige y qué admite cada operación, además de op y flujo.
@@ -74,7 +81,8 @@ var camposDe = map[string]struct{ exige, admite []string }{
 	OpDesconectar:  {exige: []string{"nodo", "con"}},
 	OpDeshacer:     {},
 	OpEnviar:       {},
-	OpNota:         {exige: []string{"nodo", "texto"}},
+	OpNota:         {exige: []string{"nodo", "texto"}, admite: []string{"compartida"}},
+	OpHistoria:     {exige: []string{"quiero"}, admite: []string{"nodo", "como", "para", "criterios"}},
 }
 
 // LeerOperacion interpreta el JSON y rechaza lo que no sea exactamente una operación del esquema.
@@ -119,6 +127,9 @@ func (o Operacion) validar() error {
 			return fmt.Errorf("«%s» necesita el campo %s", o.Op, c)
 		}
 	}
+	if len(o.Criterios) > maxCriterios {
+		return fmt.Errorf("«%s» trae %d criterios: el tope es %d", o.Op, len(o.Criterios), maxCriterios)
+	}
 	if o.Op == OpModificar && len(presentes) == 1 {
 		return errors.New("«modificar» necesita nombre, descripcion, tipo, grupo o nivel")
 	}
@@ -156,6 +167,11 @@ func (o Operacion) presentes() []string {
 		{"evidencia", o.Evidencia != ""},
 		{"grupo", o.Grupo != nil},
 		{"nivel", o.Nivel != nil},
+		{"compartida", o.Compartida},
+		{"como", limpiar(o.Como) != ""},
+		{"quiero", limpiar(o.Quiero) != ""},
+		{"para", limpiar(o.Para) != ""},
+		{"criterios", len(o.Criterios) > 0},
 	} {
 		if c.viene {
 			lista = append(lista, c.campo)
@@ -209,7 +225,9 @@ func (o Operacion) cambio(ahora time.Time) Cambio {
 	case OpItemQuitar:
 		return QuitarItem(o.Nodo, o.Item)
 	case OpNota:
-		return AgregarItem(o.Nodo, ItemNota, o.Texto, ahora)
+		return agregarItemDe(o.Nodo, ItemNota, o.Texto, "", o.visible(), ahora)
+	case OpHistoria:
+		return AgregarHistoria(o.historia(), DePersona)
 	}
 	return Comentar(o.Nodo, o.Texto, DePersona, ahora)
 }
@@ -219,4 +237,21 @@ func valorDe(p *string) string {
 		return ""
 	}
 	return *p
+}
+
+// visible es la visibilidad que pide la nota: compartida o interna.
+func (o Operacion) visible() string {
+	if o.Compartida {
+		return VisibleCompartida
+	}
+	return ""
+}
+
+// historia arma la historia de usuario que trae la operación; el nodo, si viene, es el que toca.
+func (o Operacion) historia() Historia {
+	h := Historia{Como: o.Como, Quiero: o.Quiero, Para: o.Para, Criterios: o.Criterios}
+	if o.Nodo != "" {
+		h.Nodos = []string{o.Nodo}
+	}
+	return h
 }

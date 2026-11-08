@@ -196,6 +196,7 @@ func Quitar(nodo string) Cambio {
 			return hecho{}, err
 		}
 		f.Nodos[0].Comentarios = append(f.Nodos[0].Comentarios, comentariosDeQuitado(n)...)
+		sinNodoEnHistorias(f, n.ID)
 		return hecho{linea: fmt.Sprintf("− %s «%s»: se unió lo de antes con lo de después", n.ID, n.Nombre)}, nil
 	}
 }
@@ -512,6 +513,9 @@ func conservarComentarios(previo Flujo, f *Flujo) int {
 	f.Nodos[0].Comentarios = append(f.Nodos[0].Comentarios, huerfanos...)
 	if len(f.Comentarios) == 0 {
 		f.Comentarios = previo.Comentarios
+	}
+	if len(f.Historias) == 0 {
+		f.Historias = historiasSinNodosQuitados(previo.Historias, f.Nodos)
 	}
 	return len(huerfanos)
 }

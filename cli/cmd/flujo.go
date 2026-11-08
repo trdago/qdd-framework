@@ -135,6 +135,9 @@ type flujoDibujado struct {
 	Plantilla    string    `json:"plantilla"`
 	NombresNivel [3]string `json:"nombres_nivel"`
 	Revision     int       `json:"revision"`
+
+	// Historias son las historias de usuario del flujo: el panel las muestra en sus nodos.
+	Historias []flujo.Historia `json:"historias,omitempty"`
 }
 
 var flujoVerCmd = &cobra.Command{
@@ -155,6 +158,7 @@ var flujoVerCmd = &cobra.Command{
 				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID), Comentarios: f.Comentarios,
 				Nivel: flujoNivel, Grupos: flujo.Grupos(f), Abiertos: flujoAbiertos, Niveles: flujo.Niveles(f),
 				Plantilla: flujo.PlantillaDe(f).ID, NombresNivel: flujo.NombresDeNivel(f), Revision: f.Revision,
+				Historias: f.Historias,
 			})
 			if err != nil {
 				salirCon("%v", err)

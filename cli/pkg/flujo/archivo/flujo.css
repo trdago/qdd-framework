@@ -186,6 +186,25 @@ h2 { font-size: var(--letra-l); font-weight: 700; margin: 0 0 var(--espacio-s); 
 .propuesta.rechazada .marca { color: var(--falla); }
 .propuesta.por-enviar .marca { color: var(--secundario); }
 
+/* notas compartidas e historias de usuario: en el detalle del nodo y en su propia sección */
+.notas-tecnicas, .historias, .criterios { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.notas-tecnicas li {
+  border-left: 2px solid var(--borde-campo); padding-left: var(--espacio-s); font-size: var(--letra-s);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.historia {
+  border: var(--linea) solid var(--borde); border-radius: var(--radio); padding: var(--espacio-s) var(--espacio-m);
+  font-size: var(--letra-s); overflow-wrap: anywhere; display: grid; gap: var(--espacio-xs);
+}
+.historia .frase { color: var(--texto); }
+.historia small, .criterios li { color: var(--secundario); font-size: var(--letra-xs); }
+.criterios li::before { content: '· '; }
+.historias-del-flujo { margin-top: var(--espacio-xl); }
+.historias-del-flujo > ul { list-style: none; padding: 0; margin: var(--espacio-s) 0 0; display: grid; gap: 6px; }
+.historias-del-flujo h3 { display: none; }
+.formulario label.casilla { display: flex; align-items: center; gap: var(--espacio-s); color: var(--texto); cursor: pointer; }
+.formulario label.casilla input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--texto); }
+
 .leyenda { margin-top: var(--espacio-xl); }
 .leyenda ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--espacio-s); }
 .leyenda li {

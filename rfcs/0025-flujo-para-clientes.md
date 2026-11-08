@@ -315,9 +315,17 @@ foto r4 en el archivo sin recargarlo, y la invitación revocada deja el archivo 
 - **Sin red no se pierde nada.** Aprobar no depende del relay. La resolución y la foto nueva se le avisan en el
   siguiente ciclo, y lo que el invitado propone sin conexión espera en su navegador.
 - **El token** va solo dentro del archivo: qdd no lo imprime ni lo guarda, y el PC anota la invitación sin él.
-- **Falta de esta fase:** la visibilidad interna o compartida de la nota del experto (por ahora toda nota es interna
-  y no viaja en la foto), las historias de usuario con `historia tarea`, y que el relay devuelva la operación en
-  `flujo-proponer GET`, para que un navegador nuevo muestre qué se propuso y no solo «Propuesta PRO-n».
+- **Notas internas o compartidas.** `Item.Visible` es `compartida` o nada (interna); una prueba nunca se comparte.
+  El experto marca «pedir que el cliente también la vea» y la persona lo lee en la propuesta («nota técnica
+  compartida con el cliente en …») antes de aprobarla. Aprobada así, puede volverla interna con `qdd flujo item
+  compartir --interna` o el botón del nodo en el panel. La foto lleva solo el texto de las compartidas, sin autor.
+- **Historias de usuario.** `Flujo.Historias` como arriba, sin `estado`: solo se guardan las aprobadas. La operación
+  `historia` (`quiero`, y `como`, `para`, `criterios` hasta 10 y `nodo`) la pueden proponer el cliente y el experto,
+  y entra con origen `rol:autor`. Quitar un nodo lo saca de sus historias, y reescribir el flujo entero las conserva.
+  La foto las lleva sin `origen` ni `tarea`. `qdd flujo historia tarea` crea la tarea con lo que la historia quiere
+  como nombre, la anota en `tarea` e imprime los criterios para la IA.
+- **Falta de esta fase:** que el relay devuelva la operación en `flujo-proponer GET`, para que un navegador nuevo
+  muestre qué se propuso y no solo «Propuesta PRO-n».
 
 ## Lo que no hace
 

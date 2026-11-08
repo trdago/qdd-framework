@@ -65,6 +65,8 @@ type Flujo struct {
 	// Grupos da clase y descripción a los grupos que nombran los nodos (grupos.go).
 	Grupos []Grupo `yaml:"grupos,omitempty" json:"grupos,omitempty"`
 	Nodos  []Nodo  `yaml:"nodos" json:"nodos"`
+	// Historias son las historias de usuario aprobadas (historias.go, RFC 0025).
+	Historias []Historia `yaml:"historias,omitempty" json:"historias,omitempty"`
 
 	// Comentarios son las preguntas de la persona sobre el flujo completo y las respuestas de la IA.
 	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
@@ -109,6 +111,7 @@ func Validar(f Flujo) []string {
 	}
 	problemas = append(problemas, problemasDePlantilla(f)...)
 	problemas = append(problemas, problemasDeGrupos(f)...)
+	problemas = append(problemas, problemasDeHistorias(f)...)
 	if len(f.Nodos) == 0 {
 		return append(problemas, "el flujo no tiene ningún nodo")
 	}

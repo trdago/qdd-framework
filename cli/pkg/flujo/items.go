@@ -24,6 +24,9 @@ const (
 	PruebaPasa      = "pasa"
 	PruebaFalla     = "falla"
 
+	// VisibleCompartida marca un ítem que el cliente ve en la foto; sin marca, el ítem es interno (RFC 0025).
+	VisibleCompartida = "compartida"
+
 	maxItem          = 500
 	maxItemsPorNodo  = 50
 	maxEvidenciaItem = 300
@@ -42,15 +45,16 @@ type Item struct {
 	Evidencia string `yaml:"evidencia,omitempty" json:"evidencia,omitempty"`
 	Cuando    string `yaml:"cuando,omitempty" json:"cuando,omitempty"`
 	Autor     string `yaml:"autor,omitempty" json:"autor,omitempty"`
+	Visible   string `yaml:"visible,omitempty" json:"visible,omitempty"`
 }
 
 // AgregarItem suma un ítem al nodo; una prueba nace pendiente. La IA ve qué hay que probar y cómo marcarlo.
 func AgregarItem(nodo, tipo, texto string, ahora time.Time) Cambio {
-	return agregarItemDe(nodo, tipo, texto, "", ahora)
+	return agregarItemDe(nodo, tipo, texto, "", "", ahora)
 }
 
-// agregarItemDe suma el ítem a nombre de un invitado: la nota técnica del experto.
-func agregarItemDe(nodo, tipo, texto, autor string, ahora time.Time) Cambio {
+// agregarItemDe suma el ítem a nombre de un invitado y con su visibilidad: la nota técnica del experto.
+func agregarItemDe(nodo, tipo, texto, autor, visible string, ahora time.Time) Cambio {
 	return func(f *Flujo) (hecho, error) {
 		if !slices.Contains(tiposDeItem, tipo) {
 			return hecho{}, fmt.Errorf("tipo de ítem %q: usa %s", tipo, strings.Join(tiposDeItem, ", "))
@@ -70,12 +74,15 @@ func agregarItemDe(nodo, tipo, texto, autor string, ahora time.Time) Cambio {
 		if len(n.Items) >= maxItemsPorNodo {
 			return hecho{}, fmt.Errorf("el nodo %q ya tiene %d ítems: el tope es %d", nodo, len(n.Items), maxItemsPorNodo)
 		}
-		it := Item{ID: idDeItem(n.Items), Tipo: tipo, Texto: texto, Autor: autor}
+		it := Item{ID: idDeItem(n.Items), Tipo: tipo, Texto: texto, Autor: autor, Visible: visible}
 		if tipo == ItemPrueba {
 			it.Estado = PruebaPendiente
 		}
 		n.Items = append(n.Items, it)
-		h := hecho{linea: fmt.Sprintf("☐ %s «%s»: %s nueva %s: %s", n.ID, n.Nombre, tipo, it.ID, texto), entera: true}
+		if problemas := problemasDeItem(n.ID, it); len(problemas) > 0 {
+			return hecho{}, fmt.Errorf("%s", strings.Join(problemas, "; "))
+		}
+		h := hecho{linea: fmt.Sprintf("☐ %s «%s»: %s nueva %s%s: %s", n.ID, n.Nombre, tipo, it.ID, enLinea(it.Visible), texto), entera: true}
 		if tipo == ItemPrueba {
 			h.pista = fmt.Sprintf("Al probarla, márcala con: qdd flujo item marcar %s %s %s pasa|falla --evidencia <run o commit>", f.ID, n.ID, it.ID)
 		}
@@ -176,6 +183,12 @@ func problemasDeItem(nodo string, it Item) []string {
 	if it.Tipo != ItemPrueba && it.Estado != "" {
 		return []string{fmt.Sprintf("el ítem %s de %q es %s: solo una prueba tiene estado", it.ID, nodo, it.Tipo)}
 	}
+	if it.Visible != "" && it.Visible != VisibleCompartida {
+		return []string{fmt.Sprintf("el ítem %s de %q tiene visible %q: usa %s o nada (interna)", it.ID, nodo, it.Visible, VisibleCompartida)}
+	}
+	if it.Tipo == ItemPrueba && it.Visible != "" {
+		return []string{fmt.Sprintf("la prueba %s de %q no se comparte: el cliente nunca ve pruebas", it.ID, nodo)}
+	}
 	if it.Tipo == ItemPrueba && !slices.Contains(estadosDePrueba, it.Estado) {
 		return []string{fmt.Sprintf("la prueba %s de %q tiene estado %q: usa %s", it.ID, nodo, it.Estado, strings.Join(estadosDePrueba, ", "))}
 	}
@@ -206,4 +219,37 @@ func btoi(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// CompartirItem deja que el cliente vea el ítem en la foto, o lo vuelve interno. Una prueba nunca se comparte.
+func CompartirItem(nodo, item string, compartida bool) Cambio {
+	return func(f *Flujo) (hecho, error) {
+		n, it, err := itemDe(f, nodo, item)
+		if err != nil {
+			return hecho{}, err
+		}
+		if it.Tipo == ItemPrueba {
+			return hecho{}, fmt.Errorf("el ítem %s de %q es una prueba: el cliente nunca ve pruebas", item, nodo)
+		}
+		it.Visible = ""
+		if compartida {
+			it.Visible = VisibleCompartida
+		}
+		return hecho{linea: fmt.Sprintf("%s «%s» %s queda %s: %s", n.ID, n.Nombre, it.ID, visibilidad(it.Visible), it.Texto)}, nil
+	}
+}
+
+func visibilidad(visible string) string {
+	if visible == VisibleCompartida {
+		return "compartida con el cliente"
+	}
+	return "interna"
+}
+
+// enLinea marca en la línea para la IA un ítem que el cliente verá.
+func enLinea(visible string) string {
+	if visible == "" {
+		return ""
+	}
+	return " (" + visibilidad(visible) + ")"
 }

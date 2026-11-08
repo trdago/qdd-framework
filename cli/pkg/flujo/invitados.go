@@ -30,7 +30,7 @@ var RolesDeInvitado = []string{RolCliente, RolExperto}
 
 // opsDeInvitado son las operaciones que puede proponer cualquier invitado. Marcar pruebas, deshacer, enviar o pedirle
 // detalle a la IA son de la persona.
-var opsDeInvitado = []string{OpComentar, OpAgregar, OpModificar, OpMover, OpQuitar, OpConectar, OpDesconectar}
+var opsDeInvitado = []string{OpComentar, OpAgregar, OpModificar, OpMover, OpQuitar, OpConectar, OpDesconectar, OpHistoria}
 
 // PermitidaA dice si un invitado con ese rol puede proponer la operación. La nota técnica es solo del experto.
 func (o Operacion) PermitidaA(rol string) error {
@@ -74,7 +74,7 @@ func (o Operacion) AplicarDeInvitado(root, flujo, autor, rol string, ahora time.
 	if err != nil {
 		return "", err
 	}
-	cambio := o.cambioDeInvitado(autor, ahora)
+	cambio := o.cambioDeInvitado(rol, autor, ahora)
 	firmado := func(f *Flujo) (hecho, error) {
 		h, err := cambio(f)
 		if err != nil {
@@ -87,12 +87,15 @@ func (o Operacion) AplicarDeInvitado(root, flujo, autor, rol string, ahora time.
 	return linea, err
 }
 
-func (o Operacion) cambioDeInvitado(autor string, ahora time.Time) Cambio {
+func (o Operacion) cambioDeInvitado(rol, autor string, ahora time.Time) Cambio {
 	if o.Op == OpComentar {
 		return comentarComo(o.Nodo, o.Texto, DeInvitado, autor, ahora)
 	}
 	if o.Op == OpNota {
-		return agregarItemDe(o.Nodo, ItemNota, o.Texto, autor, ahora)
+		return agregarItemDe(o.Nodo, ItemNota, o.Texto, autor, o.visible(), ahora)
+	}
+	if o.Op == OpHistoria {
+		return AgregarHistoria(o.historia(), rol+":"+autor)
 	}
 	return o.cambio(ahora)
 }
@@ -114,11 +117,32 @@ func (o Operacion) Describir(f Flujo) string {
 	case OpDesconectar:
 		return "quitar la flecha de " + nombre(o.Nodo) + " a " + nombre(o.Con)
 	case OpNota:
-		return "nota técnica en " + nombre(o.Nodo) + ": " + limpiar(o.Texto)
+		return describirNota(o, nombre(o.Nodo))
+	case OpHistoria:
+		return describirHistoria(o, f, nombre)
 	case OpComentar:
 		return "comenta " + nombre(o.Nodo) + ": " + limpiar(o.Texto)
 	}
 	return o.Op + " en " + nombre(o.Nodo)
+}
+
+func describirNota(o Operacion, en string) string {
+	if o.Compartida {
+		return "nota técnica compartida con el cliente en " + en + ": " + limpiar(o.Texto)
+	}
+	return "nota técnica interna en " + en + ": " + limpiar(o.Texto)
+}
+
+func describirHistoria(o Operacion, f Flujo, nombre func(string) string) string {
+	h, _ := historiaLimpia(o.historia())
+	texto := "historia: " + h.Frase()
+	if o.Nodo != "" {
+		texto = "historia en " + nombre(o.Nodo) + ": " + h.Frase()
+	}
+	if len(h.Criterios) == 0 {
+		return texto
+	}
+	return texto + " · criterios: " + strings.Join(h.Criterios, "; ")
 }
 
 func describirAgregar(o Operacion, en string) string {

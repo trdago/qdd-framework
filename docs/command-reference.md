@@ -155,6 +155,7 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo item agregar <flujo> <nodo> <prueba\|nota\|caracteristica\|funcion> <texto> [--de persona]` | Agrega un ítem al nodo, con id `i1`, `i2`…; una prueba nace pendiente. La IA ve qué hay que probar y cómo marcarlo. (qdd 2.10.0) |
 | `qdd flujo item marcar <flujo> <nodo> <item> <pendiente\|pasa\|falla> [--evidencia E] [--de persona]` | Marca una prueba del nodo. La evidencia es de esa marca: la carpeta del run de qdd-human, un commit o «a mano». (qdd 2.10.0) |
 | `qdd flujo item quitar <flujo> <nodo> <item> [--de persona]` | Quita un ítem del nodo. (qdd 2.10.0) |
+| `qdd flujo item compartir <flujo> <nodo> <item> [--interna] [--de persona]` | Deja que el cliente vea la nota, característica o función en el archivo compartido; con `--interna` vuelve a ser solo tuya. Una prueba nunca se comparte. (RFC 0025) |
 | `qdd flujo pedir-detalle <flujo> <nodo>` | Deja por enviar la pregunta de la persona por un nodo; lo usa el panel. |
 | `qdd flujo enviar <flujo> [--json]` | Reclama lo pendiente y escribe el mensaje para la IA; lo usa el panel. |
 | `qdd flujo devolver <flujo> --n N` | Deja como pendientes las últimas N líneas, si no se pudieron entregar; lo usa el panel. |
@@ -166,6 +167,10 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo plantillas [--json]` | Las plantillas (proceso, web, datos, agentes): sus tipos de nodo y el nombre de sus niveles N1 · N2 · N3. (RFC 0025) |
 | `qdd flujo grupo <flujo> "<nombre>" [--clase fase\|cola\|ambiente…] [--descripcion D] [--de persona]` | Le da clase y descripción a un grupo de nodos; se dibuja como un marco «[fase] Ingreso». Los nodos entran con `modificar --grupo`. |
 | `qdd flujo compartir <flujo> [--para <nombre>] [--rol cliente\|experto] [--dias N] [--tope N] [--salida <archivo.html>]` | Escribe un HTML de un solo archivo para conversar el flujo con alguien sin QDD: N1 · N2 · N3, leyenda de la plantilla y detalle por nodo, limpio de rutas y secretos. Por defecto en `./tmp/`. Con `--rol` crea una invitación en el relay y quien abra el archivo propone cambios (el experto, además, notas técnicas); el token va solo dentro del archivo. `--revocar <invitación>` la cierra. (RFC 0025) |
+| `qdd flujo historia <flujo> --quiero Q [--como C] [--para P] [--criterio K]… [--nodo N]… [--de persona]` | Escribe una historia de usuario del flujo, con id `h1`, `h2`…; se ve en sus nodos, en el panel y en el archivo compartido. Un invitado también la propone (operación `historia`) y entra cuando la persona la aprueba, con su origen. (RFC 0025) |
+| `qdd flujo historia tarea <flujo> <historia>` | Crea la tarea del tablero que implementa la historia, la anota en ella e imprime sus criterios. (RFC 0025) |
+| `qdd flujo historia quitar <flujo> <historia> [--de persona]` | Quita una historia de usuario; su tarea, si tiene, sigue en el tablero. (RFC 0025) |
+| `qdd flujo historias <flujo> [--json]` | Las historias de usuario del flujo, con sus criterios, nodos, origen y tarea. (RFC 0025) |
 | `qdd flujo invitaciones [--json]` | Las invitaciones del proyecto: flujo, rol, para quién, cuándo vencen y si siguen vivas. |
 | `qdd flujo propuestas [--json]` | Lo que propusieron los invitados y en qué quedó cada propuesta (por pedir, pedida, aprobada, rechazada). |
 | `qdd flujo propuestas ciclo [--si-toca] [--json]` | Lee las propuestas nuevas del relay, rechaza solas las que no cumplen el esquema o el rol, deja cada una como pedido 📝 de la persona en el panel (tres a la vez) y avisa al relay lo resuelto. El panel lo llama en su latido. |

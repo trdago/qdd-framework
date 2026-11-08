@@ -447,10 +447,69 @@
     }
     if (n.descripcion) panel.appendChild(el('p', 'texto', n.descripcion));
     if (!n.descripcion) panel.appendChild(el('p', 'texto vacio', t.explica || 'Sin descripción todavía.'));
+    panel.appendChild(notasDe(n));
+    panel.appendChild(historiasDe(historiasDelNodo(n.id), 'Historias de usuario'));
     var vienen = foto.nodos.filter(function (o) { return (o.siguen || []).indexOf(n.id) >= 0; }).map(function (o) { return o.id; });
     panel.appendChild(fichas('Viene de', vienen));
     panel.appendChild(fichas('Sigue', n.siguen || []));
     if (invitacion) panel.appendChild(accionesDeNodo(n));
+  }
+
+  // Notas técnicas que el equipo compartió: las internas nunca vienen en la foto.
+  function notasDe(n) {
+    var caja = document.createDocumentFragment();
+    if (!(n.notas || []).length) return caja;
+    caja.appendChild(el('h3', '', 'Notas técnicas'));
+    var ul = el('ul', 'notas-tecnicas');
+    n.notas.forEach(function (nota) { ul.appendChild(el('li', '', nota.texto)); });
+    caja.appendChild(ul);
+    return caja;
+  }
+
+  function historiasDelNodo(id) {
+    return (foto.historias || []).filter(function (h) { return (h.nodos || []).indexOf(id) >= 0; });
+  }
+
+  function fraseDe(h) {
+    var partes = ['quiero ' + h.quiero];
+    if (h.como) partes.unshift('como ' + h.como);
+    if (h.para) partes.push('para ' + h.para);
+    var frase = partes.join(', ');
+    return frase.charAt(0).toUpperCase() + frase.slice(1);
+  }
+
+  function historiasDe(lista, titulo) {
+    var caja = document.createDocumentFragment();
+    if (!lista.length) return caja;
+    caja.appendChild(el('h3', '', titulo));
+    var ul = el('ul', 'historias');
+    lista.forEach(function (h) {
+      var li = el('li', 'historia');
+      li.appendChild(el('span', 'frase', fraseDe(h)));
+      if ((h.criterios || []).length) {
+        var criterios = el('ul', 'criterios');
+        h.criterios.forEach(function (c) { criterios.appendChild(el('li', '', c)); });
+        li.appendChild(criterios);
+      }
+      ul.appendChild(li);
+    });
+    caja.appendChild(ul);
+    return caja;
+  }
+
+  // Las historias sin nodo no tienen dónde verse en el detalle: van en su propia sección, con las demás.
+  function pintarHistorias() {
+    var lista = foto.historias || [];
+    $('historias').hidden = !lista.length;
+    var cuerpo = $('lista-historias');
+    cuerpo.textContent = '';
+    lista.forEach(function (h) {
+      var li = el('li', 'historia');
+      li.appendChild(el('span', 'frase', fraseDe(h)));
+      (h.criterios || []).forEach(function (c) { li.appendChild(el('small', '', '· ' + c)); });
+      if ((h.nodos || []).length) li.appendChild(fichas('En', h.nodos));
+      cuerpo.appendChild(li);
+    });
   }
 
   // ---- proponer (RFC 0025, fase 3) ----
@@ -471,8 +530,10 @@
     { id: 'conectar', nombre: 'Conectar con', campos: [['con', 'Con qué paso', 'nodo']] },
     { id: 'mover', nombre: 'Mover después de', campos: [['despues_de', 'Después de qué paso', 'nodo']] },
     { id: 'quitar', nombre: 'Quitar', campos: [] },
-    { id: 'nota', nombre: 'Nota técnica', campos: [['texto', 'Nota técnica o idea de implementación', 'area']], experto: true }
+    { id: 'historia', nombre: 'Historia de usuario', campos: [['como', 'Como (quién lo necesita)', 'linea', true], ['quiero', 'Quiero (qué quiere hacer)', 'area'], ['para', 'Para (para qué le sirve)', 'linea', true], ['criterios', 'Criterios de aceptación, uno por línea', 'area', true]] },
+    { id: 'nota', nombre: 'Nota técnica', campos: [['texto', 'Nota técnica o idea de implementación', 'area'], ['compartida', 'Pedir que el cliente también la vea', 'si', true]], experto: true }
   ];
+  var MAX_CRITERIOS = 10;
 
   var ESTADOS = {
     'por-enviar': ['…', 'Por enviar'],
@@ -499,9 +560,24 @@
     if (accion === 'describir') return { op: 'modificar', flujo: foto.flujo, nodo: n.id, descripcion: v.descripcion };
     if (accion === 'agregar') { o.nombre = v.nombre; o.tipo = v.tipo; if (v.descripcion) o.descripcion = v.descripcion; }
     if (accion === 'comentar' || accion === 'nota') o.texto = v.texto;
+    if (accion === 'nota' && v.compartida) o.compartida = true;
+    if (accion === 'historia') return historiaDe(o, v);
     if (accion === 'conectar') o.con = v.con;
     if (accion === 'mover') o.despues_de = v.despues_de;
     return o;
+  }
+
+  function historiaDe(o, v) {
+    o.quiero = v.quiero;
+    if (v.como) o.como = v.como;
+    if (v.para) o.para = v.para;
+    var criterios = criteriosDe(v.criterios);
+    if (criterios.length) o.criterios = criterios;
+    return o;
+  }
+
+  function criteriosDe(texto) {
+    return String(texto || '').split('\n').map(function (c) { return c.trim(); }).filter(Boolean);
   }
 
   function textoDe(accion, n, v) {
@@ -513,7 +589,8 @@
       conectar: 'Flecha de ' + nombreDe(n.id) + ' a ' + nombreDe(v.con),
       mover: 'Mover ' + nombreDe(n.id) + ' después de ' + nombreDe(v.despues_de),
       quitar: 'Quitar ' + nombreDe(n.id),
-      nota: 'Nota técnica en ' + nombreDe(n.id) + ': ' + v.texto
+      historia: 'Historia en ' + nombreDe(n.id) + ': ' + fraseDe(v).replace(/^./, function (c) { return c.toLowerCase(); }),
+      nota: 'Nota técnica ' + (v.compartida ? 'para compartir ' : '') + 'en ' + nombreDe(n.id) + ': ' + v.texto
     };
     return textos[accion];
   }
@@ -555,6 +632,11 @@
       area.rows = 3;
       return area;
     }
+    if (tipo === 'si') {
+      var casilla = el('input');
+      casilla.type = 'checkbox';
+      return casilla;
+    }
     if (tipo === 'tipo' || tipo === 'nodo') {
       var lista = el('select');
       var opciones = tipo === 'tipo' ? foto.plantilla.tipos : foto.nodos.filter(function (o) { return o.id !== n.id; });
@@ -577,9 +659,11 @@
     var lista = a.campos.slice();
     if (!autor()) lista.unshift(['autor', 'Tu nombre (el equipo lo ve en cada propuesta)', 'linea']);
     lista.forEach(function (c) {
-      var etiqueta = el('label', '', c[1] + (c[3] ? ' (opcional)' : ''));
+      var casilla = c[2] === 'si';
+      var etiqueta = el('label', casilla ? 'casilla' : '', c[1] + (c[3] && !casilla ? ' (opcional)' : ''));
       campos[c[0]] = control(c, n);
-      etiqueta.appendChild(campos[c[0]]);
+      if (casilla) etiqueta.insertBefore(campos[c[0]], etiqueta.firstChild);
+      if (!casilla) etiqueta.appendChild(campos[c[0]]);
       form.appendChild(etiqueta);
     });
     if (a.id === 'quitar') form.appendChild(el('p', 'texto', 'Propones quitar ' + nombreDe(n.id) + ' del flujo.'));
@@ -593,13 +677,19 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var v = {};
-      Object.keys(campos).forEach(function (k) { v[k] = campos[k].value.trim(); });
+      Object.keys(campos).forEach(function (k) { v[k] = campos[k].type === 'checkbox' ? campos[k].checked : campos[k].value.trim(); });
       if (v.autor) guardar('qdd-flujo-autor', v.autor);
       var falta = lista.filter(function (c) { return !c[3] && !v[c[0]] && !(c[0] === 'autor' && autor()); })[0];
       if (falta) {
         error.textContent = 'Falta: ' + falta[1].toLowerCase() + '.';
         error.hidden = false;
         campos[falta[0]].focus();
+        return;
+      }
+      if (a.id === 'historia' && criteriosDe(v.criterios).length > MAX_CRITERIOS) {
+        error.textContent = 'Son ' + criteriosDe(v.criterios).length + ' criterios: el tope es ' + MAX_CRITERIOS + '.';
+        error.hidden = false;
+        campos.criterios.focus();
         return;
       }
       proponer(operacionDe(a.id, n, v), textoDe(a.id, n, v));
@@ -697,6 +787,7 @@
     cabecera();
     botonesDeNivel();
     leyenda();
+    pintarHistorias();
     dibujar();
     mostrarDetalle();
   }
@@ -752,7 +843,7 @@
     ['Tres niveles de detalle', 'N1 muestra lo principal. N2 y N3 suman detalle. Una caja punteada junta varios pasos: tócala para abrirla.'],
     ['Toca un paso', 'Al tocarlo ves qué es, de dónde viene y qué sigue. Abajo está la leyenda con cada tipo de paso.']
   ];
-  if (invitacion) pasos.push(['Propón cambios', 'Toca un paso y elige qué proponer: comentar, agregar, renombrar, conectar o quitar. Le llega al equipo y lo verás integrado cuando lo aprueben.']);
+  if (invitacion) pasos.push(['Propón cambios', 'Toca un paso y elige qué proponer: comentar, agregar, renombrar, conectar, quitar o una historia de usuario. Le llega al equipo y lo verás integrado cuando lo aprueben.']);
   var paso = 0;
 
   function mostrarPaso() {
@@ -791,6 +882,7 @@
   cabecera();
   botonesDeNivel();
   leyenda();
+  pintarHistorias();
   dibujar();
   mostrarDetalle();
   if (!conEnlace && !guardado('qdd-flujo-recorrido')) abrirRecorrido();

@@ -718,7 +718,25 @@ function nivelDeNodo(Text, n, d) {
 
 function fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, ancho) {
   const descripcion = n.descripcion ? [Text({ key: 'fl-n-desc', dimColor: true, wrap: 'wrap', children: [n.descripcion] })] : []
-  return [...descripcion, ...nivelDeNodo(Text, n, dibujos.get(id) || {}), ...itemsDeNodo($, Box, Text, Button, id, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+  const d = dibujos.get(id) || {}
+  return [...descripcion, ...nivelDeNodo(Text, n, d), ...itemsDeNodo($, Box, Text, Button, id, n), ...historiasDeNodo(Box, Text, d, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+}
+
+// historiasDeNodo: las historias de usuario que tocan el nodo (RFC 0025), con sus criterios, su origen y su tarea.
+function historiasDeNodo(Box, Text, d, n) {
+  return (d.historias || []).filter((h) => (h.nodos || []).includes(n.id)).map((h) => {
+    const frase = [h.como && 'como ' + h.como, 'quiero ' + h.quiero, h.para && 'para ' + h.para].filter(Boolean).join(', ')
+    const de = [h.origen, h.tarea && 'tarea ' + h.tarea].filter(Boolean).join(' · ')
+    return Box({
+      key: 'fl-historia-' + h.id,
+      flexDirection: 'column',
+      children: [
+        Text({ key: 'fl-historia-t-' + h.id, wrap: 'wrap', children: ['📖 ' + h.id + ' · ' + frase] }),
+        ...(h.criterios || []).map((c, i) => Text({ key: 'fl-historia-c-' + h.id + '-' + i, dimColor: true, wrap: 'wrap', children: ['  · ' + c] })),
+        ...(de ? [Text({ key: 'fl-historia-de-' + h.id, dimColor: true, size: 'caption', wrap: 'truncate-end', children: ['  ' + de] })] : []),
+      ],
+    })
+  })
 }
 
 // ── Ítems de un nodo (pedido de la persona, 2026-11-07) ───────────────────────────────────────────────────────────────
@@ -748,7 +766,10 @@ function itemsDeNodo($, Box, Text, Button, id, n) {
     const texto = prueba ? SIMBOLO_PRUEBA[it.estado] + ' ' + it.texto : etiqueta + ': ' + it.texto
     const color = it.estado === 'falla' ? COLOR.falla : it.estado === 'pasa' ? COLOR.bien : undefined
     const marcar = (estado) => correrFlujo($, id, ['item', 'marcar', '--de', 'persona', '--evidencia', 'a mano', '--', id, n.id, it.id, estado])
+    const compartida = it.visible === 'compartida'
+    const compartir = () => correrFlujo($, id, ['item', 'compartir', '--de', 'persona', ...(compartida ? ['--interna'] : []), '--', id, n.id, it.id])
     const botones = [
+      ...(prueba ? [] : [Button({ key: 'fl-item-ver-' + it.id, label: compartida ? 'la ve el cliente' : 'interna', plain: true, dimColor: !compartida, onPress: compartir })]),
       ...(prueba ? [Button({ key: 'fl-item-pasa-' + it.id, label: '✓', plain: true, onPress: () => marcar('pasa') }), Button({ key: 'fl-item-falla-' + it.id, label: '✗', plain: true, onPress: () => marcar('falla') })] : []),
       Button({ key: 'fl-item-quitar-' + it.id, label: '−', plain: true, dimColor: true, onPress: () => correrFlujo($, id, ['item', 'quitar', '--de', 'persona', '--', id, n.id, it.id]) }),
     ]

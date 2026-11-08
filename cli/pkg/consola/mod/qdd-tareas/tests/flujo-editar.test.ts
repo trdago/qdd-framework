@@ -379,6 +379,37 @@ test('una prueba se marca desde el nodo', async ($, on) => {
   expect(comandos(r, 'item')[1]).toEqual(['qdd', 'flujo', 'item', 'quitar', '--de', 'persona', '--', 'pago', 'llega', 'i4'])
 })
 
+// RFC 0025: una nota es interna hasta que la persona la comparte; solo entonces la ve el cliente en el archivo.
+test('una nota se comparte con el cliente y vuelve a ser interna desde el nodo', async ($, on) => {
+  const r = conItems(nuevo())
+  r.dibujo.nodos[0].items.push({ id: 'i5', tipo: 'nota', texto: 'API del SII', visible: 'compartida' })
+  const ui = await abrir($, on, r)
+  await elegir(ui)
+  expect((await ui.find({ key: 'fl-item-ver-i4' })).props.label).toBe('interna')
+  expect((await ui.find({ key: 'fl-item-ver-i5' })).props.label).toBe('la ve el cliente')
+  expect(await ui.find({ key: 'fl-item-ver-i1' })).toBeUndefined()
+  await ui.press({ key: 'fl-item-ver-i4' })
+  await esperar()
+  expect(comandos(r, 'item')[0]).toEqual(['qdd', 'flujo', 'item', 'compartir', '--de', 'persona', '--', 'pago', 'llega', 'i4'])
+  await ui.press({ key: 'fl-item-ver-i5' })
+  await esperar()
+  expect(comandos(r, 'item')[1]).toEqual(['qdd', 'flujo', 'item', 'compartir', '--de', 'persona', '--interna', '--', 'pago', 'llega', 'i5'])
+})
+
+test('las historias de usuario se ven en su nodo', async ($, on) => {
+  const r = nuevo()
+  r.dibujo.historias = [
+    { id: 'h1', como: 'vendedor', quiero: 'validar el RUT', para: 'no duplicar', criterios: ['un RUT inválido no sigue'], nodos: ['llega'], origen: 'cliente:Ana', tarea: 'validar-rut' },
+    { id: 'h2', quiero: 'otra cosa', nodos: ['otro'] },
+  ]
+  const ui = await abrir($, on, r)
+  await elegir(ui)
+  expect(await ui.find({ type: 'Text', text: /h1 · como vendedor, quiero validar el RUT, para no duplicar/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /un RUT inválido no sigue/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /cliente:Ana · tarea validar-rut/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /otra cosa/ })).toBeUndefined()
+})
+
 test('agregar un ítem elige su tipo y no llama a la IA en el acto', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, r)

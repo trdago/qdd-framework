@@ -100,7 +100,7 @@ func TestDescribir_EnPalabrasConLosNombres(t *testing.T) {
 		`{"op":"comentar","flujo":"pago","nodo":"b","texto":"falta el RUT"}`:    "comenta «Valida»: falta el RUT",
 		`{"op":"conectar","flujo":"pago","nodo":"a","con":"c"}`:                 "flecha de «Llega» a «Fin»",
 		`{"op":"mover","flujo":"pago","nodo":"a","despues_de":"b"}`:             "mover «Llega» después de «Valida»",
-		`{"op":"nota","flujo":"pago","nodo":"c","texto":"usar la API del SII"}`: "nota técnica en «Fin»: usar la API del SII",
+		`{"op":"nota","flujo":"pago","nodo":"c","texto":"usar la API del SII"}`: "nota técnica interna en «Fin»: usar la API del SII",
 	}
 	for texto, quiere := range casos {
 		if d := operacionDe(t, texto).Describir(f); d != quiere {
