@@ -34,7 +34,7 @@ func (a Accion) Lanzar(root, bin, sesion string, salida io.Writer) int {
 		return 1
 	}
 	anotarLanzado(root, a.pedido, c.Process.Pid)
-	_ = c.Process.Release()
+	soltar(c)
 	if estado == EstadoArmado {
 		fmt.Fprintf(salida, "[+] Armado: %s corre solo cuando termine lo que espera (el panel lo muestra)\n", a.Etiqueta)
 		return 0

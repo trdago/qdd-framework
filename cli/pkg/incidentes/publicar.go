@@ -162,6 +162,6 @@ func Lanzar(dir, bin string, now time.Time) bool {
 	if err := c.Start(); err != nil {
 		return false
 	}
-	_ = c.Process.Release()
+	go func() { _ = c.Wait() }() // recoge al hijo al terminar: Release() lo dejaba zombie (FND-179)
 	return true
 }
