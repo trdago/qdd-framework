@@ -18,9 +18,11 @@ import (
 const anchoFlujoPorDefecto = 60
 
 var (
-	flujoJSON    bool
-	flujoAncho   int
-	flujoElegido string
+	flujoJSON     bool
+	flujoAncho    int
+	flujoElegido  string
+	flujoNivel    int
+	flujoAbiertos []string
 )
 
 var flujoCmd = &cobra.Command{
@@ -32,7 +34,7 @@ de describirlo en prosa. Se guarda en ` + flujo.Carpeta + `/<id>.yaml, versionad
 
   qdd flujo crear <archivo.yaml|->   valida y guarda (o reemplaza) el flujo; conserva sus comentarios
   qdd flujo nuevo "<nombre>"         un flujo con un solo nodo, para seguir editándolo
-  qdd flujo ver <id> [--ancho N] [--elegido <nodo>] [--json]
+  qdd flujo ver <id> [--ancho N] [--nivel 1|2|3] [--abrir <grupo>,…] [--elegido <nodo>] [--json]
   qdd flujo lista [--json]
 
 La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambio. Para responderle o cambiarlo:
@@ -43,7 +45,7 @@ La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambi
   qdd flujo item marcar <id> <nodo> <item> pasa|falla --evidencia E   marca una prueba del nodo (qdd-human)
   qdd flujo item agregar <id> <nodo> <prueba|nota|caracteristica|funcion> "<texto>"
   qdd flujo agregar <id> <nodo> --nombre N [--tipo paso|resultado] [--descripcion D] [--rama]
-  qdd flujo modificar <id> <nodo> [--nombre N] [--descripcion D] [--tipo T]
+  qdd flujo modificar <id> <nodo> [--nombre N] [--descripcion D] [--tipo T] [--grupo G] [--nivel 0-3]
   qdd flujo mover <id> <nodo> --despues-de <otro>
   qdd flujo quitar <id> <nodo>
   qdd flujo conectar|desconectar <id> <nodo> --con <otro>
@@ -107,6 +109,13 @@ type flujoDibujado struct {
 	PuedeDeshacer bool         `json:"puede_deshacer"`
 
 	Comentarios []flujo.Comentario `json:"comentarios,omitempty"` // preguntas y respuestas sobre el flujo completo
+
+	// Nivel es el que se dibujó (1 panorama, 2 camino, 3 completo), Grupos los del flujo, Abiertos los que se ven con sus
+	// pasos en el panorama y Niveles el de cada nodo (el puesto o el calculado), para la tarjeta (#186).
+	Nivel    int            `json:"nivel"`
+	Grupos   []string       `json:"grupos,omitempty"`
+	Abiertos []string       `json:"abiertos,omitempty"`
+	Niveles  map[string]int `json:"niveles"`
 }
 
 var flujoVerCmd = &cobra.Command{
@@ -119,12 +128,13 @@ var flujoVerCmd = &cobra.Command{
 		if err != nil {
 			salirCon("%v", err)
 		}
-		lineas := flujo.DibujarElegido(f, flujoAncho, estadoDeTarea(root), flujoElegido)
+		lineas := flujo.DibujarElegido(flujo.Plegar(f, flujo.Vista{Nivel: flujoNivel, Abiertos: flujoAbiertos, Mostrar: flujoElegido}), flujoAncho, estadoDeTarea(root), flujoElegido)
 		salida := cmd.OutOrStdout()
 		if flujoJSON {
 			b, err := json.Marshal(flujoDibujado{
 				ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas, Nodos: f.Nodos,
 				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID), Comentarios: f.Comentarios,
+				Nivel: flujoNivel, Grupos: flujo.Grupos(f), Abiertos: flujoAbiertos, Niveles: flujo.Niveles(f),
 			})
 			if err != nil {
 				salirCon("%v", err)
@@ -187,6 +197,8 @@ func init() {
 	flujoVerCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoVerCmd.Flags().IntVar(&flujoAncho, "ancho", anchoFlujoPorDefecto, "Columnas disponibles")
 	flujoVerCmd.Flags().StringVar(&flujoElegido, "elegido", "", "Nodo que se dibuja resaltado")
+	flujoVerCmd.Flags().IntVar(&flujoNivel, "nivel", flujo.NivelDesvio, "1 panorama (un grupo por caja), 2 camino principal, 3 completo")
+	flujoVerCmd.Flags().StringSliceVar(&flujoAbiertos, "abrir", nil, "Grupos que en el panorama se ven con sus pasos")
 	flujoListaCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoCmd.AddCommand(flujoCrearCmd, flujoVerCmd, flujoListaCmd)
 	rootCmd.AddCommand(flujoCmd)

@@ -132,16 +132,35 @@ func Agregar(en, nombre, tipo, descripcion string, rama bool) Cambio {
 
 // Modificar cambia lo que no venga en nil, y dice qué cambió.
 func Modificar(nodo string, nombre, descripcion, tipo *string) Cambio {
+	return ModificarNodo(nodo, Campos{Nombre: nombre, Descripcion: descripcion, Tipo: tipo})
+}
+
+// Campos son los que modificar cambia; nil es «no viene». Nivel 0 vuelve al calculado (niveles.go).
+type Campos struct {
+	Nombre, Descripcion, Tipo, Grupo *string
+	Nivel                            *int
+}
+
+// ModificarNodo cambia los campos que vienen.
+func ModificarNodo(nodo string, c Campos) Cambio {
 	return func(f *Flujo) (hecho, error) {
 		i, err := indiceDe(f, nodo)
 		if err != nil {
 			return hecho{}, err
 		}
+		if c.Nivel != nil && (*c.Nivel < 0 || *c.Nivel > NivelDesvio) {
+			return hecho{}, fmt.Errorf("nivel %d: usa 1 (hito), 2 (paso), 3 (desvío) o 0 (calculado)", *c.Nivel)
+		}
 		n := &f.Nodos[i]
 		var cambios []string
-		cambios = append(cambios, cambiar(&n.Nombre, nombre, "nombre")...)
-		cambios = append(cambios, cambiar(&n.Descripcion, descripcion, "descripción")...)
-		cambios = append(cambios, cambiar(&n.Tipo, tipo, "tipo")...)
+		cambios = append(cambios, cambiar(&n.Nombre, c.Nombre, "nombre")...)
+		cambios = append(cambios, cambiar(&n.Descripcion, c.Descripcion, "descripción")...)
+		cambios = append(cambios, cambiar(&n.Tipo, c.Tipo, "tipo")...)
+		cambios = append(cambios, cambiar(&n.Grupo, c.Grupo, "grupo")...)
+		if c.Nivel != nil && *c.Nivel != n.Nivel {
+			cambios = append(cambios, fmt.Sprintf("nivel: %d → %d", n.Nivel, *c.Nivel))
+			n.Nivel = *c.Nivel
+		}
 		if len(cambios) == 0 {
 			return hecho{}, fmt.Errorf("el nodo %q ya está así: no hay nada que cambiar", nodo)
 		}

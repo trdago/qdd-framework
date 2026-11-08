@@ -41,6 +41,10 @@ type Nodo struct {
 	Descripcion string   `yaml:"descripcion,omitempty" json:"descripcion,omitempty"`
 	Tarea       string   `yaml:"tarea,omitempty" json:"tarea,omitempty"`
 	Siguen      []string `yaml:"siguen,omitempty" json:"siguen,omitempty"`
+	// Grupo junta pasos seguidos bajo un nombre (una caja en el panorama) y Nivel es el que puso la persona en la
+	// tarjeta: 1 hito, 2 paso, 3 desvío; 0 es calculado (niveles.go, #186).
+	Grupo string `yaml:"grupo,omitempty" json:"grupo,omitempty"`
+	Nivel int    `yaml:"nivel,omitempty" json:"nivel,omitempty"`
 
 	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
 	Items       []Item       `yaml:"items,omitempty" json:"items,omitempty"`

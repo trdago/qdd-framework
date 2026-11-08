@@ -421,15 +421,72 @@ function navegacionDeFlujos($, Box, Text, Button, f) {
   ]
 }
 
-async function pedirDibujo($, f, ancho, elegido, generacion) {
-  const pedido = [f.id, f.huella, ancho, elegido, generacion].join('|')
+// ── Niveles y grupos (#186, partes B y C) ─────────────────────────────────────────────────────────────────────────────
+// Un flujo grande abre en el panorama: un grupo por caja, con sus hitos. 1, 2 y 3 cambian el nivel (panorama, camino
+// principal, todo) y en el panorama cada grupo se abre solo. qdd pliega y dibuja; el panel solo pide la vista.
+const FLUJO_GRANDE = 15
+const NIVELES = [
+  { nivel: 1, nombre: 'Panorama' },
+  { nivel: 2, nombre: 'Camino' },
+  { nivel: 3, nombre: 'Todo' },
+]
+const NOMBRE_DE_NIVEL = { 1: 'hito', 2: 'paso', 3: 'desvío' }
+
+function nivelDe(f, s) {
+  if (s.nivel) return s.nivel
+  return f.nodos >= FLUJO_GRANDE ? 1 : 3
+}
+
+// slugDeGrupo es el mismo id que qdd le da al grupo (flujo.IDGrupo, sin «grupo-»).
+const slugDeGrupo = (g) =>
+  String(g)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+function argsDeVista(nivel, abiertos) {
+  if (nivel >= 3) return []
+  const abrir = nivel === 1 && abiertos.length ? ['--abrir', abiertos.join(',')] : []
+  return ['--nivel', String(nivel), ...abrir]
+}
+
+function cambiarNivel($, s, nivel) {
+  s.nivel = nivel
+  $.ui.invalidate('ui.render')
+}
+
+function alternarGrupo($, s, grupo) {
+  s.abiertos = s.abiertos.includes(grupo) ? s.abiertos.filter((g) => g !== grupo) : [...s.abiertos, grupo]
+  $.ui.invalidate('ui.render')
+}
+
+// vistaDeNiveles: los botones de nivel, y en el panorama un botón por grupo para abrirlo o plegarlo.
+function vistaDeNiveles($, Box, Button, f, s, d) {
+  const grupos = d.grupos || []
+  if (f.nodos < 8 && grupos.length === 0) return []
+  const nivel = nivelDe(f, s)
+  const botones = NIVELES.map((n) =>
+    Button({ key: 'fl-nivel-' + n.nivel, label: (n.nivel === nivel ? '● ' : '○ ') + n.nivel + ' ' + n.nombre, hotkey: String(n.nivel), plain: true, onPress: () => cambiarNivel($, s, n.nivel) }),
+  )
+  const filas = [Box({ key: 'fl-niveles', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, marginTop: 1, children: botones })]
+  if (nivel !== 1 || grupos.length === 0) return filas
+  const deGrupos = grupos.map((g) =>
+    Button({ key: 'fl-grupo-' + slugDeGrupo(g), label: (s.abiertos.includes(g) ? '▾ ' : '▸ ') + g, plain: true, dimColor: !s.abiertos.includes(g), onPress: () => alternarGrupo($, s, g) }),
+  )
+  return [...filas, Box({ key: 'fl-grupos', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: deGrupos })]
+}
+
+async function pedirDibujo($, f, ancho, elegido, generacion, vista = []) {
+  const pedido = [f.id, f.huella, ancho, elegido, generacion, vista.join(' ')].join('|')
   if (dibujandoFlujo.has(pedido)) return
   dibujandoFlujo.add(pedido)
   const previo = dibujos.get(f.id)
-  const hecho = { huella: f.huella, ancho, elegido, generacion, lineas: previo?.lineas || [], nodos: previo?.nodos || [], por_enviar: previo?.por_enviar || [], puede_deshacer: !!previo?.puede_deshacer, nombre: f.nombre, descripcion: '', aviso: '' }
+  const hecho = { huella: f.huella, ancho, elegido, generacion, vista: vista.join(' '), lineas: previo?.lineas || [], nodos: previo?.nodos || [], por_enviar: previo?.por_enviar || [], puede_deshacer: !!previo?.puede_deshacer, nombre: f.nombre, descripcion: '', aviso: '' }
   try {
     const bin = await binario($)
-    const r = await $.process.run([bin, 'flujo', 'ver', f.id, '--ancho', String(ancho), '--json', ...(elegido ? ['--elegido', elegido] : [])], { timeoutMs: TOPE_MS })
+    const r = await $.process.run([bin, 'flujo', 'ver', f.id, '--ancho', String(ancho), '--json', ...(elegido ? ['--elegido', elegido] : []), ...vista], { timeoutMs: TOPE_MS })
     if (r.exitCode !== 0) hecho.aviso = (r.stderr || '').trim() || 'qdd no pudo dibujar este flujo'
     if (r.exitCode === 0) Object.assign(hecho, JSON.parse(r.stdout))
   } catch (err) {
@@ -462,7 +519,8 @@ function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
   if (f.problema) return Text({ color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + f.problema] })
   const s = edicionDe(id)
   const d = dibujos.get(id)
-  if (!d || d.huella !== f.huella || d.ancho !== ancho || (d.elegido || '') !== s.elegido || d.generacion !== s.generacion) pedirDibujo($, f, ancho, s.elegido, s.generacion)
+  const vista = argsDeVista(nivelDe(f, s), s.abiertos)
+  if (!d || d.huella !== f.huella || d.ancho !== ancho || (d.elegido || '') !== s.elegido || d.generacion !== s.generacion || d.vista !== vista.join(' ')) pedirDibujo($, f, ancho, s.elegido, s.generacion, vista)
   if (!d) return Text({ dimColor: true, children: ['Dibujando…'] })
   return Box({
     flexDirection: 'column',
@@ -470,6 +528,7 @@ function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
       Text({ key: 'fl-nombre', weight: 'bold', size: 'title', wrap: 'wrap', children: [d.nombre] }),
       ...(d.descripcion ? [Text({ key: 'fl-desc', dimColor: true, wrap: 'wrap', children: [d.descripcion] })] : []),
       ...(d.aviso ? [Text({ key: 'fl-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + d.aviso] })] : []),
+      ...vistaDeNiveles($, Box, Button, f, s, d),
       Box({ key: 'fl-dibujo', flexDirection: 'column', marginTop: 1, children: filasDeFlujo($, Text, id, d.lineas) }),
       ...preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho),
       ...nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho),
@@ -487,7 +546,7 @@ function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
 const ediciones = new Map() // id → { elegido, modo, valores, aviso, ocupado, generacion }
 
 function edicionDe(id) {
-  if (!ediciones.has(id)) ediciones.set(id, { elegido: '', modo: '', valores: {}, aviso: '', pista: '', ocupado: false, generacion: 0 })
+  if (!ediciones.has(id)) ediciones.set(id, { elegido: '', modo: '', valores: {}, aviso: '', pista: '', ocupado: false, generacion: 0, nivel: 0, abiertos: [] })
   return ediciones.get(id)
 }
 
@@ -641,9 +700,18 @@ function filaDeNodo($, Box, Text, Button, Input, Select, id, s, d, n, ancho) {
   return [fila, Box({ key: 'fl-ficha', flexDirection: 'column', paddingLeft: 2, children: fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, Math.max(10, ancho - 4)) })]
 }
 
+// nivelDeNodo: el nivel que puso la persona o el calculado, y su grupo (#186).
+function nivelDeNodo(Text, n, d) {
+  const nivel = n.nivel || d.niveles?.[n.id]
+  if (!nivel) return []
+  const partes = ['Nivel ' + nivel + ' · ' + NOMBRE_DE_NIVEL[nivel] + (n.nivel ? '' : ' (calculado)')]
+  if (n.grupo) partes.push('grupo ' + n.grupo)
+  return [Text({ key: 'fl-n-nivel', dimColor: true, wrap: 'truncate-end', children: [partes.join(' · ')] })]
+}
+
 function fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, ancho) {
   const descripcion = n.descripcion ? [Text({ key: 'fl-n-desc', dimColor: true, wrap: 'wrap', children: [n.descripcion] })] : []
-  return [...descripcion, ...itemsDeNodo($, Box, Text, Button, id, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+  return [...descripcion, ...nivelDeNodo(Text, n, dibujos.get(id) || {}), ...itemsDeNodo($, Box, Text, Button, id, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
 }
 
 // ── Ítems de un nodo (pedido de la persona, 2026-11-07) ───────────────────────────────────────────────────────────────
@@ -736,7 +804,7 @@ function accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n) {
         accion('fl-preguntar', 'g', 'Preguntar', () => cambiarModo($, id, s, 'preguntar')),
         accion('fl-item', 'b', 'Ítem', () => cambiarModo($, id, s, 'item')),
         accion('fl-detalle', 'd', 'Detalle', () => correrFlujo($, id, ['pedir-detalle', '--', id, n.id], true)),
-        accion('fl-editar', 'e', 'Editar', () => cambiarModo($, id, s, 'editar', { nombre: n.nombre, descripcion: n.descripcion || '', tipo: n.tipo })),
+        accion('fl-editar', 'e', 'Editar', () => cambiarModo($, id, s, 'editar', { nombre: n.nombre, descripcion: n.descripcion || '', tipo: n.tipo, nivel: String(n.nivel || 0), grupo: n.grupo || '' })),
         accion('fl-despues', 'a', 'Después', () => cambiarModo($, id, s, 'despues', { tipo: 'paso' })),
         accion('fl-rama', 'r', 'Rama', () => cambiarModo($, id, s, 'rama', { tipo: 'paso' })),
         accion('fl-mover', 'm', 'Mover', () => cambiarModo($, id, s, 'mover')),
@@ -755,6 +823,24 @@ function campoTipo($, Select, s) {
     value: s.valores.tipo,
     onSelect: (v) => {
       s.valores.tipo = v
+      $.ui.invalidate('ui.render')
+    },
+  })
+}
+
+function campoNivel($, Select, s) {
+  return Select({
+    key: 'fl-nivel',
+    label: 'Nivel',
+    options: [
+      { value: '0', label: 'calculado' },
+      { value: '1', label: '1 hito (se ve en el panorama)' },
+      { value: '2', label: '2 paso del camino' },
+      { value: '3', label: '3 desvío o rechazo' },
+    ],
+    value: s.valores.nivel,
+    onSelect: (v) => {
+      s.valores.nivel = v
       $.ui.invalidate('ui.render')
     },
   })
@@ -780,11 +866,16 @@ function formularioEditar($, Box, Button, Input, Select, id, s, n, cancelar) {
       $.ui.invalidate('ui.render')
     },
   })
-  const guardar = () => correrFlujo($, id, ['modificar', '--de', 'persona', '--nombre', s.valores.nombre, '--descripcion', s.valores.descripcion, '--tipo', s.valores.tipo, '--', id, n.id])
+  // El grupo y el nivel van solo si cambiaron: un qdd anterior no los conoce.
+  const grupo = s.valores.grupo !== undefined && s.valores.grupo !== (n.grupo || '') ? ['--grupo', s.valores.grupo] : []
+  const nivel = s.valores.nivel !== undefined && s.valores.nivel !== String(n.nivel || 0) ? ['--nivel', s.valores.nivel] : []
+  const guardar = () => correrFlujo($, id, ['modificar', '--de', 'persona', '--nombre', s.valores.nombre, '--descripcion', s.valores.descripcion, '--tipo', s.valores.tipo, ...grupo, ...nivel, '--', id, n.id])
   return [
     campo('fl-nombre', 'nombre', 'Nombre'),
     campo('fl-descripcion', 'descripcion', 'Descripción'),
     campoTipo($, Select, s),
+    campoNivel($, Select, s),
+    campo('fl-grupo', 'grupo', 'Grupo (una caja en el panorama)'),
     Box({ key: 'fl-guardar-fila', flexDirection: 'row', columnGap: 2, children: [Button({ key: 'fl-guardar', label: 'Guardar', variant: 'primary', onPress: guardar }), cancelar] }),
   ]
 }

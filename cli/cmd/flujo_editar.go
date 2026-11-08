@@ -63,9 +63,18 @@ var flujoAgregarCmd = edicionDeFlujo("agregar <flujo> <nodo>", "Agrega un nodo d
 	return flujo.Agregar(args[1], flujoNombre.valor, flujoTipo.valor, flujoDescribe.valor, flujoRama)
 })
 
-var flujoModificarCmd = edicionDeFlujo("modificar <flujo> <nodo>", "Cambia el nombre, la descripción o el tipo de un nodo", func(cmd *cobra.Command, args []string) flujo.Cambio {
-	return flujo.Modificar(args[1], flujoNombre.puntero(cmd), flujoDescribe.puntero(cmd), flujoTipo.puntero(cmd))
+var flujoModificarCmd = edicionDeFlujo("modificar <flujo> <nodo>", "Cambia el nombre, la descripción, el tipo, el grupo o el nivel de un nodo", func(cmd *cobra.Command, args []string) flujo.Cambio {
+	c := flujo.Campos{Nombre: flujoNombre.puntero(cmd), Descripcion: flujoDescribe.puntero(cmd), Tipo: flujoTipo.puntero(cmd), Grupo: flujoGrupo.puntero(cmd)}
+	if cmd.Flags().Changed("nivel") {
+		c.Nivel = &flujoNivelNodo
+	}
+	return flujo.ModificarNodo(args[1], c)
 })
+
+var (
+	flujoGrupo     = textoOpcional{flag: "grupo"}
+	flujoNivelNodo int
+)
 
 var flujoQuitarCmd = edicionDeFlujo("quitar <flujo> <nodo>", "Quita un nodo y une lo de antes con lo de después", func(cmd *cobra.Command, args []string) flujo.Cambio {
 	return flujo.Quitar(args[1])
@@ -261,6 +270,8 @@ func init() {
 		c.Flags().StringVar(&flujoDescribe.valor, flujoDescribe.flag, "", "Descripción del nodo")
 		c.Flags().StringVar(&flujoTipo.valor, flujoTipo.flag, "", "paso o resultado")
 	}
+	flujoModificarCmd.Flags().StringVar(&flujoGrupo.valor, flujoGrupo.flag, "", "Grupo del nodo: una caja en el panorama (vacío lo saca)")
+	flujoModificarCmd.Flags().IntVar(&flujoNivelNodo, "nivel", 0, "1 hito (se ve en el panorama), 2 paso, 3 desvío; 0 calculado")
 	flujoAgregarCmd.Flags().BoolVar(&flujoRama, "rama", false, "Como una salida más, sin tocar lo que ya seguía")
 	flujoMoverCmd.Flags().StringVar(&flujoDespuesDe, "despues-de", "", "Nodo después del que va")
 	for _, c := range []*cobra.Command{flujoConectarCmd, flujoDesconectarCmd} {
