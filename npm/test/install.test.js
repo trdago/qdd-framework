@@ -198,13 +198,46 @@ test('moverBinario copia si el destino está en otro volumen', (t) => {
   assert.ok(!fs.existsSync(destino + '.nuevo'));
 });
 
-test('moverBinario no esconde otro error', (t) => {
+test('moverBinario no esconde otro error ni lo reintenta', (t) => {
   const raiz = crearRaiz(t);
   const origen = path.join(raiz, 'origen');
   fs.writeFileSync(origen, 'binario');
-  const ocupado = () => { throw Object.assign(new Error('busy'), { code: 'EBUSY' }); };
-  assert.throws(() => moverBinario(origen, path.join(raiz, 'destino'), ocupado), /busy/);
+  let intentos = 0;
+  const sinPermiso = () => { intentos++; throw Object.assign(new Error('denied'), { code: 'EACCES' }); };
+  assert.throws(() => moverBinario(origen, path.join(raiz, 'destino'), sinPermiso, { dormir: () => {} }), /denied/);
+  assert.strictEqual(intentos, 1);
   assert.ok(fs.existsSync(origen));
+});
+
+// #175: en Windows, un antivirus retiene unos segundos el qdd.exe recién ejecutado y renameSync falla con EBUSY.
+test('moverBinario espera mientras el binario nuevo está ocupado (#175)', (t) => {
+  const raiz = crearRaiz(t);
+  const origen = path.join(raiz, 'origen');
+  const destino = path.join(raiz, 'destino');
+  fs.writeFileSync(origen, 'binario');
+  let intentos = 0;
+  const ocupadoDosVeces = (a, b) => {
+    intentos++;
+    if (intentos <= 2) {
+      throw Object.assign(new Error('busy'), { code: intentos === 1 ? 'EBUSY' : 'EPERM' });
+    }
+    fs.renameSync(a, b);
+  };
+  const esperas = [];
+  moverBinario(origen, destino, ocupadoDosVeces, { dormir: (ms) => esperas.push(ms) });
+  assert.strictEqual(fs.readFileSync(destino, 'utf8'), 'binario');
+  assert.strictEqual(esperas.length, 2);
+});
+
+test('moverBinario copia si el binario nuevo sigue ocupado (#175)', (t) => {
+  const raiz = crearRaiz(t);
+  const origen = path.join(raiz, 'origen');
+  const destino = path.join(raiz, 'destino');
+  fs.writeFileSync(origen, 'binario');
+  const ocupado = () => { throw Object.assign(new Error('busy'), { code: 'EBUSY' }); };
+  moverBinario(origen, destino, ocupado, { dormir: () => {} });
+  assert.strictEqual(fs.readFileSync(destino, 'utf8'), 'binario');
+  assert.ok(!fs.existsSync(destino + '.nuevo'));
 });
 
 test('instalarCopia deja el binario indicado solo si responde', { skip: os.platform() === 'win32' }, (t) => {

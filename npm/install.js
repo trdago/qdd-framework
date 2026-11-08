@@ -142,14 +142,14 @@ function pedirTurno(ruta) {
   } catch (err) {
     fallar(`no se pudo escribir en la carpeta del paquete: ${err.message}`);
   }
-  process.on('exit', () => fs.rmSync(ruta, { force: true }));
+  process.on('exit', () => borrarSinFallar(ruta));
 }
 
 // carpetaDeDescarga es propia de este proceso: un postinstall y un primer uso pueden correr a la vez.
 function carpetaDeDescarga() {
   try {
     const carpeta = fs.mkdtempSync(path.join(__dirname, 'descarga-'));
-    process.on('exit', () => fs.rmSync(carpeta, { recursive: true, force: true }));
+    process.on('exit', () => borrarSinFallar(carpeta));
     return carpeta;
   } catch (err) {
     return fallar(`no se pudo escribir en la carpeta del paquete: ${err.message}`);
@@ -239,18 +239,55 @@ function respondeBinario(ruta) {
   }
 }
 
-// moverBinario copia si el destino está en otro volumen: el prefijo de npm y %LOCALAPPDATA% pueden estarlo.
-function moverBinario(origen, destino, renombrar = fs.renameSync) {
-  try {
-    renombrar(origen, destino);
-    return;
-  } catch (err) {
-    if (err.code !== 'EXDEV') {
-      throw err;
+// En Windows, un antivirus puede retener unos segundos el qdd.exe que se acaba de ejecutar (#175).
+const OCUPADO = new Set(['EBUSY', 'EPERM']);
+const ESPERA_OCUPADO_MS = 1000;
+const INTENTOS_OCUPADO = 30;
+
+function dormirSincrono(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// moverBinario copia si el destino está en otro volumen (el prefijo de npm y %LOCALAPPDATA% pueden estarlo) o si el
+// binario sigue ocupado tras unos 30 s: copiar solo necesita leerlo.
+function moverBinario(origen, destino, renombrar = fs.renameSync, { dormir = dormirSincrono, intentos = INTENTOS_OCUPADO } = {}) {
+  for (let i = 0; ; i++) {
+    try {
+      renombrar(origen, destino);
+      return;
+    } catch (err) {
+      if (err.code === 'EXDEV') {
+        break;
+      }
+      if (!OCUPADO.has(err.code)) {
+        throw err;
+      }
+      if (i + 1 >= intentos) {
+        break;
+      }
+      dormir(ESPERA_OCUPADO_MS);
     }
   }
   copiarBinario(origen, destino);
-  fs.rmSync(origen, { force: true });
+  borrarSinFallar(origen);
+}
+
+// quitarSiVacia no deja una carpeta de versión sin binario cuando la instalación falla (#175).
+function quitarSiVacia(carpeta) {
+  try {
+    fs.rmdirSync(carpeta);
+  } catch (_) {
+    // tiene archivos (otra instalación) o ya no está: se deja.
+  }
+}
+
+// borrarSinFallar: que no se pueda borrar algo temporal no rompe la instalación ni tapa su mensaje (#175).
+function borrarSinFallar(ruta) {
+  try {
+    fs.rmSync(ruta, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (err) {
+    console.error(`[QDD] No se pudo borrar ${ruta}: ${err.message}`);
+  }
 }
 
 // copiarBinario nunca deja un binario a medias con el nombre final.
@@ -311,7 +348,12 @@ function instalarDescarga({ os, paquete, carpeta, binaryName, binDir, env, desti
   fs.chmodSync(extraido, 0o755);
   execFileSync(extraido, ['--version'], { stdio: 'pipe', timeout: TOPE_VERSION_MS });
   fs.mkdirSync(path.dirname(destino), { recursive: true });
-  moverBinario(extraido, destino);
+  try {
+    moverBinario(extraido, destino);
+  } catch (err) {
+    quitarSiVacia(path.dirname(destino));
+    throw err;
+  }
   fs.rmSync(paquete, { force: true });
   return destino;
 }
