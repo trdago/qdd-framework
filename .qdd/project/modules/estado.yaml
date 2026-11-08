@@ -114,6 +114,7 @@ objetivo_tecnologico:
         - 'Un turno no cambia mientras su ítem espera y nunca se reutiliza, salvo si el registro quedó ilegible. El orden nunca impide contestar otra cosa: solo un pedido espera de verdad a otro.'
         - La barra termina sola aunque nadie cierre su stdin (FND-145).
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
+        - Reescribir la cola de pedidos no borra un campo que este qdd no conoce, y la marca de la persona solo se agrega; ninguna escritura se la quita (FND-188).
         - Un pedido tiene un solo dueño vivo; un proceso que dejó de serlo termina sin correrlo (FND-125).
         - El binario lleva cada archivo del mod (salvo pruebas y tipos) y doctor no da por sano un panel cuya copia instalada no los tiene todos (FND-107).
         - Un frente nunca se borra; se cierra o se descarta con motivo.
@@ -176,4 +177,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-08"
-revisado_en_commit: 319880d0349f
+revisado_en_commit: e37db3cb03a7
