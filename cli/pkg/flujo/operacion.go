@@ -53,6 +53,8 @@ type Operacion struct {
 	Item        string  `json:"item"`
 	Estado      string  `json:"estado"`
 	Evidencia   string  `json:"evidencia"`
+	Grupo       *string `json:"grupo"`
+	Nivel       *int    `json:"nivel"`
 }
 
 // camposDe dice qué exige y qué admite cada operación, además de op y flujo.
@@ -64,7 +66,7 @@ var camposDe = map[string]struct{ exige, admite []string }{
 	OpItemMarcar:   {exige: []string{"nodo", "item", "estado"}, admite: []string{"evidencia"}},
 	OpItemQuitar:   {exige: []string{"nodo", "item"}},
 	OpAgregar:      {exige: []string{"nodo", "nombre"}, admite: []string{"descripcion", "tipo", "rama"}},
-	OpModificar:    {exige: []string{"nodo"}, admite: []string{"nombre", "descripcion", "tipo"}},
+	OpModificar:    {exige: []string{"nodo"}, admite: []string{"nombre", "descripcion", "tipo", "grupo", "nivel"}},
 	OpMover:        {exige: []string{"nodo", "despues_de"}},
 	OpQuitar:       {exige: []string{"nodo"}},
 	OpConectar:     {exige: []string{"nodo", "con"}},
@@ -116,7 +118,7 @@ func (o Operacion) validar() error {
 		}
 	}
 	if o.Op == OpModificar && len(presentes) == 1 {
-		return errors.New("«modificar» necesita nombre, descripcion o tipo")
+		return errors.New("«modificar» necesita nombre, descripcion, tipo, grupo o nivel")
 	}
 	for _, id := range []string{o.Nodo, o.DespuesDe, o.Con, o.Item} {
 		if id != "" && !idValido.MatchString(id) {
@@ -150,6 +152,8 @@ func (o Operacion) presentes() []string {
 		{"item", o.Item != ""},
 		{"estado", o.Estado != ""},
 		{"evidencia", o.Evidencia != ""},
+		{"grupo", o.Grupo != nil},
+		{"nivel", o.Nivel != nil},
 	} {
 		if c.viene {
 			lista = append(lista, c.campo)
@@ -185,7 +189,7 @@ func (o Operacion) cambio(ahora time.Time) Cambio {
 	case OpAgregar:
 		return Agregar(o.Nodo, *o.Nombre, valorDe(o.Tipo), valorDe(o.Descripcion), o.Rama)
 	case OpModificar:
-		return Modificar(o.Nodo, o.Nombre, o.Descripcion, o.Tipo)
+		return ModificarNodo(o.Nodo, Campos{Nombre: o.Nombre, Descripcion: o.Descripcion, Tipo: o.Tipo, Grupo: o.Grupo, Nivel: o.Nivel})
 	case OpMover:
 		return Mover(o.Nodo, o.DespuesDe)
 	case OpQuitar:

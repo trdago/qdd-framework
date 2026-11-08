@@ -6,6 +6,20 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.38] - 2026-11-08
+
+### Agregado
+
+- **Flujos grandes por niveles: panorama, camino y todo (#186, partes B y C).**
+  - **Nivel 1, panorama:** una caja por grupo, con sus hitos y cuántos pasos y desvíos esconde. En la pestaña Flujos,
+    un flujo de 15 nodos o más abre aquí, y cada grupo se abre o se pliega con un clic.
+  - **Nivel 2, camino:** el camino principal, con los desvíos contados.
+  - **Nivel 3, todo:** el flujo entero.
+  - Las teclas 1, 2 y 3 cambian el nivel.
+  - Con cuatro grupos, `analisis-oportunidades` ocupa 21 líneas en el panorama, frente a 95 completo.
+  - La tarjeta del nodo muestra su nivel (el calculado o el que pusiste) y su grupo, y Editar los cambia. En la CLI es
+    `qdd flujo modificar --grupo G --nivel N`, y `qdd flujo ver` acepta `--nivel` y `--abrir`.
+
 ## [2.10.0-rc.37] - 2026-11-08
 
 ### Agregado

@@ -27,6 +27,9 @@ objetivo_tecnologico:
         - Un nodo se elige en una lista bajo el dibujo, porque el dibujo no sabe qué nodo hay en cada columna. Mover y las flechas se eligen con un clic en el otro nodo.
         - Un formulario abre con el campo enfocado. Claude Code no le da las teclas a una pestaña nueva mientras otra tiene el foco, así que crear un flujo se hace ahí mismo donde se pulsó (FND-166).
         - 'Un flujo pesa como mucho 100 KB (flujo.MaxBytes): viaja entero en un mensaje al teléfono y Supabase descarta en silencio lo que pasa de 256 KB en el plan Free. Uno más pesado no se guarda, y un archivo que pesa de más se ve con su problema.'
+        - 'Niveles y grupos (#186, partes B y C; la persona eligió «Los tres, en orden»). Cada nodo tiene nivel 1 (hito), 2 (paso) o 3 (desvío): se calcula desde el camino principal (el más largo desde el inicio; su inicio y su final son hitos, el resto del camino es paso y lo de fuera desvío) y la persona lo corrige en la tarjeta (Nodo.Nivel; 0 es calculado). Nodo.Grupo junta pasos bajo un nombre.'
+        - Plegar arma el flujo de cada vista sin tocar el guardado. Nivel 1 (panorama) dibuja una caja por grupo cerrado (sus hitos, cuántos pasos y desvíos) y, sin grupos, solo los hitos; nivel 2 quita los desvíos y los cuenta en el nodo que llega a ellos; nivel 3 es el flujo entero. Cada nodo visible se une con los visibles a los que llegaba por nodos escondidos, así que el plegado sigue siendo un flujo válido que se dibuja entero (prueba al azar). El inicio y el nodo elegido siempre se ven.
+        - 'El panel abre en el panorama los flujos de 15 nodos o más; 1, 2 y 3 cambian el nivel, cada grupo se abre solo, y la tarjeta muestra y edita nivel y grupo. analisis-oportunidades con cuatro grupos: 95 líneas completo, 68 en el camino y 21 en el panorama a 100 columnas.'
     invariantes:
         - Un flujo inválido no se escribe.
         - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.
@@ -52,5 +55,5 @@ fuentes:
     - cli/cmd/flujo_editar.go
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
-ultima_revision: "2026-11-07"
-revisado_en_commit: 5a51d3bc6adf
+ultima_revision: "2026-11-08"
+revisado_en_commit: ac8067eeda77
