@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.40] - 2026-11-08
+
+### Corregido
+
+- **Un lockfile de blueprints escrito en Windows ya no rompe `qdd audit` en Linux (FND-185, MEJ-038).** La huella de
+  cada blueprint dependía del fin de línea: con CRLF, el gate acusaba edición a mano sin que la hubiera. Ahora se
+  calcula con los archivos de texto en LF, como los guarda git. Las huellas ya escritas en Linux no cambian. Importar
+  desde una carpeta local avisa que esa ruta no existe en otro PC.
+
 ## [2.10.0-rc.39] - 2026-11-08
 
 ### Corregido

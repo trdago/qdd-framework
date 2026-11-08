@@ -168,7 +168,7 @@ func runBlueprintAdd(cmd *cobra.Command, args []string) {
 		fmt.Printf("[!] No se importó nada:\n  - %s\n", strings.Join(problems, "\n  - "))
 		os.Exit(1)
 	}
-	printAddResult(res, problems)
+	printAddResult(res, append(problems, blueprints.AvisosDeOrigen(res.Entries)...))
 }
 
 // splitAddArgs separa el origen (si el primer argumento lo es) de los ids:
