@@ -15,6 +15,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - Historias de usuario en el flujo (RFC 0025): `qdd flujo historia <flujo> --como … --quiero … --para … --criterio … --nodo …` las escribe con id `h1`, `h2`…, `qdd flujo historias` las lista y `qdd flujo historia tarea <flujo> <h>` crea la tarea del tablero que la implementa e imprime sus criterios. El cliente y el experto también las proponen desde el archivo («Historia de usuario»), y entran a su nombre cuando apruebas. Se ven en su nodo, en el panel y en el archivo.
 - Notas internas o compartidas: una nota es interna hasta que la compartes (`qdd flujo item compartir <flujo> <nodo> <item> [--interna]`, o el botón «interna / la ve el cliente» del nodo en el panel). El experto puede pedir compartirla al proponerla, y la ves así antes de aprobar. El archivo del cliente lleva solo las compartidas, nunca una interna ni el origen de una historia.
 
+## [2.10.0-rc.46] - 2026-11-08
+
+La rc.45 no llegó a npm: su tag salió sin subir la versión del paquete. Esta trae lo mismo.
+
+### Fixed
+- FND-187: un pedido que terminó bien ya no se le avisa a la IA como «se cortó». El panel envía el resultado que qdd tiene al reclamar el aviso, no el de su lectura anterior; si el resultado real llega después de un corte, se vuelve a avisar; y un pedido no se da por cortado en sus primeros 5 s.
+
 ## [2.10.0-rc.44] - 2026-11-08
 
 ### Added

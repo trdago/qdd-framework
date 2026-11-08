@@ -1067,8 +1067,12 @@ async function entregar($, a, mia) {
   if (r.exitCode !== 0) return
   teclasConfirmadas.delete(a.id)
   $.ui.invalidate('ui.render')
-  $.prompt.submit({ text: a.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
-  const fallo = a.estado === 'fallo'
+  // FND-187: qdd devuelve el mensaje tal como quedó al reclamarlo; la lectura del panel pudo cambiar entremedio. Un qdd
+  // anterior no imprime nada y va el de la lectura.
+  const alReclamar = String(r.stdout || '').trim()
+  const mensaje = /^[✓✗]/.test(alReclamar) ? alReclamar : a.mensaje
+  $.prompt.submit({ text: mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+  const fallo = mensaje.startsWith('✗')
   $.ui.notify((fallo ? '✗ ' : '✓ ') + a.etiqueta + (fallo ? ' falló' : ' terminó'), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
 }
 
