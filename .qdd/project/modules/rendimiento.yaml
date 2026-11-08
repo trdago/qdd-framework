@@ -1,0 +1,36 @@
+id: rendimiento
+nombre: Rendimiento estándar por equipo (qdd rendimiento)
+estado: aprobado
+rutas:
+    - cli/pkg/rendimiento
+    - cli/cmd/rendimiento.go
+objetivo_operativo:
+    problema: El rendimiento de qdd se medía a mano y solo en Linux. Los problemas llegaban de las máquinas de las personas (2.280 procesos por hora en Windows, MEJ-020; 919 zombies en ~4 h, MEJ-042) y no había cómo comparar un equipo con otro ni una versión con la anterior.
+    usuarios: La persona que usa qdd en su equipo (Linux, macOS o Windows), el CI que la corre en los tres sistemas en cada PR, y la IA que necesita saber si un cambio empeoró algo.
+    criterio_de_exito: qdd rendimiento corre en menos de un minuto sin tokens, en la misma caja en cada equipo, y dice latencias, CPU, memoria, procesos por hora, zombies y procesos vivos al cerrar, cada uno contra su presupuesto. Detecta FND-179 en rc.31 (zombies 1, falla) y sale en 0 con el arreglo.
+    caso_real: 'Pedido de la persona, 2026-11-07: «un test de performance que no gaste mucho token … en cada sistema operativo, cómo funciona, si deja procesos abiertos, la performance de forma estandarizada en cada equipo». En Linux, rc.31 da zombies 1 (falla) y esta versión 10 ok.'
+objetivo_tecnologico:
+    arquitectura: 'pkg/rendimiento: Procesos() lee la tabla por sistema (/proc en Linux, ps en macOS, Toolhelp32 en Windows) y descendientes() arma el árbol de un proceso. Medir arma una caja temporal (proyecto fijo, repositorio con remote de GitHub ficticio, HOME, QDD_HOME, XDG y AppData propios), corre cada comando del panel 1+N veces y qdd consola seguir durante Segundos, muestreando la tabla cada 200 ms. Evaluar compara con presupuestos por sistema; Guardar y Ultimo leen el informe por versión en <QDD_HOME>/rendimiento. cmd/rendimiento.go suma el contexto del MCP (tools/list, medido en el proceso), imprime y sale con su código; doctor muestra el último informe.'
+    decisiones:
+        - No lanza Claude ni una IA. Mide los procesos de qdd, que corren todo el día; el panel JS dentro de Claude Code queda para una fase 2 con clave falsa (RFC 0022).
+        - Zombies y procesos vivos al cerrar son una falla (salida 1); pasar un presupuesto de tiempo o consumo es un exceso (salida 2). El CI falla con lo primero y avisa con lo segundo, para no volverse frágil por un runner lento.
+        - Lo que no se puede medir en un sistema (la memoria si el sistema no la da, la tabla de procesos en un sistema sin lector) queda sin medir, nunca en cero.
+        - Los presupuestos son provisionales, medidos en Linux con holgura; Windows multiplica las latencias. Se recalibran con los informes del CI en Windows y macOS.
+        - Lo que la medición encuentra vivo al terminar lo cierra (comprueba el nombre, porque un PID puede reusarse) y lo nombra en el informe (restos).
+        - 'Los procesos lanzados por hora no cuentan los primeros 5 s (o un cuarto de la corrida): lo que se lanza al arrancar no es un ritmo.'
+    invariantes:
+        - Medir no toca el QDD_HOME, el HOME ni los proyectos de la persona; solo Guardar escribe, en la carpeta rendimiento de su QDD_HOME.
+        - Medir no deja procesos vivos en la máquina.
+        - Medir no gasta tokens ni llama a una IA.
+        - Un valor que no se midió es nil (sin medir), nunca 0.
+        - La caja es la misma en cada equipo, para que dos informes se puedan comparar.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/rendimiento/
+        - cd cli && go test ./cmd/ -run 'Rendimiento'
+fuentes:
+    - rfcs/0022-rendimiento-estandar.md
+    - cli/pkg/rendimiento/medir.go
+    - .github/workflows/quality.yml
+ultima_revision: "2026-11-07"
+revisado_en_commit: 1d8544922f48

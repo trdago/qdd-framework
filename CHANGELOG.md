@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.34] - 2026-11-07
+
+### Agregado
+
+- **`qdd rendimiento`: la misma medición en cada equipo, sin tokens (RFC 0022).** Corre qdd en una caja temporal, igual
+  en cada equipo y sin tocar tus proyectos, y mide la latencia de la barra, el panel, `qdd estado` y un flujo; la CPU,
+  la memoria y los procesos por hora de `qdd consola seguir`; los zombies y los procesos que quedan vivos al cerrarla
+  (los cierra), y lo que el MCP de qdd suma al contexto de cada sesión. Cada medida tiene un presupuesto por sistema
+  operativo. Sale con 1 si dejó procesos y con 2 si solo pasó un presupuesto. `qdd doctor` muestra lo último medido.
+  El CI la corre en Linux, Windows y macOS en cada PR. Con rc.31 marca la falla de los zombies (FND-179).
+
 ## [2.10.0-rc.33] - 2026-11-07
 
 ### Cambiado

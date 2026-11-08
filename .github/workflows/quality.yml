@@ -152,3 +152,50 @@ jobs:
           $env:PATH = $conNode
           Mediana 'barra por envoltorio' { '{}' | & $bash -c 'qdd consola statusline' }
           Mediana 'panel por envoltorio' { cmd /c qdd consola panel --json }
+
+  rendimiento:
+    # qdd rendimiento (RFC 0022): la misma medición en cada sistema operativo, sin tokens. Falla si qdd deja procesos;
+    # pasar un presupuesto solo avisa. El informe de cada sistema queda como artefacto para recalibrar los presupuestos.
+    name: Rendimiento en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Pruebas del medidor
+        working-directory: cli
+        run: go test ./pkg/rendimiento/ -count=1 -v
+
+      - name: Medir qdd
+        shell: bash
+        run: |
+          mkdir -p cli/ui/dist cli/cmd/core_assets
+          echo '' > cli/ui/dist/index.html
+          cp -r .qdd/core cli/cmd/core_assets/core
+          # En Windows un ejecutable sin .exe no se puede lanzar.
+          bin="$RUNNER_TEMP/qdd-medir${{ runner.os == 'Windows' && '.exe' || '' }}"
+          go -C cli build -o "$bin" .
+          set +e
+          "$bin" rendimiento --segundos 30 --json > "$RUNNER_TEMP/rendimiento-${{ matrix.os }}.json"
+          codigo=$?
+          set -e
+          cat "$RUNNER_TEMP/rendimiento-${{ matrix.os }}.json"
+          if [ "$codigo" = 2 ]; then echo "::warning::qdd pasó algún presupuesto de rendimiento en ${{ matrix.os }}"; exit 0; fi
+          exit "$codigo"
+
+      - name: Guardar el informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendimiento-${{ matrix.os }}
+          path: ${{ runner.temp }}/rendimiento-${{ matrix.os }}.json

@@ -166,6 +166,9 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 		g.Items = append(g.Items, checkFoto())
 		g.Items = append(g.Items, checkEfectos())
 	}
+	if item := checkRendimiento(); activa || !item.Success {
+		g.Items = append(g.Items, item)
+	}
 	return g
 }
 
