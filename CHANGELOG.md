@@ -10,7 +10,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - `qdd flujo proponer <flujo> '<operación>' [--minuto mm:ss]` (RFC 0025, fase 4): en una conversación con un cliente, la IA propone nodos, notas e historias como asistente sin editar el flujo. Cada propuesta llega a «Para ti» como pedido 🎙 de la persona y, aprobada, entra con origen `asistente` o `transcripcion@mm:ss`.
 
 ### Changed
-- `qdd reportar`: el relay acepta 10 reportes por día por instalación, el doble que antes (pedido de la persona, 2026-11-08). El tope lo pone el relay de QDD Móvil; el mensaje del PC lo dice.
+- `qdd reportar`: el relay acepta 50 reportes por día por instalación en vez de 5 (pedido de la persona, 2026-11-08). El tope lo pone el relay de QDD Móvil; el mensaje del PC lo dice.
 
 ## [2.10.0-rc.49] - 2026-11-08
 
