@@ -19,6 +19,7 @@ objetivo_tecnologico:
         - El reporte solo agrega la versión de qdd y el sistema (linux/amd64); ni el nombre del proyecto ni la carpeta.
         - La firma se calcula al enviar, sobre «formato|instalacion|en|tipo|titulo|detalle|version|so», porque el relay rechaza un «en» a más de 10 minutos.
         - El relay sale de <QDD_HOME>/remoto/relay.json o, sin él, del directorio firmado de fábrica; nunca de una variable que una IA pueda cambiar.
+        - 'Leer (fase 3) trae los reportes solo para una instalación lectora: GET reportes firmada sobre «reportes|desde|en» (cabeceras x-qdd-instalacion, x-qdd-en, x-qdd-firma), de a 100; un 403 dice cómo volverse lectora con qdd reportar llave.'
     invariantes:
         - 'Nada se envía sin el «sí» de la persona: en su terminal, o un pedido DePersona que el modo goal no lanza y que «qdd reportar enviar» comprueba con QDD_PEDIDO.'
         - Lo que viaja es exactamente lo que se mostró; la llave privada nunca sale de la máquina ni se imprime.

@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.42] - 2026-11-08
+
+### Added
+- La cola de mejoras lee los reportes del relay (RFC 0024, fase 3): en el repositorio de QDD, `qdd mejoras ciclo` trae lo que llegó con `qdd reportar` y lo deja `por_admitir`. Como cualquiera puede enviar, no es tarea hasta que la persona lo admite con el pedido 📮 del panel (`qdd mejoras admitir MEJ-NNN`), igual que la etiqueta «mejora» de un issue.
+
 ## [2.10.0-rc.41] - 2026-11-08
 
 ### Added

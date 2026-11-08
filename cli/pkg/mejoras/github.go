@@ -50,6 +50,17 @@ func issuesDeGitHub(root string) (string, []Issue, error) {
 	return repo, issues, err
 }
 
+// RepoDeProyecto es el owner/repo de GitHub del remote origin del proyecto, si lo tiene.
+func RepoDeProyecto(root string) (string, bool) {
+	ctx, cancelar := context.WithTimeout(context.Background(), TopeGitHub)
+	defer cancelar()
+	remote, err := correr(ctx, root, "git", "remote", "get-url", "origin")
+	if err != nil {
+		return "", false
+	}
+	return RepoDeRemote(remote)
+}
+
 // RepoDeRemote saca owner/repo de un remote de GitHub (SSH o HTTPS).
 func RepoDeRemote(remote string) (string, bool) {
 	m := remoteGitHub.FindStringSubmatch(strings.TrimSpace(remote))
