@@ -137,3 +137,20 @@ func TestOperacion_ItemsDesdeElTelefono(t *testing.T) {
 		}
 	}
 }
+
+func TestListar_CuentaLasPruebasDeCadaFlujo(t *testing.T) {
+	root := flujoGuardado(t, cadena()...)
+	if p := Listar(root, sinEstado)[0].Pruebas; p != nil {
+		t.Fatalf("sin pruebas no hay conteo: %+v", p)
+	}
+	editar(t, root, DePersona, AgregarItem("a", ItemPrueba, "uno", ahoraDePrueba))
+	editar(t, root, DePersona, AgregarItem("b", ItemPrueba, "dos", ahoraDePrueba))
+	editar(t, root, DePersona, AgregarItem("b", ItemPrueba, "tres", ahoraDePrueba))
+	editar(t, root, DePersona, AgregarItem("b", ItemNota, "no cuenta", ahoraDePrueba))
+	editar(t, root, DeIA, MarcarItem("a", "i1", PruebaPasa, "", ahoraDePrueba))
+	editar(t, root, DeIA, MarcarItem("b", "i1", PruebaFalla, "", ahoraDePrueba))
+	p := Listar(root, sinEstado)[0].Pruebas
+	if p == nil || p.Pasa != 1 || p.Falla != 1 || p.Pendiente != 1 {
+		t.Fatalf("el mapa de flujos muestra cuántas pasan, fallan y faltan: %+v", p)
+	}
+}

@@ -7,7 +7,7 @@ rutas:
 objetivo_operativo:
     problema: Explicar el camino de una solicitud, un pipeline o un proceso en prosa obliga a la otra parte a imaginar su forma. La persona y la IA terminan hablando de dibujos distintos sin saberlo.
     usuarios: La IA, que crea el flujo para explicar algo y responde en él, y la persona, que lo ve, lo edita y lo comenta en el panel.
-    criterio_de_exito: Un flujo guardado con qdd flujo crear aparece en su pestaña del panel, hacia abajo y con scroll, cabe en el ancho de la pestaña y cada nodo se ve. Un cambio se ve en menos de 1 s sin un proceso por lectura. Solo se materializa lo que cambió. Una edición de la persona pasa por las mismas validaciones que la de la IA, y la IA la recibe una sola vez, en una línea.
+    criterio_de_exito: Un flujo guardado con qdd flujo crear aparece en la pestaña Flujos del panel, hacia abajo y con scroll, cabe en el ancho de la pestaña y cada nodo se ve. Un cambio se ve en menos de 1 s sin un proceso por lectura. Solo se materializa lo que cambió. Una edición de la persona pasa por las mismas validaciones que la de la IA, y la IA la recibe una sola vez, en una línea.
     caso_real: 'Pedido de la persona, 2026-11-05: «una forma de mostrar grafos en el panel de la derecha […] para entender flujos completos y explicarle al llm como lo queremos». En un panel real: un cambio se ve en 841 ms y un flujo de 50 nodos aparece en 517 ms, con scroll de rueda.'
 objetivo_tecnologico:
     arquitectura: pkg/flujo es puro y sin terminal. flujo.go lee, valida y guarda cada flujo con escritura atómica en .qdd/project/flujos/<id>.yaml. dibujo.go arma el texto con bloques que se apilan o se juntan lado a lado. El panel recibe la lista con su huella en la línea de qdd consola seguir (--con flujos) y pide el dibujo con qdd flujo ver --ancho N --json solo si cambió el flujo o el ancho.
@@ -16,7 +16,8 @@ objetivo_tecnologico:
         - No lleva tool MCP (RFC 0012), porque tools/list está junto a su tope. La IA lo conoce por la forma de trabajo de qdd_project_context y por qdd flujo --help.
         - Dos salidas o más van lado a lado si a cada una le quedan 14 columnas o más; si no, una debajo de otra, con sangría. Si alinear dos ejes saca el dibujo del ancho, un codo los une.
         - El encuentro de varias ramas se dibuja una vez, debajo de ellas. Un ciclo se escribe «↺ vuelve a X»; otro nodo ya dibujado, «→ sigue en X».
-        - La lista que abre el panel no abre pestañas; un flujo nuevo o cambiado después sí, sin quitarle el foco a la conversación.
+        - La lista que abre el panel no abre pestañas; un flujo nuevo o cambiado después abre la pestaña Flujos y queda elegido, sin quitarle el foco a la conversación.
+        - 'Todos los flujos van en una sola pestaña, Flujos (pedido de la persona, 2026-11-07: con 20 flujos de prueba en sfrc, una pestaña por flujo era inmanejable, y cerrarlas también). Con dos o más, arriba va el mapa: cada flujo en una fila con sus nodos, sus pruebas ✓ ✗ ☐ (Resumen.Pruebas) y lo que tiene por enviar, teclas 1…9 para los primeros. Elegido uno, se dibuja con ☰ Mapa (w), ‹ (p), «i de N» y › (n). Con uno solo se dibuja directo. Las pestañas qdd-flujo-<id> de versiones anteriores se cierran solas al leer la lista.'
         - El raíz es el de qdd estado (estadoRaiz), para que el panel y la IA vean la misma carpeta. Desde un worktree dentro de otro proyecto con tablero, el flujo queda en ese proyecto.
         - Las ediciones son comandos de qdd flujo, usados igual por el panel y la IA. Solo --de persona las deja por enviar, para que la IA no se llame a sí misma.
         - Un comentario y un pedido de detalle llaman a la IA en el acto, porque piden respuesta. Una edición espera a «Enviar a la IA» o al próximo mensaje del chat, para no gastar un turno por cambio.
@@ -51,4 +52,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-07"
-revisado_en_commit: 619a9f9bbc51
+revisado_en_commit: a713853a0792

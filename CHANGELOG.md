@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.33] - 2026-11-07
+
+### Cambiado
+
+- **Todos los flujos en una sola pestaña, Flujos.** Con muchos flujos (20 de prueba en un proyecto), una pestaña por
+  flujo era inmanejable, y cerrarlas también. Ahora arriba va un mapa de todos: cada flujo en una fila con sus nodos,
+  sus pruebas (✓ pasan, ✗ fallan, ☐ faltan) y lo que tiene por enviar; las teclas 1…9 abren los primeros. Elegido uno,
+  se dibuja con **☰ Mapa** (`w`), **‹** (`p`), «2 de 20» y **›** (`n`). Con un solo flujo se dibuja directo. Las
+  pestañas de cada flujo que dejó la versión anterior se cierran solas.
+
 ## [2.10.0-rc.32] - 2026-11-07
 
 ### Corregido

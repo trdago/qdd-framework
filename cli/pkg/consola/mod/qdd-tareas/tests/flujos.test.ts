@@ -10,7 +10,8 @@ const PANEL = {
   props: { title: 'Tareas', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, viewportRows: 40 },
 } as const
 
-const pestana = (id: string, columnas = 60) => ({ ...PANEL, requestId: 'qdd-flujo-' + id, props: { ...PANEL.props, title: id, bodyColumns: columnas } })
+// Todos los flujos van en la pestaña «Flujos»; con uno solo, se dibuja directo.
+const pestana = (_id: string, columnas = 60) => ({ ...PANEL, requestId: 'qdd-flujos', props: { ...PANEL.props, title: 'Flujos', bodyColumns: columnas } })
 
 const PAGO = { id: 'pago', nombre: 'Cómo se cobra', nodos: 3, huella: 'h1' }
 
@@ -59,10 +60,10 @@ async function empezar($, on, r) {
 test('un flujo que ya estaba no abre una pestaña sola; el botón Flujos la abre', async ($, on) => {
   const r = nuevo([PAGO])
   await empezar($, on, r)
-  expect(r.abiertos).not.toContain('qdd-flujo-pago')
+  expect(r.abiertos).not.toContain('qdd-flujos')
   const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
   await ui.press({ key: 'flujos' })
-  expect(r.abiertos).toContain('qdd-flujo-pago')
+  expect(r.abiertos).toContain('qdd-flujos')
 })
 
 test('un qdd que no trae flujos no ofrece el botón', async ($, on) => {
@@ -72,7 +73,7 @@ test('un qdd que no trae flujos no ofrece el botón', async ($, on) => {
   expect(await ui.find({ key: 'flujos' })).toBeUndefined()
 })
 
-test('un flujo nuevo o cambiado abre su pestaña sin quitarle el foco a la conversación', async ($, on) => {
+test('un flujo nuevo o cambiado abre la pestaña Flujos sin quitarle el foco a la conversación', async ($, on) => {
   const r = nuevo([])
   const abiertos = r.aperturas
   await empezar($, on, r)
@@ -80,14 +81,14 @@ test('un flujo nuevo o cambiado abre su pestaña sin quitarle el foco a la conve
   r.flujos = [PAGO]
   await ui.press({ key: 'leer' })
   await esperar()
-  const abierto = abiertos.find((e) => e.id === 'qdd-flujo-pago')
-  expect(abierto).toMatchObject({ title: 'Cómo se cobra' })
+  const abierto = abiertos.find((e) => e.id === 'qdd-flujos')
+  expect(abierto).toMatchObject({ title: 'Flujos' })
   expect(abierto.focus).toBeFalsy()
   abiertos.length = 0
   r.flujos = [{ ...PAGO, huella: 'h2' }]
   await ui.press({ key: 'leer' })
   await esperar()
-  expect(abiertos.some((e) => e.id === 'qdd-flujo-pago')).toBe(true)
+  expect(abiertos.some((e) => e.id === 'qdd-flujos')).toBe(true)
 })
 
 test('la pestaña muestra las líneas de qdd, y se dibuja de nuevo solo si cambia el flujo o el ancho', async ($, on) => {
@@ -141,12 +142,15 @@ test('si qdd no puede dibujarlo, lo dice y no lo reintenta en cada dibujo', asyn
   expect(dibujos(r).length).toBe(1)
 })
 
-test('un flujo que se borró cierra su pestaña', async ($, on) => {
+test('un flujo que se borró sale de la pestaña Flujos', async ($, on) => {
   const r = nuevo([PAGO])
   await empezar($, on, r)
   const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
+  const pestanaFlujos = await $.ui.mount({ ...pestana('pago'), surface: 'terminal' })
+  await esperar()
   r.flujos = []
   await ui.press({ key: 'leer' })
   await esperar()
-  expect(r.cerrados).toContain('qdd-flujo-pago')
+  expect(await pestanaFlujos.find({ type: 'Text', text: /todavía no tiene flujos/ })).toBeDefined()
+  expect(r.cerrados).not.toContain('qdd-flujos')
 })

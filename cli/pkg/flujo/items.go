@@ -175,3 +175,29 @@ func problemasDeItem(nodo string, it Item) []string {
 	}
 	return nil
 }
+
+// contarPruebas suma las pruebas de todos los nodos por estado; nil si el flujo no tiene ninguna.
+func contarPruebas(f Flujo) *ConteoPruebas {
+	var c ConteoPruebas
+	for _, n := range f.Nodos {
+		for _, it := range n.Items {
+			if it.Tipo != ItemPrueba {
+				continue
+			}
+			c.Pasa += btoi(it.Estado == PruebaPasa)
+			c.Falla += btoi(it.Estado == PruebaFalla)
+			c.Pendiente += btoi(it.Estado == PruebaPendiente)
+		}
+	}
+	if c == (ConteoPruebas{}) {
+		return nil
+	}
+	return &c
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}

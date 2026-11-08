@@ -85,7 +85,7 @@ var flujoCrearCmd = &cobra.Command{
 		if movidos > 0 {
 			fmt.Fprintf(cmd.OutOrStdout(), "[!] %d comentario(s) de nodos que ya no están pasaron al primer nodo.\n", movidos)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "[+] Flujo '%s' guardado en %s/%s.yaml (%d nodos). El panel lo abre en su pestaña.\n", f.ID, flujo.Carpeta, f.ID, len(f.Nodos))
+		fmt.Fprintf(cmd.OutOrStdout(), "[+] Flujo '%s' guardado en %s/%s.yaml (%d nodos). El panel lo muestra en la pestaña Flujos.\n", f.ID, flujo.Carpeta, f.ID, len(f.Nodos))
 	},
 }
 

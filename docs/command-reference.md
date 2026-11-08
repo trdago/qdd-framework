@@ -135,10 +135,10 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd consola descartar <id\|tecla> [--hecho [--nota …]]` | Quita un comando pedido sin ejecutarlo. Con `--hecho`, la persona ya lo hizo fuera del panel (lo dijo en el chat): queda hecho y libera a los que lo esperan (qdd 2.8.0). |
 | `qdd consola mergear-pr <número>` | El comando de los pedidos «🔀 Mergear #N» que el panel ofrece solo, uno por cada PR abierto del repositorio (no borrador), hasta 3 y siempre opcionales: no abren el panel, ceden su lugar a un pedido de la IA, y uno descartado no vuelve mientras siga abierto. Mergea con un commit de merge solo si el CI está verde; con el CI corriendo, o sin arrancar en un repositorio con workflows, sale con 75 («todavía no») y el pedido queda armado; con el CI en rojo o el PR cerrado, no mergea. qdd pregunta los PRs con `gh` a lo más cada minuto, aparte y sin demorar al panel (qdd 2.8.0). |
 | `qdd consola ciclo [--modo <permission_mode>] [--contexto]` | Lo llama el panel con cada mensaje de la persona: lo hecho antes sale del tablero y queda anotado el modo de permisos de la IA, que `qdd_project_context` usa para decir cuándo pedir autorización (RFC 0010). Con `--contexto` imprime, para la IA, qué espera el panel de la persona (pedidos, fichas en borrador, ⏳ suyos), solo si cambió desde el último mensaje: si ella lo resuelve en el chat, la IA lo refleja (sincronía panel–chat). Nunca falla. **Seguro.** (qdd 2.8.0) |
-| `qdd flujo crear <archivo.yaml\|->` | Valida y guarda un flujo en `.qdd/project/flujos/<id>.yaml`. El panel lo abre en su pestaña. |
+| `qdd flujo crear <archivo.yaml\|->` | Valida y guarda un flujo en `.qdd/project/flujos/<id>.yaml`. El panel lo muestra en la pestaña Flujos. |
 | `qdd flujo ver <id> [--ancho N] [--json]` | Dibuja un flujo hacia abajo, en el ancho que se pida. |
 | `qdd flujo lista [--json]` | Los flujos del proyecto; uno roto sale con su problema. |
-| `qdd flujo nuevo <nombre> [--json]` | Crea un flujo con un solo nodo, para seguirlo desde su pestaña. |
+| `qdd flujo nuevo <nombre> [--json]` | Crea un flujo con un solo nodo, para seguirlo desde la pestaña Flujos. |
 | `qdd flujo agregar <flujo> <nodo> --nombre N [--tipo paso\|resultado] [--descripcion D] [--rama]` | Agrega un nodo después de otro; con `--rama`, como una salida más. |
 | `qdd flujo modificar <flujo> <nodo> [--nombre N] [--descripcion D] [--tipo T]` | Cambia un nodo. |
 | `qdd flujo mover <flujo> <nodo> --despues-de <otro>` | Cuelga un nodo después de otro. |
