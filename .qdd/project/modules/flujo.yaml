@@ -4,6 +4,9 @@ estado: aprobado
 rutas:
     - cli/pkg/flujo
     - cli/cmd/flujo.go
+    - cli/pkg/invitaciones
+    - cli/cmd/flujo_compartir.go
+    - cli/cmd/flujo_propuestas.go
 objetivo_operativo:
     problema: Explicar el camino de una solicitud, un pipeline o un proceso en prosa obliga a la otra parte a imaginar su forma. La persona y la IA terminan hablando de dibujos distintos sin saberlo.
     usuarios: La IA, que crea el flujo para explicar algo y responde en él; la persona, que lo ve, lo edita y lo comenta en el panel; y un cliente o un experto sin QDD, que lo revisa en un archivo HTML y propone cambios (RFC 0025).
@@ -36,6 +39,7 @@ objetivo_tecnologico:
         - 'Grupos con clase (pedido de la persona, 2026-11-08: «un [] que agrupa nodos … como cola, ambiente, fase»): Flujo.Grupos da clase y descripción al nombre que llevan los nodos en Nodo.Grupo (qdd flujo grupo). Un nodo está en un solo grupo; en N1 es una caja y en N2 y N3 un marco que sigue a sus nodos fila por fila.'
         - 'qdd flujo compartir (RFC 0025, fase 1): un solo HTML con la foto limpia, sin nada de afuera; la CSP deja correr su script y su estilo por hash y los datos van en un bloque JSON escapado. Dibuja en SVG por capas (camino más largo), las vueltas atrás por un carril aparte, y abre el detalle sobre el mismo nodo.'
         - 'El archivo lleva la marca de QDD y todo adentro (pedido de la persona, 2026-11-08: «todo integrado en el html, el javascript + css + icons, siempre respetando el branding de qdd»). Usa los tokens de qdd-movile docs/marca (Gruvbox Material, solo oscuro, sin selector de tema) en :root y nada literal fuera, JetBrains Mono 400/500/700 recortada en woff2 como data: con su licencia OFL, esquinas de 2 px, borde de 1 px y sin sombras. Lleva el isotipo «▶_» y un ícono SVG propio por cada tipo de nodo. Las plantillas no usan emojis fuera de la lista cerrada de la marca (pkg/flujo/marca_test.go).'
+        - 'Propuestas de invitados (RFC 0025, fase 3): qdd flujo compartir --rol cliente|experto crea la invitación en el relay de qdd-movile, firmada con la llave de la instalación, y el archivo propone solo con ese origen (connect-src). El token va únicamente dentro del archivo: ni en la pantalla ni en el PC, que anota la invitación en <QDD_HOME>/claude/flujo-invitaciones. El panel llama qdd flujo propuestas ciclo --si-toca cada 15 s; el PC revisa cada propuesta con su propio esquema (flujo.LeerOperacion, el rol de su invitación y el autor) y rechaza sola la que no cumple, con su motivo. Cada propuesta válida es un pedido DePersona en el panel, tres a la vez; aprobarla la aplica a nombre «rol:autor» (comentario DeInvitado o nota del experto con su Autor) y descartar el pedido la rechaza. Lo que el relay no supo por falta de red se le avisa en el siguiente ciclo, con la foto nueva.'
         - 'Audio (RFC 0025): lo abre el moderador, que tiene la cuenta de QDD, con el acepto de todos; elige whisper local o Claude. La transcripción completa queda en su PC como historia-usuaria de la sesión, fuera de git.'
     invariantes:
         - Un flujo inválido no se escribe.
@@ -53,9 +57,11 @@ objetivo_tecnologico:
         - Nada de un cliente, un experto, el asistente o una transcripción entra al flujo sin la aprobación de la persona, una propuesta por vez, ni en modo goal.
         - La foto que va al cliente nunca lleva tareas, pruebas, evidencias, comentarios o notas internas ni rutas del proyecto.
         - Ni el audio ni la transcripción pasan por el relay ni van a git.
+        - El token de una invitación solo vive en el archivo del invitado; qdd no lo imprime ni lo guarda.
+        - "Una propuesta la aprueba solo la persona, con el pedido \U0001F4DD que confirmó o en su terminal."
 pruebas:
     comandos:
-        - cd cli && go test ./pkg/flujo ./cmd -run Flujo
+        - cd cli && go test ./pkg/flujo ./pkg/invitaciones ./cmd -run Flujo
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
 fuentes:
     - rfcs/0012-grafo-de-trabajo.md
@@ -67,4 +73,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: c448e0dd3ee7
+revisado_en_commit: 206907f95921

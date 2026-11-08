@@ -94,3 +94,35 @@ func TestArchivo_UnSoloHTMLSinNadaDeAfueraYConCSPPorHash(t *testing.T) {
 		t.Fatal("lleva el título y los datos")
 	}
 }
+
+// RFC 0025, fase 3: con una invitación, el archivo lleva cómo llegar al relay (la URL, su clave pública y el token de
+// esa invitación) y la CSP deja conectarse solo con ese origen. Sin invitación, no se conecta con nada.
+func TestArchivo_ConInvitacionSoloHablaConElRelay(t *testing.T) {
+	foto := ArmarFoto(flujoConGrupos(), limpiezaDePrueba, ahoraDePrueba)
+	solo, err := ArchivoHTML(foto)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(solo), "connect-src") || !strings.Contains(string(solo), `<script type="application/json" id="enlace">null</script>`) {
+		t.Fatal("de solo lectura no se conecta con nada")
+	}
+	e := Enlace{Relay: "https://relay.ejemplo.co/functions/v1/", Clave: "publica", Token: "tok-123", Rol: RolExperto, Invitacion: "7c1e0f2a-0000-4000-8000-000000000001"}
+	html, err := ArchivoParaProponer(foto, e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(html)
+	if !strings.Contains(s, "connect-src https://relay.ejemplo.co;") || strings.Count(s, "tok-123") != 1 {
+		t.Fatalf("se conecta solo con el relay y el token va una vez: %s", s[:400])
+	}
+	for _, malo := range []Enlace{
+		{Relay: "http://relay.ejemplo.co/functions/v1/", Clave: "p", Token: "t", Rol: RolCliente},
+		{Relay: "https://relay.ejemplo.co/functions/v1/", Clave: "p", Token: "", Rol: RolCliente},
+		{Relay: "https://relay.ejemplo.co/functions/v1/", Clave: "p", Token: "t", Rol: "dueño"},
+		{Relay: "https://relay.ejemplo.co/functions/v1/; script-src *", Clave: "p", Token: "t", Rol: RolCliente},
+	} {
+		if _, err := ArchivoParaProponer(foto, malo); err == nil {
+			t.Fatalf("un enlace que no sirve no arma el archivo: %+v", malo)
+		}
+	}
+}

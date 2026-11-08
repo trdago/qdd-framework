@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -167,8 +168,11 @@ func problemasDeNodo(n Nodo, plantilla Plantilla, vistos map[string]bool) []stri
 
 func problemasDeComentario(donde string, c Comentario) []string {
 	var problemas []string
-	if c.De != DePersona && c.De != DeIA {
-		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de %q: usa %s o %s", donde, c.De, DePersona, DeIA))
+	if !slices.Contains([]string{DePersona, DeIA, DeInvitado}, c.De) {
+		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de %q: usa %s, %s o %s", donde, c.De, DePersona, DeIA, DeInvitado))
+	}
+	if c.De == DeInvitado && strings.TrimSpace(c.Autor) == "" {
+		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de un invitado sin su nombre", donde))
 	}
 	if strings.TrimSpace(c.Texto) == "" {
 		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario vacío", donde))

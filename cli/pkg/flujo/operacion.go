@@ -33,6 +33,7 @@ const (
 	OpDesconectar  = "desconectar"
 	OpDeshacer     = "deshacer"
 	OpEnviar       = "enviar"
+	OpNota         = "nota"
 
 	// MaxOperacion es el tope del JSON entero, el mismo que exige el relay.
 	MaxOperacion = 8000
@@ -73,6 +74,7 @@ var camposDe = map[string]struct{ exige, admite []string }{
 	OpDesconectar:  {exige: []string{"nodo", "con"}},
 	OpDeshacer:     {},
 	OpEnviar:       {},
+	OpNota:         {exige: []string{"nodo", "texto"}},
 }
 
 // LeerOperacion interpreta el JSON y rechaza lo que no sea exactamente una operación del esquema.
@@ -206,6 +208,8 @@ func (o Operacion) cambio(ahora time.Time) Cambio {
 		return MarcarItem(o.Nodo, o.Item, o.Estado, o.Evidencia, ahora)
 	case OpItemQuitar:
 		return QuitarItem(o.Nodo, o.Item)
+	case OpNota:
+		return AgregarItem(o.Nodo, ItemNota, o.Texto, ahora)
 	}
 	return Comentar(o.Nodo, o.Texto, DePersona, ahora)
 }

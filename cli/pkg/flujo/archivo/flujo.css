@@ -149,6 +149,43 @@ h2 { font-size: var(--letra-l); font-weight: 700; margin: 0 0 var(--espacio-s); 
   line-height: 1; min-width: 32px; min-height: 32px;
 }
 
+/* proponer: las acciones van en el detalle del mismo nodo, a la vista, sin bajar */
+.proponer { border-top: var(--linea) solid var(--borde); margin-top: var(--espacio-m); }
+.acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.accion {
+  background: var(--fondo); color: var(--texto); border: var(--linea) solid var(--borde-campo); border-radius: var(--radio);
+  padding: var(--espacio-xs) var(--espacio-s); font-size: var(--letra-s); cursor: pointer; min-height: 32px;
+}
+.accion:hover { background: var(--superficie-alta); }
+.accion[aria-pressed="true"] { background: var(--texto); color: var(--sobre-texto); border-color: var(--texto); }
+.formulario { display: grid; gap: var(--espacio-s); margin-top: var(--espacio-m); }
+.formulario label { display: grid; gap: var(--espacio-xs); font-size: var(--letra-s); color: var(--secundario); }
+.formulario input, .formulario textarea, .formulario select {
+  font: inherit; font-size: var(--letra-m); color: var(--texto); background: var(--fondo); width: 100%;
+  border: var(--linea) solid var(--borde-campo); border-radius: var(--radio); padding: var(--espacio-s);
+}
+.formulario textarea { resize: vertical; min-height: 72px; }
+.formulario input:focus, .formulario textarea:focus, .formulario select:focus { border-color: var(--texto); outline: none; }
+.nota { font-size: var(--letra-xs); color: var(--secundario); margin: 0; }
+.aviso {
+  font-size: var(--letra-s); color: var(--texto); border-left: 2px solid var(--en-curso);
+  padding-left: var(--espacio-s); margin: var(--espacio-s) 0 0;
+}
+.aviso.error { border-left-color: var(--falla); }
+.propuestas { margin-top: var(--espacio-xl); }
+.propuestas ul { list-style: none; padding: 0; margin: var(--espacio-s) 0 0; display: grid; gap: 6px; }
+.propuestas .vacio { color: var(--secundario); font-size: var(--letra-s); }
+.propuesta {
+  border: var(--linea) solid var(--borde); border-radius: var(--radio); padding: var(--espacio-s) var(--espacio-m);
+  display: grid; grid-template-columns: 20px 1fr; column-gap: var(--espacio-s); font-size: var(--letra-s);
+  overflow-wrap: anywhere;
+}
+.propuesta small { display: block; color: var(--secundario); font-size: var(--letra-xs); }
+.propuesta .marca { font-weight: 700; color: var(--en-curso); }
+.propuesta.aprobada .marca { color: var(--bien); }
+.propuesta.rechazada .marca { color: var(--falla); }
+.propuesta.por-enviar .marca { color: var(--secundario); }
+
 .leyenda { margin-top: var(--espacio-xl); }
 .leyenda ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--espacio-s); }
 .leyenda li {

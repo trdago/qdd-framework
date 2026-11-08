@@ -41,10 +41,16 @@ type Item struct {
 	Estado    string `yaml:"estado,omitempty" json:"estado,omitempty"`
 	Evidencia string `yaml:"evidencia,omitempty" json:"evidencia,omitempty"`
 	Cuando    string `yaml:"cuando,omitempty" json:"cuando,omitempty"`
+	Autor     string `yaml:"autor,omitempty" json:"autor,omitempty"`
 }
 
 // AgregarItem suma un ítem al nodo; una prueba nace pendiente. La IA ve qué hay que probar y cómo marcarlo.
 func AgregarItem(nodo, tipo, texto string, ahora time.Time) Cambio {
+	return agregarItemDe(nodo, tipo, texto, "", ahora)
+}
+
+// agregarItemDe suma el ítem a nombre de un invitado: la nota técnica del experto.
+func agregarItemDe(nodo, tipo, texto, autor string, ahora time.Time) Cambio {
 	return func(f *Flujo) (hecho, error) {
 		if !slices.Contains(tiposDeItem, tipo) {
 			return hecho{}, fmt.Errorf("tipo de ítem %q: usa %s", tipo, strings.Join(tiposDeItem, ", "))
@@ -64,7 +70,7 @@ func AgregarItem(nodo, tipo, texto string, ahora time.Time) Cambio {
 		if len(n.Items) >= maxItemsPorNodo {
 			return hecho{}, fmt.Errorf("el nodo %q ya tiene %d ítems: el tope es %d", nodo, len(n.Items), maxItemsPorNodo)
 		}
-		it := Item{ID: idDeItem(n.Items), Tipo: tipo, Texto: texto}
+		it := Item{ID: idDeItem(n.Items), Tipo: tipo, Texto: texto, Autor: autor}
 		if tipo == ItemPrueba {
 			it.Estado = PruebaPendiente
 		}

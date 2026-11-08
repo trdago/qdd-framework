@@ -207,9 +207,10 @@ qdd flujo sesion <id> [--audio whisper|claude] [--sin-guardar-audio]   # la abre
 ### En el PC: `qdd flujo compartir`
 
 ```
-qdd flujo compartir <id> --para "<nombre>" [--rol cliente|experto] [--vence 14d] [--salida <archivo.html>]
-qdd flujo compartir <id> --revocar <invitación>
-qdd flujo invitaciones            # las vivas, su rol, su vencimiento y cuántas propuestas trajeron
+qdd flujo compartir <id> --para "<nombre>" [--rol cliente|experto] [--dias 14] [--tope 50] [--salida <archivo.html>]
+qdd flujo compartir --revocar <invitación>
+qdd flujo invitaciones            # las de este proyecto: flujo, rol, para quién, vencimiento y si siguen vivas
+qdd flujo propuestas [ciclo|aprobar <PRO-n>|rechazar <PRO-n> --motivo …]
 ```
 
 1. **Arma la foto.** Lleva plantilla, versión y revisión, y por nodo nombre, descripción, tipo, siguen, grupo y nivel,
@@ -296,6 +297,27 @@ Un grupo «Flujos compartidos»:
 5. **Audio.** `qdd flujo sesion` abierta por el moderador, con consentimiento, grabación local, motor whisper o claude,
    y la historia-usuaria completa en su PC.
 6. **doctor** (FLC-01 a FLC-06) y la vista de invitaciones y sesiones en el panel.
+
+### Cómo quedó la fase 3 (2026-11-08)
+
+Probada de punta a punta contra el relay real: invitación de experto, nota técnica propuesta desde el navegador,
+pedido 📝 en el panel, aprobación a nombre del invitado (revisión r4 con autor `experto:<nombre>`), «Integrada» y la
+foto r4 en el archivo sin recargarlo, y la invitación revocada deja el archivo en solo lectura.
+
+- **El PC decide.** `pkg/invitaciones` revisa cada propuesta con `flujo.LeerOperacion`, el rol que anotó al invitar
+  (no el que dice el relay) y el autor. Lo que no cumple se rechaza solo, con el motivo para el invitado.
+- **Pedidos de la persona, tres a la vez.** Cada propuesta válida es un pedido `DePersona` (`qdd flujo propuestas
+  aprobar PRO-n`), así que el modo goal nunca la aprueba. Descartar el pedido la rechaza; uno retirado vuelve a
+  pedirse. Las demás esperan su turno para no llenar el panel.
+- **Sondeo en vez de canal.** El panel llama `qdd flujo propuestas ciclo --si-toca` cada 15 s. qdd sale al relay solo
+  si hay invitaciones vivas o algo que avisar. El archivo también sondea cada 15 s. El canal realtime queda para
+  después, si el sondeo no alcanza.
+- **Sin red no se pierde nada.** Aprobar no depende del relay. La resolución y la foto nueva se le avisan en el
+  siguiente ciclo, y lo que el invitado propone sin conexión espera en su navegador.
+- **El token** va solo dentro del archivo: qdd no lo imprime ni lo guarda, y el PC anota la invitación sin él.
+- **Falta de esta fase:** la visibilidad interna o compartida de la nota del experto (por ahora toda nota es interna
+  y no viaja en la foto), las historias de usuario con `historia tarea`, y que el relay devuelva la operación en
+  `flujo-proponer GET`, para que un navegador nuevo muestre qué se propuso y no solo «Propuesta PRO-n».
 
 ## Lo que no hace
 

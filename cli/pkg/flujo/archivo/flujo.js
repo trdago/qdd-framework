@@ -1,20 +1,27 @@
 (function () {
   'use strict';
   // Rule: Prohibido usar 'else'
-  // Flujo para conversar (RFC 0025, fase 1): dibuja la foto por niveles N1 · N2 · N3 y muestra cada nodo al tocarlo.
-  // Todo el texto entra con textContent: nada de la foto se interpreta como HTML.
+  // Flujo para conversar (RFC 0025): dibuja la foto por niveles N1 · N2 · N3 y muestra cada nodo al tocarlo. Con una
+  // invitación, además propone cambios por el relay. Todo el texto entra con textContent: nada de la foto ni del relay
+  // se interpreta como HTML.
 
   var SVG = 'http://www.w3.org/2000/svg';
   var ANCHO = 216, ALTO = 64, SEP_X = 36, SEP_Y = 62, MARGEN = 28, POR_LINEA = 22;
 
-  var foto = JSON.parse(document.getElementById('foto').textContent);
-  var tipos = {};
-  foto.plantilla.tipos.forEach(function (t) { tipos[t.id] = t; });
-  var base = {};
-  foto.nodos.forEach(function (n) { base[n.id] = n; });
-  var hayGrupos = foto.nodos.some(function (n) { return n.grupo; });
-  var grupos = {};
-  (foto.grupos || []).forEach(function (g) { grupos[g.nombre] = g; });
+  var foto, tipos, base, hayGrupos, grupos;
+
+  // usarFoto deja lista la foto: la del archivo al abrirlo y, con una invitación, la nueva que llega del relay.
+  function usarFoto(f) {
+    foto = f;
+    tipos = {};
+    base = {};
+    grupos = {};
+    foto.plantilla.tipos.forEach(function (t) { tipos[t.id] = t; });
+    foto.nodos.forEach(function (n) { base[n.id] = n; });
+    hayGrupos = foto.nodos.some(function (n) { return n.grupo; });
+    (foto.grupos || []).forEach(function (g) { grupos[g.nombre] = g; });
+  }
+  usarFoto(JSON.parse(document.getElementById('foto').textContent));
 
   function etiquetaDeGrupo(nombre) {
     var g = grupos[nombre];
@@ -82,6 +89,7 @@
     var marca = 'r' + foto.revision;
     if (foto.version) marca = 'v' + foto.version.n + ' «' + foto.version.nombre + '» · ' + marca;
     $('version').textContent = marca;
+    pintarModo();
     var cuando = new Date(foto.generado).toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' });
     $('pie').textContent = 'Generado con QDD el ' + cuando + '.';
   }
@@ -104,6 +112,7 @@
 
   function leyenda() {
     var ul = $('leyenda');
+    ul.textContent = '';
     function entrada(clave, titulo, explica) {
       var li = el('li');
       li.appendChild(icono(clave, 0, 0, 18));
@@ -381,6 +390,7 @@
   }
 
   function elegir(id) {
+    if (id !== estado.elegido) propio.formulario = propio.aviso = '';
     estado.elegido = id;
     var visible = foto.vistas[estado.nivel - 1].nodos.some(function (n) { return n.id === id; });
     if (!visible) estado.nivel = Math.max(estado.nivel, base[id] ? base[id].nivel : 3);
@@ -440,6 +450,299 @@
     var vienen = foto.nodos.filter(function (o) { return (o.siguen || []).indexOf(n.id) >= 0; }).map(function (o) { return o.id; });
     panel.appendChild(fichas('Viene de', vienen));
     panel.appendChild(fichas('Sigue', n.siguen || []));
+    if (invitacion) panel.appendChild(accionesDeNodo(n));
+  }
+
+  // ---- proponer (RFC 0025, fase 3) ----
+  // Con una invitación, las acciones van en el mismo detalle del nodo. Lo propuesto le llega al equipo y entra al flujo
+  // solo cuando lo aprueban. El archivo habla solo con el relay (la CSP no deja otro destino) y, sin conexión, guarda lo
+  // propuesto en el navegador y lo envía al volver.
+
+  var invitacion = JSON.parse($('enlace').textContent);
+  var SONDEO_MS = 15000;
+  var propio = { lista: [], vencida: false, sinRed: false, formulario: '', aviso: '', novedad: '' };
+
+  // Cada acción: id, nombre del botón y campos [nombre, etiqueta, control, opcional].
+  var ACCIONES = [
+    { id: 'comentar', nombre: 'Comentar', campos: [['texto', 'Tu comentario o pregunta', 'area']] },
+    { id: 'agregar', nombre: 'Agregar después', campos: [['nombre', 'Nombre del paso nuevo', 'linea'], ['descripcion', 'Qué pasa en él', 'area', true], ['tipo', 'Tipo', 'tipo']] },
+    { id: 'renombrar', nombre: 'Renombrar', campos: [['nombre', 'Nombre nuevo', 'linea']] },
+    { id: 'describir', nombre: 'Describir', campos: [['descripcion', 'Qué pasa en este paso', 'area']] },
+    { id: 'conectar', nombre: 'Conectar con', campos: [['con', 'Con qué paso', 'nodo']] },
+    { id: 'mover', nombre: 'Mover después de', campos: [['despues_de', 'Después de qué paso', 'nodo']] },
+    { id: 'quitar', nombre: 'Quitar', campos: [] },
+    { id: 'nota', nombre: 'Nota técnica', campos: [['texto', 'Nota técnica o idea de implementación', 'area']], experto: true }
+  ];
+
+  var ESTADOS = {
+    'por-enviar': ['…', 'Por enviar'],
+    pendiente: ['●', 'Esperando al equipo'],
+    aprobada: ['✓', 'Integrada'],
+    rechazada: ['✕', 'No se integró']
+  };
+
+  function claveLocal(que) { return 'qdd-flujo-' + que + '-' + invitacion.invitacion; }
+
+  function leerLocal(que, defecto) {
+    try { return JSON.parse(guardado(claveLocal(que))) || defecto; } catch (e) { return defecto; }
+  }
+
+  function guardarLocal(que, valor) { guardar(claveLocal(que), JSON.stringify(valor)); }
+
+  function autor() { return guardado('qdd-flujo-autor') || ''; }
+
+  function nombreDe(id) { return '«' + (base[id] ? base[id].nombre : id) + '»'; }
+
+  function operacionDe(accion, n, v) {
+    var o = { op: accion, flujo: foto.flujo, nodo: n.id };
+    if (accion === 'renombrar') return { op: 'modificar', flujo: foto.flujo, nodo: n.id, nombre: v.nombre };
+    if (accion === 'describir') return { op: 'modificar', flujo: foto.flujo, nodo: n.id, descripcion: v.descripcion };
+    if (accion === 'agregar') { o.nombre = v.nombre; o.tipo = v.tipo; if (v.descripcion) o.descripcion = v.descripcion; }
+    if (accion === 'comentar' || accion === 'nota') o.texto = v.texto;
+    if (accion === 'conectar') o.con = v.con;
+    if (accion === 'mover') o.despues_de = v.despues_de;
+    return o;
+  }
+
+  function textoDe(accion, n, v) {
+    var textos = {
+      comentar: 'Comentas ' + nombreDe(n.id) + ': ' + v.texto,
+      agregar: 'Agregar «' + v.nombre + '» después de ' + nombreDe(n.id),
+      renombrar: 'Renombrar ' + nombreDe(n.id) + ' a «' + v.nombre + '»',
+      describir: 'Describir ' + nombreDe(n.id) + ': ' + v.descripcion,
+      conectar: 'Flecha de ' + nombreDe(n.id) + ' a ' + nombreDe(v.con),
+      mover: 'Mover ' + nombreDe(n.id) + ' después de ' + nombreDe(v.despues_de),
+      quitar: 'Quitar ' + nombreDe(n.id),
+      nota: 'Nota técnica en ' + nombreDe(n.id) + ': ' + v.texto
+    };
+    return textos[accion];
+  }
+
+  function accionesDeNodo(n) {
+    var caja = el('section', 'proponer');
+    caja.appendChild(el('h3', '', 'Proponer un cambio'));
+    if (propio.vencida) {
+      caja.appendChild(el('p', 'texto vacio', 'Esta invitación ya no está vigente: pídele una nueva a quien te la mandó.'));
+      return caja;
+    }
+    var fila = el('div', 'acciones');
+    ACCIONES.forEach(function (a) {
+      if (a.experto && invitacion.rol !== 'experto') return;
+      var b = el('button', 'accion', a.nombre);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(propio.formulario === a.id));
+      b.addEventListener('click', function () {
+        propio.formulario = propio.formulario === a.id ? '' : a.id;
+        propio.aviso = '';
+        mostrarDetalle();
+        var primero = document.querySelector('.formulario input, .formulario textarea, .formulario select, .formulario .boton');
+        if (primero) primero.focus();
+      });
+      fila.appendChild(b);
+    });
+    caja.appendChild(fila);
+    var elegida = ACCIONES.filter(function (a) { return a.id === propio.formulario; })[0];
+    if (elegida) caja.appendChild(formulario(elegida, n));
+    if (propio.aviso) caja.appendChild(el('p', 'aviso', propio.aviso));
+    return caja;
+  }
+
+  function control(campo, n) {
+    var tipo = campo[2];
+    if (tipo === 'area') {
+      var area = el('textarea');
+      area.maxLength = 500;
+      area.rows = 3;
+      return area;
+    }
+    if (tipo === 'tipo' || tipo === 'nodo') {
+      var lista = el('select');
+      var opciones = tipo === 'tipo' ? foto.plantilla.tipos : foto.nodos.filter(function (o) { return o.id !== n.id; });
+      opciones.forEach(function (o) {
+        var op = el('option', '', o.nombre);
+        op.value = o.id;
+        lista.appendChild(op);
+      });
+      return lista;
+    }
+    var linea = el('input');
+    linea.type = 'text';
+    linea.maxLength = campo[0] === 'autor' ? 80 : 120;
+    return linea;
+  }
+
+  function formulario(a, n) {
+    var form = el('form', 'formulario');
+    var campos = {};
+    var lista = a.campos.slice();
+    if (!autor()) lista.unshift(['autor', 'Tu nombre (el equipo lo ve en cada propuesta)', 'linea']);
+    lista.forEach(function (c) {
+      var etiqueta = el('label', '', c[1] + (c[3] ? ' (opcional)' : ''));
+      campos[c[0]] = control(c, n);
+      etiqueta.appendChild(campos[c[0]]);
+      form.appendChild(etiqueta);
+    });
+    if (a.id === 'quitar') form.appendChild(el('p', 'texto', 'Propones quitar ' + nombreDe(n.id) + ' del flujo.'));
+    var error = el('p', 'aviso error');
+    error.hidden = true;
+    form.appendChild(error);
+    var enviar = el('button', 'boton', 'Enviar propuesta');
+    enviar.type = 'submit';
+    form.appendChild(enviar);
+    form.appendChild(el('p', 'nota', 'Le llega al equipo; la verás integrada cuando la aprueben.'));
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = {};
+      Object.keys(campos).forEach(function (k) { v[k] = campos[k].value.trim(); });
+      if (v.autor) guardar('qdd-flujo-autor', v.autor);
+      var falta = lista.filter(function (c) { return !c[3] && !v[c[0]] && !(c[0] === 'autor' && autor()); })[0];
+      if (falta) {
+        error.textContent = 'Falta: ' + falta[1].toLowerCase() + '.';
+        error.hidden = false;
+        campos[falta[0]].focus();
+        return;
+      }
+      proponer(operacionDe(a.id, n, v), textoDe(a.id, n, v));
+      propio.formulario = '';
+      propio.aviso = 'Enviada: le llega al equipo. La verás integrada cuando la aprueben.';
+      mostrarDetalle();
+    });
+    return form;
+  }
+
+  function llamarRelay(metodo, cuerpo) {
+    var cabeceras = { apikey: invitacion.clave };
+    var opciones = { method: metodo, headers: cabeceras, cache: 'no-store' };
+    if (metodo === 'GET') cabeceras['x-qdd-token'] = invitacion.token;
+    if (cuerpo) {
+      cabeceras['content-type'] = 'application/json';
+      opciones.body = JSON.stringify(cuerpo);
+    }
+    return fetch(invitacion.relay + 'flujo-proponer', opciones).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (datos) { return { codigo: r.status, datos: datos }; });
+    });
+  }
+
+  function proponer(operacion, texto) {
+    var cola = leerLocal('cola', []);
+    cola.push({ autor: autor(), base: 'r' + foto.revision, operacion: operacion, texto: texto });
+    guardarLocal('cola', cola);
+    pintarPropuestas();
+    vaciarCola();
+  }
+
+  var enviando = false;
+
+  // vaciarCola envía lo propuesto, de a uno y en orden. Un error del relay lo descarta con su motivo; sin red, espera.
+  function vaciarCola() {
+    var cola = leerLocal('cola', []);
+    if (enviando || !cola.length || propio.vencida) return;
+    enviando = true;
+    var envio = cola[0];
+    llamarRelay('POST', { token: invitacion.token, autor: envio.autor, base: envio.base, operacion: envio.operacion }).then(function (r) {
+      enviando = false;
+      propio.sinRed = r.codigo >= 500;
+      if (propio.sinRed) { pintarPropuestas(); return; }
+      guardarLocal('cola', leerLocal('cola', []).slice(1));
+      if (r.codigo === 201 && r.datos.id) anotarEnviada(r.datos.id, envio);
+      if (r.codigo !== 201) propio.novedad = motivoDeError(r.codigo, envio.texto);
+      if (r.codigo === 401) propio.vencida = true;
+      pintarPropuestas();
+      vaciarCola();
+    }, function () {
+      enviando = false;
+      propio.sinRed = true;
+      pintarPropuestas();
+    });
+  }
+
+  function anotarEnviada(id, envio) {
+    var textos = leerLocal('textos', {});
+    textos[id] = envio.texto;
+    guardarLocal('textos', textos);
+    propio.lista.push({ id: id, autor: envio.autor, estado: 'pendiente' });
+  }
+
+  function motivoDeError(codigo, texto) {
+    var motivos = {
+      401: 'Esta invitación ya no está vigente: pídele una nueva a quien te la mandó.',
+      403: 'Tu invitación no permite esa propuesta.',
+      429: 'Llegaste al tope de propuestas de esta invitación.'
+    };
+    return (motivos[codigo] || 'El equipo no pudo recibir la propuesta') + ' («' + texto + '»)';
+  }
+
+  // sondear trae el estado de lo propuesto y, si el equipo aprobó algo, la foto nueva del flujo.
+  function sondear() {
+    if (propio.vencida) return;
+    llamarRelay('GET').then(function (r) {
+      if (r.codigo === 401) propio.vencida = true;
+      if (r.codigo !== 200) { pintarPropuestas(); mostrarDetalle(); return; }
+      propio.sinRed = false;
+      propio.lista = r.datos.propuestas || [];
+      var nueva = r.datos.foto;
+      if (nueva && nueva.plantilla && nueva.nodos && nueva.vistas && nueva.revision > foto.revision) fotoNueva(nueva);
+      pintarPropuestas();
+      vaciarCola();
+    }, function () {
+      propio.sinRed = true;
+      pintarPropuestas();
+    });
+  }
+
+  function fotoNueva(f) {
+    usarFoto(f);
+    if (!base[estado.elegido]) estado.elegido = '';
+    propio.novedad = 'Llegó la versión r' + f.revision + ' del flujo, con lo que aprobó el equipo.';
+    cabecera();
+    botonesDeNivel();
+    leyenda();
+    dibujar();
+    mostrarDetalle();
+  }
+
+  function aviso() {
+    if (propio.vencida) return 'Esta invitación ya no está vigente: pídele una nueva a quien te la mandó.';
+    if (propio.sinRed && leerLocal('cola', []).length) return 'Sin conexión: tus propuestas se envían solas al volver.';
+    if (propio.sinRed) return 'Sin conexión: el flujo se lee igual.';
+    return propio.novedad;
+  }
+
+  // pintarModo dice en la cabecera si el archivo propone; una invitación cerrada vuelve a ser de solo lectura.
+  function pintarModo() {
+    var modo = 'Solo lectura';
+    if (invitacion) modo = 'Puedes proponer · ' + invitacion.rol;
+    if (invitacion && propio.vencida) modo = 'Invitación cerrada · solo lectura';
+    $('modo').textContent = modo;
+  }
+
+  function pintarPropuestas() {
+    pintarModo();
+    $('propuestas').hidden = false;
+    var texto = aviso();
+    $('propuestas-aviso').textContent = texto;
+    $('propuestas-aviso').hidden = !texto;
+    var ul = $('lista-propuestas');
+    ul.textContent = '';
+    var textos = leerLocal('textos', {});
+    leerLocal('cola', []).forEach(function (e) { ul.appendChild(filaDePropuesta('por-enviar', e.texto, e.autor, '')); });
+    propio.lista.slice().sort(function (a, b) { return numero(b.id) - numero(a.id); }).forEach(function (p) {
+      ul.appendChild(filaDePropuesta(p.estado, textos[p.id] || 'Propuesta ' + p.id, p.autor, p.motivo));
+    });
+    if (!ul.children.length) ul.appendChild(el('li', 'vacio', 'Todavía no hay propuestas. Toca un paso y elige qué proponer.'));
+  }
+
+  function numero(id) { return Number(String(id).replace(/^PRO-/, '')) || 0; }
+
+  function filaDePropuesta(cual, texto, quien, motivo) {
+    var e = ESTADOS[cual] || ESTADOS.pendiente;
+    var li = el('li', 'propuesta ' + (ESTADOS[cual] ? cual : 'pendiente'));
+    li.appendChild(el('span', 'marca', e[0]));
+    var cuerpo = el('div');
+    cuerpo.appendChild(el('span', '', texto));
+    cuerpo.appendChild(el('small', '', e[1] + (quien ? ' · ' + quien : '') + (motivo ? ' · ' + motivo : '')));
+    li.appendChild(cuerpo);
+    return li;
   }
 
   // ---- recorrido de la primera vez ----
@@ -449,6 +752,7 @@
     ['Tres niveles de detalle', 'N1 muestra lo principal. N2 y N3 suman detalle. Una caja punteada junta varios pasos: tócala para abrirla.'],
     ['Toca un paso', 'Al tocarlo ves qué es, de dónde viene y qué sigue. Abajo está la leyenda con cada tipo de paso.']
   ];
+  if (invitacion) pasos.push(['Propón cambios', 'Toca un paso y elige qué proponer: comentar, agregar, renombrar, conectar o quitar. Le llega al equipo y lo verás integrado cuando lo aprueben.']);
   var paso = 0;
 
   function mostrarPaso() {
@@ -479,7 +783,7 @@
   $('ver-recorrido').addEventListener('click', abrirRecorrido);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !$('recorrido').hidden) { cerrarRecorrido(); return; }
-    if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
     if (e.key === '1' || e.key === '2' || e.key === '3') cambiarNivel(Number(e.key));
   });
 
@@ -490,4 +794,10 @@
   dibujar();
   mostrarDetalle();
   if (!conEnlace && !guardado('qdd-flujo-recorrido')) abrirRecorrido();
+  if (invitacion) {
+    pintarPropuestas();
+    sondear();
+    window.setInterval(sondear, SONDEO_MS);
+    window.addEventListener('online', sondear);
+  }
 })();

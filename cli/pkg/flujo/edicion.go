@@ -36,6 +36,7 @@ type Comentario struct {
 	Cuando   string `yaml:"cuando" json:"cuando"`
 	DeNodo   string `yaml:"de_nodo,omitempty" json:"de_nodo,omitempty"`
 	Pregunta bool   `yaml:"pregunta,omitempty" json:"pregunta,omitempty"`
+	Autor    string `yaml:"autor,omitempty" json:"autor,omitempty"`
 }
 
 // hecho es lo que un cambio le cuenta a la IA. Entera marca una línea que no se corta: las palabras de la persona.
@@ -50,6 +51,11 @@ type Cambio func(f *Flujo) (hecho, error)
 
 // Editar aplica el cambio bajo candado, para que la IA y la persona no se pisen, y solo guarda un flujo válido.
 func Editar(root, id, de string, ahora time.Time, cambio Cambio) (Flujo, string, error) {
+	return editarComo(root, id, de, de == DePersona, ahora, cambio)
+}
+
+// editarComo guarda el cambio a nombre de autor y, con avisar, se lo deja anotado a la IA.
+func editarComo(root, id, autor string, avisar bool, ahora time.Time, cambio Cambio) (Flujo, string, error) {
 	soltar, err := tomarFlujo(root, id)
 	if err != nil {
 		return Flujo{}, "", err
@@ -71,10 +77,10 @@ func Editar(root, id, de string, ahora time.Time, cambio Cambio) (Flujo, string,
 	if !h.entera {
 		h.linea = acotar(h.linea, maxLineaEdicion)
 	}
-	if err := guardarRevision(root, &f, previa, de, h.linea, ahora); err != nil {
+	if err := guardarRevision(root, &f, previa, autor, h.linea, ahora); err != nil {
 		return Flujo{}, "", err
 	}
-	if de != DePersona {
+	if !avisar {
 		return f, h.linea, nil
 	}
 	despues, err := os.ReadFile(ruta(root, id))
@@ -321,6 +327,11 @@ func Desconectar(desde, hacia string) Cambio {
 
 // Comentar suma un comentario al nodo. Le llega entero a la IA: son las palabras de la persona.
 func Comentar(nodo, texto, de string, ahora time.Time) Cambio {
+	return comentarComo(nodo, texto, de, "", ahora)
+}
+
+// comentarComo deja el comentario con el nombre de quien lo escribió, cuando no es la persona ni la IA.
+func comentarComo(nodo, texto, de, autor string, ahora time.Time) Cambio {
 	return func(f *Flujo) (hecho, error) {
 		i, err := indiceDe(f, nodo)
 		if err != nil {
@@ -334,7 +345,7 @@ func Comentar(nodo, texto, de string, ahora time.Time) Cambio {
 			return hecho{}, fmt.Errorf("el comentario tiene %d caracteres: el tope es %d", largo, maxComentario)
 		}
 		n := &f.Nodos[i]
-		n.Comentarios = append(n.Comentarios, Comentario{De: de, Texto: texto, Cuando: ahora.UTC().Format(time.RFC3339)})
+		n.Comentarios = append(n.Comentarios, Comentario{De: de, Texto: texto, Cuando: ahora.UTC().Format(time.RFC3339), Autor: autor})
 		return hecho{
 			linea:  fmt.Sprintf("💬 %s «%s»: %s", n.ID, n.Nombre, texto),
 			pista:  fmt.Sprintf("Responde el comentario con: qdd flujo comentar %s %s \"…\"", f.ID, n.ID),

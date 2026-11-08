@@ -3197,6 +3197,27 @@ async function verificarEsperas($) {
   }
 }
 
+// ── Flujo para conversar (RFC 0025, fase 3) ─────────────────────────────────────────────────────────────────────────
+// Cada PROPUESTAS_MS pide «qdd flujo propuestas ciclo --si-toca»: qdd sale enseguida si el proyecto no tiene
+// invitaciones vivas ni nada por avisar. Si las hay, lee lo que propusieron los invitados y deja cada propuesta como un
+// pedido 📝 de la persona, que el panel muestra al releer. Un qdd sin el comando deja de intentarlo.
+const PROPUESTAS_MS = 15000
+const propuestas = { soportado: true, corriendo: false }
+
+async function cicloPropuestas($) {
+  if (!interactiva || !propuestas.soportado || propuestas.corriendo) return
+  propuestas.corriendo = true
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'flujo', 'propuestas', 'ciclo', '--si-toca', '--json'], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0 && /unknown command|unknown flag/.test(r.stderr || '')) propuestas.soportado = false
+  } catch (err) {
+    $.ui.log('qdd: el ciclo de propuestas no corrió: ' + String(err?.message ?? err), { to: 'debug' })
+  } finally {
+    propuestas.corriendo = false
+  }
+}
+
 // ── Modo goal (RFC 0015) ─────────────────────────────────────────────────────────────────────────────────────────────
 // Con el modo activo, cada GOAL_MS la sesión interactiva pide «qdd goal ciclo» y le dice cuánto lleva en silencio y si
 // está haciendo algo. Todo lo decide qdd, sin modelos: qué elegir, cuándo recordar y cuándo detenerse. Si devuelve un
@@ -3313,6 +3334,9 @@ export function register(on) {
       $.clock.every(MEJORAS_MS, async () => {
         await cicloMejoras($)
         await verificarEsperas($)
+      })
+      $.clock.every(PROPUESTAS_MS, async () => {
+        await cicloPropuestas($)
       })
       $.clock.every(GOAL_MS, async () => {
         await cicloGoal($)

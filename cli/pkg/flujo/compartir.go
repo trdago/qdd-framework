@@ -6,7 +6,11 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"html"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -140,20 +144,64 @@ func hashCSP(s string) string {
 	return "'sha256-" + base64.StdEncoding.EncodeToString(suma[:]) + "'"
 }
 
-// ArchivoHTML arma el archivo de la foto. json.Marshal escapa <, > y &, así que ningún texto cierra el bloque de datos.
+// Enlace es lo que el archivo necesita para proponer (RFC 0025, fase 3): las funciones del relay, su clave pública, el
+// token de la invitación (se entrega una vez y solo vive en este archivo) y el rol.
+type Enlace struct {
+	Relay      string `json:"relay"`
+	Clave      string `json:"clave"`
+	Token      string `json:"token"`
+	Rol        string `json:"rol"`
+	Invitacion string `json:"invitacion"`
+}
+
+// origen es «https://host» del relay; rechaza lo que no sea una URL https limpia, porque va en la CSP.
+func (e Enlace) origen() (string, error) {
+	u, err := url.Parse(e.Relay)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || strings.ContainsAny(e.Relay, " ;'\"\n") {
+		return "", fmt.Errorf("la URL del relay %q no sirve: tiene que ser https", e.Relay)
+	}
+	if e.Token == "" || e.Clave == "" {
+		return "", errors.New("falta el token de la invitación o la clave del relay")
+	}
+	if !slices.Contains(RolesDeInvitado, e.Rol) {
+		return "", fmt.Errorf("rol %q: usa %s", e.Rol, strings.Join(RolesDeInvitado, " o "))
+	}
+	return u.Scheme + "://" + u.Host, nil
+}
+
+// ArchivoHTML arma el archivo de solo lectura: no se conecta con nada.
 func ArchivoHTML(foto Foto) ([]byte, error) {
+	return armarArchivo(foto, nil, "")
+}
+
+// ArchivoParaProponer arma el archivo de una invitación: además de leer, propone por el relay, y solo con él.
+func ArchivoParaProponer(foto Foto, e Enlace) ([]byte, error) {
+	origen, err := e.origen()
+	if err != nil {
+		return nil, err
+	}
+	return armarArchivo(foto, &e, "connect-src "+origen+"; ")
+}
+
+// armarArchivo arma el HTML. json.Marshal escapa <, > y &, así que ningún texto cierra un bloque de datos.
+func armarArchivo(foto Foto, e *Enlace, conectar string) ([]byte, error) {
 	datos, err := json.Marshal(foto)
 	if err != nil {
 		return nil, err
 	}
+	enlace, err := json.Marshal(e)
+	if err != nil {
+		return nil, err
+	}
 	csp := "default-src 'none'; script-src " + hashCSP(archivoJS) + "; style-src " + hashCSP(estiloDelArchivo) +
-		"; font-src data:; img-src data:; base-uri 'none'; form-action 'none'"
+		"; " + conectar + "font-src data:; img-src data:; base-uri 'none'; form-action 'none'"
 	r := strings.NewReplacer(
 		"{{CSP}}", csp,
 		"{{TITULO}}", html.EscapeString(foto.Nombre),
 		"{{CSS}}", estiloDelArchivo,
 		"{{JS}}", archivoJS,
 		"{{DATOS}}", string(datos),
+		"{{ENLACE}}", string(enlace),
 	)
 	var b bytes.Buffer
 	if _, err := r.WriteString(&b, archivoHTML); err != nil {

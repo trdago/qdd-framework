@@ -19,7 +19,7 @@
   </div>
   <div class="marcas">
     <span id="version" class="etiqueta"></span>
-    <span class="etiqueta">Solo lectura</span>
+    <span id="modo" class="etiqueta">Solo lectura</span>
     <button type="button" id="ver-recorrido" class="enlace">¿Cómo se lee?</button>
   </div>
 </header>
@@ -28,6 +28,11 @@
   <section class="lienzo" id="lienzo" aria-label="Flujo"></section>
   <aside class="detalle" id="detalle" aria-live="polite" hidden></aside>
 </main>
+<section class="propuestas" id="propuestas" aria-label="Propuestas" aria-live="polite" hidden>
+  <h2>Propuestas</h2>
+  <p id="propuestas-aviso" class="aviso" hidden></p>
+  <ul id="lista-propuestas"></ul>
+</section>
 <section class="leyenda" aria-label="Leyenda">
   <h2>Cómo se lee</h2>
   <ul id="leyenda"></ul>
@@ -45,6 +50,7 @@
   </div>
 </div>
 <script type="application/json" id="foto">{{DATOS}}</script>
+<script type="application/json" id="enlace">{{ENLACE}}</script>
 <script>{{JS}}</script>
 </body>
 </html>
