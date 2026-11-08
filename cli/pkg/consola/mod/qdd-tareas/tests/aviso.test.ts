@@ -49,7 +49,7 @@ function preparar(on, r) {
     r.llamadas.push([...e.argv])
     if (r.viejo && e.argv.includes('--sesion')) return { value: { exitCode: 1, stdout: '', stderr: 'Error: unknown flag: --sesion' } }
     if (e.argv[2] === 'accion') return { value: { exitCode: 0, stdout: '[+] En marcha', stderr: '' } }
-    if (e.argv[2] === 'avisado') return { value: { exitCode: r.reclamos++ === 0 ? 0 : 1, stdout: '', stderr: '' } }
+    if (e.argv[2] === 'avisado') return { value: { exitCode: r.reclamos++ === 0 ? 0 : 1, stdout: r.alReclamar ?? '', stderr: '' } }
     if (e.argv[1] === 'herramienta') return { value: { exitCode: 0, stdout: JSON.stringify({ herramientas: [] }), stderr: '' } }
     return { value: { exitCode: 0, stdout: JSON.stringify({ formato: 1, estado: ESTADO, acciones: [r.pedido] }), stderr: '' } }
   })
@@ -100,6 +100,19 @@ test('al terminar, la sesión que lo confirmó lo reclama una vez, se lo envía 
   expect(r.notificaciones[0]).toMatchObject({ text: expect.stringContaining('Publicar rc.16') })
   const banda = await $.ui.mount({ ...BANDA, surface: 'terminal' })
   expect(await banda.find({ type: 'Text', text: /en marcha/ })).toBeUndefined()
+})
+
+// FND-187: el panel leyó el pedido como cortado y, al reclamarlo, ya había terminado bien. Va lo que dice qdd al
+// reclamarlo, no lo de la lectura anterior.
+test('a la IA le llega el resultado que qdd da al reclamarlo, no el de la lectura anterior', async ($, on) => {
+  const cortado = '✗ Pedido [a] «Publicar rc.16» falló (exit -1). Salida: se cortó'
+  const r = { ...nuevo({ ...PUBLICAR, tecla: undefined, estado: 'fallo', sesion: 'sesion-1', avisar: true, mensaje: cortado }), alReclamar: MENSAJE + '\n' }
+  preparar(on, r)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.advance(5000)
+  expect(r.enviados).toEqual([MENSAJE])
+  expect(r.notificaciones[0]).toMatchObject({ text: expect.stringContaining('terminó') })
 })
 
 test('si qdd dice que ya se avisó (otra sesión, un reload), no se envía de nuevo', async ($, on) => {
