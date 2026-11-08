@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/qdd-framework/qdd/pkg/mejoras"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
@@ -229,7 +230,7 @@ func runConsolaPanel(cmd *cobra.Command, args []string) {
 
 // runConsolaProyectos entrega las filas de la vista «Proyectos» (RFC 0018): el panel las dibuja y no decide nada.
 func runConsolaProyectos(cmd *cobra.Command, args []string) {
-	out, err := json.Marshal(consola.Proyectos(time.Now()))
+	out, err := listas.Marshal(consola.Proyectos(time.Now()))
 	if err != nil {
 		salirCon("%v", err)
 	}
@@ -274,7 +275,7 @@ func herramientasDelPanel(root string) json.RawMessage {
 	if len(vs) == 0 {
 		return json.RawMessage("[]")
 	}
-	b, err := json.Marshal(vs)
+	b, err := listas.Marshal(vs)
 	if err != nil {
 		return nil
 	}

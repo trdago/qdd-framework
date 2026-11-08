@@ -2141,7 +2141,68 @@ function sinEstado(Box, Text, motivo) {
   })
 }
 
+// ── Ninguna vista deja el panel en negro (FND-189) ──────────────────────────────────────────────────────────────────
+// Un qdd anterior entregó "entradas": null y vistaBlueprints lanzó: el render entero falló y el panel quedó en negro.
+// Cada vista se dibuja protegida: si lanza, se ve «✗ La vista X falló», se puede volver al tablero (o reintentar) y la
+// falla queda una vez en 'qdd incidentes', con solo el mensaje y los nombres de las funciones del panel.
+const caidas = new Set()
+
 function dibujar($, Box, Text, Button, Input, ancho) {
+  const vista = config ? ['configuracion', 'Configuración'] : bps ? ['blueprints', 'Blueprints'] : proyectos ? ['proyectos', 'Proyectos'] : ['tareas', 'Tareas']
+  const marco = () => (datos ? [cabecera(Box, Text, Button, $, datos.estado, datos.acciones || [])] : [])
+  return protegida($, Box, Text, Button, vista, () => dibujarVista($, Box, Text, Button, Input, ancho), marco)
+}
+
+// protegida dibuja la vista; si lanza, dibuja la falla debajo del marco (la cabecera con sus botones), si el marco se
+// puede dibujar.
+function protegida($, Box, Text, Button, [id, nombre], dibujarla, marco = () => []) {
+  try {
+    return dibujarla()
+  } catch (err) {
+    return vistaCaida($, Box, Text, Button, id, nombre, err, encima(marco))
+  }
+}
+
+function encima(marco) {
+  try {
+    return marco()
+  } catch {
+    return []
+  }
+}
+
+function vistaCaida($, Box, Text, Button, id, nombre, err, arriba) {
+  const mensaje = String(err?.message ?? err).slice(0, 300)
+  avisarCaida($, id, mensaje, err?.stack)
+  const alTablero = id === 'configuracion' || id === 'blueprints' || id === 'proyectos'
+  const volver = () => {
+    if (alTablero) config = bps = proyectos = null
+    $.ui.invalidate('ui.render')
+  }
+  return Box({
+    flexDirection: 'column',
+    children: [
+      ...arriba,
+      Text({ key: 'vista-caida', color: COLOR.falla, wrap: 'wrap', children: ['✗ La vista ' + nombre + ' falló: ' + mensaje] }),
+      Text({ key: 'vista-caida-nota', dimColor: true, wrap: 'wrap', children: ['Quedó en qdd incidentes para arreglarla; el resto del panel sigue andando.'] }),
+      Button({ key: 'vista-volver', label: alTablero ? '⏎ Volver al tablero' : '↻ Reintentar', plain: true, onPress: volver }),
+    ],
+  })
+}
+
+// avisarCaida deja la falla en 'qdd incidentes panel' una sola vez por vista y mensaje. De la pila van solo los nombres
+// de las funciones: nada del proyecto.
+function avisarCaida($, id, mensaje, pila) {
+  const clave = id + '|' + mensaje
+  if (caidas.has(clave)) return
+  caidas.add(clave)
+  const funciones = [...String(pila || '').matchAll(/at (?:async )?([\w$.]+) \(/g)].map((m) => m[1]).slice(0, 6)
+  binario($)
+    .then((bin) => $.process.run([bin, 'incidentes', 'panel', id, mensaje, ...funciones.flatMap((f) => ['--traza', f])], { timeoutMs: TOPE_MS }))
+    .catch((err) => $.ui.log('qdd: no se registró la falla de la vista: ' + String(err?.message ?? err), { to: 'debug' }))
+}
+
+function dibujarVista($, Box, Text, Button, Input, ancho) {
   if (!datos) return sinEstado(Box, Text, falla)
   const e = datos.estado
   const lista = datos.acciones || []
@@ -2364,7 +2425,8 @@ async function leerBlueprints($) {
     const r = await $.process.run([bin, 'consola', 'blueprints', '--json'], { timeoutMs: TOPE_MS })
     const j = r.exitCode === 0 ? JSON.parse(r.stdout) : null
     if (!j) throw new Error(((r.stdout || '') + (r.stderr || '')).trim() || 'sin salida')
-    if (bps) bps = { ...bps, inv: j.inventario || { entradas: [] }, acciones: j.acciones || [], falla: '' }
+    const inv = j.inventario || {}
+    if (bps) bps = { ...bps, inv: { ...inv, entradas: inv.entradas || [] }, acciones: j.acciones || [], falla: '' }
   } catch (err) {
     if (bps) bps = { ...bps, falla: String(err?.message ?? err) }
   }
@@ -3651,9 +3713,10 @@ export function register(on) {
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
     Client = cliente || null
-    if (e.requestId === PANE_FLUJOS) return vistaFlujos($, Box, Text, Button, Input, Select, e.props.bodyColumns || 40)
-    if (String(e.requestId).startsWith(PANE_FLUJO)) return dibujarFlujo($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_FLUJO.length), e.props.bodyColumns || 40)
-    if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length))
+    const ancho = e.props.bodyColumns || 40
+    if (e.requestId === PANE_FLUJOS) return protegida($, Box, Text, Button, ['flujos', 'Flujos'], () => vistaFlujos($, Box, Text, Button, Input, Select, ancho))
+    if (String(e.requestId).startsWith(PANE_FLUJO)) return protegida($, Box, Text, Button, ['flujo', 'Flujo'], () => dibujarFlujo($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_FLUJO.length), ancho))
+    if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return protegida($, Box, Text, Button, ['herramienta', 'Herramienta'], () => dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length)))
     if (e.requestId !== PANE) return next(e)
     return dibujar($, Box, Text, Button, Input, e.props.bodyColumns || 40)
   })

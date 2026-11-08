@@ -10,6 +10,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/flujo"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/spf13/cobra"
 )
 
@@ -155,7 +156,7 @@ var flujoVerCmd = &cobra.Command{
 		lineas, segmentos := flujo.DibujarConSegmentos(flujo.Plegar(f, flujo.Vista{Nivel: flujoNivel, Abiertos: flujoAbiertos, Mostrar: flujoElegido}), flujoAncho, estadoDeTarea(root), flujoElegido)
 		salida := cmd.OutOrStdout()
 		if flujoJSON {
-			b, err := json.Marshal(flujoDibujado{
+			b, err := listas.Marshal(flujoDibujado{
 				ID: f.ID, Nombre: f.Nombre, Descripcion: f.Descripcion, Lineas: lineas, Segmentos: segmentos, Nodos: f.Nodos,
 				PorEnviar: flujo.PorEnviar(root, f.ID), PuedeDeshacer: flujo.PuedeDeshacer(root, f.ID), Comentarios: f.Comentarios,
 				Nivel: flujoNivel, Grupos: flujo.Grupos(f), Abiertos: flujoAbiertos, Niveles: flujo.Niveles(f),
@@ -198,7 +199,7 @@ var flujoListaCmd = &cobra.Command{
 		lista := flujo.Listar(root, estadoDeTarea(root))
 		salida := cmd.OutOrStdout()
 		if flujoJSON {
-			b, err := json.Marshal(lista)
+			b, err := listas.Marshal(lista)
 			if err != nil {
 				salirCon("%v", err)
 			}
@@ -231,7 +232,7 @@ func init() {
 }
 
 func flujosDelPanel(root string) json.RawMessage {
-	b, err := json.Marshal(flujo.Listar(root, estadoDeTarea(root)))
+	b, err := listas.Marshal(flujo.Listar(root, estadoDeTarea(root)))
 	if err != nil {
 		return nil
 	}

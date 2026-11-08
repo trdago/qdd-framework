@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/invitaciones"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/spf13/cobra"
 )
 
@@ -95,7 +95,7 @@ func crearInvitacion(root string, f flujo.Flujo, foto flujo.Foto, ahora time.Tim
 	if err != nil {
 		salirCon("%v", err)
 	}
-	datos, err := json.Marshal(foto)
+	datos, err := listas.Marshal(foto)
 	if err != nil {
 		salirCon("%v", err)
 	}

@@ -19,6 +19,7 @@ rutas:
     - cli/cmd/consola_preguntas.go
     - cli/cmd/consola_telefono.go
     - cli/pkg/materializar
+    - cli/pkg/listas
 implementa:
     - blueprint: estado-por-tareas
       fuera:
@@ -111,6 +112,8 @@ objetivo_tecnologico:
         - 'Reglas atrasadas en la vista Proyectos (pedido de qdd-movile, 2026-11-07): cada fila trae reglas_atrasadas, los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos; null si la carpeta no existe). El panel marca la fila con ⚑ y su detalle dice dónde y que qdd doctor --fix (o --fix --todos) las renueva.'
         - 'La vista Proyectos del panel (tecla y) dibuja esas filas y no decide nada. Se lee al abrirla y con l ↻, sin temporizador ni flujo: cerrada no gasta procesos, y nada le escribe a la IA. Es solo lectura: elegir una fila, con su número (1…9) o un clic, abre su historial. Desde 61 columnas muestra todas; más angosto, proyecto, puntaje y ⏳ y ❌. El motor dibuja la tecla de un botón como «1: » antes del texto, así que la fila reserva ese ancho.'
     invariantes:
+        - 'Lo que qdd le entrega al panel nunca trae una lista ni un mapa null (FND-189, MEJ-045, MEJ-050): las salidas JSON que lee el panel pasan por listas.Marshal, y una prueba de contrato (listas.Nulas) las revisa en un proyecto vacío y en uno con datos. Un elemento null dentro de una lista sí se conserva, porque dice «esta fila no tiene» (los segmentos de una línea del dibujo).'
+        - 'Ninguna vista deja el panel en negro (FND-189): cada una se dibuja protegida; si lanza, se ve «✗ La vista X falló» bajo la cabecera, se puede volver al tablero o reintentar, y la falla queda una vez en qdd incidentes panel.'
         - 'Un turno no cambia mientras su ítem espera y nunca se reutiliza, salvo si el registro quedó ilegible. El orden nunca impide contestar otra cosa: solo un pedido espera de verdad a otro.'
         - La barra termina sola aunque nadie cierre su stdin (FND-145).
         - Nada escribe estado.yaml sin pasar por Check del frente tocado.
@@ -177,4 +180,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-08"
-revisado_en_commit: e37db3cb03a7
+revisado_en_commit: 6f51c1fc41f1
