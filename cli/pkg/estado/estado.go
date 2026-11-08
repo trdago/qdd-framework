@@ -53,6 +53,8 @@ type Celda struct {
 	Falla              string `yaml:"falla,omitempty"`
 	RequiereAprobacion string `yaml:"requiere_aprobacion,omitempty"`
 	Aprobado           bool   `yaml:"aprobado,omitempty"`
+	// Verifica es la verificación tipada con que un ⏳ se responde solo (verificar.go); vacía si no.
+	Verifica string `yaml:"verifica,omitempty"`
 }
 
 // Frente es una fila de la tabla.

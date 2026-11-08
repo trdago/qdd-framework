@@ -45,7 +45,8 @@ var estadoCmd = &cobra.Command{
   qdd estado [--json]                imprime la tabla (markdown o mensajería, según la ficha; --json para un panel)
   qdd estado init                    crea el archivo con las etapas de la ficha
   qdd estado nueva "<nombre>" [--objetivo …] [--depende-de …]  crea una tarea; qdd le da el id y lo imprime
-  qdd estado set <tarea> <etapa> <ok|espera|falla|na|sin-empezar> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
+  qdd estado set <tarea> <etapa> <ok|espera|falla|na|sin-empezar> [--evidencia …] [--bloqueo … --de-quien …] [--verifica tipo:arg] [--falla …]
+  qdd estado verificar [--si-toca]   revisa los ⏳ que se responden solos y pasa a ✅ los cumplidos
   qdd estado cerrar <tarea> --motivo "…" [--descartado]
   qdd estado activa <tarea> [--fin]  la tarea en curso: el panel la muestra «● running» (blueprint estado-por-tareas)
   qdd estado pulso [<tarea>] [--fuente agente|subagente|comando]  una señal de vida (sin tarea, la última activada)

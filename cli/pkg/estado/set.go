@@ -25,6 +25,8 @@ type Cambio struct {
 	Falla              string
 	RequiereAprobacion string
 	Aprobado           bool
+	// Verifica: un ⏳ que qdd revisa solo (verificar.go), p. ej. «npm:qdd-framework@2.10.0-rc.43».
+	Verifica string
 	// AunqueExista crea la tarea aunque su nombre repita el de una abierta (FND-109).
 	AunqueExista bool
 }
@@ -83,9 +85,13 @@ func Set(root string, c Cambio, now time.Time) error {
 	if c.Nombre != "" {
 		e.Frentes[i].Nombre = c.Nombre
 	}
+	verifica, bloqueo, err := conVerificacion(c, estado)
+	if err != nil {
+		return err
+	}
 	anterior := e.Frentes[i].Celdas[c.Etapa]
-	celda := Celda{Estado: estado, Evidencia: c.Evidencia, Bloqueo: c.Bloqueo, DeQuien: c.DeQuien, Falla: c.Falla,
-		RequiereAprobacion: anterior.RequiereAprobacion, Aprobado: anterior.Aprobado || c.Aprobado}
+	celda := Celda{Estado: estado, Evidencia: c.Evidencia, Bloqueo: bloqueo, DeQuien: c.DeQuien, Falla: c.Falla,
+		RequiereAprobacion: anterior.RequiereAprobacion, Aprobado: anterior.Aprobado || c.Aprobado, Verifica: verifica}
 	if c.RequiereAprobacion != "" {
 		celda.RequiereAprobacion = c.RequiereAprobacion
 	}

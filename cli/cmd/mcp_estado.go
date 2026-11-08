@@ -18,7 +18,7 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea (estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto); se cumple con evidencia. nueva: qdd da el id. tarea: objetivo y depende_de."
+const descripcionEstadoMCP = "Estado por tarea. Retomar: ver desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién o verifica pr:N|npm:p@v · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto). nueva: qdd pone id. tarea: objetivo, depende_de."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
@@ -32,6 +32,7 @@ func registerEstadoTool(s *server.MCPServer) {
 		mcp.WithString("evidencia"),
 		mcp.WithString("bloqueo"),
 		mcp.WithString("de_quien"),
+		mcp.WithString("verifica"),
 		mcp.WithString("falla"),
 		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba el ✅.")),
 		mcp.WithBoolean("aprobado", mcp.Description("Dada por quien debía; nunca tú.")),
@@ -122,6 +123,7 @@ func cambioDesde(request mcp.CallToolRequest) estado.Cambio {
 		Evidencia:          stringArg(request, "evidencia"),
 		Bloqueo:            stringArg(request, "bloqueo"),
 		DeQuien:            stringArg(request, "de_quien"),
+		Verifica:           stringArg(request, "verifica"),
 		Falla:              stringArg(request, "falla"),
 		RequiereAprobacion: stringArg(request, "requiere_aprobacion"),
 		Aprobado:           boolArg(request, "aprobado"),

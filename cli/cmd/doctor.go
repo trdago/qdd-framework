@@ -120,6 +120,9 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	if g := buildMejorasChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
+	if g := buildVerificacionesChecks(projectPath); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	if g := buildGoalChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
