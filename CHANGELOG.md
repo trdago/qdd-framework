@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.50] - 2026-11-08
+
 ### Fixed
 - El panel ya no queda en negro sin repositorio de blueprints (MEJ-045, MEJ-050, FND-189). Lo que qdd le entrega al panel nunca trae una lista null (`pkg/listas`), una prueba de contrato lo revisa en un proyecto vacío y en uno con datos, y cada vista se dibuja protegida: si una falla se ve «✗ La vista X falló», se puede volver al tablero y la falla queda en `qdd incidentes panel`.
 
