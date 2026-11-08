@@ -168,6 +168,7 @@ var flujoPlantillasCmd = &cobra.Command{
 			for _, t := range p.Tipos {
 				fmt.Fprintf(salida, "  %s %-15s %s\n", t.Icono, t.ID, t.Explica)
 			}
+			fmt.Fprintf(salida, "  grupos: %s\n", strings.Join(p.Clases, ", "))
 		}
 	},
 }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{CSP}}">
+<title>{{TITULO}}</title>
+<style>{{CSS}}</style>
+</head>
+<body>
+<header class="cabecera">
+  <div class="titulo">
+    <h1 id="nombre"></h1>
+    <p id="descripcion" class="descripcion"></p>
+  </div>
+  <div class="marcas">
+    <span id="version" class="marca"></span>
+    <span class="marca marca-lectura">Solo lectura</span>
+    <button type="button" id="ver-recorrido" class="enlace">¿Cómo se lee?</button>
+  </div>
+</header>
+<nav class="niveles" id="niveles" aria-label="Nivel de detalle"></nav>
+<main class="cuerpo">
+  <section class="lienzo" id="lienzo" aria-label="Flujo"></section>
+  <aside class="detalle" id="detalle" aria-live="polite" hidden></aside>
+</main>
+<section class="leyenda" aria-label="Leyenda">
+  <h2>Cómo se lee</h2>
+  <ul id="leyenda"></ul>
+</section>
+<footer class="pie" id="pie"></footer>
+<div class="recorrido" id="recorrido" role="dialog" aria-modal="true" aria-labelledby="recorrido-titulo" hidden>
+  <div class="recorrido-tarjeta">
+    <p class="recorrido-paso" id="recorrido-paso"></p>
+    <h2 id="recorrido-titulo"></h2>
+    <p id="recorrido-texto"></p>
+    <div class="recorrido-botones">
+      <button type="button" id="recorrido-saltar" class="enlace">Saltar</button>
+      <button type="button" id="recorrido-seguir" class="boton">Siguiente</button>
+    </div>
+  </div>
+</div>
+<script type="application/json" id="foto">{{DATOS}}</script>
+<script>{{JS}}</script>
+</body>
+</html>

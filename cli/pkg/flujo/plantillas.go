@@ -27,31 +27,33 @@ type Plantilla struct {
 	Nombre  string     `json:"nombre"`
 	Niveles [3]string  `json:"niveles"`
 	Tipos   []TipoNodo `json:"tipos"`
+	// Clases son las que se sugieren para un grupo; se puede usar cualquier otra.
+	Clases []string `json:"clases"`
 }
 
 var resultadoComun = TipoNodo{ID: TipoResultado, Nombre: "resultado", Icono: "◯", Explica: "Un inicio, un fin o un resultado."}
 
 // Plantillas son las que qdd conoce, en el orden en que se ofrecen.
 var Plantillas = []Plantilla{
-	{ID: PlantillaProceso, Nombre: "Proceso", Niveles: [3]string{"Hitos", "Pasos", "Desvíos"}, Tipos: []TipoNodo{
+	{ID: PlantillaProceso, Nombre: "Proceso", Niveles: [3]string{"Hitos", "Pasos", "Desvíos"}, Clases: []string{"fase", "área", "cola"}, Tipos: []TipoNodo{
 		{ID: TipoPaso, Nombre: "paso", Icono: "▭", Explica: "Algo que alguien hace."},
 		resultadoComun,
 	}},
-	{ID: "web", Nombre: "Página web", Niveles: [3]string{"Páginas", "Secciones", "Elementos"}, Tipos: []TipoNodo{
+	{ID: "web", Nombre: "Página web", Niveles: [3]string{"Páginas", "Secciones", "Elementos"}, Clases: []string{"sección del sitio", "plantilla", "estado"}, Tipos: []TipoNodo{
 		{ID: "pagina", Nombre: "página", Icono: "▤", Explica: "Una pantalla con su propia dirección."},
 		{ID: "seccion", Nombre: "sección", Icono: "▥", Explica: "Una parte de la página: cabecera, listado, formulario."},
 		{ID: "componente", Nombre: "componente", Icono: "◫", Explica: "Un elemento que se usa: un botón, una tarjeta, un menú."},
 		{ID: "enlace", Nombre: "enlace", Icono: "↗", Explica: "Lo que lleva de un lugar a otro."},
 		resultadoComun,
 	}},
-	{ID: "datos", Nombre: "Flujo de datos", Niveles: [3]string{"Fuentes", "Transformaciones", "Detalle"}, Tipos: []TipoNodo{
+	{ID: "datos", Nombre: "Flujo de datos", Niveles: [3]string{"Fuentes", "Transformaciones", "Detalle"}, Clases: []string{"ambiente", "capa", "cola"}, Tipos: []TipoNodo{
 		{ID: "fuente", Nombre: "fuente", Icono: "⛁", Explica: "De dónde salen los datos."},
 		{ID: "transformacion", Nombre: "transformación", Icono: "⚙", Explica: "Lo que se les hace a los datos."},
 		{ID: "regla", Nombre: "regla", Icono: "⚖", Explica: "Una condición que los datos tienen que cumplir."},
 		{ID: "destino", Nombre: "destino", Icono: "⛃", Explica: "Dónde quedan los datos."},
 		resultadoComun,
 	}},
-	{ID: "agentes", Nombre: "Sistema de agentes", Niveles: [3]string{"Agentes", "Herramientas", "Mensajes"}, Tipos: []TipoNodo{
+	{ID: "agentes", Nombre: "Sistema de agentes", Niveles: [3]string{"Agentes", "Herramientas", "Mensajes"}, Clases: []string{"equipo", "entorno", "fase"}, Tipos: []TipoNodo{
 		{ID: "agente", Nombre: "agente", Icono: "◉", Explica: "Un agente con su propio objetivo."},
 		{ID: "herramienta", Nombre: "herramienta", Icono: "🔧", Explica: "Algo que un agente puede usar."},
 		{ID: "memoria", Nombre: "memoria", Icono: "▣", Explica: "Lo que se guarda entre pasos."},

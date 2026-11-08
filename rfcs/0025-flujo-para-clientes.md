@@ -28,6 +28,8 @@ La persona lo pidió así (2026-11-08):
   transcripción debería quedar completa en el pc de quien tiene la cuenta de qdd como historia-usuaria».
 - «también puede ser entre 2 colegas que mejoran un flujo y trabajan en conjunto en cómo debería funcionar un
   concepto» y «también se podría usar para levantar procesos».
+- «falta un elemento de agrupación con un nombre que se use como, por ejemplo, cola, ambiente, fase … lo veo como un
+  [] que agrupa nodos y sirve para visualizar mejor».
 
 ## Para qué sirve
 
@@ -105,6 +107,18 @@ Para cada tipo, la plantilla trae:
 
 Un tipo que la plantilla no conoce se rechaza al editar, igual que hoy una operación desconocida.
 
+### Grupos con clase
+
+Un grupo junta nodos bajo un nombre y una clase: «[fase] Ingreso», «[cola] Revisión», «[ambiente] Producción». Los
+nodos nombran su grupo en `Nodo.Grupo`, como ya lo hacían, y `Flujo.Grupos` le da a ese nombre su clase y su
+descripción (`qdd flujo grupo <id> "<nombre>" --clase fase`). La clase es libre; cada plantilla sugiere algunas
+(proceso: fase, área, cola; datos: ambiente, capa, cola…).
+
+- **En N1** el grupo es una caja plegada con su clase y lo que esconde.
+- **En N2 y N3** es un marco que sigue a sus nodos fila por fila, así no encierra a los que no son suyos, con su
+  etiqueta arriba a la izquierda.
+- Un nodo está en un solo grupo. Grupos dentro de grupos (un ambiente con sus fases) quedan para cuando haga falta.
+
 ### Niveles N1, N2, N3
 
 Ya existen: `Nodo.Nivel`, `flujo.Niveles` y el plegado (#186). El nivel 1 es hito, el 2 es paso y el 3 es desvío. Se
@@ -115,6 +129,10 @@ calculan desde el camino principal y se corrigen por nodo. En el archivo funcion
   anteriores. Tocar una caja de grupo abre solo ese grupo en N2.
 - **Una propuesta lleva su nivel.** Lo agregado estando en N1 nace como N1. Si nadie lo dice, se calcula.
 - **qdd pliega cada nivel al generar el archivo,** con la misma regla que el panel. El navegador no recalcula nada.
+- **Abre en N1 si el flujo tiene grupos o 15 nodos o más,** como el panel; si no, en N3.
+- **Un enlace `#n2/<nodo>`** abre ese nivel con ese paso elegido, para decir «mira este paso». Abierto así, no
+  muestra el recorrido.
+- **Una vuelta atrás** sube por un carril a la izquierda, en ámbar, sin cruzar nodos.
 
 ### Versiones
 

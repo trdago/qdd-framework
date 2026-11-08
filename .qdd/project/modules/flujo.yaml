@@ -33,6 +33,8 @@ objetivo_tecnologico:
         - 'Toma de requerimientos con clientes (RFC 0025, decisiones de la persona 2026-11-08): un archivo HTML con relay; el cliente y el experto (con su invitación de rol experto) comentan y proponen; el asistente es Claude en el PC del moderador; cada propuesta se aprueba una por una en «Para ti».'
         - 'Plantillas (RFC 0025): un solo modelo de grafo; la plantilla (proceso, web, datos, agentes) trae los tipos de nodo con su forma (caja o círculo), su ícono, su leyenda y el nombre de cada nivel. Vacía es proceso, con paso y resultado, así que los flujos de antes no cambian.'
         - 'Versiones (RFC 0025): cada cambio guardado sube Flujo.Revision y deja una línea en <id>.historial.jsonl (versionado, solo crece) con autor y origen. Una versión con nombre guarda la foto entera en versiones/<id>/<n>.yaml. Volver a una es una revisión nueva, nunca reescribe la historia.'
+        - 'Grupos con clase (pedido de la persona, 2026-11-08: «un [] que agrupa nodos … como cola, ambiente, fase»): Flujo.Grupos da clase y descripción al nombre que llevan los nodos en Nodo.Grupo (qdd flujo grupo). Un nodo está en un solo grupo; en N1 es una caja y en N2 y N3 un marco que sigue a sus nodos fila por fila.'
+        - 'qdd flujo compartir (RFC 0025, fase 1): un solo HTML con la foto limpia, sin nada de afuera; la CSP deja correr su script y su estilo por hash y los datos van en un bloque JSON escapado. Dibuja en SVG por capas (camino más largo), las vueltas atrás por un carril aparte, y abre el detalle sobre el mismo nodo.'
         - 'Audio (RFC 0025): lo abre el moderador, que tiene la cuenta de QDD, con el acepto de todos; elige whisper local o Claude. La transcripción completa queda en su PC como historia-usuaria de la sesión, fuera de git.'
     invariantes:
         - Un flujo inválido no se escribe.
@@ -64,4 +66,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: 11f2700d63f2
+revisado_en_commit: 4488a6fbc895

@@ -69,7 +69,13 @@ Cada cambio sube una revisión con su autor (qdd flujo historial <id>). Versione
   qdd flujo version <id> "<nombre>"         guarda la foto actual como v<n>
   qdd flujo versiones <id> [--json]
   qdd flujo comparar <id> v1 v2|actual      qué nodos se agregaron, quitaron o cambiaron
-  qdd flujo volver <id> v1                  deja el flujo como en v1, en una revisión nueva`,
+  qdd flujo volver <id> v1                  deja el flujo como en v1, en una revisión nueva
+
+Un grupo junta nodos en un marco con nombre y clase (fase, cola, ambiente…):
+
+  qdd flujo modificar <id> <nodo> --grupo "Ingreso"
+  qdd flujo grupo <id> "Ingreso" --clase fase [--descripcion D]
+  qdd flujo compartir <id> [--para <nombre>]   HTML de un archivo para conversarlo con alguien sin QDD`,
 	// El panel lo llama cada vez que un flujo cambia: sin las comprobaciones de cada comando, como qdd estado.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},

@@ -61,7 +61,9 @@ type Flujo struct {
 	// Revision sube con cada cambio guardado y Versiones son las fotos con nombre (versiones.go, RFC 0025).
 	Revision  int       `yaml:"revision,omitempty" json:"revision,omitempty"`
 	Versiones []Version `yaml:"versiones,omitempty" json:"versiones,omitempty"`
-	Nodos     []Nodo    `yaml:"nodos" json:"nodos"`
+	// Grupos da clase y descripción a los grupos que nombran los nodos (grupos.go).
+	Grupos []Grupo `yaml:"grupos,omitempty" json:"grupos,omitempty"`
+	Nodos  []Nodo  `yaml:"nodos" json:"nodos"`
 
 	// Comentarios son las preguntas de la persona sobre el flujo completo y las respuestas de la IA.
 	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
@@ -105,6 +107,7 @@ func Validar(f Flujo) []string {
 		problemas = append(problemas, problemasDeComentario("el flujo", c)...)
 	}
 	problemas = append(problemas, problemasDePlantilla(f)...)
+	problemas = append(problemas, problemasDeGrupos(f)...)
 	if len(f.Nodos) == 0 {
 		return append(problemas, "el flujo no tiene ningún nodo")
 	}
