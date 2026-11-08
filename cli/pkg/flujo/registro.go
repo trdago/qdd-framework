@@ -225,5 +225,9 @@ func restaurar(root, id string, e entrada) error {
 	if huella(actual) != e.Huella {
 		return errors.New("el flujo cambió después de esa edición: deshacerla pisaría ese cambio")
 	}
-	return escribirAtomico(ruta(root, id), []byte(e.Antes))
+	if err := escribirAtomico(ruta(root, id), []byte(e.Antes)); err != nil {
+		return err
+	}
+	deshecha, _ := Leer(actual)
+	return quitarRevision(root, id, deshecha.Revision)
 }

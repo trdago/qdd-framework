@@ -240,13 +240,17 @@ func TestConsolaAvisado_LaSesionQueConfirmoLoReclamaUnaSolaVez(t *testing.T) {
 	if codigo := consolaAccion(root, "pedido:"+p.ID, true, "sesion-1", &salida, &errores); codigo != 0 || esperarFin(t, root, p.ID).Estado != consola.EstadoHecho {
 		t.Fatalf("confirmado corre: %d %q", codigo, errores.String())
 	}
-	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-2", &errores); codigo != 1 {
+	var aviso bytes.Buffer
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-2", &aviso, &errores); codigo != 1 {
 		t.Fatal("otra sesión no lo reclama")
 	}
-	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &errores); codigo != 0 {
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &aviso, &errores); codigo != 0 {
 		t.Fatalf("la que lo confirmó, sí: %q", errores.String())
 	}
-	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &errores); codigo != 1 {
+	if !strings.Contains(aviso.String(), "terminó bien") || !strings.Contains(aviso.String(), "publicado") {
+		t.Fatalf("y recibe el mensaje del estado que reclamó (FND-187): %q", aviso.String())
+	}
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &aviso, &errores); codigo != 1 {
 		t.Fatal("una sola vez")
 	}
 }

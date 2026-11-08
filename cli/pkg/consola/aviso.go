@@ -100,9 +100,17 @@ func retiradoPorAvisar(p Pedido, sesion string) bool {
 // Avisado marca que la sesión ya recibió el aviso del pedido (id con o sin el prefijo «pedido:»). Solo la sesión que
 // lo confirmó lo reclama, y una sola vez: si ya se avisó, si es de otra sesión o si no terminó, es un error.
 func Avisado(root, id, sesion string) error {
+	_, err := ReclamarAviso(root, id, sesion)
+	return err
+}
+
+// ReclamarAviso es Avisado y además devuelve el mensaje del pedido tal como quedó al reclamarlo: el panel lo arma con
+// una lectura anterior, que pudo cambiar entremedio (FND-187).
+func ReclamarAviso(root, id, sesion string) (string, error) {
 	id = strings.TrimPrefix(id, prefijoPedido)
 	sesion = sesionValida(sesion)
-	return conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
+	var mensaje string
+	err := conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
 		i := indiceID(cola, id)
 		if i < 0 {
 			return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
@@ -111,6 +119,8 @@ func Avisado(root, id, sesion string) error {
 			return nil, errSinAviso
 		}
 		cola[i].Avisado = true
+		mensaje = mensajeAviso(cola[i])
 		return cola, nil
 	})
+	return mensaje, err
 }

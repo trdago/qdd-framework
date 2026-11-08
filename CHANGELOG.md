@@ -6,8 +6,24 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Added
+- Flujos versionados y con plantilla (RFC 0025, fase 1). Cada cambio sube una revisión con su autor en `<flujo>.historial.jsonl` (`qdd flujo historial`). `qdd flujo version` guarda una versión con nombre, `comparar` dice qué nodos cambiaron entre dos y `volver` deja el flujo como en una, en una revisión nueva. La plantilla (`proceso`, `web`, `datos`, `agentes`; `qdd flujo plantillas`) trae los tipos de nodo y el nombre de los niveles N1 · N2 · N3. Doctor avisa de un flujo editado a mano cuyo historial no llega a su revisión (FLU-02), y `--fix` lo anota.
+- Grupos con clase: `qdd flujo grupo <flujo> "<nombre>" --clase fase|cola|ambiente…` le da clase y descripción a un grupo de nodos («[fase] Ingreso»).
+- `qdd flujo compartir <flujo> [--para <nombre>]` escribe un HTML de un solo archivo para conversar el flujo con alguien sin QDD. Trae N1 · N2 · N3, grupos como marcos, la leyenda de la plantilla, un recorrido de la primera vez, el detalle al tocar un paso y enlaces `#n2/<nodo>`. Va limpio de rutas y secretos, sin nada de afuera y con CSP por hash. Sin `--rol` es de solo lectura.
+- El archivo de `qdd flujo compartir` lleva la marca de QDD y todo adentro: isotipo «▶_», paleta Gruvbox oscura, JetBrains Mono embebida, esquinas de 2 px sin sombras y un ícono SVG por tipo de nodo. Los íconos de las plantillas ya no usan emojis.
+- Invitados que proponen (RFC 0025, fase 3): `qdd flujo compartir <flujo> --rol cliente|experto [--dias N] [--tope N]` crea una invitación en el relay de QDD y el archivo propone. En el detalle de cada paso hay acciones directas (comentar, agregar después, renombrar, describir, conectar, mover, quitar y, para el experto, nota técnica). La lista «Propuestas» muestra el estado de cada una en vivo, y la foto nueva llega sola cuando apruebas algo. Sin conexión, lo propuesto espera en el navegador. Cada propuesta llega a tu panel como un pedido 📝 que solo tú confirmas (`qdd flujo propuestas aprobar PRO-n`); descartarlo la rechaza. Lo que no cumple el esquema o el rol se rechaza solo, con su motivo. También `qdd flujo propuestas`, `qdd flujo invitaciones` y `qdd flujo compartir --revocar <invitación>`.
+- Historias de usuario en el flujo (RFC 0025): `qdd flujo historia <flujo> --como … --quiero … --para … --criterio … --nodo …` las escribe con id `h1`, `h2`…, `qdd flujo historias` las lista y `qdd flujo historia tarea <flujo> <h>` crea la tarea del tablero que la implementa e imprime sus criterios. El cliente y el experto también las proponen desde el archivo («Historia de usuario»), y entran a su nombre cuando apruebas. Se ven en su nodo, en el panel y en el archivo.
+- Notas internas o compartidas: una nota es interna hasta que la compartes (`qdd flujo item compartir <flujo> <nodo> <item> [--interna]`, o el botón «interna / la ve el cliente» del nodo en el panel). El experto puede pedir compartirla al proponerla, y la ves así antes de aprobar. El archivo del cliente lleva solo las compartidas, nunca una interna ni el origen de una historia.
+
 ### Changed
 - Panel, pestaña Flujos: cada nodo se toca en el dibujo mismo y su tarjeta (comentar, preguntar, editar, mover…) se abre justo debajo de él, sin bajar a la lista. En el panorama, tocar la caja de un grupo lo abre. La lista de nodos sigue debajo para el teclado y los que el nivel esconde. `qdd flujo ver --json` entrega cada línea partida por nodo (`segmentos`).
+
+## [2.10.0-rc.46] - 2026-11-08
+
+La rc.45 no llegó a npm: su tag salió sin subir la versión del paquete. Esta trae lo mismo.
+
+### Fixed
+- FND-187: un pedido que terminó bien ya no se le avisa a la IA como «se cortó». El panel envía el resultado que qdd tiene al reclamar el aviso, no el de su lectura anterior; si el resultado real llega después de un corte, se vuelve a avisar; y un pedido no se da por cortado en sus primeros 5 s.
 
 ## [2.10.0-rc.44] - 2026-11-08
 

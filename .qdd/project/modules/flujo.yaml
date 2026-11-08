@@ -4,9 +4,13 @@ estado: aprobado
 rutas:
     - cli/pkg/flujo
     - cli/cmd/flujo.go
+    - cli/pkg/invitaciones
+    - cli/cmd/flujo_compartir.go
+    - cli/cmd/flujo_propuestas.go
+    - cli/cmd/flujo_historias.go
 objetivo_operativo:
     problema: Explicar el camino de una solicitud, un pipeline o un proceso en prosa obliga a la otra parte a imaginar su forma. La persona y la IA terminan hablando de dibujos distintos sin saberlo.
-    usuarios: La IA, que crea el flujo para explicar algo y responde en él, y la persona, que lo ve, lo edita y lo comenta en el panel.
+    usuarios: La IA, que crea el flujo para explicar algo y responde en él; la persona, que lo ve, lo edita y lo comenta en el panel; y un cliente o un experto sin QDD, que lo revisa en un archivo HTML y propone cambios (RFC 0025).
     criterio_de_exito: Un flujo guardado con qdd flujo crear aparece en la pestaña Flujos del panel, hacia abajo y con scroll, cabe en el ancho de la pestaña y cada nodo se ve. Un cambio se ve en menos de 1 s sin un proceso por lectura. Solo se materializa lo que cambió. Una edición de la persona pasa por las mismas validaciones que la de la IA, y la IA la recibe una sola vez, en una línea.
     caso_real: 'Pedido de la persona, 2026-11-05: «una forma de mostrar grafos en el panel de la derecha […] para entender flujos completos y explicarle al llm como lo queremos». En un panel real: un cambio se ve en 841 ms y un flujo de 50 nodos aparece en 517 ms, con scroll de rueda.'
 objetivo_tecnologico:
@@ -30,6 +34,15 @@ objetivo_tecnologico:
         - 'Niveles y grupos (#186, partes B y C; la persona eligió «Los tres, en orden»). Cada nodo tiene nivel 1 (hito), 2 (paso) o 3 (desvío): se calcula desde el camino principal (el más largo desde el inicio; su inicio y su final son hitos, el resto del camino es paso y lo de fuera desvío) y la persona lo corrige en la tarjeta (Nodo.Nivel; 0 es calculado). Nodo.Grupo junta pasos bajo un nombre.'
         - Plegar arma el flujo de cada vista sin tocar el guardado. Nivel 1 (panorama) dibuja una caja por grupo cerrado (sus hitos, cuántos pasos y desvíos) y, sin grupos, solo los hitos; nivel 2 quita los desvíos y los cuenta en el nodo que llega a ellos; nivel 3 es el flujo entero. Cada nodo visible se une con los visibles a los que llegaba por nodos escondidos, así que el plegado sigue siendo un flujo válido que se dibuja entero (prueba al azar). El inicio y el nodo elegido siempre se ven.
         - 'El panel abre en el panorama los flujos de 15 nodos o más; 1, 2 y 3 cambian el nivel, cada grupo se abre solo, y la tarjeta muestra y edita nivel y grupo. analisis-oportunidades con cuatro grupos: 95 líneas completo, 68 en el camino y 21 en el panorama a 100 columnas.'
+        - 'Toma de requerimientos con clientes (RFC 0025, decisiones de la persona 2026-11-08): un archivo HTML con relay; el cliente y el experto (con su invitación de rol experto) comentan y proponen; el asistente es Claude en el PC del moderador; cada propuesta se aprueba una por una en «Para ti».'
+        - 'Plantillas (RFC 0025): un solo modelo de grafo; la plantilla (proceso, web, datos, agentes) trae los tipos de nodo con su forma (caja o círculo), su ícono, su leyenda y el nombre de cada nivel. Vacía es proceso, con paso y resultado, así que los flujos de antes no cambian.'
+        - 'Versiones (RFC 0025): cada cambio guardado sube Flujo.Revision y deja una línea en <id>.historial.jsonl (versionado, solo crece) con autor y origen. Una versión con nombre guarda la foto entera en versiones/<id>/<n>.yaml. Volver a una es una revisión nueva, nunca reescribe la historia.'
+        - 'Grupos con clase (pedido de la persona, 2026-11-08: «un [] que agrupa nodos … como cola, ambiente, fase»): Flujo.Grupos da clase y descripción al nombre que llevan los nodos en Nodo.Grupo (qdd flujo grupo). Un nodo está en un solo grupo; en N1 es una caja y en N2 y N3 un marco que sigue a sus nodos fila por fila.'
+        - 'qdd flujo compartir (RFC 0025, fase 1): un solo HTML con la foto limpia, sin nada de afuera; la CSP deja correr su script y su estilo por hash y los datos van en un bloque JSON escapado. Dibuja en SVG por capas (camino más largo), las vueltas atrás por un carril aparte, y abre el detalle sobre el mismo nodo.'
+        - 'El archivo lleva la marca de QDD y todo adentro (pedido de la persona, 2026-11-08: «todo integrado en el html, el javascript + css + icons, siempre respetando el branding de qdd»). Usa los tokens de qdd-movile docs/marca (Gruvbox Material, solo oscuro, sin selector de tema) en :root y nada literal fuera, JetBrains Mono 400/500/700 recortada en woff2 como data: con su licencia OFL, esquinas de 2 px, borde de 1 px y sin sombras. Lleva el isotipo «▶_» y un ícono SVG propio por cada tipo de nodo. Las plantillas no usan emojis fuera de la lista cerrada de la marca (pkg/flujo/marca_test.go).'
+        - 'Propuestas de invitados (RFC 0025, fase 3): qdd flujo compartir --rol cliente|experto crea la invitación en el relay de qdd-movile, firmada con la llave de la instalación, y el archivo propone solo con ese origen (connect-src). El token va únicamente dentro del archivo: ni en la pantalla ni en el PC, que anota la invitación en <QDD_HOME>/claude/flujo-invitaciones. El panel llama qdd flujo propuestas ciclo --si-toca cada 15 s; el PC revisa cada propuesta con su propio esquema (flujo.LeerOperacion, el rol de su invitación y el autor) y rechaza sola la que no cumple, con su motivo. Cada propuesta válida es un pedido DePersona en el panel, tres a la vez; aprobarla la aplica a nombre «rol:autor» (comentario DeInvitado o nota del experto con su Autor) y descartar el pedido la rechaza. Lo que el relay no supo por falta de red se le avisa en el siguiente ciclo, con la foto nueva.'
+        - 'Audio (RFC 0025): lo abre el moderador, que tiene la cuenta de QDD, con el acepto de todos; elige whisper local o Claude. La transcripción completa queda en su PC como historia-usuaria de la sesión, fuera de git.'
+        - 'Historias de usuario y notas compartidas (RFC 0025): Flujo.Historias guarda solo las aprobadas {id h<n>, como, quiero, para, criterios hasta 10, nodos, origen, tarea}; quitar un nodo lo saca de ellas y reescribir el flujo las conserva. qdd flujo historia tarea crea la tarea con estado.Nueva y la anota. Item.Visible compartida deja que el cliente vea una nota, característica o función; una prueba nunca. La persona ve en la propuesta si el experto pidió compartirla y puede volverla interna después.'
     invariantes:
         - Un flujo inválido no se escribe.
         - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.
@@ -43,12 +56,18 @@ objetivo_tecnologico:
         - Reescribir un flujo con qdd flujo crear o quitar un nodo no pierde comentarios.
         - 'Ítems de un nodo (pedido de la persona, 2026-11-07): cada nodo lleva items {id i<n>, tipo prueba|nota|caracteristica|funcion, texto hasta 500, y en una prueba estado pendiente|pasa|falla, evidencia hasta 300 y cuándo}, tope 50 por nodo. Al probar con qdd-human son las pruebas de ese paso: el skill las lee del flujo y las marca con qdd flujo item marcar … --evidencia <run>; nunca marca una que no corrió. En cualquier flujo sirven para notas, características y funciones. Agregar, marcar y quitar son ediciones: la de la persona espera a «Enviar» o al próximo mensaje, y una prueba nueva le dice a la IA cómo marcarla. Panel: «Ítem» (b) en cada nodo, ✓ ✗ − por ítem (la persona marca con evidencia «a mano») y el resumen ✓ ✗ ☐ en la fila del nodo. Teléfono: operaciones item-agregar, item-marcar e item-quitar. Texto y evidencia pasan por el ocultador. Reescribir el flujo no pierde los ítems.'
         - 'Preguntar (pedido de la persona, 2026-11-07): la persona le pregunta a un nodo, o al flujo completo, qué hace o qué significa una palabra. La pregunta queda marcada (pregunta: true) bajo el nodo o en Flujo.Comentarios, y le llega a la IA en el acto con el contexto del nodo en la pista (descripción, de dónde viene y qué sigue), para que responda orientada a ese nodo sin releer el flujo. La IA responde con qdd flujo responder <flujo> [<nodo>] "<texto>", que no la vuelve a llamar. En el panel: botón Preguntar (g) en cada nodo y «Preguntar sobre el flujo» (i) sobre los nodos; en el teléfono, la operación preguntar. Los comentarios del flujo completo viajan al teléfono pasados por el ocultador, como los de un nodo.'
+        - Nada de un cliente, un experto, el asistente o una transcripción entra al flujo sin la aprobación de la persona, una propuesta por vez, ni en modo goal.
+        - La foto que va al cliente nunca lleva tareas, pruebas, evidencias, comentarios o notas internas ni rutas del proyecto. De una historia de usuario no lleva su origen ni su tarea.
+        - Ni el audio ni la transcripción pasan por el relay ni van a git.
+        - El token de una invitación solo vive en el archivo del invitado; qdd no lo imprime ni lo guarda.
+        - "Una propuesta la aprueba solo la persona, con el pedido \U0001F4DD que confirmó o en su terminal."
 pruebas:
     comandos:
-        - cd cli && go test ./pkg/flujo ./cmd -run Flujo
+        - cd cli && go test ./pkg/flujo ./pkg/invitaciones ./cmd -run Flujo
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
 fuentes:
     - rfcs/0012-grafo-de-trabajo.md
+    - rfcs/0025-flujo-para-clientes.md
     - cli/pkg/flujo/flujo.go
     - cli/pkg/flujo/edicion.go
     - cli/pkg/flujo/registro.go
