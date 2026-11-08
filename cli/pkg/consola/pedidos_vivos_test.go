@@ -91,3 +91,50 @@ func TestPedidos_AlEjecutarseAnotaQuienLoCorre_FND089(t *testing.T) {
 		t.Fatalf("mientras corre, la cola dice qué proceso lo ejecuta y cuál es el comando: %+v", vista[0])
 	}
 }
+
+// FND-187 (2026-11-08): «📮 Admitir MEJ-044» terminó bien en 90 ms, pero a la IA le llegó «falló (exit -1) … se cortó».
+// Una lectura de la cola lo vio ejecutándose con sus procesos muertos, el aviso se armó con esa lectura y se reclamó
+// cuando el pedido ya estaba hecho. Un pedido recién lanzado no se da por cortado, el resultado real que llega después
+// de un corte se vuelve a avisar, y el mensaje que recibe la IA es el de la cola al reclamarlo.
+func TestPedidos_UnoRecienLanzadoNoSeDaPorCortado_FND187(t *testing.T) {
+	root := proyectoConCola(t)
+	ahora := time.Now()
+	ruta, _ := colaPath(root)
+	os.MkdirAll(filepath.Dir(ruta), 0o700)
+	p := Pedido{ID: "1", Comando: "qdd mejoras admitir MEJ-044", Motivo: "Admitir", Carpeta: root, Creado: ahora, Tecla: "a", Estado: EstadoEjecutando, Inicio: &ahora, PID: procesoMuerto(t)}
+	if err := guardarCola(ruta, []Pedido{p}); err != nil {
+		t.Fatal(err)
+	}
+	if cola := Pedidos(root); cola[0].Estado != EstadoEjecutando {
+		t.Fatalf("en sus primeros segundos el pedido sigue ejecutándose aunque no se vea su proceso: %+v", cola[0])
+	}
+}
+
+func TestAviso_ElResultadoRealDespuesDeUnCorteSeVuelveAAvisar_FND187(t *testing.T) {
+	root := proyectoConCola(t)
+	p := aceptadoPor(t, root, "qdd mejoras admitir MEJ-044", "Admitir MEJ-044", "sesion-1")
+	if err := conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
+		cola[0].Estado, cola[0].Codigo, cola[0].Salida, cola[0].PID = EstadoFallo, -1, "se cortó: …", 0
+		return cola, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReclamarAviso(root, p.ID, "sesion-1"); err != nil {
+		t.Fatal(err)
+	}
+	terminar(root, p.ID, 0, "[+] MEJ-044 admitida", true)
+	mensaje, err := ReclamarAviso(root, p.ID, "sesion-1")
+	if err != nil || !strings.Contains(mensaje, "terminó bien") || !strings.Contains(mensaje, "MEJ-044 admitida") {
+		t.Fatalf("el resultado real se avisa aunque ya se hubiera avisado el corte: %q %v", mensaje, err)
+	}
+}
+
+func TestAviso_ElMensajeEsElDeLaColaAlReclamarlo_FND187(t *testing.T) {
+	root := proyectoConCola(t)
+	p := aceptadoPor(t, root, "exit 0", "Admitir MEJ-044", "sesion-1")
+	terminar(root, p.ID, 0, "admitida", true)
+	mensaje, err := ReclamarAviso(root, p.ID, "sesion-1")
+	if err != nil || !strings.HasPrefix(mensaje, "✓") || !strings.Contains(mensaje, "admitida") {
+		t.Fatalf("quien reclama recibe el mensaje del estado que reclamó: %q %v", mensaje, err)
+	}
+}

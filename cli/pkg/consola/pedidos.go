@@ -255,6 +255,14 @@ func leerCola(root string) []Pedido {
 	return cola
 }
 
+// GraciaCorte: en sus primeros segundos un pedido no se da por cortado aunque no se vea su proceso; quien lo lanza y
+// quien lo corre todavía se están pasando la posta (FND-187).
+const GraciaCorte = 5 * time.Second
+
+func recienLanzado(p Pedido, now time.Time) bool {
+	return p.Inicio != nil && now.Sub(*p.Inicio) < GraciaCorte
+}
+
 // normalizar deja la cola como se ve a la hora now: un hecho sale en el ciclo siguiente (ya se vio; si falta avisarle
 // a la sesión que lo confirmó, después del aviso) o pasado VidaHecho si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado; uno que espera a la persona
 // se retira si su tarea cambió desde el último mensaje (huella da cómo está ahora). Lo que esperaba a un hecho que
@@ -283,7 +291,7 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 			p.Estado, p.Codigo = EstadoFallo, -1
 			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: no terminó en " + TopeEjecucion.String())
 		}
-		if p.Estado == EstadoEjecutando && p.PID > 0 && !procesoVivo(p.PID) && !procesoVivo(p.Hijo) {
+		if p.Estado == EstadoEjecutando && p.PID > 0 && !recienLanzado(p, now) && !procesoVivo(p.PID) && !procesoVivo(p.Hijo) {
 			p.Estado, p.Codigo, p.PID, p.Hijo = EstadoFallo, -1, 0, 0
 			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: el proceso que lo ejecutaba terminó sin anotar el resultado (¿se recargó el panel?). Revisa qué alcanzó a hacer antes de reintentarlo.")
 		}
@@ -656,6 +664,10 @@ func terminar(root, id string, codigo int, texto string, armar bool) {
 				continue
 			}
 			pid := cola[i].PID
+			// Si una lectura lo dio por cortado (y quizás ya se avisó), el resultado real lo reemplaza y se avisa (FND-187).
+			if cola[i].Estado != EstadoEjecutando && cola[i].Estado != EstadoArmado {
+				cola[i].Avisado = false
+			}
 			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida, cola[i].Aviso, cola[i].AvisoEn = EstadoHecho, &fin, codigo, texto, "", nil
 			cola[i].PID, cola[i].Hijo, cola[i].Proximo, cola[i].ArmadoEn = 0, 0, nil, nil
 			if codigo == CodigoTodaviaNo && armar {

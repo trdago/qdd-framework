@@ -6,6 +6,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Fixed
+- FND-187: un pedido que terminó bien ya no se le avisa a la IA como «se cortó». El panel envía el resultado que qdd tiene al reclamar el aviso, no el de su lectura anterior; si el resultado real llega después de un corte, se vuelve a avisar; y un pedido no se da por cortado en sus primeros 5 s.
+
 ## [2.10.0-rc.44] - 2026-11-08
 
 ### Added

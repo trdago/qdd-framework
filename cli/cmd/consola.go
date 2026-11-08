@@ -311,15 +311,19 @@ var consolaAvisadoCmd = &cobra.Command{
 	Short: "Marca que la sesión que confirmó un pedido ya recibió su resultado (sale con 1 si ya se avisó)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(consolaAvisado(estadoRaiz(), args[0], consolaSesion, os.Stderr))
+		os.Exit(consolaAvisado(estadoRaiz(), args[0], consolaSesion, os.Stdout, os.Stderr))
 	},
 }
 
-func consolaAvisado(root, id, sesion string, errores io.Writer) int {
-	if err := consola.Avisado(root, id, sesion); err != nil {
+// consolaAvisado imprime el mensaje para la IA tal como quedó al reclamarlo (FND-187): el panel lo prefiere al de su
+// lectura anterior.
+func consolaAvisado(root, id, sesion string, salida, errores io.Writer) int {
+	mensaje, err := consola.ReclamarAviso(root, id, sesion)
+	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
+	fmt.Fprintln(salida, mensaje)
 	return 0
 }
 
