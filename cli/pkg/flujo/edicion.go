@@ -36,6 +36,7 @@ type Comentario struct {
 	Cuando   string `yaml:"cuando" json:"cuando"`
 	DeNodo   string `yaml:"de_nodo,omitempty" json:"de_nodo,omitempty"`
 	Pregunta bool   `yaml:"pregunta,omitempty" json:"pregunta,omitempty"`
+	Autor    string `yaml:"autor,omitempty" json:"autor,omitempty"`
 }
 
 // hecho es lo que un cambio le cuenta a la IA. Entera marca una línea que no se corta: las palabras de la persona.
@@ -50,6 +51,11 @@ type Cambio func(f *Flujo) (hecho, error)
 
 // Editar aplica el cambio bajo candado, para que la IA y la persona no se pisen, y solo guarda un flujo válido.
 func Editar(root, id, de string, ahora time.Time, cambio Cambio) (Flujo, string, error) {
+	return editarComo(root, id, de, de == DePersona, ahora, cambio)
+}
+
+// editarComo guarda el cambio a nombre de autor y, con avisar, se lo deja anotado a la IA.
+func editarComo(root, id, autor string, avisar bool, ahora time.Time, cambio Cambio) (Flujo, string, error) {
 	soltar, err := tomarFlujo(root, id)
 	if err != nil {
 		return Flujo{}, "", err
@@ -63,17 +69,18 @@ func Editar(root, id, de string, ahora time.Time, cambio Cambio) (Flujo, string,
 	if err != nil {
 		return Flujo{}, "", err
 	}
+	previa := f.Revision
 	h, err := cambio(&f)
 	if err != nil {
-		return Flujo{}, "", err
-	}
-	if err := Guardar(root, f); err != nil {
 		return Flujo{}, "", err
 	}
 	if !h.entera {
 		h.linea = acotar(h.linea, maxLineaEdicion)
 	}
-	if de != DePersona {
+	if err := guardarRevision(root, &f, previa, autor, h.linea, ahora); err != nil {
+		return Flujo{}, "", err
+	}
+	if !avisar {
 		return f, h.linea, nil
 	}
 	despues, err := os.ReadFile(ruta(root, id))
@@ -189,6 +196,7 @@ func Quitar(nodo string) Cambio {
 			return hecho{}, err
 		}
 		f.Nodos[0].Comentarios = append(f.Nodos[0].Comentarios, comentariosDeQuitado(n)...)
+		sinNodoEnHistorias(f, n.ID)
 		return hecho{linea: fmt.Sprintf("− %s «%s»: se unió lo de antes con lo de después", n.ID, n.Nombre)}, nil
 	}
 }
@@ -320,6 +328,11 @@ func Desconectar(desde, hacia string) Cambio {
 
 // Comentar suma un comentario al nodo. Le llega entero a la IA: son las palabras de la persona.
 func Comentar(nodo, texto, de string, ahora time.Time) Cambio {
+	return comentarComo(nodo, texto, de, "", ahora)
+}
+
+// comentarComo deja el comentario con el nombre de quien lo escribió, cuando no es la persona ni la IA.
+func comentarComo(nodo, texto, de, autor string, ahora time.Time) Cambio {
 	return func(f *Flujo) (hecho, error) {
 		i, err := indiceDe(f, nodo)
 		if err != nil {
@@ -333,7 +346,7 @@ func Comentar(nodo, texto, de string, ahora time.Time) Cambio {
 			return hecho{}, fmt.Errorf("el comentario tiene %d caracteres: el tope es %d", largo, maxComentario)
 		}
 		n := &f.Nodos[i]
-		n.Comentarios = append(n.Comentarios, Comentario{De: de, Texto: texto, Cuando: ahora.UTC().Format(time.RFC3339)})
+		n.Comentarios = append(n.Comentarios, Comentario{De: de, Texto: texto, Cuando: ahora.UTC().Format(time.RFC3339), Autor: autor})
 		return hecho{
 			linea:  fmt.Sprintf("💬 %s «%s»: %s", n.ID, n.Nombre, texto),
 			pista:  fmt.Sprintf("Responde el comentario con: qdd flujo comentar %s %s \"…\"", f.ID, n.ID),
@@ -473,10 +486,13 @@ func Reemplazar(root string, f Flujo) (int, error) {
 	defer soltar()
 	previo, err := Cargar(root, f.ID)
 	if err != nil {
-		return 0, Guardar(root, f)
+		return 0, guardarRevision(root, &f, 0, DeIA, "creado", time.Now())
 	}
 	movidos := conservarComentarios(previo, &f)
-	return movidos, Guardar(root, f)
+	if len(f.Versiones) == 0 {
+		f.Versiones = previo.Versiones
+	}
+	return movidos, guardarRevision(root, &f, previo.Revision, DeIA, "reescrito entero", time.Now())
 }
 
 func conservarComentarios(previo Flujo, f *Flujo) int {
@@ -498,6 +514,9 @@ func conservarComentarios(previo Flujo, f *Flujo) int {
 	if len(f.Comentarios) == 0 {
 		f.Comentarios = previo.Comentarios
 	}
+	if len(f.Historias) == 0 {
+		f.Historias = historiasSinNodosQuitados(previo.Historias, f.Nodos)
+	}
 	return len(huerfanos)
 }
 
@@ -513,7 +532,7 @@ func Nuevo(root, nombre string) (Flujo, error) {
 		id = fmt.Sprintf("%s-%d", base, n)
 	}
 	f := Flujo{Formato: Formato, ID: id, Nombre: nombre, Nodos: []Nodo{{ID: "inicio", Tipo: TipoResultado, Nombre: "Inicio"}}}
-	return f, Guardar(root, f)
+	return f, guardarRevision(root, &f, 0, DePersona, "creado", time.Now())
 }
 
 func existe(archivo string) bool {

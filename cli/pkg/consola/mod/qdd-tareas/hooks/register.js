@@ -718,7 +718,25 @@ function nivelDeNodo(Text, n, d) {
 
 function fichaDeNodo($, Box, Text, Button, Input, Select, id, s, n, ancho) {
   const descripcion = n.descripcion ? [Text({ key: 'fl-n-desc', dimColor: true, wrap: 'wrap', children: [n.descripcion] })] : []
-  return [...descripcion, ...nivelDeNodo(Text, n, dibujos.get(id) || {}), ...itemsDeNodo($, Box, Text, Button, id, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+  const d = dibujos.get(id) || {}
+  return [...descripcion, ...nivelDeNodo(Text, n, d), ...itemsDeNodo($, Box, Text, Button, id, n), ...historiasDeNodo(Box, Text, d, n), ...hiloDeNodo($, Text, id, n, ancho), ...accionesDeNodo($, Box, Text, Button, Input, Select, id, s, n)]
+}
+
+// historiasDeNodo: las historias de usuario que tocan el nodo (RFC 0025), con sus criterios, su origen y su tarea.
+function historiasDeNodo(Box, Text, d, n) {
+  return (d.historias || []).filter((h) => (h.nodos || []).includes(n.id)).map((h) => {
+    const frase = [h.como && 'como ' + h.como, 'quiero ' + h.quiero, h.para && 'para ' + h.para].filter(Boolean).join(', ')
+    const de = [h.origen, h.tarea && 'tarea ' + h.tarea].filter(Boolean).join(' · ')
+    return Box({
+      key: 'fl-historia-' + h.id,
+      flexDirection: 'column',
+      children: [
+        Text({ key: 'fl-historia-t-' + h.id, wrap: 'wrap', children: ['📖 ' + h.id + ' · ' + frase] }),
+        ...(h.criterios || []).map((c, i) => Text({ key: 'fl-historia-c-' + h.id + '-' + i, dimColor: true, wrap: 'wrap', children: ['  · ' + c] })),
+        ...(de ? [Text({ key: 'fl-historia-de-' + h.id, dimColor: true, size: 'caption', wrap: 'truncate-end', children: ['  ' + de] })] : []),
+      ],
+    })
+  })
 }
 
 // ── Ítems de un nodo (pedido de la persona, 2026-11-07) ───────────────────────────────────────────────────────────────
@@ -748,7 +766,10 @@ function itemsDeNodo($, Box, Text, Button, id, n) {
     const texto = prueba ? SIMBOLO_PRUEBA[it.estado] + ' ' + it.texto : etiqueta + ': ' + it.texto
     const color = it.estado === 'falla' ? COLOR.falla : it.estado === 'pasa' ? COLOR.bien : undefined
     const marcar = (estado) => correrFlujo($, id, ['item', 'marcar', '--de', 'persona', '--evidencia', 'a mano', '--', id, n.id, it.id, estado])
+    const compartida = it.visible === 'compartida'
+    const compartir = () => correrFlujo($, id, ['item', 'compartir', '--de', 'persona', ...(compartida ? ['--interna'] : []), '--', id, n.id, it.id])
     const botones = [
+      ...(prueba ? [] : [Button({ key: 'fl-item-ver-' + it.id, label: compartida ? 'la ve el cliente' : 'interna', plain: true, dimColor: !compartida, onPress: compartir })]),
       ...(prueba ? [Button({ key: 'fl-item-pasa-' + it.id, label: '✓', plain: true, onPress: () => marcar('pasa') }), Button({ key: 'fl-item-falla-' + it.id, label: '✗', plain: true, onPress: () => marcar('falla') })] : []),
       Button({ key: 'fl-item-quitar-' + it.id, label: '−', plain: true, dimColor: true, onPress: () => correrFlujo($, id, ['item', 'quitar', '--de', 'persona', '--', id, n.id, it.id]) }),
     ]
@@ -3201,6 +3222,27 @@ async function verificarEsperas($) {
   }
 }
 
+// ── Flujo para conversar (RFC 0025, fase 3) ─────────────────────────────────────────────────────────────────────────
+// Cada PROPUESTAS_MS pide «qdd flujo propuestas ciclo --si-toca»: qdd sale enseguida si el proyecto no tiene
+// invitaciones vivas ni nada por avisar. Si las hay, lee lo que propusieron los invitados y deja cada propuesta como un
+// pedido 📝 de la persona, que el panel muestra al releer. Un qdd sin el comando deja de intentarlo.
+const PROPUESTAS_MS = 15000
+const propuestas = { soportado: true, corriendo: false }
+
+async function cicloPropuestas($) {
+  if (!interactiva || !propuestas.soportado || propuestas.corriendo) return
+  propuestas.corriendo = true
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'flujo', 'propuestas', 'ciclo', '--si-toca', '--json'], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0 && /unknown command|unknown flag/.test(r.stderr || '')) propuestas.soportado = false
+  } catch (err) {
+    $.ui.log('qdd: el ciclo de propuestas no corrió: ' + String(err?.message ?? err), { to: 'debug' })
+  } finally {
+    propuestas.corriendo = false
+  }
+}
+
 // ── Modo goal (RFC 0015) ─────────────────────────────────────────────────────────────────────────────────────────────
 // Con el modo activo, cada GOAL_MS la sesión interactiva pide «qdd goal ciclo» y le dice cuánto lleva en silencio y si
 // está haciendo algo. Todo lo decide qdd, sin modelos: qué elegir, cuándo recordar y cuándo detenerse. Si devuelve un
@@ -3317,6 +3359,9 @@ export function register(on) {
       $.clock.every(MEJORAS_MS, async () => {
         await cicloMejoras($)
         await verificarEsperas($)
+      })
+      $.clock.every(PROPUESTAS_MS, async () => {
+        await cicloPropuestas($)
       })
       $.clock.every(GOAL_MS, async () => {
         await cicloGoal($)

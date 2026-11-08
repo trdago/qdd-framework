@@ -27,6 +27,8 @@ const grupoMovil = "12. QDD Móvil (teléfono)"
 const (
 	grupoFlujos       = "13. Flujos (qdd flujo)"
 	itemFlujosValidos = "Flujos del proyecto válidos (FLU-01)"
+	// itemFlujosHistorial: la revisión de cada flujo está en su historial (RFC 0025); un YAML editado a mano no.
+	itemFlujosHistorial = "Historial de cada flujo al día (FLU-02)"
 )
 
 const (
@@ -94,12 +96,42 @@ func buildFlujosChecks(root string) *CheckGroup {
 			rotos = append(rotos, r.ID+": "+r.Problema)
 		}
 	}
-	if len(rotos) == 0 {
-		g.Items = append(g.Items, &CheckItem{Name: itemFlujosValidos, Success: true})
-		return g
-	}
-	g.Items = append(g.Items, &CheckItem{Name: itemFlujosValidos, Error: strings.Join(rotos, "; ")})
+	g.Items = append(g.Items, itemDeFlujosValidos(rotos), itemDeHistoriales(root, lista))
 	return g
+}
+
+func itemDeFlujosValidos(rotos []string) *CheckItem {
+	if len(rotos) == 0 {
+		return &CheckItem{Name: itemFlujosValidos, Success: true}
+	}
+	return &CheckItem{Name: itemFlujosValidos, Error: strings.Join(rotos, "; ")}
+}
+
+func itemDeHistoriales(root string, lista []flujo.Resumen) *CheckItem {
+	var desfases []string
+	for _, r := range lista {
+		if p := flujo.RevisarHistorial(root, r.ID); p != "" {
+			desfases = append(desfases, p)
+		}
+	}
+	if len(desfases) == 0 {
+		return &CheckItem{Name: itemFlujosHistorial, Success: true}
+	}
+	return &CheckItem{Name: itemFlujosHistorial, Error: strings.Join(desfases, "; ") + " (--fix la anota como edición sin registro)"}
+}
+
+// repairFlujos anota en el historial la revisión que le falta; un flujo roto no se toca (FLU-01 no se adivina).
+func repairFlujos(root string, g *CheckGroup) {
+	for _, it := range g.Items {
+		if it.Name != itemFlujosHistorial || it.Success {
+			continue
+		}
+		for _, r := range flujo.Listar(root, func(string) string { return "" }) {
+			if err := flujo.RepararHistorial(root, r.ID, time.Now()); err != nil {
+				fmt.Printf("[!] historial de %s: %v\n", r.ID, err)
+			}
+		}
+	}
 }
 
 func servicioMovilInstalado() bool {

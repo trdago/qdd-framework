@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -56,7 +57,16 @@ type Flujo struct {
 	ID          string `yaml:"id" json:"id"`
 	Nombre      string `yaml:"nombre" json:"nombre"`
 	Descripcion string `yaml:"descripcion,omitempty" json:"descripcion,omitempty"`
-	Nodos       []Nodo `yaml:"nodos" json:"nodos"`
+	// Plantilla trae los tipos de nodo y el nombre de cada nivel (plantillas.go); vacía es proceso.
+	Plantilla string `yaml:"plantilla,omitempty" json:"plantilla,omitempty"`
+	// Revision sube con cada cambio guardado y Versiones son las fotos con nombre (versiones.go, RFC 0025).
+	Revision  int       `yaml:"revision,omitempty" json:"revision,omitempty"`
+	Versiones []Version `yaml:"versiones,omitempty" json:"versiones,omitempty"`
+	// Grupos da clase y descripción a los grupos que nombran los nodos (grupos.go).
+	Grupos []Grupo `yaml:"grupos,omitempty" json:"grupos,omitempty"`
+	Nodos  []Nodo  `yaml:"nodos" json:"nodos"`
+	// Historias son las historias de usuario aprobadas (historias.go, RFC 0025).
+	Historias []Historia `yaml:"historias,omitempty" json:"historias,omitempty"`
 
 	// Comentarios son las preguntas de la persona sobre el flujo completo y las respuestas de la IA.
 	Comentarios []Comentario `yaml:"comentarios,omitempty" json:"comentarios,omitempty"`
@@ -99,6 +109,9 @@ func Validar(f Flujo) []string {
 	for _, c := range f.Comentarios {
 		problemas = append(problemas, problemasDeComentario("el flujo", c)...)
 	}
+	problemas = append(problemas, problemasDePlantilla(f)...)
+	problemas = append(problemas, problemasDeGrupos(f)...)
+	problemas = append(problemas, problemasDeHistorias(f)...)
 	if len(f.Nodos) == 0 {
 		return append(problemas, "el flujo no tiene ningún nodo")
 	}
@@ -111,8 +124,9 @@ func Validar(f Flujo) []string {
 func problemasDeNodos(f Flujo) []string {
 	var problemas []string
 	vistos := map[string]bool{}
+	plantilla := PlantillaDe(f)
 	for _, n := range f.Nodos {
-		problemas = append(problemas, problemasDeNodo(n, vistos)...)
+		problemas = append(problemas, problemasDeNodo(n, plantilla, vistos)...)
 		vistos[n.ID] = true
 	}
 	for _, n := range f.Nodos {
@@ -134,7 +148,7 @@ func problemasDeNodos(f Flujo) []string {
 	return problemas
 }
 
-func problemasDeNodo(n Nodo, vistos map[string]bool) []string {
+func problemasDeNodo(n Nodo, plantilla Plantilla, vistos map[string]bool) []string {
 	var problemas []string
 	if !idValido.MatchString(n.ID) {
 		problemas = append(problemas, fmt.Sprintf("id de nodo %q: usa minúsculas, números y guiones", n.ID))
@@ -142,8 +156,8 @@ func problemasDeNodo(n Nodo, vistos map[string]bool) []string {
 	if vistos[n.ID] {
 		problemas = append(problemas, fmt.Sprintf("id de nodo repetido: %q", n.ID))
 	}
-	if n.Tipo != TipoPaso && n.Tipo != TipoResultado {
-		problemas = append(problemas, fmt.Sprintf("el nodo %q tiene tipo %q: usa %s o %s", n.ID, n.Tipo, TipoPaso, TipoResultado))
+	if !plantilla.Tiene(n.Tipo) {
+		problemas = append(problemas, fmt.Sprintf("el nodo %q tiene tipo %q: usa %s", n.ID, n.Tipo, plantilla.listaDeTipos()))
 	}
 	if strings.TrimSpace(n.Nombre) == "" {
 		problemas = append(problemas, fmt.Sprintf("el nodo %q está sin nombre", n.ID))
@@ -157,8 +171,11 @@ func problemasDeNodo(n Nodo, vistos map[string]bool) []string {
 
 func problemasDeComentario(donde string, c Comentario) []string {
 	var problemas []string
-	if c.De != DePersona && c.De != DeIA {
-		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de %q: usa %s o %s", donde, c.De, DePersona, DeIA))
+	if !slices.Contains([]string{DePersona, DeIA, DeInvitado}, c.De) {
+		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de %q: usa %s, %s o %s", donde, c.De, DePersona, DeIA, DeInvitado))
+	}
+	if c.De == DeInvitado && strings.TrimSpace(c.Autor) == "" {
+		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario de un invitado sin su nombre", donde))
 	}
 	if strings.TrimSpace(c.Texto) == "" {
 		problemas = append(problemas, fmt.Sprintf("%s tiene un comentario vacío", donde))
