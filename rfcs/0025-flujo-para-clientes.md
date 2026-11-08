@@ -237,6 +237,26 @@ qdd flujo propuestas [ciclo|aprobar <PRO-n>|rechazar <PRO-n> --motivo …]
 - **Sin conexión:** lee igual. Lo que propone queda en el navegador y se envía al volver, con aviso.
 - **Su nombre** se pide una vez y va en cada propuesta.
 
+### Un enlace en vez de un archivo (propuesta de la persona, 2026-11-08)
+
+> «si el cliente o dueño de la sesión […] tiene en su baúl claves de Cloudflare se podría crear y pushear los flujos a
+> un Worker mientras se usa […] se trabaje con el flujo solo con un link […] si no tiene nada solo queda el camino del
+> sitio HTML enviado por mail o WhatsApp».
+
+- **Con Cloudflare en el baúl, `qdd flujo compartir --enlace` da un link.** Un Worker en la cuenta de la persona sirve
+  el mismo HTML (CSP, marca y todo adentro) desde KV. Sin token de Cloudflare, qdd escribe el archivo como hoy y dice
+  qué falta para tener enlace.
+- **La cuenta es de la persona, no de QDD.** El token sale del baúl con `qdd baul usar cloudflare` (RFC 0023), con su
+  permiso en el panel. Basta un token con Workers Scripts y Workers KV de una sola cuenta; doctor avisa si tiene más.
+- **El link no lleva el secreto en el camino.** La ruta es un id al azar (`/f/<id>`) y el token de la invitación va
+  en el fragmento (`#t=…`), que el navegador no manda al Worker ni a sus logs. Sin fragmento abre en solo lectura.
+- **Se despliega una vez, se sube por flujo.** El Worker se instala la primera vez; después cada `compartir --enlace`
+  sube el HTML a KV. Lo que la persona aprueba llega igual que hoy por el relay (foto nueva cada 15 s), así que el
+  link muestra siempre la última revisión sin volver a subir nada.
+- **Revocar borra la entrada de KV** además de cerrar la invitación en el relay: el link deja de abrir.
+- **Publicar es hacia afuera:** solo cuando la persona corre `compartir --enlace` o confirma su pedido; la IA nunca
+  sube un flujo por su cuenta ni en modo goal.
+
 ### Contrato con el relay (lo implementa qdd-movile)
 
 Como en RFC 0024, la tecnología del relay es de qdd-movile. Lo que el PC necesita:
@@ -293,6 +313,8 @@ Un grupo «Flujos compartidos»:
 2. **Relay (qdd-movile):** invitaciones por rol, propuestas, foto nueva, resolución, consentimiento y canal realtime.
 3. **PC: propuestas.** `compartir` con invitación, la lectura de propuestas, las acciones de «Para ti» una por una,
    las notas del experto con su visibilidad, las historias de usuario y `historia tarea`.
+3b. **Enlace en Cloudflare.** `compartir --enlace` con el token del baúl, el Worker de la persona, KV y revocar
+   que borra; sin token, el archivo de siempre.
 4. **Asistente.** Las tandas de lo que llega en vivo a la sesión de Claude, y `qdd flujo proponer --de asistente`.
 5. **Audio.** `qdd flujo sesion` abierta por el moderador, con consentimiento, grabación local, motor whisper o claude,
    y la historia-usuaria completa en su PC.
