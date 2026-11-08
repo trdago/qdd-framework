@@ -75,4 +75,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: 94e8a24d7e38
+revisado_en_commit: 1da9e39d5bc9
