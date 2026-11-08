@@ -1793,9 +1793,9 @@ function enZona(Box, Text, Button, $, aqui) {
   ]
 }
 
-// paraTi es una sola lista de lo que espera a la persona, en el orden que da qdd (RFC 0019): pedidos, ⏳, fichas y lo
-// abierto en la terminal, cada uno con su número. Al final lo que no lleva turno y los hechos. Lo que se está confirmando
-// cambia su tarjeta por la confirmación; lo demás sigue en su lugar.
+// paraTi es lo que espera a la persona, en el orden que da qdd (RFC 0019) y con su número: primero las acciones (pedidos
+// y fichas), después lo que no lleva turno y los hechos, y al final las preguntas (⏳ y lo abierto en la terminal),
+// plegadas en «? N» (pedido de la persona, 2026-11-08). Lo que se está confirmando cambia su tarjeta por la confirmación.
 function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const lista = pedidos(todas)
   const turnos = todas.filter((a) => a.turno)
@@ -1836,21 +1836,36 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
     if (!q) return []
     return espera(conLugarEnLaLista(q, a))
   }
-  const enTurno = turnos.flatMap(fila)
-  const sinLugar = sueltas.flatMap(espera)
-  const resto = preguntas.length - puestas.length
-  const cuerpo = [
-    ...enTurno,
-    ...[...abiertos, ...hechos].map(tarjetaDe),
-    ...seVa,
-    ...sinLugar,
-    ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : []),
-  ]
+  // Pedido de la persona (2026-11-08): las acciones (pedidos y fichas) se ven; las preguntas (⏳ y lo abierto en la
+  // terminal) quedan plegadas en «? N», que se despliega si la persona quiere. Cada una conserva su número de turno.
+  const esAccion = (a) => a.tipo === 'pedido' || a.tipo === 'aprobar'
+  const enTurno = turnos.filter(esAccion).flatMap(fila)
+  const cuerpo = [...enTurno, ...[...abiertos, ...hechos].map(tarjetaDe), ...seVa]
+  if (porResponder) cuerpo.push(...preguntasPlegadas(Button, $, porResponder, () => {
+    const enLaLista = turnos.filter((a) => !esAccion(a)).flatMap(fila)
+    const sinLugar = sueltas.flatMap(espera)
+    const resto = preguntas.length - puestas.length
+    return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
+  }))
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
     Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: cuerpo }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
+}
+
+// preguntasPlegadas: el botón «? N» y, si la persona lo abrió, las preguntas debajo. filas se calcula solo abierto.
+let preguntasAbiertas = false
+
+function preguntasPlegadas(Button, $, n, filas) {
+  const boton = Button({ key: 'preguntas-ver', label: (preguntasAbiertas ? '▾ ' : '▸ ') + '? ' + n + (n === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarPreguntas($) })
+  if (!preguntasAbiertas) return [boton]
+  return [boton, ...filas()]
+}
+
+function alternarPreguntas($) {
+  preguntasAbiertas = !preguntasAbiertas
+  $.ui.invalidate('ui.render')
 }
 
 // esDeLaTerminal: una pregunta o un permiso que Claude Code tiene abierto en su diálogo; un ⏳ se responde en el chat.

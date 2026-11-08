@@ -50,7 +50,10 @@ async function montado($, on, r) {
   preparar(on, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await esperar()
-  return $.ui.mount({ ...PANEL, surface: 'terminal' })
+  const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
+  // Las preguntas quedan plegadas en «? N» (pedido de la persona, 2026-11-08): se abren para verlas.
+  if (await ui.find({ key: 'preguntas-ver' })) await ui.press({ key: 'preguntas-ver' })
+  return ui
 }
 
 test('sin preguntas no se agrega nada a «Para ti», y un qdd que no las trae tampoco', async ($, on) => {
