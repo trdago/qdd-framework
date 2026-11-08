@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.49] - 2026-11-08
+
 ### Added
 - Compartir un flujo con un enlace (RFC 0025, fase 3b; propuesta tuya): «↗ Compartir» (c) en la esquina de la pestaña Flujos, o `qdd flujo compartir <flujo> --enlace`. Con un token de Cloudflare en el baúl, qdd instala un Worker en tu cuenta, sube la página y copia el enlace; quien lo recibe solo lo abre y propone. La primera vez en cada consola, el baúl pide tu permiso en «Para ti». El token de la invitación va solo en el `#` del enlace, que el navegador no le manda a Cloudflare. Revocar la invitación o `--quitar-enlace` hace que el enlace deje de abrir. Sin Cloudflare en el baúl, queda el archivo de siempre.
 
