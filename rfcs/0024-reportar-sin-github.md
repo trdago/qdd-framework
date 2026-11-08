@@ -79,8 +79,10 @@ qdd-movile (commit 06c5eb8); la llave lectora sale de `qdd reportar llave`.
 ### En el repositorio de QDD: una fuente más de la cola
 
 El ciclo de mejoras suma la fuente **relay**. En el PC lector lee `GET reportes` y pasa cada uno a la cola como
-reporte con `fuente: relay`, `ref: REP-…` y `autor: instalación <8 caracteres de su huella>`. La persona decide qué pasa
-a tarea o a GitHub, igual que con los issues. Sin llave lectora, la fuente no aplica, igual que GitHub sin remote.
+reporte con `fuente: relay`, `ref: relay:REP-…` y `autor: QDD <versión> · <so>` (el relay no entrega la huella). Como
+cualquiera puede enviar, entra `por_admitir` y no es tarea: la persona lo admite con un pedido 📮 que solo ella confirma
+(`qdd mejoras admitir MEJ-NNN`, 2 a la vez), igual que la etiqueta «mejora» de un issue de un desconocido. Solo el
+repositorio de QDD lee el relay; sin llave lectora el ciclo avisa cómo serlo.
 
 ## Fases
 

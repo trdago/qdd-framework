@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -232,5 +233,58 @@ func TestLimpiarRutaConTramoLargo_FND186(t *testing.T) {
 	got := Limpiar("falla en /tmp/claude-1000/-home-ana-Documents-proyectos-tienda/abc/p/x.go", c, nil)
 	if got != "falla en <proyecto>/x.go" {
 		t.Fatalf("la ruta del proyecto se reemplaza entera: %q", got)
+	}
+}
+
+// RFC 0024, fase 3: la instalación lectora pide los reportes firmando «reportes|desde|en» con su llave.
+func TestLeerFirmaLaConsultaYPagina(t *testing.T) {
+	entorno(t)
+	pedidos := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/functions/v1/reportes" || req.Method != http.MethodGet || req.Header.Get("apikey") != "anon" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		desde, en := req.URL.Query().Get("desde"), req.Header.Get("x-qdd-en")
+		pub, _ := base64.StdEncoding.DecodeString(req.Header.Get("x-qdd-instalacion"))
+		firma, _ := base64.StdEncoding.DecodeString(req.Header.Get("x-qdd-firma"))
+		if len(pub) != ed25519.PublicKeySize || !ed25519.Verify(pub, []byte("reportes|"+desde+"|"+en), firma) || en != "2026-11-08T12:00:00Z" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, `{"error":"firma"}`)
+			return
+		}
+		pedidos++
+		if desde == "" {
+			lote := make([]string, 0, 100)
+			for i := 1; i <= 100; i++ {
+				lote = append(lote, fmt.Sprintf(`{"id":"REP-%d","tipo":"bug","titulo":"t%d","detalle":"","version":"v","so":"linux/amd64","llego":"2026-11-08T11:00:00Z"}`, i, i))
+			}
+			_, _ = io.WriteString(w, `{"reportes":[`+strings.Join(lote, ",")+`]}`)
+			return
+		}
+		if desde == "REP-100" {
+			_, _ = io.WriteString(w, `{"reportes":[{"id":"REP-101","tipo":"mejora","titulo":"último","detalle":"d","version":"v","so":"s","llego":"2026-11-08T11:30:00Z"}]}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"reportes":[]}`)
+	}))
+	defer srv.Close()
+	cfg := remoto.ConfigRelay{URL: srv.URL, Clave: "anon"}
+	lista, err := Leer(context.Background(), cfg, "", ahora)
+	if err != nil || len(lista) != 101 || lista[100].ID != "REP-101" || lista[100].Tipo != "mejora" || pedidos != 2 {
+		t.Fatalf("debe seguir de a 100 hasta el final: %d reportes, %d pedidos, %v", len(lista), pedidos, err)
+	}
+}
+
+func TestLeerSinSerLectora(t *testing.T) {
+	entorno(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, `{"error":"no-lector"}`)
+	}))
+	defer srv.Close()
+	_, err := Leer(context.Background(), remoto.ConfigRelay{URL: srv.URL, Clave: "anon"}, "", ahora)
+	if !errors.Is(err, ErrNoLector) || !strings.Contains(err.Error(), "qdd reportar llave") {
+		t.Fatalf("403: esta instalación no es lectora, y dice cómo serlo: %v", err)
 	}
 }

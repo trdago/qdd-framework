@@ -109,6 +109,8 @@ type Issue struct {
 type Fuentes struct {
 	// GitHub devuelve el repositorio (owner/repo) y sus issues abiertos, o ErrSinGitHub si no aplica.
 	GitHub func(root string) (string, []Issue, error)
+	// Relay devuelve los reportes del relay posteriores a desde, o ErrSinRelay si este proyecto no los lee (relay.go).
+	Relay func(root, desde string) ([]ReporteRelay, error)
 }
 
 // Resumen es lo que hizo un ciclo.
@@ -179,14 +181,16 @@ func Ciclo(root string, f Fuentes, now time.Time) (Resumen, error) {
 	if err != nil {
 		return Resumen{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(ruta), 0o700); err != nil {
-		return Resumen{}, err
-	}
-	soltar, err := candado.Tomar(ruta+".lock", 5*time.Second, "el ciclo de mejoras")
-	if err != nil {
-		return Resumen{}, err
-	}
-	defer soltar()
+	var r Resumen
+	err = conCandado(root, func() error {
+		r, err = cicloBloqueado(root, ruta, f, now)
+		return err
+	})
+	return r, err
+}
+
+func cicloBloqueado(root, ruta string, f Fuentes, now time.Time) (Resumen, error) {
+	var err error
 	c := &cicloEnCurso{root: root, now: now, r: Resumen{Nuevas: []string{}, Tareas: []string{}, Hechas: []string{}, Avisos: []string{}}}
 	if c.cola, err = Lista(root); err != nil {
 		return c.r, err
@@ -195,6 +199,8 @@ func Ciclo(root string, f Fuentes, now time.Time) (Resumen, error) {
 		return c.r, err
 	}
 	c.leerGitHub(f)
+	c.leerRelay(f)
+	c.pedirAdmisiones()
 	if err := c.seguirYEntregar(); err != nil {
 		return c.r, err
 	}
@@ -450,7 +456,10 @@ func (c *cicloEnCurso) agregar(m Mejora) error {
 	for _, x := range c.cola {
 		mayor = max(mayor, numero(x.ID))
 	}
-	m.ID, m.Estado = fmt.Sprintf("MEJ-%03d", mayor+1), EnCola
+	m.ID = fmt.Sprintf("MEJ-%03d", mayor+1)
+	if m.Estado == "" {
+		m.Estado = EnCola
+	}
 	slug := estado.SlugDe(m.Titulo)
 	if slug == "" {
 		slug = "mejora"

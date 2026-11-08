@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,8 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/incidentes"
 	"github.com/qdd-framework/qdd/pkg/mejoras"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
+	"github.com/qdd-framework/qdd/pkg/reportes"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +24,7 @@ import (
 // qdd-tareas llama 'ciclo --si-toca' cada minuto (toca cada 10) y el botón del panel lo fuerza.
 
 var (
-	mejorasFuentes   = mejoras.FuentesReales
+	mejorasFuentes   = fuentesDeMejoras
 	mejorasSiToca    bool
 	mejorasJSON      bool
 	mejorasTitulo    string
@@ -39,7 +43,68 @@ por mejora, 2 abiertas como mucho. Es determinista: solo lo que ya es tarea pasa
 
   qdd mejoras reportar --titulo … [--detalle …] [--autor …] [--proyecto <ruta|nombre>] [--etiqueta bug]
   qdd mejoras ciclo [--si-toca] [--json]     recibe, sigue las tareas y entrega (--si-toca: solo cada 10 min)
-  qdd mejoras lista [--json]                 la cola y en qué está cada mejora`,
+  qdd mejoras lista [--json]                 la cola y en qué está cada mejora
+  qdd mejoras admitir <MEJ-NNN>              admite un reporte del relay (lo confirma la persona)
+
+En el repositorio de QDD, el ciclo lee además los reportes que llegan al relay con 'qdd reportar'. Esos entran
+por_admitir: la persona los admite con el pedido 📮 del panel, como la etiqueta «mejora» de un issue.`,
+}
+
+var mejorasAdmitirCmd = &cobra.Command{
+	Use: "admitir <MEJ-NNN>", Short: "Admite a la cola un reporte del relay: corre desde el pedido 📮 que la persona confirmó, o en su terminal", Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		root := estadoRaiz()
+		confirmado := func(pedido, comando string) bool { return consola.PedidoConfirmado(root, pedido, comando, time.Now()) }
+		if err := autorizarAdmision(args[0], os.Getenv(consola.VarPedido), preguntaDeTerminal(), confirmado); err != nil {
+			salirCon("%v", err)
+		}
+		if err := mejoras.Admitir(root, args[0], time.Now()); err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[+] %s admitida: el próximo ciclo la entrega en su turno.\n", args[0])
+	},
+}
+
+// autorizarAdmision: un reporte del relay lo admite la persona, con el pedido 📮 que confirmó o con su «sí» en la
+// terminal; nunca una IA por su cuenta.
+func autorizarAdmision(id, pedido string, preguntar func(string) bool, confirmado func(pedido, comando string) bool) error {
+	if pedido != "" && confirmado(pedido, mejoras.ComandoAdmitir(id)) {
+		return nil
+	}
+	if pedido == "" && preguntar != nil && preguntar("¿Admitir "+id+" en la cola de mejoras?") {
+		return nil
+	}
+	return fmt.Errorf("un reporte del relay lo admite la persona: con «s  Sí» en el pedido 📮 del panel, o en su terminal")
+}
+
+// fuentesDeMejoras: GitHub y, en el repositorio de QDD, el relay de reportes.
+func fuentesDeMejoras() mejoras.Fuentes {
+	f := mejoras.FuentesReales()
+	f.Relay = reportesDelRelay
+	return f
+}
+
+// relayAplica: solo el repositorio de QDD (o el que dice QDD_INCIDENTES_REPO) lee los reportes del relay.
+func relayAplica(repo string, ok bool) bool {
+	return ok && repo == incidentes.Repo()
+}
+
+func reportesDelRelay(root, desde string) ([]mejoras.ReporteRelay, error) {
+	if !relayAplica(mejoras.RepoDeProyecto(root)) {
+		return nil, mejoras.ErrSinRelay
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), mejoras.TopeGitHub)
+	defer cancel()
+	cfg, err := relayDeReportes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	lote, err := reportes.Leer(ctx, cfg, desde, time.Now())
+	out := make([]mejoras.ReporteRelay, 0, len(lote))
+	for _, r := range lote {
+		out = append(out, mejoras.ReporteRelay{ID: r.ID, Tipo: r.Tipo, Titulo: r.Titulo, Detalle: r.Detalle, Version: r.Version, SO: r.SO, Llego: r.Llego})
+	}
+	return out, err
 }
 
 var mejorasReportarCmd = &cobra.Command{
@@ -73,7 +138,7 @@ func init() {
 	mejorasCicloCmd.Flags().BoolVar(&mejorasSiToca, "si-toca", false, "solo si pasaron 10 min desde el último ciclo")
 	mejorasCicloCmd.Flags().BoolVar(&mejorasJSON, "json", false, "salida JSON")
 	mejorasListaCmd.Flags().BoolVar(&mejorasJSON, "json", false, "salida JSON")
-	mejorasCmd.AddCommand(mejorasReportarCmd, mejorasCicloCmd, mejorasListaCmd)
+	mejorasCmd.AddCommand(mejorasReportarCmd, mejorasCicloCmd, mejorasListaCmd, mejorasAdmitirCmd)
 	rootCmd.AddCommand(mejorasCmd)
 }
 
