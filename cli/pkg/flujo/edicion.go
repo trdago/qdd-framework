@@ -63,15 +63,16 @@ func Editar(root, id, de string, ahora time.Time, cambio Cambio) (Flujo, string,
 	if err != nil {
 		return Flujo{}, "", err
 	}
+	previa := f.Revision
 	h, err := cambio(&f)
 	if err != nil {
 		return Flujo{}, "", err
 	}
-	if err := Guardar(root, f); err != nil {
-		return Flujo{}, "", err
-	}
 	if !h.entera {
 		h.linea = acotar(h.linea, maxLineaEdicion)
+	}
+	if err := guardarRevision(root, &f, previa, de, h.linea, ahora); err != nil {
+		return Flujo{}, "", err
 	}
 	if de != DePersona {
 		return f, h.linea, nil
@@ -473,10 +474,13 @@ func Reemplazar(root string, f Flujo) (int, error) {
 	defer soltar()
 	previo, err := Cargar(root, f.ID)
 	if err != nil {
-		return 0, Guardar(root, f)
+		return 0, guardarRevision(root, &f, 0, DeIA, "creado", time.Now())
 	}
 	movidos := conservarComentarios(previo, &f)
-	return movidos, Guardar(root, f)
+	if len(f.Versiones) == 0 {
+		f.Versiones = previo.Versiones
+	}
+	return movidos, guardarRevision(root, &f, previo.Revision, DeIA, "reescrito entero", time.Now())
 }
 
 func conservarComentarios(previo Flujo, f *Flujo) int {
@@ -513,7 +517,7 @@ func Nuevo(root, nombre string) (Flujo, error) {
 		id = fmt.Sprintf("%s-%d", base, n)
 	}
 	f := Flujo{Formato: Formato, ID: id, Nombre: nombre, Nodos: []Nodo{{ID: "inicio", Tipo: TipoResultado, Nombre: "Inicio"}}}
-	return f, Guardar(root, f)
+	return f, guardarRevision(root, &f, 0, DePersona, "creado", time.Now())
 }
 
 func existe(archivo string) bool {

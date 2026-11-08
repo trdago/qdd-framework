@@ -26,6 +26,20 @@ La persona lo pidió así (2026-11-08):
 - «para lo del audio, lo que sea más barato; quizás una capacidad que genera el moderador, que es quien tiene la
   cuenta de qdd, y puede levantarlo con whisper o directo a claude, como lo prefiera» y «en los dos casos la
   transcripción debería quedar completa en el pc de quien tiene la cuenta de qdd como historia-usuaria».
+- «también puede ser entre 2 colegas que mejoran un flujo y trabajan en conjunto en cómo debería funcionar un
+  concepto» y «también se podría usar para levantar procesos».
+
+## Para qué sirve
+
+Es la misma herramienta para tres conversaciones:
+
+- **Con un cliente:** afinar un proceso, levantar sus requerimientos y acordar una versión.
+- **Entre colegas:** dos personas que mejoran juntas un flujo o definen cómo debería funcionar un concepto. El colega
+  recibe una invitación con rol experto, así que propone y anota lo técnico. Si también tiene QDD, puede trabajar en
+  su rama (RFC 0021) y las propuestas llegan igual.
+- **Para levantar un proceso:** se parte de un flujo casi vacío con la plantilla proceso. Se conversa, con audio si
+  se quiere, y el asistente va proponiendo los pasos, decisiones y desvíos que escucha. Al final queda el proceso
+  «como es», en una versión con nombre, y sus historias de usuario.
 
 ## Decisiones de la persona (2026-11-08)
 
@@ -75,14 +89,17 @@ Un flujo tiene `plantilla`. Vacía es `proceso`, así los flujos de hoy no cambi
 
 | Plantilla | Tipos de nodo                            | N1       | N2               | N3        |
 |-----------|------------------------------------------|----------|------------------|-----------|
-| proceso   | paso, resultado                          | Hitos    | Pasos            | Desvíos   |
-| web       | página, sección, componente, enlace      | Páginas  | Secciones        | Elementos |
-| datos     | fuente, transformación, regla, destino   | Fuentes  | Transformaciones | Detalle   |
+| proceso   | paso                                     | Hitos    | Pasos            | Desvíos   |
+| web       | pagina, seccion, componente, enlace      | Páginas  | Secciones        | Elementos |
+| datos     | fuente, transformacion, regla, destino   | Fuentes  | Transformaciones | Detalle   |
 | agentes   | agente, herramienta, memoria, persona    | Agentes  | Herramientas     | Mensajes  |
+
+Todas traen además `resultado`, el círculo con que un flujo empieza y termina.
 
 Para cada tipo, la plantilla trae:
 
-- su **forma** (caja o círculo), así el panel y el teléfono lo dibujan sin conocer la plantilla;
+- su **forma:** `resultado` es círculo y el resto caja, así el panel y el teléfono dibujan cualquier plantilla sin
+  conocerla;
 - su **ícono**;
 - una **frase que lo explica**, que es la leyenda didáctica.
 

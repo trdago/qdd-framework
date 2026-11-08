@@ -6,6 +6,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Added
+- Flujos versionados y con plantilla (RFC 0025, fase 1). Cada cambio sube una revisión con su autor en `<flujo>.historial.jsonl` (`qdd flujo historial`). `qdd flujo version` guarda una versión con nombre, `comparar` dice qué nodos cambiaron entre dos y `volver` deja el flujo como en una, en una revisión nueva. La plantilla (`proceso`, `web`, `datos`, `agentes`; `qdd flujo plantillas`) trae los tipos de nodo y el nombre de los niveles N1 · N2 · N3. Doctor avisa de un flujo editado a mano cuyo historial no llega a su revisión (FLU-02), y `--fix` lo anota.
+
 ## [2.10.0-rc.44] - 2026-11-08
 
 ### Added

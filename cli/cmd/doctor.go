@@ -542,6 +542,7 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 			continue
 		}
 		if g.Name == grupoFlujos {
+			repairFlujos(projectPath, g)
 			continue
 		}
 		if g.Name == grupoMovil {

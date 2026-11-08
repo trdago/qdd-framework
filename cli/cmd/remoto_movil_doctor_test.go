@@ -325,7 +325,7 @@ func TestDoctorFlujos_SinFlujosNoReportaYUnoRotoSeNombra(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := buildFlujosChecks(root)
-	if len(g.Items) != 1 || g.Items[0].Success || !strings.Contains(g.Items[0].Error, "roto") {
+	if item := itemDeGrupo(g, itemFlujosValidos); item == nil || item.Success || !strings.Contains(item.Error, "roto") {
 		t.Fatalf("%+v", g.Items)
 	}
 }

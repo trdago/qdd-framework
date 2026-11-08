@@ -158,6 +158,12 @@ El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho co
 | `qdd flujo pedir-detalle <flujo> <nodo>` | Deja por enviar la pregunta de la persona por un nodo; lo usa el panel. |
 | `qdd flujo enviar <flujo> [--json]` | Reclama lo pendiente y escribe el mensaje para la IA; lo usa el panel. |
 | `qdd flujo devolver <flujo> --n N` | Deja como pendientes las últimas N líneas, si no se pudieron entregar; lo usa el panel. |
+| `qdd flujo version <flujo> "<nombre>"` | Guarda la foto actual como una versión con nombre (v1, v2…) sobre su revisión. (RFC 0025) |
+| `qdd flujo versiones <flujo> [--json]` | Lista las versiones con nombre y la revisión actual. (RFC 0025) |
+| `qdd flujo comparar <flujo> <v1> <v2\|actual> [--json]` | Dice qué nodos se agregaron, se quitaron o cambiaron entre dos versiones. (RFC 0025) |
+| `qdd flujo volver <flujo> <v1> [--de persona]` | Deja el flujo como en esa versión, en una revisión nueva: la historia no se reescribe. (RFC 0025) |
+| `qdd flujo historial <flujo> [--json]` | Quién cambió qué, revisión por revisión (`<flujo>.historial.jsonl`, versionado). (RFC 0025) |
+| `qdd flujo plantillas [--json]` | Las plantillas (proceso, web, datos, agentes): sus tipos de nodo y el nombre de sus niveles N1 · N2 · N3. (RFC 0025) |
 | `qdd herramienta candidatos [--json]` | Los ejecutables del proyecto que se pueden agregar como pestaña del panel: `bin/`, `scripts/`, `cmd/*` de Go, `target/release` de Rust, los scripts de `package.json` y los objetivos del `Makefile`; marca los ya agregados. **Seguro.** (RFC 0011) |
 | `qdd herramienta ayuda <comando…>` | Corre su `--help` (si no, `-h` y `help`), sin entrada y con 5 s por intento, para que la IA arme la definición. |
 | `qdd herramienta configurar <comando…>` | Imprime el mensaje con que la IA arma la definición: leer su ayuda, proponerle las acciones a la persona y guardarla con `qdd herramienta guardar`, con el formato y las reglas. Es lo que el panel le envía a la conversación desde Config → + Agregar herramienta. **Seguro.** |

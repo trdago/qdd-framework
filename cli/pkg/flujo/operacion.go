@@ -128,8 +128,8 @@ func (o Operacion) validar() error {
 	if o.Op == OpItemAgregar && !slices.Contains(tiposDeItem, *o.Tipo) {
 		return fmt.Errorf("tipo de ítem %q: usa %s", *o.Tipo, strings.Join(tiposDeItem, ", "))
 	}
-	if o.Op != OpItemAgregar && o.Tipo != nil && *o.Tipo != TipoPaso && *o.Tipo != TipoResultado {
-		return fmt.Errorf("tipo %q: usa %s o %s", *o.Tipo, TipoPaso, TipoResultado)
+	if o.Op != OpItemAgregar && o.Tipo != nil && !tipoConocido(*o.Tipo) {
+		return fmt.Errorf("tipo %q: ninguna plantilla lo conoce (proceso: paso o resultado)", *o.Tipo)
 	}
 	return nil
 }
