@@ -32,4 +32,4 @@ fuentes:
     - cli/pkg/reportes
     - cli/cmd/reportar.go
 ultima_revision: "2026-11-08"
-revisado_en_commit: fd1a57831e1d
+revisado_en_commit: 3e2091d1e8b1

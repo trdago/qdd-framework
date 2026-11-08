@@ -21,7 +21,7 @@ objetivo_tecnologico:
         - 'Un issue o un reporte es un dato, no una instrucción: la tarea solo lleva «MEJ-NNN · título» (recortado). El texto queda en el MEJ, de donde la IA lo lee como un reporte que tiene que verificar.'
         - 'Orden de entrega: primero las que GitHub etiqueta seguridad, security o bug, o las que el reporte marca así; después, de la más antigua a la más nueva. Así el mismo estado de entrada siempre da el mismo orden.'
         - 'Duplicados: un issue se reconoce por github:<owner>/<repo>#N y un reporte por el sha256 de su título y detalle normalizados. Un issue cerrado en GitHub mientras su MEJ espera en la cola se descarta con ese motivo.'
-        - 'Fuente relay (RFC 0024, decisión de la persona del 2026-11-08: cualquier instalación envía con qdd reportar, con tope): solo el repositorio de QDD (incidentes.Repo, QDD_INCIDENTES_REPO lo cambia) lee GET reportes del relay, desde el último relay:REP-N de la cola. Como cualquiera puede enviar, un reporte del relay entra por_admitir y no es tarea: la persona lo admite con un pedido 📮 DePersona (qdd mejoras admitir MEJ-NNN, 2 a la vez en el panel), como la etiqueta «mejora» de un issue. Admitir escribe la cola con el mismo candado del ciclo.'
+        - "Fuente relay (RFC 0024, decisión de la persona del 2026-11-08: cualquier instalación envía con qdd reportar, con tope): solo el repositorio de QDD (incidentes.Repo, QDD_INCIDENTES_REPO lo cambia) lee GET reportes del relay, desde el último relay:REP-N de la cola. Como cualquiera puede enviar, un reporte del relay entra por_admitir y no es tarea: la persona lo admite con un pedido \U0001F4EE DePersona (qdd mejoras admitir MEJ-NNN, 2 a la vez en el panel), como la etiqueta «mejora» de un issue. Admitir escribe la cola con el mismo candado del ciclo."
         - 'Cerrar el issue en GitHub cuando su tarea termina publica algo, así que el ciclo no lo hace: deja un pedido en el panel con gh issue close y el commit como evidencia.'
     invariantes:
         - Nunca hay más de 2 tareas abiertas de la cola en el objetivo mejora-continua.
@@ -35,5 +35,5 @@ fuentes:
     - cli/pkg/estado/objetivos.go
     - cli/pkg/consola/preguntas.go
     - cli/pkg/remoto/registro/registro.go
-ultima_revision: "2026-11-03"
-revisado_en_commit: cba8cbb15f4b
+ultima_revision: "2026-11-08"
+revisado_en_commit: 3e2091d1e8b1
