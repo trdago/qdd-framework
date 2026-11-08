@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.41] - 2026-11-08
+
+### Added
+- `qdd reportar` (RFC 0024): un camino directo a QDD para quien no tiene GitHub. Limpia el texto (credenciales, valores del baúl, la ruta del proyecto, tu carpeta y tu nombre de usuario), lo muestra tal cual viaja y lo envía al relay de QDD solo con tu «sí»: en tu terminal pregunta; desde una IA deja un pedido 📮 que solo la persona confirma. Firma con la llave de la instalación (`qdd reportar llave`); `qdd reportar enviados` lista lo enviado.
+
+### Fixed
+- FND-186: la limpieza de un reporte reemplaza la ruta del proyecto antes que las cadenas largas, para que un tramo largo no deje pasar el resto de la ruta.
+
 ## [2.10.0-rc.40] - 2026-11-08
 
 ### Corregido

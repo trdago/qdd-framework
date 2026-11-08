@@ -350,3 +350,13 @@ func TestEnvs_ListaLasClavesConValorSinImprimirlos(t *testing.T) {
 		t.Fatal("nunca un valor")
 	}
 }
+
+// RFC 0024: un reporte a QDD tapa los valores del baúl; se leen solo los del llavero (1Password pediría desbloquear).
+func TestValoresDelLlavero_SoloLosDelLlavero(t *testing.T) {
+	entorno(t)
+	guardarCloudflare(t)
+	valores := ValoresDelLlavero()
+	if len(valores) != 1 || valores[0] != secreto {
+		t.Fatalf("debe dar el valor del llavero para taparlo: %d valores", len(valores))
+	}
+}

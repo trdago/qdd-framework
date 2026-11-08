@@ -91,7 +91,7 @@ Para encadenar comandos con rollback automático si uno falla:
 		// No exigimos contexto si apenas estamos inicializando, aprendiendo, reparando,
 		// o reportando un error (bug): un proceso supervisado puede fallar incluso en un
 		// proyecto que todavía no completó `qdd init`, y ese fallo igual debe poder registrarse.
-		if name == "init" || name == "learn" || name == "doctor" || name == "bug" {
+		if name == "init" || name == "learn" || name == "doctor" || name == "bug" || deReportar(cmd) {
 			return nil
 		}
 		

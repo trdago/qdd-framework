@@ -92,3 +92,24 @@ func leerValor(e Entrada) (string, error) {
 	}
 	return strings.TrimRight(salida.String(), "\r\n"), nil
 }
+
+// ValoresDelLlavero da los valores guardados en el llavero, solo para taparlos (un reporte a QDD, RFC 0024). Los de
+// 1Password no se leen: pedirían desbloquearlo para nada. Lo que no se puede leer se salta.
+func ValoresDelLlavero() []string {
+	indice, err := Indice()
+	if err != nil {
+		return nil
+	}
+	var valores []string
+	for _, e := range indice {
+		if e.Donde != EnLlavero || e.Tipo == "aws-sso" {
+			continue
+		}
+		v, err := keyring.Get(servicioLlavero, e.Nombre)
+		if err != nil || v == "" {
+			continue
+		}
+		valores = append(valores, v)
+	}
+	return valores
+}

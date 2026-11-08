@@ -1,0 +1,9 @@
+id: "FND-186"
+title: "Un reporte a QDD dejaba pasar la ruta del proyecto si tenía un tramo largo"
+description: "Limpiar aplicaba la regla de cadenas largas (32+ caracteres) antes de reemplazar la ruta del proyecto. Una ruta con un tramo largo, como las carpetas de Claude Code («-home-<usuario>-Documents-proyectos-…»), perdía ese tramo primero; la ruta ya no coincidía y el resto viajaba en la vista previa. Se vio al probar qdd reportar a mano en una carpeta temporal, antes de publicarlo."
+impact: "La ruta del proyecto (con nombres de carpetas) habría salido de la máquina en un reporte, aunque la persona la habría visto en la vista previa antes de confirmar."
+action_taken: "Limpiar reemplaza primero la ruta del proyecto y la carpeta del usuario, y después aplica las reglas de credenciales y cadenas largas."
+test_result: "cli/pkg/reportes/reportes_test.go: TestLimpiarRutaConTramoLargo_FND186 falla antes del arreglo y pasa después."
+status: resolved
+detectado_por: ia
+date: "2026-11-08"
