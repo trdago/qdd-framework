@@ -346,8 +346,9 @@ foto r4 en el archivo sin recargarlo, y la invitación revocada deja el archivo 
   y entra con origen `rol:autor`. Quitar un nodo lo saca de sus historias, y reescribir el flujo entero las conserva.
   La foto las lleva sin `origen` ni `tarea`. `qdd flujo historia tarea` crea la tarea con lo que la historia quiere
   como nombre, la anota en `tarea` e imprime los criterios para la IA.
-- **Falta de esta fase:** que el relay devuelva la operación en `flujo-proponer GET`, para que un navegador nuevo
-  muestre qué se propuso y no solo «Propuesta PRO-n».
+- **Lo propuesto se lee en cualquier navegador.** `flujo-proponer GET` devuelve la `operacion` de cada propuesta
+  (qdd-movile, migración 20261108150000), y el archivo la cuenta en palabras («Agregar «X» después de «Y»») cuando no
+  la envió ese mismo navegador. Siempre como texto, nunca como HTML.
 
 ## Lo que no hace
 
