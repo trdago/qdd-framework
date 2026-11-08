@@ -818,9 +818,30 @@
     var textos = leerLocal('textos', {});
     leerLocal('cola', []).forEach(function (e) { ul.appendChild(filaDePropuesta('por-enviar', e.texto, e.autor, '')); });
     propio.lista.slice().sort(function (a, b) { return numero(b.id) - numero(a.id); }).forEach(function (p) {
-      ul.appendChild(filaDePropuesta(p.estado, textos[p.id] || 'Propuesta ' + p.id, p.autor, p.motivo));
+      ul.appendChild(filaDePropuesta(p.estado, textos[p.id] || descripcionDe(p.operacion) || 'Propuesta ' + p.id, p.autor, p.motivo));
     });
     if (!ul.children.length) ul.appendChild(el('li', 'vacio', 'Todavía no hay propuestas. Toca un paso y elige qué proponer.'));
+  }
+
+  // descripcionDe cuenta la operación que guardó el relay: así un navegador sin lo enviado desde él (otro equipo, otro
+  // navegador) también sabe qué se propuso. Va siempre como texto, nunca como HTML.
+  function descripcionDe(o) {
+    if (!o || typeof o !== 'object') return '';
+    var en = nombreDe(o.nodo);
+    var textos = {
+      comentar: 'Comentario en ' + en + ': ' + o.texto,
+      agregar: 'Agregar «' + o.nombre + '» ' + (o.rama ? 'como rama de ' : 'después de ') + en,
+      conectar: 'Flecha de ' + en + ' a ' + nombreDe(o.con),
+      desconectar: 'Quitar la flecha de ' + en + ' a ' + nombreDe(o.con),
+      mover: 'Mover ' + en + ' después de ' + nombreDe(o.despues_de),
+      quitar: 'Quitar ' + en,
+      nota: 'Nota técnica ' + (o.compartida ? 'para compartir ' : '') + 'en ' + en + ': ' + o.texto,
+      historia: 'Historia' + (o.nodo ? ' en ' + en : '') + ': ' + (o.quiero ? fraseDe(o).replace(/^./, function (c) { return c.toLowerCase(); }) : '')
+    };
+    if (o.op === 'modificar' && typeof o.nombre === 'string') return 'Renombrar ' + en + ' a «' + o.nombre + '»';
+    if (o.op === 'modificar' && typeof o.descripcion === 'string') return 'Describir ' + en + ': ' + o.descripcion;
+    if (o.op === 'modificar') return 'Cambiar ' + en;
+    return textos[o.op] || '';
   }
 
   function numero(id) { return Number(String(id).replace(/^PRO-/, '')) || 0; }
