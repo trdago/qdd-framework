@@ -165,7 +165,7 @@ func pedir(e Entorno, l *Local, res *Resumen) error {
 			res.Esperan++
 			continue
 		}
-		id, err := e.Panel.Pedir(ComandoAprobar(v.ID), "📝 "+strings.TrimSpace(v.Autor)+": "+describir(e.Root, l, *v))
+		id, err := e.Panel.Pedir(ComandoAprobar(v.ID), encabezado(*v)+describir(e.Root, l, *v))
 		if err != nil {
 			return fmt.Errorf("no se dejó en el panel %s: %w", v.ID, err)
 		}
@@ -198,6 +198,10 @@ func avisar(ctx context.Context, e Entorno, l *Local) error {
 		if !resuelta(*v) || v.Avisada {
 			continue
 		}
+		if delAsistente(*v) {
+			v.Avisada = true
+			continue
+		}
 		err := e.Relay.Resolver(ctx, v.ID, v.Situacion, v.Razon, e.Ahora)
 		if err != nil && !errors.Is(err, ErrYaResuelta) && !errors.Is(err, ErrAjena) {
 			return err
@@ -218,12 +222,12 @@ func avisar(ctx context.Context, e Entorno, l *Local) error {
 	return nil
 }
 
-// Aprobar aplica la propuesta a nombre del invitado. La aplicación no depende de la red: si el relay no responde, se
-// entera en el próximo ciclo.
+// Aprobar aplica la propuesta a nombre de quien la hizo. La aplicación no depende de la red: si el relay no responde,
+// se entera en el próximo ciclo. Solo sube la foto nueva si alguien mira ese flujo con una invitación viva.
 func Aprobar(ctx context.Context, e Entorno, id string) (string, error) {
 	var linea string
 	err := conLocal(e.Root, func(l *Local) error {
-		v, inv, err := porResolver(l, id)
+		v, err := porResolver(l, id)
 		if err != nil {
 			return err
 		}
@@ -231,18 +235,32 @@ func Aprobar(ctx context.Context, e Entorno, id string) (string, error) {
 		if err != nil {
 			return err
 		}
-		linea, err = o.AplicarDeInvitado(e.Root, inv.Flujo, v.Autor, inv.Rol, e.Ahora)
+		linea, err = aplicar(e, l, v, o)
 		if err != nil {
 			return fmt.Errorf("%w: si ya no se puede integrar, recházala con 'qdd flujo propuestas rechazar %s'", err, id)
 		}
 		v.Situacion, v.Razon, v.Avisada = Aprobada, "", false
-		l.fotoPorSubir(inv.Flujo)
+		if l.Vivas(o.Flujo, e.Ahora) {
+			l.fotoPorSubir(o.Flujo)
+		}
 		if err := avisar(ctx, e, l); err != nil {
 			linea += " (el invitado se entera cuando vuelva la conexión con el relay)"
 		}
 		return nil
 	})
 	return linea, err
+}
+
+// aplicar la integra: la del asistente con su origen, la de un invitado con el rol que este PC anotó al invitarlo.
+func aplicar(e Entorno, l *Local, v *Vista, o flujo.Operacion) (string, error) {
+	if delAsistente(*v) {
+		return o.AplicarDeAsistente(e.Root, v.Origen, e.Ahora)
+	}
+	inv, ok := l.invitacion(v.Invitacion)
+	if !ok {
+		return "", fmt.Errorf("la invitación de %s ya no está en este proyecto", v.ID)
+	}
+	return o.AplicarDeInvitado(e.Root, inv.Flujo, v.Autor, inv.Rol, e.Ahora)
 }
 
 // Rechazar la deja fuera sin tocar el flujo; el invitado ve el motivo, si lo hay.
@@ -252,7 +270,7 @@ func Rechazar(ctx context.Context, e Entorno, id, motivo string) error {
 		return fmt.Errorf("el motivo tiene más de %d caracteres", MaxMotivo)
 	}
 	return conLocal(e.Root, func(l *Local) error {
-		v, _, err := porResolver(l, id)
+		v, err := porResolver(l, id)
 		if err != nil {
 			return err
 		}
@@ -262,19 +280,15 @@ func Rechazar(ctx context.Context, e Entorno, id, motivo string) error {
 	})
 }
 
-func porResolver(l *Local, id string) (*Vista, Invitacion, error) {
+func porResolver(l *Local, id string) (*Vista, error) {
 	v := l.vista(id)
 	if v == nil {
-		return nil, Invitacion{}, fmt.Errorf("no hay una propuesta %s en este proyecto: 'qdd flujo propuestas' dice cuáles hay", id)
+		return nil, fmt.Errorf("no hay una propuesta %s en este proyecto: 'qdd flujo propuestas' dice cuáles hay", id)
 	}
 	if resuelta(*v) {
-		return nil, Invitacion{}, fmt.Errorf("la propuesta %s ya está %s", id, v.Situacion)
+		return nil, fmt.Errorf("la propuesta %s ya está %s", id, v.Situacion)
 	}
-	inv, ok := l.invitacion(v.Invitacion)
-	if !ok {
-		return nil, Invitacion{}, fmt.Errorf("la invitación de %s ya no está en este proyecto", id)
-	}
-	return v, inv, nil
+	return v, nil
 }
 
 // numeroDe es n en «PRO-n»; 0 si no lo es.

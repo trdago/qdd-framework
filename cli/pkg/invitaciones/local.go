@@ -39,10 +39,12 @@ func (i Invitacion) Viva(ahora time.Time) bool {
 }
 
 // Vista es una propuesta recibida y lo que este PC hizo con ella. Situacion es por-pedir, pedida, aprobada o
-// rechazada; Razon, el motivo que verá el invitado; Avisada, que el relay ya lo sabe.
+// rechazada; Razon, el motivo que verá el invitado; Avisada, que el relay ya lo sabe. Origen es el de una del
+// asistente: «asistente» o «transcripcion@mm:ss».
 type Vista struct {
 	Propuesta
 	Situacion string `json:"situacion"`
+	Origen    string `json:"origen,omitempty"`
 	Pedido    string `json:"pedido,omitempty"`
 	Razon     string `json:"razon,omitempty"`
 	Avisada   bool   `json:"avisada,omitempty"`

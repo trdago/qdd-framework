@@ -357,6 +357,23 @@ foto r4 en el archivo sin recargarlo, y la invitación revocada deja el archivo 
   (qdd-movile, migración 20261108150000), y el archivo la cuenta en palabras («Agregar «X» después de «Y»») cuando no
   la envió ese mismo navegador. Siempre como texto, nunca como HTML.
 
+### Cómo quedó la fase 4 (2026-11-08)
+
+- **`qdd flujo proponer <flujo> '<operación>' [--minuto mm:ss]`** es como propone el asistente. La operación es la
+  misma del teléfono y del archivo del cliente, sin comentar (para responder ya está `qdd flujo responder`), y
+  `flujo` se toma del argumento. La propuesta queda en la cola del PC como `ASI-n`, nunca pasa por el relay, y la misma
+  operación sin resolver no se repite. Hay un tope de 30 sin resolver.
+- **En «Para ti» es un pedido 🎙 de la persona**, igual que el 📝 de un invitado: «🎙 asistente (12:40): historia en
+  «Ingreso»: …». Tres a la vez entre todas, y descartarlo la rechaza. Aprobada, entra con origen `asistente` o
+  `transcripcion@mm:ss` en el historial y en la historia de usuario. La nota técnica del asistente queda interna.
+- **El invitado ve el resultado, no la propuesta:** si mira el flujo con una invitación viva, recibe la foto nueva al
+  aprobarla. Mostrarle las propuestas del asistente en vivo queda para cuando haya sesión (fase 5).
+- **Una propuesta del relay nunca pasa por asistente:** lo del asistente no tiene invitación y su id es `ASI-n`, diga
+  el relay el rol que diga.
+- **Las tandas quedan con el audio.** Sin transcripción, lo que oye el asistente es lo que la persona le cuenta en el
+  chat, y eso ya le llega en cada mensaje. La fase 5 le entrega los tramos nuevos en cada pausa y como mucho cada
+  60 s, y el asistente propone con su `--minuto`.
+
 ## Lo que no hace
 
 - No le da al cliente ni al experto una cuenta, ni acceso al tablero, a las tareas o a otros flujos.
