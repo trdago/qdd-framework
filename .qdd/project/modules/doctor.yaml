@@ -20,6 +20,7 @@ objetivo_tecnologico:
         - 'Grupo de la consola: con la consola activa, muestra con qué se lee el portapapeles para qdd foto; si falta la herramienta (wl-clipboard o xclip), --fix solo dice qué instalar: qdd no instala paquetes del sistema.'
         - 'Grupo de findings y certificaciones: un estado reconocido pero no canónico (RESOLVED, closed) → --fix escribe la forma canónica; un finding o una certificación del proyecto sin estado reconocido → doctor lo informa con el archivo y no lo repara, porque el estado lo decide una persona (FND-061).'
         - 'Grupo de la consola, además (qdd 2.8.0): el uso real medido de la versión que corre (un registro ilegible es falla y --fix lo aparta) y el modo de permisos de la IA del último mensaje (informativo; sin medir no es falla).'
+        - 'Grupo del baúl (RFC 0023): solo aparece con tokens guardados o un .env con secretos. Token vencido o rechazado → falla que cambia la persona en su terminal (qdd baul guardar); sin uso en 90 días y .env con valores → aviso, con los nombres de las claves y nunca un valor; registro roto → --fix lo aparta como evidencia y empieza otro.'
         - 'Grupo de la consola (RFC 0006 §3.6): solo existe si se usó qdd consola activar en esta máquina. Panel ausente, de otra versión que la CLI o desactivado, o barra que ya no es la de QDD → --fix vuelve a activar con lo que se eligió al activar.'
         - 'Grupo de las herramientas del panel (RFC 0011): definición que no se lee o inválida, ejecutable que no está, variable de entorno que falta o prueba de humo que no sale con 0. --fix no las repara: un ejecutable ausente puede no estar compilado o ya no existir, y eso lo decide la persona; el detalle dice el comando (compilarlo, o qdd herramienta quitar <id> --si).'
         - 'Grupo 8 (incidentes de QDD, qdd 2.8.0): aparece solo si existe el registro de esta máquina; un archivo ilegible es falla y --fix lo aparta como .ilegible; lo pendiente de publicar se informa. Apartar un registro de uso ilegible o juntar la cola del panel son autorreparaciones de datos que QDD escribió: se registran como incidente.'
@@ -42,5 +43,5 @@ fuentes:
     - rfcs/0004-blueprints-centrales.md
     - rfcs/0005-reglas-como-principios.md
     - rfcs/0006-estado-por-frente-en-consola.md
-ultima_revision: "2026-11-07"
-revisado_en_commit: 72ff4753ae58
+ultima_revision: "2026-11-08"
+revisado_en_commit: 5dfe3b4fe4e2

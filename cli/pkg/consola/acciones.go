@@ -70,6 +70,8 @@ type Accion struct {
 	PR          int        `json:"pr,omitempty"`       // solo pedidos opcionales de un PR abierto (prs.go)
 	// VersionNueva: solo el pedido opcional de actualizar qdd (version_nueva.go).
 	VersionNueva string `json:"version_nueva,omitempty"`
+	// DePersona: solo la persona lo confirma; el modo goal no lo lanza (RFC 0023).
+	DePersona bool `json:"de_persona,omitempty"`
 	DeTarea      string `json:"tarea,omitempty"` // solo pedidos: la tarea que extiende, para que el teléfono no la ofrezca otra vez
 	// Solo preguntas (preguntas.go): de dónde viene (ia, permiso o qdd), dónde se respondió (pc o telefono), sus
 	// preguntas con opciones y, en un permiso, la herramienta y el comando exacto.

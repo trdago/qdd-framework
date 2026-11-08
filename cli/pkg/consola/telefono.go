@@ -409,6 +409,24 @@ func HaySesion(root string, now time.Time) bool {
 	return len(sesionesVivas(vivas, "", now)) > 0
 }
 
+// SesionLate dice si esa sesión latió en el proyecto en los últimos VidaSesion y no se cerró (el permiso del baúl
+// vive lo que ella, RFC 0023).
+func SesionLate(root, sesion string, now time.Time) bool {
+	sesion = sesionValida(sesion)
+	ruta, err := rutaSesiones(root)
+	if sesion == "" || err != nil {
+		return false
+	}
+	var vivas []SesionViva
+	leerArchivoJSON(ruta, &vivas)
+	for _, v := range sesionesVivas(vivas, "", now) {
+		if v.Sesion == sesion {
+			return true
+		}
+	}
+	return false
+}
+
 // sesionesVivas son las que latieron hace menos de VidaSesion, sin sacar.
 func sesionesVivas(vivas []SesionViva, sacar string, now time.Time) []SesionViva {
 	var out []SesionViva

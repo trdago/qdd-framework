@@ -6,6 +6,23 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.37] - 2026-11-08
+
+### Agregado
+
+- **`qdd baul`: los tokens se guardan una vez y la IA los usa sin verlos (RFC 0023, fase 1).**
+  - `qdd baul guardar <nombre> --tipo cloudflare|github|supabase|resend|aws-sso|otro` pide el valor oculto, solo en tu
+    terminal. Lo guarda en el llavero del sistema, o en 1Password con `--en 1password`. De AWS guarda solo el perfil de
+    IAM Identity Center.
+  - Al guardar, y con `qdd baul verificar`, QDD prueba el token contra su API y anota dueño, alcance y vencimiento.
+  - `qdd baul usar <nombre> --para "<fin>" -- <comando>` corre el comando con el token solo en su entorno y tapa los
+    valores del baúl en la salida.
+  - El permiso es por sesión, proyecto, token y fin, y dura lo que la consola. Sin permiso, `usar` deja un pedido «🔑»
+    en el panel que solo confirma la persona (el modo goal no lo lanza) y sale con 75.
+  - Cada uso queda en un registro encadenado (`qdd baul registro`), y `qdd doctor` avisa si se rompe.
+  - Doctor avisa también de tokens vencidos o sin uso y de `.env` con secretos, mostrando solo los nombres de las
+    claves. No existe `qdd baul ver`.
+
 ## [2.10.0-rc.36] - 2026-11-08
 
 ### Corregido

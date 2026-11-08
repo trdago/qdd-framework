@@ -1,0 +1,40 @@
+id: baul
+nombre: Baúl de accesos (qdd baul)
+estado: aprobado
+rutas:
+    - cli/pkg/baul
+    - cli/cmd/baul.go
+    - cli/cmd/baul_doctor.go
+objetivo_operativo:
+    problema: Con la IA, crear la zona en Cloudflare, el proyecto en Supabase, el rol en AWS o los secretos en GitHub se repite en cada proyecto. Cada vez se busca el token, se copia a un .env o se pega en el chat, y quedan tokens con permisos de más, .env con valores en cada carpeta y llaves en la conversación de una IA.
+    usuarios: La persona, que guarda cada token una vez y permite su uso; la IA de cada sesión, que corre comandos con el token sin verlo; doctor, que avisa de tokens vencidos, sin uso, registros rotos y .env con valores.
+    criterio_de_exito: La persona guarda un token una vez, con entrada oculta en su terminal, y la IA lo usa con qdd baul usar solo después del «Sí» de la persona en el panel, para esa sesión, ese proyecto y ese fin, hasta que se cierra la consola. El valor nunca se imprime, nunca va al chat ni a un archivo de QDD, y cada uso queda en un registro encadenado que doctor verifica.
+    caso_real: 'Pedido de la persona (RFC 0023): «un baúl central de tokens … desde el DNS hasta el despliegue … qdd tiene que tener una forma centralizada pero segura de almacenar y usar esos tokens», «y también saber cuándo es necesario y autorizar el acceso cada vez por sesión con fines específicos».'
+objetivo_tecnologico:
+    arquitectura: 'pkg/baul: el índice (<QDD_HOME>/baul/indice.json) anota nombre, tipo, dónde, variable, dueño, alcance, vencimiento y uso, sin valores. El valor vive en el llavero del sistema (zalando/go-keyring, servicio qdd-baul) o en 1Password (CLI op, la plantilla por la entrada estándar). permisos.json guarda solicitudes y permisos; un permiso de sesión vive mientras consola.SesionLate y uno de terminal mientras su proceso. Usar pide permiso (pedido DePersona en el panel y salida 75, o pregunta en la terminal), corre el comando con el token solo en su entorno y la salida por el Ocultador. registro.jsonl solo agrega, con la huella de la línea anterior. Diagnosticar alimenta el grupo de doctor. cmd/baul.go: listar, guardar, verificar, usar, permitir (oculto) y registro.'
+    decisiones:
+        - El permiso es por sesión, por proyecto, por token y por fin, y vale hasta que se cierra la consola (decisión de la persona, 2026-11-07). Un fin distinto es otro permiso.
+        - 'Los tokens van al llavero del sistema por defecto; 1Password es opción (decisión de la persona, 2026-11-08). AWS entra con IAM Identity Center: el baúl guarda solo el perfil.'
+        - "qdd baul permitir corre solo dentro del pedido «\U0001F511» que la persona confirmó: comprueba QDD_PEDIDO contra la cola (DePersona, mismo comando, confirmado). El modo goal no lanza pedidos DePersona."
+        - 'Una sesión que no late en el proyecto (sin el panel de QDD) no puede pedir permiso: no hay dónde confirmarlo ni cuánto dura. En la terminal de la persona, sin sesión de Claude Code, se pregunta ahí y vale lo que esa terminal.'
+        - guardar no guarda un token que su API rechaza; sin red lo guarda sin verificar.
+        - Sin tool MCP nueva (tools/list está al tope, RFC 0022); la IA lo conoce por qdd baul --help.
+        - 'El ocultador tapa los valores de 6 o más caracteres: el que se usa y los demás del llavero.'
+        - La integración con 1Password está probada solo con un op falso; se valida con el op real en el primer uso.
+    invariantes:
+        - Ningún valor se imprime, se escribe en un archivo de QDD, se pasa por argumentos ni viaja por el chat, un pedido o el teléfono. No existe qdd baul ver.
+        - guardar lee el valor solo con entrada oculta en una terminal; sin terminal se niega.
+        - Sin permiso vigente, usar no corre nada.
+        - El registro solo agrega y cada línea encadena la anterior; doctor --fix aparta uno roto como evidencia, nunca lo reescribe.
+        - Las pruebas no tocan el llavero ni el 1Password reales, ni el QDD_HOME de la persona.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/baul/
+        - cd cli && go test ./cmd/ -run 'Baul'
+        - cd cli && go test ./pkg/consola/ -run 'PedidoDePersona|PedidoConfirmado|SesionLate|ElComandoRecibe'
+fuentes:
+    - rfcs/0023-baul-de-accesos.md
+    - cli/pkg/baul/usar.go
+    - cli/pkg/baul/permisos.go
+ultima_revision: "2026-11-08"
+revisado_en_commit: 5dfe3b4fe4e2
