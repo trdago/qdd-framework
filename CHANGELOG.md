@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.32] - 2026-11-07
+
+### Corregido
+
+- **Procesos zombie de la consola (FND-179, MEJ-042):** cada consola abierta dejaba un proceso `qdd <defunct>` por
+  minuto, más o menos (744 en un PC con 7 consolas). Los pedidos, la revisión de PRs, el aviso de versión nueva y la
+  publicación de incidentes se lanzaban y se soltaban sin recogerlos. Ahora cada uno se recoge al terminar. Los que ya
+  existen se van al cerrar y volver a abrir cada consola con esta versión.
+
 ## [2.10.0-rc.31] - 2026-11-07
 
 ### Agregado

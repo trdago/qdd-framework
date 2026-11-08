@@ -218,7 +218,7 @@ func VersionAlDia(root, bin, instalada string, now time.Time) {
 	c.Dir = root
 	separar(c)
 	if c.Start() == nil {
-		_ = c.Process.Release()
+		soltar(c)
 	}
 }
 
