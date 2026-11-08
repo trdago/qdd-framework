@@ -126,3 +126,25 @@ func TestArchivo_ConInvitacionSoloHablaConElRelay(t *testing.T) {
 		}
 	}
 }
+
+// RFC 0025, fase 3b: la página que sirve el Worker no lleva el token; viaja en el fragmento del enlace (#t=…), que el
+// navegador no le manda al Worker.
+func TestPagina_DelEnlaceNoLlevaElToken(t *testing.T) {
+	foto := ArmarFoto(flujoConGrupos(), limpiezaDePrueba, ahoraDePrueba)
+	e := Enlace{Relay: "https://relay.ejemplo.co/functions/v1/", Clave: "publica", Token: "tok-123", Rol: RolCliente, Invitacion: "7c1e0f2a-0000-4000-8000-000000000001"}
+	html, err := PaginaParaEnlace(foto, e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(html)
+	if strings.Contains(s, "tok-123") || !strings.Contains(s, `"token":""`) || !strings.Contains(s, "connect-src https://relay.ejemplo.co;") {
+		t.Fatalf("sin el token y hablando solo con el relay: %s", s[:400])
+	}
+	if f := FragmentoDeEnlace(e); f != "#t=tok-123" {
+		t.Fatalf("el token va en el fragmento: %q", f)
+	}
+	e.Token = ""
+	if _, err := PaginaParaEnlace(foto, e); err == nil {
+		t.Fatal("sin invitación de verdad no se arma")
+	}
+}

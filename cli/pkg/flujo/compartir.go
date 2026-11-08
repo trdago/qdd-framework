@@ -225,6 +225,22 @@ func ArchivoParaProponer(foto Foto, e Enlace) ([]byte, error) {
 }
 
 // armarArchivo arma el HTML. json.Marshal escapa <, > y &, así que ningún texto cierra un bloque de datos.
+// PaginaParaEnlace es la página que sirve el Worker de la persona (fase 3b): la misma que el archivo que propone, pero
+// sin el token. El token va en el fragmento del enlace (FragmentoDeEnlace) y el navegador lo lee de ahí.
+func PaginaParaEnlace(foto Foto, e Enlace) ([]byte, error) {
+	origen, err := e.origen()
+	if err != nil {
+		return nil, err
+	}
+	e.Token = ""
+	return armarArchivo(foto, &e, "connect-src "+origen+"; ")
+}
+
+// FragmentoDeEnlace es lo que va después de # en el enlace de una invitación.
+func FragmentoDeEnlace(e Enlace) string {
+	return "#t=" + url.QueryEscape(e.Token)
+}
+
 func armarArchivo(foto Foto, e *Enlace, conectar string) ([]byte, error) {
 	datos, err := json.Marshal(foto)
 	if err != nil {

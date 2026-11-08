@@ -257,6 +257,13 @@ qdd flujo propuestas [ciclo|aprobar <PRO-n>|rechazar <PRO-n> --motivo …]
 - **Publicar es hacia afuera:** solo cuando la persona corre `compartir --enlace` o confirma su pedido; la IA nunca
   sube un flujo por su cuenta ni en modo goal.
 
+**Cómo quedó (2026-11-08).** Un clic en «↗ Compartir» (c), en la esquina de la pestaña Flujos (pedido de la persona:
+«debería bastar con un click en una esquina que diga compartir»), corre `qdd flujo compartir <flujo> --enlace --rol
+cliente` con la sesión del panel. Sin el token en el entorno, qdd se vuelve a correr con `qdd baul usar` y el fin
+«compartir flujos por enlace», así que el permiso es el de siempre del baúl. `pkg/enlaces` instala el Worker
+`qdd-flujos` con su KV y lo deja al día en cada uso. El enlace se copia con `$.ui.copy` y se ve solo en el panel. Un
+enlace de solo lectura se reusa por flujo; el de una invitación es uno por invitación.
+
 ### Contrato con el relay (lo implementa qdd-movile)
 
 Como en RFC 0024, la tecnología del relay es de qdd-movile. Lo que el PC necesita:
