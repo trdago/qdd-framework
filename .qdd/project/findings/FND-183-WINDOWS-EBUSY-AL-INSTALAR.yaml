@@ -1,0 +1,9 @@
+id: "FND-183"
+title: "En Windows la instalación fallaba con EBUSY al mover el qdd.exe recién descargado"
+description: "install.js ejecuta el binario descargado con --version y lo mueve enseguida a su carpeta de versión. En un PC con antivirus (Trellix y Norton), el archivo quedaba retenido unos segundos y renameSync fallaba con EBUSY; moverBinario solo toleraba EXDEV, así que npm volvía a la versión anterior. Además, el borrado de la carpeta temporal al salir lanzaba una excepción que tapaba el mensaje, y quedaban carpetas descarga-* y una carpeta de versión vacía. Reportado en el issue #175 (MEJ-032), 2 de 2 veces con rc.15."
+impact: "La persona en Windows no podía actualizar qdd sin la solución manual con QDD_INSTALL_BINARIO."
+action_taken: "moverBinario reintenta ante EBUSY y EPERM durante unos 30 s y, si sigue ocupado, copia el binario (copiar solo necesita leerlo). Los borrados de lo temporal al salir reintentan y no lanzan; si la instalación falla, se quita la carpeta de versión vacía. Otro error, como EACCES, se propaga sin reintentar."
+test_result: "npm/test/install.test.js: «moverBinario espera mientras el binario nuevo está ocupado (#175)» y «moverBinario copia si el binario nuevo sigue ocupado (#175)» fallan antes del arreglo; «moverBinario no esconde otro error ni lo reintenta»."
+status: resolved
+detectado_por: persona
+date: "2026-11-08"

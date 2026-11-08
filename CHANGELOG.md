@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.36] - 2026-11-08
+
+### Corregido
+
+- **En Windows, la instalación ya no falla con EBUSY (#175, FND-183).** Un antivirus puede retener unos segundos el
+  `qdd.exe` recién descargado. Ahora la instalación espera hasta unos 30 s y, si sigue ocupado, lo copia. Lo temporal
+  que no se puede borrar ya no tapa el mensaje, y no queda una carpeta de versión vacía.
+
 ## [2.10.0-rc.35] - 2026-11-08
 
 ### Corregido
