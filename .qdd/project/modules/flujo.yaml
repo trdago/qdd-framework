@@ -16,6 +16,7 @@ objetivo_tecnologico:
         - No lleva tool MCP (RFC 0012), porque tools/list está junto a su tope. La IA lo conoce por la forma de trabajo de qdd_project_context y por qdd flujo --help.
         - Dos salidas o más van lado a lado si a cada una le quedan 14 columnas o más; si no, una debajo de otra, con sangría. Si alinear dos ejes saca el dibujo del ancho, un codo los une.
         - El encuentro de varias ramas se dibuja una vez, debajo de ellas. Un ciclo se escribe «↺ vuelve a X»; otro nodo ya dibujado, «→ sigue en X».
+        - 'Un desvío cuelga al costado del nodo, en una línea «├─ …», y el camino principal conserva todo el ancho (decisión de la persona, 2026-11-07; #186): un resultado, hasta dos nodos en fila que terminan en un resultado o vuelven a uno ya dibujado, un nodo ya dibujado o un atajo («↷ salta a X») a un nodo que otra rama que se dibuja alcanza. Un paso sin salida es el final del camino, no un desvío; un nodo que otra rama también alcanza, el elegido o una parada de más arriba se dibujan. Si todas las ramas son desvíos, la de más nodos es el camino; si empatan (un sí y un no), van lado a lado. analisis-oportunidades (23 nodos) bajó de 315 a 94 líneas a 100 columnas.'
         - La lista que abre el panel no abre pestañas; un flujo nuevo o cambiado después abre la pestaña Flujos y queda elegido, sin quitarle el foco a la conversación.
         - 'Todos los flujos van en una sola pestaña, Flujos (pedido de la persona, 2026-11-07: con 20 flujos de prueba en sfrc, una pestaña por flujo era inmanejable, y cerrarlas también). Con dos o más, arriba va el mapa: cada flujo en una fila con sus nodos, sus pruebas ✓ ✗ ☐ (Resumen.Pruebas) y lo que tiene por enviar, teclas 1…9 para los primeros. Elegido uno, se dibuja con ☰ Mapa (w), ‹ (p), «i de N» y › (n). Con uno solo se dibuja directo. Las pestañas qdd-flujo-<id> de versiones anteriores se cierran solas al leer la lista.'
         - El raíz es el de qdd estado (estadoRaiz), para que el panel y la IA vean la misma carpeta. Desde un worktree dentro de otro proyecto con tablero, el flujo queda en ese proyecto.
@@ -52,4 +53,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-07"
-revisado_en_commit: a713853a0792
+revisado_en_commit: 5a51d3bc6adf
