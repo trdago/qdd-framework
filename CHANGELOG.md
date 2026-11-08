@@ -6,6 +6,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Fixed
+- FND-188: un pedido 📮 que confirmaste ya no falla porque un qdd anterior le borró la marca «de la persona». La cola conserva los campos que una versión no conoce, y el siguiente ciclo de mejoras le devuelve la marca a un pedido que la perdió.
+
 ## [2.10.0-rc.47] - 2026-11-08
 
 ### Added

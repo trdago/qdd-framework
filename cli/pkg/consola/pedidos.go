@@ -111,6 +111,9 @@ type Pedido struct {
 	Version string `json:"version,omitempty"`
 	// DePersona: solo la persona lo confirma; el modo goal no lo lanza (el permiso de un token del baúl, RFC 0023).
 	DePersona bool `json:"de_persona,omitempty"`
+
+	// otros son los campos que este qdd no conoce: los escribió uno más nuevo y se devuelven tal cual (FND-188).
+	otros map[string]json.RawMessage
 }
 
 // VarPedido es el id del pedido que corre el comando: con él, «qdd baul permitir» comprueba que la persona lo confirmó.
@@ -406,7 +409,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
-				return conOrden(cola, p.ID, orden, &nuevo)
+				return conOrden(conMarcaDePersona(cola, p.ID, orden.DePersona), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
 				return conOrden(cola, p.ID, orden, &nuevo)
@@ -458,6 +461,20 @@ func sinRetirados(cola []Pedido, tarea string) ([]Pedido, string) {
 }
 
 // conOrden aplica el orden al pedido id y deja en elegido cómo quedó.
+// conMarcaDePersona le devuelve la marca a un pedido que la perdió: el mismo comando pedido de nuevo por qdd como de la
+// persona (un qdd anterior que reescribió la cola la borró, FND-188). Nunca se la quita.
+func conMarcaDePersona(cola []Pedido, id string, dePersona bool) []Pedido {
+	if !dePersona {
+		return cola
+	}
+	i, err := resolver(cola, id)
+	if err != nil {
+		return cola
+	}
+	cola[i].DePersona = true
+	return cola
+}
+
 func conOrden(cola []Pedido, id string, orden Orden, elegido *Pedido) ([]Pedido, error) {
 	i, _ := resolver(cola, id)
 	if !orden.vacio() {

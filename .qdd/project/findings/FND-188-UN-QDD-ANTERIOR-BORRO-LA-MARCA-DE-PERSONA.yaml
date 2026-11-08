@@ -1,0 +1,9 @@
+id: "FND-188"
+title: "Un qdd anterior borró la marca de la persona y su 📮 confirmado falló"
+description: "La persona confirmó «📮 Admitir MEJ-045» y «📮 Admitir MEJ-046» en el panel y los dos salieron con «un reporte del relay lo admite la persona». El ciclo de mejoras los había dejado con de_persona. Después, la IA dejó otro pedido con la tool qdd_consola_pedir, y la atendió un qdd mcp-server del 6 de noviembre que no conoce ese campo: al reescribir la cola lo borró. Sin la marca, PedidoConfirmado no reconoció el pedido aunque la persona lo confirmó."
+impact: "Algo que la persona aprobó no se hace, y el panel lo muestra como falla. Pasa con cualquier campo nuevo de la cola mientras siga abierta una sesión con un qdd anterior; con un token del baúl (RFC 0023) habría negado un permiso dado."
+action_taken: "Pedido guarda los campos que no conoce y los devuelve al reescribir la cola (pedido_json.go): un qdd desde esta versión ya no borra lo que escribe uno más nuevo. Pedir de nuevo el mismo comando como de la persona le devuelve la marca, así que el siguiente ciclo de mejoras repara los dos pedidos sin intervención. Los mcp-server ya abiertos siguen con su binario hasta reconectarse (/mcp)."
+test_result: "cli/pkg/consola/pedidos_de_persona_test.go: TestPedidos_PedirDeNuevoComoDeLaPersonaLeDevuelveLaMarca_FND188 y TestPedidos_UnCampoQueEsteQddNoConoceSobreviveAReescribirLaCola_FND188. Fallan antes del arreglo y pasan después."
+status: resolved
+detectado_por: ia
+date: "2026-11-08"
