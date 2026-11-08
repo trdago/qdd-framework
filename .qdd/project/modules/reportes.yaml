@@ -1,0 +1,34 @@
+id: reportes
+nombre: Reportar a QDD sin GitHub (qdd reportar)
+estado: aprobado
+rutas:
+    - cli/pkg/reportes
+    - cli/cmd/reportar.go
+objetivo_operativo:
+    problema: Un problema de QDD llega hoy como issue de GitHub (incidentes, con gh) o a la cola de mejoras del mismo PC; quien no tiene cuenta de GitHub no tiene cómo avisarle a QDD.
+    usuarios: Quien usa QDD sin GitHub (escribe el reporte y confirma el envío) y la IA que mantiene QDD, que lo recibe en la cola de mejoras.
+    criterio_de_exito: Cualquier instalación envía un reporte limpio al relay propio de QDD, la persona ve el texto exacto antes de enviarlo y solo sale con su «sí»; sin terminal queda un pedido que solo ella confirma.
+    caso_real: 'Pedido de la persona (2026-11-08, desde QDD Móvil): «necesitamos generar un camino directo a qdd para enviar los problemas; no todos los usuarios tienen github».'
+objetivo_tecnologico:
+    arquitectura: 'Nuevo arma el reporte limpio (Limpiar: valores del baúl, credenciales, la ruta del proyecto, la carpeta del usuario y su nombre) con la versión y el sistema. En la terminal de la persona se muestra y se pregunta; sin terminal se guarda en <QDD_HOME>/reportes/pendientes y queda un pedido DePersona «qdd reportar enviar <id>». Enviar firma con la llave ed25519 de la instalación (<QDD_HOME>/reportes/llave, 0600) y hace POST <relay>/functions/v1/reportar; lo enviado queda en enviados/ con el id del relay.'
+    decisiones:
+        - 'Destino (decisión de la persona, 2026-11-08): el relay propio de QDD (el de QDD Móvil); la cola de mejoras lo lee como una fuente más (RFC 0024).'
+        - 'Quién envía (decisión de la persona): cualquier instalación, con su propia llave y sin cuenta; el relay pone el tope (5 por día y por llave, más uno global por hora).'
+        - 'Qué se envía (decisión de la persona): limpio y con confirmación; la persona ve el texto exacto y lo envía con su «sí», y una IA solo lo prepara.'
+        - 'La limpieza es más suave que la de incidentes: un reporte lo escribe una persona, así que quedan sus comillas, nombres de archivo y correos (puede dejar un contacto), y salen credenciales, valores del baúl, la ruta del proyecto, la carpeta del usuario y su nombre.'
+        - El reporte solo agrega la versión de qdd y el sistema (linux/amd64); ni el nombre del proyecto ni la carpeta.
+        - La firma se calcula al enviar, sobre «formato|instalacion|en|tipo|titulo|detalle|version|so», porque el relay rechaza un «en» a más de 10 minutos.
+        - El relay sale de <QDD_HOME>/remoto/relay.json o, sin él, del directorio firmado de fábrica; nunca de una variable que una IA pueda cambiar.
+    invariantes:
+        - 'Nada se envía sin el «sí» de la persona: en su terminal, o un pedido DePersona que el modo goal no lanza y que «qdd reportar enviar» comprueba con QDD_PEDIDO.'
+        - Lo que viaja es exactamente lo que se mostró; la llave privada nunca sale de la máquina ni se imprime.
+        - Las pruebas nunca hablan con el relay real ni tocan el QDD_HOME real.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/reportes/ ./cmd/ -run 'Reportar|Reporte'
+fuentes:
+    - rfcs/0024-reportar-sin-github.md
+    - cli/pkg/reportes
+    - cli/cmd/reportar.go
+ultima_revision: "2026-11-08"
+revisado_en_commit: fd1a57831e1d

@@ -202,6 +202,9 @@ Lo que reportan las sesiones de Claude Code y los issues de GitHub queda como `M
 |---|---|
 | `qdd mejoras` | La cola de mejoras del proyecto: `reportar`, `ciclo` y `lista`. |
 | `qdd mejoras reportar --titulo … [--detalle …] [--autor …] [--proyecto <ruta\|nombre>] [--etiqueta bug]` | Deja un reporte en la entrada local del proyecto que lo recibe (por defecto, este; con `--proyecto`, otro del registro de la máquina). Lo pasa a la cola su próximo ciclo. No toca el árbol de trabajo de ese proyecto. |
+| `qdd reportar --titulo … [--detalle … \| --detalle-de <archivo>] [--tipo bug\|mejora\|pregunta]` | **Reportar a QDD sin GitHub** (RFC 0024): limpia el texto (credenciales, valores del baúl, la ruta del proyecto, tu carpeta y tu nombre de usuario), lo muestra tal cual viaja y lo envía al relay de QDD solo con tu «sí». En tu terminal pregunta; desde una IA deja un pedido 📮 en el panel que solo tú confirmas (el modo goal no lo lanza) y sale con 75. Si el envío falla, el reporte queda pendiente. |
+| `qdd reportar llave` | La llave pública de esta instalación (ed25519, `<QDD_HOME>/reportes/llave`, 0600, se crea la primera vez). La privada nunca sale de la máquina. **Seguro.** |
+| `qdd reportar enviados` | Los reportes que esta instalación envió, con el id que les dio el relay (`<QDD_HOME>/reportes/enviados/`). **Seguro.** |
 | `qdd mejoras ciclo [--si-toca] [--json]` | Recibe la entrada y los issues de GitHub, sigue las tareas de la cola (cerrada → hecha, descartada → descartada, borrada → vuelve a la cola) y entrega hasta 2 tareas: primero las de seguridad o bugs, después de la más antigua a la más nueva. Con `--si-toca`, solo si pasaron 10 min desde el último ciclo; así lo llama el panel de Claude Code cada minuto. El botón «Ciclo de mejoras» del panel lo corre sin esperar. |
 | `qdd mejoras lista [--json]` | La cola y en qué está cada mejora (`en_cola`, `tarea`, `hecha`, `descartada`). **Seguro.** |
 
