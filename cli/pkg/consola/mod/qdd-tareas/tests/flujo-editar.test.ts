@@ -11,7 +11,8 @@ const PANEL = {
   props: { title: 'Tareas', isFocused: true, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, viewportRows: 40 },
 } as const
 
-const pestana = (id: string, columnas = 60) => ({ ...PANEL, requestId: 'qdd-flujo-' + id, props: { ...PANEL.props, title: id, bodyColumns: columnas } })
+// Todos los flujos van en la pestaña «Flujos»; con uno solo, se dibuja directo.
+const pestana = (_id: string, columnas = 60) => ({ ...PANEL, requestId: 'qdd-flujos', props: { ...PANEL.props, title: 'Flujos', bodyColumns: columnas } })
 const PAGO = { id: 'pago', nombre: 'Cómo se cobra', nodos: 2, huella: 'h1' }
 
 const dibujoBase = () => ({
@@ -260,7 +261,7 @@ test('sin flujos, Flujos abre ahí mismo el campo para crear el primero', async 
   await esperar()
   expect(comandos(r, 'nuevo')[0]).toEqual(['qdd', 'flujo', 'nuevo', '--json', '--', 'Cobro'])
   expect(await ui.find({ key: 'fl-nuevo-nombre' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '✓ «Cobro» ya es una pestaña, arriba' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '✓ «Cobro» ya está en la pestaña Flujos' })).toBeDefined()
   await ui.press({ key: 'fl-nuevo-cerrar' })
   expect(await ui.find({ key: 'fl-nuevo-listo' })).toBeUndefined()
 })
@@ -296,7 +297,7 @@ test('abrir un formulario le da las teclas al campo: lo escrito no se va al chat
   await elegir(ui)
   await ui.press({ key: 'fl-comentar' })
   await esperar()
-  expect(r.aperturas.at(-1)).toMatchObject({ id: 'qdd-flujo-pago', focus: true })
+  expect(r.aperturas.at(-1)).toMatchObject({ id: 'qdd-flujos', focus: true })
 })
 
 test('si Claude Code no suelta las teclas (hay texto en el chat), se le dice a la persona', async ($, on) => {

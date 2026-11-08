@@ -68,6 +68,16 @@ type Resumen struct {
 
 	PorEnviar     int  `json:"por_enviar"`
 	PuedeDeshacer bool `json:"puede_deshacer"`
+
+	// Pruebas cuenta los ítems de prueba de sus nodos: el mapa de flujos del panel los muestra. nil si no tiene.
+	Pruebas *ConteoPruebas `json:"pruebas,omitempty"`
+}
+
+// ConteoPruebas es cuántas pruebas de un flujo pasan, fallan o faltan.
+type ConteoPruebas struct {
+	Pasa      int `json:"pasa"`
+	Falla     int `json:"falla"`
+	Pendiente int `json:"pendiente"`
 }
 
 // Validar lista todo lo que impide usar el flujo.
@@ -295,7 +305,7 @@ func resumir(archivo string, estadoDe func(string) string) Resumen {
 		r.Problema = err.Error()
 		return r
 	}
-	r.Nombre, r.Nodos = f.Nombre, len(f.Nodos)
+	r.Nombre, r.Nodos, r.Pruebas = f.Nombre, len(f.Nodos), contarPruebas(f)
 	for _, n := range f.Nodos {
 		if n.Tarea == "" {
 			continue

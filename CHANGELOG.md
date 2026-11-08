@@ -6,6 +6,25 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.33] - 2026-11-07
+
+### Cambiado
+
+- **Todos los flujos en una sola pestaña, Flujos.** Con muchos flujos (20 de prueba en un proyecto), una pestaña por
+  flujo era inmanejable, y cerrarlas también. Ahora arriba va un mapa de todos: cada flujo en una fila con sus nodos,
+  sus pruebas (✓ pasan, ✗ fallan, ☐ faltan) y lo que tiene por enviar; las teclas 1…9 abren los primeros. Elegido uno,
+  se dibuja con **☰ Mapa** (`w`), **‹** (`p`), «2 de 20» y **›** (`n`). Con un solo flujo se dibuja directo. Las
+  pestañas de cada flujo que dejó la versión anterior se cierran solas.
+- **Un flujo grande se lee sin bajar cientos de líneas.** Cada rechazo, vuelta atrás o atajo partía el ancho, y el
+  camino principal nunca lo recuperaba: las cajas quedaban de 9 columnas, con las palabras cortadas. Ahora un desvío
+  cuelga al costado del nodo en una línea (`├─ ( REJECTED_REGION )`, `├─ ↷ salta a Cola`) y el camino principal conserva
+  todo el ancho. Un flujo de 23 nodos bajó de 315 a 94 líneas a 100 columnas (#186).
+
+### Corregido
+
+- **El dibujo dejaba fuera un nodo cuando las ramas se cruzaban (FND-180).** En 24 000 flujos al azar faltaba uno en 8;
+  ahora en ninguno.
+
 ## [2.10.0-rc.32] - 2026-11-07
 
 ### Corregido

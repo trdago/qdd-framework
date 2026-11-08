@@ -187,7 +187,7 @@ func TestDibujar_UnaBifurcacionQueSeJuntaDibujaElEncuentroUnaVez(t *testing.T) {
 func TestDibujar_UnaRamaDirectaAlEncuentro(t *testing.T) {
 	f := deNodos(paso("a", "Decide", "b", "c"), paso("b", "Rama", "c"), resultado("c", "Junta"))
 	s := texto(f, 40)
-	if strings.Count(s, "Junta") != 1 || strings.Index(s, "Rama") > strings.Index(s, "Junta") {
+	if strings.Count(s, "( Junta )") != 1 || strings.Index(s, "Rama") > strings.Index(s, "( Junta )") {
 		t.Fatalf("el salto directo no repite el encuentro:\n%s", s)
 	}
 }

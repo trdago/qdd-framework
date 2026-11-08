@@ -24,7 +24,7 @@ var workingMethod = []string{
 	"Lo temporal va en ./tmp (git lo ignora): scripts de un solo uso, pruebas manuales, descargas, logs y salidas. Nunca lo dejes en la raíz ni en las carpetas de código; si algo vale la pena conservar, muévelo a su lugar con su prueba.",
 	"Declara la tarea en la que trabajas con qdd_estado accion=activar: el tablero y el teléfono solo muestran como en curso la que se declara. Al terminarla o al quedar esperando a alguien, accion=terminar.",
 	"En desarrollo la app corre directo en el PC; Docker es solo para la base de datos. Si alguien igual lo quiere para la app, avísale antes que será más lento y por qué (docs/docker-en-desarrollo.md del repositorio de QDD), y hazlo solo si lo confirma.",
-	"Si lo que se explica tiene forma (un proceso, un pipeline, un camino de decisiones), dibújalo con qdd flujo crear (qdd flujo --help): el panel lo abre en su pestaña y la persona ve lo mismo que tú.",
+	"Si lo que se explica tiene forma (un proceso, un pipeline, un camino de decisiones), dibújalo con qdd flujo crear (qdd flujo --help): el panel lo muestra en la pestaña Flujos y la persona ve lo mismo que tú.",
 }
 
 // MetodoDeTrabajo devuelve la forma de trabajo obligatoria, una regla por línea.

@@ -11,6 +11,7 @@ const (
 	sangria      = 3  // lo que ocupa «├─ » en una rama con sangría
 	minAnchoRama = 14 // más angosto que esto, las ramas van una debajo de otra
 	minAncho     = 12 // más angosto que esto, un nodo ya no se lee
+	maxDesvio    = 2  // nodos que caben en la etiqueta de un desvío
 )
 
 // bloque es un trozo de dibujo. entrada y salida son las columnas por donde se conecta arriba y abajo; una salida -1 dice
@@ -78,12 +79,16 @@ func (d *dibujante) secuencia(id string, paradas []string, ancho int) bloque {
 			total.salida = -1
 			return total
 		}
-		if len(n.Siguen) == 1 {
-			id = n.Siguen[0]
+		siguen := n.Siguen
+		if len(siguen) > 1 {
+			total, siguen = d.colgarDesvios(total, siguen, paradas, ancho)
+		}
+		if len(siguen) == 1 {
+			id = siguen[0]
 			continue
 		}
-		encuentro := d.encuentro(n.Siguen)
-		rama := d.bifurcacion(n.Siguen, paradas, encuentro, ancho)
+		encuentro := d.encuentro(siguen)
+		rama := d.bifurcacion(siguen, paradas, encuentro, ancho)
 		total = apilar(total, false, rama, ancho)
 		if encuentro == "" || rama.salida < 0 {
 			return total
@@ -94,11 +99,168 @@ func (d *dibujante) secuencia(id string, paradas []string, ancho int) bloque {
 
 // referencia es lo que se dibuja al llegar a un nodo que ya está en el dibujo.
 func (d *dibujante) referencia(id string, ancho int) bloque {
-	texto := "→ sigue en " + d.porID[id].Nombre
-	if d.camino[id] {
-		texto = "↺ vuelve a " + d.porID[id].Nombre
+	return bloque{lineas: partir(d.textoReferencia(id, false), max(minAncho, ancho)), salida: -1}
+}
+
+func (d *dibujante) textoReferencia(id string, ciclo bool) string {
+	if ciclo || d.camino[id] {
+		return "↺ vuelve a " + d.porID[id].Nombre
 	}
-	return bloque{lineas: partir(texto, max(minAncho, ancho)), salida: -1}
+	return "→ sigue en " + d.porID[id].Nombre
+}
+
+// desvio es una rama corta que no vuelve al camino: se escribe como etiqueta al costado.
+type desvio struct {
+	rama  string
+	texto string
+	nodos []string
+	atajo string // la rama misma, si es un atajo: otra rama que se dibuja tiene que alcanzarla
+}
+
+// colgarDesvios cuelga del nodo, al costado de su eje, las ramas que son desvíos (#186): un rechazo, una vuelta atrás o
+// un atajo. Las demás siguen con todo el ancho. Si todas son desvíos, o no queda espacio al costado, nada cambia.
+func (d *dibujante) colgarDesvios(total bloque, ramas, paradas []string, ancho int) (bloque, []string) {
+	interior := ancho - total.salida - sangria
+	if interior < minAncho {
+		return total, ramas
+	}
+	var desvios []desvio
+	var resto []string
+	for _, r := range ramas {
+		dv, ok := d.desvio(r, sin(ramas, r), paradas)
+		if !ok {
+			resto = append(resto, r)
+			continue
+		}
+		dv.rama = r
+		desvios = append(desvios, dv)
+	}
+	desvios, resto = d.atajosAlcanzados(desvios, resto)
+	if len(resto) == 0 {
+		desvios, resto = caminoEntreDesvios(desvios)
+	}
+	if len(desvios) == 0 || len(resto) == 0 {
+		return total, ramas
+	}
+	lineas := append([]string{}, total.lineas...)
+	margen := strings.Repeat(" ", total.salida)
+	for _, dv := range desvios {
+		for _, n := range dv.nodos {
+			d.hechos[n] = true
+		}
+		for j, parte := range partir(dv.texto, interior) {
+			prefijo := "│  "
+			if j == 0 {
+				prefijo = "├─ "
+			}
+			lineas = append(lineas, margen+prefijo+parte)
+		}
+	}
+	return bloque{lineas: lineas, entrada: total.entrada, salida: total.salida}, resto
+}
+
+// atajosAlcanzados: un atajo solo se escribe si una rama que se dibuja llega a su destino. Dos ramas que se alcanzan
+// entre sí no se tapan una a la otra: la que nadie más alcanza vuelve a dibujarse.
+func (d *dibujante) atajosAlcanzados(desvios []desvio, resto []string) ([]desvio, []string) {
+	for cambio := true; cambio; {
+		cambio = false
+		for i, dv := range desvios {
+			if dv.atajo == "" || d.alcanzaOtra(dv.atajo, resto) {
+				continue
+			}
+			desvios = append(append([]desvio{}, desvios[:i]...), desvios[i+1:]...)
+			resto, cambio = append(resto, dv.atajo), true
+			break
+		}
+	}
+	return desvios, resto
+}
+
+// caminoEntreDesvios: si todas las ramas son desvíos, la que tiene más nodos es el camino. Si ninguna tiene más que
+// las otras (un «sí» y un «no»), van lado a lado como siempre.
+func caminoEntreDesvios(desvios []desvio) ([]desvio, []string) {
+	mayor, empate := 0, false
+	for i, dv := range desvios {
+		if i == 0 || len(dv.nodos) > len(desvios[mayor].nodos) {
+			mayor, empate = i, false
+			continue
+		}
+		empate = empate || len(dv.nodos) == len(desvios[mayor].nodos)
+	}
+	if empate {
+		return nil, nil
+	}
+	return append(append([]desvio{}, desvios[:mayor]...), desvios[mayor+1:]...), []string{desvios[mayor].rama}
+}
+
+// desvio dice si la rama r es un desvío y cómo se escribe: un nodo ya dibujado, un atajo a uno que otra rama alcanza más
+// adelante, o hasta
+// maxDesvio nodos en fila que terminan o vuelven a uno ya dibujado. Un nodo que otra rama también alcanza, uno elegido o
+// una parada de más arriba no van en una etiqueta: se dibujan.
+func (d *dibujante) desvio(r string, otras, paradas []string) (desvio, bool) {
+	if contiene(paradas, r) || r == d.elegido {
+		return desvio{}, false
+	}
+	if d.hechos[r] {
+		return desvio{texto: d.textoReferencia(r, false)}, true
+	}
+	if d.alcanzaOtra(r, otras) {
+		return desvio{texto: "↷ salta a " + d.porID[r].Nombre, atajo: r}, true
+	}
+	var partes, nodos []string
+	actual := r
+	for len(nodos) < maxDesvio {
+		n := d.porID[actual]
+		if contiene(paradas, actual) || actual == d.elegido || d.alcanzaOtra(actual, otras) {
+			return desvio{}, false
+		}
+		partes, nodos = append(partes, d.etiqueta(n)), append(nodos, actual)
+		if len(n.Siguen) == 0 && n.Tipo != TipoResultado {
+			return desvio{}, false // un paso sin salida es el final del camino, no un desvío
+		}
+		if len(n.Siguen) == 0 {
+			return desvio{texto: strings.Join(partes, " → "), nodos: nodos}, true
+		}
+		if len(n.Siguen) > 1 {
+			return desvio{}, false
+		}
+		actual = n.Siguen[0]
+		if d.hechos[actual] || contiene(nodos, actual) {
+			return desvio{texto: strings.Join(partes, " → ") + " " + d.textoReferencia(actual, contiene(nodos, actual)), nodos: nodos}, true
+		}
+	}
+	return desvio{}, false
+}
+
+func (d *dibujante) alcanzaOtra(id string, otras []string) bool {
+	for _, o := range otras {
+		if contiene(d.recorrido(o), id) {
+			return true
+		}
+	}
+	return false
+}
+
+// etiqueta es el nodo en una línea: un resultado entre paréntesis, como su círculo, y el estado de su tarea.
+func (d *dibujante) etiqueta(n Nodo) string {
+	texto := n.Nombre
+	if n.Tipo == TipoResultado {
+		texto = "( " + n.Nombre + " )"
+	}
+	if n.Tarea == "" {
+		return texto
+	}
+	return texto + " " + d.estadoDe(n.Tarea)
+}
+
+func sin(lista []string, quitar string) []string {
+	var resto []string
+	for _, x := range lista {
+		if x != quitar {
+			resto = append(resto, x)
+		}
+	}
+	return resto
 }
 
 // encuentro es el primer nodo sin dibujar al que llegan todas las ramas: se dibuja una vez, debajo de ellas.

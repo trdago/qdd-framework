@@ -304,10 +304,16 @@ async function datosDeLaLinea($, nuevo) {
 }
 
 // ── Flujos (RFC 0012, ampliación) ──────────────────────────────────────────────────────────────────────────────────
-// Cada flujo del proyecto tiene su pestaña. qdd lo dibuja para el ancho de la pestaña ('qdd flujo ver') solo cuando el
-// flujo o el ancho cambian; el panel muestra las líneas, y materializa solo las que no estaban.
-const PANE_FLUJO = 'qdd-flujo-'
+// Todos los flujos van en una sola pestaña, «Flujos» (pedido de la persona, 2026-11-07: con 20 flujos de prueba, una
+// pestaña por flujo era inmanejable, y cerrarlas también). Arriba, un mapa de todos con sus pruebas; al elegir uno se
+// dibuja, y ‹ › pasan al anterior y al siguiente. qdd lo dibuja para el ancho de la pestaña ('qdd flujo ver') solo
+// cuando el flujo o el ancho cambian; el panel muestra las líneas, y materializa solo las que no estaban.
+const PANE_FLUJOS = 'qdd-flujos'
+const TITULO_FLUJOS = 'Flujos'
+const PANE_FLUJO = 'qdd-flujo-' // la pestaña de un flujo de las versiones anteriores: se cierra sola
 let flujos = []
+let flujoActual = '' // el flujo que se dibuja; '' muestra el mapa
+let pestanasViejasCerradas = false
 let conoceFlujos = false // un qdd sin flujos no los trae: no se ofrece crear uno
 let flujosLeidos = false // la primera lista no abre nada: lo que ya estaba no le quita lugar a la conversación
 const dibujos = new Map() // id → { huella, ancho, lineas, nombre, descripcion, aviso }
@@ -316,20 +322,103 @@ const dibujandoFlujo = new Set() // id|huella|ancho que ya se pidió
 async function aplicarFlujos($, lista) {
   const antes = flujos
   flujos = lista
-  const abrir = flujosLeidos ? lista.filter((f) => antes.find((x) => x.id === f.id)?.huella !== f.huella) : []
+  const cambiados = flujosLeidos ? lista.filter((f) => antes.find((x) => x.id === f.id)?.huella !== f.huella) : []
   flujosLeidos = true
-  for (const f of abrir) await $.ui.open({ id: PANE_FLUJO + f.id, title: f.nombre })
+  await cerrarPestanasViejas($, lista)
   for (const f of antes) {
     if (lista.some((x) => x.id === f.id)) continue
     dibujos.delete(f.id)
     ediciones.delete(f.id)
-    await $.ui.close({ id: PANE_FLUJO + f.id }).catch(() => {})
+    if (flujoActual === f.id) flujoActual = ''
   }
+  if (cambiados.length === 0) return
+  flujoActual = cambiados.at(-1).id
+  await $.ui.open({ id: PANE_FLUJOS, title: TITULO_FLUJOS })
+}
+
+// cerrarPestanasViejas: una versión anterior abría una pestaña por flujo; se cierran una vez, al leer la lista.
+async function cerrarPestanasViejas($, lista) {
+  if (pestanasViejasCerradas) return
+  pestanasViejasCerradas = true
+  for (const f of lista) await $.ui.close({ id: PANE_FLUJO + f.id }).catch(() => {})
 }
 
 async function abrirFlujos($) {
-  if (flujos.length === 0) await abrirFlujoNuevo($, PANE)
-  for (const f of flujos) await $.ui.open({ id: PANE_FLUJO + f.id, title: f.nombre })
+  if (flujos.length === 0) return abrirFlujoNuevo($, PANE)
+  await $.ui.open({ id: PANE_FLUJOS, title: TITULO_FLUJOS })
+}
+
+function irAFlujo($, id) {
+  flujoActual = id
+  $.ui.invalidate('ui.render')
+}
+
+// flujoElegido: con un solo flujo no hay mapa que elegir; con más, el que se eligió si sigue en la lista.
+function flujoElegido() {
+  if (flujos.length === 1) return flujos[0]
+  return flujos.find((f) => f.id === flujoActual)
+}
+
+function pruebasDeFlujo(f) {
+  const p = f.pruebas
+  if (!p) return ''
+  const partes = [['✓', p.pasa], ['✗', p.falla], ['☐', p.pendiente]].filter(([, n]) => n).map(([s, n]) => s + n)
+  return partes.length ? ' · ' + partes.join(' ') : ''
+}
+
+function vistaFlujos($, Box, Text, Button, Input, Select, ancho) {
+  if (flujos.length === 0) {
+    return Box({
+      flexDirection: 'column',
+      children: [
+        Text({ key: 'fl-sin', dimColor: true, wrap: 'wrap', children: ['Este proyecto todavía no tiene flujos.'] }),
+        Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJOS) }),
+        ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE_FLUJOS),
+      ],
+    })
+  }
+  const f = flujoElegido()
+  if (!f) return mapaDeFlujos($, Box, Text, Button, Input)
+  return Box({ flexDirection: 'column', children: [...navegacionDeFlujos($, Box, Text, Button, f), dibujarFlujo($, Box, Text, Button, Input, Select, f.id, ancho)] })
+}
+
+// mapaDeFlujos: cada flujo en una fila, con sus nodos, sus pruebas y lo que tiene por enviar; un clic lo abre.
+function mapaDeFlujos($, Box, Text, Button, Input) {
+  const filas = flujos.map((f, i) => {
+    const tecla = i < 9 ? String(i + 1) : ''
+    const detalle = f.problema ? ' · ⚠ ' + f.problema : ' · ' + f.nodos + ' nodos' + pruebasDeFlujo(f) + (f.por_enviar ? ' · ' + f.por_enviar + ' por enviar' : '')
+    return Button({ key: 'fl-ir-' + f.id, label: (tecla ? tecla + '  ' : '   ') + f.nombre + detalle, ...(tecla ? { hotkey: tecla } : {}), plain: true, onPress: () => irAFlujo($, f.id) })
+  })
+  return Box({
+    flexDirection: 'column',
+    children: [
+      Text({ key: 'fl-mapa-titulo', weight: 'bold', children: [flujos.length + ' flujos · elige uno'] }),
+      Box({ key: 'fl-mapa-lista', flexDirection: 'column', marginTop: 1, children: filas }),
+      Box({ key: 'fl-nuevo-fila', marginTop: 1, children: [Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, dimColor: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJOS) })] }),
+      ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE_FLUJOS),
+    ],
+  })
+}
+
+// navegacionDeFlujos: dónde está entre todos, y cómo pasar al anterior, al siguiente o volver al mapa.
+function navegacionDeFlujos($, Box, Text, Button, f) {
+  if (flujos.length < 2) return []
+  const i = flujos.findIndex((x) => x.id === f.id)
+  const vecino = (paso) => flujos[(i + paso + flujos.length) % flujos.length].id
+  return [
+    Box({
+      key: 'fl-navegar',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      columnGap: 2,
+      children: [
+        Button({ key: 'fl-mapa', label: 'w  ☰ Mapa', hotkey: 'w', plain: true, onPress: () => irAFlujo($, '') }),
+        Button({ key: 'fl-anterior', label: 'p  ‹', hotkey: 'p', plain: true, onPress: () => irAFlujo($, vecino(-1)) }),
+        Text({ key: 'fl-posicion', dimColor: true, children: [i + 1 + ' de ' + flujos.length] }),
+        Button({ key: 'fl-siguiente', label: '›  n', hotkey: 'n', plain: true, onPress: () => irAFlujo($, vecino(1)) }),
+      ],
+    }),
+  ]
 }
 
 async function pedirDibujo($, f, ancho, elegido, generacion) {
@@ -385,8 +474,8 @@ function dibujarFlujo($, Box, Text, Button, Input, Select, id, ancho) {
       ...preguntasDelFlujo($, Box, Text, Button, Input, id, s, d, ancho),
       ...nodosDelFlujo($, Box, Text, Button, Input, Select, id, s, d, ancho),
       ...pendientesDelFlujo($, Box, Text, Button, id, s, d, ancho),
-      Box({ key: 'fl-nuevo-fila', marginTop: 1, children: [Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, dimColor: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJO + id) })] }),
-      ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE_FLUJO + id),
+      Box({ key: 'fl-nuevo-fila', marginTop: 1, children: [Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, dimColor: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJOS) })] }),
+      ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE_FLUJOS),
     ],
   })
 }
@@ -468,7 +557,7 @@ function cambiarModo($, id, s, modo, valores = {}) {
   s.aviso = ''
   s.pista = ''
   $.ui.invalidate('ui.render')
-  if (CAMPO_DE_MODO[modo]) enfocarCampo($, PANE_FLUJO + id, s, CAMPO_DE_MODO[modo])
+  if (CAMPO_DE_MODO[modo]) enfocarCampo($, PANE_FLUJOS, s, CAMPO_DE_MODO[modo])
 }
 
 // Sin esto lo que se escribe se va al chat: un clic en un botón no le da las teclas a la pestaña, y el campo necesitaría
@@ -476,7 +565,7 @@ function cambiarModo($, id, s, modo, valores = {}) {
 const CAMPO_DE_MODO = { comentar: 'fl-texto', item: 'fl-item-texto', preguntar: 'fl-pregunta', 'preguntar-flujo': 'fl-pregunta-flujo', despues: 'fl-nombre', rama: 'fl-nombre', editar: 'fl-nombre' }
 
 async function enfocarCampo($, sitio, s, key) {
-  const titulo = sitio === PANE ? TITULO : flujos.find((f) => PANE_FLUJO + f.id === sitio)?.nombre || sitio
+  const titulo = sitio === PANE ? TITULO : sitio === PANE_FLUJOS ? TITULO_FLUJOS : sitio
   const r = await $.ui
     .open({ id: sitio, title: titulo, focus: true })
     .then(() => $.ui.focus({ requestId: sitio, key }))
@@ -740,7 +829,7 @@ async function crearFlujo($, nombre) {
       flujoNuevo.aviso = sinMarcaDeQdd(r.stderr) || 'qdd no pudo crear el flujo'
       return
     }
-    flujoNuevo.hecho = '✓ «' + JSON.parse(r.stdout).nombre + '» ya es una pestaña, arriba'
+    flujoNuevo.hecho = '✓ «' + JSON.parse(r.stdout).nombre + '» ya está en la pestaña Flujos'
     flujoNuevo.pista = ''
     await releer($)
   } catch (err) {
@@ -774,7 +863,7 @@ function formularioFlujoNuevo($, Box, Text, Button, Input, sitio) {
       key: 'fl-nuevo-form',
       flexDirection: 'column',
       children: [
-        Text({ key: 'fl-nuevo-ayuda', dimColor: true, wrap: 'wrap', children: ['Un flujo muestra cómo funciona algo, con nodos. Parte con un nodo y lo sigues desde su pestaña.'] }),
+        Text({ key: 'fl-nuevo-ayuda', dimColor: true, wrap: 'wrap', children: ['Un flujo muestra cómo funciona algo, con nodos. Parte con un nodo y lo sigues desde la pestaña Flujos.'] }),
         ...(flujoNuevo.aviso ? [Text({ key: 'fl-nuevo-aviso', color: COLOR.falla, wrap: 'wrap', children: ['⚠ ' + flujoNuevo.aviso] })] : []),
         ...(flujoNuevo.pista ? [Text({ key: 'fl-nuevo-pista', color: COLOR.espera, wrap: 'wrap', children: [flujoNuevo.pista] })] : []),
         Input({ key: 'fl-nuevo-nombre', label: 'Nombre', placeholder: 'qué explica este flujo', submitLabel: 'crear', onSubmit: (v) => crearFlujo($, v) }),
@@ -3234,6 +3323,7 @@ export function register(on) {
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
     Client = cliente || null
+    if (e.requestId === PANE_FLUJOS) return vistaFlujos($, Box, Text, Button, Input, Select, e.props.bodyColumns || 40)
     if (String(e.requestId).startsWith(PANE_FLUJO)) return dibujarFlujo($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_FLUJO.length), e.props.bodyColumns || 40)
     if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length))
     if (e.requestId !== PANE) return next(e)
