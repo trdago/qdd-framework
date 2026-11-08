@@ -65,14 +65,16 @@ qdd reportar llave        # muestra la llave pública de esta instalación
 
 - **El relay rechaza** con 400 una firma que no valida, un `en` a más de 10 minutos de su hora, un campo de más o un
   tamaño pasado.
-- **Topes:** 5 reportes por día y por instalación, y un tope global por hora. Pasado el tope responde 429 `{"error":"tope"}`.
-- **Si lo acepta,** responde 201 `{"id":"REP-…"}`.
+- **Topes:** 5 reportes por día y por instalación, y 100 por hora en total. Pasado el tope responde 429 `{"error":"tope"}`.
+- **Si lo acepta,** responde 201 `{"id":"REP-…"}`. La misma firma otra vez responde 200 con el mismo id, sin guardarlo de nuevo ni contarlo para el tope.
 - **Guarda** en una tabla propia: id, huella de la instalación (sha256 de la llave, no la llave), tipo, título, detalle,
   versión, so y cuándo llegó. No guarda la IP.
 
 `GET <relay>/functions/v1/reportes?desde=<id>` devuelve los reportes **solo a una instalación lectora**: la llave
 pública del PC de quien mantiene QDD, que la persona agrega a un secreto del relay (`REPORTES_LECTORES`). El pedido va
-firmado con esa llave, sobre «reportes|desde|en».
+firmado con esa llave, sobre «reportes|desde|en», con las cabeceras `x-qdd-instalacion`, `x-qdd-en` y `x-qdd-firma`.
+Devuelve hasta 100 por vez, en orden; 403 `{"error":"no-lector"}` si la llave no está en el secreto. Lo implementó
+qdd-movile (commit 06c5eb8); la llave lectora sale de `qdd reportar llave`.
 
 ### En el repositorio de QDD: una fuente más de la cola
 

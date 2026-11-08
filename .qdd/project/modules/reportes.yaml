@@ -1,6 +1,6 @@
 id: reportes
 nombre: Reportar a QDD sin GitHub (qdd reportar)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/reportes
     - cli/cmd/reportar.go
@@ -15,12 +15,12 @@ objetivo_tecnologico:
         - 'Destino (decisión de la persona, 2026-11-08): el relay propio de QDD (el de QDD Móvil); la cola de mejoras lo lee como una fuente más (RFC 0024).'
         - 'Quién envía (decisión de la persona): cualquier instalación, con su propia llave y sin cuenta; el relay pone el tope (5 por día y por llave, más uno global por hora).'
         - 'Qué se envía (decisión de la persona): limpio y con confirmación; la persona ve el texto exacto y lo envía con su «sí», y una IA solo lo prepara.'
-        - La limpieza es más suave que la de incidentes: un reporte lo escribe una persona, así que quedan sus comillas, nombres de archivo y correos (puede dejar un contacto), y salen credenciales, valores del baúl, la ruta del proyecto, la carpeta del usuario y su nombre.
+        - 'La limpieza es más suave que la de incidentes: un reporte lo escribe una persona, así que quedan sus comillas, nombres de archivo y correos (puede dejar un contacto), y salen credenciales, valores del baúl, la ruta del proyecto, la carpeta del usuario y su nombre.'
         - El reporte solo agrega la versión de qdd y el sistema (linux/amd64); ni el nombre del proyecto ni la carpeta.
         - La firma se calcula al enviar, sobre «formato|instalacion|en|tipo|titulo|detalle|version|so», porque el relay rechaza un «en» a más de 10 minutos.
         - El relay sale de <QDD_HOME>/remoto/relay.json o, sin él, del directorio firmado de fábrica; nunca de una variable que una IA pueda cambiar.
     invariantes:
-        - Nada se envía sin el «sí» de la persona: en su terminal, o un pedido DePersona que el modo goal no lanza y que «qdd reportar enviar» comprueba con QDD_PEDIDO.
+        - 'Nada se envía sin el «sí» de la persona: en su terminal, o un pedido DePersona que el modo goal no lanza y que «qdd reportar enviar» comprueba con QDD_PEDIDO.'
         - Lo que viaja es exactamente lo que se mostró; la llave privada nunca sale de la máquina ni se imprime.
         - Las pruebas nunca hablan con el relay real ni tocan el QDD_HOME real.
 pruebas:
@@ -31,3 +31,4 @@ fuentes:
     - cli/pkg/reportes
     - cli/cmd/reportar.go
 ultima_revision: "2026-11-08"
+revisado_en_commit: fd1a57831e1d

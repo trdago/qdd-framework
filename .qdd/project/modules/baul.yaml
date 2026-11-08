@@ -37,4 +37,4 @@ fuentes:
     - cli/pkg/baul/usar.go
     - cli/pkg/baul/permisos.go
 ultima_revision: "2026-11-08"
-revisado_en_commit: 5dfe3b4fe4e2
+revisado_en_commit: fd1a57831e1d
