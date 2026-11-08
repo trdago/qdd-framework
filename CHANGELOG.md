@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.44] - 2026-11-08
+
+### Added
+- Esperas que se responden solas: `qdd estado set … espera --verifica npm:<paquete>@<versión>|pr:<n>|tag:<tag>|pedido:<n>|archivo:<ruta>` (también `verifica` en `qdd_estado`). `qdd estado verificar` las revisa (el panel cada minuto con `--si-toca`, cada 10 min por espera), y cuando se cumple la celda pasa sola a ✅ con su evidencia. La espera muestra «⟳ se responde sola» y no se le pregunta a la persona. Doctor avisa de las que fallan (VRF-01) o no se entienden (VRF-02).
+
 ## [2.10.0-rc.43] - 2026-11-08
 
 ### Changed

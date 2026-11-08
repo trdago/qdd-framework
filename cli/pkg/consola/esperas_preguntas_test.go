@@ -383,3 +383,19 @@ func sacarDeLaCola(t *testing.T, root, id string) {
 		t.Fatal(err)
 	}
 }
+
+// Pedido de la persona (2026-11-08): un ⏳ que qdd revisa solo (con verificación) no se le pregunta, ni cuenta como una
+// nota suya sin pregunta: se responde solo.
+func TestEspera_LaQueSeRespondeSolaNoSePregunta(t *testing.T) {
+	root := conGoal(t)
+	c := estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: "¿Ya está en npm?", DeQuien: "la persona", Verifica: "npm:qdd-framework@2.10.0-rc.43"}
+	if err := estado.Set(root, c, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if qs := delEstado(root); len(qs) != 0 {
+		t.Fatalf("se responde sola: no es pregunta para la persona: %+v", qs)
+	}
+	if sin := EsperasSinPregunta(root, enCola); len(sin) != 0 {
+		t.Fatalf("tampoco es una nota suya sin pregunta: %+v", sin)
+	}
+}

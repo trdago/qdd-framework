@@ -107,6 +107,10 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) == "" {
 				continue
 			}
+			// Uno con verificación se responde solo (estado/verificar.go): no se le pregunta a la persona.
+			if c.Verifica != "" {
+				continue
+			}
 			if cubiertaPorPedido(bloqueo, abiertas) || respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
 				continue
 			}
@@ -143,7 +147,7 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
 			bloqueo := strings.TrimSpace(c.Bloqueo)
-			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" {
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" || c.Verifica != "" {
 				continue
 			}
 			if cubiertaPorPedido(bloqueo, abiertas) || respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {

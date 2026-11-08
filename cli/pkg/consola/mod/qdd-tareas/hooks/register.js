@@ -3178,6 +3178,25 @@ async function pedirCicloMejoras($) {
   $.ui.notify('🔁 Mejoras nuevas para trabajar: ' + (c.tareas || []).join(', '), { title: 'qdd' }).catch((err) => $.ui.log('no se notificó: ' + String(err?.message ?? err)))
 }
 
+// Esperas que se responden solas (pedido de la persona, 2026-11-08): en el mismo latido de la cola de mejoras, el panel
+// pide «qdd estado verificar --si-toca» y qdd decide qué ⏳ toca revisar (cada 10 min). Un qdd sin el comando deja de
+// intentarlo. Lo cumplido ya queda en el estado, que el panel vuelve a leer.
+const verificacion = { soportada: true, corriendo: false }
+
+async function verificarEsperas($) {
+  if (!interactiva || !verificacion.soportada || verificacion.corriendo) return
+  verificacion.corriendo = true
+  try {
+    const bin = await binario($)
+    const r = await $.process.run([bin, 'estado', 'verificar', '--si-toca', '--json'], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0 && /unknown command|unknown flag/.test(r.stderr || '')) verificacion.soportada = false
+  } catch (err) {
+    $.ui.log('qdd: no se verificaron las esperas: ' + String(err?.message ?? err), { to: 'debug' })
+  } finally {
+    verificacion.corriendo = false
+  }
+}
+
 // ── Modo goal (RFC 0015) ─────────────────────────────────────────────────────────────────────────────────────────────
 // Con el modo activo, cada GOAL_MS la sesión interactiva pide «qdd goal ciclo» y le dice cuánto lleva en silencio y si
 // está haciendo algo. Todo lo decide qdd, sin modelos: qué elegir, cuándo recordar y cuándo detenerse. Si devuelve un
@@ -3293,6 +3312,7 @@ export function register(on) {
       })
       $.clock.every(MEJORAS_MS, async () => {
         await cicloMejoras($)
+        await verificarEsperas($)
       })
       $.clock.every(GOAL_MS, async () => {
         await cicloGoal($)
