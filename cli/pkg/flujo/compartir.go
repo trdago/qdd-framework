@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"html"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -117,7 +118,22 @@ var (
 	archivoCSS string
 	//go:embed archivo/flujo.js
 	archivoJS string
+	//go:embed archivo/fuentes/JetBrainsMono-Regular.woff2
+	fuenteNormal []byte
+	//go:embed archivo/fuentes/JetBrainsMono-Medium.woff2
+	fuenteMedia []byte
+	//go:embed archivo/fuentes/JetBrainsMono-Bold.woff2
+	fuenteNegrita []byte
+
+	// estiloDelArchivo es la fuente de la marca (JetBrains Mono 400/500/700, OFL, recortada) y el estilo, en un solo
+	// bloque: el archivo no carga nada de afuera.
+	estiloDelArchivo = caraDeFuente(400, fuenteNormal) + caraDeFuente(500, fuenteMedia) + caraDeFuente(700, fuenteNegrita) + archivoCSS
 )
+
+func caraDeFuente(peso int, datos []byte) string {
+	return "@font-face {\n  font-family: \"JetBrains Mono\";\n  font-style: normal;\n  font-weight: " + strconv.Itoa(peso) +
+		";\n  font-display: swap;\n  src: url(data:font/woff2;base64," + base64.StdEncoding.EncodeToString(datos) + ") format(\"woff2\");\n}\n"
+}
 
 func hashCSP(s string) string {
 	suma := sha256.Sum256([]byte(s))
@@ -130,12 +146,12 @@ func ArchivoHTML(foto Foto) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	csp := "default-src 'none'; script-src " + hashCSP(archivoJS) + "; style-src " + hashCSP(archivoCSS) +
-		"; img-src data:; base-uri 'none'; form-action 'none'"
+	csp := "default-src 'none'; script-src " + hashCSP(archivoJS) + "; style-src " + hashCSP(estiloDelArchivo) +
+		"; font-src data:; img-src data:; base-uri 'none'; form-action 'none'"
 	r := strings.NewReplacer(
 		"{{CSP}}", csp,
 		"{{TITULO}}", html.EscapeString(foto.Nombre),
-		"{{CSS}}", archivoCSS,
+		"{{CSS}}", estiloDelArchivo,
 		"{{JS}}", archivoJS,
 		"{{DATOS}}", string(datos),
 	)

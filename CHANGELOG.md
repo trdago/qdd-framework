@@ -10,6 +10,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - Flujos versionados y con plantilla (RFC 0025, fase 1). Cada cambio sube una revisión con su autor en `<flujo>.historial.jsonl` (`qdd flujo historial`). `qdd flujo version` guarda una versión con nombre, `comparar` dice qué nodos cambiaron entre dos y `volver` deja el flujo como en una, en una revisión nueva. La plantilla (`proceso`, `web`, `datos`, `agentes`; `qdd flujo plantillas`) trae los tipos de nodo y el nombre de los niveles N1 · N2 · N3. Doctor avisa de un flujo editado a mano cuyo historial no llega a su revisión (FLU-02), y `--fix` lo anota.
 - Grupos con clase: `qdd flujo grupo <flujo> "<nombre>" --clase fase|cola|ambiente…` le da clase y descripción a un grupo de nodos («[fase] Ingreso»).
 - `qdd flujo compartir <flujo> [--para <nombre>]` escribe un HTML de un solo archivo para conversar el flujo con alguien sin QDD. Trae N1 · N2 · N3, grupos como marcos, la leyenda de la plantilla, un recorrido de la primera vez, el detalle al tocar un paso y enlaces `#n2/<nodo>`. Va limpio de rutas y secretos, sin nada de afuera y con CSP por hash. Por ahora es de solo lectura: las propuestas en vivo llegan con la fase 3.
+- El archivo de `qdd flujo compartir` lleva la marca de QDD y todo adentro: isotipo «▶_», paleta Gruvbox oscura, JetBrains Mono embebida, esquinas de 2 px sin sombras y un ícono SVG por tipo de nodo. Los íconos de las plantillas ya no usan emojis.
 
 ## [2.10.0-rc.44] - 2026-11-08
 

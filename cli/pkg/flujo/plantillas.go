@@ -47,17 +47,17 @@ var Plantillas = []Plantilla{
 		resultadoComun,
 	}},
 	{ID: "datos", Nombre: "Flujo de datos", Niveles: [3]string{"Fuentes", "Transformaciones", "Detalle"}, Clases: []string{"ambiente", "capa", "cola"}, Tipos: []TipoNodo{
-		{ID: "fuente", Nombre: "fuente", Icono: "⛁", Explica: "De dónde salen los datos."},
-		{ID: "transformacion", Nombre: "transformación", Icono: "⚙", Explica: "Lo que se les hace a los datos."},
-		{ID: "regla", Nombre: "regla", Icono: "⚖", Explica: "Una condición que los datos tienen que cumplir."},
-		{ID: "destino", Nombre: "destino", Icono: "⛃", Explica: "Dónde quedan los datos."},
+		{ID: "fuente", Nombre: "fuente", Icono: "◓", Explica: "De dónde salen los datos."},
+		{ID: "transformacion", Nombre: "transformación", Icono: "↻", Explica: "Lo que se les hace a los datos."},
+		{ID: "regla", Nombre: "regla", Icono: "◇", Explica: "Una condición que los datos tienen que cumplir."},
+		{ID: "destino", Nombre: "destino", Icono: "▼", Explica: "Dónde quedan los datos."},
 		resultadoComun,
 	}},
 	{ID: "agentes", Nombre: "Sistema de agentes", Niveles: [3]string{"Agentes", "Herramientas", "Mensajes"}, Clases: []string{"equipo", "entorno", "fase"}, Tipos: []TipoNodo{
 		{ID: "agente", Nombre: "agente", Icono: "◉", Explica: "Un agente con su propio objetivo."},
-		{ID: "herramienta", Nombre: "herramienta", Icono: "🔧", Explica: "Algo que un agente puede usar."},
+		{ID: "herramienta", Nombre: "herramienta", Icono: "◆", Explica: "Algo que un agente puede usar."},
 		{ID: "memoria", Nombre: "memoria", Icono: "▣", Explica: "Lo que se guarda entre pasos."},
-		{ID: "persona", Nombre: "persona", Icono: "☺", Explica: "Una persona que decide o responde."},
+		{ID: "persona", Nombre: "persona", Icono: "◍", Explica: "Una persona que decide o responde."},
 		resultadoComun,
 	}},
 }

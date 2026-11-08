@@ -224,6 +224,8 @@ qdd flujo invitaciones            # las vivas, su rol, su vencimiento y cuántas
 
 ### En el navegador del cliente y del experto
 
+- **Con la marca de QDD y todo adentro** (pedido de la persona): isotipo «▶_», tokens Gruvbox oscuros, JetBrains Mono
+  embebida, esquinas de 2 px sin sombras y un ícono SVG por tipo de nodo. No carga nada de afuera.
 - **Didáctico:** la leyenda de la plantilla a la vista, un recorrido corto la primera vez y nombres en vez de ids. Cada
   acción dice qué va a pasar: «tu propuesta le llega al equipo; la verás integrada cuando la aprueben».
 - **Las mismas operaciones que QDD Móvil** (`flujo.Operacion`), sin las internas (marcar pruebas, deshacer, enviar),

@@ -5,7 +5,7 @@
   // Todo el texto entra con textContent: nada de la foto se interpreta como HTML.
 
   var SVG = 'http://www.w3.org/2000/svg';
-  var ANCHO = 196, ALTO = 58, SEP_X = 36, SEP_Y = 62, MARGEN = 28, POR_LINEA = 24;
+  var ANCHO = 216, ALTO = 64, SEP_X = 36, SEP_Y = 62, MARGEN = 28, POR_LINEA = 22;
 
   var foto = JSON.parse(document.getElementById('foto').textContent);
   var tipos = {};
@@ -22,6 +22,34 @@
     return '[' + g.clase + '] ' + nombre;
   }
   var estado = { nivel: hayGrupos || foto.nodos.length >= 15 ? 1 : 3, elegido: '' };
+
+  // Íconos de la marca: trazos de 1,5 en una grilla de 16, del color del texto que los rodea. Uno por tipo de nodo de
+  // cada plantilla, y «[ ]» para un grupo.
+  var ICONOS = {
+    'paso': 'M2 4h12v8H2z',
+    'resultado': 'M8 2a6 6 0 1 0 0.01 0z',
+    'pagina': 'M3 1.5h6.5L13 5v9.5H3z M9.5 1.5V5H13',
+    'seccion': 'M2 2h12v12H2z M2 6h12 M2 10h12',
+    'componente': 'M2 4h12v8H2z M5 8h6',
+    'enlace': 'M4 12L12 4 M6.5 4H12v5.5',
+    'fuente': 'M3 4c0-3 10-3 10 0v8c0 3-10 3-10 0z M3 4c0 3 10 3 10 0',
+    'transformacion': 'M13 8a5 5 0 1 1-1.5-3.5 M12 1.5v3h-3',
+    'regla': 'M8 2l6 6-6 6-6-6z',
+    'destino': 'M2 9h3.5l1 2h3l1-2H14v5H2z M8 2v6 M5.5 5.5L8 8l2.5-2.5',
+    'agente': 'M3 5h10v8H3z M6 9h.01 M10 9h.01 M8 5V2.5',
+    'herramienta': 'M10.5 2a3.5 3.5 0 0 0-3.2 5L2.5 11.8l1.7 1.7L9 8.7a3.5 3.5 0 0 0 5-3.2l-2 1-2-2z',
+    'memoria': 'M3 3h10v10H3z M6 6h4v4H6z M6 1v2 M10 1v2 M6 13v2 M10 13v2',
+    'persona': 'M8 2.5a2.5 2.5 0 1 0 0.01 0z M3 14c0-3.5 10-3.5 10 0',
+    grupo: 'M5.5 2H2v12h3.5 M10.5 2H14v12h-3.5',
+    vuelta: 'M5 3L2 6l3 3 M2 6h8a4 4 0 0 1 0 8H7',
+    niveles: 'M2 3h12 M4 8h8 M6 13h4'
+  };
+
+  function icono(clave, x, y, tam) {
+    var g = svg('svg', { 'class': 'icono', viewBox: '0 0 16 16', width: tam, height: tam, x: x, y: y, 'aria-hidden': 'true' });
+    g.appendChild(svg('path', { d: ICONOS[clave] || ICONOS.paso }));
+    return g;
+  }
 
   function $(id) { return document.getElementById(id); }
 
@@ -54,7 +82,8 @@
     var marca = 'r' + foto.revision;
     if (foto.version) marca = 'v' + foto.version.n + ' «' + foto.version.nombre + '» · ' + marca;
     $('version').textContent = marca;
-    $('pie').textContent = 'Generado con QDD el ' + new Date(foto.generado).toLocaleString() + '.';
+    var cuando = new Date(foto.generado).toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' });
+    $('pie').textContent = 'Generado con QDD el ' + cuando + '.';
   }
 
   function botonesDeNivel() {
@@ -75,34 +104,24 @@
 
   function leyenda() {
     var ul = $('leyenda');
-    foto.plantilla.tipos.forEach(function (t) {
+    function entrada(clave, titulo, explica) {
       var li = el('li');
-      li.appendChild(el('span', '', t.icono));
-      li.appendChild(el('strong', '', t.nombre));
-      li.appendChild(el('small', '', t.explica));
+      li.appendChild(icono(clave, 0, 0, 18));
+      li.appendChild(el('strong', '', titulo));
+      li.appendChild(el('small', '', explica));
       ul.appendChild(li);
-    });
+    }
+    foto.plantilla.tipos.forEach(function (t) { entrada(t.id, t.nombre, t.explica); });
     var niveles = foto.plantilla.niveles;
-    var li = el('li');
-    li.appendChild(el('span', '', '⇕'));
-    li.appendChild(el('strong', '', 'N1 · N2 · N3'));
-    li.appendChild(el('small', '', 'N1 muestra ' + niveles[0].toLowerCase() + ', N2 suma ' + niveles[1].toLowerCase() +
-      ' y N3 suma ' + niveles[2].toLowerCase() + '. Una caja azul junta varios pasos: tócala para abrirla.'));
-    ul.appendChild(li);
+    entrada('niveles', 'N1 · N2 · N3', 'N1 muestra ' + niveles[0].toLowerCase() + ', N2 suma ' + niveles[1].toLowerCase() +
+      ' y N3 suma ' + niveles[2].toLowerCase() + '.');
     var usadas = {};
     foto.nodos.forEach(function (n) { if (n.grupo) usadas[(grupos[n.grupo] || {}).clase || 'grupo'] = true; });
     if (Object.keys(usadas).length) {
-      var marco = el('li');
-      marco.appendChild(el('span', '', '[ ]'));
-      marco.appendChild(el('strong', '', Object.keys(usadas).join(', ')));
-      marco.appendChild(el('small', '', 'Un marco junta los pasos de una misma ' + Object.keys(usadas).join(' o ') + '.'));
-      ul.appendChild(marco);
+      entrada('grupo', Object.keys(usadas).join(', '), 'Un marco junta los pasos de una misma ' + Object.keys(usadas).join(' o ') +
+        '. En N1 es una caja: tócala para abrirla.');
     }
-    var vuelve = el('li');
-    vuelve.appendChild(el('span', '', '⤺'));
-    vuelve.appendChild(el('strong', '', 'línea ámbar'));
-    vuelve.appendChild(el('small', '', 'El camino vuelve a un punto anterior.'));
-    ul.appendChild(vuelve);
+    entrada('vuelta', 'línea punteada', 'El camino vuelve a un punto anterior.');
   }
 
   // ---- disposición: capas por el camino más largo, sin contar las vueltas atrás ----
@@ -270,7 +289,7 @@
   function arista(a, b, k) {
     if (k) {
       var x = 4 + 10 * k, sale = a.x + 30 + 6 * k, entra = b.x + ANCHO - 30 - 6 * k;
-      var abajo = a.y + ALTO + 20 + 4 * k, arriba = b.y - 26 - 4 * k;
+      var abajo = a.y + ALTO + 20 + 4 * k, arriba = b.y - 40 - 4 * k;
       var p = 'M' + sale + ',' + (a.y + ALTO) + ' L' + sale + ',' + abajo + ' L' + x + ',' + abajo + ' L' + x + ',' + arriba +
         ' L' + entra + ',' + arriba + ' L' + entra + ',' + (b.y - 2);
       var camino = svg('path', { d: p, 'class': 'arista vuelve', 'marker-end': 'url(#punta-vuelta)' });
@@ -294,22 +313,20 @@
     if (estado.elegido === n.id) clases.push('elegido');
     var g = svg('g', { 'class': clases.join(' '), transform: 'translate(' + p.x + ',' + p.y + ')', tabindex: 0, role: 'button' });
     g.setAttribute('aria-label', n.nombre);
-    var radio = tipo === 'resultado' ? ALTO / 2 : 10;
+    var radio = tipo === 'resultado' ? ALTO / 2 : 2; // la firma de la marca: esquinas de 2 px
     g.appendChild(svg('rect', { 'class': 'forma', width: ANCHO, height: ALTO, rx: radio, ry: radio }));
-    var icono = n.grupo ? '▦' : (tipos[tipo] || {}).icono || '▭';
-    var ic = svg('text', { x: 14, y: ALTO / 2 + 5, 'class': 'icono' });
-    ic.textContent = icono;
-    g.appendChild(ic);
+    g.appendChild(icono(n.grupo ? 'grupo' : tipo, 12, ALTO / 2 - 8, 16));
     var nombre = n.grupo ? etiquetaDeGrupo(n.nombre) : n.nombre;
-    var renglones = lineas(nombre, n.resumen ? 1 : 2);
-    var y0 = ALTO / 2 + 4 - (renglones.length - 1) * 8 - (n.resumen ? 6 : 0);
+    var renglones = lineas(nombre, 2);
+    var total = renglones.length + (n.resumen ? 1 : 0);
+    var y0 = ALTO / 2 + 4 - (total - 1) * 7.5;
     renglones.forEach(function (r, i) {
-      var t = svg('text', { x: 36, y: y0 + i * 16 });
+      var t = svg('text', { x: 36, y: y0 + i * 15 });
       t.textContent = r;
       g.appendChild(t);
     });
     if (n.resumen) {
-      var s = svg('text', { x: 36, y: y0 + 17, 'class': 'resumen' });
+      var s = svg('text', { x: 36, y: y0 + renglones.length * 15, 'class': 'resumen' });
       s.textContent = lineas(n.resumen, 1)[0];
       g.appendChild(s);
     }
@@ -372,7 +389,8 @@
     mostrarDetalle();
     anotarEnlace();
     var g = document.querySelector('.nodo.elegido');
-    if (g && g.scrollIntoView) g.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    var quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (g && g.scrollIntoView) g.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: quieto ? 'auto' : 'smooth' });
   }
 
   function fichas(titulo, ids) {
@@ -405,8 +423,13 @@
     cerrar.setAttribute('aria-label', 'Cerrar');
     cerrar.addEventListener('click', function () { estado.elegido = ''; dibujar(); mostrarDetalle(); anotarEnlace(); });
     panel.appendChild(cerrar);
-    var t = tipos[n.tipo] || { icono: '▭', nombre: n.tipo, explica: '' };
-    panel.appendChild(el('p', 'tipo', t.icono + ' ' + t.nombre + ' · N' + n.nivel + ' ' + foto.plantilla.niveles[n.nivel - 1]));
+    var t = tipos[n.tipo] || { nombre: n.tipo, explica: '' };
+    var tipo = el('p', 'tipo');
+    var dibujo = svg('svg', { 'class': 'icono', viewBox: '0 0 16 16', 'aria-hidden': 'true' });
+    dibujo.appendChild(svg('path', { d: ICONOS[n.tipo] || ICONOS.paso }));
+    tipo.appendChild(dibujo);
+    tipo.appendChild(document.createTextNode(t.nombre + ' · N' + n.nivel + ' ' + foto.plantilla.niveles[n.nivel - 1]));
+    panel.appendChild(tipo);
     panel.appendChild(el('h2', '', n.nombre));
     if (n.grupo) {
       var g = grupos[n.grupo] || {};
@@ -423,7 +446,7 @@
 
   var pasos = [
     ['Esto es un flujo', 'Cada caja es un paso y cada círculo, un inicio o un final. Las flechas dicen qué viene después.'],
-    ['Tres niveles de detalle', 'N1 muestra lo principal. N2 y N3 suman detalle. Una caja azul junta varios pasos: tócala para abrirla.'],
+    ['Tres niveles de detalle', 'N1 muestra lo principal. N2 y N3 suman detalle. Una caja punteada junta varios pasos: tócala para abrirla.'],
     ['Toca un paso', 'Al tocarlo ves qué es, de dónde viene y qué sigue. Abajo está la leyenda con cada tipo de paso.']
   ];
   var paso = 0;
