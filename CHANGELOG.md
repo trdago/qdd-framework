@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.54] - 2026-11-09
+
+### Fixed
+- El panel sin trabajo ya no gasta CPU (FND-190). Con 8 paneles abiertos se iba cerca de medio núcleo constante, que se notaba como caídas de FPS en un juego. El candado del latido de cada panel despertaba a todos los demás paneles de la máquina, y cada relectura parseaba `estado.yaml` unas cinco veces. Ahora un panel solo despierta por los archivos de su proyecto, y el estado se parsea una vez mientras no cambie: la relectura bajó de 31 ms a 3,5 ms.
+
 ## [2.10.0-rc.53] - 2026-11-09
 
 ### Added
