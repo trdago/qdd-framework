@@ -111,6 +111,7 @@ objetivo_tecnologico:
         - 'Vista Proyectos (RFC 0018): qdd consola proyectos entrega una fila por proyecto del registro, con null para lo que no tiene fuente («sin medir»), y su historial de los últimos 30 días con datos. Solo lee archivos locales: no escribe en ningún proyecto, no corre auditorías ni usa la red, y del proyecto entrega solo el nombre de la carpeta. Un puntaje de otra escala no se compara: es sin medir en la tabla y va marcado en el historial.'
         - 'Reglas atrasadas en la vista Proyectos (pedido de qdd-movile, 2026-11-07): cada fila trae reglas_atrasadas, los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos; null si la carpeta no existe). El panel marca la fila con ⚑ y su detalle dice dónde y que qdd doctor --fix (o --fix --todos) las renueva.'
         - 'La vista Proyectos del panel (tecla y) dibuja esas filas y no decide nada. Se lee al abrirla y con l ↻, sin temporizador ni flujo: cerrada no gasta procesos, y nada le escribe a la IA. Es solo lectura: elegir una fila, con su número (1…9) o un clic, abre su historial. Desde 61 columnas muestra todas; más angosto, proyecto, puntaje y ⏳ y ❌. El motor dibuja la tecla de un botón como «1: » antes del texto, así que la fila reserva ese ancho.'
+        - 'Logrado (rediseño de QDD Móvil elegido por la persona, 2026-11-09: «el historial por día de lo que salió bien»): qdd consola panel --con logrado trae logrado [{tipo pedido|tarea|objetivo|mensaje, id, titulo, en RFC3339 UTC, detalle, salida, origen panel|telefono, motivo, criterio, evidencia, estado}], del más nuevo al más viejo, últimos 14 días, como mucho 60, salida recortada a 2000 runas por el final. Solo lo que salió bien: tareas cerradas (no descartadas) y objetivos cumplidos del estado; pedidos hechos con código 0, que conCola anota al guardarse en <QDD_HOME>/…/logrado (local, como mucho 200 y 14 días, sin repetir por id) porque salen de la cola a los 30 min; del teléfono, un comando hecho es pedido de origen telefono y una instrucción entregada es mensaje. Pedido y vacío sale []; sin --con no sale, para que un cliente anterior no muestre el botón. Si no se puede anotar, solo falta esa entrada.'
     invariantes:
         - 'Lo que qdd le entrega al panel nunca trae una lista ni un mapa null (FND-189, MEJ-045, MEJ-050): las salidas JSON que lee el panel pasan por listas.Marshal, y una prueba de contrato (listas.Nulas) las revisa en un proyecto vacío y en uno con datos. Un elemento null dentro de una lista sí se conserva, porque dice «esta fila no tiene» (los segmentos de una línea del dibujo).'
         - 'Ninguna vista deja el panel en negro (FND-189): cada una se dibuja protegida; si lanza, se ve «✗ La vista X falló» bajo la cabecera, se puede volver al tablero o reintentar, y la falla queda una vez en qdd incidentes panel.'
@@ -179,5 +180,5 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
-ultima_revision: "2026-11-08"
-revisado_en_commit: 6f51c1fc41f1
+ultima_revision: "2026-11-09"
+revisado_en_commit: e74b5a945325

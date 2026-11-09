@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.53] - 2026-11-09
+
+### Added
+- Logrado para QDD Móvil (rediseño elegido por la persona, 2026-11-09): `qdd consola panel --con logrado` trae lo que salió bien en los últimos 14 días. Eso son los pedidos hechos con su salida, las tareas cerradas con su motivo, los objetivos cumplidos con su evidencia y lo que mandaste desde el teléfono con cómo terminó. El relay lo publica pasado por el ocultador. Los pedidos se empiezan a juntar desde esta versión, porque antes salían de la cola a los 30 minutos.
+
 ## [2.10.0-rc.52] - 2026-11-08
 
 ### Changed

@@ -316,6 +316,7 @@ func conTelefono(root string, now time.Time, cambiar func([]Ejecucion) ([]Ejecuc
 		if err != nil {
 			return err
 		}
+		anotarTelefonoLogrado(root, cola)
 		return guardarJSON(ruta, cola)
 	})
 }
