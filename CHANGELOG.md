@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd doctor` revisa que la sesión late (FND-191):** desde una sesión de Claude Code, el grupo de la consola dice si el panel la anota como viva. Si no, explica para qué importa (el baúl y el teléfono) y qué hacer, y si la sesión late en una carpeta de arriba con `.qdd`, la nombra. `--fix` no reinicia la sesión ni el panel: lo dice.
+
 ## [2.10.0-rc.55] - 2026-11-09
 
 ### Corregido

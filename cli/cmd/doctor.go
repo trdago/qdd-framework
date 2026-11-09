@@ -171,6 +171,9 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 		g.Items = append(g.Items, checkModo(projectPath))
 		g.Items = append(g.Items, checkFoto())
 		g.Items = append(g.Items, checkEfectos())
+		if item := checkSesionLate(projectPath, time.Now()); item != nil {
+			g.Items = append(g.Items, item)
+		}
 	}
 	if item := checkRendimiento(); activa || !item.Success {
 		g.Items = append(g.Items, item)
@@ -222,6 +225,10 @@ func repairConsola(projectPath string, g *CheckGroup) {
 		}
 		if item.Name == nombreEfectos {
 			repararEfectos()
+			continue
+		}
+		if item.Name == nombreSesionLate {
+			fmt.Println("  [i] " + item.Error + " (doctor no reinicia la sesión ni el panel)")
 			continue
 		}
 		if item.Name == nombreUso {
