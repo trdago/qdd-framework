@@ -33,18 +33,21 @@ func TestSesionDelFlujo_LaLeeDeLoQuePideElPanel(t *testing.T) {
 	}
 }
 
-func TestLatidoDelFlujo_SinQDDMovilNoEscribeNiEmite(t *testing.T) {
+// FND-191: sin QDD Móvil el flujo no anotaba la sesión, y «qdd baul usar» decía que no latía y nunca dejaba el pedido
+// 🔑 (Windows, rc.54). La sesión viva la usa el baúl, no solo el teléfono: se anota siempre; entregar, solo con teléfono.
+func TestLatidoDelFlujo_SinQDDMovilAnotaLaSesionPeroNoEmite_FND191(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
 	emitir := func([]byte) error {
 		t.Fatal("sin QDD Móvil no hay nada que entregar")
 		return nil
 	}
-	if err := latidoDelFlujo(root, "s", time.Now(), emitir); err != nil {
+	now := time.Now()
+	if err := latidoDelFlujo(root, "s", now, emitir); err != nil {
 		t.Fatal(err)
 	}
-	if consola.HaySesion(root, time.Now()) {
-		t.Fatal("sin QDD Móvil no anota la sesión")
+	if !consola.SesionLate(root, "s", now) {
+		t.Fatal("sin QDD Móvil la sesión igual late: el baúl pide el permiso a una sesión que late")
 	}
 }
 

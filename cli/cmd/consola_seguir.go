@@ -145,12 +145,13 @@ func latirElFlujo(ctx context.Context, root, sesion string, emitir func([]byte) 
 
 // latidoDelFlujo hace lo mismo que «telefono latir --confirma» y entrega por el flujo. Una instrucción que no llega al
 // panel queda sin entregar: el teléfono lo ve, en vez de quedar ejecutando para siempre.
+// La sesión late siempre, con o sin QDD Móvil: el baúl pide su permiso a una sesión que late (FND-191).
 func latidoDelFlujo(root, sesion string, now time.Time, emitir func([]byte) error) error {
-	if _, err := remoto.LeerCredenciales(); err != nil {
-		return nil
-	}
 	if err := consola.LatirSesion(root, sesion, now); err != nil {
 		return err
+	}
+	if _, err := remoto.LeerCredenciales(); err != nil {
+		return nil
 	}
 	tomadas, err := consola.TomarParaEntregar(root, sesion, now)
 	if err != nil || len(tomadas) == 0 {

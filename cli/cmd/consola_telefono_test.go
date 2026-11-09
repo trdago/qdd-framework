@@ -36,12 +36,13 @@ func latir(t *testing.T, root, sesion string, fin bool) latido {
 	return l
 }
 
-func TestConsolaTelefono_SinQDDMovilNoLateNiEntrega(t *testing.T) {
+// FND-191: sin QDD Móvil la sesión igual late (el baúl la necesita), pero no se entrega nada.
+func TestConsolaTelefono_SinQDDMovilLatePeroNoEntrega_FND191(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
 	consola.RegistrarEjecucion(root, consola.Ejecucion{Solicitud: "s1", Tipo: consola.EjecutarIA, Texto: "hola", Dispositivo: "d"}, time.Now())
-	if l := latir(t, root, "a", false); l.Activo || len(l.Entregar) != 0 || consola.HaySesion(root, time.Now()) {
-		t.Fatalf("sin QDD Móvil activado no anota la sesión ni entrega nada: %+v", l)
+	if l := latir(t, root, "a", false); l.Activo || len(l.Entregar) != 0 || !consola.SesionLate(root, "a", time.Now()) {
+		t.Fatalf("sin QDD Móvil la sesión late y no se entrega nada: %+v", l)
 	}
 }
 
