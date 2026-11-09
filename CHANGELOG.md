@@ -6,6 +6,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Changed
+- Flujos: cada nodo se dibuja con solo su título, para leer el flujo de un vistazo (pedido de la persona, 2026-11-08). `qdd flujo ver --detalle`, o `h  ☰ Ver detalle` en el panel, pone la descripción debajo del título, separada por una línea; la tarjeta del nodo elegido la muestra siempre.
+
 ## [2.10.0-rc.51] - 2026-11-08
 
 ### Added

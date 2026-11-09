@@ -549,9 +549,25 @@ const slugDeGrupo = (g) =>
     .replace(/^-+|-+$/g, '')
 
 function argsDeVista(nivel, abiertos) {
-  if (nivel >= 3) return []
+  const detalle = conDetalle ? ['--detalle'] : []
+  if (nivel >= 3) return detalle
   const abrir = nivel === 1 && abiertos.length ? ['--abrir', abiertos.join(',')] : []
-  return ['--nivel', String(nivel), ...abrir]
+  return ['--nivel', String(nivel), ...abrir, ...detalle]
+}
+
+// Solo títulos (pedido de la persona, 2026-11-08: «dentro de los nodos tiene que existir un título visible para
+// guiarme […] debería estar solo el título primero y, si quiero ver el detalle, verlo»). qdd dibuja cada nodo con su
+// título; h pide el dibujo con --detalle, que pone la descripción debajo del título, separada por una línea. La tarjeta
+// del nodo elegido muestra siempre su descripción.
+let conDetalle = false
+
+function botonDeDetalle($, Button) {
+  return Button({ key: 'fl-ver-detalle', label: conDetalle ? 'h  ▭ Solo títulos' : 'h  ☰ Ver detalle', hotkey: 'h', plain: true, onPress: () => alternarDetalle($) })
+}
+
+function alternarDetalle($) {
+  conDetalle = !conDetalle
+  $.ui.invalidate('ui.render')
 }
 
 function cambiarNivel($, s, nivel) {
@@ -567,11 +583,14 @@ function alternarGrupo($, s, grupo) {
 // vistaDeNiveles: los botones de nivel, y en el panorama un botón por grupo para abrirlo o plegarlo.
 function vistaDeNiveles($, Box, Button, f, s, d) {
   const grupos = d.grupos || []
-  if (f.nodos < 8 && grupos.length === 0) return []
+  if (f.nodos < 8 && grupos.length === 0) return [Box({ key: 'fl-niveles', flexDirection: 'row', marginTop: 1, children: [botonDeDetalle($, Button)] })]
   const nivel = nivelDe(f, s)
-  const botones = NIVELES.map((n) =>
-    Button({ key: 'fl-nivel-' + n.nivel, label: (n.nivel === nivel ? '● ' : '○ ') + n.nivel + ' ' + n.nombre, hotkey: String(n.nivel), plain: true, onPress: () => cambiarNivel($, s, n.nivel) }),
-  )
+  const botones = [
+    ...NIVELES.map((n) =>
+      Button({ key: 'fl-nivel-' + n.nivel, label: (n.nivel === nivel ? '● ' : '○ ') + n.nivel + ' ' + n.nombre, hotkey: String(n.nivel), plain: true, onPress: () => cambiarNivel($, s, n.nivel) }),
+    ),
+    botonDeDetalle($, Button),
+  ]
   const filas = [Box({ key: 'fl-niveles', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, marginTop: 1, children: botones })]
   if (nivel !== 1 || grupos.length === 0) return filas
   const deGrupos = grupos.map((g) =>

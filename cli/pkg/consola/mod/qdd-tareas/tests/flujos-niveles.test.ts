@@ -108,3 +108,22 @@ test('la tarjeta muestra el nivel y el grupo, y editarlos los guarda', async ($,
   expect(valor(m, '--nivel')).toBe('2')
   expect(valor(m, '--grupo')).toBe('Revisar')
 })
+
+// Pedido de la persona (2026-11-08): «dentro de los nodos tiene que existir un título visible […] debería estar solo
+// el título primero y, si quiero ver el detalle, verlo». qdd dibuja cada nodo con su título; h pide el detalle.
+test('cada nodo muestra su título y h trae o quita la descripción', async ($, on) => {
+  const r = { llamadas: [] as string[][], flujos: [CHICO] }
+  preparar(on, r)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...FLUJOS, surface: 'terminal' })
+  await esperar()
+  expect(ver(r).at(-1)).not.toContain('--detalle')
+  expect(await ui.find({ key: 'fl-ver-detalle', label: /☰ Ver detalle/ })).toMatchObject({ props: { hotkey: 'h' } })
+  await ui.press({ key: 'fl-ver-detalle' })
+  await esperar()
+  expect(ver(r).at(-1)).toContain('--detalle')
+  expect(await ui.find({ key: 'fl-ver-detalle', label: /▭ Solo títulos/ })).toBeDefined()
+  await ui.press({ key: 'fl-ver-detalle' })
+  await esperar()
+  expect(ver(r).at(-1)).not.toContain('--detalle')
+})

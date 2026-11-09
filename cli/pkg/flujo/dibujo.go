@@ -1,6 +1,7 @@
 package flujo
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/qdd-framework/qdd/pkg/materializar"
@@ -37,10 +38,23 @@ func DibujarElegido(f Flujo, ancho int, estadoDe func(string) string, elegido st
 // DibujarConSegmentos es el mismo dibujo y, por cada línea, sus tramos con el nodo de cada uno (nil si la línea no
 // tiene nodos): el panel hace pulsable cada nodo donde se ve.
 func DibujarConSegmentos(f Flujo, ancho int, estadoDe func(string) string, elegido string) ([]string, [][]Segmento) {
+	return DibujarConOpciones(f, ancho, estadoDe, Opciones{Elegido: elegido})
+}
+
+// Opciones del dibujo. Elegido se resalta. Detalle pone la descripción de cada nodo debajo de su título, separada por
+// una línea; sin Detalle cada nodo muestra solo su título (pedido de la persona, 2026-11-08: «debería estar solo el
+// título primero y, si quiero ver el detalle, verlo»).
+type Opciones struct {
+	Elegido string
+	Detalle bool
+}
+
+// DibujarConOpciones es DibujarConSegmentos con sus opciones.
+func DibujarConOpciones(f Flujo, ancho int, estadoDe func(string) string, o Opciones) ([]string, [][]Segmento) {
 	if len(f.Nodos) == 0 {
 		return nil, nil
 	}
-	d := dibujante{f: f, porID: map[string]Nodo{}, hechos: map[string]bool{}, camino: map[string]bool{}, estadoDe: estadoDe, elegido: elegido}
+	d := dibujante{f: f, porID: map[string]Nodo{}, hechos: map[string]bool{}, camino: map[string]bool{}, estadoDe: estadoDe, elegido: o.Elegido, detalle: o.Detalle}
 	for _, n := range f.Nodos {
 		d.porID[n.ID] = n
 	}
@@ -57,6 +71,7 @@ type dibujante struct {
 	camino   map[string]bool // lo que está encima del nodo actual: volver a uno de ellos es un ciclo
 	estadoDe func(string) string
 	elegido  string
+	detalle  bool
 }
 
 // secuencia dibuja desde id hasta una de las paradas (que no dibuja) o hasta el final.
@@ -387,7 +402,8 @@ func (d *dibujante) nodo(n Nodo, ancho int) bloque {
 	interior := max(minAncho, ancho) - 4
 	var textos []string
 	textos = append(textos, partir(n.Nombre, interior)...)
-	if n.Descripcion != "" {
+	if d.detalle && n.Descripcion != "" {
+		textos = append(textos, divisoria)
 		textos = append(textos, partir(n.Descripcion, interior)...)
 	}
 	if n.Tarea != "" {
@@ -428,10 +444,17 @@ func bordeResaltado(interior, tipo string, primera, ultima bool) string {
 	return "┃" + interior + "┃"
 }
 
+// divisoria marca, entre los textos de un nodo, la línea que separa su título de su descripción.
+const divisoria = "\x00─"
+
 func caja(textos []string) bloque {
 	interior := anchoMayor(textos)
 	lineas := []string{"┌" + strings.Repeat("─", interior+2) + "┐"}
 	for _, t := range textos {
+		if t == divisoria {
+			lineas = append(lineas, "├"+strings.Repeat("─", interior+2)+"┤")
+			continue
+		}
 		lineas = append(lineas, "│ "+rellenar(t, interior)+" │")
 	}
 	lineas = append(lineas, "└"+strings.Repeat("─", interior+2)+"┘")
@@ -440,6 +463,7 @@ func caja(textos []string) bloque {
 }
 
 func circulo(textos []string) bloque {
+	textos = slices.DeleteFunc(slices.Clone(textos), func(t string) bool { return t == divisoria })
 	interior := anchoMayor(textos)
 	lineas := make([]string, 0, len(textos))
 	for _, t := range textos {
