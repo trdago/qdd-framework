@@ -148,3 +148,46 @@ test('un qdd anterior sin segmentos dibuja como antes y la tarjeta sigue en la l
   await esperar()
   expect(await ui.find({ key: 'fl-comentar' })).toBeDefined()
 })
+
+// Pedido de la persona (2026-11-08): «le falta peso visual […] usar distintos tamaños de letras, colores para marcar
+// cosas, siempre respetando el branding». qdd marca el rol de cada trozo; el panel pinta con la marca sin mover columnas.
+const conRoles = () => ({
+  ...conSegmentos(),
+  lineas: ['┌───────┐', '│ Llega │', '├───────┤', '│ la so │', '│ ✅ ok │', '└───┬───┘', '    │', '  ( Fin )'],
+  segmentos: [
+    [{ texto: '┌───────┐', nodo: 'llega' }],
+    [{ texto: '│ ', nodo: 'llega' }, { texto: 'Llega', nodo: 'llega', rol: 'titulo' }, { texto: ' │', nodo: 'llega' }],
+    [{ texto: '├───────┤', nodo: 'llega' }],
+    [{ texto: '│ ', nodo: 'llega' }, { texto: 'la so', nodo: 'llega', rol: 'detalle' }, { texto: ' │', nodo: 'llega' }],
+    [{ texto: '│ ', nodo: 'llega' }, { texto: '✅ ok', nodo: 'llega', rol: 'estado' }, { texto: ' │', nodo: 'llega' }],
+    [{ texto: '└───┬───┘', nodo: 'llega' }],
+    null,
+    [{ texto: '  ' }, { texto: '( ', nodo: 'fin' }, { texto: 'Fin', nodo: 'fin', rol: 'titulo' }, { texto: ' )', nodo: 'fin' }],
+  ],
+})
+
+const MARCA = { texto: '#d4be98', trazo: '#928374', secundario: '#a89984', acento: '#7daea3', bien: '#a9b665' }
+
+test('el título va en negrita, el borde y el trazo en gris, y el elegido en el acento', async ($, on) => {
+  const r = nuevo([PAGO], conRoles())
+  const ui = await abrir($, on, r)
+  const nodo = await ui.find({ key: 'fl-dn:llega:1' })
+  expect(nodo).toMatchObject({ props: { label: '│ Llega │' } })
+  expect(await ui.find({ type: 'Text', text: 'Llega' })).toMatchObject({ props: { weight: 'bold', color: MARCA.texto } })
+  expect(await ui.find({ type: 'Text', text: '└───┬───┘' })).toMatchObject({ props: { color: MARCA.trazo } })
+  expect(await ui.find({ type: 'Text', text: '    │' })).toMatchObject({ props: { color: MARCA.trazo } })
+  expect(await ui.find({ type: 'Text', text: 'la so' })).toMatchObject({ props: { color: MARCA.secundario } })
+  expect(await ui.find({ type: 'Text', text: '✅ ok' })).toMatchObject({ props: { color: MARCA.bien } })
+  expect(await ui.find({ key: 'fl-dn:fin:7' })).toMatchObject({ props: { label: '( Fin )' } })
+  await ui.press({ key: 'fl-dn:llega:1' })
+  await esperar()
+  expect(await ui.find({ type: 'Text', text: 'Llega' })).toMatchObject({ props: { weight: 'bold', color: MARCA.acento } })
+  expect(await ui.find({ type: 'Text', text: '└───┬───┘' })).toMatchObject({ props: { color: MARCA.acento } })
+})
+
+test('un qdd sin roles dibuja los nodos como antes, sin apagar los títulos', async ($, on) => {
+  const ui = await abrir($, on, nuevo())
+  expect(await ui.find({ key: 'fl-dn:llega:1' })).toMatchObject({ props: { label: '│ Llega │' } })
+  const texto = await ui.find({ type: 'Text', text: '│ Llega │' })
+  expect(texto?.props?.color).not.toBe(MARCA.trazo)
+})

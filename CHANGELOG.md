@@ -8,6 +8,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Changed
 - Flujos: cada nodo se dibuja con solo su título, para leer el flujo de un vistazo (pedido de la persona, 2026-11-08). `qdd flujo ver --detalle`, o `h  ☰ Ver detalle` en el panel, pone la descripción debajo del título, separada por una línea; la tarjeta del nodo elegido la muestra siempre.
+- Flujos con peso visual (pedido de la persona, 2026-11-08: «le falta peso visual»). En el panel, el título de cada nodo va en negrita; los bordes y las flechas van en el gris de la marca; la descripción va en el gris claro; el estado de su tarea va en verde, ámbar o rojo; y el nodo elegido va entero en el azul de acento. Las columnas no cambian. qdd marca el rol de cada trozo del dibujo (`rol` en los segmentos de `qdd flujo ver --json`), y un qdd anterior dibuja como antes. En la página HTML, los títulos van en peso medio y el elegido en negrita.
 
 ## [2.10.0-rc.51] - 2026-11-08
 

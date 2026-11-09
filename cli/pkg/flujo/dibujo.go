@@ -125,7 +125,7 @@ func (d *dibujante) secuencia(id string, paradas []string, ancho int) bloque {
 // referencia es lo que se dibuja al llegar a un nodo que ya está en el dibujo.
 func (d *dibujante) referencia(id string, ancho int) bloque {
 	lineas := partir(d.textoReferencia(id, false), max(minAncho, ancho))
-	return bloque{lineas: lineas, salida: -1, tramos: tramosDeLineas(lineas, id)}
+	return bloque{lineas: lineas, salida: -1, tramos: tramosDeLineas(lineas, id, RolEnlace)}
 }
 
 func (d *dibujante) textoReferencia(id string, ciclo bool) string {
@@ -400,24 +400,38 @@ func reabrirTronco(l string) string {
 // nodo es la caja de un paso o el círculo de un resultado.
 func (d *dibujante) nodo(n Nodo, ancho int) bloque {
 	interior := max(minAncho, ancho) - 4
-	var textos []string
-	textos = append(textos, partir(n.Nombre, interior)...)
+	var leidos []textoDeNodo
+	leidos = append(leidos, conRol(partir(n.Nombre, interior), RolTitulo)...)
 	if d.detalle && n.Descripcion != "" {
-		textos = append(textos, divisoria)
-		textos = append(textos, partir(n.Descripcion, interior)...)
+		leidos = append(leidos, textoDeNodo{texto: divisoria})
+		leidos = append(leidos, conRol(partir(n.Descripcion, interior), RolDetalle)...)
 	}
 	if n.Tarea != "" {
-		textos = append(textos, d.estadoDe(n.Tarea))
+		leidos = append(leidos, textoDeNodo{texto: d.estadoDe(n.Tarea), rol: RolEstado})
+	}
+	textos := make([]string, len(leidos))
+	for i, l := range leidos {
+		textos[i] = l.texto
 	}
 	b := caja(textos)
+	porLinea := append(append([]textoDeNodo{{}}, leidos...), textoDeNodo{})
 	if n.Tipo == TipoResultado {
 		b = circulo(textos)
+		porLinea = slices.DeleteFunc(slices.Clone(leidos), func(l textoDeNodo) bool { return l.texto == divisoria })
 	}
 	if n.ID == d.elegido {
 		b.lineas = resaltar(b.lineas, n.Tipo)
 	}
-	b.tramos = tramosDeLineas(b.lineas, n.ID)
+	b.tramos = tramosDeNodo(b.lineas, porLinea, n.ID)
 	return b
+}
+
+func conRol(textos []string, rol string) []textoDeNodo {
+	leidos := make([]textoDeNodo, len(textos))
+	for i, t := range textos {
+		leidos[i] = textoDeNodo{texto: t, rol: rol}
+	}
+	return leidos
 }
 
 // resaltar cambia solo los bordes: el nodo elegido ocupa lo mismo, y el dibujo no salta al elegir otro.
