@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **BP-08 nombra el `fuera` mal puesto (MEJ-022, #143):** si un módulo que aplica un blueprint lo declaró fuera en `implementa`, el gate dice que esa entrada no vale para lo aplicado y que el `fuera` va en la raíz de la ficha. Desde la rc.26 (FND-121), el registro de aplicación ya toma el `fuera` de la raíz.
+
 ## [2.10.0-rc.54] - 2026-11-09
 
 ### Fixed

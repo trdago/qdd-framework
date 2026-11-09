@@ -129,6 +129,9 @@ type pedidoDeConformidad struct {
 	rutas    []string
 	archivo  string // dónde se declara: el registro de aplicación o la ficha
 	aplicado bool   // lo usa (registro de aplicación); si no, es la implementación de origen
+	// fueraEnImplementa: el módulo aplica el blueprint y además lo declaró fuera en «implementa», que para lo aplicado
+	// no vale (MEJ-022).
+	fueraEnImplementa bool
 }
 
 // conformidadDe mide un pedido. Un módulo que aplica un blueprint que implementa qdd no lleva su código: lo cumple
@@ -151,11 +154,11 @@ func pedidosDeConformidad(root string) []pedidoDeConformidad {
 	apps, _ := LoadApplications(root)
 	for _, a := range apps {
 		impl := modules.Implementacion{Blueprint: a.Blueprint, Respuestas: a.Respuestas, Fuera: porID[a.Modulo].Fuera}
-		pedidos = append(pedidos, pedidoDeConformidad{a.Modulo, impl, porID[a.Modulo].Rutas, filepath.ToSlash(filepath.Join(ApplicationsDir, a.Modulo+".yaml")), true})
+		pedidos = append(pedidos, pedidoDeConformidad{a.Modulo, impl, porID[a.Modulo].Rutas, filepath.ToSlash(filepath.Join(ApplicationsDir, a.Modulo+".yaml")), true, fueraEnImplementa(porID[a.Modulo], a.Blueprint)})
 	}
 	for _, m := range fichas {
 		for _, impl := range m.Implementa {
-			pedidos = append(pedidos, pedidoDeConformidad{m.ID, impl, m.Rutas, filepath.ToSlash(filepath.Join(modules.Dir, m.ID+".yaml")), false})
+			pedidos = append(pedidos, pedidoDeConformidad{m.ID, impl, m.Rutas, filepath.ToSlash(filepath.Join(modules.Dir, m.ID+".yaml")), false, false})
 		}
 	}
 	return pedidos
@@ -164,10 +167,23 @@ func pedidosDeConformidad(root string) []pedidoDeConformidad {
 // comoDeclararFuera: un módulo que aplica el blueprint lo dice en la raíz de su ficha; la implementación de origen, en
 // su entrada de implementa (FND-121).
 func comoDeclararFuera(p pedidoDeConformidad) string {
-	if p.aplicado {
-		return "fuera: {ID: motivo} en la raíz de la ficha, junto a blueprint"
+	if !p.aplicado {
+		return "fuera: {ID: motivo} en su entrada de implementa"
 	}
-	return "fuera: {ID: motivo} en su entrada de implementa"
+	if p.fueraEnImplementa {
+		return "fuera: {ID: motivo} en la raíz de la ficha, junto a blueprint. Su entrada de implementa para este blueprint no vale para lo aplicado: mueve ese fuera a la raíz y quita la entrada"
+	}
+	return "fuera: {ID: motivo} en la raíz de la ficha, junto a blueprint"
+}
+
+// fueraEnImplementa dice si la ficha declaró fuera en una entrada de implementa del blueprint que el módulo aplica.
+func fueraEnImplementa(m modules.Module, blueprint string) bool {
+	for _, impl := range m.Implementa {
+		if len(impl.Fuera) > 0 && strings.SplitN(impl.Blueprint, "@", 2)[0] == blueprint {
+			return true
+		}
+	}
+	return false
 }
 
 // Conformar mide cada módulo que aplicó un blueprint (sus registros de aplicación) o que lo implementa (su ficha).
