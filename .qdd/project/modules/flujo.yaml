@@ -81,4 +81,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-08"
-revisado_en_commit: d7aeab029ce8
+revisado_en_commit: 48413e570a4e
