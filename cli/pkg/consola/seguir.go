@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -61,8 +62,8 @@ func VigiaBinario(bin string) func() bool {
 
 // SenalesDelPanel avisa cuando se escribe en una de las carpetas y, como respaldo, cada tanto: lo que depende de la
 // hora («hace 3 min», un pedido armado) cambia sin que nadie escriba. Una carpeta que no existe no se vigila hasta que
-// nace: mientras tanto la cubre el respaldo.
-func SenalesDelPanel(ctx context.Context, carpetas []string, respaldo time.Duration) (<-chan struct{}, error) {
+// nace: mientras tanto la cubre el respaldo. importa descarta lo que no cambia el panel (nil: todo importa).
+func SenalesDelPanel(ctx context.Context, carpetas []string, respaldo time.Duration, importa func(string) bool) (<-chan struct{}, error) {
 	vigia, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -71,11 +72,14 @@ func SenalesDelPanel(ctx context.Context, carpetas []string, respaldo time.Durat
 		_ = vigia.Add(c)
 	}
 	senal := make(chan struct{}, 1)
-	go repartirSenales(ctx, vigia, carpetas, respaldo, senal)
+	if importa == nil {
+		importa = func(string) bool { return true }
+	}
+	go repartirSenales(ctx, vigia, carpetas, respaldo, importa, senal)
 	return senal, nil
 }
 
-func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, carpetas []string, respaldo time.Duration, senal chan<- struct{}) {
+func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, carpetas []string, respaldo time.Duration, importa func(string) bool, senal chan<- struct{}) {
 	defer vigia.Close()
 	reloj := time.NewTicker(respaldo)
 	defer reloj.Stop()
@@ -92,7 +96,10 @@ func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, carpetas []st
 		select {
 		case <-ctx.Done():
 			return
-		case <-vigia.Events:
+		case e := <-vigia.Events:
+			if !importa(e.Name) {
+				continue
+			}
 			pausa.Reset(pausaSenales)
 		case <-vigia.Errors:
 		case <-pausa.C:
@@ -105,6 +112,31 @@ func repartirSenales(ctx context.Context, vigia *fsnotify.Watcher, carpetas []st
 			avisar()
 		}
 	}
+}
+
+// EventoDelPanel dice si escribir en nombre cambia lo que dibuja el panel de root (FND-190). Un candado (.lock) o un
+// temporal (.tmp) no: la escritura atómica avisa al renombrar el archivo final. Las carpetas locales
+// (<QDD_HOME>/claude/<carpeta>) son de todos los proyectos de la máquina, y de ellas solo importa el archivo de root: sin
+// esto, el latido de cada panel despertaba a todos los demás.
+func EventoDelPanel(root string) func(string) bool {
+	propio, err := RutaLocal(root, "x")
+	if err != nil {
+		return func(nombre string) bool { return !auxiliar(nombre) }
+	}
+	local := filepath.Dir(filepath.Dir(propio))
+	return func(nombre string) bool {
+		if auxiliar(nombre) {
+			return false
+		}
+		if filepath.Dir(filepath.Dir(nombre)) != local {
+			return true
+		}
+		return filepath.Base(nombre) == filepath.Base(propio)
+	}
+}
+
+func auxiliar(nombre string) bool {
+	return strings.HasSuffix(nombre, ".lock") || strings.HasSuffix(nombre, ".tmp")
 }
 
 // CarpetasDelPanel son las carpetas de donde sale lo que dibuja el panel: el tablero y las fichas del proyecto, y lo
