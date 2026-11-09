@@ -84,18 +84,18 @@ type entrega struct {
 	Mensaje   string `json:"mensaje"`
 }
 
-// telefonoLatir anota la sesión y le entrega lo que espera, solo con QDD Móvil activado: sin teléfono emparejado nadie
-// manda instrucciones y no hay nada que anotar.
+// telefonoLatir anota la sesión siempre (el baúl pide su permiso a una sesión que late, FND-191) y, solo con QDD Móvil
+// activado, le entrega lo que espera: sin teléfono emparejado nadie manda instrucciones.
 func telefonoLatir(root, sesion string, fin, confirma bool, salida, errores io.Writer) int {
-	if _, err := remoto.LeerCredenciales(); err != nil {
-		return jsonPregunta(salida, map[string]any{"activo": false, "entregar": []entrega{}})
-	}
 	now := time.Now()
 	if fin {
 		return terminarLatido(consola.CerrarSesion(root, sesion, now), nil, salida, errores)
 	}
 	if err := consola.LatirSesion(root, sesion, now); err != nil {
 		return terminarLatido(err, nil, salida, errores)
+	}
+	if _, err := remoto.LeerCredenciales(); err != nil {
+		return jsonPregunta(salida, map[string]any{"activo": false, "entregar": []entrega{}})
 	}
 	if confirma {
 		tomadas, err := consola.TomarParaEntregar(root, sesion, now)

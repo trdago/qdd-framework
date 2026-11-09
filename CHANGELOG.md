@@ -6,8 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.55] - 2026-11-09
+
 ### Corregido
 
+- **El baúl pide permiso sin QDD Móvil (FND-191, MEJ-056):** sin teléfono emparejado, la sesión no se anotaba como viva y `qdd baul usar` decía «la sesión no late en este proyecto» sin dejar el pedido 🔑 (visto en Windows). Ahora la sesión se anota siempre; entregar instrucciones sigue siendo solo con QDD Móvil.
 - **BP-08 nombra el `fuera` mal puesto (MEJ-022, #143):** si un módulo que aplica un blueprint lo declaró fuera en `implementa`, el gate dice que esa entrada no vale para lo aplicado y que el `fuera` va en la raíz de la ficha. Desde la rc.26 (FND-121), el registro de aplicación ya toma el `fuera` de la raíz.
 
 ## [2.10.0-rc.54] - 2026-11-09
