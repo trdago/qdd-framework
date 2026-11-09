@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.51] - 2026-11-08
+
+### Added
+- Panel: la pestaña Flujos abre a pantalla completa cuando la terminal está en pantalla completa (pedido de la persona, 2026-11-08). ⤡ Al lado (z) / ⤢ Pantalla completa la alternan y ← Tareas (t) vuelve al tablero con el reparto de siempre.
+
 ## [2.10.0-rc.50] - 2026-11-08
 
 ### Fixed

@@ -333,7 +333,7 @@ async function aplicarFlujos($, lista) {
   }
   if (cambiados.length === 0) return
   flujoActual = cambiados.at(-1).id
-  await $.ui.open({ id: PANE_FLUJOS, title: TITULO_FLUJOS })
+  await abrirPestanaFlujos($)
 }
 
 // cerrarPestanasViejas: una versión anterior abría una pestaña por flujo; se cierran una vez, al leer la lista.
@@ -345,7 +345,38 @@ async function cerrarPestanasViejas($, lista) {
 
 async function abrirFlujos($) {
   if (flujos.length === 0) return abrirFlujoNuevo($, PANE)
-  await $.ui.open({ id: PANE_FLUJOS, title: TITULO_FLUJOS })
+  await abrirPestanaFlujos($)
+}
+
+// ── Flujos a pantalla completa (pedido de la persona, 2026-11-08) ──────────────────────────────────────────────────
+// «Cuando estamos en modo flujo debería iniciar de forma expandida usando toda la pantalla». Con la terminal en pantalla
+// completa (el panel al lado del chat), abrir Flujos le pide al motor todo el ancho; es un pedido, no una orden: el ancho
+// que la persona arrastró gana. ⤡ (z) la deja al lado del chat y ⤢ la vuelve a expandir; ← Tareas (t) vuelve al
+// tablero con el reparto de siempre, porque cada apertura sin columns lo restituye.
+const pantalla = { columnas: 0, completa: false }
+let flujosAnchos = true
+
+function anchoDeFlujos() {
+  if (!flujosAnchos || !pantalla.completa || pantalla.columnas <= 0) return {}
+  return { columns: pantalla.columnas }
+}
+
+async function abrirPestanaFlujos($, extra = {}) {
+  await $.ui.open({ id: PANE_FLUJOS, title: TITULO_FLUJOS, ...anchoDeFlujos(), ...extra })
+}
+
+function controlesDePestana($, Button) {
+  if (!pantalla.completa) return []
+  return [
+    Button({ key: 'fl-ancho', label: flujosAnchos ? 'z  ⤡ Al lado' : 'z  ⤢ Pantalla completa', hotkey: 'z', plain: true, onPress: () => alternarAncho($) }),
+    Button({ key: 'fl-tareas', label: 't  ← Tareas', hotkey: 't', plain: true, onPress: () => $.ui.open({ id: PANE, title: TITULO, focus: true }) }),
+  ]
+}
+
+async function alternarAncho($) {
+  flujosAnchos = !flujosAnchos
+  await abrirPestanaFlujos($, { focus: true })
+  $.ui.invalidate('ui.render')
 }
 
 function irAFlujo($, id) {
@@ -387,7 +418,8 @@ function barraDeFlujo($, Box, Text, Button, f) {
   const s = edicionDe(f.id)
   const compartir = Button({ key: 'fl-compartir', label: s.compartiendo ? '↗ Compartiendo…' : 'c  ↗ Compartir', hotkey: 'c', plain: true, onPress: () => compartirFlujo($, f.id) })
   const navegacion = navegacionDeFlujos($, Box, Text, Button, f)
-  return [Box({ key: 'fl-barra', flexDirection: 'row', justifyContent: navegacion.length ? 'space-between' : 'flex-end', children: [...navegacion, compartir] })]
+  const esquina = Box({ key: 'fl-esquina', flexDirection: 'row', columnGap: 2, children: [...controlesDePestana($, Button), compartir] })
+  return [Box({ key: 'fl-barra', flexDirection: 'row', justifyContent: navegacion.length ? 'space-between' : 'flex-end', children: [...navegacion, esquina] })]
 }
 
 // compartirFlujo (pedido de la persona, 2026-11-08: «debería bastar con un click en una esquina que diga compartir para
@@ -462,7 +494,7 @@ function mapaDeFlujos($, Box, Text, Button, Input) {
   return Box({
     flexDirection: 'column',
     children: [
-      Text({ key: 'fl-mapa-titulo', weight: 'bold', children: [flujos.length + ' flujos · elige uno'] }),
+      Box({ key: 'fl-mapa-barra', flexDirection: 'row', justifyContent: 'space-between', children: [Text({ key: 'fl-mapa-titulo', weight: 'bold', children: [flujos.length + ' flujos · elige uno'] }), Box({ key: 'fl-esquina', flexDirection: 'row', columnGap: 2, children: controlesDePestana($, Button) })] }),
       Box({ key: 'fl-mapa-lista', flexDirection: 'column', marginTop: 1, children: filas }),
       Box({ key: 'fl-nuevo-fila', marginTop: 1, children: [Button({ key: 'fl-nuevo', label: '+ Nuevo flujo', plain: true, dimColor: true, onPress: () => abrirFlujoNuevo($, PANE_FLUJOS) })] }),
       ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE_FLUJOS),
@@ -3713,6 +3745,8 @@ export function register(on) {
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
     Client = cliente || null
+    pantalla.columnas = e.viewport?.columns || pantalla.columnas
+    pantalla.completa = e.viewport?.isFullscreen === true && e.props.placement === 'dock'
     const ancho = e.props.bodyColumns || 40
     if (e.requestId === PANE_FLUJOS) return protegida($, Box, Text, Button, ['flujos', 'Flujos'], () => vistaFlujos($, Box, Text, Button, Input, Select, ancho))
     if (String(e.requestId).startsWith(PANE_FLUJO)) return protegida($, Box, Text, Button, ['flujo', 'Flujo'], () => dibujarFlujo($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_FLUJO.length), ancho))
