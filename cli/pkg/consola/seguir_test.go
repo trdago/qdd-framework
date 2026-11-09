@@ -176,7 +176,7 @@ func TestSenalesDelPanel_AvisaAlEscribirEnUnaCarpetaVigilada(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancelar := context.WithCancel(context.Background())
 	defer cancelar()
-	senal, err := SenalesDelPanel(ctx, []string{dir, filepath.Join(dir, "no-existe")}, time.Hour)
+	senal, err := SenalesDelPanel(ctx, []string{dir, filepath.Join(dir, "no-existe")}, time.Hour, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestSenalesDelPanel_AvisaAlEscribirEnUnaCarpetaVigilada(t *testing.T) {
 func TestSenalesDelPanel_ElRespaldoAvisaSinEscrituras(t *testing.T) {
 	ctx, cancelar := context.WithCancel(context.Background())
 	defer cancelar()
-	senal, err := SenalesDelPanel(ctx, nil, 10*time.Millisecond)
+	senal, err := SenalesDelPanel(ctx, nil, 10*time.Millisecond, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestSenalesDelPanel_UnaCarpetaQueNaceSeVigila(t *testing.T) {
 	nueva := filepath.Join(root, "flujos")
 	ctx, cancelar := context.WithCancel(context.Background())
 	defer cancelar()
-	senal, err := SenalesDelPanel(ctx, []string{root, nueva}, time.Hour)
+	senal, err := SenalesDelPanel(ctx, []string{root, nueva}, time.Hour, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,5 +243,60 @@ func esperarSenal(t *testing.T, senal <-chan struct{}) {
 	case <-senal:
 	case <-time.After(5 * time.Second):
 		t.Fatal("no llegó la señal")
+	}
+}
+
+// FND-190: el candado de un latido (<archivo>.json.lock, creado y borrado cada 5 s por cada panel abierto) despertaba a
+// todos los paneles de la máquina, y cada uno releía todo el panel: ~50 % de un núcleo entre 8 paneles sin trabajo.
+func TestSenalesDelPanel_UnCandadoOUnTemporalNoAvisan(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancelar := context.WithCancel(context.Background())
+	defer cancelar()
+	senal, err := SenalesDelPanel(ctx, []string{dir}, time.Hour, EventoDelPanel(t.TempDir()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, nombre := range []string{"qdd-abc.json.lock", "qdd-abc.json.tmp"} {
+		ruta := filepath.Join(dir, nombre)
+		if err := os.WriteFile(ruta, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(ruta); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-senal:
+		t.Fatal("un candado o un temporal despertó al panel")
+	case <-time.After(300 * time.Millisecond):
+	}
+	if err := os.WriteFile(filepath.Join(dir, "estado.yaml"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	esperarSenal(t, senal)
+}
+
+// Las carpetas locales (<QDD_HOME>/claude/<carpeta>) son de todos los proyectos: al panel solo le importa su archivo.
+func TestEventoDelPanel_EnLoCompartidoSoloElArchivoPropio(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	importa := EventoDelPanel(root)
+	propio, err := RutaLocal(root, "telefono")
+	if err != nil {
+		t.Fatal(err)
+	}
+	casos := map[string]bool{
+		propio: true,
+		filepath.Join(filepath.Dir(propio), "otro-proyecto-0123456789ab.json"): false,
+		propio + ".lock": false,
+		propio + ".tmp":  false,
+		filepath.Join(root, ".qdd", "project", "estado.yaml"):            true,
+		filepath.Join(root, ".qdd", "project", "flujos", "pago.yaml"):    true,
+		filepath.Join(root, ".qdd", "project", "modules", "estado.yaml"): true,
+	}
+	for nombre, quiere := range casos {
+		if got := importa(nombre); got != quiere {
+			t.Errorf("EventoDelPanel(%s) = %v, quiere %v", nombre, got, quiere)
+		}
 	}
 }

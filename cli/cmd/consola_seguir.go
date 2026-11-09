@@ -79,7 +79,7 @@ func runConsolaSeguir(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	ctx, cancelar := context.WithCancel(context.Background())
 	defer cancelar()
-	senal, err := consola.SenalesDelPanel(ctx, carpetasDelFlujo(root), respaldoSeguir)
+	senal, err := consola.SenalesDelPanel(ctx, carpetasDelFlujo(root), respaldoSeguir, consola.EventoDelPanel(root))
 	if err != nil {
 		salirCon("%v", err)
 	}

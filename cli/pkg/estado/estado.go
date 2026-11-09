@@ -110,13 +110,15 @@ func Parse(data []byte) (Estado, error) {
 	return e, nil
 }
 
-// Load lee el archivo de estado de la raíz del proyecto.
+// Load lee el archivo de estado de la raíz del proyecto. Mientras su contenido no cambie, no lo vuelve a parsear
+// (parseRecordado).
 func Load(root string) (Estado, error) {
-	data, err := os.ReadFile(filepath.Join(root, Ruta))
+	ruta := filepath.Join(root, Ruta)
+	data, err := os.ReadFile(ruta)
 	if err != nil {
 		return Estado{}, err
 	}
-	return Parse(data)
+	return parseRecordado(ruta, data)
 }
 
 // Save escribe el archivo de forma atómica (temporal + rename): nunca queda a medias.
