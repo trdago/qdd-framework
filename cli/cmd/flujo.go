@@ -22,6 +22,7 @@ var (
 	flujoJSON     bool
 	flujoAncho    int
 	flujoElegido  string
+	flujoDetalle  bool
 	flujoNivel    int
 	flujoAbiertos []string
 )
@@ -35,7 +36,7 @@ de describirlo en prosa. Se guarda en ` + flujo.Carpeta + `/<id>.yaml, versionad
 
   qdd flujo crear <archivo.yaml|->   valida y guarda (o reemplaza) el flujo; conserva sus comentarios
   qdd flujo nuevo "<nombre>"         un flujo con un solo nodo, para seguir editándolo
-  qdd flujo ver <id> [--ancho N] [--nivel 1|2|3] [--abrir <grupo>,…] [--elegido <nodo>] [--json]
+  qdd flujo ver <id> [--ancho N] [--nivel 1|2|3] [--abrir <grupo>,…] [--elegido <nodo>] [--detalle] [--json]
   qdd flujo lista [--json]
 
 La persona lo edita y lo comenta en el panel; a ti te llega una línea por cambio. Para responderle o cambiarlo:
@@ -153,7 +154,8 @@ var flujoVerCmd = &cobra.Command{
 		if err != nil {
 			salirCon("%v", err)
 		}
-		lineas, segmentos := flujo.DibujarConSegmentos(flujo.Plegar(f, flujo.Vista{Nivel: flujoNivel, Abiertos: flujoAbiertos, Mostrar: flujoElegido}), flujoAncho, estadoDeTarea(root), flujoElegido)
+		vista := flujo.Plegar(f, flujo.Vista{Nivel: flujoNivel, Abiertos: flujoAbiertos, Mostrar: flujoElegido})
+		lineas, segmentos := flujo.DibujarConOpciones(vista, flujoAncho, estadoDeTarea(root), flujo.Opciones{Elegido: flujoElegido, Detalle: flujoDetalle})
 		salida := cmd.OutOrStdout()
 		if flujoJSON {
 			b, err := listas.Marshal(flujoDibujado{
@@ -224,6 +226,7 @@ func init() {
 	flujoVerCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")
 	flujoVerCmd.Flags().IntVar(&flujoAncho, "ancho", anchoFlujoPorDefecto, "Columnas disponibles")
 	flujoVerCmd.Flags().StringVar(&flujoElegido, "elegido", "", "Nodo que se dibuja resaltado")
+	flujoVerCmd.Flags().BoolVar(&flujoDetalle, "detalle", false, "Pone la descripción de cada nodo debajo de su título; sin ella, cada nodo muestra solo su título")
 	flujoVerCmd.Flags().IntVar(&flujoNivel, "nivel", flujo.NivelDesvio, "1 panorama (un grupo por caja), 2 camino principal, 3 completo")
 	flujoVerCmd.Flags().StringSliceVar(&flujoAbiertos, "abrir", nil, "Grupos que en el panorama se ven con sus pasos")
 	flujoListaCmd.Flags().BoolVar(&flujoJSON, "json", false, "Salida JSON, para el panel")

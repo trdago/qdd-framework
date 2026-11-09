@@ -115,8 +115,9 @@ h2 { font-size: var(--letra-l); font-weight: 700; margin: 0 0 var(--espacio-s); 
 .nodo.desvio .forma { stroke: var(--borde); stroke-dasharray: 4 3; }
 .nodo:hover .forma, .nodo:focus-visible .forma { fill: var(--superficie-alta); stroke: var(--texto); }
 .nodo.elegido .forma { fill: var(--superficie-alta); stroke: var(--texto); stroke-width: 2; }
-.nodo text { fill: var(--texto); font-size: var(--letra-s); font-family: inherit; }
-.nodo .resumen { fill: var(--secundario); font-size: var(--letra-xs); }
+.nodo text { fill: var(--texto); font-size: var(--letra-s); font-weight: 500; font-family: inherit; }
+.nodo.elegido text { font-weight: 700; }
+.nodo .resumen, .nodo.elegido .resumen { fill: var(--secundario); font-size: var(--letra-xs); font-weight: 400; }
 .icono { color: var(--secundario); fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .nodo:hover .icono, .nodo.elegido .icono { color: var(--texto); }
 .marco path { fill: none; stroke: var(--borde-campo); stroke-width: var(--linea); stroke-dasharray: 6 4; stroke-linejoin: round; }

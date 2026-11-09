@@ -129,7 +129,8 @@ func TestDibujar_UnaCadenaHaciaAbajo(t *testing.T) {
 	f := deNodos(resultado("a", "Llega"), Nodo{ID: "b", Tipo: TipoPaso, Nombre: "Valida", Descripcion: "rechaza si vence", Siguen: []string{"c"}}, resultado("c", "Fin"))
 	f.Nodos[0].Siguen = []string{"b"}
 	s := texto(f, 40)
-	for _, parte := range []string{"( Llega )", "Valida", "rechaza si vence", "( Fin )", "┌", "└", "│"} {
+	// La descripción va solo con el detalle (TestTitulos_*): por defecto, cada nodo con su título.
+	for _, parte := range []string{"( Llega )", "Valida", "( Fin )", "┌", "└", "│"} {
 		if !strings.Contains(s, parte) {
 			t.Fatalf("falta %q:\n%s", parte, s)
 		}

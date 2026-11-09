@@ -35,7 +35,8 @@ const LATIDO_MS = 500
 const PULSO_MIN_MS = 5000
 // Los colores de la marca (qdd-movile/docs/marca/tokens.json, Gruvbox Material): el ámbar es lo que espera a la persona;
 // el texto normal queda en el color de la terminal.
-const COLOR = { espera: '#d8a657', enCurso: '#7daea3', bien: '#a9b665', falla: '#ea6962', texto: '#d4be98', sobreMarca: '#282828' }
+// trazo (grey1, el borde de campo) y secundario (grey2) apagan lo que acompaña: bordes, flechas y descripciones.
+const COLOR = { espera: '#d8a657', enCurso: '#7daea3', bien: '#a9b665', falla: '#ea6962', texto: '#d4be98', sobreMarca: '#282828', trazo: '#928374', secundario: '#a89984' }
 const ACENTO = COLOR.enCurso
 
 // ── Materializar (pedido del usuario, 2026-11-01) ──────────────────────────────────────────────────────────────────
@@ -549,9 +550,25 @@ const slugDeGrupo = (g) =>
     .replace(/^-+|-+$/g, '')
 
 function argsDeVista(nivel, abiertos) {
-  if (nivel >= 3) return []
+  const detalle = conDetalle ? ['--detalle'] : []
+  if (nivel >= 3) return detalle
   const abrir = nivel === 1 && abiertos.length ? ['--abrir', abiertos.join(',')] : []
-  return ['--nivel', String(nivel), ...abrir]
+  return ['--nivel', String(nivel), ...abrir, ...detalle]
+}
+
+// Solo títulos (pedido de la persona, 2026-11-08: «dentro de los nodos tiene que existir un título visible para
+// guiarme […] debería estar solo el título primero y, si quiero ver el detalle, verlo»). qdd dibuja cada nodo con su
+// título; h pide el dibujo con --detalle, que pone la descripción debajo del título, separada por una línea. La tarjeta
+// del nodo elegido muestra siempre su descripción.
+let conDetalle = false
+
+function botonDeDetalle($, Button) {
+  return Button({ key: 'fl-ver-detalle', label: conDetalle ? 'h  ▭ Solo títulos' : 'h  ☰ Ver detalle', hotkey: 'h', plain: true, onPress: () => alternarDetalle($) })
+}
+
+function alternarDetalle($) {
+  conDetalle = !conDetalle
+  $.ui.invalidate('ui.render')
 }
 
 function cambiarNivel($, s, nivel) {
@@ -567,11 +584,14 @@ function alternarGrupo($, s, grupo) {
 // vistaDeNiveles: los botones de nivel, y en el panorama un botón por grupo para abrirlo o plegarlo.
 function vistaDeNiveles($, Box, Button, f, s, d) {
   const grupos = d.grupos || []
-  if (f.nodos < 8 && grupos.length === 0) return []
+  if (f.nodos < 8 && grupos.length === 0) return [Box({ key: 'fl-niveles', flexDirection: 'row', marginTop: 1, children: [botonDeDetalle($, Button)] })]
   const nivel = nivelDe(f, s)
-  const botones = NIVELES.map((n) =>
-    Button({ key: 'fl-nivel-' + n.nivel, label: (n.nivel === nivel ? '● ' : '○ ') + n.nivel + ' ' + n.nombre, hotkey: String(n.nivel), plain: true, onPress: () => cambiarNivel($, s, n.nivel) }),
-  )
+  const botones = [
+    ...NIVELES.map((n) =>
+      Button({ key: 'fl-nivel-' + n.nivel, label: (n.nivel === nivel ? '● ' : '○ ') + n.nivel + ' ' + n.nombre, hotkey: String(n.nivel), plain: true, onPress: () => cambiarNivel($, s, n.nivel) }),
+    ),
+    botonDeDetalle($, Button),
+  ]
   const filas = [Box({ key: 'fl-niveles', flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, marginTop: 1, children: botones })]
   if (nivel !== 1 || grupos.length === 0) return filas
   const deGrupos = grupos.map((g) =>
@@ -630,14 +650,57 @@ function ultimaLineaDe(d, nodo) {
   return d.segmentos.findLastIndex((fila) => (fila || []).some((seg) => seg.nodo === nodo))
 }
 
+// Peso visual (pedido de la persona, 2026-11-08: «le falta peso visual […] colores para marcar cosas, siempre respetando
+// el branding»): qdd marca el rol de cada trozo de un nodo (titulo, detalle, estado, enlace; sin rol es borde). El título
+// va en negrita, el borde y las flechas en el gris de la marca, y el nodo elegido entero en el acento. Solo cambia el
+// color: las columnas son las de qdd. Un qdd sin roles dibuja como antes, para no apagar sus títulos.
 function lineaPulsable($, Box, Text, Button, id, s, d, clave, linea, i) {
   const segmentos = d.segmentos?.[i]
-  if (!segmentos) return Text({ key: clave, wrap: 'truncate-end', children: [linea] })
-  const partes = segmentos.map((seg, j) => {
-    if (!seg.nodo) return Text({ key: clave + ':' + j, wrap: 'truncate-end', children: [seg.texto] })
-    return Button({ key: 'fl-dn:' + seg.nodo + ':' + i, label: seg.texto, plain: true, onPress: () => pulsarEnDibujo($, id, s, d, seg.nodo) })
+  const marca = conRoles(d)
+  if (!segmentos) return Text({ key: clave, color: marca ? COLOR.trazo : undefined, wrap: 'truncate-end', children: [linea] })
+  const partes = tramosPorNodo(segmentos).map((tramo, j) => {
+    const nodo = tramo[0].nodo
+    if (!nodo) return Text({ key: clave + ':' + j, color: marca ? COLOR.trazo : undefined, wrap: 'truncate-end', children: [tramo[0].texto] })
+    const label = tramo.map((seg) => seg.texto).join('')
+    const onPress = () => pulsarEnDibujo($, id, s, d, nodo)
+    if (!marca) return Button({ key: 'fl-dn:' + nodo + ':' + i, label, plain: true, onPress })
+    const elegido = nodo === s.elegido
+    const children = tramo.map((seg, k) => Text({ key: 'fl-dn:' + nodo + ':' + i + ':' + k, ...estiloDeTramo(seg.rol, seg.texto, elegido), children: [seg.texto] }))
+    return Button({ key: 'fl-dn:' + nodo + ':' + i, label, plain: true, onPress, children })
   })
   return Box({ key: clave, flexDirection: 'row', children: partes })
+}
+
+const conRoles = (d) => Array.isArray(d.segmentos) && d.segmentos.some((fila) => (fila || []).some((seg) => seg.rol))
+
+// tramosPorNodo junta los segmentos seguidos del mismo nodo: un nodo es un solo botón aunque su línea tenga varios roles.
+function tramosPorNodo(segmentos) {
+  const tramos = []
+  for (const seg of segmentos) {
+    const ultimo = tramos.at(-1)
+    if (ultimo && seg.nodo && ultimo[0].nodo === seg.nodo) {
+      ultimo.push(seg)
+      continue
+    }
+    tramos.push([seg])
+  }
+  return tramos
+}
+
+function estiloDeTramo(rol, texto, elegido) {
+  if (rol === 'titulo') return { weight: 'bold', color: elegido ? ACENTO : COLOR.texto }
+  if (rol === 'detalle') return { color: COLOR.secundario }
+  if (rol === 'estado') return { color: colorDeEstado(texto) }
+  if (rol === 'enlace') return { italic: true, color: elegido ? ACENTO : COLOR.secundario }
+  if (elegido) return { weight: 'bold', color: ACENTO }
+  return { color: COLOR.trazo }
+}
+
+function colorDeEstado(texto) {
+  if (texto.includes('❌')) return COLOR.falla
+  if (texto.includes('⏳')) return COLOR.espera
+  if (texto.includes('✅')) return COLOR.bien
+  return COLOR.secundario
 }
 
 // pulsarEnDibujo: la caja de un grupo en el panorama lo abre o lo pliega; un nodo hace lo mismo que en la lista.
