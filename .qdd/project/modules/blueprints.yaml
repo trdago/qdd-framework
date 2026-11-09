@@ -56,5 +56,5 @@ fuentes:
     - rfcs/0007-fuentes-de-blueprints.md
     - rfcs/0009-blueprints-que-reemplazan.md
     - cli/pkg/blueprints/diagnostico.go
-ultima_revision: "2026-11-08"
-revisado_en_commit: 7997fea4f4f8
+ultima_revision: "2026-11-09"
+revisado_en_commit: 7c18b670b676
