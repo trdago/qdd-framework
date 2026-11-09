@@ -252,3 +252,24 @@ func TestPanel_LasEleccionesDelModoGoalSalenSinSecretos(t *testing.T) {
 		t.Fatalf("inv. 16: %q", panel.Goal.Elegidas[0].Etiqueta)
 	}
 }
+
+// Logrado (QDD Móvil, 2026-11-09): el relay lo pide y cada texto pasa por el ocultador, como el resto del panel.
+func TestPanel_LoLogradoSalePedidoYSinSecretos(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	secreto := "ghp_" + strings.Repeat("1234567890", 3) + "123456"
+	logrado := []consola.Logro{{Tipo: consola.LogroPedido, ID: "pedido:1", Titulo: "Publicar " + secreto, Detalle: "curl " + secreto, Salida: "ok " + secreto, Motivo: secreto, Criterio: secreto, Evidencia: secreto}}
+	panel := consola.DatosConsola{Logrado: &logrado}
+	ocultarDelPanel(root, &panel)
+	b, _ := json.Marshal(panel)
+	if strings.Contains(string(b), "ghp_") {
+		t.Fatalf("inv. 16: %s", b)
+	}
+	if len(logrado) != 1 || !strings.Contains(logrado[0].Titulo, secreto) {
+		t.Fatal("ocultar no cambia la lista de quien la armó")
+	}
+	reg := registro.Registro{Proyectos: []registro.Proyecto{{Ruta: t.TempDir(), Clave: "app-1"}}}
+	if p := Armar("v", reg, time.Now(), 0).Proyectos[0]; p.Panel == nil || p.Panel.Logrado == nil {
+		t.Fatalf("el relay pide lo logrado para QDD Móvil: %+v", p.Panel)
+	}
+}

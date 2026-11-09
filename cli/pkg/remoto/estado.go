@@ -92,7 +92,7 @@ func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 	}
 	reglas := append([]string{}, integration.BloquesViejos(p.Ruta)...)
 	out.ReglasAtrasadas = &reglas
-	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono)
+	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono, consola.ConLogrado)
 	panel.Flujos = resumenDeFlujos(p.Ruta)
 	ocultarDelPanel(p.Ruta, &panel)
 	panel.Version = qdd

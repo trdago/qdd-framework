@@ -123,6 +123,9 @@ type DatosConsola struct {
 	TelefonoEnFlujo bool `json:"telefono_en_flujo,omitempty"`
 	// MejorasToca (con «mejoras»): si pasaron los 10 min del ciclo de mejoras. Sin el campo, el panel lo pide cada minuto.
 	MejorasToca *bool `json:"mejoras_toca,omitempty"`
+	// Logrado (con «logrado») es lo que salió bien en los últimos 14 días (logrado.go); sin nada, sale como []: así QDD
+	// Móvil sabe que este qdd lo trae.
+	Logrado *[]Logro `json:"logrado,omitempty"`
 }
 
 // OpcionesEjecutar es lo que el PC acepta desde el teléfono: comandos qdd (Sugeridos son los que permite, sin el
@@ -159,6 +162,10 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 		acciones = append(acciones, a)
 	}
 	d.Acciones = acciones
+	if pide[ConLogrado] {
+		logrado := Logrado(root, now)
+		d.Logrado = &logrado
+	}
 	return d
 }
 

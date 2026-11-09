@@ -355,6 +355,7 @@ func conCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error
 	if err != nil {
 		return err
 	}
+	anotarPedidosLogrados(root, cola)
 	return guardarCola(ruta, cola)
 }
 

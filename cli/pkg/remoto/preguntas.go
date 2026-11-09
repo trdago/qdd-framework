@@ -150,7 +150,7 @@ func (b *Bucle) seguirPreguntas(ctx context.Context) {
 
 // ocultarDelPanel pasa por el ocultador todo el texto que se publica (inv. 16): el tablero (FND-157), los pedidos (el
 // comando puede traer un token), las preguntas con sus opciones y el detalle de un permiso, lo mandado desde el teléfono
-// y las elecciones del modo goal. El teléfono actúa por id, así que tapar un comando no cambia lo que se ejecuta.
+// las elecciones del modo goal y lo logrado. El teléfono actúa por id, así que tapar un comando no cambia lo que se ejecuta.
 func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 	o := OcultadorDe(root)
 	ocultarTablero(o, panel.Estado)
@@ -164,6 +164,15 @@ func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 	}
 	for i, a := range panel.Acciones {
 		panel.Acciones[i] = ocultarAccion(o, a)
+	}
+	if panel.Logrado != nil {
+		logrado := make([]consola.Logro, len(*panel.Logrado))
+		for i, l := range *panel.Logrado {
+			l.Titulo, l.Detalle, l.Salida = o.Ocultar(l.Titulo), o.Ocultar(l.Detalle), o.Ocultar(l.Salida)
+			l.Motivo, l.Criterio, l.Evidencia = o.Ocultar(l.Motivo), o.Ocultar(l.Criterio), o.Ocultar(l.Evidencia)
+			logrado[i] = l
+		}
+		panel.Logrado = &logrado
 	}
 }
 
