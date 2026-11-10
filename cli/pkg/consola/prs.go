@@ -267,7 +267,7 @@ func PRsAlDia(root, bin string, now time.Time) {
 	c := exec.Command(bin, "consola", "prs", "--raiz", root)
 	c.Dir = root
 	separar(c)
-	if c.Start() == nil {
+	if c, err := arrancar(c); err == nil {
 		soltar(c)
 	}
 }
