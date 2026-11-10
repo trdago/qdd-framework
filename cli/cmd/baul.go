@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/baul"
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/estado"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -26,6 +28,12 @@ var (
 	baulEn       string
 	baulVariable string
 	baulPara     string
+	// Desde Config en el panel (pedido de la persona, 2026-11-09).
+	baulPortapapeles bool
+	baulSi           bool
+	baulJSON         bool
+	// portapapeles es el del sistema; las pruebas lo cambian.
+	portapapeles = baul.PortapapelesDelSistema
 )
 
 var baulCmd = &cobra.Command{
@@ -36,6 +44,9 @@ con permiso de la persona: por sesión, por proyecto, por token y por fin, hasta
 
   qdd baul                                     lista los tokens (nunca un valor)
   qdd baul guardar <nombre> --tipo <tipo>      pide el valor oculto, en tu terminal
+  qdd baul guardar <nombre> --tipo <tipo> --portapapeles
+                                               lo lee del portapapeles y lo vacía (Config en el panel)
+  qdd baul quitar <nombre> [--si]              lo borra de su lugar, del índice y de los permisos
   qdd baul verificar <nombre>                  lo prueba contra su API y anota dueño, alcance y vencimiento
   qdd baul usar <nombre> --para "<fin>" -- <comando>
   qdd baul registro                            cada uso, encadenado
@@ -47,8 +58,32 @@ diga «Sí». El token va solo al entorno del comando y su salida sale con los v
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 	Run: func(cmd *cobra.Command, args []string) {
+		if baulJSON {
+			listarBaulJSON(os.Stdout)
+			return
+		}
 		listarBaul(os.Stdout)
 	},
+}
+
+// listarBaulJSON es la lista para Config en el panel: los tokens (nunca un valor), los tipos y si este sistema puede
+// leer el portapapeles.
+func listarBaulJSON(w io.Writer) {
+	indice, err := baul.Indice()
+	if err != nil {
+		salirCon("%v", err)
+	}
+	tipos := make([]string, 0, len(baul.Tipos))
+	for t := range baul.Tipos {
+		tipos = append(tipos, t)
+	}
+	slices.Sort(tipos)
+	leer, _ := portapapeles().(interface{ Disponible() bool })
+	out, err := listas.Marshal(map[string]any{"tokens": indice, "tipos": tipos, "portapapeles": leer != nil && leer.Disponible()})
+	if err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Fprintln(w, string(out))
 }
 
 func listarBaul(w io.Writer) {
@@ -94,11 +129,17 @@ var baulGuardarCmd = &cobra.Command{
 	Short: "Guarda un token: pide el valor oculto en tu terminal (nunca por argumentos, variables ni el chat)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		e := baul.Entrada{Nombre: args[0], Tipo: baulTipo, Donde: baulEn, Variable: baulVariable}
+		if baulPortapapeles {
+			if err := guardarDelPortapapeles(os.Stdout, e, portapapeles()); err != nil {
+				salirCon("%v", err)
+			}
+			return
+		}
 		valor, err := leerValorOculto(os.Stdin, baulTipo)
 		if err != nil {
 			salirCon("%v", err)
 		}
-		e := baul.Entrada{Nombre: args[0], Tipo: baulTipo, Donde: baulEn, Variable: baulVariable}
 		if baulTipo != "otro" {
 			if _, err := baul.VerificarValor(baulTipo, valor); errors.Is(err, baul.ErrRechazado) {
 				salirCon("no se guardó: %v", err)
@@ -113,6 +154,53 @@ var baulGuardarCmd = &cobra.Command{
 		}
 		mostrarVerificacion(args[0])
 	},
+}
+
+// guardarDelPortapapeles guarda lo copiado (lo vacía siempre que lo leyó) y dice cómo quedó, sin el valor.
+func guardarDelPortapapeles(w io.Writer, e baul.Entrada, p baul.Portapapeles) error {
+	aviso, err := baul.GuardarDelPortapapeles(e, p, time.Now())
+	if aviso != "" {
+		fmt.Fprintf(w, "[!] %s\n", aviso)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "[✓] %s quedó en el %s.\n", e.Nombre, e.Donde)
+	if e.Tipo == "otro" || e.Tipo == "aws-sso" {
+		return nil
+	}
+	mostrarVerificacionEn(w, e.Nombre)
+	return nil
+}
+
+var baulQuitarCmd = &cobra.Command{
+	Use:   "quitar <nombre>",
+	Short: "Borra un token de su lugar, del índice y de sus permisos (pregunta en tu terminal, o --si)",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		var preguntar func(string) bool
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			preguntar = preguntarEnTerminal
+		}
+		if err := quitarDelBaul(args[0], baulSi, preguntar); err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[✓] %s salió del baúl.\n", args[0])
+	},
+}
+
+// quitarDelBaul borra con --si (el panel lo pasa tras «¿Seguro?») o con el sí de la persona en su terminal.
+func quitarDelBaul(nombre string, si bool, preguntar func(string) bool) error {
+	if _, err := baul.Buscar(nombre); err != nil {
+		return err
+	}
+	if !si && preguntar == nil {
+		return fmt.Errorf("quitar %s borra el token: confírmalo con --si", nombre)
+	}
+	if !si && !preguntar("¿Quitar "+nombre+" del baúl? Se borra su valor") {
+		return fmt.Errorf("no se quitó %s", nombre)
+	}
+	return baul.Quitar(nombre, time.Now())
 }
 
 // leerValorOculto pide el valor en la terminal de la persona. Sin terminal se niega: una IA, un pedido o el teléfono
@@ -134,16 +222,20 @@ func leerValorOculto(entrada *os.File, tipo string) (string, error) {
 }
 
 func mostrarVerificacion(nombre string) {
+	mostrarVerificacionEn(os.Stdout, nombre)
+}
+
+func mostrarVerificacionEn(w io.Writer, nombre string) {
 	e, err := baul.Verificar(nombre, time.Now())
 	if errors.Is(err, baul.ErrRechazado) {
-		fmt.Printf("[✗] %s: la API lo rechaza. Vuelve a guardarlo con un token vigente.\n", nombre)
+		fmt.Fprintf(w, "[✗] %s: la API lo rechaza. Vuelve a guardarlo con un token vigente.\n", nombre)
 		return
 	}
 	if err != nil {
-		fmt.Printf("[i] %s sin verificar: %v\n", nombre, err)
+		fmt.Fprintf(w, "[i] %s sin verificar: %v\n", nombre, err)
 		return
 	}
-	fmt.Printf("[✓] %s: dueño %s · %s · vence %s\n", nombre, guion(e.Duenio), guion(e.Alcance), fecha(e.Vence))
+	fmt.Fprintf(w, "[✓] %s: dueño %s · %s · vence %s\n", nombre, guion(e.Duenio), guion(e.Alcance), fecha(e.Vence))
 }
 
 var baulVerificarCmd = &cobra.Command{
@@ -238,9 +330,12 @@ func init() {
 	baulGuardarCmd.Flags().StringVar(&baulTipo, "tipo", "", "cloudflare, github, supabase, resend, aws-sso u otro")
 	baulGuardarCmd.Flags().StringVar(&baulEn, "en", baul.EnLlavero, "llavero o 1password")
 	baulGuardarCmd.Flags().StringVar(&baulVariable, "variable", "", "con --tipo otro: la variable de entorno donde va")
+	baulGuardarCmd.Flags().BoolVar(&baulPortapapeles, "portapapeles", false, "lee el valor del portapapeles y lo vacía (lo usa Config en el panel)")
 	_ = baulGuardarCmd.MarkFlagRequired("tipo")
+	baulQuitarCmd.Flags().BoolVar(&baulSi, "si", false, "sin preguntar (el panel lo pasa tras «¿Seguro?»)")
+	baulCmd.Flags().BoolVar(&baulJSON, "json", false, "la lista para el panel, en JSON")
 	baulUsarCmd.Flags().StringVar(&baulPara, "para", "", "el fin: para qué se usa (el permiso es por fin)")
 	_ = baulUsarCmd.MarkFlagRequired("para")
-	baulCmd.AddCommand(baulGuardarCmd, baulVerificarCmd, baulUsarCmd, baulPermitirCmd, baulRegistroCmd)
+	baulCmd.AddCommand(baulGuardarCmd, baulQuitarCmd, baulVerificarCmd, baulUsarCmd, baulPermitirCmd, baulRegistroCmd)
 	rootCmd.AddCommand(baulCmd)
 }

@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/qdd-framework/qdd/pkg/baul"
+	"github.com/zalando/go-keyring"
 )
 
 // Rule: Prohibido usar 'else'
@@ -33,5 +38,65 @@ func TestDoctorBaul_SinBaulNoApareceYConTokensSi(t *testing.T) {
 	g := buildBaulChecks(root)
 	if len(g.Items) != 1 || !g.Items[0].Success || strings.Contains(g.Items[0].Error, "ghp_valor") {
 		t.Fatalf("un aviso sin el valor: %+v", g.Items)
+	}
+}
+
+// El baúl desde Config en el panel (pedido de la persona, 2026-11-09: «agregar, quitar, modificar»).
+type copiadoFalso struct{ valor string }
+
+func (c *copiadoFalso) Leer() (string, error) { return c.valor, nil }
+func (c *copiadoFalso) Vaciar() error {
+	c.valor = ""
+	return nil
+}
+
+func baulDePrueba(t *testing.T) {
+	t.Helper()
+	keyring.MockInit()
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+}
+
+func TestBaulPanel_GuardarDelPortapapelesListarYQuitar(t *testing.T) {
+	baulDePrueba(t)
+	const valor = "valor-de-prueba-123"
+	copiado := &copiadoFalso{valor: valor}
+	var salida bytes.Buffer
+	e := baul.Entrada{Nombre: "mio", Tipo: "otro", Donde: baul.EnLlavero, Variable: "MI_TOKEN"}
+	if err := guardarDelPortapapeles(&salida, e, copiado); err != nil {
+		t.Fatal(err)
+	}
+	if copiado.valor != "" || strings.Contains(salida.String(), valor) {
+		t.Fatalf("vacía el portapapeles y nunca muestra el valor: %q", salida.String())
+	}
+	var lista bytes.Buffer
+	listarBaulJSON(&lista)
+	var d struct {
+		Tokens       []baul.Entrada `json:"tokens"`
+		Tipos        []string       `json:"tipos"`
+		Portapapeles bool           `json:"portapapeles"`
+	}
+	if err := json.Unmarshal(lista.Bytes(), &d); err != nil || len(d.Tokens) != 1 || d.Tokens[0].Nombre != "mio" || len(d.Tipos) != len(baul.Tipos) {
+		t.Fatalf("la lista para el panel trae los tokens y los tipos: %s %v", lista.String(), err)
+	}
+	if strings.Contains(lista.String(), valor) {
+		t.Fatalf("la lista nunca trae un valor: %s", lista.String())
+	}
+	if err := quitarDelBaul("mio", false, nil); err == nil {
+		t.Fatal("sin --si ni terminal, quitar no borra")
+	}
+	if err := quitarDelBaul("mio", false, func(string) bool { return false }); err == nil {
+		t.Fatal("si la persona dice que no, no borra")
+	}
+	if err := quitarDelBaul("mio", true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := baul.Buscar("mio"); err == nil {
+		t.Fatal("quitado")
+	}
+	lista.Reset()
+	listarBaulJSON(&lista)
+	if !strings.Contains(lista.String(), `"tokens": []`) && !strings.Contains(lista.String(), `"tokens":[]`) {
+		t.Fatalf("un baúl vacío es una lista vacía, no null: %s", lista.String())
 	}
 }

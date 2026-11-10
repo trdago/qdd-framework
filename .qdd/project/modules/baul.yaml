@@ -5,6 +5,7 @@ rutas:
     - cli/pkg/baul
     - cli/cmd/baul.go
     - cli/cmd/baul_doctor.go
+    - cli/pkg/consola/mod/qdd-tareas/tests/baul-config.test.ts
 objetivo_operativo:
     problema: Con la IA, crear la zona en Cloudflare, el proyecto en Supabase, el rol en AWS o los secretos en GitHub se repite en cada proyecto. Cada vez se busca el token, se copia a un .env o se pega en el chat, y quedan tokens con permisos de más, .env con valores en cada carpeta y llaves en la conversación de una IA.
     usuarios: La persona, que guarda cada token una vez y permite su uso; la IA de cada sesión, que corre comandos con el token sin verlo; doctor, que avisa de tokens vencidos, sin uso, registros rotos y .env con valores.
@@ -21,9 +22,10 @@ objetivo_tecnologico:
         - Sin tool MCP nueva (tools/list está al tope, RFC 0022); la IA lo conoce por qdd baul --help.
         - 'El ocultador tapa los valores de 6 o más caracteres: el que se usa y los demás del llavero.'
         - La integración con 1Password está probada solo con un op falso; se valida con el op real en el primer uso.
+        - "El baúl se administra desde Config en el panel (pedido de la persona, 2026-11-09: «agregar, quitar, modificar»). qdd baul --json da {tokens, tipos, portapapeles} sin valores. Agregar y modificar corren qdd baul guardar <nombre> --tipo --en [--variable] --portapapeles: la persona copia el token y presiona «\U0001F4CB Pegar del portapapeles»; modificar es guardar el mismo nombre, y cambiarlo de lugar (o a aws-sso) borra el valor anterior. Quitar pide «¿Seguro?» y corre qdd baul quitar <nombre> --si, que borra el valor, la entrada y sus permisos y solicitudes, y lo anota; sin --si pregunta en la terminal o se niega. Lo copiado que no parece un token (vacío, con espacios, saltos o más de 4096) no se guarda, y el mensaje nunca lo repite. Sin con qué leer el portapapeles (sin wl-clipboard, xclip, pbpaste ni PowerShell), el panel muestra el comando para la terminal."
     invariantes:
         - Ningún valor se imprime, se escribe en un archivo de QDD, se pasa por argumentos ni viaja por el chat, un pedido o el teléfono. No existe qdd baul ver.
-        - guardar lee el valor solo con entrada oculta en una terminal; sin terminal se niega.
+        - guardar lee el valor solo con entrada oculta en una terminal o, con --portapapeles, directo del portapapeles del sistema, que vacía apenas lo lee (decisión de la persona, 2026-11-09). Sin terminal ni --portapapeles se niega; el valor nunca pasa por el panel, sus argumentos, el chat ni un pedido.
         - Sin permiso vigente, usar no corre nada.
         - El registro solo agrega y cada línea encadena la anterior; doctor --fix aparta uno roto como evidencia, nunca lo reescribe.
         - Las pruebas no tocan el llavero ni el 1Password reales, ni el QDD_HOME de la persona.
@@ -36,5 +38,5 @@ fuentes:
     - rfcs/0023-baul-de-accesos.md
     - cli/pkg/baul/usar.go
     - cli/pkg/baul/permisos.go
-ultima_revision: "2026-11-08"
-revisado_en_commit: fd1a57831e1d
+ultima_revision: "2026-11-09"
+revisado_en_commit: 890162b61aad

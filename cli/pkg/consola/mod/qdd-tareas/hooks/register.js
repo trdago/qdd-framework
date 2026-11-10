@@ -2242,10 +2242,10 @@ function sinEstado(Box, Text, motivo) {
 // falla queda una vez en 'qdd incidentes', con solo el mensaje y los nombres de las funciones del panel.
 const caidas = new Set()
 
-function dibujar($, Box, Text, Button, Input, ancho) {
+function dibujar($, Box, Text, Button, Input, Select, ancho) {
   const vista = config ? ['configuracion', 'Configuración'] : bps ? ['blueprints', 'Blueprints'] : proyectos ? ['proyectos', 'Proyectos'] : ['tareas', 'Tareas']
   const marco = () => (datos ? [cabecera(Box, Text, Button, $, datos.estado, datos.acciones || [])] : [])
-  return protegida($, Box, Text, Button, vista, () => dibujarVista($, Box, Text, Button, Input, ancho), marco)
+  return protegida($, Box, Text, Button, vista, () => dibujarVista($, Box, Text, Button, Input, Select, ancho), marco)
 }
 
 // protegida dibuja la vista; si lanza, dibuja la falla debajo del marco (la cabecera con sus botones), si el marco se
@@ -2297,11 +2297,11 @@ function avisarCaida($, id, mensaje, pila) {
     .catch((err) => $.ui.log('qdd: no se registró la falla de la vista: ' + String(err?.message ?? err), { to: 'debug' }))
 }
 
-function dibujarVista($, Box, Text, Button, Input, ancho) {
+function dibujarVista($, Box, Text, Button, Input, Select, ancho) {
   if (!datos) return sinEstado(Box, Text, falla)
   const e = datos.estado
   const lista = datos.acciones || []
-  if (config) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaConfig($, Box, Text, Button, Input, ancho)] })
+  if (config) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaConfig($, Box, Text, Button, Input, Select, ancho)] })
   if (bps) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaBlueprints($, Box, Text, Button, ancho)] })
   if (proyectos) return Box({ flexDirection: 'column', children: [cabecera(Box, Text, Button, $, e, lista), ...vistaProyectos($, Box, Text, Button, ancho)] })
   const cuerpo = e ? [tabla(Box, Text, Button, $, e, lista, ancho)] : [sinEstado(Box, Text, datos.motivo)]
@@ -2981,7 +2981,8 @@ async function abrirConfig($) {
   config = config ? null : { vista: 'lista' }
   bps = null
   proyectos = null
-  if (config) await leerHerramientas($)
+  baulDeConfig = { ...baulDeConfig, form: null, quitando: '', aviso: '', hecho: '' }
+  if (config) await Promise.all([leerHerramientas($), leerBaul($)])
   $.ui.invalidate('ui.render')
 }
 
@@ -3105,7 +3106,7 @@ function confirmarQuitar($, Box, Text, Button, h) {
 
 const PASOS = ['La IA lee su ayuda y propone sus acciones', 'Las aceptas o pides cambios, en la conversación', 'QDD la valida y corre su prueba de humo', 'Queda guardada como pestaña']
 
-function vistaConfig($, Box, Text, Button, Input, ancho) {
+function vistaConfig($, Box, Text, Button, Input, Select, ancho) {
   const cancelar = Button({
     key: 'h-cancelar',
     label: 'Cancelar',
@@ -3144,6 +3145,166 @@ function vistaConfig($, Box, Text, Button, Input, ancho) {
   return [
     separador(Box, Text, 't-config', 'Herramientas del proyecto', undefined, 'k cierra', ancho),
     Box({ key: 'h-config', flexDirection: 'column', rowGap: 1, children: [...aviso, ...cuerpo] }),
+    ...(config.vista === 'lista' ? vistaBaul($, Box, Text, Button, Input, Select, ancho) : []),
+  ]
+}
+
+// ── Baúl de accesos en Config (pedido de la persona, 2026-11-09: «el baúl de contraseñas se debe poder administrar
+// desde config en el panel de la derecha: agregar, quitar, modificar»). El panel nunca ve un valor: la persona copia el
+// token y «Pegar del portapapeles» le pide a qdd que lo lea, lo vacíe, lo pruebe con su API y lo guarde (eligió esa
+// opción). Modificar es guardar de nuevo el mismo nombre; quitar pide «¿Seguro?» y corre con --si.
+let baulDeConfig = { lista: null, falla: '', form: null, quitando: '', aviso: '', hecho: '', ocupado: false }
+const LUGARES_BAUL = [{ value: 'llavero', label: 'llavero del sistema' }, { value: '1password', label: '1Password' }]
+
+async function leerBaul($) {
+  const bin = await binario($)
+  try {
+    const r = await $.process.run([bin, 'baul', '--json'], { timeoutMs: TOPE_MS })
+    if (r.exitCode !== 0) {
+      baulDeConfig = { ...baulDeConfig, lista: null, falla: 'Esta versión de qdd no administra el baúl desde el panel: actualiza qdd.' }
+      return
+    }
+    const d = JSON.parse(r.stdout)
+    baulDeConfig = { ...baulDeConfig, lista: { tokens: d.tokens || [], tipos: d.tipos || [], portapapeles: Boolean(d.portapapeles) }, falla: '' }
+  } catch (err) {
+    baulDeConfig = { ...baulDeConfig, lista: null, falla: 'No pude leer el baúl: ' + String(err?.message ?? err) }
+  }
+}
+
+// correrBaul corre un subcomando del baúl y muestra su última línea: ✓ en verde, el resto como aviso.
+async function correrBaul($, argv, despues = {}) {
+  if (baulDeConfig.ocupado) return
+  baulDeConfig = { ...baulDeConfig, ocupado: true, aviso: '', hecho: '' }
+  $.ui.invalidate('ui.render')
+  const bin = await binario($)
+  let aviso = ''
+  let hecho = ''
+  try {
+    const r = await $.process.run([bin, 'baul', ...argv], { timeoutMs: TOPE_ACCION_MS })
+    const lineas = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').filter(Boolean)
+    hecho = r.exitCode === 0 ? lineas.join(' · ') || '✓ listo' : ''
+    aviso = r.exitCode === 0 ? '' : lineas.join(' · ') || 'qdd baul salió con ' + r.exitCode
+  } catch (err) {
+    aviso = String(err?.message ?? err)
+  }
+  baulDeConfig = { ...baulDeConfig, ...(aviso ? {} : despues), ocupado: false, aviso, hecho }
+  await leerBaul($)
+  $.ui.invalidate('ui.render')
+}
+
+function cambiarBaul($, cambio) {
+  baulDeConfig = { ...baulDeConfig, ...cambio }
+  $.ui.invalidate('ui.render')
+}
+
+function pegarDelPortapapeles($) {
+  const f = baulDeConfig.form
+  const falta = !f.nombre ? 'falta el nombre' : f.tipo === 'otro' && !f.variable ? 'falta la variable de entorno donde va' : ''
+  if (falta) return cambiarBaul($, { aviso: '⚠ ' + falta, hecho: '' })
+  const argv = ['guardar', f.nombre, '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.tipo === 'otro' ? ['--variable', f.variable] : [])]
+  return correrBaul($, argv, { form: null })
+}
+
+function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
+  const b = baulDeConfig
+  const titulo = separador(Box, Text, 't-baul', '🔑 Baúl de accesos', undefined, b.lista ? b.lista.tokens.length + ' tokens' : '', ancho)
+  if (!b.lista) return [titulo, Text({ key: 'b-falla', color: COLOR.espera, wrap: 'wrap', children: [b.falla || 'Leyendo el baúl…'] })]
+  const resultado = [
+    ...(b.ocupado ? [Text({ key: 'b-ocupado', color: COLOR.enCurso, children: ['⟳ qdd está en eso…'] })] : []),
+    ...(b.hecho ? [Text({ key: 'b-hecho', color: COLOR.bien, wrap: 'wrap', children: [b.hecho] })] : []),
+    ...(b.aviso ? [Text({ key: 'b-aviso', color: COLOR.falla, wrap: 'wrap', children: [b.aviso] })] : []),
+  ]
+  if (b.form) return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...formularioBaul($, Box, Text, Button, Input, Select, b)] })]
+  const filas = b.lista.tokens.map((t) => (b.quitando === t.nombre ? confirmarQuitarToken($, Box, Text, Button, t) : filaToken($, Box, Text, Button, t)))
+  const vacio = Text({ key: 'b-vacio', dimColor: true, wrap: 'wrap', children: ['El baúl está vacío. Guarda aquí los tokens que usa la IA (Cloudflare, GitHub, Supabase…): nunca los pegues en el chat.'] })
+  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar token', variant: 'primary', onPress: () => cambiarBaul($, { form: { modo: 'agregar', nombre: '', tipo: 'cloudflare', en: 'llavero', variable: '' }, aviso: '', hecho: '' }) })] })
+  return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...(filas.length ? filas : [vacio]), agregar] })]
+}
+
+const fechaCorta = (iso) => (iso ? String(iso).slice(0, 10) : '')
+
+function detalleDeToken(t) {
+  const partes = [t.tipo, t.donde, t.duenio, t.alcance, t.vence ? 'vence ' + fechaCorta(t.vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
+  return partes.filter(Boolean).join(' · ')
+}
+
+function filaToken($, Box, Text, Button, t) {
+  const modificar = () => cambiarBaul($, { form: { modo: 'modificar', nombre: t.nombre, tipo: t.tipo, en: t.donde, variable: t.variable || '' }, aviso: '', hecho: '' })
+  return Box({
+    key: 'b-fila-' + t.nombre,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    columnGap: 2,
+    children: [
+      Box({
+        flexDirection: 'column',
+        flexShrink: 1,
+        children: [
+          Text({ key: 'b-n-' + t.nombre, weight: 'bold', color: t.rechazado ? COLOR.falla : COLOR.texto, wrap: 'truncate-end', children: [t.nombre] }),
+          Text({ key: 'b-d-' + t.nombre, color: t.rechazado ? COLOR.falla : COLOR.secundario, size: 'caption', wrap: 'truncate-end', children: [t.rechazado ? 'RECHAZADO por su API: modifícalo con un token vigente · ' + t.tipo : detalleDeToken(t)] }),
+        ],
+      }),
+      Box({
+        flexDirection: 'row',
+        flexShrink: 0,
+        columnGap: 2,
+        children: [
+          Button({ key: 'b-verificar-' + t.nombre, label: 'Verificar', plain: true, dimColor: true, onPress: () => correrBaul($, ['verificar', t.nombre]) }),
+          Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: modificar }),
+          Button({ key: 'b-quitar-' + t.nombre, label: 'Quitar', plain: true, onPress: () => cambiarBaul($, { quitando: t.nombre, aviso: '', hecho: '' }) }),
+        ],
+      }),
+    ],
+  })
+}
+
+function confirmarQuitarToken($, Box, Text, Button, t) {
+  return Box({
+    key: 'b-confirmar-quitar',
+    flexDirection: 'column',
+    borderStyle: 'single',
+    borderColor: COLOR.espera,
+    paddingX: 1,
+    children: [
+      Text({ color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: ['¿Quitar «' + t.nombre + '» del baúl?'] }),
+      Text({ dimColor: true, wrap: 'wrap', children: ['Borra su valor del ' + (t.donde === '1password' ? '1Password' : 'llavero') + ' y los permisos que tenga. No se puede deshacer.'] }),
+      Box({
+        flexDirection: 'row',
+        columnGap: 2,
+        marginTop: 1,
+        children: [
+          Button({ key: 'b-si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => correrBaul($, ['quitar', t.nombre, '--si'], { quitando: '' }) }),
+          Button({ key: 'b-no', label: 'n  No', hotkey: 'n', onPress: () => cambiarBaul($, { quitando: '' }) }),
+        ],
+      }),
+    ],
+  })
+}
+
+function formularioBaul($, Box, Text, Button, Input, Select, b) {
+  const f = b.form
+  const poner = (campo) => (v) => {
+    baulDeConfig.form = { ...baulDeConfig.form, [campo]: v }
+    $.ui.invalidate('ui.render')
+  }
+  const cancelar = Button({ key: 'b-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: null, aviso: '' }) })
+  const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un token' : 'Modificar «' + f.nombre + '»'] })
+  const campos = [
+    ...(f.modo === 'agregar' ? [Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'cloudflare, gh-trabajo… (minúsculas, - y _)', value: f.nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') })] : []),
+    Select({ key: 'b-tipo', label: 'Tipo', options: b.lista.tipos.map((t) => ({ value: t, label: t })), value: f.tipo, onSelect: poner('tipo') }),
+    Select({ key: 'b-en', label: 'Dónde', options: LUGARES_BAUL, value: f.en, onSelect: poner('en') }),
+    ...(f.tipo === 'otro' ? [Input({ key: 'b-variable', label: 'Variable', placeholder: 'MI_API_KEY', value: f.variable, submitLabel: 'listo', onInput: poner('variable'), onSubmit: poner('variable') })] : []),
+  ]
+  if (!b.lista.portapapeles) {
+    const comando = 'qdd baul guardar ' + (f.nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en)
+    return [encabezado, ...campos, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando] }), cancelar]
+  }
+  const pista = f.tipo === 'aws-sso' ? 'Copia el nombre del perfil de aws sso' : 'Copia el token'
+  return [
+    encabezado,
+    ...campos,
+    Text({ key: 'b-pista', color: COLOR.secundario, wrap: 'wrap', children: [pista + ' y presiona «Pegar del portapapeles»: qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda. Nunca lo ves aquí ni pasa por el chat.'] }),
+    Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [Button({ key: 'b-pegar', label: '📋 Pegar del portapapeles', variant: 'primary', onPress: () => pegarDelPortapapeles($) }), cancelar] }),
   ]
 }
 
@@ -3815,6 +3976,6 @@ export function register(on) {
     if (String(e.requestId).startsWith(PANE_FLUJO)) return protegida($, Box, Text, Button, ['flujo', 'Flujo'], () => dibujarFlujo($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_FLUJO.length), ancho))
     if (String(e.requestId).startsWith(PANE_HERRAMIENTA)) return protegida($, Box, Text, Button, ['herramienta', 'Herramienta'], () => dibujarHerramienta($, Box, Text, Button, Input, Select, e.requestId.slice(PANE_HERRAMIENTA.length)))
     if (e.requestId !== PANE) return next(e)
-    return dibujar($, Box, Text, Button, Input, e.props.bodyColumns || 40)
+    return dibujar($, Box, Text, Button, Input, Select, e.props.bodyColumns || 40)
   })
 }
