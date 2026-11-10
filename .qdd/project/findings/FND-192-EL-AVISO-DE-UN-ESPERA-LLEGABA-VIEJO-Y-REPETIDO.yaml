@@ -1,0 +1,9 @@
+id: "FND-192"
+title: "El aviso de un ⏳ pulsado mientras la IA trabajaba llegaba viejo y repetido"
+description: "2026-11-08, Windows, qdd 2.10.0-rc.44 (MEJ-046, reporte REP-215 por el relay): después de qdd estado set instalar-blueprint-branding Pruebas ✅, la IA recibió dos veces «⏳ Pruebas · Instalar blueprint de branding: espera ¿Apruebas la ficha marca-lyd…». El único que arma ese texto es mensajeAtender (pkg/consola/atender.go), y sale solo al pulsar la etapa en la tabla o en «▶ Para ti». qdd lo recalcula al pulsar, pero el mod lo enviaba en el acto con $.prompt.submit: con la IA en un turno, el mensaje quedaba en la cola del chat y llegaba cuando la etapa ya estaba cerrada. Cada pulsación era un aviso más."
+impact: "La IA recibe como mensaje de la persona un pedido de atender algo ya resuelto, y lo vuelve a trabajar o pregunta de nuevo; con varias pulsaciones, varias veces."
+action_taken: "El mod qdd-tareas, con la IA en un turno de la conversación principal (turn.start sin agentId), guarda un aviso por etapa en vez de enviarlo y lo dice en el panel («se envía cuando la IA termine, si todavía espera»). Al terminar ese turno se lo vuelve a pedir a qdd (qdd consola accion atender:…): si la etapa ya no espera, qdd lo rechaza y no se envía nada. Con la IA libre se envía en el acto, como antes."
+test_result: "tests/aviso-viejo.test.ts: «dos pulsaciones son uno solo» fallaba antes del cambio (llegaban los dos avisos con la IA en el turno) y pasa después; también pasan «si al terminar el turno la etapa ya no espera, el aviso no se envía», «un subagente que termina no suelta el aviso» y «con la IA libre se envía en el acto». claude plugin test: 289 en verde. Sin probar en el Windows de la persona."
+status: resolved
+detectado_por: persona
+date: "2026-11-09"

@@ -1796,12 +1796,22 @@ async function ejecutar($, a) {
   $.ui.invalidate('ui.render')
 }
 
+// Los avisos pedidos mientras la IA trabaja (FND-192): enviados en el acto quedaban en la cola del chat y llegaban
+// después de que la IA cerró la etapa, uno por pulsación. Se guarda uno por etapa y se pide al terminar el turno.
+const avisosGuardados = new Map() // id de atender → { a, zona }
+
 // atender pide a qdd el mensaje de una etapa (qdd lo vuelve a calcular: si ya no espera, no hay nada que enviar) y lo
-// envía a la conversación como un mensaje de la persona; la IA lo atiende en cuanto queda libre.
+// envía a la conversación como un mensaje de la persona. Con la IA en un turno, lo guarda para cuando termine.
 async function atender($, a, zona = 'tabla') {
   if (ocupado) return
-  ocupado = true
   confirmando = null
+  if (goal.enTurno) {
+    avisosGuardados.set(a.id, { a, zona })
+    resultado = { titulo: a.etiqueta, ok: true, texto: '◷ se envía cuando la IA termine, si todavía espera', zona }
+    $.ui.invalidate('ui.render')
+    return
+  }
+  ocupado = true
   const bin = await binario($)
   let texto = ''
   try {
@@ -1817,6 +1827,13 @@ async function atender($, a, zona = 'tabla') {
   }
   ocupado = false
   $.ui.invalidate('ui.render')
+}
+
+// soltarAvisos pide a qdd, ya con el turno terminado, los avisos guardados: el que ya no espera no se envía.
+async function soltarAvisos($) {
+  const guardados = [...avisosGuardados.values()]
+  avisosGuardados.clear()
+  for (const { a, zona } of guardados) await atender($, a, zona)
 }
 
 // revisarFoto pregunta si hay una imagen copiada: solo lista los tipos del portapapeles (≈7 ms en Linux). Donde no se
@@ -3910,8 +3927,10 @@ export function register(on) {
   })
 
   on('turn.complete', async ($, e, next) => {
-    if (!e.agentId) goal.enTurno = false
     hubo()
+    if (e.agentId) return next(e)
+    goal.enTurno = false
+    soltarAvisos($).catch((err) => $.ui.log('no se enviaron los avisos guardados: ' + String(err?.message ?? err)))
     return next(e)
   })
 
