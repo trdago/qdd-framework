@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **En Windows, un pedido ya no muere al cerrar Claude Code (FND-193, MEJ-048):** el pedido corría aparte, pero seguía dentro del Job Object de quien lo lanzó, y un job que mata a sus procesos al cerrarse se lo llevaba a medio camino («exit -1 · terminó sin anotar el resultado»). Ahora pide salir del job; si el job no lo permite, se lanza como antes.
+
 ## [2.10.0-rc.58] - 2026-11-09
 
 ### Corregido
