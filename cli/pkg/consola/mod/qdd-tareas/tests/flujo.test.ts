@@ -34,7 +34,8 @@ function preparar(on, r) {
 
 const lecturas = (r) => r.llamadas.filter((a) => a.includes('panel')).length
 
-test('con el flujo abierto los cambios llegan solos y no se lanza un proceso por lectura', async ($, on) => {
+// Avanza 60 s de reloj (120 latidos): con la máquina cargada pasa de los 5 s por defecto, como en mejoras.test.ts.
+test('con el flujo abierto los cambios llegan solos y no se lanza un proceso por lectura', { timeoutMs: 30000 }, async ($, on) => {
   const r = { llamadas: [] as string[][], lanzados: [] as string[][] }
   const clock = preparar(on, r)
   let soltar: () => void = () => {}
