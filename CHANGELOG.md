@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.58] - 2026-11-09
+
 ### Corregido
 
 - **El aviso de un ⏳ ya no llega viejo ni repetido (FND-192, MEJ-046):** pulsar una etapa ⏳ mientras la IA trabajaba dejaba el aviso en la cola del chat, y llegaba después de que la IA cerró la etapa, una vez por pulsación. Ahora el panel guarda uno por etapa, dice «se envía cuando la IA termine» y al terminar el turno se lo vuelve a pedir a qdd: si la etapa ya no espera, no se envía.
