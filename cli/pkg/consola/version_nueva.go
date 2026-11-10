@@ -98,9 +98,11 @@ func InstaladoConNPM(bin string) bool {
 	return BinarioPorVersion(bin) || strings.Contains(strings.ReplaceAll(bin, `\`, "/"), "/node_modules/qdd-framework/")
 }
 
-// ComandoActualizarQDD es el comando del pedido.
+// ComandoActualizarQDD es el comando del pedido. dist-tags nombra una versión antes de que npm la entregue (FND-194):
+// primero se le pregunta a npm, y si no la ve, el pedido dice «todavía no» (75) y se reintenta solo. --prefer-online
+// evita que la caché de npm responda por el registro. El paréntesis y «exit 75» valen igual en sh y en cmd.
 func ComandoActualizarQDD(v string) string {
-	return "npm i -g qdd-framework@" + v + " --allow-scripts=qdd-framework && echo Listo. Escribe /reload-plugins para cargar el panel nuevo"
+	return "(npm view qdd-framework@" + v + " version --prefer-online || exit 75) && npm i -g qdd-framework@" + v + " --prefer-online --allow-scripts=qdd-framework && echo Listo. Escribe /reload-plugins para cargar el panel nuevo"
 }
 
 // OfrecerVersion deja el pedido de la versión v y quita el pendiente de otra. Con v vacía, solo lo quita. Sin lugar en la

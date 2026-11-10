@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **«Actualizar qdd» espera a que npm entregue la versión (FND-194, MEJ-049):** el panel la ofrece en cuanto npm la nombra, pero npm install podía no verla todavía y fallaba con ETARGET. Ahora el pedido le pregunta a npm primero; si no la ve, dice «todavía no» y se reintenta solo.
+
 ## [2.10.0-rc.59] - 2026-11-10
 
 ### Corregido

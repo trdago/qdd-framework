@@ -65,7 +65,7 @@ jobs:
 
       - name: Pruebas del flujo
         working-directory: cli
-        run: go test ./pkg/consola/ ./pkg/remoto/ -run "Seguir|SenalesDelPanel|BinarioCambio|VigiaBinario|RutaVigilada|BinarioPorVersion|RenovarBinario|TareaSinEstaVersion|TestBarra_|FND193" -count=1 -v
+        run: go test ./pkg/consola/ ./pkg/remoto/ -run "Seguir|SenalesDelPanel|BinarioCambio|VigiaBinario|RutaVigilada|BinarioPorVersion|RenovarBinario|TareaSinEstaVersion|TestBarra_|FND193|FND194" -count=1 -v
 
       - name: Setup Node
         uses: actions/setup-node@v4

@@ -2,6 +2,10 @@ package consola
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -64,7 +68,7 @@ func TestVersion_SeOfreceComoPedidoOpcional(t *testing.T) {
 		t.Fatalf("el motivo dice a qué versión: %q", p.Motivo)
 	}
 	// FND-143: con npm 12, sin la bandera el botón dejaría a qdd sin binario.
-	if !strings.Contains(p.Comando, "npm i -g qdd-framework@2.9.7 --allow-scripts=qdd-framework") || !strings.Contains(p.Comando, "/reload-plugins") {
+	if !strings.Contains(p.Comando, "npm i -g qdd-framework@2.9.7 ") || !strings.Contains(p.Comando, "--allow-scripts=qdd-framework") || !strings.Contains(p.Comando, "/reload-plugins") {
 		t.Fatalf("el comando instala esa versión y dice cómo cargar el panel: %q", p.Comando)
 	}
 	if err := OfrecerVersion(root, "2.9.7", enCola); err != nil {
@@ -230,5 +234,39 @@ func TestTraerVersion_EnWindowsConBinarioPorVersionOfreceElBoton(t *testing.T) {
 	}
 	if aviso := AvisoDeVersion(root, "v2.9.6"); aviso != "" {
 		t.Fatalf("con botón no hace falta el aviso: %q", aviso)
+	}
+}
+
+// FND-194 (MEJ-049, Windows rc.44): el panel ofreció «Actualizar qdd a 2.10.0-rc.40» cuando dist-tags ya la nombraba,
+// pero npm todavía no la entregaba, y el pedido falló con ETARGET. Ahora el comando pregunta a npm primero y, si npm no
+// la ve, dice «todavía no» (75): el pedido queda armado y se reintenta solo.
+func TestComandoActualizarQDD_EsperaAQueNpmLaEntregue_FND194(t *testing.T) {
+	dir := t.TempDir()
+	registro := filepath.Join(dir, "npm.log")
+	shell, flag, nombre := "sh", "-c", "npm"
+	falso := "#!/bin/sh\necho \"$*\" >> " + registro + "\n[ \"$1\" = view ] && [ \"$SIN_VERSION\" = 1 ] && exit 1\nexit 0\n"
+	if runtime.GOOS == "windows" {
+		shell, flag, nombre = "cmd", "/C", "npm.cmd"
+		falso = "@echo off\r\necho %* >> \"" + registro + "\"\r\nif \"%1\"==\"view\" if \"%SIN_VERSION%\"==\"1\" exit /b 1\r\nexit /b 0\r\n"
+	}
+	if err := os.WriteFile(filepath.Join(dir, nombre), []byte(falso), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Como correrComando: la shell del sistema con el comando entero.
+	correr := func(sinVersion string) (int, string) {
+		os.Remove(registro)
+		c := exec.Command(shell, flag, ComandoActualizarQDD("2.10.0-rc.40"))
+		c.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "SIN_VERSION="+sinVersion)
+		c.Run()
+		b, _ := os.ReadFile(registro)
+		return c.ProcessState.ExitCode(), string(b)
+	}
+	codigo, llamadas := correr("1")
+	if codigo != CodigoTodaviaNo || strings.Contains(llamadas, "i -g") {
+		t.Fatalf("sin la versión en npm tiene que decir «todavía no» sin instalar: código %d, llamadas %q", codigo, llamadas)
+	}
+	codigo, llamadas = correr("0")
+	if codigo != 0 || !strings.Contains(llamadas, "i -g qdd-framework@2.10.0-rc.40") || !strings.Contains(llamadas, "--prefer-online") {
+		t.Fatalf("con la versión en npm instala sin la caché vieja: código %d, llamadas %q", codigo, llamadas)
 	}
 }
