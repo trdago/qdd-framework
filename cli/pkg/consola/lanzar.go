@@ -28,7 +28,8 @@ func (a Accion) Lanzar(root, bin, sesion string, salida io.Writer) int {
 	c := exec.Command(nombre, args...)
 	c.Dir = root
 	separar(c)
-	if err := c.Start(); err != nil {
+	c, err = arrancar(c)
+	if err != nil {
 		terminar(root, a.pedido, 1, "no se pudo lanzar: "+err.Error(), false)
 		fmt.Fprintf(salida, "[!] no se pudo lanzar el pedido: %v\n", err)
 		return 1
