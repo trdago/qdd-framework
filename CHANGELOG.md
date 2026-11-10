@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.57] - 2026-11-09
+
+### Added
+- El baúl de accesos se administra desde Config en el panel (pedido de la persona, 2026-11-09). Ahí ves cada token con su tipo, lugar, dueño, vencimiento y último uso, nunca su valor; los rechazados aparecen en rojo. «+ Agregar token» y «Modificar» guardan lo que copiaste: presionas «📋 Pegar del portapapeles» y qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda (`qdd baul guardar … --portapapeles`). «Quitar» pregunta antes y borra el valor y sus permisos (`qdd baul quitar`). «Verificar» lo prueba de nuevo.
+
 ## [2.10.0-rc.56] - 2026-11-09
 
 ### Agregado

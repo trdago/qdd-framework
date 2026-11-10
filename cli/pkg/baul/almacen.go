@@ -3,8 +3,10 @@ package baul
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -41,11 +43,65 @@ func Guardar(e Entrada, valor string, ahora time.Time) error {
 			return err
 		}
 	}
+	anterior, errAnterior := Buscar(e.Nombre)
 	e.Guardado = ahora.UTC()
 	if err := cambiarEntrada(e.Nombre, func(x *Entrada) { *x = e }); err != nil {
 		return err
 	}
+	// Modificar a otro lugar (o a aws-sso, que no guarda valor) no deja una copia olvidada del valor anterior.
+	if errAnterior == nil && (anterior.Donde != e.Donde || e.Tipo == "aws-sso") {
+		_ = borrarValor(anterior)
+	}
 	return Anotar(Linea{Accion: "guardar", Token: e.Nombre}, ahora)
+}
+
+// Quitar borra el valor de su lugar, la entrada del índice y los permisos y solicitudes del token, y lo anota.
+func Quitar(nombre string, ahora time.Time) error {
+	e, err := Buscar(nombre)
+	if err != nil {
+		return err
+	}
+	if err := borrarValor(e); err != nil {
+		return err
+	}
+	if err := conBloqueo(func() error {
+		indice, err := Indice()
+		if err != nil {
+			return err
+		}
+		return escribirJSON("indice.json", slices.DeleteFunc(indice, func(x Entrada) bool { return x.Nombre == nombre }))
+	}); err != nil {
+		return err
+	}
+	if err := conPermisos(ahora, func(ps *permisos) error {
+		ps.Permisos = slices.DeleteFunc(ps.Permisos, func(p Permiso) bool { return p.Token == nombre })
+		ps.Solicitudes = slices.DeleteFunc(ps.Solicitudes, func(s Solicitud) bool { return s.Token == nombre })
+		return nil
+	}); err != nil {
+		return err
+	}
+	return Anotar(Linea{Accion: "quitar", Token: nombre}, ahora)
+}
+
+// borrarValor saca el valor de su lugar. Uno que ya no estaba no es una falla.
+func borrarValor(e Entrada) error {
+	if e.Tipo == "aws-sso" {
+		return nil
+	}
+	if e.Donde == EnLlavero {
+		err := keyring.Delete(servicioLlavero, e.Nombre)
+		if errors.Is(err, keyring.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	c := exec.Command(binOp, "item", "delete", tituloOp(e.Nombre))
+	var errSalida bytes.Buffer
+	c.Stderr = &errSalida
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("1Password no lo borró: %v %s", err, strings.TrimSpace(errSalida.String()))
+	}
+	return nil
 }
 
 func guardarValor(e Entrada, valor string) error {
