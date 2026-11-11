@@ -101,6 +101,37 @@ func esperados(cola []Pedido) map[string]bool {
 	return out
 }
 
+// sinCumplidas quita de despues las teclas de pedidos que ya terminaron bien (FND-196): en modo goal un pedido se
+// confirma en segundos y su tecla queda libre, así que quien lo espera llega tarde. Una tecla de un pedido abierto o un id
+// siguen como están, y una tecla que nadie tuvo sigue siendo un error.
+func sinCumplidas(cola []Pedido, hechos []hechoAnotado, despues []string) []string {
+	var out []string
+	for _, ref := range despues {
+		if teclaCumplida(cola, hechos, strings.TrimSpace(ref)) {
+			continue
+		}
+		out = append(out, ref)
+	}
+	return out
+}
+
+func teclaCumplida(cola []Pedido, hechos []hechoAnotado, ref string) bool {
+	if _, err := resolver(cola, ref); err == nil {
+		return false
+	}
+	for _, p := range cola {
+		if p.Estado == EstadoHecho && p.Tecla == ref {
+			return true
+		}
+	}
+	for _, h := range hechos {
+		if h.Tecla == ref {
+			return true
+		}
+	}
+	return false
+}
+
 // resolver convierte una referencia (id o tecla de un pedido abierto) en el id del pedido.
 func resolver(cola []Pedido, ref string) (int, error) {
 	ref = strings.TrimSpace(ref)

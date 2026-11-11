@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.62] - 2026-11-10
+
+### Corregido
+
+- **`--despues` acepta la tecla de un pedido que ya terminó (FND-196, MEJ-054):** en modo goal un pedido se confirma en segundos y su tecla queda libre, así que pedir otro con `--despues <esa tecla>` fallaba con «no hay un pedido…» o «no puede esperarse a sí mismo». Ahora esa dependencia cuenta como cumplida. Además, `qdd consola pedidos --salida <id o tecla>` muestra cómo terminó un pedido y su salida.
+
 ## [2.10.0-rc.61] - 2026-11-10
 
 ### Corregido

@@ -180,3 +180,22 @@ func TestPedidos_UnaColaConUnCicloSeLeeSinPerderPedidos(t *testing.T) {
 		t.Fatalf("una cola editada a mano con un ciclo se lee entera: %s", got)
 	}
 }
+
+// FND-196 (MEJ-054): en modo goal un pedido se confirma en segundos y su tecla queda libre. Otro pedido con --despues
+// <esa tecla> se rechazaba («no hay un pedido…») o, si le tocaba la misma tecla, se esperaba a sí mismo. La tecla de un
+// pedido ya hecho es una dependencia cumplida; una que nunca existió sigue siendo un error.
+func TestPedir_DespuesDeUnaTeclaYaHechaEsUnaDependenciaCumplida_FND196(t *testing.T) {
+	root := proyectoConCola(t)
+	push := mustPedirEnOrden(t, root, "exit 0 # push", Orden{})
+	terminar(root, push.ID, 0, "listo", false)
+	pr, err := PedirEnOrden(root, "exit 0 # pr", "m pr", "", Orden{Despues: []string{push.Tecla}}, enCola)
+	if err != nil {
+		t.Fatalf("la tecla de un pedido hecho no lo rechaza: %v", err)
+	}
+	if len(pr.Despues) != 0 || len(EsperaDe(root, pr.ID)) != 0 {
+		t.Fatalf("no espera nada: ya está cumplido: %+v", pr)
+	}
+	if _, err := PedirEnOrden(root, "exit 0 # otro", "m otro", "", Orden{Despues: []string{"z"}}, enCola); err == nil {
+		t.Fatal("una tecla que nunca fue de un pedido sigue siendo un error")
+	}
+}

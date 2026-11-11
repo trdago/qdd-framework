@@ -103,6 +103,17 @@ func hechoReciente(root, efecto string, now time.Time) *YaHecho {
 	return ya
 }
 
+// hechosRecientes es lo que terminó bien en las últimas VidaHechos. Quien lo llama tiene la cola bloqueada.
+func hechosRecientes(root string, now time.Time) []hechoAnotado {
+	var out []hechoAnotado
+	for _, h := range leerHechos(root) {
+		if now.Sub(h.Fin) < VidaHechos {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
 // anotarHecho recuerda lo que terminó bien y olvida lo vencido. Quien lo llama tiene la cola bloqueada. Si no se puede
 // escribir, solo se pierde el seguro de este pedido: el resultado sigue en la cola.
 func anotarHecho(root string, p Pedido, fin time.Time) {

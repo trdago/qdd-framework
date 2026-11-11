@@ -393,8 +393,45 @@ var consolaPedidosCmd = &cobra.Command{
 	Use:   "pedidos",
 	Short: "Lista los comandos que esperan a la persona en el panel",
 	Run: func(cmd *cobra.Command, args []string) {
+		if consolaSalidaDe != "" {
+			os.Exit(salidaDePedido(estadoRaiz(), consolaSalidaDe, os.Stdout, os.Stderr))
+		}
 		listarPedidos(estadoRaiz(), os.Stdout)
 	},
+}
+
+var consolaSalidaDe string
+
+// salidaDePedido muestra cómo terminó un pedido y su salida (MEJ-054). La referencia es su id, la tecla de uno abierto o
+// la de uno que ya terminó (el más reciente con esa tecla), porque al terminar su tecla queda libre.
+func salidaDePedido(root, ref string, salida, errores io.Writer) int {
+	p, ok := pedidoPorReferencia(consola.Pedidos(root), strings.TrimSpace(ref))
+	if !ok {
+		fmt.Fprintf(errores, "[!] no hay un pedido '%s' en la cola: los hechos se van a la media hora (qdd consola pedidos)\n", ref)
+		return 1
+	}
+	fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n", marcaPedido(p), p.Motivo, estadoPedido(p, consola.EsperaDe(root, p.ID)), p.Comando)
+	if strings.TrimSpace(p.Salida) == "" {
+		fmt.Fprintln(salida, "(sin salida)")
+		return 0
+	}
+	fmt.Fprintln(salida, p.Salida)
+	return 0
+}
+
+func pedidoPorReferencia(cola []consola.Pedido, ref string) (consola.Pedido, bool) {
+	for _, p := range cola {
+		if p.ID == ref || (p.Abierto() && p.Tecla == ref) {
+			return p, true
+		}
+	}
+	var ultimo consola.Pedido
+	for _, p := range cola {
+		if p.Tecla == ref && p.Fin != nil && (ultimo.Fin == nil || p.Fin.After(*ultimo.Fin)) {
+			ultimo = p
+		}
+	}
+	return ultimo, ultimo.Fin != nil
 }
 
 // listarPedidos muestra cada pedido con su tecla (✓ si ya está hecho, sin tecla si se está ejecutando) y su estado.
@@ -481,6 +518,7 @@ func init() {
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
 	consolaPedirCmd.Flags().BoolVar(&consolaDeNuevo, "de-nuevo", false, "repetir algo que ya se hizo en las últimas 24 h")
+	consolaPedidosCmd.Flags().StringVar(&consolaSalidaDe, "salida", "", "muestra cómo terminó un pedido y su salida (id o tecla, también de uno ya hecho)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")
