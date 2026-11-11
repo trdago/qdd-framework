@@ -172,6 +172,10 @@ type Entrega struct {
 
 // EntregaDe arma lo que recibe Claude Code: en AskUserQuestion, cada respuesta por el texto de su pregunta (varias
 // opciones separadas por coma, como el diálogo); en un permiso, permitir o negar.
+// MarcaGoal va al final de cada respuesta que eligió el modo goal (FND-198): la IA la recibe como texto de la respuesta
+// y no la atribuye a la persona.
+const MarcaGoal = " [la eligió el modo goal (su opción recomendada), no la persona]"
+
 func EntregaDe(p Pregunta) Entrega {
 	e := Entrega{ID: p.ID, Estado: p.Estado, RespondidaEn: p.RespondidaEn, Lugar: p.Lugar, Motivo: p.Motivo}
 	if p.Estado != PreguntaRespondida || p.RespondidaEn != EnTelefono {
@@ -193,6 +197,12 @@ func EntregaDe(p Pregunta) Entrega {
 			etiquetas = append(etiquetas, etiquetaDe(q, v))
 		}
 		e.Respuestas[q.Texto] = strings.Join(etiquetas, ", ")
+	}
+	if p.Lugar != LugarGoal {
+		return e
+	}
+	for k, v := range e.Respuestas {
+		e.Respuestas[k] = v + MarcaGoal
 	}
 	return e
 }

@@ -333,3 +333,21 @@ func TestPregunta_UnaColaIlegibleSeAparta(t *testing.T) {
 		t.Fatalf("la ilegible queda aparte, no se pierde: %v", err)
 	}
 }
+
+// FND-198 (MEJ-025, issue #147): la IA recibía la elección del modo goal igual que una respuesta de la persona, y dejó
+// escrito en commits que la persona había aprobado lo que eligió el modo. La respuesta lo dice.
+func TestPregunta_LaQueEligioElModoGoalLoDiceEnLaRespuesta_FND198(t *testing.T) {
+	root := proyectoConCola(t)
+	p := registrarAsk(t, root)
+	r, err := ResponderPregunta(root, p.ID, `{"q1": {"opciones": ["b"]}, "q2": {"opciones": ["a", "c"]}}`, LugarGoal, enPregunta.Add(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := EntregaDe(r)
+	if e.Respuestas["¿Qué base de datos usamos?"] != "SQLite"+MarcaGoal || e.Respuestas["¿Qué pruebas corremos?"] != "Unitarias, E2E"+MarcaGoal {
+		t.Fatalf("cada respuesta dice que la eligió el modo goal: %+v", e.Respuestas)
+	}
+	if !strings.Contains(MarcaGoal, "modo goal") || !strings.Contains(MarcaGoal, "no la persona") {
+		t.Fatalf("la marca se entiende sola: %q", MarcaGoal)
+	}
+}
