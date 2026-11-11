@@ -650,7 +650,7 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 	var copia bytes.Buffer
 	c := exec.Command(shell, flag, a.Detalle)
 	c.Dir = a.Carpeta
-	c.Env = append(os.Environ(), VarPedido+"="+a.pedido)
+	c.Env = append(entornoDelPedido(os.Environ(), runtime.GOOS, bashDelPedido()), VarPedido+"="+a.pedido)
 	c.Stdout = io.MultiWriter(salida, &copia)
 	c.Stderr = io.MultiWriter(salida, &copia)
 	err := c.Start()
@@ -659,8 +659,16 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 		err = c.Wait()
 	}
 	codigo := codigoDe(err, a, io.MultiWriter(salida, &copia))
-	terminar(root, a.pedido, codigo, ultimasLineas(copia.String(), lineasSalida), armar)
+	terminar(root, a.pedido, codigo, ultimasLineas(salidaLegible(copia.Bytes()), lineasSalida), armar)
 	return codigo
+}
+
+// bashDelPedido solo se busca en Windows (FND-197).
+func bashDelPedido() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	return bashDeEsteEquipo()
 }
 
 // anotarHijo deja en la cola el PID del comando que corre: si qdd muere, el comando puede seguir vivo.

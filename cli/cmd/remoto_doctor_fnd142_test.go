@@ -110,3 +110,22 @@ func TestDoctor_VeYReparaLaTareaSinUsuario_FND195(t *testing.T) {
 		t.Fatalf("quedó con el usuario: %s", leerTarea(t, archivo))
 	}
 }
+
+// FND-197 (MEJ-058): REM-06 «arrancaba» una tarea escrita sin usuario: schtasks /Create la rechazaba sin administrador.
+// Antes de arrancarla, doctor la pone al día.
+func TestDoctor_ArrancarQDDRemotoPoneAlDiaLaTarea_FND197(t *testing.T) {
+	s, archivo, corridos := tareaEnOtraVersion(t)
+	s.Bin = `C:\L\qdd\bin\2.10.0\qdd.exe`
+	s.Cuenta = `PC\ana`
+	remotoServicio = func() (remoto.Servicio, error) { return s, nil }
+	if err := arrancarServicioMovil(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(leerTarea(t, archivo), `<UserId>PC\ana</UserId>`) {
+		t.Fatalf("la tarea quedó con el usuario antes de registrarla: %s", leerTarea(t, archivo))
+	}
+	ultimo := (*corridos)[len(*corridos)-1]
+	if ultimo[0] != "schtasks" || ultimo[1] != "/Run" {
+		t.Fatalf("y después la arranca: %v", *corridos)
+	}
+}
