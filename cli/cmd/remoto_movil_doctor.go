@@ -296,6 +296,10 @@ func arrancarServicioMovil() error {
 		_, err := s.Instalar(remotoEjecutor)
 		return err
 	}
+	// Una tarea de Windows escrita sin usuario no se registra sin administrador (FND-195): primero se pone al día.
+	if err := s.RenovarTarea(remotoEjecutor); err != nil {
+		return err
+	}
 	for _, c := range s.Comandos(true) {
 		if err := remotoEjecutor(c[0], c[1:]...); err != nil {
 			return err
