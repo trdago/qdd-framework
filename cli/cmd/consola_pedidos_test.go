@@ -254,3 +254,24 @@ func TestConsolaAvisado_LaSesionQueConfirmoLoReclamaUnaSolaVez(t *testing.T) {
 		t.Fatal("una sola vez")
 	}
 }
+
+// MEJ-054: la salida de un pedido terminado solo se veía en el archivo de la cola. 'qdd consola pedidos --salida <id o
+// tecla>' la muestra, también la de uno hecho o fallido cuya tecla ya quedó libre.
+func TestConsolaPedidos_SalidaDeUnPedidoPorSuTecla_MEJ054(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	fallo, _ := consola.Pedir(root, "echo se cayó el push; exit 3", "Push", "", ahoraPrueba)
+	var salida, errores bytes.Buffer
+	consolaAccion(root, "pedido:"+fallo.ID, true, "", &salida, &errores)
+	esperarFin(t, root, fallo.ID)
+	salida.Reset()
+	if codigo := salidaDePedido(root, fallo.Tecla, &salida, &errores); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, errores.String())
+	}
+	if !strings.Contains(salida.String(), "Push · falló (código 3)") || !strings.Contains(salida.String(), "se cayó el push") {
+		t.Fatalf("dice cómo terminó y su salida: %q", salida.String())
+	}
+	if codigo := salidaDePedido(root, "z", &salida, &errores); codigo != 1 {
+		t.Fatalf("una referencia que no está es un error: %d", codigo)
+	}
+}

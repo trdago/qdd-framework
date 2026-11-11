@@ -406,6 +406,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	var nuevo Pedido
 	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
 		cola, preferida := sinRetirados(cola, tarea)
+		orden.Despues = sinCumplidas(cola, hechosRecientes(ColaDe(root, dir), now), orden.Despues)
 		usadas := map[string]bool{}
 		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
