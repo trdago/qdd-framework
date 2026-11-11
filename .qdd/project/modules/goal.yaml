@@ -36,5 +36,5 @@ pruebas:
 fuentes:
     - rfcs/0015-modo-goal.md
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-05"
-revisado_en_commit: 2785aee7be37
+ultima_revision: "2026-11-11"
+revisado_en_commit: 50c882a4d18a
