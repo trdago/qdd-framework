@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.61] - 2026-11-10
+
 ### Corregido
 
 - **En Windows sin administrador, la tarea de qdd remoto ya queda registrada (FND-195, MEJ-052, MEJ-060):** `qdd login` y `qdd remoto activar` escribían una tarea de inicio que valía para cualquier usuario del equipo, y Windows respondía «Acceso denegado» al registrarla, así que QDD Móvil dejaba de ver el PC en cuanto el servicio se cortaba. Ahora la tarea es solo de tu usuario. Una tarea de antes se corrige sola al actualizar qdd, y `qdd doctor` la marca (REM-12) y `--fix` la registra.
