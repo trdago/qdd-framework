@@ -234,7 +234,7 @@ func TestServicio_RenovarBinarioApuntaLaTareaALaVersionNueva_FND142(t *testing.T
 	}
 	nueva := vieja
 	nueva.Bin = `C:\AppData\Local\qdd\bin\2.10.1\qdd.exe`
-	if err := nueva.RenovarBinario(anota); err != nil {
+	if err := nueva.RenovarTarea(anota); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(archivo)
@@ -252,7 +252,7 @@ func TestServicio_RenovarBinarioApuntaLaTareaALaVersionNueva_FND142(t *testing.T
 		t.Fatalf("la registra sin arrancarla: lo que corre termina solo: %v", corrio)
 	}
 	corrio = nil
-	if err := nueva.RenovarBinario(anota); err != nil || len(corrio) != 0 {
+	if err := nueva.RenovarTarea(anota); err != nil || len(corrio) != 0 {
 		t.Fatalf("ya al día no hace nada: %v %v", err, corrio)
 	}
 }
@@ -264,11 +264,11 @@ func TestServicio_RenovarBinarioSinTareaNoHaceNada_FND142(t *testing.T) {
 		t.Fatal("sin tarea no se llama a schtasks")
 		return nil
 	}
-	if err := s.RenovarBinario(falla); err != nil {
+	if err := s.RenovarTarea(falla); err != nil {
 		t.Fatal(err)
 	}
 	linux := Servicio{SO: "linux", Bin: "/qdd", Usuario: dir}
-	if err := linux.RenovarBinario(falla); err != nil {
+	if err := linux.RenovarTarea(falla); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -285,5 +285,63 @@ func TestComandosReiniciar_EnLinuxReinicia_FND171(t *testing.T) {
 	c := Servicio{SO: "linux"}.ComandosReiniciar()
 	if len(c) == 0 || c[len(c)-1][2] != "restart" {
 		t.Fatalf("systemctl restart: %v", c)
+	}
+}
+
+// FND-195 (MEJ-052, MEJ-060): un LogonTrigger sin <UserId> vale para cualquier usuario del equipo, y Windows exige
+// administrador para registrarlo («Acceso denegado»). La tarea es del usuario que la activa.
+func TestServicio_LaTareaDeWindowsEsSoloDelUsuario_FND195(t *testing.T) {
+	dir := t.TempDir()
+	s := Servicio{SO: "windows", Bin: `C:\qdd.exe`, Usuario: dir, DirQDD: dir, Cuenta: `EMPRESA\ana&co`}
+	archivo, err := s.Instalar(func(string, ...string) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(archivo)
+	xml := desdeUTF16(b)
+	if !strings.Contains(xml, `<LogonTrigger><Enabled>true</Enabled><UserId>EMPRESA\ana&amp;co</UserId></LogonTrigger>`) {
+		t.Fatalf("el disparador es solo del usuario: %s", xml)
+	}
+	if !strings.Contains(xml, `<Principal id="Author"><UserId>EMPRESA\ana&amp;co</UserId><LogonType>InteractiveToken</LogonType>`) {
+		t.Fatalf("la tarea corre como el usuario: %s", xml)
+	}
+	if s.TareaSinCuenta() {
+		t.Fatal("una tarea recién escrita ya es del usuario")
+	}
+}
+
+// FND-195: una tarea escrita antes (sin <UserId>) quizás nunca se registró: renovarla le agrega el usuario y la vuelve a
+// registrar, sin tocar el binario si este no es de una versión instalada.
+func TestServicio_RenovarTareaLeAgregaElUsuario_FND195(t *testing.T) {
+	dir := t.TempDir()
+	vieja := Servicio{SO: "windows", Bin: `C:\a mano\qdd.exe`, Usuario: dir, DirQDD: dir}
+	archivo, err := vieja.Instalar(func(string, ...string) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	nueva := vieja
+	nueva.Cuenta = `PC\ana`
+	if !nueva.TareaSinCuenta() {
+		t.Fatal("ve que la tarea instalada no es de nadie en particular")
+	}
+	var corrio [][]string
+	anota := func(n string, a ...string) error {
+		corrio = append(corrio, append([]string{n}, a...))
+		return nil
+	}
+	if err := nueva.RenovarTarea(anota); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(archivo)
+	xml := desdeUTF16(b)
+	if strings.Count(xml, `<UserId>PC\ana</UserId>`) != 2 || !strings.Contains(xml, `<Command>C:\a mano\qdd.exe</Command>`) {
+		t.Fatalf("agrega el usuario y deja el binario: %s", xml)
+	}
+	if len(corrio) != 1 || corrio[0][0] != "schtasks" || corrio[0][1] != "/Create" {
+		t.Fatalf("la vuelve a registrar: %v", corrio)
+	}
+	corrio = nil
+	if err := nueva.RenovarTarea(anota); err != nil || len(corrio) != 0 || nueva.TareaSinCuenta() {
+		t.Fatalf("ya al día no hace nada: %v %v", err, corrio)
 	}
 }

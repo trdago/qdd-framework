@@ -80,3 +80,33 @@ func TestDoctor_VeYReparaLaTareaEnOtraVersion_FND142(t *testing.T) {
 		t.Fatalf("quedó al día: %s", leerTarea(t, archivo))
 	}
 }
+
+// FND-195 (MEJ-060): una tarea sin usuario no se pudo registrar sin administrador, y nada lo decía: doctor la ve y --fix
+// la registra limitada al usuario.
+func TestDoctor_VeYReparaLaTareaSinUsuario_FND195(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	if err := registro.Anotar(t.TempDir(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	s, archivo, corridos := tareaEnOtraVersion(t)
+	s.Bin = `C:\L\qdd\bin\2.10.0\qdd.exe`
+	s.Cuenta = `PC\ana`
+	remotoServicio = func() (remoto.Servicio, error) { return s, nil }
+	g := buildRemotoChecks()
+	var item *CheckItem
+	for _, i := range g.Items {
+		if i.Name == itemRemotoCuenta {
+			item = i
+		}
+	}
+	if item == nil || item.Success || !strings.Contains(item.Error, "administrador") {
+		t.Fatalf("doctor lo ve: %+v", g.Items)
+	}
+	repairRemoto(g)
+	if len(*corridos) != 1 || (*corridos)[0][0] != "schtasks" || (*corridos)[0][1] != "/Create" {
+		t.Fatalf("vuelve a registrar la tarea: %v", *corridos)
+	}
+	if !strings.Contains(leerTarea(t, archivo), `<UserId>PC\ana</UserId>`) || s.TareaSinCuenta() {
+		t.Fatalf("quedó con el usuario: %s", leerTarea(t, archivo))
+	}
+}

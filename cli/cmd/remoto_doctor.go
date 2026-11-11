@@ -23,6 +23,7 @@ const (
 	itemRemotoRutas    = "Proyectos del registro que existen (REM-01)"
 	itemRemotoServicio = "El servicio no mata lo que lanzó al reiniciarse (REM-03)"
 	itemRemotoVersion  = "La tarea lanza la versión instalada (REM-04)"
+	itemRemotoCuenta   = "La tarea de inicio es solo de tu usuario (REM-12)"
 )
 
 func buildRemotoChecks() *CheckGroup {
@@ -56,10 +57,14 @@ func itemsServicioRemoto() []*CheckItem {
 	if err != nil || !instalado {
 		return nil
 	}
+	items := []*CheckItem{itemDejaVivo(deja)}
 	if s.TareaSinEstaVersion() {
-		return []*CheckItem{itemDejaVivo(deja), {Name: itemRemotoVersion, Error: "al reiniciarse lanzaría otra versión de qdd (qdd doctor --fix la actualiza)"}}
+		items = append(items, &CheckItem{Name: itemRemotoVersion, Error: "al reiniciarse lanzaría otra versión de qdd (qdd doctor --fix la actualiza)"})
 	}
-	return []*CheckItem{itemDejaVivo(deja)}
+	if s.TareaSinCuenta() {
+		items = append(items, &CheckItem{Name: itemRemotoCuenta, Error: "se dispara para cualquier usuario, y Windows pide administrador para registrarla: quizás nunca quedó registrada (qdd doctor --fix la limita a tu usuario y la registra)"})
+	}
+	return items
 }
 
 func itemDejaVivo(deja bool) *CheckItem {
@@ -84,13 +89,13 @@ func repairRemoto(g *CheckGroup) {
 			imprimirReparado([]string{"el servicio ya no mata lo que lanzó"}, err)
 			continue
 		}
-		if item.Name == itemRemotoVersion {
-			fmt.Println("  [~] Apuntando la tarea de qdd remoto a la versión instalada...")
+		if item.Name == itemRemotoVersion || item.Name == itemRemotoCuenta {
+			fmt.Println("  [~] Poniendo al día la tarea de qdd remoto...")
 			s, err := remotoServicio()
 			if err == nil {
-				err = s.RenovarBinario(remotoEjecutor)
+				err = s.RenovarTarea(remotoEjecutor)
 			}
-			imprimirReparado([]string{"la tarea lanza la versión instalada"}, err)
+			imprimirReparado([]string{"la tarea lanza la versión instalada y es solo de tu usuario"}, err)
 			continue
 		}
 		if item.Name == itemRemotoLegible {

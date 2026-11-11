@@ -147,7 +147,7 @@ func seguirVersionEnLaTarea() {
 	if err != nil {
 		return
 	}
-	if err := s.RenovarBinario(remotoEjecutor); err != nil {
+	if err := s.RenovarTarea(remotoEjecutor); err != nil {
 		fmt.Fprintf(os.Stderr, "[!] No se pudo actualizar la tarea de qdd remoto: %v\n", err)
 	}
 }
