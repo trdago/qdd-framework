@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.63] - 2026-11-11
+
 ### Corregido
 
 - **En Windows, `bash` en un pedido es el de Git, no WSL (FND-197, MEJ-058):** los pedidos corren en cmd.exe, donde `bash` abría WSL; con WSL detenido morían por timeout y su error se veía ilegible (UTF-16). Ahora el pedido usa el bash de Git que usa Claude Code y la salida se guarda legible. Además, `qdd doctor --fix` pone al día la tarea de qdd remoto antes de arrancarla.
