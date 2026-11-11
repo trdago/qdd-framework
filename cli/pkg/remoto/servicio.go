@@ -36,6 +36,9 @@ type Servicio struct {
 	QDDHome string // vacío: el de siempre
 	Path    string
 	DirQDD  string // <QDD_HOME>/remoto, donde va la tarea de Windows
+	// Cuenta es DOMINIO\usuario en Windows: la tarea es solo suya. Sin usuario vale para cualquiera del equipo, y Windows
+	// pide administrador para registrarla (FND-195).
+	Cuenta string
 }
 
 // Archivo es dónde queda el servicio.
@@ -178,8 +181,8 @@ func (s Servicio) tareaXML() string {
 	return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo><Description>QDD remoto: el panel de este PC en QDD Móvil</Description></RegistrationInfo>
-  <Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers>
-  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+  <Triggers><LogonTrigger><Enabled>true</Enabled>` + s.usuarioTarea() + `</LogonTrigger></Triggers>
+  <Principals><Principal id="Author">` + s.usuarioTarea() + `<LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
   <Settings>
     <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
@@ -191,6 +194,13 @@ func (s Servicio) tareaXML() string {
   <Actions Context="Author"><Exec><Command>` + escaparXML(s.Bin) + `</Command><Arguments>remoto correr</Arguments></Exec></Actions>
 </Task>
 `
+}
+
+func (s Servicio) usuarioTarea() string {
+	if s.Cuenta == "" {
+		return ""
+	}
+	return "<UserId>" + escaparXML(s.Cuenta) + "</UserId>"
 }
 
 func escaparXML(v string) string {
@@ -288,41 +298,63 @@ var reComandoTarea = regexp.MustCompile(`<Command>[^<]*</Command>`)
 // TareaSinEstaVersion: la tarea de Windows lanza otro binario que el de esta versión. Un binario compilado a mano no
 // cuenta: no es el que la persona instaló.
 func (s Servicio) TareaSinEstaVersion() bool {
-	if s.SO != "windows" || !consola.BinarioPorVersion(s.Bin) {
+	if !consola.BinarioPorVersion(s.Bin) {
 		return false
+	}
+	xml, ok := s.tareaInstalada()
+	return ok && !strings.Contains(xml, s.comandoTarea())
+}
+
+// TareaSinCuenta: la tarea de Windows instalada se dispara para cualquier usuario, así que registrarla pide administrador
+// y, sin él, quedó solo el archivo (FND-195).
+func (s Servicio) TareaSinCuenta() bool {
+	if s.Cuenta == "" {
+		return false
+	}
+	xml, ok := s.tareaInstalada()
+	return ok && !strings.Contains(xml, "<UserId>")
+}
+
+func (s Servicio) tareaInstalada() (string, bool) {
+	if s.SO != "windows" {
+		return "", false
 	}
 	archivo, err := s.Archivo()
 	if err != nil {
-		return false
+		return "", false
 	}
 	b, err := os.ReadFile(archivo)
 	if err != nil {
-		return false
+		return "", false
 	}
-	return !strings.Contains(desdeUTF16(b), s.comandoTarea())
+	return desdeUTF16(b), true
 }
 
 func (s Servicio) comandoTarea() string {
 	return "<Command>" + escaparXML(s.Bin) + "</Command>"
 }
 
-// RenovarBinario apunta la tarea de Windows al binario de esta versión y deja lo demás como está (FND-142): su carpeta
-// cambia con cada versión. No la arranca: lo que corre termina solo cuando ve la versión nueva y la tarea lo reinicia.
-// Sin tarea instalada, o ya al día, no hace nada.
-func (s Servicio) RenovarBinario(correr Ejecutor) error {
-	if !s.TareaSinEstaVersion() {
+// RenovarTarea pone al día la tarea de Windows y deja lo demás como está: el binario de esta versión, porque su carpeta
+// cambia con cada una (FND-142), y el usuario, si le faltaba (FND-195). No la arranca: lo que corre termina solo cuando
+// ve la versión nueva y la tarea lo reinicia. Sin tarea instalada, o ya al día, no hace nada.
+func (s Servicio) RenovarTarea(correr Ejecutor) error {
+	version, cuenta := s.TareaSinEstaVersion(), s.TareaSinCuenta()
+	if !version && !cuenta {
 		return nil
+	}
+	xml, _ := s.tareaInstalada()
+	if version {
+		xml = reComandoTarea.ReplaceAllLiteralString(xml, s.comandoTarea())
+	}
+	if cuenta {
+		xml = strings.Replace(xml, "</LogonTrigger>", s.usuarioTarea()+"</LogonTrigger>", 1)
+		xml = strings.Replace(xml, `<Principal id="Author">`, `<Principal id="Author">`+s.usuarioTarea(), 1)
 	}
 	archivo, err := s.Archivo()
 	if err != nil {
 		return err
 	}
-	b, err := os.ReadFile(archivo)
-	if err != nil {
-		return err
-	}
-	nuevo := reComandoTarea.ReplaceAllLiteralString(desdeUTF16(b), s.comandoTarea())
-	if err := os.WriteFile(archivo, utf16ConBOM(nuevo), 0o600); err != nil {
+	if err := os.WriteFile(archivo, utf16ConBOM(xml), 0o600); err != nil {
 		return err
 	}
 	return correr("schtasks", "/Create", "/TN", tareaWindows, "/XML", archivo, "/F")

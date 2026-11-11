@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -261,7 +262,20 @@ func servicioRemoto() (remoto.Servicio, error) {
 	if err != nil {
 		return remoto.Servicio{}, err
 	}
-	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir}, nil
+	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir, Cuenta: cuentaWindows()}, nil
+}
+
+// cuentaWindows es DOMINIO\usuario de quien corre qdd en Windows: la tarea de inicio es solo suya (FND-195). Fuera de
+// Windows no hace falta.
+func cuentaWindows() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	u, err := user.Current()
+	if err != nil {
+		return ""
+	}
+	return u.Username
 }
 
 // remotoCorrer es el servicio: uno por máquina, hasta una señal o hasta que el relay ya no reconozca el PC.
