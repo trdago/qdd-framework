@@ -18,6 +18,7 @@ objetivo_tecnologico:
         - 'Sin tool MCP: la IA no tiene nada que hacer con el modo y tools/list está al borde del presupuesto.'
         - Si otra terminal del proyecto trabajó en los últimos 2 min, no se le recuerda a la que mira.
     invariantes:
+        - 'Lo que elige el modo llega a la IA marcado (FND-198): cada respuesta de una pregunta respondida por el modo goal termina con «[la eligió el modo goal (su opción recomendada), no la persona]», así la IA nunca la atribuye a la persona.'
         - 'Solo la persona lo activa: qdd goal activar se rechaza con CLAUDECODE en el entorno, y solo el panel tras la confirmación y el teléfono firmado lo limpian.'
         - El panel niega activarlo a una IA por cualquier herramienta de shell (Bash, PowerShell), con ruta, comillas o sufijo; quien decide sigue siendo qdd, también por la acción del panel (FND-146).
         - Nunca se responde solo un permiso de Claude Code, una pregunta de diseño de un blueprint ni una pregunta sin opción recomendada.

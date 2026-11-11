@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **La IA sabe qué eligió el modo goal (FND-198, MEJ-025, #147):** una pregunta que respondía el modo goal le llegaba a la IA igual que una respuesta tuya, y la IA dejó en commits aprobaciones que nadie dio. Ahora cada respuesta del modo dice «la eligió el modo goal, no la persona».
+
 ## [2.10.0-rc.63] - 2026-11-11
 
 ### Corregido
