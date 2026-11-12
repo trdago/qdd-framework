@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.65] - 2026-11-11
+
 ### Corregido
 
 - **El panel muestra todas las tareas del objetivo en foco (FND-199, MEJ-065):** solo se veían las 4 pendientes más nuevas y las demás del foco quedaban ocultas. Ahora las del foco se ven siempre y el tope de 4 cuenta solo el resto.
