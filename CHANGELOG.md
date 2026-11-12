@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Una ficha nueva ya no se queda en el chat (FND-201, MEJ-059, #243):** al guardar una ficha, qdd le decía a la IA que te pidiera aprobarla, y la IA lo hacía solo en el chat. Ahora le dice que la ficha ya te llega en «▶ Para ti» y al teléfono.
+
 ## [2.10.0-rc.66] - 2026-11-11
 
 ### Corregido

@@ -61,7 +61,7 @@ func handleModuleSaveTool(ctx context.Context, request mcp.CallToolRequest) (*mc
 	if len(problems) > 0 {
 		return mcp.NewToolResultError("Ficha rechazada. Corrige y vuelve a enviarla:\n- " + strings.Join(problems, "\n- ")), nil
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Ficha guardada en %s como BORRADOR. Pide al humano que la revise y la apruebe con: qdd modules approve %s", path, m.ID)), nil
+	return mcp.NewToolResultText(fmt.Sprintf("Ficha guardada en %s como BORRADOR. Ya le llega a la persona en «▶ Para ti» del panel (y al teléfono) para que la revise y la apruebe (qdd modules approve %s): avísale en una línea; no la pidas con qdd_consola_pedir ni la dejes solo en el chat.", path, m.ID)), nil
 }
 
 // projectRootForMCP resuelve la raíz real del proyecto aunque el servidor MCP

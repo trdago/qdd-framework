@@ -1,0 +1,9 @@
+id: "FND-201"
+title: "Al guardar una ficha, la IA la pedía solo en el chat"
+description: "2026-11-10 (notificador_de_ofertas, issue #243, MEJ-059): una IA guardó la ficha descubrimiento-compra-agil con qdd_module_save. La respuesta de la herramienta le decía «Pide al humano que la revise y la apruebe con: qdd modules approve <id>», así que la IA la pidió en el chat; la persona no la vio en «▶ Para ti» y la aprobación terminó en un pedido aparte (#138). Una ficha en borrador ya llega a «▶ Para ti» con su turno (RFC 0019, desde rc.17) y al teléfono como aviso de ficha; lo que fallaba era lo que qdd le decía a la IA."
+impact: "La aprobación queda enterrada en el chat o duplicada como pedido, y la persona no sabe dónde aprobar."
+action_taken: "qdd_module_save responde que la ficha ya llega a la persona en «▶ Para ti» del panel y al teléfono, que le avise en una línea y que no la pida con qdd_consola_pedir ni la deje solo en el chat. Una prueba nueva fija que una ficha en borrador lleva turno en el panel."
+test_result: "cli/cmd/mcp_modules_test.go: TestModuleSaveAndProjectContextTools fallaba antes (el mensaje no nombraba «▶ Para ti») y pasa después; cli/pkg/consola/ficha_para_ti_test.go: TestMEJ059_UnaFichaEnBorradorLlevaTurnoEnElPanel pasa."
+status: resolved
+detectado_por: persona
+date: "2026-11-11"
