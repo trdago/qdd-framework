@@ -70,6 +70,8 @@ type hechoAnotado struct {
 	Fin    time.Time `json:"fin"`
 	Tecla  string    `json:"tecla,omitempty"`
 	Tarea  string    `json:"tarea,omitempty"`
+	// Huella: en un git push, las ramas y tags que había al terminar (MEJ-053). Si cambiaron, no es repetido.
+	Huella string `json:"huella,omitempty"`
 }
 
 func rutaHechos(root string) (string, error) {
@@ -92,10 +94,14 @@ func leerHechos(root string) []hechoAnotado {
 	return hechos
 }
 
-// hechoReciente busca el efecto en lo que corrió en las últimas VidaHechos. Quien lo llama tiene la cola bloqueada.
-func hechoReciente(root, efecto string, now time.Time) *YaHecho {
+// hechoReciente busca el efecto en lo que corrió en las últimas VidaHechos; un push con otra huella no cuenta. Quien
+// lo llama tiene la cola bloqueada.
+func hechoReciente(root, efecto, huella string, now time.Time) *YaHecho {
 	var ya *YaHecho
 	for _, h := range leerHechos(root) {
+		if h.Huella != "" && h.Huella != huella {
+			continue
+		}
 		if h.Efecto == efecto && now.Sub(h.Fin) < VidaHechos {
 			ya = &YaHecho{Motivo: h.Motivo, Fin: h.Fin}
 		}
@@ -121,7 +127,7 @@ func anotarHecho(root string, p Pedido, fin time.Time) {
 	if err != nil {
 		return
 	}
-	hechos := []hechoAnotado{{Efecto: efectoDe(p.Comando, p.Carpeta), Motivo: p.Motivo, Fin: fin, Tecla: p.Tecla, Tarea: p.Tarea}}
+	hechos := []hechoAnotado{{Efecto: efectoDe(p.Comando, p.Carpeta), Motivo: p.Motivo, Fin: fin, Tecla: p.Tecla, Tarea: p.Tarea, Huella: huellaPush(p.Comando, p.Carpeta)}}
 	for _, h := range leerHechos(root) {
 		if fin.Sub(h.Fin) < VidaHechos {
 			hechos = append(hechos, h)

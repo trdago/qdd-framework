@@ -420,7 +420,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 				usadas[p.Tecla] = true
 			}
 		}
-		if ya := hechoReciente(ColaDe(root, dir), efecto, now); ya != nil && !orden.DeNuevo {
+		if ya := hechoReciente(ColaDe(root, dir), efecto, huellaPush(comando, dir), now); ya != nil && !orden.DeNuevo {
 			return nil, ya
 		}
 		cola = sinAutomaticosQueNombra(cola, motivo, comando)
