@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.66] - 2026-11-11
+
 ### Corregido
 
 - **Un git push con commits nuevos ya no es «repetido» (FND-200, MEJ-053):** el mismo `git push` se rechazaba como «ya se hizo» por 24 h aunque hubiera commits nuevos. Ahora el seguro recuerda las ramas y tags del push y solo lo rechaza si no hay nada nuevo que subir.
