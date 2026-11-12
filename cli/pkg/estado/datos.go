@@ -124,9 +124,11 @@ func DatosPendientes(e Estado, now time.Time, tope int) DatosPanel {
 }
 
 // DatosEnCurso es DatosPendientes con la actividad (§3.13): una tarea abierta en curso siempre se ve, aunque no esté
-// entre las tope más nuevas, y lleva su Actividad. Ocultos cuenta solo las pendientes que no se ven.
+// entre las tope más nuevas, y lleva su Actividad. Las pendientes del objetivo en foco también se ven siempre (FND-199):
+// la persona lo marcó para tenerlas a la vista. Ocultos cuenta solo las pendientes que no se ven.
 func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel {
 	enCurso := EnCurso(act, now)
+	foco := e.focoAbierto()
 	visibles := map[string]bool{}
 	var pendientes []string
 	for _, f := range e.Frentes {
@@ -134,6 +136,10 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 			continue
 		}
 		if _, ok := enCurso[f.ID]; ok {
+			visibles[f.ID] = true
+			continue
+		}
+		if foco != "" && f.Objetivo == foco && !f.Terminado(e.EtapasDe(f)) {
 			visibles[f.ID] = true
 			continue
 		}
@@ -158,6 +164,16 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 		d.Actual = act.Ultima
 	}
 	return d
+}
+
+// focoAbierto es el id del objetivo abierto en foco, o "" si no hay.
+func (e Estado) focoAbierto() string {
+	for _, o := range e.Objetivos {
+		if o.Foco && o.Estado == ObjetivoAbierto {
+			return o.ID
+		}
+	}
+	return ""
 }
 
 // Totales cuenta las tareas pendientes (abiertas y no terminadas) y cada ⏳ y cada ❌ que tienen. La barra y el panel
