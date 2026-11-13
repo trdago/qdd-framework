@@ -3218,7 +3218,7 @@ function pegarDelPortapapeles($) {
   const f = baulDeConfig.form
   const falta = !f.nombre ? 'falta el nombre' : f.tipo === 'otro' && !f.variable ? 'falta la variable de entorno donde va' : ''
   if (falta) return cambiarBaul($, { aviso: '⚠ ' + falta, hecho: '' })
-  const argv = ['guardar', f.nombre, '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.tipo === 'otro' ? ['--variable', f.variable] : [])]
+  const argv = ['guardar', f.nombre, '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.tipo === 'otro' ? ['--variable', f.variable] : []), ...(f.direccion ? ['--direccion', f.direccion] : [])]
   return correrBaul($, argv, { form: null })
 }
 
@@ -3234,19 +3234,19 @@ function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
   if (b.form) return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...formularioBaul($, Box, Text, Button, Input, Select, b)] })]
   const filas = b.lista.tokens.map((t) => (b.quitando === t.nombre ? confirmarQuitarToken($, Box, Text, Button, t) : filaToken($, Box, Text, Button, t)))
   const vacio = Text({ key: 'b-vacio', dimColor: true, wrap: 'wrap', children: ['El baúl está vacío. Guarda aquí los tokens que usa la IA (Cloudflare, GitHub, Supabase…): nunca los pegues en el chat.'] })
-  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar token', variant: 'primary', onPress: () => cambiarBaul($, { form: { modo: 'agregar', nombre: '', tipo: 'cloudflare', en: 'llavero', variable: '' }, aviso: '', hecho: '' }) })] })
+  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar token', variant: 'primary', onPress: () => cambiarBaul($, { form: { modo: 'agregar', nombre: '', tipo: 'cloudflare', en: 'llavero', variable: '', direccion: '' }, aviso: '', hecho: '' }) })] })
   return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...(filas.length ? filas : [vacio]), agregar] })]
 }
 
 const fechaCorta = (iso) => (iso ? String(iso).slice(0, 10) : '')
 
 function detalleDeToken(t) {
-  const partes = [t.tipo, t.donde, t.duenio, t.alcance, t.vence ? 'vence ' + fechaCorta(t.vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
+  const partes = [t.direccion, t.tipo, t.donde, t.duenio, t.alcance, t.vence ? 'vence ' + fechaCorta(t.vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
   return partes.filter(Boolean).join(' · ')
 }
 
 function filaToken($, Box, Text, Button, t) {
-  const modificar = () => cambiarBaul($, { form: { modo: 'modificar', nombre: t.nombre, tipo: t.tipo, en: t.donde, variable: t.variable || '' }, aviso: '', hecho: '' })
+  const modificar = () => cambiarBaul($, { form: { modo: 'modificar', nombre: t.nombre, tipo: t.tipo, en: t.donde, variable: t.variable || '', direccion: t.direccion || '' }, aviso: '', hecho: '' })
   return Box({
     key: 'b-fila-' + t.nombre,
     flexDirection: 'row',
@@ -3308,12 +3308,13 @@ function formularioBaul($, Box, Text, Button, Input, Select, b) {
   const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un token' : 'Modificar «' + f.nombre + '»'] })
   const campos = [
     ...(f.modo === 'agregar' ? [Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'cloudflare, gh-trabajo… (minúsculas, - y _)', value: f.nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') })] : []),
+    Input({ key: 'b-direccion', label: 'Dirección', placeholder: 'ambiente/servidor/servicio/clase/cuenta (prod/db-01/notificador/postgres/app_user; ambiente: dev, qa, prod o global)', value: f.direccion, submitLabel: 'listo', onInput: poner('direccion'), onSubmit: poner('direccion') }),
     Select({ key: 'b-tipo', label: 'Tipo', options: b.lista.tipos.map((t) => ({ value: t, label: t })), value: f.tipo, onSelect: poner('tipo') }),
     Select({ key: 'b-en', label: 'Dónde', options: LUGARES_BAUL, value: f.en, onSelect: poner('en') }),
     ...(f.tipo === 'otro' ? [Input({ key: 'b-variable', label: 'Variable', placeholder: 'MI_API_KEY', value: f.variable, submitLabel: 'listo', onInput: poner('variable'), onSubmit: poner('variable') })] : []),
   ]
   if (!b.lista.portapapeles) {
-    const comando = 'qdd baul guardar ' + (f.nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en)
+    const comando = 'qdd baul guardar ' + (f.nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en) + (f.direccion ? ' --direccion ' + f.direccion : '')
     return [encabezado, ...campos, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando] }), cancelar]
   }
   const pista = f.tipo === 'aws-sso' ? 'Copia el nombre del perfil de aws sso' : 'Copia el token'

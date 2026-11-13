@@ -100,3 +100,22 @@ func TestBaulPanel_GuardarDelPortapapelesListarYQuitar(t *testing.T) {
 		t.Fatalf("un baúl vacío es una lista vacía, no null: %s", lista.String())
 	}
 }
+
+// Pedido de la persona (2026-11-13): la lista muestra la dirección estándar de cada acceso, y guardar la recibe con
+// --direccion ambiente/servidor/servicio/clase/cuenta.
+func TestBaulLista_MuestraLaDireccion(t *testing.T) {
+	baulDePrueba(t)
+	e := baul.Entrada{Nombre: "pg-app", Tipo: "otro", Donde: baul.EnLlavero, Variable: "PGPASSWORD", Direccion: "prod/db-prod-01/notificador/postgres/app_user"}
+	var salida bytes.Buffer
+	if err := guardarDelPortapapeles(&salida, e, &copiadoFalso{valor: "clave-de-prueba-123"}); err != nil {
+		t.Fatal(err)
+	}
+	var lista bytes.Buffer
+	listarBaul(&lista)
+	if !strings.Contains(lista.String(), "DIRECCIÓN") || !strings.Contains(lista.String(), "prod/db-prod-01/notificador/postgres/app_user") {
+		t.Fatalf("la lista muestra la dirección: %s", lista.String())
+	}
+	if f := baulGuardarCmd.Flags().Lookup("direccion"); f == nil {
+		t.Fatal("guardar recibe --direccion")
+	}
+}

@@ -24,10 +24,11 @@ import (
 // comando con permiso por sesión y por fin. La IA nunca ve un valor: no hay «qdd baul ver».
 
 var (
-	baulTipo     string
-	baulEn       string
-	baulVariable string
-	baulPara     string
+	baulTipo      string
+	baulEn        string
+	baulVariable  string
+	baulDireccion string
+	baulPara      string
 	// Desde Config en el panel (pedido de la persona, 2026-11-09).
 	baulPortapapeles bool
 	baulSi           bool
@@ -96,9 +97,9 @@ func listarBaul(w io.Writer) {
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "NOMBRE\tTIPO\tDÓNDE\tDUEÑO\tALCANCE\tVENCE\tUSADO")
+	fmt.Fprintln(tw, "NOMBRE\tDIRECCIÓN\tTIPO\tDÓNDE\tDUEÑO\tALCANCE\tVENCE\tUSADO")
 	for _, e := range indice {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Nombre, e.Tipo, e.Donde, guion(e.Duenio), guion(alcanceDe(e)), fecha(e.Vence), fecha(e.Usado))
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Nombre, guion(e.Direccion), e.Tipo, e.Donde, guion(e.Duenio), guion(alcanceDe(e)), fecha(e.Vence), fecha(e.Usado))
 	}
 	tw.Flush()
 }
@@ -129,7 +130,7 @@ var baulGuardarCmd = &cobra.Command{
 	Short: "Guarda un token: pide el valor oculto en tu terminal (nunca por argumentos, variables ni el chat)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		e := baul.Entrada{Nombre: args[0], Tipo: baulTipo, Donde: baulEn, Variable: baulVariable}
+		e := baul.Entrada{Nombre: args[0], Tipo: baulTipo, Donde: baulEn, Variable: baulVariable, Direccion: baulDireccion}
 		if baulPortapapeles {
 			if err := guardarDelPortapapeles(os.Stdout, e, portapapeles()); err != nil {
 				salirCon("%v", err)
@@ -330,6 +331,7 @@ func init() {
 	baulGuardarCmd.Flags().StringVar(&baulTipo, "tipo", "", "cloudflare, github, supabase, resend, aws-sso u otro")
 	baulGuardarCmd.Flags().StringVar(&baulEn, "en", baul.EnLlavero, "llavero o 1password")
 	baulGuardarCmd.Flags().StringVar(&baulVariable, "variable", "", "con --tipo otro: la variable de entorno donde va")
+	baulGuardarCmd.Flags().StringVar(&baulDireccion, "direccion", "", "ambiente/servidor/servicio/clase/cuenta (p. ej. prod/db-01/notificador/postgres/app_user; ambiente: dev, qa, prod o global): una dirección es de una sola entrada")
 	baulGuardarCmd.Flags().BoolVar(&baulPortapapeles, "portapapeles", false, "lee el valor del portapapeles y lo vacía (lo usa Config en el panel)")
 	_ = baulGuardarCmd.MarkFlagRequired("tipo")
 	baulQuitarCmd.Flags().BoolVar(&baulSi, "si", false, "sin preguntar (el panel lo pasa tras «¿Seguro?»)")

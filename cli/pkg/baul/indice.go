@@ -39,7 +39,8 @@ type Entrada struct {
 	Tipo       string     `json:"tipo"`
 	Donde      string     `json:"donde"`
 	Variable   string     `json:"variable"`
-	Perfil     string     `json:"perfil,omitempty"` // aws-sso: el perfil de aws sso, no una llave
+	Direccion  string     `json:"direccion,omitempty"` // servidor/servicio/clase/cuenta, normalizada (direccion.go)
+	Perfil     string     `json:"perfil,omitempty"`    // aws-sso: el perfil de aws sso, no una llave
 	Alcance    string     `json:"alcance,omitempty"`
 	Duenio     string     `json:"duenio,omitempty"`
 	Vence      *time.Time `json:"vence,omitempty"`
@@ -172,5 +173,10 @@ func completar(e Entrada) (Entrada, error) {
 	if e.Donde != EnLlavero && e.Donde != EnUnoPass {
 		return e, fmt.Errorf("dónde guardarlo %q: llavero o 1password", e.Donde)
 	}
-	return e, nil
+	if e.Direccion == "" {
+		return e, nil
+	}
+	direccion, err := NormalizarDireccion(e.Direccion)
+	e.Direccion = direccion
+	return e, err
 }
