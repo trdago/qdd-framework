@@ -46,7 +46,8 @@ func Guardar(e Entrada, valor string, ahora time.Time) error {
 		e.Perfil = strings.TrimSpace(valor)
 	}
 	if e.Tipo != "aws-sso" {
-		if err := guardarValor(e, valor); err != nil {
+		reemplaza := errAnterior == nil && anterior.Donde == EnUnoPass && anterior.Tipo != "aws-sso"
+		if err := guardarValor(e, valor, reemplaza); err != nil {
 			return err
 		}
 	}
@@ -110,17 +111,50 @@ func borrarValor(e Entrada) error {
 	return nil
 }
 
-func guardarValor(e Entrada, valor string) error {
+// guardarValor deja el valor en el llavero o en 1Password. En 1Password, reemplazar un ítem que ya existe no puede
+// crear otro con el mismo título (FND-202): 1Password los deja convivir y después no sabe cuál leer.
+func guardarValor(e Entrada, valor string, reemplaza bool) error {
 	if e.Donde == EnLlavero {
 		return keyring.Set(servicioLlavero, e.Nombre, valor)
 	}
-	return guardarEnOp(e, valor)
+	if !reemplaza {
+		return guardarEnOp(tituloOp(e.Nombre), valor)
+	}
+	return reemplazarEnOp(tituloOp(e.Nombre), valor)
+}
+
+// reemplazarEnOp crea el ítem nuevo con otro título, borra el anterior y le pone el título: el valor nunca va en los
+// argumentos, y si algo falla antes de borrar, el anterior sigue intacto.
+func reemplazarEnOp(titulo, valor string) error {
+	nuevo := titulo + ".nuevo"
+	_ = correrOp("item", "delete", nuevo) // uno que quedó de un intento cortado
+	if err := guardarEnOp(nuevo, valor); err != nil {
+		return err
+	}
+	if err := correrOp("item", "delete", titulo); err != nil {
+		_ = correrOp("item", "delete", nuevo)
+		return fmt.Errorf("1Password no borró el valor anterior, que sigue igual: %w", err)
+	}
+	if err := correrOp("item", "edit", nuevo, "--title", titulo); err != nil {
+		return fmt.Errorf("1Password guardó el valor nuevo como %q pero no le cambió el título: %w", nuevo, err)
+	}
+	return nil
+}
+
+func correrOp(args ...string) error {
+	c := exec.Command(binOp, args...)
+	var errSalida bytes.Buffer
+	c.Stderr = &errSalida
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("%v %s", err, strings.TrimSpace(errSalida.String()))
+	}
+	return nil
 }
 
 // guardarEnOp crea el ítem con la plantilla por la entrada estándar: el valor nunca va en los argumentos.
-func guardarEnOp(e Entrada, valor string) error {
+func guardarEnOp(titulo, valor string) error {
 	plantilla := map[string]any{
-		"title":    tituloOp(e.Nombre),
+		"title":    titulo,
 		"category": "API_CREDENTIAL",
 		"fields":   []map[string]string{{"id": "credential", "label": "credential", "type": "CONCEALED", "value": valor}},
 	}

@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Modificar un token en 1Password ya no lo duplica (FND-202):** guardar de nuevo un token que estaba en 1Password creaba un segundo ítem con el mismo título, y después no se podía usar. Ahora el ítem se reemplaza.
+
 ## [2.10.0-rc.68] - 2026-11-13
 
 ### Agregado
