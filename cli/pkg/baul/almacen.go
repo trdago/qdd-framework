@@ -35,6 +35,13 @@ func Guardar(e Entrada, valor string, ahora time.Time) error {
 	if strings.TrimSpace(valor) == "" {
 		return fmt.Errorf("el valor está vacío")
 	}
+	anterior, errAnterior := Buscar(e.Nombre)
+	if e.Direccion == "" && errAnterior == nil {
+		e.Direccion = anterior.Direccion
+	}
+	if err := direccionLibre(e); err != nil {
+		return err
+	}
 	if e.Tipo == "aws-sso" {
 		e.Perfil = strings.TrimSpace(valor)
 	}
@@ -43,7 +50,6 @@ func Guardar(e Entrada, valor string, ahora time.Time) error {
 			return err
 		}
 	}
-	anterior, errAnterior := Buscar(e.Nombre)
 	e.Guardado = ahora.UTC()
 	if err := cambiarEntrada(e.Nombre, func(x *Entrada) { *x = e }); err != nil {
 		return err

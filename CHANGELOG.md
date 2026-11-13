@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Dirección estándar en el baúl:** cada acceso puede llevar `ambiente/servidor/servicio/clase/cuenta` (p. ej. `prod/db-01/notificador/postgres/app_user`), con ambiente dev, qa, prod o global. La misma dirección no se guarda dos veces con nombres distintos. Va con `qdd baul guardar --direccion` y con el campo Dirección en Config del panel.
+
 ## [2.10.0-rc.67] - 2026-11-11
 
 ### Corregido

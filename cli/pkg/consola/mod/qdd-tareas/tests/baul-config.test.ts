@@ -147,3 +147,24 @@ test('un qdd sin el baúl en el panel no rompe Config', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /actualiza qdd/ })).toBeDefined()
   expect(await ui.find({ key: 'h-agregar' })).toBeDefined()
 })
+
+// Pedido de la persona (2026-11-13): cada acceso con su dirección estándar ambiente/servidor/servicio/clase/cuenta, para que no
+// se guarde dos veces lo mismo.
+test('agregar lleva la dirección; la fila la muestra y modificar la conserva', async ($, on) => {
+  const PG = { nombre: 'pg-app', tipo: 'otro', donde: 'llavero', variable: 'PGPASSWORD', direccion: 'prod/db-prod-01/notificador/postgres/app_user', guardado: '2026-11-13T00:00:00Z' }
+  const r = nuevo([PG])
+  const ui = await abrirConfig($, on, r)
+  expect(await ui.find({ type: 'Text', text: /prod\/db-prod-01\/notificador\/postgres\/app_user · otro · llavero/ })).toBeDefined()
+  await ui.press({ key: 'b-agregar' })
+  await ui.input({ key: 'b-nombre', text: 'pg-admin', kind: 'change' })
+  await ui.input({ key: 'b-direccion', text: 'prod/db-prod-01/notificador/postgres/admin', kind: 'change' })
+  await ui.select({ key: 'b-tipo', value: 'otro' })
+  await ui.input({ key: 'b-variable', text: 'PGPASSWORD', kind: 'change' })
+  await ui.press({ key: 'b-pegar' })
+  await esperar()
+  expect(baul(r)).toContainEqual(['qdd', 'baul', 'guardar', 'pg-admin', '--tipo', 'otro', '--en', 'llavero', '--portapapeles', '--variable', 'PGPASSWORD', '--direccion', 'prod/db-prod-01/notificador/postgres/admin'])
+  await ui.press({ key: 'b-modificar-pg-app' })
+  await ui.press({ key: 'b-pegar' })
+  await esperar()
+  expect(baul(r)).toContainEqual(['qdd', 'baul', 'guardar', 'pg-app', '--tipo', 'otro', '--en', 'llavero', '--portapapeles', '--variable', 'PGPASSWORD', '--direccion', 'prod/db-prod-01/notificador/postgres/app_user'])
+})
