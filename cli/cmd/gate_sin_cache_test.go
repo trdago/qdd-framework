@@ -194,3 +194,16 @@ func TestDocs_ExplicaPorQueDockerEsLentoEnDesarrollo(t *testing.T) {
 		t.Error("docs/command-reference.md no documenta la regla")
 	}
 }
+
+// MEJ-061 / FND-203: las reglas de formato del gate están en la referencia, con lo que revisan y si bloquean.
+func TestReglasDeFormato_EstanDocumentadas(t *testing.T) {
+	referencia, err := os.ReadFile("../../docs/command-reference.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, debe := range []string{"`FMT-01-FORMATO`", "`FMT-02-FORMATO-SIN-MEDIR`", "gofmt -l", "nunca `npx`"} {
+		if !strings.Contains(string(referencia), debe) {
+			t.Errorf("docs/command-reference.md no dice %q", debe)
+		}
+	}
+}

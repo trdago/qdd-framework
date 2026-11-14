@@ -1,0 +1,9 @@
+id: "FND-203"
+title: "El gate no revisaba el formato y el CI rechazaba el commit que el gate aprobó"
+description: "2026-11-11 (MEJ-061, reportado desde sfrc): qdd audit dio 0 y el CI del backend falló en el paso «gofmt, go vet y go test» (backend/go.mod, make pruebas). Ninguna regla del gate corría un formateador, así que el gate daba una seguridad falsa y el agente tuvo que anotar una memoria para correr el formateador aparte. Comprobado el 2026-11-14: ni cli/pkg ni cli/cmd mencionaban gofmt, prettier, ruff ni black; el propio repositorio de QDD tenía 53 archivos .go sin gofmt."
+impact: "Un commit que pasa el gate cae en el CI por formato; quien confía en el gate pierde una vuelta de CI, y la regla «no se commitea sin pasar el gate» no protege lo que el CI exige."
+action_taken: "Nueva regla del gate FMT-01-FORMATO (cli/pkg/audit/formato.go), antes de las pruebas: gofmt -l sobre todos los .go del proyecto (sin testdata, vendor, node_modules, lo que git ignora ni repos anidados), y prettier, biome, ruff format, black o dart format en la raíz o en cada subcarpeta de primer nivel cuando el proyecto los declara (su configuración, o el CI, el Makefile o pre-commit que los corren). Nombra hasta 10 archivos y dice cómo arreglarlo. Sin el formateador en la máquina queda FMT-02-FORMATO-SIN-MEDIR, una recomendación que no bloquea. Bloquea también en adopción gradual. El repositorio de QDD se formateó con gofmt en un commit aparte."
+test_result: "cli/pkg/audit/formato_test.go: TestFormato_FND203_GoEnUnaSubcarpetaTambienSeRevisa reproduce el caso de sfrc (Go en backend/) y TestFormato_EsReglaDelMotor comprueba que el gate bloquea; antes no había regla y ambas fallaban. 21 pruebas cubren prettier, biome, ruff, black, dart, lo que no se revisa y el formateador ausente. go test ./... y qdd audit pasan."
+status: resolved
+detectado_por: persona
+date: "2026-11-14"
