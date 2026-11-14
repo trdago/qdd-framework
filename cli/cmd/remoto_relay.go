@@ -31,12 +31,19 @@ var (
 	remotoClave      string
 	remotoSinServ    bool
 	remotoEjecutor   remoto.Ejecutor = ejecutarSistema
+	remotoConsultar  remoto.Consulta = consultarSistema
 	remotoUsuario                    = os.UserHomeDir
 	remotoPlazo                      = remoto.VigenciaOferta
 	remotoCadaEspera time.Duration
 
 	remotoConsultarRelay = remoto.DirectorioDeFabrica().Consultar
 )
+
+// consultarSistema corre un comando que solo lee y devuelve lo que imprimió.
+func consultarSistema(nombre string, args ...string) (string, error) {
+	out, err := exec.Command(nombre, args...).Output()
+	return string(out), err
+}
 
 func ejecutarSistema(nombre string, args ...string) error {
 	out, err := exec.Command(nombre, args...).CombinedOutput()
@@ -265,6 +272,18 @@ func servicioRemoto() (remoto.Servicio, error) {
 	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir, Cuenta: cuentaWindows()}, nil
 }
 
+// pausarAlQuitarse: el teléfono quitó este PC; en Windows la tarea se desactiva para que el disparador de cada 5
+// minutos no lo vuelva a lanzar (FND-204). qdd remoto activar la registra de nuevo. Una falla no cambia la salida.
+func pausarAlQuitarse() {
+	s, err := remotoServicio()
+	if err != nil {
+		return
+	}
+	for _, c := range s.ComandosAlQuitarse() {
+		_ = remotoEjecutor(c[0], c[1:]...)
+	}
+}
+
 // cuentaWindows es DOMINIO\usuario de quien corre qdd en Windows: la tarea de inicio es solo suya (FND-195). Fuera de
 // Windows no hace falta.
 func cuentaWindows() string {
@@ -326,6 +345,7 @@ func remotoCorrer(errores io.Writer) int {
 	}
 	if errors.Is(err, remoto.ErrCredenciales) {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
+		pausarAlQuitarse()
 		return 0
 	}
 	if errors.Is(err, remoto.ErrActualizado) {
@@ -339,8 +359,9 @@ func remotoCorrer(errores io.Writer) int {
 	return 0
 }
 
-// codigoReiniciar es la salida con la que el servicio vuelve a arrancar qdd (los tres reinician ante una salida
-// distinta de 0): así toma la versión nueva tras actualizar qdd (FND-120).
+// codigoReiniciar es la salida con la que el servicio vuelve a arrancar qdd: así toma la versión nueva tras actualizar
+// qdd (FND-120). systemd y launchd reinician ante una salida distinta de 0; en Windows, RestartOnFailure no, y lo
+// relanzan el /Run de la actualización o el disparador de cada 5 minutos (FND-204).
 const codigoReiniciar = 3
 
 // unaSolaVez deja <QDD_HOME>/remoto/correr.pid con este proceso; si otro vivo ya corre, es un error.

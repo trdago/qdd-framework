@@ -15,6 +15,8 @@ import (
 // Rule: Prohibido usar 'else'
 // RFC 0013 (rc.2): qdd remoto activar deja «qdd remoto correr» como servicio del usuario, que arranca con la sesión y
 // se reinicia si se cae: systemd --user en Linux, launchd en macOS y una tarea programada al iniciar sesión en Windows.
+// En Windows, RestartOnFailure solo reintenta una tarea que no pudo arrancar, no un programa que sale con error: la
+// tarea lleva además un disparador cada 5 minutos que la lanza si no corre (FND-204).
 // El servicio lleva el PATH de quien lo activó: los pedidos corren con la shell y necesitan las mismas herramientas
 // (git, gh, npm) que en la terminal.
 
@@ -22,6 +24,10 @@ const (
 	nombreUnidad = "qdd-remoto.service"
 	etiquetaMac  = "dev.qdd.remoto"
 	tareaWindows = "QDD remoto"
+	// tareaAnterior es el nombre del archivo de la tarea, con el que se registró a mano mientras qdd no podía (FND-195).
+	tareaAnterior = "qdd-remoto"
+	// reintentoTarea lanza la tarea cada 5 minutos; con IgnoreNew, si ya corre no pasa nada (FND-204).
+	reintentoTarea = `<TimeTrigger><Repetition><Interval>PT5M</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition><StartBoundary>2026-01-01T00:00:00</StartBoundary><Enabled>true</Enabled></TimeTrigger>`
 	// Lo que hace que el sistema no mate lo lanzado por el servicio cuando este termina (FND-128).
 	marcaSystemd = "KillMode=process"
 	marcaLaunchd = "<key>AbandonProcessGroup</key><true/>"
@@ -181,7 +187,7 @@ func (s Servicio) tareaXML() string {
 	return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo><Description>QDD remoto: el panel de este PC en QDD Móvil</Description></RegistrationInfo>
-  <Triggers><LogonTrigger><Enabled>true</Enabled>` + s.usuarioTarea() + `</LogonTrigger></Triggers>
+  <Triggers><LogonTrigger><Enabled>true</Enabled>` + s.usuarioTarea() + `</LogonTrigger>` + reintentoTarea + `</Triggers>
   <Principals><Principal id="Author">` + s.usuarioTarea() + `<LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
   <Settings>
     <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
@@ -334,12 +340,21 @@ func (s Servicio) comandoTarea() string {
 	return "<Command>" + escaparXML(s.Bin) + "</Command>"
 }
 
+// TareaSinReintento: la tarea de Windows instalada solo arranca al iniciar sesión, así que si qdd remoto termina (al ver
+// una versión nueva, salida 3) nada lo vuelve a lanzar hasta el próximo inicio de sesión (FND-204).
+func (s Servicio) TareaSinReintento() bool {
+	xml, ok := s.tareaInstalada()
+	return ok && !strings.Contains(xml, "<TimeTrigger>")
+}
+
 // RenovarTarea pone al día la tarea de Windows y deja lo demás como está: el binario de esta versión, porque su carpeta
-// cambia con cada una (FND-142), y el usuario, si le faltaba (FND-195). No la arranca: lo que corre termina solo cuando
-// ve la versión nueva y la tarea lo reinicia. Sin tarea instalada, o ya al día, no hace nada.
+// cambia con cada una (FND-142), el usuario, si le faltaba (FND-195), y el disparador que la relanza (FND-204). Después
+// la arranca: lo que corría termina al ver la versión nueva, y RestartOnFailure no lo relanza. Si todavía corre, /Run no
+// abre otra (IgnoreNew) y el disparador la lanza a los 5 minutos de terminar. Sin tarea instalada, o ya al día, no hace
+// nada.
 func (s Servicio) RenovarTarea(correr Ejecutor) error {
-	version, cuenta := s.TareaSinEstaVersion(), s.TareaSinCuenta()
-	if !version && !cuenta {
+	version, cuenta, reintento := s.TareaSinEstaVersion(), s.TareaSinCuenta(), s.TareaSinReintento()
+	if !version && !cuenta && !reintento {
 		return nil
 	}
 	xml, _ := s.tareaInstalada()
@@ -350,6 +365,9 @@ func (s Servicio) RenovarTarea(correr Ejecutor) error {
 		xml = strings.Replace(xml, "</LogonTrigger>", s.usuarioTarea()+"</LogonTrigger>", 1)
 		xml = strings.Replace(xml, `<Principal id="Author">`, `<Principal id="Author">`+s.usuarioTarea(), 1)
 	}
+	if reintento {
+		xml = strings.Replace(xml, "</Triggers>", reintentoTarea+"</Triggers>", 1)
+	}
 	archivo, err := s.Archivo()
 	if err != nil {
 		return err
@@ -357,7 +375,46 @@ func (s Servicio) RenovarTarea(correr Ejecutor) error {
 	if err := os.WriteFile(archivo, utf16ConBOM(xml), 0o600); err != nil {
 		return err
 	}
-	return correr("schtasks", "/Create", "/TN", tareaWindows, "/XML", archivo, "/F")
+	if err := correr("schtasks", "/Create", "/TN", tareaWindows, "/XML", archivo, "/F"); err != nil {
+		return err
+	}
+	if err := correr("schtasks", "/Run", "/TN", tareaWindows); err != nil {
+		return fmt.Errorf("schtasks /Run: %w", err)
+	}
+	return nil
+}
+
+// Consulta corre un comando del sistema y devuelve su salida (en pruebas, una fija).
+type Consulta func(nombre string, args ...string) (string, error)
+
+// TareaSobrante: queda la tarea «qdd-remoto» que lanza qdd remoto correr, registrada a mano (FND-195). Al iniciar sesión
+// compite con la de qdd y puede lanzar una versión ya desinstalada (FND-204). Una con ese nombre que lanza otra cosa no
+// es de qdd.
+func (s Servicio) TareaSobrante(consultar Consulta) bool {
+	if s.SO != "windows" {
+		return false
+	}
+	salida, err := consultar("schtasks", "/Query", "/TN", tareaAnterior, "/XML")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.ReplaceAll(salida, "\x00", ""), "<Arguments>remoto correr</Arguments>")
+}
+
+// QuitarTareaSobrante la apaga y la borra. Que no estuviera corriendo no es un error.
+func (s Servicio) QuitarTareaSobrante(correr Ejecutor) error {
+	_ = correr("schtasks", "/End", "/TN", tareaAnterior)
+	return correr("schtasks", "/Delete", "/TN", tareaAnterior, "/F")
+}
+
+// ComandosAlQuitarse: el teléfono quitó este PC y qdd remoto termina con 0. systemd y launchd no reinician esa salida,
+// pero en Windows el disparador lo relanzaría cada 5 minutos: la tarea se desactiva hasta que activar la vuelve a
+// registrar (FND-204).
+func (s Servicio) ComandosAlQuitarse() [][]string {
+	if s.SO != "windows" {
+		return nil
+	}
+	return [][]string{{"schtasks", "/Change", "/TN", tareaWindows, "/DISABLE"}}
 }
 
 // desdeUTF16 lee lo que escribió utf16ConBOM.
