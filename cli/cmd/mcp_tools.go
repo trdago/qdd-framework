@@ -38,11 +38,11 @@ func registerCertifyTool(s *server.MCPServer) {
 		cwd, _ := os.Getwd()
 		engine := audit.NewEngine(cwd)
 		violations := engine.RunAllCompleto()
-		
+
 		if len(audit.Bloqueantes(violations)) == 0 {
 			return mcp.NewToolResultText("CERTIFICADO! Listo para release.\n" + formatRecomendaciones(audit.Recomendaciones(violations))), nil
 		}
-		
+
 		return mcp.NewToolResultText("RECHAZADO! Existen violaciones de auditoría."), nil
 	})
 }
@@ -88,7 +88,7 @@ func extractQueryArg(request mcp.CallToolRequest) (string, error) {
 func executeGraphQuery(query string) ([]map[string]interface{}, error) {
 	cwd, _ := os.Getwd()
 	dbPath := filepath.Join(cwd, ".qdd", "knowledge.db")
-	
+
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("Error abriendo DB: %v", err)
@@ -122,11 +122,11 @@ func scanSingleRow(rows *sql.Rows, columns []string) (map[string]interface{}, er
 	for i := range columns {
 		valuePtrs[i] = &values[i]
 	}
-	
+
 	if err := rows.Scan(valuePtrs...); err != nil {
 		return nil, err
 	}
-	
+
 	rowMap := make(map[string]interface{})
 	for i, col := range columns {
 		val := values[i]
@@ -149,41 +149,41 @@ func registerSyncGraphTool(s *server.MCPServer) {
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error inicializando DB: %v", err)), nil
 		}
-		
+
 		cwd, _ := os.Getwd()
 		err = gdb.SyncToGraph(cwd)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error sincronizando grafos: %v", err)), nil
 		}
-		
+
 		return mcp.NewToolResultText("GraphRAG sincronizado exitosamente. La topología está actualizada."), nil
 	})
 }
 
 func registerPostgresTunerTool(s *server.MCPServer) {
-        tool := mcp.NewTool("qdd_postgres_tuner",
-                mcp.WithDescription("Analiza una consulta PostgreSQL lenta y propone optimizaciones (índices, parámetros)."),
-                mcp.WithString("query", mcp.Required(), mcp.Description("Consulta SQL lenta.")),
-        )
+	tool := mcp.NewTool("qdd_postgres_tuner",
+		mcp.WithDescription("Analiza una consulta PostgreSQL lenta y propone optimizaciones (índices, parámetros)."),
+		mcp.WithString("query", mcp.Required(), mcp.Description("Consulta SQL lenta.")),
+	)
 
-        RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-                argsMap, ok := request.Params.Arguments.(map[string]interface{})
-                if !ok {
-                        return mcp.NewToolResultError("Argumentos inválidos"), nil
-                }
-                query, ok := argsMap["query"].(string)
-                if !ok || query == "" {
-                        return mcp.NewToolResultError("Argumento 'query' es requerido"), nil
-                }
+	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		argsMap, ok := request.Params.Arguments.(map[string]interface{})
+		if !ok {
+			return mcp.NewToolResultError("Argumentos inválidos"), nil
+		}
+		query, ok := argsMap["query"].(string)
+		if !ok || query == "" {
+			return mcp.NewToolResultError("Argumento 'query' es requerido"), nil
+		}
 
-                analysis := fmt.Sprintf("Análisis de Especialista Tuning para Query:\n```sql\n%s\n```\n\n", query)
-                analysis += "Recomendaciones de Performance (Dry-Run):\n"
-                analysis += "1. **Conteo Masivo**: Si estás haciendo SELECT COUNT(*), recuerda que PostgreSQL bloquea y escanea toda la tabla. Usa `SELECT reltuples AS estimate FROM pg_class WHERE relname = 'tu_tabla';`.\n"
-                analysis += "2. **Índices Faltantes**: Asegúrate de tener índices B-Tree en las columnas que usas en el WHERE o JOIN.\n"
-                analysis += "3. **Parámetros Engine**: Si ves operaciones de ordenamiento en disco, considera subir `work_mem`.\n"
-                analysis += "4. **Particionamiento**: Si la tabla tiene más de 100GB, evalúa usar particionamiento por rangos de fecha.\n\n"
-                analysis += "NOTA: Esta es una herramienta estática y de análisis seguro. No modificó tu base de datos en producción."
+		analysis := fmt.Sprintf("Análisis de Especialista Tuning para Query:\n```sql\n%s\n```\n\n", query)
+		analysis += "Recomendaciones de Performance (Dry-Run):\n"
+		analysis += "1. **Conteo Masivo**: Si estás haciendo SELECT COUNT(*), recuerda que PostgreSQL bloquea y escanea toda la tabla. Usa `SELECT reltuples AS estimate FROM pg_class WHERE relname = 'tu_tabla';`.\n"
+		analysis += "2. **Índices Faltantes**: Asegúrate de tener índices B-Tree en las columnas que usas en el WHERE o JOIN.\n"
+		analysis += "3. **Parámetros Engine**: Si ves operaciones de ordenamiento en disco, considera subir `work_mem`.\n"
+		analysis += "4. **Particionamiento**: Si la tabla tiene más de 100GB, evalúa usar particionamiento por rangos de fecha.\n\n"
+		analysis += "NOTA: Esta es una herramienta estática y de análisis seguro. No modificó tu base de datos en producción."
 
-                return mcp.NewToolResultText(analysis), nil
-        })
+		return mcp.NewToolResultText(analysis), nil
+	})
 }

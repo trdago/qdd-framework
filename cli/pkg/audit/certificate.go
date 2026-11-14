@@ -24,11 +24,11 @@ const EscalaActual = 2
 
 // Certificate represents a snapshot of the framework's quality
 type Certificate struct {
-	Timestamp      string     `json:"timestamp"`
-	Score          int        `json:"score"`
-	TotalViolations int        `json:"total_violations"`
-	Tendency       Tendency   `json:"tendency"`
-	Escala         int        `json:"escala,omitempty"`
+	Timestamp       string   `json:"timestamp"`
+	Score           int      `json:"score"`
+	TotalViolations int      `json:"total_violations"`
+	Tendency        Tendency `json:"tendency"`
+	Escala          int      `json:"escala,omitempty"`
 	// EscalaNueva indica que es la primera certificación con EscalaActual.
 	EscalaNueva bool `json:"-"`
 }
@@ -61,7 +61,7 @@ func GenerateCertificate(cwd string, violations []Violation) (*Certificate, erro
 
 	updateCertTendency(cert, history)
 	history = append(history, *cert)
-	
+
 	if err := saveCertHistory(historyPath, history); err != nil {
 		return nil, err
 	}
@@ -71,11 +71,11 @@ func GenerateCertificate(cwd string, violations []Violation) (*Certificate, erro
 
 func createInitialCert(score, violationsCount int) *Certificate {
 	return &Certificate{
-		Timestamp:      time.Now().Format(time.RFC3339),
-		Score:          score,
+		Timestamp:       time.Now().Format(time.RFC3339),
+		Score:           score,
 		TotalViolations: violationsCount,
-		Tendency:       TendencyStable,
-		Escala:         EscalaActual,
+		Tendency:        TendencyStable,
+		Escala:          EscalaActual,
 	}
 }
 
@@ -96,7 +96,7 @@ func readCertHistory(path string) ([]Certificate, error) {
 		}
 		return history, nil
 	}
-	
+
 	if parseErr := json.Unmarshal(data, &history); parseErr != nil {
 		return nil, fmt.Errorf("error parsing certificate history: %v", parseErr)
 	}
@@ -107,7 +107,7 @@ func updateCertTendency(cert *Certificate, history []Certificate) {
 	if len(history) == 0 {
 		return
 	}
-	
+
 	lastCert := history[len(history)-1]
 	// Comparar con un puntaje de otra escala inventaba mejoras o caídas (FND-050).
 	if lastCert.Escala != cert.Escala {

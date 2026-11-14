@@ -22,7 +22,7 @@ var (
 var consolaCicloCmd = &cobra.Command{
 	Use:   "ciclo",
 	Short: "Marca un ciclo (un mensaje de la persona) con el modo de permisos de la IA; nunca falla; con --contexto imprime qué espera el panel de la persona, solo si cambió",
-	Run: func(cmd *cobra.Command, args []string) { correrCiclo(estadoRaiz(), os.Stdout) },
+	Run:   func(cmd *cobra.Command, args []string) { correrCiclo(estadoRaiz(), os.Stdout) },
 }
 
 // correrCiclo marca el ciclo y, con --contexto, escribe lo que el panel espera de la persona.

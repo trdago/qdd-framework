@@ -1,13 +1,13 @@
 package topology
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"go/ast"
-	"go/parser"
-	"go/token"
 
 	"gopkg.in/yaml.v3"
 )
@@ -70,16 +70,16 @@ func loadDynamicTagsConfig(cwd string) TagsConfig {
 	if data, err := os.ReadFile(path); err == nil {
 		yaml.Unmarshal(data, &cfg)
 	}
-	
+
 	if len(cfg.Extensions) == 0 && len(cfg.Paths) == 0 {
 		cfg.Extensions = map[string][]string{
-			".vue": {"frontend", "vue"},
-			".css": {"frontend"},
+			".vue":  {"frontend", "vue"},
+			".css":  {"frontend"},
 			".html": {"frontend"},
-			".go": {"backend", "go"},
+			".go":   {"backend", "go"},
 		}
 		cfg.Paths = map[string][]string{
-			"ui/": {"ui"},
+			"ui/":  {"ui"},
 			"pkg/": {"core"},
 		}
 	}
@@ -115,12 +115,12 @@ func loadSingleCert(dir string, f os.DirEntry, isCore bool, availableCerts *[]Ce
 	if !isValidCertFile(f) {
 		return
 	}
-	
+
 	data, err := os.ReadFile(filepath.Join(dir, f.Name()))
 	if err != nil {
 		return
 	}
-	
+
 	parseAndAppendCert(data, isCore, availableCerts)
 }
 
@@ -184,7 +184,7 @@ func processMapFile(cwd, path string, d os.DirEntry, rootNode *TopologyNode, ava
 
 	relPath, _ := filepath.Rel(cwd, path)
 	fileTags := determineFileTags(filepath.Ext(d.Name()), relPath, tagsCfg)
-	
+
 	moduleNode := createModuleNode(d.Name(), relPath, fileTags)
 	applyRequiredCerts(moduleNode, availableCerts, fileTags)
 	evaluateCertification(moduleNode, code, rootNode, filepath.Ext(d.Name()))
@@ -216,7 +216,7 @@ func isModuleCode(code string) bool {
 
 func determineFileTags(ext, relPath string, tagsCfg TagsConfig) []string {
 	var fileTags []string
-	
+
 	if tags, ok := tagsCfg.Extensions[ext]; ok {
 		fileTags = append(fileTags, tags...)
 	}
@@ -227,14 +227,14 @@ func determineFileTags(ext, relPath string, tagsCfg TagsConfig) []string {
 			fileTags = append(fileTags, tags...)
 			continue
 		}
-		
+
 		// Fallback estricto para directorios si no usaron glob (ej: "ui/")
 		cleanP := filepath.Clean(p) + string(os.PathSeparator)
 		if strings.HasPrefix(relPath, cleanP) {
 			fileTags = append(fileTags, tags...)
 		}
 	}
-	
+
 	return fileTags
 }
 
@@ -269,7 +269,7 @@ func processSingleCertForModule(moduleNode *TopologyNode, c CertYAML, fileTags [
 	if !*c.Active {
 		return false
 	}
-	
+
 	if certApplies(c, fileTags) {
 		moduleNode.RequiredCerts = append(moduleNode.RequiredCerts, c.ID)
 		return !c.IsCore
@@ -323,7 +323,7 @@ func checkCertificationStatus(code string, ext string) bool {
 			return !hasElse
 		}
 	}
-	
+
 	// Fallback para JS/TS/Vue/Dart etc usando Regex
 	cleanCode := stripCommentsAndStrings(code)
 	matched, _ := regexp.MatchString(`(?m)(?:^|[\s{}])else(?:[\s{]|$)`, cleanCode)
@@ -353,11 +353,11 @@ func markModuleUncertified(moduleNode *TopologyNode, rootNode *TopologyNode) {
 func addEndpoints(moduleNode *TopologyNode, code, relPath string) {
 	if strings.Contains(code, "http.HandleFunc") || strings.Contains(code, "router.get") || strings.Contains(code, "app.get") {
 		epNode := &TopologyNode{
-			ID:            "ep-" + moduleNode.Name,
-			Name:          "HTTP Endpoint Handler",
-			Type:          "Endpoint",
-			Path:          relPath,
-			Certified:     moduleNode.Certified,
+			ID:        "ep-" + moduleNode.Name,
+			Name:      "HTTP Endpoint Handler",
+			Type:      "Endpoint",
+			Path:      relPath,
+			Certified: moduleNode.Certified,
 		}
 		if !moduleNode.Certified {
 			epNode.MissingCerts = append(epNode.MissingCerts, "OWASP-SECURITY")

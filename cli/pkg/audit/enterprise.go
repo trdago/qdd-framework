@@ -86,9 +86,9 @@ func checkImportForDomainIsolation(path string, imp *ast.ImportSpec, fset *token
 }
 
 func isForbiddenDomainImport(importPath string) bool {
-	return strings.Contains(importPath, "database/sql") || 
-		strings.Contains(importPath, "github.com/labstack/echo") || 
-		strings.Contains(importPath, "gorm.io") || 
+	return strings.Contains(importPath, "database/sql") ||
+		strings.Contains(importPath, "github.com/labstack/echo") ||
+		strings.Contains(importPath, "gorm.io") ||
 		strings.Contains(importPath, "net/http")
 }
 

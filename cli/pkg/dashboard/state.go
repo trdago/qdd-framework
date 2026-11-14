@@ -15,8 +15,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/qdd-framework/qdd/pkg/audit"
-	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
+	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/topology"
@@ -267,10 +267,10 @@ type HistoricalTrendPoint struct {
 }
 
 type GraphNode struct {
-	ID      string                 `json:"id"`
-	Type    string                 `json:"type"`
-	Name    string                 `json:"name"`
-	Content string                 `json:"content"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
 }
 
 type GraphEdge struct {
@@ -285,32 +285,32 @@ type DashboardGraphData struct {
 }
 
 type QDDState struct {
-	Score          int                       `json:"score"`
-	Grade          string                    `json:"grade"`
-	Version        string                    `json:"version"`
-	QualityStatus  string                    `json:"quality_status"`
-	Findings       []DashboardFinding        `json:"findings"`
-	Certifications []DashboardCertification  `json:"certifications"`
+	Score          int                      `json:"score"`
+	Grade          string                   `json:"grade"`
+	Version        string                   `json:"version"`
+	QualityStatus  string                   `json:"quality_status"`
+	Findings       []DashboardFinding       `json:"findings"`
+	Certifications []DashboardCertification `json:"certifications"`
 	// CertificacionesConteo sale de pkg/certificaciones: el catálogo cuenta
 	// como disponible, nunca como cumplido (FND-060).
-	CertificacionesConteo certificaciones.Conteo `json:"certificaciones_conteo"`
-	Sprints        []DashboardSprint         `json:"sprints"`
-	Knowledge      []DashboardKnowledgeDoc   `json:"knowledge"`
-	Understanding  *DashboardUnderstanding   `json:"understanding"`
-	Topology       *topology.ProjectTopology `json:"topology"`
-	Config         map[string]interface{}    `json:"config"`
-	Telemetry      DashboardTelemetry        `json:"telemetry"`
-	WorkingOn      string                    `json:"working_on"`
-	ProjectName    string                    `json:"project_name"`
-	ValueMetrics   ValueMetrics              `json:"value_metrics"`
-	Historical     []HistoricalTrendPoint    `json:"historical_trends"`
-	MCPLogs        []string                  `json:"mcp_logs"`
-	UsageTime      string                    `json:"usage_time"`
-	Policies       audit.QDDPolicies         `json:"policies"`
-	GraphData      DashboardGraphData        `json:"graph_data"`
-	LocalLLM       cognitive.LocalLLMInfo    `json:"local_llm"`
-	AutoUICert     bool                      `json:"auto_ui_certification"`
-	FindingsConteo findings.Conteo           `json:"findings_conteo"`
+	CertificacionesConteo certificaciones.Conteo    `json:"certificaciones_conteo"`
+	Sprints               []DashboardSprint         `json:"sprints"`
+	Knowledge             []DashboardKnowledgeDoc   `json:"knowledge"`
+	Understanding         *DashboardUnderstanding   `json:"understanding"`
+	Topology              *topology.ProjectTopology `json:"topology"`
+	Config                map[string]interface{}    `json:"config"`
+	Telemetry             DashboardTelemetry        `json:"telemetry"`
+	WorkingOn             string                    `json:"working_on"`
+	ProjectName           string                    `json:"project_name"`
+	ValueMetrics          ValueMetrics              `json:"value_metrics"`
+	Historical            []HistoricalTrendPoint    `json:"historical_trends"`
+	MCPLogs               []string                  `json:"mcp_logs"`
+	UsageTime             string                    `json:"usage_time"`
+	Policies              audit.QDDPolicies         `json:"policies"`
+	GraphData             DashboardGraphData        `json:"graph_data"`
+	LocalLLM              cognitive.LocalLLMInfo    `json:"local_llm"`
+	AutoUICert            bool                      `json:"auto_ui_certification"`
+	FindingsConteo        findings.Conteo           `json:"findings_conteo"`
 }
 
 func BuildState() QDDState {

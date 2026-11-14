@@ -63,18 +63,18 @@ func validateDoctorReportContains(t *testing.T, qddDir, expectedStatus string) {
 
 func TestSelectiveFixDashboardContracts(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	historyPath := filepath.Join(tempDir, ".qdd", "project", "metrics", "cognitive_history.json")
 	_ = os.MkdirAll(filepath.Dir(historyPath), 0755)
 	_ = os.WriteFile(historyPath, []byte("corrupted_no_json"), 0644)
-	
+
 	success, _ := RunDoctorCheck(tempDir, false)
 	if success {
 		t.Errorf("Expected failure for corrupted dashboard contract")
 	}
-	
+
 	RunDoctorCheck(tempDir, true)
-	
+
 	content, err := os.ReadFile(historyPath)
 	if err != nil {
 		t.Fatalf("Failed to read repaired history: %v", err)

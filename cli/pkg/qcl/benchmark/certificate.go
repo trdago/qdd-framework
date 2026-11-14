@@ -12,7 +12,7 @@ import (
 
 // CognitiveScores representa las 4 dimensiones de calidad del framework cognitivo (QCL)
 type CognitiveScores struct {
-	ContextScore      int `json:"context_score"`
+	ContextScore       int `json:"context_score"`
 	UnderstandingScore int `json:"understanding_score"`
 	ImprovementScore   int `json:"improvement_score"`
 	ComplianceScore    int `json:"compliance_score"`
@@ -51,7 +51,7 @@ func GenerateCognitiveCertificate(cwd string, scores CognitiveScores) (*Cognitiv
 	cert.Tendency = calculateTendency(history, cert.Total)
 
 	history = append(history, *cert)
-	
+
 	if err := saveCognitiveHistory(historyPath, history); err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func GenerateCognitiveCertificate(cwd string, scores CognitiveScores) (*Cognitiv
 
 func loadCognitiveHistory(historyPath string) ([]CognitiveCertificate, error) {
 	var history []CognitiveCertificate
-	
+
 	data, err := os.ReadFile(historyPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -81,7 +81,7 @@ func calculateTendency(history []CognitiveCertificate, currentTotal int) audit.T
 	if len(history) == 0 {
 		return audit.TendencyStable
 	}
-	
+
 	lastCert := history[len(history)-1]
 	if currentTotal > lastCert.Total {
 		return audit.TendencyImproving
@@ -89,7 +89,7 @@ func calculateTendency(history []CognitiveCertificate, currentTotal int) audit.T
 	if currentTotal < lastCert.Total {
 		return audit.TendencyWorsening
 	}
-	
+
 	return audit.TendencyStable
 }
 
@@ -102,6 +102,6 @@ func saveCognitiveHistory(historyPath string, history []CognitiveCertificate) er
 	if err := os.WriteFile(historyPath, outData, 0644); err != nil {
 		return fmt.Errorf("error escribiendo historial cognitivo: %v", err)
 	}
-	
+
 	return nil
 }

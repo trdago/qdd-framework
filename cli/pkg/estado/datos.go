@@ -23,8 +23,8 @@ type DatosPanel struct {
 	EsperanPersona int         `json:"esperan_persona"`
 	Fallan         int         `json:"fallan"`
 	Esperas        []Pendiente `json:"esperas"`
-	Fallas  []Pendiente `json:"fallas"`
-	Actual  string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
+	Fallas         []Pendiente `json:"fallas"`
+	Actual         string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
 	// Hace es cuánto pasó desde la última escritura («hace 9 h»); Viejo, que hay tareas pendientes y nadie tocó el
 	// tablero en TableroViejo (FND-088). Sin fecha legible van vacíos: no se inventan.
 	Hace  string `json:"hace,omitempty"`

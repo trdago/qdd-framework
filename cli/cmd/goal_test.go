@@ -125,4 +125,3 @@ func TestGoal_NoPasaPorElGatekeeperNiElRegistroDeTrabajo(t *testing.T) {
 		t.Fatal("corre cada 5 s y en proyectos sin config: sin los hooks de la raíz")
 	}
 }
-

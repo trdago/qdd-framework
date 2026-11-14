@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	secretInPromptRegex   = regexp.MustCompile(`(?i)(api_key|sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|password|secret)\s*[:=]\s*["'][^"']+["']`)
-	promptInjectionRegex  = regexp.MustCompile(`(?i)(prompt|system_prompt|user_message)\s*\+=\s*.*\b(userInput|req\.Body|params\[|args\[)`)
-	rawLLMExecutionRegex  = regexp.MustCompile(`(?i)(exec\.Command|os\.System|db\.Exec|db\.Query)\s*\(\s*.*(llmResponse|aiOutput|modelResult|completion)`)
+	secretInPromptRegex  = regexp.MustCompile(`(?i)(api_key|sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|password|secret)\s*[:=]\s*["'][^"']+["']`)
+	promptInjectionRegex = regexp.MustCompile(`(?i)(prompt|system_prompt|user_message)\s*\+=\s*.*\b(userInput|req\.Body|params\[|args\[)`)
+	rawLLMExecutionRegex = regexp.MustCompile(`(?i)(exec\.Command|os\.System|db\.Exec|db\.Query)\s*\(\s*.*(llmResponse|aiOutput|modelResult|completion)`)
 )
 
 // RunAIGovernanceCheck ejecuta la auditoría de los 4 estándares de IA:
@@ -223,4 +223,3 @@ func fileExists(path string) bool {
 	}
 	return !info.IsDir()
 }
-

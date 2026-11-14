@@ -5,23 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"os/exec"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
-	"github.com/qdd-framework/qdd/pkg/consola"
-	"github.com/qdd-framework/qdd/pkg/foto"
-	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/foto"
 	"github.com/qdd-framework/qdd/pkg/herramientas"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
+	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
 )
@@ -401,7 +401,7 @@ func buildGroup3Checks(projectPath string) *CheckGroup {
 func buildDashboardCheck() *CheckItem {
 	dashCheck := &CheckItem{Name: "Assets estáticos del Dashboard (Vue) embebidos", Success: false, Error: "No se encontró el subdirectorio 'dist' en el binario"}
 	distFs, err := fs.Sub(ui.StaticFiles, "dist")
-	
+
 	if err == nil {
 		dashCheck.Error = "index.html ausente en la compilación embebida"
 		_, errHtml := fs.Stat(distFs, "index.html")
@@ -531,7 +531,7 @@ func generateGroupReport(g *CheckGroup) string {
 
 func runSelectiveFixes(projectPath string, checklist *Checklist) {
 	qddDir := filepath.Join(projectPath, ".qdd")
-	
+
 	for _, g := range checklist.Groups {
 		if g.Name == grupoBlueprints {
 			repairBlueprints(projectPath, g)
@@ -584,20 +584,20 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 
 func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 	repairRegistry := map[string]func(string, string){
-		"Directorio raíz .qdd/": repairDirs,
-		"Directorio base .qdd/core/": repairDirs,
-		"Directorio de proyecto .qdd/project/": repairDirs,
-		"Configuración base config.yaml": repairConfig,
-		"Estado de proyecto state.json": repairState,
-		"Integración Cursor (.cursor/mcp.json)": repairMCP,
-		"Integración Claude (.clauderc)": repairMCP,
-		"Integración Antigravity (.antigravityrules)": repairMCP,
-		itemBloquesDeReglas: repairMCP,
+		"Directorio raíz .qdd/":                          repairDirs,
+		"Directorio base .qdd/core/":                     repairDirs,
+		"Directorio de proyecto .qdd/project/":           repairDirs,
+		"Configuración base config.yaml":                 repairConfig,
+		"Estado de proyecto state.json":                  repairState,
+		"Integración Cursor (.cursor/mcp.json)":          repairMCP,
+		"Integración Claude (.clauderc)":                 repairMCP,
+		"Integración Antigravity (.antigravityrules)":    repairMCP,
+		itemBloquesDeReglas:                              repairMCP,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,
-		itemFindingsNoCanonicos: repairFindingsNoCanonicos,
+		itemFindingsNoCanonicos:                          repairFindingsNoCanonicos,
 	}
-	
+
 	if handler, ok := repairRegistry[itemName]; ok {
 		handler(projectPath, qddDir)
 	}

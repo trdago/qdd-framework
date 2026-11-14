@@ -31,8 +31,8 @@ architecture: serverless
 	if err != nil {
 		t.Errorf("Expected no error for valid config, got: %v", err)
 	}
-    
-    configYAMLMissing := `
+
+	configYAMLMissing := `
 project: test
 languages: []
 architecture: serverless
