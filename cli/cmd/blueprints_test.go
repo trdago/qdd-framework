@@ -16,6 +16,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
@@ -55,6 +56,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	os.Setenv(blueprints.HomeEnv, home)
+	// Los AGENTS.md de las carpetas padre de la persona no son de las pruebas (MEJ-062): doctor --fix no mira más
+	// arriba que esta carpeta, y ninguna prueba vive dentro de ella.
+	integration.TopePadres = func() string { return home }
 	// El servicio de qdd remoto de esta máquina no es de las pruebas.
 	remotoUsuario = func() (string, error) { return home, nil }
 	remotoEjecutor = func(string, ...string) error { return nil }
