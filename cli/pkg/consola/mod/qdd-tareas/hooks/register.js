@@ -3831,6 +3831,35 @@ async function primeraLectura($) {
   if (interactiva) await latirTelefono($)
 }
 
+// ── Lo que necesita a la persona (MEJ-026, issue #150) ──────────────────────────────────────────────────────────────
+// Desde el teléfono no se ve el chat. Al terminar un turno de la conversación principal, qdd recibe el último mensaje de
+// la IA y las herramientas que llamó; si le dejó a la persona una pregunta o un comando solo en el chat, dice qué falta
+// y el turno vuelve a la IA una vez para que lo deje en el panel. El panel no decide nada: solo anota y pasa el turno.
+// Sin terminal (claude -p) no hay persona mirando, y el final del turno no espera a qdd más que PRESUPUESTO_MS.
+let turnoHerramientas = [] // { tool, entrada? }: la entrada solo de las que pueden dejar algo en el panel
+
+function anotarHerramienta(e) {
+  if (e.agentId) return
+  const conEntrada = cambiaElPanel(e) || e.tool === PREGUNTAR
+  turnoHerramientas.push({ tool: e.tool, ...(conEntrada ? { entrada: entradaDe(e) } : {}) })
+}
+
+async function queFalta($, e) {
+  const bin = await binario($)
+  const turno = { mensaje: String(e.last_assistant_message || ''), herramientas: turnoHerramientas, ya_devuelto: e.stop_hook_active === true }
+  const r = await $.process.run([bin, 'consola', 'fin-de-turno'], { stdin: JSON.stringify(turno), timeoutMs: TOPE_MS })
+  if (r.exitCode !== 0) return ''
+  return String(JSON.parse(r.stdout).devolver || '')
+}
+
+async function faltaAlTerminar($, e) {
+  const falta = queFalta($, e).catch((err) => {
+    $.ui.log('no se revisó el final del turno: ' + String(err?.message ?? err))
+    return ''
+  })
+  return Promise.race([falta, $.clock.sleep(PRESUPUESTO_MS).then(() => '')])
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
@@ -3890,6 +3919,7 @@ export function register(on) {
   on('tool.call', async ($, e, next) => {
     pulsar($, 'agente')
     hubo()
+    anotarHerramienta(e)
     if (HERRAMIENTAS_SHELL.has(e.tool) && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
     const seguir = !e.agentId && e.tool_use_id
     if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
@@ -3923,6 +3953,7 @@ export function register(on) {
   // El silencio del modo goal: un turno de la conversación principal cuenta como actividad mientras dura.
   on('turn.start', async ($, e, next) => {
     if (!e.agentId) goal.enTurno = true
+    if (!e.agentId) turnoHerramientas = []
     hubo()
     return next(e)
   })
@@ -3933,6 +3964,15 @@ export function register(on) {
     goal.enTurno = false
     soltarAvisos($).catch((err) => $.ui.log('no se enviaron los avisos guardados: ' + String(err?.message ?? err)))
     return next(e)
+  })
+
+  // Lo que la IA le deja a la persona solo en el chat vuelve a la IA una vez (MEJ-026).
+  on('classic.Stop', async ($, e, next) => {
+    const r = await next(e)
+    if (!interactiva || e.agent_id || e.stop_hook_active || r?.block) return r
+    const falta = await faltaAlTerminar($, e)
+    if (!falta) return r
+    return { ...(r || {}), block: falta }
   })
 
   // Un ciclo por mensaje (§3.9): lo que ya se vio (el resultado y los pedidos hechos) sale del tablero, y qdd anota el
