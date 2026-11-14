@@ -248,8 +248,9 @@ func TestServicio_RenovarBinarioApuntaLaTareaALaVersionNueva_FND142(t *testing.T
 	if !strings.Contains(texto, "<Arguments>remoto correr</Arguments>") {
 		t.Fatalf("lo demás queda igual: %s", texto)
 	}
-	if len(corrio) != 1 || corrio[0][0] != "schtasks" || corrio[0][1] != "/Create" {
-		t.Fatalf("la registra sin arrancarla: lo que corre termina solo: %v", corrio)
+	// FND-204: también la arranca; lo que corría termina al ver la versión nueva y RestartOnFailure no lo relanza.
+	if len(corrio) != 2 || corrio[0][1] != "/Create" || corrio[1][1] != "/Run" {
+		t.Fatalf("la registra y la arranca: %v", corrio)
 	}
 	corrio = nil
 	if err := nueva.RenovarTarea(anota); err != nil || len(corrio) != 0 {
@@ -337,8 +338,8 @@ func TestServicio_RenovarTareaLeAgregaElUsuario_FND195(t *testing.T) {
 	if strings.Count(xml, `<UserId>PC\ana</UserId>`) != 2 || !strings.Contains(xml, `<Command>C:\a mano\qdd.exe</Command>`) {
 		t.Fatalf("agrega el usuario y deja el binario: %s", xml)
 	}
-	if len(corrio) != 1 || corrio[0][0] != "schtasks" || corrio[0][1] != "/Create" {
-		t.Fatalf("la vuelve a registrar: %v", corrio)
+	if len(corrio) != 2 || corrio[0][0] != "schtasks" || corrio[0][1] != "/Create" || corrio[1][1] != "/Run" {
+		t.Fatalf("la vuelve a registrar y la arranca (FND-204): %v", corrio)
 	}
 	corrio = nil
 	if err := nueva.RenovarTarea(anota); err != nil || len(corrio) != 0 || nueva.TareaSinCuenta() {

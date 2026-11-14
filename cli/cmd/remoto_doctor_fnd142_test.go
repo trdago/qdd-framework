@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -36,8 +37,9 @@ func tareaEnOtraVersion(t *testing.T) (remoto.Servicio, string, *[][]string) {
 	}
 	nueva := vieja
 	nueva.Bin = `C:\L\qdd\bin\2.10.1\qdd.exe`
-	antesServicio, antesEjecutor := remotoServicio, remotoEjecutor
-	t.Cleanup(func() { remotoServicio, remotoEjecutor = antesServicio, antesEjecutor })
+	antesServicio, antesEjecutor, antesConsultar := remotoServicio, remotoEjecutor, remotoConsultar
+	t.Cleanup(func() { remotoServicio, remotoEjecutor, remotoConsultar = antesServicio, antesEjecutor, antesConsultar })
+	remotoConsultar = func(string, ...string) (string, error) { return "", errors.New("no existe") }
 	remotoServicio = func() (remoto.Servicio, error) { return nueva, nil }
 	corridos := &[][]string{}
 	remotoEjecutor = func(n string, a ...string) error {
@@ -51,7 +53,7 @@ func tareaEnOtraVersion(t *testing.T) (remoto.Servicio, string, *[][]string) {
 func TestActualizar_LaTareaSigueALaVersionInstalada_FND142(t *testing.T) {
 	_, archivo, corridos := tareaEnOtraVersion(t)
 	seguirVersionEnLaTarea()
-	if !strings.Contains(leerTarea(t, archivo), `2.10.1\qdd.exe</Command>`) || len(*corridos) != 1 {
+	if !strings.Contains(leerTarea(t, archivo), `2.10.1\qdd.exe</Command>`) || len(*corridos) != 2 || (*corridos)[1][1] != "/Run" {
 		t.Fatalf("la tarea lanza la versión nueva: %s %v", leerTarea(t, archivo), *corridos)
 	}
 }
@@ -73,8 +75,8 @@ func TestDoctor_VeYReparaLaTareaEnOtraVersion_FND142(t *testing.T) {
 		t.Fatalf("doctor lo ve: %+v", g.Items)
 	}
 	repairRemoto(g)
-	if len(*corridos) != 1 || (*corridos)[0][0] != "schtasks" {
-		t.Fatalf("solo vuelve a registrar la tarea: %v", *corridos)
+	if len(*corridos) != 2 || (*corridos)[0][1] != "/Create" || (*corridos)[1][1] != "/Run" {
+		t.Fatalf("vuelve a registrar la tarea y la arranca (FND-204): %v", *corridos)
 	}
 	if !strings.Contains(leerTarea(t, archivo), `2.10.1\qdd.exe</Command>`) || s.TareaSinEstaVersion() {
 		t.Fatalf("quedó al día: %s", leerTarea(t, archivo))
@@ -103,8 +105,8 @@ func TestDoctor_VeYReparaLaTareaSinUsuario_FND195(t *testing.T) {
 		t.Fatalf("doctor lo ve: %+v", g.Items)
 	}
 	repairRemoto(g)
-	if len(*corridos) != 1 || (*corridos)[0][0] != "schtasks" || (*corridos)[0][1] != "/Create" {
-		t.Fatalf("vuelve a registrar la tarea: %v", *corridos)
+	if len(*corridos) != 2 || (*corridos)[0][1] != "/Create" || (*corridos)[1][1] != "/Run" {
+		t.Fatalf("vuelve a registrar la tarea y la arranca (FND-204): %v", *corridos)
 	}
 	if !strings.Contains(leerTarea(t, archivo), `<UserId>PC\ana</UserId>`) || s.TareaSinCuenta() {
 		t.Fatalf("quedó con el usuario: %s", leerTarea(t, archivo))
