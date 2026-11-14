@@ -18,6 +18,8 @@ rutas:
     - cli/cmd/consola_seguir.go
     - cli/cmd/consola_preguntas.go
     - cli/cmd/consola_telefono.go
+    - cli/cmd/consola_fin_de_turno.go
+    - cli/cmd/mcp_consola.go
     - cli/pkg/materializar
     - cli/pkg/listas
 implementa:
@@ -114,6 +116,8 @@ objetivo_tecnologico:
         - 'Reglas atrasadas en la vista Proyectos (pedido de qdd-movile, 2026-11-07): cada fila trae reglas_atrasadas, los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos; null si la carpeta no existe). El panel marca la fila con ⚑ y su detalle dice dónde y que qdd doctor --fix (o --fix --todos) las renueva.'
         - 'La vista Proyectos del panel (tecla y) dibuja esas filas y no decide nada. Se lee al abrirla y con l ↻, sin temporizador ni flujo: cerrada no gasta procesos, y nada le escribe a la IA. Es solo lectura: elegir una fila, con su número (1…9) o un clic, abre su historial. Desde 61 columnas muestra todas; más angosto, proyecto, puntaje y ⏳ y ❌. El motor dibuja la tecla de un botón como «1: » antes del texto, así que la fila reserva ese ancho.'
         - 'Logrado (rediseño de QDD Móvil elegido por la persona, 2026-11-09: «el historial por día de lo que salió bien»): qdd consola panel --con logrado trae logrado [{tipo pedido|tarea|objetivo|mensaje, id, titulo, en RFC3339 UTC, detalle, salida, origen panel|telefono, motivo, criterio, evidencia, estado}], del más nuevo al más viejo, últimos 14 días, como mucho 60, salida recortada a 2000 runas por el final. Solo lo que salió bien: tareas cerradas (no descartadas) y objetivos cumplidos del estado; pedidos hechos con código 0, que conCola anota al guardarse en <QDD_HOME>/…/logrado (local, como mucho 200 y 14 días, sin repetir por id) porque salen de la cola a los 30 min; del teléfono, un comando hecho es pedido de origen telefono y una instrucción entregada es mensaje. Pedido y vacío sale []; sin --con no sale, para que un cliente anterior no muestre el botón. Si no se puede anotar, solo falta esa entrada.'
+        - 'Lo que necesita a la persona llega siempre al panel (MEJ-026, issue #150; la persona: «qdd debería obligarte, ya que si estoy desde el celular debería poder continuar»). Al terminar cada turno de la conversación principal de una sesión con terminal, el mod le pasa a qdd consola fin-de-turno el último mensaje de la IA y las herramientas que llamó (la entrada solo de las de qdd, shell y AskUserQuestion). qdd decide (QueFaltaAlTerminar): si el mensaje termina en «?» o le pide a la persona correr un comando entre comillas invertidas (imperativo, o «! comando»; no un comando de barra), y en el turno no hubo un ⏳, un pedido, una pregunta de AskUserQuestion ni una ficha en borrador, el mod le devuelve el turno a la IA una vez (block del hook Stop) con qué dejar y que lo escriba para que se entienda solo. Es conservador a propósito: una pregunta a media respuesta no cuenta. El final del turno espera a qdd a lo más PRESUPUESTO_MS; sin .qdd no se devuelve nada.'
+        - 'Un pedido de la persona (de_persona en qdd_consola_pedir, --de-persona en la CLI; MEJ-024, issue #148) espera su «s  Sí» aunque el modo goal esté activo: es lo que solo ella autoriza, como un push que su proyecto le reserva.'
     invariantes:
         - 'Lo que qdd le entrega al panel nunca trae una lista ni un mapa null (FND-189, MEJ-045, MEJ-050): las salidas JSON que lee el panel pasan por listas.Marshal, y una prueba de contrato (listas.Nulas) las revisa en un proyecto vacío y en uno con datos. Un elemento null dentro de una lista sí se conserva, porque dice «esta fila no tiene» (los segmentos de una línea del dibujo).'
         - 'Ninguna vista deja el panel en negro (FND-189): cada una se dibuja protegida; si lanza, se ve «✗ La vista X falló» bajo la cabecera, se puede volver al tablero o reintentar, y la falla queda una vez en qdd incidentes panel.'
@@ -140,6 +144,7 @@ objetivo_tecnologico:
         - Una acción que escribe (aprobar, auditar) no corre sin --confirmado, que el panel pasa solo después de «s  Sí».
         - 'Un comando pedido por la IA nunca lo ejecuta QDD por su cuenta: corre solo con --confirmado, después de que la persona ve en el panel su motivo, el comando exacto y la carpeta y confirma con «s  Sí». La única excepción es el modo goal que la persona activó en ese proyecto (decisión de la persona, 2026-11-04; RFC 0015): ahí corre sin ese «s  Sí» y queda registrado.'
         - Pedir o descartar un comando no escribe nada en el proyecto.
+        - 'Un turno vuelve a la IA por lo que dejó solo en el chat a lo más una vez (stop_hook_active): nunca hay bucle, ni en un subagente ni sin terminal.'
         - 'Un pedido armado corre solo con el «s  Sí» que ya dio la persona: nunca se arma sin él, una falla de verdad (código distinto de 0 y 75) no se reintenta y no corre dos veces (FND-070).'
         - 'El resultado de un pedido llega a la conversación una sola vez y solo a la sesión que lo confirmó: qdd consola avisado lo marca con la cola bloqueada y sale con 0 solo la primera vez, aunque haya varias sesiones abiertas o el mod se recargue.'
         - 'Ninguna escritura del estado crea una tarea u objetivo por nombrar un id que no existe: sin --nombre (o qdd estado nueva) se rechaza y no cambia el archivo (FND-109).'
@@ -172,6 +177,7 @@ pruebas:
         - cd cli && go test ./pkg/consola/ -run Telefono && go test ./cmd/ -run 'ConsolaTelefono|ConsolaPanel_Ejecutar'
         - cd cli && go test ./pkg/consola/ -run Blueprints && go test ./cmd/ -run ConsolaBlueprints
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
+        - cd cli && go test ./pkg/consola/ -run FinDeTurno && go test ./cmd/ -run 'MEJ024|MEJ026'
         - cd cli && GOOS=windows go vet ./cmd ./pkg/estado ./pkg/consola && GOOS=darwin go vet ./cmd ./pkg/estado ./pkg/consola
 fuentes:
     - rfcs/0006-estado-por-frente-en-consola.md
@@ -182,5 +188,5 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
-ultima_revision: "2026-11-11"
-revisado_en_commit: 1681cd03a843
+ultima_revision: "2026-11-14"
+revisado_en_commit: 81d46ae25dc9

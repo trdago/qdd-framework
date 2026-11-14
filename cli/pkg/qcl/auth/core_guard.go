@@ -11,7 +11,7 @@ import (
 // está autorizado para modificar/reparar la carpeta core del framework.
 func GuardCoreWriteAccess(targetPath string) error {
 	corePath := filepath.Join(".qdd", "core")
-	
+
 	if !strings.Contains(targetPath, corePath) {
 		return nil
 	}
@@ -52,4 +52,3 @@ func isAuthorizedCommand(cmdName string) bool {
 	}
 	return false
 }
-

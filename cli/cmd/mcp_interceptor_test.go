@@ -21,7 +21,7 @@ func setupTestEnv(t *testing.T) (string, func()) {
 	metricsDir := filepath.Join(cwd, ".qdd", "project", "metrics")
 	_ = os.MkdirAll(metricsDir, 0755)
 	historyPath := filepath.Join(metricsDir, "cognitive_history.json")
-	
+
 	os.Remove(historyPath)
 	return historyPath, func() { os.RemoveAll(filepath.Join(cwd, ".qdd")) }
 }

@@ -15,7 +15,7 @@ func TestGuardCoreWriteAccess_DoctorAuthorized(t *testing.T) {
 	os.Args = []string{"qdd", "doctor", "--fix"}
 
 	targetPath := filepath.Join(".qdd", "core", "certification", "rule_test.yaml")
-	
+
 	err := GuardCoreWriteAccess(targetPath)
 	if err != nil {
 		t.Errorf("Se esperaba autorización para 'doctor', pero dio error: %v", err)
@@ -30,7 +30,7 @@ func TestGuardCoreWriteAccess_ValidateDenied(t *testing.T) {
 	os.Args = []string{"qdd", "validate"}
 
 	targetPath := filepath.Join(".qdd", "core", "certification", "rule_test.yaml")
-	
+
 	err := GuardCoreWriteAccess(targetPath)
 	if err == nil {
 		t.Errorf("Se esperaba denegación (Access Denied) para 'validate', pero pasó sin error.")
@@ -45,7 +45,7 @@ func TestGuardCoreWriteAccess_NonCoreAllowed(t *testing.T) {
 	os.Args = []string{"qdd", "audit"}
 
 	targetPath := filepath.Join(".qdd", "project", "findings", "finding_test.yaml")
-	
+
 	err := GuardCoreWriteAccess(targetPath)
 	if err != nil {
 		t.Errorf("Se esperaba autorización para escribir fuera del core, pero dio error: %v", err)

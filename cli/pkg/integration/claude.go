@@ -15,7 +15,7 @@ func (c *ClaudeAdapter) Name() string {
 
 func (c *ClaudeAdapter) Sync(projectPath string) error {
 	rulesPath := filepath.Join(projectPath, ".clauderc")
-	
+
 	err := SafeInjectIdempotent(rulesPath)
 	if err != nil {
 		return fmt.Errorf("Claude adapter failed to sync %s: %w", rulesPath, err)
@@ -28,7 +28,7 @@ func (c *ClaudeAdapter) Sync(projectPath string) error {
 	}
 
 	qddCommandPath := filepath.Join(commandsDir, "qdd.md")
-	
+
 	// Create with frontmatter if it doesn't exist
 	if _, err := os.Stat(qddCommandPath); os.IsNotExist(err) {
 		frontmatter := "---\ndescription: QDD Framework native AI commands\n---\n\n"

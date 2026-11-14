@@ -12,18 +12,22 @@ import (
 // un registro ilegible es falla y --fix lo aparta (no lo borra; se vuelve a anotar solo). REM-01: una ruta que ya no
 // existe se publicaría con error para siempre; --fix la quita. REM-03: un servicio instalado antes de FND-128 mata lo que
 // lanzó al reiniciarse; --fix solo le agrega la línea que falta. REM-04: en Windows, la tarea tiene que lanzar la versión
-// instalada, que vive en su propia carpeta (FND-142); --fix solo le cambia el binario.
+// instalada, que vive en su propia carpeta (FND-142); --fix solo le cambia el binario. REM-13: en Windows, la tarea
+// vuelve a lanzar qdd remoto si termina (FND-204). REM-14: no queda la tarea «qdd-remoto» registrada a mano (FND-195),
+// que al iniciar sesión compite con la de qdd; --fix la apaga y la borra.
 
 var remotoServicio = servicioRemoto
 
 const grupoRemoto = "9. Consola remota (qdd remoto)"
 
 const (
-	itemRemotoLegible  = "Registro de proyectos legible (REM-02)"
-	itemRemotoRutas    = "Proyectos del registro que existen (REM-01)"
-	itemRemotoServicio = "El servicio no mata lo que lanzó al reiniciarse (REM-03)"
-	itemRemotoVersion  = "La tarea lanza la versión instalada (REM-04)"
-	itemRemotoCuenta   = "La tarea de inicio es solo de tu usuario (REM-12)"
+	itemRemotoLegible   = "Registro de proyectos legible (REM-02)"
+	itemRemotoRutas     = "Proyectos del registro que existen (REM-01)"
+	itemRemotoServicio  = "El servicio no mata lo que lanzó al reiniciarse (REM-03)"
+	itemRemotoVersion   = "La tarea lanza la versión instalada (REM-04)"
+	itemRemotoCuenta    = "La tarea de inicio es solo de tu usuario (REM-12)"
+	itemRemotoReintento = "La tarea vuelve a lanzar qdd remoto si termina (REM-13)"
+	itemRemotoSobrante  = "No queda otra tarea de qdd remoto (REM-14)"
 )
 
 func buildRemotoChecks() *CheckGroup {
@@ -64,6 +68,12 @@ func itemsServicioRemoto() []*CheckItem {
 	if s.TareaSinCuenta() {
 		items = append(items, &CheckItem{Name: itemRemotoCuenta, Error: "se dispara para cualquier usuario, y Windows pide administrador para registrarla: quizás nunca quedó registrada (qdd doctor --fix la limita a tu usuario y la registra)"})
 	}
+	if s.TareaSinReintento() {
+		items = append(items, &CheckItem{Name: itemRemotoReintento, Error: "solo arranca al iniciar sesión: si qdd remoto termina (por ejemplo, al actualizar qdd), el teléfono se queda sin este PC hasta el próximo inicio de sesión (qdd doctor --fix la registra con un reintento cada 5 minutos y la arranca)"})
+	}
+	if s.TareaSobrante(remotoConsultar) {
+		items = append(items, &CheckItem{Name: itemRemotoSobrante, Error: "queda la tarea «qdd-remoto», registrada a mano, que también lanza qdd remoto y puede apuntar a una versión desinstalada (qdd doctor --fix la apaga y la borra; la de qdd es «QDD remoto»)"})
+	}
 	return items
 }
 
@@ -89,13 +99,22 @@ func repairRemoto(g *CheckGroup) {
 			imprimirReparado([]string{"el servicio ya no mata lo que lanzó"}, err)
 			continue
 		}
-		if item.Name == itemRemotoVersion || item.Name == itemRemotoCuenta {
+		if item.Name == itemRemotoVersion || item.Name == itemRemotoCuenta || item.Name == itemRemotoReintento {
 			fmt.Println("  [~] Poniendo al día la tarea de qdd remoto...")
 			s, err := remotoServicio()
 			if err == nil {
 				err = s.RenovarTarea(remotoEjecutor)
 			}
-			imprimirReparado([]string{"la tarea lanza la versión instalada y es solo de tu usuario"}, err)
+			imprimirReparado([]string{"la tarea lanza la versión instalada, es solo de tu usuario, vuelve sola si termina y quedó corriendo"}, err)
+			continue
+		}
+		if item.Name == itemRemotoSobrante {
+			fmt.Println("  [~] Quitando la tarea «qdd-remoto» que sobra...")
+			s, err := remotoServicio()
+			if err == nil {
+				err = s.QuitarTareaSobrante(remotoEjecutor)
+			}
+			imprimirReparado([]string{"queda solo la tarea «QDD remoto» de qdd"}, err)
 			continue
 		}
 		if item.Name == itemRemotoLegible {

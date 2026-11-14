@@ -29,7 +29,7 @@ func verifyFallbackBehavior(t *testing.T) {
 		t.Errorf("🚨 Regla violada (BUG PREVENT): resolveQDDPath hizo fallback a 'qdd' a pesar de que exec.LookPath encontró el binario.")
 		return
 	}
-	
+
 	t.Logf("Fallback a 'qdd' aceptado porque exec.LookPath no encontró el binario.")
 }
 

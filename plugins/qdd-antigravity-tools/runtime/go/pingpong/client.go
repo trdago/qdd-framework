@@ -53,7 +53,7 @@ type ClientConfig struct {
 	ToolBridge         *ToolBridge
 	Model              string
 	// RunCommand allows mock injection for testing without invoking real OS binary
-	RunCommand         func(name string, arg ...string) ([]byte, error)
+	RunCommand func(name string, arg ...string) ([]byte, error)
 }
 
 type Client struct {

@@ -399,27 +399,26 @@ func unpackCoreAssets(qddDir string) error {
 func extractSingleCoreAsset(qddDir, basePath, path string) error {
 	relPath := strings.TrimPrefix(path, basePath+"/")
 	destPath := filepath.Join(qddDir, "core", relPath)
-	
+
 	if fileExists(destPath) {
 		return nil
 	}
-	
+
 	content, err := coreAssets.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	
+
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return err
 	}
-	
+
 	if errGuard := auth.GuardCoreWriteAccess(destPath); errGuard != nil {
 		return errGuard
 	}
-	
+
 	return os.WriteFile(destPath, content, 0644)
 }
-
 
 func createConfigFile(qddDir string, meta ProjectMetadata) error {
 	configPath := filepath.Join(qddDir, "config.yaml")
@@ -456,7 +455,7 @@ func createStateFile(qddDir string) error {
 			json.Unmarshal(data, &state)
 		}
 	}
-	
+
 	if state == nil {
 		state = map[string]interface{}{
 			"status": "initialized",

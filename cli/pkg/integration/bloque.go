@@ -39,16 +39,18 @@ func revisionDe(contenido string) int {
 	return revision
 }
 
-// BloquesViejos son los archivos del proyecto cuyo bloque es de una revisión anterior a la de este qdd.
+// BloquesViejos son los archivos del proyecto cuyo bloque es de una revisión anterior a la de este qdd, o que no debe
+// llevarlo: el AGENTS.md de una carpeta de proyectos (MEJ-062). El sync los deja bien.
 func BloquesViejos(projectPath string) []string {
 	var viejos []string
 	actual := revisionDe(QDDCommandProtocol)
+	contenedor := Contenedor(projectPath)
 	for _, rel := range archivosConBloque {
 		data, err := os.ReadFile(filepath.Join(projectPath, rel))
 		if err != nil || !strings.Contains(string(data), markerBegin) {
 			continue
 		}
-		if revisionDe(string(data)) < actual {
+		if revisionDe(string(data)) < actual || (contenedor && rel == "AGENTS.md") {
 			viejos = append(viejos, filepath.ToSlash(rel))
 		}
 	}

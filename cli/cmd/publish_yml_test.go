@@ -10,7 +10,7 @@ import (
 func TestPublishYmlNoElse(t *testing.T) {
 	projectRoot := "../.." // Assumes test is run from cli/cmd
 	publishYmlPath := filepath.Join(projectRoot, ".github", "workflows", "publish.yml")
-	
+
 	content, err := os.ReadFile(publishYmlPath)
 	if err != nil {
 		t.Fatalf("Failed to read publish.yml: %v", err)

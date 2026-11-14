@@ -6,6 +6,22 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.70] - 2026-11-14
+
+### Agregado
+
+- **Lo que te necesita llega siempre al panel y al teléfono (MEJ-026, #150):** si la IA termina un turno con una pregunta para ti o un comando para que lo corras, y no lo dejó como ⏳, pedido o pregunta, qdd le devuelve el turno una vez para que lo deje en el panel, escrito para que se entienda solo.
+- **Pedidos que siempre esperan tu «Sí» (MEJ-024, #148):** `qdd_consola_pedir de_persona` (`qdd consola pedir --de-persona`) deja un comando que espera tu confirmación aunque el modo goal esté activo.
+
+### Cambiado
+
+- **Las reglas de QDD para las IAs llegan una sola vez por sesión y pesan la mitad (MEJ-062):** el bloque nuevo (revisión 5) mide 4 KB en vez de 8 KB, con todas sus reglas. `qdd doctor` avisa de las copias en carpetas padre y `--fix` las saca, con respaldo.
+
+### Corregido
+
+- **`qdd audit` revisa el formato del código como el CI (FND-203, MEJ-061):** gofmt siempre; prettier, biome, ruff, black y dart format si el proyecto los usa. Sin el formateador instalado, avisa sin bloquear. Antes, un commit que pasaba el gate podía fallar en el CI por formato.
+- **Windows: qdd remoto vuelve a correr solo después de actualizar qdd (FND-204, MEJ-064):** al momento o en 5 minutos como mucho, en vez de esperar al próximo inicio de sesión. `qdd doctor` avisa y quita la tarea vieja «qdd-remoto» (REM-13, REM-14).
+
 ## [2.10.0-rc.69] - 2026-11-13
 
 ### Corregido

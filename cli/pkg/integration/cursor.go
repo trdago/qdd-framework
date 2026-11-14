@@ -16,7 +16,7 @@ func (c *CursorAdapter) Name() string {
 
 func (c *CursorAdapter) Sync(projectPath string) error {
 	rulesPath := filepath.Join(projectPath, ".cursorrules")
-	
+
 	err := SafeInjectIdempotent(rulesPath)
 	if err != nil {
 		return fmt.Errorf("Cursor adapter failed to sync %s: %w", rulesPath, err)
@@ -26,10 +26,10 @@ func (c *CursorAdapter) Sync(projectPath string) error {
 	if err := os.MkdirAll(cursorDir, 0755); err != nil {
 		return err
 	}
-	
+
 	mcpPath := filepath.Join(cursorDir, "mcp.json")
 	qddCmd := resolveQDDPath()
-	
+
 	mcpData := buildInitialMCPData(qddCmd, projectPath)
 	mcpData = mergeExistingMCPData(mcpPath, mcpData)
 
@@ -48,7 +48,7 @@ func buildInitialMCPData(qddCmd, projectPath string) map[string]interface{} {
 	}
 
 	envVars := make(map[string]string)
-	
+
 	localPaths := []string{
 		filepath.Join(projectPath, "venv", "bin"),
 		filepath.Join(projectPath, ".venv", "bin"),
@@ -85,7 +85,7 @@ func discoverGlobalShims(envVars map[string]string) {
 	if _, err := os.Stat(pyenvShims); err == nil {
 		appendToPath(envVars, pyenvShims)
 	}
-	
+
 	nvmPath := filepath.Join(home, ".nvm", "versions", "node")
 	if entries, err := os.ReadDir(nvmPath); err == nil && len(entries) > 0 {
 		appendToPath(envVars, filepath.Join(nvmPath, entries[0].Name(), "bin"))
@@ -128,6 +128,6 @@ func performDeepMerge(existing, mcpData map[string]interface{}) map[string]inter
 		servers["qdd"] = qddServer
 		existing["mcpServers"] = servers
 	}
-	
+
 	return existing
 }

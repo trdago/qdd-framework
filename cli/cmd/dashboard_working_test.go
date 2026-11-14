@@ -25,7 +25,7 @@ func TestWorkingSemaphore(t *testing.T) {
 
 	statePath := filepath.Join(tempDir, ".qdd", "state.json")
 	os.WriteFile(statePath, []byte(`{"version":"v1.1.0"}`), 0644)
-	
+
 	dummyRoot := &cobra.Command{Version: "v1.1.0"}
 	dummyRoot.AddCommand(dummyCmd)
 

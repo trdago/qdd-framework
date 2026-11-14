@@ -59,7 +59,7 @@ func runCertify(cmd *cobra.Command, args []string) {
 	fmt.Printf(" Fecha:        %s\n", cert.Timestamp)
 	fmt.Printf(" Violaciones:  %d\n", cert.TotalViolations)
 	fmt.Printf(" Score:        %d/100\n", cert.Score)
-	
+
 	printTendency(cert.Tendency)
 	if cert.EscalaNueva {
 		fmt.Println(" Nota:         QDD cambió su escala de puntaje; la tendencia se mide desde esta certificación.")
@@ -139,4 +139,3 @@ func executeHumanCertifier(runnerPath, target string) error {
 
 	return cmd.Run()
 }
-

@@ -349,7 +349,7 @@ var consolaRaiz string
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
-var consolaDeNuevo bool
+var consolaDeNuevo, consolaDePersona bool
 var consolaTarea string
 
 // consolaCon son los tipos opcionales que pide el panel (qdd consola panel --con atender).
@@ -367,6 +367,8 @@ sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
 Lo que ya se hizo en las últimas 24 h no se vuelve a pedir, aunque cambie el texto (cerrar el mismo issue, mergear el
 mismo PR): repetirlo de verdad se dice con --de-nuevo.
+Con el modo goal activo, los pedidos corren sin el «s  Sí» de la persona. Lo que solo ella puede autorizar (un push que
+su proyecto reserva para ella, un despliegue) va con --de-persona: espera su «s  Sí» aunque el modo esté activo.
 --tarea <id> dice qué tarea del estado extiende el pedido (sin él, la tarea en curso). Si después de un mensaje de la
 persona esa tarea sigue cambiando (la persona prefirió seguir trabajando en vez de ejecutarlo), el pedido sale de
 «▶ Para ti». Cuando la tarea vuelva a estar lista, pídelo de nuevo con la misma --tarea: vuelve con su tecla.
@@ -384,7 +386,7 @@ con 'exit 75' y la persona lo vuelve a apretar.
   qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo}
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo, DePersona: consolaDePersona}
 		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
@@ -518,6 +520,7 @@ func init() {
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
 	consolaPedirCmd.Flags().BoolVar(&consolaDeNuevo, "de-nuevo", false, "repetir algo que ya se hizo en las últimas 24 h")
+	consolaPedirCmd.Flags().BoolVar(&consolaDePersona, "de-persona", false, "espera el «s  Sí» de la persona aunque el modo goal esté activo (lo que solo ella autoriza)")
 	consolaPedidosCmd.Flags().StringVar(&consolaSalidaDe, "salida", "", "muestra cómo terminó un pedido y su salida (id o tecla, también de uno ya hecho)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
@@ -534,8 +537,16 @@ func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []stri
 		return 1
 	}
 	cola := consola.ColaDe(root, p.Carpeta)
-	fmt.Fprintf(salida, "[+] Quedó en %s con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»).\n", panelDe(root, cola), p.Tecla, p.Motivo, conEspera(consola.EsperaDe(cola, p.ID)), p.Comando, p.Carpeta)
+	fmt.Fprintf(salida, "[+] Quedó en %s con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»)%s.\n", panelDe(root, cola), p.Tecla, p.Motivo, conEspera(consola.EsperaDe(cola, p.ID)), p.Comando, p.Carpeta, aunqueGoal(p))
 	return 0
+}
+
+// aunqueGoal lo dice de un pedido de la persona, que el modo goal no lanza (MEJ-024).
+func aunqueGoal(p consola.Pedido) string {
+	if !p.DePersona {
+		return ""
+	}
+	return ", aunque el modo goal esté activo"
 }
 
 // panelDe nombra el panel donde quedó un pedido: el de esta sesión o el del repositorio donde corre (FND-081).

@@ -1,0 +1,29 @@
+id: gate-formato
+nombre: Formato del código en el gate (FMT-01)
+estado: aprobado
+rutas:
+    - cli/pkg/audit/formato.go
+objetivo_operativo:
+    problema: 'El CI de un proyecto suele rechazar código sin formato (gofmt, prettier, ruff format…), pero el gate no lo revisaba: qdd audit aprobaba un commit que después caía en el CI, y la regla «no se commitea sin pasar el gate» no cubría lo que el CI exige.'
+    usuarios: Las personas y las IAs que corren qdd audit antes de un commit, localmente y en el CI.
+    criterio_de_exito: Un commit que pasa qdd audit no cae en el CI por formato. Si el formateador del proyecto no está en la máquina, el gate lo dice y no lo da por revisado.
+    caso_real: '2026-11-11 (MEJ-061, desde sfrc): qdd audit dio 0 y el CI del backend falló en «gofmt, go vet y go test»; el agente tuvo que guardar una memoria para correr el formateador aparte (FND-203).'
+objetivo_tecnologico:
+    arquitectura: 'RunFormatoCheck corre entre las reglas (antes de las pruebas). gofmt -l sobre todos los .go del proyecto que recorre walkProject, sin testdata, vendor ni node_modules. Los demás formateadores son una tabla (prettier, biome, ruff format, black, dart format): cada uno dice a qué carpetas aplica (la raíz o, si no, cada subcarpeta de primer nivel), cuándo el proyecto lo declara, dónde está su programa y cómo leer los archivos que marca. Una violación por formateador y carpeta, con hasta 10 archivos y el comando para arreglarlo.'
+    decisiones:
+        - 'Go se revisa siempre con gofmt: es parte de Go y el formato de gofmt es el de todo proyecto Go. Los demás solo si el proyecto los declara: su configuración (.prettierrc*, prettier en package.json, biome.json, [tool.ruff.format], [tool.black]) o el CI, el Makefile o pre-commit que los corren. ruff configurado solo como linter no exige ruff format.'
+        - El programa se busca en el proyecto (node_modules/.bin, .venv/bin, venv/bin) y después en el PATH; nunca npx, que podría bajarlo de la red.
+        - 'Bloquea también en adopción gradual: un formato malo es un rechazo seguro del CI, no una práctica de madurez.'
+        - 'Sin el formateador, o si termina con error sin nombrar archivos (p. ej. una configuración rota), queda FMT-02-FORMATO-SIN-MEDIR: una recomendación con su motivo, que no bloquea.'
+    invariantes:
+        - El gate nunca informa un formato como bueno ni como malo sin haber corrido el formateador.
+        - La revisión solo lee; nunca reescribe archivos del proyecto (el arreglo lo corre quien lo lee).
+        - Un archivo que el formateador marca bloquea el gate (FMT-01).
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/audit/ -run 'Formato'
+fuentes:
+    - .qdd/project/findings/FND-203-EL-GATE-NO-REVISABA-EL-FORMATO-Y-EL-CI-RECHAZABA-EL-COMMIT.yaml
+    - cli/pkg/audit/engine.go
+ultima_revision: "2026-11-14"
+revisado_en_commit: 3fe683f1023d

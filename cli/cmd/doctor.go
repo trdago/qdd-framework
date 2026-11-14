@@ -5,23 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"os/exec"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
-	"github.com/qdd-framework/qdd/pkg/consola"
-	"github.com/qdd-framework/qdd/pkg/foto"
-	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
+	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/foto"
 	"github.com/qdd-framework/qdd/pkg/herramientas"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
+	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/ui"
 	"github.com/spf13/cobra"
 )
@@ -380,6 +380,7 @@ func buildGroup2Checks(projectPath string) *CheckGroup {
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
 	g2.Items = append(g2.Items, checkBloquesDeReglas(projectPath))
+	g2.Items = append(g2.Items, checkReglasUnaVez(projectPath))
 
 	wisdomCheck := &CheckItem{Name: "Conexión a Cloud Wisdom (Oráculo AI)", Success: true, Error: "Offline (Graceful Degradation)"}
 	wClient := wisdom.NewClient(projectPath)
@@ -401,7 +402,7 @@ func buildGroup3Checks(projectPath string) *CheckGroup {
 func buildDashboardCheck() *CheckItem {
 	dashCheck := &CheckItem{Name: "Assets estáticos del Dashboard (Vue) embebidos", Success: false, Error: "No se encontró el subdirectorio 'dist' en el binario"}
 	distFs, err := fs.Sub(ui.StaticFiles, "dist")
-	
+
 	if err == nil {
 		dashCheck.Error = "index.html ausente en la compilación embebida"
 		_, errHtml := fs.Stat(distFs, "index.html")
@@ -451,6 +452,29 @@ func checkBloquesDeReglas(projectPath string) *CheckItem {
 		return &CheckItem{Name: itemBloquesDeReglas, Success: true}
 	}
 	return &CheckItem{Name: itemBloquesDeReglas, Error: "Bloque de una versión anterior en " + strings.Join(viejos, ", ") + ": qdd doctor --fix lo renueva (conserva lo demás) y queda como cambio en git para commitear"}
+}
+
+// itemReglasUnaVez revisa que las reglas lleguen una sola vez: las IAs cargan también los AGENTS.md de las carpetas
+// padre, y una copia del bloque ahí se suma a la del proyecto en cada sesión (MEJ-062).
+const itemReglasUnaVez = "Reglas para las IAs una sola vez (sin copias en carpetas padre)"
+
+func checkReglasUnaVez(projectPath string) *CheckItem {
+	copias := integration.BloquesEnPadres(projectPath)
+	if len(copias) == 0 {
+		return &CheckItem{Name: itemReglasUnaVez, Success: true}
+	}
+	return &CheckItem{Name: itemReglasUnaVez, Error: "Copia del bloque de QDD en " + strings.Join(copias, ", ") + ": la IA la carga además de la del proyecto. qdd doctor --fix la saca de ahí (conserva lo demás y deja un respaldo .qdd-respaldo-<fecha> al lado)"}
+}
+
+func repairReglasUnaVez(projectPath, qddDir string) {
+	fmt.Println("  [~] Quitando las copias del bloque de QDD de las carpetas padre...")
+	quitados, err := integration.QuitarBloquesDePadres(projectPath, time.Now())
+	for _, q := range quitados {
+		fmt.Printf("      %s (respaldo al lado)\n", q)
+	}
+	if err != nil {
+		fmt.Printf("  [!] %v\n", err)
+	}
 }
 
 func checkFile(path, name string) *CheckItem {
@@ -531,7 +555,7 @@ func generateGroupReport(g *CheckGroup) string {
 
 func runSelectiveFixes(projectPath string, checklist *Checklist) {
 	qddDir := filepath.Join(projectPath, ".qdd")
-	
+
 	for _, g := range checklist.Groups {
 		if g.Name == grupoBlueprints {
 			repairBlueprints(projectPath, g)
@@ -584,20 +608,21 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 
 func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 	repairRegistry := map[string]func(string, string){
-		"Directorio raíz .qdd/": repairDirs,
-		"Directorio base .qdd/core/": repairDirs,
-		"Directorio de proyecto .qdd/project/": repairDirs,
-		"Configuración base config.yaml": repairConfig,
-		"Estado de proyecto state.json": repairState,
-		"Integración Cursor (.cursor/mcp.json)": repairMCP,
-		"Integración Claude (.clauderc)": repairMCP,
-		"Integración Antigravity (.antigravityrules)": repairMCP,
-		itemBloquesDeReglas: repairMCP,
+		"Directorio raíz .qdd/":                          repairDirs,
+		"Directorio base .qdd/core/":                     repairDirs,
+		"Directorio de proyecto .qdd/project/":           repairDirs,
+		"Configuración base config.yaml":                 repairConfig,
+		"Estado de proyecto state.json":                  repairState,
+		"Integración Cursor (.cursor/mcp.json)":          repairMCP,
+		"Integración Claude (.clauderc)":                 repairMCP,
+		"Integración Antigravity (.antigravityrules)":    repairMCP,
+		itemBloquesDeReglas:                              repairMCP,
+		itemReglasUnaVez:                                 repairReglasUnaVez,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,
-		itemFindingsNoCanonicos: repairFindingsNoCanonicos,
+		itemFindingsNoCanonicos:                          repairFindingsNoCanonicos,
 	}
-	
+
 	if handler, ok := repairRegistry[itemName]; ok {
 		handler(projectPath, qddDir)
 	}

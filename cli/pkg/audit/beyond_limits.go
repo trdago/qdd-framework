@@ -43,10 +43,10 @@ func checkBeyondLimitsNode(path string, node *ast.File, fset *token.FileSet, vio
 		if !ok {
 			return true
 		}
-		
+
 		checkPanicUsage(path, callExpr, fset, violations)
 		checkContextlessDBQuery(path, callExpr, fset, violations)
-		
+
 		return true
 	})
 }
@@ -56,7 +56,7 @@ func checkPanicUsage(path string, callExpr *ast.CallExpr, fset *token.FileSet, v
 	if !ok {
 		return
 	}
-	
+
 	if ident.Name == "panic" {
 		pos := fset.Position(ident.Pos())
 		*violations = append(*violations, Violation{
@@ -74,7 +74,7 @@ func checkContextlessDBQuery(path string, callExpr *ast.CallExpr, fset *token.Fi
 	if !ok {
 		return
 	}
-	
+
 	method := selExpr.Sel.Name
 	// Query() sin argumentos lee la query string de una URL (net/url); una consulta a la base lleva su SQL (FND-134).
 	if method == "Query" && len(callExpr.Args) == 0 {

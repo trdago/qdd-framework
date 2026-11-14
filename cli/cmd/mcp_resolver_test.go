@@ -34,11 +34,11 @@ func testDiagnoseStep(t *testing.T, tempDir string) {
 	req := mcp.CallToolRequest{}
 	req.Params.Name = "qdd_resolve_diagnose"
 	req.Params.Arguments = map[string]interface{}{
-		"issue_type":       "bug",
-		"title":            "Race condition in token refresh",
-		"root_cause":       "Missing mutex lock on shared session state",
-		"impact_analysis":  "High impact on concurrent auth requests",
-		"affected_files":   "pkg/auth/session.go;pkg/auth/token.go",
+		"issue_type":      "bug",
+		"title":           "Race condition in token refresh",
+		"root_cause":      "Missing mutex lock on shared session state",
+		"impact_analysis": "High impact on concurrent auth requests",
+		"affected_files":  "pkg/auth/session.go;pkg/auth/token.go",
 	}
 
 	// Direct execution verification

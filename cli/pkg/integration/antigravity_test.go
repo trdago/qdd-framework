@@ -46,7 +46,7 @@ func verifyFrontmatterContract(t *testing.T, qddWorkflowPath string) {
 	if !strings.Contains(finalStr, "description:") {
 		t.Fatalf("🚨 CONTRATO ROTO: El archivo generado por AntigravityAdapter no contiene el frontmatter 'description:'. Contenido final:\n%s", finalStr)
 	}
-	
+
 	if !strings.HasPrefix(finalStr, "---") {
 		t.Fatalf("🚨 CONTRATO ROTO: El archivo generado debe comenzar estrictamente con '---' para ser válido en el IDE.")
 	}

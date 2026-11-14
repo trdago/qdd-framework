@@ -86,7 +86,7 @@ func TestArmar_ElPanelEsElDeQddConsolaPanel(t *testing.T) {
 	esperado := consola.Panel(root, now)
 	esperado.Version = "v1"
 	esperado.Flujos = json.RawMessage("[]") // opcional, como las preguntas: el panel local lo pide con «flujos»
-	esperado.Logrado = &[]consola.Logro{} // opcional: QDD Móvil lo recibe, el panel local no lo pide
+	esperado.Logrado = &[]consola.Logro{}   // opcional: QDD Móvil lo recibe, el panel local no lo pide
 	a, _ := json.Marshal(e.Proyectos[0].Panel)
 	b, _ := json.Marshal(esperado)
 	if string(a) != string(b) {
