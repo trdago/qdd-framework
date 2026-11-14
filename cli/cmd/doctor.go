@@ -380,6 +380,7 @@ func buildGroup2Checks(projectPath string) *CheckGroup {
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
 	g2.Items = append(g2.Items, checkBloquesDeReglas(projectPath))
+	g2.Items = append(g2.Items, checkReglasUnaVez(projectPath))
 
 	wisdomCheck := &CheckItem{Name: "Conexión a Cloud Wisdom (Oráculo AI)", Success: true, Error: "Offline (Graceful Degradation)"}
 	wClient := wisdom.NewClient(projectPath)
@@ -451,6 +452,29 @@ func checkBloquesDeReglas(projectPath string) *CheckItem {
 		return &CheckItem{Name: itemBloquesDeReglas, Success: true}
 	}
 	return &CheckItem{Name: itemBloquesDeReglas, Error: "Bloque de una versión anterior en " + strings.Join(viejos, ", ") + ": qdd doctor --fix lo renueva (conserva lo demás) y queda como cambio en git para commitear"}
+}
+
+// itemReglasUnaVez revisa que las reglas lleguen una sola vez: las IAs cargan también los AGENTS.md de las carpetas
+// padre, y una copia del bloque ahí se suma a la del proyecto en cada sesión (MEJ-062).
+const itemReglasUnaVez = "Reglas para las IAs una sola vez (sin copias en carpetas padre)"
+
+func checkReglasUnaVez(projectPath string) *CheckItem {
+	copias := integration.BloquesEnPadres(projectPath)
+	if len(copias) == 0 {
+		return &CheckItem{Name: itemReglasUnaVez, Success: true}
+	}
+	return &CheckItem{Name: itemReglasUnaVez, Error: "Copia del bloque de QDD en " + strings.Join(copias, ", ") + ": la IA la carga además de la del proyecto. qdd doctor --fix la saca de ahí (conserva lo demás y deja un respaldo .qdd-respaldo-<fecha> al lado)"}
+}
+
+func repairReglasUnaVez(projectPath, qddDir string) {
+	fmt.Println("  [~] Quitando las copias del bloque de QDD de las carpetas padre...")
+	quitados, err := integration.QuitarBloquesDePadres(projectPath, time.Now())
+	for _, q := range quitados {
+		fmt.Printf("      %s (respaldo al lado)\n", q)
+	}
+	if err != nil {
+		fmt.Printf("  [!] %v\n", err)
+	}
 }
 
 func checkFile(path, name string) *CheckItem {
@@ -593,6 +617,7 @@ func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 		"Integración Claude (.clauderc)": repairMCP,
 		"Integración Antigravity (.antigravityrules)": repairMCP,
 		itemBloquesDeReglas: repairMCP,
+		itemReglasUnaVez: repairReglasUnaVez,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,
 		itemFindingsNoCanonicos: repairFindingsNoCanonicos,
