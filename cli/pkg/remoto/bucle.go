@@ -285,6 +285,9 @@ func (b *Bucle) marcar() {
 }
 
 func (b *Bucle) alEvento(ctx context.Context, e Evento) {
+	if e.Perdidos > 0 {
+		b.logf("se perdieron %d eventos del relay: el bucle estaba ocupado", e.Perdidos)
+	}
 	if e.Tipo == TipoConectado {
 		b.logf("conectado al relay")
 		b.anotarConexion()
@@ -340,13 +343,43 @@ func Telefonos(presencias map[string][]json.RawMessage) []Telefono {
 	sort.Strings(claves)
 	for _, k := range claves {
 		for _, m := range presencias[k] {
-			var t Telefono
-			if json.Unmarshal(m, &t) == nil && t.Rol == "movil" {
+			if t, ok := telefonoDe(m); ok {
 				out = append(out, t)
 			}
 		}
 	}
 	return out
+}
+
+// telefonoDe lee una presence de rol movil. Un campo opcional de un tipo inesperado (version_app 130 en vez de
+// "130") no la borra del canal (MEJ-080): sin teléfonos, el PC no contesta nada.
+func telefonoDe(m json.RawMessage) (Telefono, bool) {
+	var t Telefono
+	if json.Unmarshal(m, &t) == nil {
+		return t, t.Rol == "movil"
+	}
+	var campos map[string]any
+	if json.Unmarshal(m, &campos) != nil {
+		return Telefono{}, false
+	}
+	texto := func(clave string) string {
+		v, ok := campos[clave]
+		if !ok || v == nil {
+			return ""
+		}
+		if s, ok := v.(string); ok {
+			return s
+		}
+		return fmt.Sprint(v)
+	}
+	t = Telefono{Rol: texto("rol"), Dispositivo: texto("dispositivo"), Mirando: texto("mirando"), VersionApp: texto("version_app")}
+	lista, _ := campos["capacidades"].([]any)
+	for _, c := range lista {
+		if s, ok := c.(string); ok {
+			t.Capacidades = append(t.Capacidades, s)
+		}
+	}
+	return t, t.Rol == "movil"
 }
 
 func (b *Bucle) alPresencia(ctx context.Context, presencias map[string][]json.RawMessage) {

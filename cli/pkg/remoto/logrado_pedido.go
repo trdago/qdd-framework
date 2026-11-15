@@ -87,13 +87,24 @@ func (b *Bucle) aplicarLogradoBajoPedido(e *Estado) {
 	}
 }
 
-// alPedirLogrado contesta solo con un teléfono mirando (inv. 12) y a un pedido válido; lo inválido se ignora.
+// alPedirLogrado contesta solo con un teléfono mirando (inv. 12) y a un pedido válido; lo inválido se ignora. Cada
+// pedido deja una línea en el registro con su desenlace (MEJ-080): ignorarlo en silencio no dejaba saber qué pasaba.
 func (b *Bucle) alPedirLogrado(ctx context.Context, payload json.RawMessage) {
 	var p PedidoLogrado
-	if len(b.telefonos) == 0 || json.Unmarshal(payload, &p) != nil {
+	if err := json.Unmarshal(payload, &p); err != nil {
+		b.logf("pedir_logrado ignorado: ilegible (%v)", err)
 		return
 	}
-	if !reClaveProyecto.MatchString(p.Proyecto) || !reSolicitud.MatchString(p.Solicitud) {
+	if !reClaveProyecto.MatchString(p.Proyecto) {
+		b.logf("pedir_logrado ignorado: clave de proyecto inválida %q", Recortar(p.Proyecto, 80))
+		return
+	}
+	if !reSolicitud.MatchString(p.Solicitud) {
+		b.logf("pedir_logrado %s: ignorado, solicitud inválida", p.Proyecto)
+		return
+	}
+	if len(b.telefonos) == 0 {
+		b.logf("pedir_logrado %s (%s): ignorado, no hay teléfonos en el canal", p.Proyecto, p.Solicitud)
 		return
 	}
 	now := b.ahora()
@@ -107,7 +118,21 @@ func (b *Bucle) alPedirLogrado(ctx context.Context, payload json.RawMessage) {
 	}
 	r := guardada.respuesta
 	r.Solicitud = p.Solicitud
-	b.broadcast(ctx, EventoLogrado, r)
+	if !b.broadcast(ctx, EventoLogrado, r) {
+		return
+	}
+	b.logf("pedir_logrado %s (%s): respondido con %d entradas%s", p.Proyecto, p.Solicitud, len(r.Entradas), desenlaceLogrado(r))
+}
+
+// desenlaceLogrado es lo que agrega la línea del registro cuando la respuesta no es la completa.
+func desenlaceLogrado(r RespuestaLogrado) string {
+	if r.Error != "" {
+		return ", error " + r.Error
+	}
+	if r.Recortado {
+		return ", recortado"
+	}
+	return ""
 }
 
 // logradoDe arma la respuesta de un proyecto: desconocido o fuera del plan, [] con su error.
