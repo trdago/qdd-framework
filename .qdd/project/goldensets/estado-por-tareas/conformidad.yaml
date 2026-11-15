@@ -1,6 +1,6 @@
-# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@2.2.0.
+# Escenarios de conformidad generados por 'qdd blueprint apply' desde estado-por-tareas@2.3.0.
 # No se editan a mano: cambian al volver a aplicar el blueprint.
-blueprint: estado-por-tareas@2.2.0
+blueprint: estado-por-tareas@2.3.0
 escenarios:
     - id: EPF-C01
       titulo: Un estado por celda
@@ -132,6 +132,20 @@ escenarios:
       dado: una tarea abierta «claves-gemini» con nombre «Quitar claves de Gemini (GCP y GitHub)»
       cuando: se crea la tarea «Quitar claves de Gemini»
       entonces: no se crea y el error nombra «claves-gemini»; confirmando que es otra, se crea
+    - id: EPT-R01
+      titulo: Commits nuevos en su módulo
+      dado: la tarea abierta «cobro» con módulo «pagos», y después de su última celda 2 commits en las rutas de esa ficha y 1 en otra ruta
+      cuando: se corre el lector automático
+      entonces: 'avisa «tarea cobro: 2 commits en las rutas de su ficha pagos desde su última celda» sin bloquear; una tarea sin módulo no aparece'
+    - id: EPT-R02
+      titulo: La ficha cambió después de la última celda
+      dado: la tarea abierta «cobro» con módulo «pagos», cuya ficha cambió sus decisiones después de su última celda
+      cuando: el agente pide el contexto del proyecto
+      entonces: el contexto le pide revisar el nombre de «cobro» y el criterio de su objetivo; si solo cambiaron las pruebas de la ficha, no la nombra
+    - id: EPT-R03
+      titulo: El módulo es una ficha que existe
+      cuando: una tarea declara el módulo «pago» y no hay ficha con ese id
+      entonces: es un error que lo nombra y el archivo no cambia
     - id: EPT-C01
       titulo: El agente declara la tarea en curso
       cuando: el agente activa una tarea abierta
