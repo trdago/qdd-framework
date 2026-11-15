@@ -14,6 +14,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **La consola remota ya no abre casi vacía en sesiones con resultados grandes (MEJ-078, FND-228):** la cola inicial
   lee el transcript hacia atrás hasta juntar las últimas 40 líneas visibles (como mucho 8 MB del final), en vez de solo
   los últimos 512 KB, que con capturas o salidas largas eran 3 o 4 líneas.
+- **`qdd remoto` dice qué pasó con cada pedido de lo logrado (MEJ-080, FND-229):** el registro del servicio anota cada
+  `pedir_logrado` como respondido (con cuántas entradas) o ignorado y por qué, y cuántos eventos del relay se perdieron
+  si el bucle no daba abasto. Un teléfono cuya presence trae un campo opcional de otro tipo ya no desaparece del canal.
 
 ## [2.10.0-rc.85] - 2026-11-15
 
