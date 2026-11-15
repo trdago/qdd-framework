@@ -82,5 +82,5 @@ fuentes:
     - cli/cmd/flujo_editar.go
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
-ultima_revision: "2026-11-08"
-revisado_en_commit: 48413e570a4e
+ultima_revision: "2026-11-15"
+revisado_en_commit: 3b6801f63f6e

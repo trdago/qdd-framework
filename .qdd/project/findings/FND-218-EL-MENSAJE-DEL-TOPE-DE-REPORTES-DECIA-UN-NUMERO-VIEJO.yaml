@@ -1,0 +1,9 @@
+id: "FND-218"
+title: "El mensaje del tope de reportes decía un número viejo y su arreglo nunca se publicó"
+description: "2026-11-15, en la limpieza del estado: la persona pidió el 2026-11-08 subir el tope de reportes a 50 por día («dejalo en 50») y el relay de QDD Móvil lo aplicó (migración 20261108160000). El arreglo del mensaje del PC (dbea397) y la fase 4 del flujo para clientes (#230) quedaron en la rama feat/flujo-enlace, que nunca se integró a feat/panel-flujo: ninguna rc los trajo y el PC seguía diciendo «5 por día». La tarea figuraba como hecha."
+impact: "Quien llegaba al tope leía que el límite era 5 por día; la fase 4 (qdd flujo proponer) no estaba en ninguna versión publicada aunque el estado la daba por publicada."
+action_taken: "Rama fix/integrar-flujo-enlace: trae afde3e7 (fase 4) desde feat/flujo-enlace y deja ErrTope en «50 por día». La ficha reportes y el RFC 0024 dicen el tope nuevo con la decisión de la persona."
+test_result: "cli/pkg/reportes/reportes_test.go: TestErrTope_DiceElTopeDelRelay_FND218 fallaba con «10 por día» y pasa con «50 por día»."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

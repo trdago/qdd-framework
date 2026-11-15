@@ -65,7 +65,7 @@ qdd reportar llave        # muestra la llave pública de esta instalación
 
 - **El relay rechaza** con 400 una firma que no valida, un `en` a más de 10 minutos de su hora, un campo de más o un
   tamaño pasado.
-- **Topes:** 5 reportes por día y por instalación, y 100 por hora en total. Pasado el tope responde 429 `{"error":"tope"}`.
+- **Topes:** 50 reportes por día y por instalación (eran 5; la persona lo subió a 50 el 2026-11-08), y 100 por hora en total. Pasado el tope responde 429 `{"error":"tope"}`.
 - **Si lo acepta,** responde 201 `{"id":"REP-…"}`. La misma firma otra vez responde 200 con el mismo id, sin guardarlo de nuevo ni contarlo para el tope.
 - **Guarda** en una tabla propia: id, huella de la instalación (sha256 de la llave, no la llave), tipo, título, detalle,
   versión, so y cuándo llegó. No guarda la IP.

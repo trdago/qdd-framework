@@ -12,7 +12,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
-- **El mensaje del tope de reportes dice 50 por día, como el relay (pedido de la persona: «dejalo en 50»):** `qdd reportar` decía 5 por día aunque el relay de QDD Móvil ya acepta 50.
+- **El mensaje del tope de reportes dice 50 por día, como el relay (FND-218; pedido de la persona: «dejalo en 50»):** `qdd reportar` decía 5 por día aunque el relay de QDD Móvil ya acepta 50. Ese arreglo y `qdd flujo proponer` estaban en una rama que nunca se integró.
 
 ## [2.10.0-rc.77] - 2026-11-15
 
