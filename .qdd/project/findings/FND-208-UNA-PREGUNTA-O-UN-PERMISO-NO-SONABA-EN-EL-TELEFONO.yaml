@@ -1,0 +1,9 @@
+id: "FND-208"
+title: "Una pregunta de la IA o un permiso de herramienta no sonaba en el teléfono"
+description: "2026-11-15, revisión de la comunicación PC ↔ relay ↔ QDD Móvil pedida por la persona desde el teléfono: el relay (Edge Function avisar, _shared/avisos.ts) y la app (lib/push/push.dart) aceptan los push «pregunta» y «permiso» y sus «_resuelto», pero el PC solo los pedía para pedidos pendientes y fichas en borrador (esperan() en pkg/remoto/bucle.go). Las preguntas de la consola sí viajaban en el panel como acción «pregunta», así que el teléfono las mostraba si estaba abierto, pero no sonaba."
+impact: "Una pregunta con AskUserQuestion o un permiso de herramienta detenía la sesión hasta que la persona abría la app por otra razón: desde el teléfono, que es justo donde está cuando no mira el PC, nada le avisaba (issue #150: lo que necesita a la persona debe llegarle siempre)."
+action_taken: "esperan() suma las acciones «pregunta» pendientes: con origen permiso piden el push «permiso» y las demás (de la IA o de un comando qdd) el push «pregunta». Cuando ya no queda ninguna de ese tipo en el proyecto, se pide «pregunta_resuelto» o «permiso_resuelto» para quitarla de la bandeja, igual que con pedidos y fichas. Un relay viejo que rechaza un _resuelto no se toma como falla. El push sigue llevando solo el tipo y el proyecto (inv. 17)."
+test_result: "cli/pkg/remoto/avisos_fnd208_test.go: TestAvisos_UnaPreguntaNuevaPideSuPush_FND208, TestAvisos_UnPermisoDeHerramientaPideElPushPermiso_FND208 y TestAvisos_UnRelayQueRechazaElResueltoDeUnaPreguntaNoEsFalla_FND208. Fallaban antes (no existían los tipos; con la rama de preguntas anulada, las dos primeras fallan por falta de push) y pasan después. Sin probar con el push real en el teléfono."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

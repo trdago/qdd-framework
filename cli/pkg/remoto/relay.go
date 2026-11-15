@@ -425,6 +425,11 @@ const (
 	// Ya no espera nada de ese tipo: el relay manda un push solo de datos y la app quita el aviso de la bandeja.
 	AvisoPedidoResuelto = "pedido_resuelto"
 	AvisoFichaResuelta  = "ficha_resuelto"
+	// Una pregunta de la IA o de un comando qdd, y un permiso de herramienta, también esperan a la persona (FND-208).
+	AvisoPregunta         = "pregunta"
+	AvisoPermiso          = "permiso"
+	AvisoPreguntaResuelta = "pregunta_resuelto"
+	AvisoPermisoResuelto  = "permiso_resuelto"
 )
 
 // NombreParaAviso deja el nombre visible del proyecto como lo acepta avisar (^[\p{L}\p{N} ._()-]{1,80}$): lo demás

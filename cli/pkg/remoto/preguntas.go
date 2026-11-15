@@ -168,7 +168,7 @@ func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 	if panel.Logrado != nil {
 		logrado := make([]consola.Logro, len(*panel.Logrado))
 		for i, l := range *panel.Logrado {
-			l.Titulo, l.Detalle, l.Salida = o.Ocultar(l.Titulo), o.Ocultar(l.Detalle), o.Ocultar(l.Salida)
+			l.Titulo, l.Detalle, l.Salida = o.Ocultar(l.Titulo), o.Ocultar(l.Detalle), salidaParaTelefono(o.Ocultar(l.Salida))
 			l.Motivo, l.Criterio, l.Evidencia = o.Ocultar(l.Motivo), o.Ocultar(l.Criterio), o.Ocultar(l.Evidencia)
 			logrado[i] = l
 		}
