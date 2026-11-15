@@ -186,6 +186,8 @@ existen y el nuestro no se configura a mano.
 | `estado` | PC → teléfono | El JSON de `qdd remoto estado --json`, con `seq`. |
 | `sincronizar` | teléfono → PC | Sin payload, gratis y sin firma (2026-11-07, la persona: «Sincronizar», «releer y avisar»): el PC relee de cero, manda un `estado` completo y al final responde `sincronizado`. No escribe nada. |
 | `sincronizado` | PC → teléfono | `{version, en, estado_enviado, proyectos: [{clave, nombre, consola, inconsistencias: [{tipo, tarea?, etapa?, detalle?}]}]}`, siempre después del `estado`. Solo se revisan los proyectos con una sesión de Claude Code viva (`consola`). `tipo`: `espera_tras_pedido`, `lista_sin_cerrar`, `terminada_con_espera` o `flujo_invalido`; `tarea` es su nombre. `qdd sincronizar [--json]` da lo mismo en el PC. |
+| `pedir_logrado` | teléfono → PC | `{version, proyecto: <clave>, solicitud: <uuid>}` (2026-11-15, con qdd-movile; opcional por capacidad, sin subir `version`). Solo de un teléfono que declara `capacidades: ["logrado_bajo_pedido"]` en su presence. El PC ignora un `proyecto` que no cumple `^[a-z0-9-]{1,80}$` o una `solicitud` de más de 64. |
+| `logrado` | PC → teléfono | `{version, proyecto, solicitud, entradas: [...], recortado?: true, error?: "proyecto" \| "plan"}`: lo logrado del proyecto con el contrato de siempre (≤ 60, 14 días, la más nueva primero, salida ≤ 2000 con «…», sin secretos). Desconocido o fuera del plan: `[]` y el error. Más de 64 KB: quita lo más viejo y dice `recortado`. Una respuesta calculada por proyecto cada 5 s; dentro, la misma con su propia `solicitud`. Solo con un teléfono mirando (inv. 12). Cuando todos los teléfonos del canal declaran la capacidad, el panel de cada proyecto deja de llevar `logrado`; siempre lleva `logrado_bajo_pedido: true`. Si se suma uno que no la declara, va un `estado` completo con `logrado`. |
 | `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}, limites?}`: los proyectos cuyo panel cambió (null: salió) y los límites de Claude si cambiaron. Si falta un `seq`, el teléfono pide `sync`. |
 | `flujo` | PC → teléfono | `{version, clave, flujo: {id, nombre, descripcion?, huella, nodos: [{id, tipo, nombre, descripcion?, tarea?, siguen?, comentarios?: [{de, texto, cuando, de_nodo?}]}]}}`, uno por flujo, sin `seq`: después de cada `estado` (también tras un `sync`) y cuando cambia su `huella`. El panel publicado lleva solo el resumen, en `flujos`: `[{id, nombre, nodos, huella, problema?, por_enviar, puede_deshacer}]`. La huella depende solo del archivo; un flujo con `problema` no trae evento. Los textos, también los comentarios, pasan por el ocultador. |
 | `accion` | relay → PC | El teléfono llama a `qdd_remoto_accion(maquina, solicitud, proyecto, accion_id)`; el relay sella `dispositivo`, verifica que no esté revocado y lo envía con `realtime.send` y `firma = hmac_sha256(firma_maquina, solicitud\|proyecto\|accion_id\|dispositivo\|en)`. El PC descarta lo que no traiga una firma válida. |
@@ -513,6 +515,35 @@ cada 5 s. Así el proyecto sabe que hay una sesión abierta, y el latido devuelv
 ### Idiomas
 
 La app en español e inglés desde el principio, con las fichas de las tiendas en los dos.
+
+### Autodiagnóstico en `qdd doctor` (2026-11-15)
+
+Cada pieza de la comunicación entre el PC y el teléfono tiene su revisión en el grupo «QDD Móvil». Doctor solo lee
+archivos de `<QDD_HOME>/remoto` y el servicio instalado. La red la usa solo `--fix`, y solo para preguntar al directorio
+firmado. Lo que necesita a la persona o al teléfono se dice y no se intenta.
+
+| Id | Qué revisa | Qué hace `--fix` |
+|---|---|---|
+| REM-05 | Este PC está emparejado. | Nada: emparejar pide el teléfono (`qdd login`). |
+| REM-15 | El relay no respondió `28000` a este tópico (el servicio deja `quitado.json` con el tópico). Si respondió, no revisa lo demás: arrancar el servicio no sirve. | Nada: pide `qdd remoto desactivar` y `qdd login`. |
+| REM-16 | `credenciales.json` y `relay.json` se leen. | Aparta el archivo roto como `.ilegible`. Pide el relay al directorio. Unas credenciales no se reconstruyen. |
+| REM-11 | El relay guardado coincide con el directorio firmado. | Consulta y, si cambió, reinicia el servicio. |
+| REM-17 | El servicio de systemd o launchd lanza un qdd que existe. Por ejemplo, el de una versión de node que se desinstaló. | Lo reescribe con el qdd que corre doctor. No toca el servicio de otro `QDD_HOME`. |
+| REM-06 | El servicio corre. | Lo arranca o lo instala. |
+| REM-07 | El relay respondió al latido en los últimos 3 min. | Reinicia el servicio. |
+| REM-18 | El canal en tiempo real está unido. Si no, lleva menos de 3 min caído. El servicio deja `conexion.json` en cada cambio. | Reinicia el servicio. Una sola vez, aunque REM-07 también falle. |
+| REM-08 | El proyecto está en el registro y dentro del plan. | Lo anota. Quedar fuera del plan lo decide la persona. |
+| REM-09 | El último envío al teléfono salió. | Nada: el motivo está en el registro del servicio. |
+| REM-10 | No hay colas apartadas por ilegibles: preguntas, teléfono, turnos y `solicitudes.json`. | Nada: pueden traer un mensaje de la persona. |
+| REM-19 | El reloj de este PC no se separa más de 2 min del relay. La hora de una acción la sella el relay con `now()` de Postgres; el teléfono no la pone. El desfase sale del header `Date` del último latido y queda en `latido.json`. Las acciones descartadas por viejas en `log.jsonl` en las últimas 24 h son la evidencia. Con el reloj bien, esas acciones llegaron tarde por el canal, y eso lo revisa REM-18. | Nada: la persona activa la hora automática en este PC. |
+
+`log.jsonl` no se recorta: es el registro de quién aprobó qué (inv. 5).
+
+Consenso con qdd-movile (2026-11-15, pedido de la persona): las cinco revisiones nuevas (REM-15 a REM-19) quedan aceptadas. REM-19 se mide contra el relay, por lo que qdd-movile verificó en la app y en el relay:
+
+- El teléfono no encola acciones sin conexión: reintenta con el mismo id cada 5 s, hasta 3 veces, y después se rinde.
+- La app no necesita más para un PC quitado. El teléfono que lo quitó ya lo sabe, y la lista de PCs sale de `qdd_remoto.maquinas`.
+- El PC no puede ver el push, FCM, RevenueCat ni los dispositivos revocados, porque tienen RLS por cuenta. Quedan fuera de doctor.
 
 ## Fases (canal preview)
 

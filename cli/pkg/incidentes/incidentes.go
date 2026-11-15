@@ -30,7 +30,9 @@ const (
 	TipoAutorreparacion = "autorreparacion"
 	// TipoPanel es una vista del panel que lanzó al dibujarse (FND-189): el panel siguió, mostrando la falla.
 	TipoPanel = "panel"
-	Formato   = "qdd-incidente/1"
+	// TipoCanalMovil: la prueba del canal con QDD Móvil falló en el relay (no en la red) y no se pudo reparar sola.
+	TipoCanalMovil = "canal-movil"
+	Formato        = "qdd-incidente/1"
 	// RepoPorDefecto es el repositorio de QDD; QDD_INCIDENTES_REPO lo cambia (un fork, o pruebas manuales).
 	RepoPorDefecto = "trdago/qdd-framework"
 	RepoEnv        = "QDD_INCIDENTES_REPO"

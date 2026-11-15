@@ -293,11 +293,32 @@ func LeerPlan() (Plan, error) {
 type latidoGuardado struct {
 	Formato int       `json:"formato"`
 	En      time.Time `json:"en"`
+	// DesfaseSeg es cuánto va adelantado este PC frente al relay (negativo: atrasado), si el relay dio su hora (REM-19).
+	DesfaseSeg *float64 `json:"desfase_relay_seg,omitempty"`
 }
 
 // GuardarLatido anota que el relay acaba de responder (0600).
 func GuardarLatido(now time.Time) error {
-	return guardarPrivado("latido.json", latidoGuardado{Formato: 1, En: now.UTC()})
+	return GuardarLatidoConHora(now, 0, false)
+}
+
+// GuardarLatidoConHora anota el latido con el desfase frente al relay, si se conoce.
+func GuardarLatidoConHora(now time.Time, desfase time.Duration, conHora bool) error {
+	l := latidoGuardado{Formato: 1, En: now.UTC()}
+	if conHora {
+		s := desfase.Seconds()
+		l.DesfaseSeg = &s
+	}
+	return guardarPrivado("latido.json", l)
+}
+
+// DesfaseRelay es el desfase que dejó el último latido; false si el relay no dio hora o el servicio es anterior.
+func DesfaseRelay() (time.Duration, bool) {
+	var l latidoGuardado
+	if err := leerPrivado("latido.json", &l); err != nil || l.DesfaseSeg == nil {
+		return 0, false
+	}
+	return time.Duration(*l.DesfaseSeg * float64(time.Second)), true
 }
 
 // UltimoLatido es cuándo el relay respondió por última vez a este PC. Mira también plan.json porque un servicio de una

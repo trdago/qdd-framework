@@ -240,13 +240,20 @@ func NuevoRelay(c ConfigRelay) *Relay {
 }
 
 func (r *Relay) post(ctx context.Context, ruta string, cuerpo any, out any) error {
+	_, _, err := r.postConHora(ctx, ruta, cuerpo, out)
+	return err
+}
+
+// postConHora es post con el desfase del reloj de este PC frente al del relay (header Date, al segundo): la hora de una
+// acción del teléfono la pone el relay, así que es contra él que se mide (REM-19, con qdd-movile 2026-11-15).
+func (r *Relay) postConHora(ctx context.Context, ruta string, cuerpo any, out any) (time.Duration, bool, error) {
 	b, err := json.Marshal(cuerpo)
 	if err != nil {
-		return err
+		return 0, false, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.URL+ruta, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return 0, false, err
 	}
 	req.Header.Set("apikey", r.Clave)
 	req.Header.Set("Authorization", "Bearer "+r.Clave)
@@ -254,17 +261,20 @@ func (r *Relay) post(ctx context.Context, ruta string, cuerpo any, out any) erro
 	req.Header.Set("Accept", "application/json")
 	resp, err := r.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("no se pudo hablar con el relay: %w", err)
+		return 0, false, fmt.Errorf("no se pudo hablar con el relay: %w", err)
 	}
+	recibido := time.Now()
 	defer resp.Body.Close()
+	hora, errHora := http.ParseTime(resp.Header.Get("Date"))
+	desfase, conHora := recibido.Sub(hora), errHora == nil
 	datos, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode >= 300 {
-		return errorDelRelay(resp.StatusCode, datos)
+		return desfase, conHora, errorDelRelay(resp.StatusCode, datos)
 	}
 	if out == nil || len(bytes.TrimSpace(datos)) == 0 {
-		return nil
+		return desfase, conHora, nil
 	}
-	return json.Unmarshal(datos, out)
+	return desfase, conHora, json.Unmarshal(datos, out)
 }
 
 // errorDelRelay traduce la respuesta de PostgREST: 28000 son credenciales malas, 53400 un límite.
@@ -361,10 +371,16 @@ func (p Plan) MotivoPausa() string {
 
 // Latido da el latido del minuto: tareas en curso, minutos de consola y mensajes desde el anterior.
 func (r *Relay) Latido(ctx context.Context, topico, firma string, enCurso, consolaMin, mensajes int) (Plan, error) {
+	p, _, _, err := r.LatidoConHora(ctx, topico, firma, enCurso, consolaMin, mensajes)
+	return p, err
+}
+
+// LatidoConHora es Latido con el desfase de este PC frente al relay (ver postConHora); false si el relay no dio hora.
+func (r *Relay) LatidoConHora(ctx context.Context, topico, firma string, enCurso, consolaMin, mensajes int) (Plan, time.Duration, bool, error) {
 	var p Plan
 	args := map[string]any{"p_topico": topico, "p_firma": firma, "p_en_curso": enCurso, "p_consola_min": consolaMin, "p_mensajes": mensajes}
-	err := r.rpc(ctx, "qdd_remoto_latido", args, &p)
-	return p, err
+	desfase, conHora, err := r.postConHora(ctx, "/rest/v1/rpc/qdd_remoto_latido", args, &p)
+	return p, desfase, conHora, err
 }
 
 // Dispositivo es un teléfono del dueño de la máquina.
@@ -409,6 +425,11 @@ const (
 	// Ya no espera nada de ese tipo: el relay manda un push solo de datos y la app quita el aviso de la bandeja.
 	AvisoPedidoResuelto = "pedido_resuelto"
 	AvisoFichaResuelta  = "ficha_resuelto"
+	// Una pregunta de la IA o de un comando qdd, y un permiso de herramienta, también esperan a la persona (FND-208).
+	AvisoPregunta         = "pregunta"
+	AvisoPermiso          = "permiso"
+	AvisoPreguntaResuelta = "pregunta_resuelto"
+	AvisoPermisoResuelto  = "permiso_resuelto"
 )
 
 // NombreParaAviso deja el nombre visible del proyecto como lo acepta avisar (^[\p{L}\p{N} ._()-]{1,80}$): lo demás

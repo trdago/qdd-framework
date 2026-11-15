@@ -6,12 +6,27 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd doctor` revisa toda la comunicación con QDD Móvil y repara lo que puede (REM-15 a REM-19):**
+  - Si el teléfono quitó este PC, doctor lo dice y pide emparejarlo de nuevo, en vez de arrancar un servicio que vuelve a salir.
+  - Ve `credenciales.json` o `relay.json` rotos, y `--fix` aparta el roto y pide el relay al directorio firmado.
+  - Ve un servicio que lanza un qdd que ya no existe (por ejemplo, tras cambiar de versión de node), y `--fix` lo reescribe con el qdd de ahora.
+  - Ve el canal en tiempo real caído aunque el latido siga respondiendo, y `--fix` reinicia el servicio. También lo reinicia cuando el latido lleva más de 3 minutos sin respuesta (REM-07).
+  - Avisa si el reloj de este PC se separa más de 2 minutos del relay, antes de que se pierda una acción del teléfono. La hora de cada acción la pone el relay, y cada acción vale 5 minutos. También dice cuántas acciones se descartaron por eso.
+  - Las cinco revisiones se acordaron con qdd-movile.
+  - Nombra `solicitudes.json` cuando el servicio lo apartó por ilegible.
+- **QDD Móvil se autodiagnostica (REM-20):** con el teléfono activado, el servicio prueba cada hora que lo que el PC publica va y vuelve por el relay y que el relay acepta los avisos; si falla, dice en qué tramo, se repara solo (directorio o reinicio, como mucho cada 6 h) y doctor lo muestra. `qdd remoto sonda` la corre en el momento.
+- **Lo logrado va al teléfono bajo pedido:** la app lo pide al abrir Logrado y el estado que viaja pesa menos; un teléfono con una app anterior lo sigue recibiendo como antes. Contrato acordado con qdd-movile.
+
 ### Corregido
 
 - **El ciclo de mejoras ya no llama «descartada» a un issue cerrado como resuelto ni pide cerrar issues ya cerrados (FND-207, MEJ-066):**
   - Si un issue de la cola se cerró en GitHub como resuelto, la mejora queda hecha.
   - El panel solo pide cerrar un issue que el ciclo vio abierto.
   - Si GitHub no responde, no se decide nada: el ciclo vuelve a intentarlo en la siguiente pasada.
+- **Las preguntas de la IA, los permisos y los pedidos que esperan ahora suenan en el teléfono (FND-208, FND-210):** cumplen el contrato de avisos de QDD Móvil (23 casos de borde).
+- **doctor avisa si el estado que va al teléfono se acerca al tope de Realtime (REM-21, FND-209):** pasado el tope, el teléfono deja de ver el PC sin aviso.
 
 ## [2.10.0-rc.74] - 2026-11-15
 
