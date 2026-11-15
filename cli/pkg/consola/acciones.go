@@ -126,6 +126,9 @@ type DatosConsola struct {
 	// Logrado (con «logrado») es lo que salió bien en los últimos 14 días (logrado.go); sin nada, sale como []: así QDD
 	// Móvil sabe que este qdd lo trae.
 	Logrado *[]Logro `json:"logrado,omitempty"`
+	// Otros (con «otros») es lo que espera a la persona en los demás proyectos de la máquina (para_ti_otros.go); sin
+	// nada, sale como []: así el panel sabe que este qdd lo trae.
+	Otros *[]ProyectoEsperando `json:"otros,omitempty"`
 }
 
 // OpcionesEjecutar es lo que el PC acepta desde el teléfono: comandos qdd (Sugeridos son los que permite, sin el
@@ -165,6 +168,10 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 	if pide[ConLogrado] {
 		logrado := Logrado(root, now)
 		d.Logrado = &logrado
+	}
+	if pide[ConOtros] {
+		otros := OtrosProyectos(root, now)
+		d.Otros = &otros
 	}
 	return d
 }
