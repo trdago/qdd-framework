@@ -1,0 +1,9 @@
+id: "FND-226"
+title: "'qdd version' mostraba el aviso del motor cognitivo deprecado en vez de la versión"
+description: "2026-11-15, Linux, al instalar la rc.73: 'qdd version' imprimía «[QCL] Intención recibida: 'version'» y el aviso de que el motor cognitivo basado en API fue deprecado, con salida 0. No había subcomando version: la palabra caía en el Run de la raíz, que manda todo lo que no conoce al intérprete de intenciones. Solo 'qdd --version' daba la versión. Seguía igual en la rc.80."
+impact: "Tras cada instalación, confirmar qué versión quedó con 'qdd version' (lo natural, y lo que citan tareas y pedidos) no la decía; había que ir a npm ls o saber del --version."
+action_taken: "Subcomando version (cli/cmd/version.go) que imprime lo mismo que --version («qdd version vX») y no pasa por el gatekeeper ni por la revisión de versión del proyecto, como --version."
+test_result: "cli/cmd/version_test.go: TestVersion_SubcomandoDaLaVersion_FND226 y TestVersion_NoPideContextoDelProyecto_FND226 no compilaban sin el subcomando (rojo) y pasan con él; el binario de la rama dice «qdd version v2.10.0-rc.80» con version y con --version."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"
