@@ -36,5 +36,5 @@ fuentes:
     - cli/pkg/estado/objetivos.go
     - cli/pkg/consola/preguntas.go
     - cli/pkg/remoto/registro/registro.go
-ultima_revision: "2026-11-08"
-revisado_en_commit: 3e2091d1e8b1
+ultima_revision: "2026-11-15"
+revisado_en_commit: df8812381c6b
