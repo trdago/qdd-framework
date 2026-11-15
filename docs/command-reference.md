@@ -260,6 +260,8 @@ Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qd
 | `qdd baul quitar <nombre> [--si]` | Borra el token de su lugar, del índice y de sus permisos, y lo anota en el registro. Sin `--si` pregunta en tu terminal; sin terminal se niega. El panel lo corre tras «¿Seguro?». |
 | `qdd baul verificar <nombre>` | Prueba el token contra su API con una llamada de solo lectura y anota dueño, alcance y vencimiento. **Seguro.** |
 | `qdd baul usar <nombre> --para "<fin>" -- <comando>` | Corre el comando con el token solo en su entorno y con los valores del baúl tapados en la salida. El permiso es por sesión, proyecto, token y fin, y dura lo que la consola. Sin permiso, deja un pedido «🔑» que solo confirma la persona (el modo goal no lo lanza) y sale con 75. En tu terminal, sin sesión de Claude Code, pregunta ahí. **Seguro.** |
+| `qdd ambiente` | Los ambientes del proyecto (dev, qa, prod) que declara `.qdd/ambientes.yaml`, versionado y sin valores secretos. Por ahora, el DNS de Cloudflare: la zona y los registros (A, AAAA, CNAME, TXT, MX) que cada ambiente espera. (RFC 0023, fase 3) |
+| `qdd ambiente levantar <dev\|qa\|prod>` | Lee el DNS de la zona en Cloudflare con el token del baúl (permiso por sesión con el fin «leer el DNS de los ambientes») y muestra el plan: qué crearía (+), qué cambiaría (~, con lo que hay hoy) y qué ya está (=). **Solo plan: no cambia nada**, y lo que la zona tiene sin declarar no aparece ni se toca. Sin token en el baúl, dice cómo guardarlo. **Seguro.** |
 | `qdd baul registro` | Cada uso del baúl (quién, proyecto, token, fin, código), encadenado: sale con 1 si falta o cambió una línea. **Seguro.** |
 
 ### 🖼️ Imágenes a la consola

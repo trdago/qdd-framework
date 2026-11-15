@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd ambiente levantar` muestra el plan del DNS de un ambiente (RFC 0023, fase 3):** `.qdd/ambientes.yaml` declara
+  por ambiente la zona de Cloudflare y los registros que espera, sin secretos. Con el token del baúl, el comando lee la
+  zona y dice qué crearía, qué cambiaría y qué ya está. Solo plan: no cambia nada en Cloudflare.
+
 ## [2.10.0-rc.84] - 2026-11-15
 
 ### Agregado
