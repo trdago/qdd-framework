@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **El ciclo de mejoras ya no llama «descartada» a un issue cerrado como resuelto ni pide cerrar issues ya cerrados (FND-207, MEJ-066):**
+  - Si un issue de la cola se cerró en GitHub como resuelto, la mejora queda hecha.
+  - El panel solo pide cerrar un issue que el ciclo vio abierto.
+  - Si GitHub no responde, no se decide nada: el ciclo vuelve a intentarlo en la siguiente pasada.
+
 ## [2.10.0-rc.74] - 2026-11-15
 
 ### Agregado
