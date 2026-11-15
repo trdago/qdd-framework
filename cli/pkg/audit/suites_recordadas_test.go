@@ -285,3 +285,17 @@ func TestRunAllCompleto_RepiteLaSuiteYDejaElEntornoComoEstaba(t *testing.T) {
 		t.Fatalf("corrió %d veces", n)
 	}
 }
+
+// RFC 0005 + RFC 0020: el certificado que además informa la cobertura sigue siendo una corrida completa.
+func TestEvaluarCompleto_RepiteLaSuite(t *testing.T) {
+	r := repoConSuite(t, "true")
+	r.auditar(t)
+	os.Unsetenv(envPruebasCompletas)
+	res := NewEngine(r.raiz).EvaluarCompleto()
+	if n := r.corridas(t); n != 2 {
+		t.Fatalf("un certificado no usa lo recordado: corrió %d veces", n)
+	}
+	if res.Cobertura.Aplicables == 0 {
+		t.Fatal("EvaluarCompleto también trae la cobertura")
+	}
+}

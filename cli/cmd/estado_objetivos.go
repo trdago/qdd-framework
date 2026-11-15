@@ -70,8 +70,11 @@ var estadoTareaCmd = &cobra.Command{
 	Long: `  qdd estado tarea panel --objetivo release --depende-de receta,modelo
   qdd estado tarea panel --objetivo ""          la deja sin objetivo
   qdd estado tarea panel --depende-de ""        sin dependencias
+  qdd estado tarea panel --modulo consola       sus rutas son las de la ficha consola
 
-Una tarea no termina antes que sus dependencias: su última etapa no pasa a ✅ mientras una no termine.`,
+Una tarea no termina antes que sus dependencias: su última etapa no pasa a ✅ mientras una no termine.
+Con --modulo (RFC 0017), qdd estado check avisa de los commits en las rutas de la ficha desde su última celda, y el
+contexto de la IA pide revisar la tarea si la ficha cambia sus decisiones u objetivo operativo.`,
 	Args: cobra.ExactArgs(1),
 	Run:  runEstadoTarea,
 }
@@ -91,6 +94,7 @@ func init() {
 	t.StringVar(&tareaCambio.Objetivo, "objetivo", "", "id del objetivo al que sirve (\"\" la deja sin objetivo)")
 	t.StringVar(&tareaDependeDe, "depende-de", "", "ids de las tareas de las que depende, separados por coma (\"\" ninguna)")
 	t.BoolVar(&tareaCambio.AunqueExista, "aunque-exista", false, "con --nombre: la crea aunque se parezca a una tarea abierta")
+	t.StringVar(&tareaCambio.Modulo, "modulo", "", "id de la ficha cuyas rutas toca (\"\" ninguna): check avisa de sus commits nuevos")
 	n := estadoNuevaCmd.Flags()
 	n.StringVar(&nuevaCambio.Objetivo, "objetivo", "", "id del objetivo al que sirve")
 	n.StringVar(&nuevaDependeDe, "depende-de", "", "ids de las tareas de las que depende, separados por coma")
@@ -152,6 +156,7 @@ func runEstadoTarea(cmd *cobra.Command, args []string) {
 	c.ID = args[0]
 	c.CambiaObjetivo = cmd.Flags().Changed("objetivo")
 	c.CambiaDependencias = cmd.Flags().Changed("depende-de")
+	c.CambiaModulo = cmd.Flags().Changed("modulo")
 	c.DependeDe = listaDeIDs(tareaDependeDe)
 	if err := estado.GuardarTarea(estadoRaiz(), c, time.Now()); err != nil {
 		salirCon("%v", err)

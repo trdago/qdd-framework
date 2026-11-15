@@ -59,14 +59,19 @@ type Celda struct {
 
 // Frente es una fila de la tabla.
 type Frente struct {
-	ID           string           `yaml:"id"`
-	Nombre       string           `yaml:"nombre"`
-	Estado       string           `yaml:"estado"`
-	CerradoEl    string           `yaml:"cerrado_el,omitempty"`
-	MotivoCierre string           `yaml:"motivo_cierre,omitempty"`
-	Objetivo     string           `yaml:"objetivo,omitempty"`
-	DependeDe    []string         `yaml:"depende_de,omitempty"`
-	Celdas       map[string]Celda `yaml:"celdas"`
+	ID           string   `yaml:"id"`
+	Nombre       string   `yaml:"nombre"`
+	Estado       string   `yaml:"estado"`
+	CerradoEl    string   `yaml:"cerrado_el,omitempty"`
+	MotivoCierre string   `yaml:"motivo_cierre,omitempty"`
+	Objetivo     string   `yaml:"objetivo,omitempty"`
+	DependeDe    []string `yaml:"depende_de,omitempty"`
+	// Modulo es la ficha cuyas rutas toca la tarea, y TocadaEl la hora de su última celda (RFC 0017 §2): con los dos,
+	// qdd estado check avisa de commits nuevos y el contexto pide revisarla si la ficha cambió (tablero_atras.go).
+	// Opcionales y sin subir el formato: un qdd anterior los lee sin error y, si escribe, los pierde y deja de opinar.
+	Modulo   string           `yaml:"modulo,omitempty"`
+	TocadaEl string           `yaml:"tocada_el,omitempty"`
+	Celdas   map[string]Celda `yaml:"celdas"`
 }
 
 // Estado es el archivo completo.

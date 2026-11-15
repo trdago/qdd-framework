@@ -96,6 +96,7 @@ func Set(root string, c Cambio, now time.Time) error {
 		celda.RequiereAprobacion = c.RequiereAprobacion
 	}
 	e.Frentes[i].Celdas[c.Etapa] = celda
+	e.Frentes[i].TocadaEl = now.Format(time.RFC3339)
 	return guardarValidado(root, e, c.Frente, now)
 }
 

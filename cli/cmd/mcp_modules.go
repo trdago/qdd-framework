@@ -10,13 +10,14 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
 func registerProjectContextTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_project_context",
-		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo obligatoria, cómo se prueba, la ficha de los módulos que vas a tocar (objetivos, invariantes, pruebas), el mapa de módulos y las zonas sin ficha."),
+		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo obligatoria, cómo se prueba, la ficha de los módulos a tocar, el mapa de módulos y las zonas sin ficha."),
 		mcp.WithString("paths", mcp.Description("Archivos o carpetas a modificar, por coma o línea (relativos a la raíz). Sin rutas: el mapa general.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleProjectContextTool)
@@ -33,6 +34,8 @@ func handleProjectContextTool(ctx context.Context, request mcp.CallToolRequest) 
 		Estandares:   blueprints.Estandares(root),
 		Modo:         modo,
 		ModoVisto:    visto,
+
+		TareasPorRevisar: estado.LineasPorRevisar(root),
 	})
 	if notice != "" {
 		text = notice + "\n" + text
