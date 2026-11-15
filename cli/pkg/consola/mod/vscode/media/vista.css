@@ -100,3 +100,16 @@ section { margin-bottom: 14px; }
   border-left: 2px solid currentColor;
   background: var(--vscode-textBlockQuote-background, transparent);
 }
+
+/* Fase D: lo que cambió aparece con el acento de qdd y se asienta (como hypr-materialize en el panel de Claude Code). */
+.materializa { animation: materializar var(--materializar-ms, 800ms) ease-out; }
+
+@keyframes materializar {
+  from { opacity: 0; filter: blur(3px); background: color-mix(in srgb, var(--materializar-acento, var(--vscode-focusBorder)) 30%, transparent); }
+  60% { opacity: 1; filter: blur(0); }
+  to { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .materializa { animation: none; }
+}
