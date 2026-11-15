@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.90] - 2026-11-15
+
+### Corregido
+
+- **Con dos sesiones abiertas en un proyecto, lo que mandas desde el teléfono llega a la que ves en su consola
+  (MEJ-082, FND-233):** qdd remoto dirige la instrucción a la sesión cuya conversación muestra la consola, si sigue
+  abierta; si se cerró, la toma otra. El evento `consola` y el pedido del teléfono dicen de qué sesión se trata.
+
 ## [2.10.0-rc.89] - 2026-11-15
 
 ### Corregido
