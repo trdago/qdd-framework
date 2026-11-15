@@ -18,7 +18,7 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea. Retomar: ver desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién o verifica pr:N|npm:p@v · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto). nueva: qdd pone id. tarea: objetivo, depende_de."
+const descripcionEstadoMCP = "Estado por tarea. Retomar: ver desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién o verifica pr:N|npm:p@v · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto). nueva: qdd pone id. tarea: objetivo, depende_de, modulo (ficha); «-» vacía."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
@@ -39,11 +39,12 @@ func registerEstadoTool(s *server.MCPServer) {
 		mcp.WithString("motivo", mcp.Description("Del cierre.")),
 		mcp.WithBoolean("descartado", mcp.Description("En vez de cerrar.")),
 		mcp.WithString("respuesta"),
-		mcp.WithString("objetivo", mcp.Description("Id; «-» ninguno.")),
+		mcp.WithString("objetivo", mcp.Description("Id.")),
 		mcp.WithString("criterio"),
 		mcp.WithBoolean("foco"),
 		mcp.WithBoolean("reabrir"),
-		mcp.WithString("depende_de", mcp.Description("Ids con coma; «-» ninguna.")),
+		mcp.WithString("depende_de", mcp.Description("Ids con coma.")),
+		mcp.WithString("modulo"),
 		mcp.WithString("ciclo"),
 		mcp.WithBoolean("aunque_exista"),
 	)
@@ -141,6 +142,10 @@ func cambioTareaDesde(request mcp.CallToolRequest) estado.CambioTarea {
 	if d := strings.TrimSpace(stringArg(request, "depende_de")); d != "" {
 		c.CambiaDependencias = true
 		c.DependeDe = listaDeIDs(strings.TrimPrefix(d, "-"))
+	}
+	if m := strings.TrimSpace(stringArg(request, "modulo")); m != "" {
+		c.CambiaModulo = true
+		c.Modulo = strings.TrimPrefix(m, "-")
 	}
 	return c
 }

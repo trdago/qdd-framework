@@ -1,0 +1,9 @@
+id: "FND-219"
+title: "Un script temporal en ./tmp hacía fallar el gate de un cambio que no lo tocaba"
+description: "2026-11-15, implementando RFC 0017 §2 y §3: el método de trabajo manda los scripts de un solo uso a ./tmp, que git ignora. TestNoElseInCode (cli/cmd/no_else_test.go) recorre todo el árbol desde la raíz y revisaba también ./tmp: dos scripts de medición con un else hicieron fallar qdd audit (80/100) aunque el cambio no los tocaba ni se iban a commitear."
+impact: "Quien sigue el método y deja un script temporal con un else en ./tmp ve el gate rojo por algo que no es parte del cambio, y tiene que borrarlo o reescribirlo para poder commitear."
+action_taken: "checkSkipDir recibe la raíz y la ruta y salta el tmp de la raíz, además de las carpetas de skippedDirs. Una carpeta tmp dentro del código se sigue revisando."
+test_result: "cli/cmd/no_else_tmp_test.go: TestNoElse_SaltaSoloElTmpDeLaRaiz_FND219 no compilaba con la firma vieja y pasa; TestNoElseInCode pasa con un script con else en ./tmp."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

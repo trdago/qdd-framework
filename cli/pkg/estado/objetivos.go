@@ -481,6 +481,9 @@ type CambioTarea struct {
 	CambiaObjetivo       bool
 	CambiaDependencias   bool
 	AunqueExista         bool // la crea aunque su nombre repita el de una abierta (FND-109)
+	// Modulo es la ficha de la tarea (RFC 0017 §2); con CambiaModulo y vacío, la quita.
+	Modulo       string
+	CambiaModulo bool
 }
 
 // GuardarTarea aplica el cambio (qdd estado tarea); crea la tarea solo con nombre y un id de QDD, con todas sus etapas
@@ -494,6 +497,9 @@ func GuardarTarea(root string, c CambioTarea, now time.Time) error {
 		return err
 	}
 	if err := e.referenciasDe(c); err != nil {
+		return err
+	}
+	if err := fichaExiste(root, c); err != nil {
 		return err
 	}
 	i := e.buscar(c.ID)
@@ -513,6 +519,9 @@ func GuardarTarea(root string, c CambioTarea, now time.Time) error {
 	}
 	if c.CambiaDependencias {
 		e.Frentes[i].DependeDe = c.DependeDe
+	}
+	if c.CambiaModulo {
+		e.Frentes[i].Modulo = c.Modulo
 	}
 	return guardarValidado(root, e, c.ID, now)
 }

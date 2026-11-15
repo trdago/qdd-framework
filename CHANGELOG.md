@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Un tablero que no se queda atrás (RFC 0017 §2 y §3, MEJ-010):** una tarea puede declarar su módulo (`qdd estado tarea <id> --modulo <ficha>`, o `modulo` en `qdd_estado`), y `qdd estado set` anota en ella la hora de su última celda (`tocada_el`). Con los dos, `qdd estado check` avisa sin bloquear de los commits en las rutas de la ficha desde esa celda, y `qdd_project_context` pide a la IA revisar el nombre de la tarea y el criterio de su objetivo cuando la ficha cambió sus decisiones u objetivo operativo después. Solo lo corren check y el contexto, nunca el panel ni la barra; si git tarda más de 200 ms, se limitan al objetivo en foco y lo dicen. Los campos son opcionales: un `estado.yaml` sin ellos no cambia, y un qdd anterior lo lee igual.
+
+### Corregido
+
+- **Un script temporal en `./tmp` ya no hace fallar el gate (FND-219):** la prueba del cero `else` revisaba también `./tmp`, donde el método manda los scripts de un solo uso y que git ignora. Ahora salta el `tmp` de la raíz; una carpeta `tmp` dentro del código se sigue revisando.
+
 ## [2.10.0-rc.78] - 2026-11-15
 
 ### Agregado

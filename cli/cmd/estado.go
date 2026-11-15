@@ -305,12 +305,13 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 	sinPregunta := consola.EsperasSinPregunta(root, time.Now())
 	trasPedido := consola.EsperasTrasPedido(root, time.Now())
 	desfasadas := estado.Desfasadas(e)
+	commits := estado.CommitsDesdeSuCelda(root, e)
 	if estadoJSON {
 		revision := []string{}
 		if estadoResp == "" {
 			revision = []string{"EPF-C08"}
 		}
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "esperas_tras_pedido": append([]consola.EsperaSinPregunta{}, trasPedido...), "tareas_desfasadas": desfasadas}, "", "  ")
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "esperas_tras_pedido": append([]consola.EsperaSinPregunta{}, trasPedido...), "tareas_desfasadas": desfasadas, "commits_desde_su_celda": commits}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -330,7 +331,25 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 	avisarEsperasSinPregunta(os.Stdout, sinPregunta)
 	avisarEsperasTrasPedido(os.Stdout, trasPedido)
 	avisarDesfasadas(os.Stdout, desfasadas)
+	avisarCommitsEnTareas(os.Stdout, commits)
 	salirSiHay(vs)
+}
+
+// avisarCommitsEnTareas avisa, sin bloquear, de las tareas con commits en las rutas de su ficha desde su última celda
+// (RFC 0017 §2): un commit que no cambia lo que falta también cuenta, por eso no bloquea.
+func avisarCommitsEnTareas(salida io.Writer, c estado.CommitsEnTareas) {
+	if len(c.Tareas) == 0 && !c.SoloFoco {
+		return
+	}
+	if len(c.Tareas) > 0 {
+		fmt.Fprintf(salida, "[i] Tareas con commits nuevos en su módulo: %d. Si cambian lo que falta, actualiza sus celdas con qdd estado set:\n", len(c.Tareas))
+	}
+	for _, t := range c.Tareas {
+		fmt.Fprintf(salida, "    %s\n", t.Linea())
+	}
+	if c.SoloFoco {
+		fmt.Fprintln(salida, "[i] Commits por tarea: se revisaron solo las del objetivo en foco (git log tardó más de lo previsto).")
+	}
 }
 
 // avisarDesfasadas avisa, sin bloquear, de las tareas cuya tabla ya no dice lo que pasa (MEJ-010).

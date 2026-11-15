@@ -51,6 +51,9 @@ type ContextInput struct {
 	Estandares   []Estandar
 	Modo         string // modo de permisos de la IA principal en el último mensaje; vacío = sin medir
 	ModoVisto    string // a qué hora se vio (HH:MM)
+	// TareasPorRevisar: tareas del estado cuya ficha cambió después de su última celda, una línea cada una (RFC 0017 §3;
+	// las calcula el paquete estado, que depende de este).
+	TareasPorRevisar []string
 }
 
 // lineaDelProyecto es lo que se hace sin pedir autorización cuando la IA puede actuar sola.
@@ -98,6 +101,7 @@ func BuildContext(in ContextInput) string {
 	b.WriteString("\n## Cómo se prueba el proyecto\n")
 	writeList(&b, in.TestCommands, "No hay comandos de prueba detectables: decláralos en .qdd/config.yaml (test_commands) antes de cambiar código.")
 	writeEstandares(&b, in.Estandares)
+	writeTareasPorRevisar(&b, in.TareasPorRevisar)
 
 	for _, err := range loadErrs {
 		fmt.Fprintf(&b, "\n⚠️ Ficha ilegible: %v\n", err)
@@ -109,6 +113,15 @@ func BuildContext(in ContextInput) string {
 	writeIndex(&b, in.Root, mods)
 	writeUncovered(&b, in.Root, mods)
 	return b.String()
+}
+
+// writeTareasPorRevisar: QDD no reescribe nombres ni criterios; le dice a la IA cuáles revisar (RFC 0017 §3).
+func writeTareasPorRevisar(b *strings.Builder, lineas []string) {
+	if len(lineas) == 0 {
+		return
+	}
+	b.WriteString("\n## Tareas por revisar\n")
+	writeList(b, lineas, "")
 }
 
 func writeAutorizacion(b *strings.Builder, in ContextInput) {

@@ -17,7 +17,7 @@ func TestNoElseInCode(t *testing.T) {
 		}
 
 		if info.IsDir() {
-			return checkSkipDir(info.Name())
+			return checkSkipDir(projectRoot, path, info.Name())
 		}
 
 		if !shouldCheckFileForElse(info.Name()) {
@@ -43,8 +43,12 @@ var skippedDirs = map[string]bool{
 	"core_assets":  true,
 }
 
-func checkSkipDir(name string) error {
+// checkSkipDir salta las carpetas de skippedDirs y el tmp de la raíz, donde el método deja lo temporal (FND-219).
+func checkSkipDir(root, path, name string) error {
 	if skippedDirs[name] {
+		return filepath.SkipDir
+	}
+	if filepath.Clean(path) == filepath.Join(root, "tmp") {
 		return filepath.SkipDir
 	}
 	return nil
