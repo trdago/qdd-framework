@@ -30,6 +30,7 @@ import (
 // aplica la reparación de su tramo, comparar el relay con el directorio o reiniciar el servicio, si nada lo reinició ya
 // en esta pasada, y el servicio repite la sonda al arrancar. REM-21: el
 // último estado completo frente al tope de Realtime, que descarta sin aviso lo que lo pasa (FND-209); --fix no lo toca.
+// REM-22: el último aviso que el relay aceptó y no llegó a ningún teléfono (push.json, MEJ-027); solo avisa.
 
 const grupoMovil = "12. QDD Móvil (teléfono)"
 
@@ -55,6 +56,7 @@ const (
 	itemMovilReloj      = "El reloj de este PC coincide con el del relay (REM-19)"
 	itemMovilSonda      = "El canal con el teléfono va y vuelve (REM-20)"
 	itemMovilPeso       = "El estado para el teléfono cabe en el relay (REM-21)"
+	itemMovilPush       = "Los avisos llegan a algún teléfono (REM-22)"
 
 	movilSinAnotar     = "no está en el registro"
 	maxLatidosPerdidos = 3
@@ -92,7 +94,7 @@ func buildMovilChecks(root string, now time.Time) *CheckGroup {
 	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilRelayDe(now))
 	g = conItemCanal(g, now)
 	g.Items = append(g.Items, itemMovilProyectoDe(root))
-	return conItemReloj(conItemColas(conItemPeso(conItemSonda(conItemEnvio(g), now)), root), now)
+	return conItemReloj(conItemColas(conItemPush(conItemPeso(conItemSonda(conItemEnvio(g), now))), root), now)
 }
 
 // conItemBinario: solo systemd y launchd; la tarea de Windows ya la revisa REM-04 contra el qdd de esta versión.
@@ -173,6 +175,19 @@ func conItemPeso(g *CheckGroup) *CheckGroup {
 		return g
 	}
 	g.Items = append(g.Items, &CheckItem{Name: itemMovilPeso, Error: aviso + ": si lo pasa, el teléfono se queda sin el panel de este PC"})
+	return g
+}
+
+// conItemPush dice si el último aviso que el relay aceptó no llegó a ningún teléfono (REM-22, MEJ-027), con su causa y
+// su hora. Solo avisa: la causa la arregla la persona (activar los avisos en el teléfono, configurar FCM en el relay),
+// así que --fix no la toca ni reintenta el aviso.
+func conItemPush(g *CheckGroup) *CheckGroup {
+	s, err := remoto.LeerSinEntrega()
+	if err != nil {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilPush, Success: true})
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilPush, Error: "el aviso «" + s.Tipo + "» del " + s.En.Local().Format("02/01 15:04") + " no llegó a ningún teléfono: " + remoto.TextoSinEntrega(s.Motivo, s.Destinos)})
 	return g
 }
 

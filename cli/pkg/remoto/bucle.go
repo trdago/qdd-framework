@@ -114,6 +114,11 @@ type Bucle struct {
 	sondas        chan ResultadoSonda
 	ultimaSonda   *ResultadoSonda
 
+	// sinEntregaVisto: cuándo se anotó en el registro cada tipo y proyecto sin entrega (una vez por hora); sinEntregaLimpio:
+	// push.json ya se borró desde el último aviso sin entrega (MEJ-027, REM-22).
+	sinEntregaVisto  map[string]time.Time
+	sinEntregaLimpio bool
+
 	// AlPesar recibe cuántos bytes pesó cada estado completo que salió (qdd doctor, REM-21; FND-209).
 	AlPesar func(bytes int)
 
@@ -739,6 +744,12 @@ func esResuelto(tipo string) bool {
 func (b *Bucle) alAviso(err error) {
 	if err == nil {
 		b.sinPush = false
+		b.limpiarSinEntrega()
+		return
+	}
+	var sinEntrega ErrSinEntrega
+	if errors.As(err, &sinEntrega) {
+		b.anotarSinEntrega(sinEntrega)
 		return
 	}
 	if errors.Is(err, ErrNoDisponible) && b.sinPush {
@@ -750,6 +761,36 @@ func (b *Bucle) alAviso(err error) {
 		return
 	}
 	b.logf("push: %v", err)
+}
+
+// anotarSinEntrega deja el aviso que no llegó para doctor (REM-22) y lo anota en el registro una vez por hora por tipo y
+// proyecto. Solo avisa: no se reintenta (MEJ-027).
+func (b *Bucle) anotarSinEntrega(e ErrSinEntrega) {
+	ahora := b.ahora()
+	if err := GuardarSinEntrega(e, ahora); err != nil {
+		b.logf("no se anotó el push sin entrega: %v", err)
+	}
+	b.sinEntregaLimpio = false
+	clave := e.Tipo + "|" + e.Clave
+	if anterior, ok := b.sinEntregaVisto[clave]; ok && ahora.Sub(anterior) < entreRegistrosSinEntrega {
+		return
+	}
+	if b.sinEntregaVisto == nil {
+		b.sinEntregaVisto = map[string]time.Time{}
+	}
+	b.sinEntregaVisto[clave] = ahora
+	b.logf("%v", e)
+}
+
+// limpiarSinEntrega borra lo anotado cuando un aviso sí llega; una vez por arranque y después de cada anotado.
+func (b *Bucle) limpiarSinEntrega() {
+	if b.sinEntregaLimpio {
+		return
+	}
+	b.sinEntregaLimpio = true
+	if err := LimpiarSinEntrega(); err != nil {
+		b.logf("no se limpió el push sin entrega: %v", err)
+	}
 }
 
 // latir da el latido en segundo plano con lo consumido desde el anterior.
