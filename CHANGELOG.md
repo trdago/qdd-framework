@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Cambiado
+
+- **qdd implementa estado-por-tareas 2.3.0:** la receta suma lo de RFC 0017 §2 y §3 (módulo de una tarea, aviso de commits
+  nuevos en `qdd estado check` y revisión al cambiar su ficha), certificada a ciegas 2/2. Un proyecto que la aplica
+  necesita este qdd.
+
 ## [2.10.0-rc.79] - 2026-11-15
 
 ### Agregado

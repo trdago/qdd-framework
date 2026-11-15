@@ -3,10 +3,10 @@
 formato: 2
 blueprints:
     - id: estado-por-tareas
-      version: 2.2.0
+      version: 2.3.0
       origen: https://github.com/trdago/qdd-blueprints.git
       subdir: estado-por-tareas
-      ref: v11.1.0
-      commit: 98abb58ec7275509258dfbf2236b9acddfd7efc1
-      sha256: 0c9025231a065caf27000752ef025a144885236e75bfe69e87a2d1e3250e8575
-      agregado_el: "2026-11-02"
+      ref: v12.2.0
+      commit: 02871cb09149373ddcb40f9c73c31096f4db587e
+      sha256: f3c0eb576356b57a1b82b722a0256160b4fe070c0e067c572f1afb8312da0152
+      agregado_el: "2026-11-15"
