@@ -36,6 +36,9 @@ func aceptar(root, id, sesion string, now time.Time) (string, error) {
 		if !cola[i].Ejecutable() {
 			return nil, errNoEjecutable(id, cola[i].Estado)
 		}
+		if len(cola[i].Descartados) > 0 {
+			return nil, fmt.Errorf("el pedido %s %s", id, bloqueoDe(cola[i]))
+		}
 		estado = EstadoEjecutando
 		if len(esperaA(cola[i], cola)) > 0 {
 			estado = EstadoArmado

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,19 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
+
+func TestConsolaPedir_UnArgumentoConEspaciosLlegaEntero_FND212(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	var salida, errores bytes.Buffer
+	args := []string{"git", "-c", "credential.helper=!gh auth git-credential", "push"}
+	if codigo := consolaPedir(root, "Push con gh", "", consola.Orden{}, args, &salida, &errores); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, errores.String())
+	}
+	if got, want := consola.Pedidos(root)[0].Comando, consola.ComandoDeArgs(args, runtime.GOOS); got != want || got == strings.Join(args, " ") {
+		t.Fatalf("el argumento con espacios queda citado para la shell: %q (want %q)", got, want)
+	}
+}
 
 var ahoraPrueba = time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 

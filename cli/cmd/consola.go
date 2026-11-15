@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -371,6 +372,10 @@ se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para c
 Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
 sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+Si se descarta un pedido, los que lo esperaban quedan bloqueados (no corren ni se confirman): pide de nuevo lo
+descartado y vuelven a esperarlo, o pide de nuevo el bloqueado si ya no lo necesita.
+Varios argumentos se citan para la shell tal como llegan (uno con espacios va entero); un solo argumento es un texto de
+shell y va tal cual (p. ej. 'gh pr merge 14 && git push').
 Lo que ya se hizo en las últimas 24 h no se vuelve a pedir, aunque cambie el texto (cerrar el mismo issue, mergear el
 mismo PR): repetirlo de verdad se dice con --de-nuevo.
 Con el modo goal activo, los pedidos corren sin el «s  Sí» de la persona. Lo que solo ella puede autorizar (un push que
@@ -537,7 +542,7 @@ func init() {
 }
 
 func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []string, salida, errores io.Writer) int {
-	p, err := consola.PedirEnOrden(root, strings.Join(args, " "), motivo, carpeta, orden, time.Now())
+	p, err := consola.PedirEnOrden(root, consola.ComandoDeArgs(args, runtime.GOOS), motivo, carpeta, orden, time.Now())
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1

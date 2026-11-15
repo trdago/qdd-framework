@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Descartar un pedido ya no deja correr a los que lo esperaban (FND-213, MEJ-043):** un despliegue que esperaba un push descartado queda bloqueado, sin botón y diciendo por qué, en vez de poder correr desde el código viejo. Vuelve a esperar si la IA pide de nuevo lo descartado, o queda libre si la IA pide de nuevo el bloqueado.
+- **Un pedido con un argumento con espacios corre como se pidió (FND-212, MEJ-043):** `qdd consola pedir -- git -c credential.helper="!gh auth git-credential" push` ya no parte el argumento; el panel muestra el comando citado, exactamente como corre.
+
 ## [2.10.0-rc.75] - 2026-11-15
 
 ### Agregado
