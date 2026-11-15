@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.89] - 2026-11-15
+
+### Corregido
+
+- **Un nodo de flujo con su tarea cerrada ya no dice «sin estado en el tablero» en el teléfono (MEJ-083, FND-232):**
+  el evento `flujo` trae `tarea_estado` en cada nodo cuya tarea existe y no está en el tablero visible (cerrada,
+  descartada u oculta). Una tarea que sale del tablero reenvía el flujo; los avances de las visibles, no.
+
 ## [2.10.0-rc.88] - 2026-11-15
 
 ### Corregido
