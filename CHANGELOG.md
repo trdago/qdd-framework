@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **El nombre de un proyecto ya no llega al teléfono como `Sistema%20de%20gesti%C3%B3n` (MEJ-077, FND-227):** una ruta
+  que llegó codificada como URL se registra decodificada (y reemplaza la entrada codificada que ya estaba), y el
+  teléfono y «Para ti» de otros proyectos muestran el nombre decodificado. Una carpeta real con `%` queda tal cual.
+
 ## [2.10.0-rc.85] - 2026-11-15
 
 ### Agregado

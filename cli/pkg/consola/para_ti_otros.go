@@ -2,7 +2,6 @@ package consola
 
 import (
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/estado"
@@ -55,7 +54,7 @@ func OtrosProyectos(root string, now time.Time) []ProyectoEsperando {
 		if len(acciones) == 0 {
 			continue
 		}
-		out = append(out, ProyectoEsperando{Proyecto: filepath.Base(p.Ruta), Carpeta: p.Ruta, Acciones: acciones, Esperas: EsperasDelPanel(p.Ruta, now)})
+		out = append(out, ProyectoEsperando{Proyecto: registro.NombreDe(p.Ruta), Carpeta: p.Ruta, Acciones: acciones, Esperas: EsperasDelPanel(p.Ruta, now)})
 	}
 	return out
 }

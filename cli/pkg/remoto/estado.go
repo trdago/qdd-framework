@@ -5,7 +5,6 @@ package remoto
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -97,7 +96,7 @@ func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 }
 
 func panelDe(qdd string, p registro.Proyecto, now time.Time, conLogrado bool) ProyectoEstado {
-	out := ProyectoEstado{Clave: p.Clave, Nombre: filepath.Base(p.Ruta), Ruta: p.Ruta}
+	out := ProyectoEstado{Clave: p.Clave, Nombre: registro.NombreDe(p.Ruta), Ruta: p.Ruta}
 	if info, err := os.Stat(p.Ruta); err != nil || !info.IsDir() {
 		out.Error = ErrCarpetaNoExiste
 		return out
