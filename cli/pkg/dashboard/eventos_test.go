@@ -23,13 +23,17 @@ func proyectoMedido(t *testing.T) string {
 	return dir
 }
 
-func mensajesEn(ch chan []byte, ventana time.Duration) int {
+// mensajesEn cuenta las difusiones durante ventana; con hasta, vuelve apenas llegan esas.
+func mensajesEn(ch chan []byte, ventana time.Duration, hasta ...int) int {
 	n := 0
 	limite := time.After(ventana)
 	for {
 		select {
 		case <-ch:
 			n++
+			if len(hasta) > 0 && n >= hasta[0] {
+				return n
+			}
 		case <-limite:
 			return n
 		}
@@ -80,8 +84,13 @@ func TestVigilar_ReaccionaSoloAEventosReales(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		os.WriteFile(filepath.Join(qdd, "project", "findings", "FND-001.yaml"), []byte("status: open\n"), 0644)
 	}
-	if n := mensajesEn(ch, 2500*time.Millisecond); n != 1 {
-		t.Errorf("una ráfaga de cambios reales produjo %d difusiones; want 1", n)
+	// FND-215: con la máquina cargada, armar el estado tarda más que la ventana fija de antes y la prueba veía 0. Se
+	// espera la primera difusión con holgura y después se comprueba que la ráfaga no produjo otra.
+	if n := mensajesEn(ch, 15*time.Second, 1); n != 1 {
+		t.Fatalf("una ráfaga de cambios reales produjo %d difusiones; want 1", n)
+	}
+	if n := mensajesEn(ch, ventanaDeEventos+time.Second); n != 0 {
+		t.Errorf("una ráfaga de cambios reales produjo %d difusiones de más; want 1 en total", n+1)
 	}
 }
 
