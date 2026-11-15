@@ -78,3 +78,25 @@ section { margin-bottom: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .latido { animation: none; }
 }
+
+.ficha { display: flex; flex-direction: column; gap: 2px; }
+.acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.pregunta { font-weight: 600; }
+.boton {
+  padding: 2px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  font: inherit;
+  cursor: pointer;
+}
+.boton.primario { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+.boton.primario:hover { background: var(--vscode-button-hoverBackground); }
+.boton.secundario { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+.boton.secundario:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.boton:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+.resultado {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-left: 2px solid currentColor;
+  background: var(--vscode-textBlockQuote-background, transparent);
+}

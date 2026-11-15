@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **El panel de Antigravity y VS Code ejecuta (RFC 0014, fase B):** la vista de la barra de actividad, que hasta ahora
+  solo mostraba el tablero y los pedidos, confirma pedidos con «s  Sí» y aprueba fichas, con su resultado arriba de
+  «Para ti». Trae también la vista de solo lectura (fase A, #146), que estaba solo en `main`. Todavía no la instala
+  `qdd consola activar` (fase C).
+
 ## [2.10.0-rc.81] - 2026-11-15
 
 ### Corregido

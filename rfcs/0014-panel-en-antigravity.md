@@ -71,6 +71,18 @@ igual que en Claude Code, sin lógica repetida: todo sale de `qdd consola panel 
 1. La extensión se instala solo con `qdd consola activar`, sin publicarla en Open VSX.
 2. La vista se abre sola cuando llega un pedido de la IA, como en Claude Code, salvo los PRs opcionales (fase B).
 
+## Fase B (2026-11-15)
+
+El webview muestra «Ejecutar» en cada pedido que se puede confirmar y «Aprobar» en cada ficha; tocarlo (o la tecla del
+pedido con la vista enfocada) pregunta «s  Sí / n  No» (`media/pasos.js`, lógica pura). El Sí manda solo el id; la
+extensión lo busca en la última lectura (`accionDe`: un id que la vista no ofrece no llega a qdd), ejecuta
+`qdd consola accion <id> --confirmado` una cosa a la vez y devuelve el resultado, que se ve arriba de «Para ti»:
+«✓», «◷ Todavía no» (exit 75) o «✗» con las últimas líneas. Sin `--sesion`, como dice la decisión 2.
+
+Queda fuera la pregunta resuelta 2 (abrir la vista sola cuando llega un pedido): enterarse con la vista oculta pide
+leer a qdd en segundo plano, y eso choca con la invariante de la ficha («oculta no deja ningún proceso de qdd»). Se
+retoma con la fase C, junto a cómo `qdd consola activar` deja la extensión.
+
 ## Pendiente para la fase C
 
 La extensión busca `qdd` en `QDD_BIN` o en el PATH. En Windows, `execFile` sin shell no ejecuta el `qdd.cmd` de npm:
