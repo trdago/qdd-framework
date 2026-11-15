@@ -37,7 +37,7 @@
   nombre: Las pruebas de cada unidad se ejecutan y pasan
   categoria: correccion
   alcance: pruebas
-  reglas: [QA-00-NO-TEST-COMMAND, QA-01-ALL-TESTS-PASS, QA-03-SIN-MEDIR]
+  reglas: [QA-00-NO-TEST-COMMAND, QA-01-ALL-TESTS-PASS, QA-03-SIN-MEDIR, QA-04-PRUEBAS-PENDIENTES]
   por_que: >-
     Un cambio que rompe algo solo se detecta antes de producción si las pruebas
     corren. Una unidad cuyas pruebas no ejecuta el gate puede romperse sin que

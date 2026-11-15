@@ -152,3 +152,29 @@ func TestCobertura_LaPoliticaDeVersionesDecideSiSeRevisa_FND150(t *testing.T) {
 		t.Error("apagada, el principio de versiones sale como desactivado")
 	}
 }
+
+// FND-225: con una regla que ya bloquea, qdd audit no corre las pruebas (QA-04-PRUEBAS-PENDIENTES, RFC 0020). La
+// cobertura no puede decir entonces que las pruebas de cada unidad se revisaron.
+func TestCobertura_PruebasPendientesNoSonEvaluadas_FND225(t *testing.T) {
+	dir := proyecto(t, map[string]string{
+		"go.mod":           "module x\n",
+		".qdd/config.yaml": "test_commands:\n  - go test ./...\n",
+	})
+	pendientes := []Violation{{Category: "COVERAGE", RuleID: ReglaPruebasPendientes, Recomendacion: true}}
+	c := CalcularCobertura(dir, DefaultPolicies(), contexto.Leer(dir), pendientes)
+
+	cp := coberturaDe(t, c, "P-TESTS-PER-UNIT")
+	if cp.Estado != NoEvaluado {
+		t.Fatalf("P-TESTS-PER-UNIT con las pruebas pendientes = %s; want no_evaluado", cp.Estado)
+	}
+	if len(cp.NoEvaluadas) != 1 || !strings.Contains(cp.NoEvaluadas[0].Motivo, "--completo") {
+		t.Errorf("NoEvaluadas = %+v; want la raíz, diciendo que no se corrieron y cómo verlas (--completo)", cp.NoEvaluadas)
+	}
+	if cp.Violaciones != 0 {
+		t.Errorf("Violaciones = %d; una recomendación de pruebas pendientes no es una violación del principio", cp.Violaciones)
+	}
+
+	if cp := coberturaDe(t, CalcularCobertura(dir, DefaultPolicies(), contexto.Leer(dir), nil), "P-TESTS-PER-UNIT"); cp.Estado != Evaluado {
+		t.Errorf("sin pruebas pendientes P-TESTS-PER-UNIT = %s; want evaluado", cp.Estado)
+	}
+}

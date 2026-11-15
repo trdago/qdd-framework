@@ -57,14 +57,19 @@ type Resultado struct {
 // que bloquea.
 func CalcularCobertura(cwd string, p QDDPolicies, ctx contexto.Contexto, violations []Violation) Cobertura {
 	porPrincipio := map[string]int{}
+	pruebasPendientes := false
 	for _, v := range violations {
+		if v.RuleID == ReglaPruebasPendientes {
+			pruebasPendientes = true
+			continue
+		}
 		if pr, ok := PrincipioDeRegla(v.RuleID); ok {
 			porPrincipio[pr.ID]++
 		}
 	}
 	var c Cobertura
 	for _, pr := range Principios() {
-		cp := coberturaDePrincipio(cwd, p, ctx, pr)
+		cp := coberturaDePrincipio(cwd, p, ctx, pr, pruebasPendientes)
 		cp.Violaciones = porPrincipio[pr.ID]
 		c.Principios = append(c.Principios, cp)
 		sumarCobertura(&c, cp.Estado)
@@ -88,7 +93,7 @@ func sumarCobertura(c *Cobertura, e EstadoCobertura) {
 	}
 }
 
-func coberturaDePrincipio(cwd string, p QDDPolicies, ctx contexto.Contexto, pr Principio) CoberturaPrincipio {
+func coberturaDePrincipio(cwd string, p QDDPolicies, ctx contexto.Contexto, pr Principio, pruebasPendientes bool) CoberturaPrincipio {
 	d := detectores[pr.ID]
 	cp := CoberturaPrincipio{Principio: pr, Limite: d.limite}
 	if !politicasActivas(p, pr.Politicas) {
@@ -99,15 +104,15 @@ func coberturaDePrincipio(cwd string, p QDDPolicies, ctx contexto.Contexto, pr P
 	case AlcanceUnidad:
 		cubrirUnidades(&cp, ctx, d.stacks)
 	case AlcancePruebas:
-		cubrirPruebas(&cp, cwd, ctx)
+		cubrirPruebas(&cp, cwd, ctx, pruebasPendientes)
 	default:
 		cubrirRepositorio(&cp, cwd, d)
 	}
-	cp.Estado = estadoDe(cp)
+	cp.Estado = estadoDeCobertura(cp)
 	return cp
 }
 
-func estadoDe(cp CoberturaPrincipio) EstadoCobertura {
+func estadoDeCobertura(cp CoberturaPrincipio) EstadoCobertura {
 	if len(cp.NoEvaluadas) == 0 {
 		return Evaluado
 	}
@@ -142,7 +147,14 @@ func cubrirUnidades(cp *CoberturaPrincipio, ctx contexto.Contexto, stacks []stri
 // cubrirPruebas: una unidad está evaluada si el gate ejecuta un comando de
 // pruebas en su carpeta. Las pruebas de una subcarpeta con su propio
 // manifiesto son de otra unidad.
-func cubrirPruebas(cp *CoberturaPrincipio, cwd string, ctx contexto.Contexto) {
+// motivoPruebasPendientes: qdd audit no corrió las pruebas porque una regla ya bloqueaba (RFC 0020, FND-225).
+const motivoPruebasPendientes = "no se corrieron las pruebas porque una regla ya bloquea el gate: corrígela o usa qdd audit --completo"
+
+func cubrirPruebas(cp *CoberturaPrincipio, cwd string, ctx contexto.Contexto, pendientes bool) {
+	if pendientes {
+		cp.NoEvaluadas = append(cp.NoEvaluadas, UnidadNoEvaluada{Ruta: ".", Motivo: motivoPruebasPendientes})
+		return
+	}
 	conPruebas := map[string]bool{}
 	for _, tc := range resolveTestCommands(cwd) {
 		conPruebas[carpetaDeComando(cwd, tc)] = true

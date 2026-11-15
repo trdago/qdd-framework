@@ -10,7 +10,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 - **`qdd audit` dice qué no pudo revisar (RFC 0005, fase 1):** junto al puntaje informa cuántos principios se evaluaron en
   todo el proyecto, y qué quedó sin revisar, por qué y dónde. Un 100 ya no sugiere que se revisó todo. No cambia el puntaje
-  ni lo que bloquea. También aparece en `qdd certify` y en las tools MCP.
+  ni lo que bloquea. También aparece en `qdd certify` y en las tools MCP. Si las pruebas no corrieron porque una regla ya
+  bloquea, la cobertura lo dice en vez de darlas por revisadas (FND-225).
 
 ## [2.10.0-rc.78] - 2026-11-15
 
