@@ -13,7 +13,7 @@ import (
 
 // Rule: Prohibido usar 'else'
 // RFC 0013 §«Preguntas desde el teléfono»: el mod registra lo que Claude Code le pregunta a la persona y espera la
-// respuesta de un teléfono con 'qdd consola pregunta'; sin QDD Móvil activado no registra nada.
+// respuesta de un teléfono con 'qdd consola pregunta'; sin QDD Móvil activado registra igual, para «▶ Para ti» (MEJ-057).
 
 const askPrueba = `{"sesion":"s1","herramienta":"AskUserQuestion","entrada":{"questions":[{"question":"¿Seguimos?","header":"Seguir","multiSelect":false,"options":[{"label":"Sí","description":""},{"label":"No","description":""}]}]}}`
 
@@ -25,17 +25,35 @@ func emparejado(t *testing.T) {
 	}
 }
 
-func TestConsolaPregunta_SinQDDMovilNoRegistraNada(t *testing.T) {
+// MEJ-057 (sprint 8): toda pregunta de la terminal aparece en «▶ Para ti», con QDD Móvil o sin él. Sin teléfono se
+// registra igual y lo dice, para que el panel no ofrezca responderla desde QDD Móvil.
+func TestConsolaPregunta_SinQDDMovilIgualRegistraParaElPanel_MEJ057(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
 	var salida, errores bytes.Buffer
 	if codigo := preguntaRegistrar(root, strings.NewReader(askPrueba), &salida, &errores); codigo != 0 {
 		t.Fatalf("%d %s", codigo, errores.String())
 	}
-	var r struct{ ID, Motivo string }
+	var r struct {
+		ID       string
+		Telefono bool
+	}
 	json.Unmarshal(salida.Bytes(), &r)
-	if r.ID != "" || r.Motivo == "" || len(consola.PreguntasA(root, time.Now())) != 0 {
-		t.Fatalf("sin teléfono emparejado no hay a quién preguntarle: %s", salida.String())
+	if r.ID == "" || r.Telefono || len(consola.PreguntasA(root, time.Now())) != 1 {
+		t.Fatalf("sin teléfono se registra igual para «Para ti» y dice que no hay teléfono: %s", salida.String())
+	}
+}
+
+func TestConsolaPregunta_ConQDDMovilDiceQueHayTelefono(t *testing.T) {
+	emparejado(t)
+	var salida, errores bytes.Buffer
+	if codigo := preguntaRegistrar(t.TempDir(), strings.NewReader(askPrueba), &salida, &errores); codigo != 0 {
+		t.Fatalf("%d %s", codigo, errores.String())
+	}
+	var r struct{ Telefono bool }
+	json.Unmarshal(salida.Bytes(), &r)
+	if !r.Telefono {
+		t.Fatalf("con QDD Móvil activado lo dice: %s", salida.String())
 	}
 }
 

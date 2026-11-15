@@ -32,11 +32,12 @@ var consolaPreguntaCmd = &cobra.Command{
 	Use:   "pregunta",
 	Short: "Las preguntas de la consola que también se responden desde QDD Móvil (registrar | esperar | cerrar | vencer | responder | lista)",
 	Long: `Lo usa el panel de Claude Code (mod qdd-tareas): cada pregunta de la IA (AskUserQuestion) o permiso de herramienta
-que se le hace a la persona queda en una cola local del repositorio y qdd remoto la publica en el teléfono. Gana quien
+que se le hace a la persona queda en una cola local del repositorio: el panel la muestra en «▶ Para ti» y, con QDD Móvil
+activado, qdd remoto la publica en el teléfono. Gana quien
 responde primero, el terminal o un teléfono; un permiso desde el teléfono solo se permite una vez o se niega.
 
-  qdd consola pregunta registrar            lee {sesion, herramienta, entrada} por la entrada estándar; devuelve {id, accion}
-                                            (sin QDD Móvil activado no registra: id vacío y el motivo)
+  qdd consola pregunta registrar            lee {sesion, herramienta, entrada} por la entrada estándar; devuelve
+                                            {id, accion, telefono} (telefono: si QDD Móvil también la puede responder)
   qdd consola pregunta esperar <id>         espera hasta --segundos la respuesta de un teléfono; imprime cómo está
   qdd consola pregunta cerrar <id>          la respondió el terminal (o --vencida --motivo …)
   qdd consola pregunta vencer --sesion <id> vence las pendientes de una sesión que se cerró
@@ -98,12 +99,11 @@ func init() {
 	consolaCmd.AddCommand(consolaPreguntaCmd)
 }
 
-// preguntaRegistrar registra la pregunta solo si este PC tiene QDD Móvil activado: sin teléfono no hay a quién más
-// preguntarle, y el terminal pregunta como siempre.
+// preguntaRegistrar registra toda pregunta de la terminal, para que aparezca en «▶ Para ti» (MEJ-057). telefono dice si
+// QDD Móvil (o el modo goal) también la puede responder: sin él, el panel no ofrece el teléfono.
 func preguntaRegistrar(root string, entrada io.Reader, salida, errores io.Writer) int {
-	if _, err := remoto.LeerCredenciales(); err != nil && !consola.VistaGoal(root, time.Now()).Activo {
-		return jsonPregunta(salida, map[string]string{"id": "", "motivo": "QDD Móvil no está activado en este PC (qdd remoto activar)"})
-	}
+	_, sinTelefono := remoto.LeerCredenciales()
+	telefono := sinTelefono == nil || consola.VistaGoal(root, time.Now()).Activo
 	datos, err := io.ReadAll(io.LimitReader(entrada, 1<<20))
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
@@ -119,7 +119,7 @@ func preguntaRegistrar(root string, entrada io.Reader, salida, errores io.Writer
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	return jsonPregunta(salida, map[string]string{"id": p.ID, "accion": "pregunta:" + p.ID})
+	return jsonPregunta(salida, map[string]any{"id": p.ID, "accion": "pregunta:" + p.ID, "telefono": telefono})
 }
 
 // preguntaResponder aplica un botón de un ⏳ («Ya lo hice», «Todavía no», «Ya no va») y dice qué quedó en el estado.

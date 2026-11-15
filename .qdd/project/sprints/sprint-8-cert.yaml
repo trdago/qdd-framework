@@ -1,0 +1,41 @@
+qdd_certificate:
+  version: "1.1"
+  sprint_id: "8"
+  status: "PASSING"
+  goal: "Toda pregunta a la persona, de cualquier tipo, aparece siempre en «▶ Para ti» del panel (y en QDD Móvil, que lee el mismo JSON) mientras sigue abierta, y sale cuando se responde o deja de esperarse. Lo fija una prueba por tipo y un contrato que falla si aparece un tipo nuevo sin la suya (MEJ-057, MEJ-026)."
+
+  scenarios:
+    happy_path:
+      - "Dado que la IA pregunta con AskUserQuestion, cuando el panel lee, entonces la pregunta está en «Para ti» con su turno y cuenta en «N por responder», aunque QDD Móvil no esté activado"
+      - "Dado un permiso de herramienta abierto en la terminal, cuando el panel lee, entonces aparece en «Para ti» como «en la terminal», con QDD Móvil o sin él"
+      - "Dada la pregunta de un comando qdd (origen qdd), cuando el panel lee, entonces aparece en «Para ti»; las de diseño de un blueprint llegan como AskUserQuestion"
+      - "Dado un ⏳ de la persona escrito como pregunta, cuando el panel lee, entonces aparece en «Para ti» con su texto y los botones Ya lo hice / Todavía no / Ya no va"
+      - "Dado un pedido de qdd_consola_pedir, cuando el panel lee, entonces aparece en «Para ti» con su tecla y su motivo"
+      - "Dada una ficha en borrador, cuando el panel lee, entonces aparece en «Para ti» con su tecla para aprobarla"
+      - "Dado un turno que termina con una pregunta solo en el chat, cuando corre el hook Stop, entonces devuelve el turno a la IA hasta que la deje como uno de los tipos anteriores"
+      - "Dado cualquiera de los tipos anteriores, cuando QDD Móvil lee el panel --json, entonces ve la misma pregunta con el mismo turno"
+    error_paths:
+      - "Sin QDD Móvil activado y con goal apagado, una pregunta de la terminal igual se registra y aparece; solo no se ofrece el teléfono"
+      - "Si qdd no logra registrar la pregunta (candado ocupado, qdd anterior, timeout), el panel igual la cuenta en «Para ti» como «en la terminal» y deja el motivo en el registro de depuración"
+      - "Una cola de preguntas ilegible se aparta y la pregunta nueva aparece igual"
+      - "Mientras el diálogo sigue abierto la pregunta no vence, aunque el latido llegue tarde (proceso lento, Windows)"
+      - "Respondida en la terminal, sale de «Para ti» en la lectura siguiente: no queda como pendiente fantasma"
+      - "Si la sesión se cierra con la pregunta abierta, vence y sale de «Para ti»"
+    edge_cases:
+      - "Más ⏳ que el tope visible: «? N» y «N por responder» las cuentan todas y «ver las N» las muestra"
+      - "Dos sesiones del mismo proyecto preguntan a la vez: las dos aparecen, cada una con su turno"
+      - "Con las preguntas plegadas, el separador de «Para ti» toma el color de espera y dice cuántas hay"
+
+  technical_constraints:
+    - "Pruebas primero: cada escenario es una prueba que falla antes del arreglo; cada falla es un finding con su prueba de regresión"
+    - "Qué aparece lo decide solo qdd (consola panel --json); el mod lo dibuja y QDD Móvil lee lo mismo"
+    - "Un contrato recorre todos los tipos y orígenes de pregunta: uno nuevo sin su prueba hace fallar la suite"
+    - "Sin QDD Móvil no se ofrece el teléfono; el diálogo de la terminal nunca espera al panel"
+    - "Las pruebas no tocan la máquina real: HOME y QDD_HOME temporales"
+    - "Cómo se dibuja (plegada en «? N» o arriba con botones) no cambia en este sprint: lo decide la persona en el ⏳ de MEJ-057"
+    - "Zero else y guardas"
+
+  executable_tests:
+    - "cd cli && go test ./pkg/consola ./cmd -run 'ParaTi|Pregunta|FinDeTurno'"
+    - "cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test"
+    - "qdd audit"
