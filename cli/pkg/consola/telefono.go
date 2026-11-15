@@ -137,6 +137,9 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 	if sesion == "" {
 		return nil, ErrSinSesion
 	}
+	if SesionEnDialogo(sesion) {
+		return nil, anotarEspera(root, sesion, now)
+	}
 	var tomadas []Ejecucion
 	err := conTelefono(root, now, func(cola []Ejecucion) ([]Ejecucion, error) {
 		for i, e := range cola {
@@ -144,7 +147,7 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 				continue
 			}
 			inicio := now.UTC()
-			cola[i].Estado, cola[i].Sesion, cola[i].Inicio = estado, sesion, &inicio
+			cola[i].Estado, cola[i].Sesion, cola[i].Inicio, cola[i].Motivo = estado, sesion, &inicio, ""
 			if estado == EstadoHecho {
 				cola[i].Fin = &inicio
 			}
@@ -156,10 +159,40 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 	return tomadas, err
 }
 
-// esDeOtraSesion: la instrucción va a otra sesión que sigue latiendo (MEJ-082). Si esa ya no late, cualquiera la toma:
-// no se queda sin entregar.
+// anotarEspera deja en cada instrucción que esta sesión tomaría por qué todavía no la toma (MEJ-084): el teléfono lo
+// ve en su pedido y, si vence, vence con ese motivo. Sin instrucciones que esperen, no escribe la cola.
+func anotarEspera(root, sesion string, now time.Time) error {
+	motivo := motivoSinRecibir(sesion)
+	if !hayQueAnotar(leerTelefono(root, false), motivo) {
+		return nil
+	}
+	return conTelefono(root, now, func(cola []Ejecucion) ([]Ejecucion, error) {
+		for i, e := range cola {
+			if esperaSesion(e) && !esDeOtraSesion(root, e, sesion, now) {
+				cola[i].Motivo = motivo
+			}
+		}
+		return cola, nil
+	})
+}
+
+func hayQueAnotar(cola []Ejecucion, motivo string) bool {
+	for _, e := range cola {
+		if esperaSesion(e) && e.Motivo != motivo {
+			return true
+		}
+	}
+	return false
+}
+
+func esperaSesion(e Ejecucion) bool {
+	return e.Tipo == EjecutarIA && e.Estado == EstadoPendiente
+}
+
+// esDeOtraSesion: la instrucción va a otra sesión que puede recibirla (MEJ-082). Si esa ya no late, o Claude Code la
+// tiene detenida en un diálogo (MEJ-084), cualquiera la toma: no se queda sin entregar.
 func esDeOtraSesion(root string, e Ejecucion, sesion string, now time.Time) bool {
-	return e.Para != "" && e.Para != sesion && SesionLate(root, e.Para, now)
+	return e.Para != "" && e.Para != sesion && puedeRecibir(root, e.Para, now)
 }
 
 // ConfirmarEntrega: Claude Code aceptó la instrucción que esta sesión tomó.
@@ -258,7 +291,7 @@ func normalizarTelefono(cola []Ejecucion, now time.Time) []Ejecucion {
 	for _, e := range cola {
 		if e.Tipo == EjecutarIA && e.Estado == EstadoPendiente && now.Sub(e.Creada) > VidaInstruccion {
 			fin := e.Creada.Add(VidaInstruccion)
-			e.Estado, e.Fin, e.Motivo = EstadoVencida, &fin, "ninguna sesión de Claude Code se abrió en el proyecto en "+VidaInstruccion.String()
+			e.Estado, e.Fin, e.Motivo = EstadoVencida, &fin, motivoVencida(e.Motivo)
 		}
 		if e.Tipo == EjecutarIA && e.Estado == EstadoEjecutando && e.Inicio != nil && now.Sub(*e.Inicio) > TopeEntrega {
 			fin := e.Inicio.Add(TopeEntrega)
@@ -278,6 +311,14 @@ func normalizarTelefono(cola []Ejecucion, now time.Time) []Ejecucion {
 		return out[:MaxEjecucionesCola]
 	}
 	return out
+}
+
+// motivoVencida: si alguna sesión abierta dijo por qué no la tomaba (MEJ-084), vence con ese motivo.
+func motivoVencida(espera string) string {
+	if espera != "" {
+		return "ninguna sesión pudo recibirla en " + VidaInstruccion.String() + ": " + espera
+	}
+	return "ninguna sesión de Claude Code se abrió en el proyecto en " + VidaInstruccion.String()
 }
 
 func rutaTelefono(root string) (string, error) {
