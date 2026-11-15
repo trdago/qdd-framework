@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.84] - 2026-11-15
+
 ### Agregado
 
 - **`qdd doctor` revisa los flujos compartidos (RFC 0025, FLC-01 a FLC-03):** un grupo nuevo, solo en proyectos que
