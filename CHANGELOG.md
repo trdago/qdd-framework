@@ -6,19 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.82] - 2026-11-15
+
 ### Agregado
 
 - **`qdd consola activar` instala el panel en Antigravity y VS Code (RFC 0014, fase C):** si encuentra su carpeta de
   extensiones, deja la extensión «QDD» (tablero, pedidos con «s  Sí» y fichas por aprobar) en la versión de la CLI, sin
   abrir el IDE ni tocar las demás extensiones. `qdd consola actualizar` y `qdd doctor --fix` la mantienen al día y
   `qdd consola desactivar` la quita. En Windows usa la ruta del binario real, porque sin shell no encuentra `qdd.cmd`.
-
-### Agregado
-
-- **El panel de Antigravity y VS Code ejecuta (RFC 0014, fase B):** la vista de la barra de actividad, que hasta ahora
-  solo mostraba el tablero y los pedidos, confirma pedidos con «s  Sí» y aprueba fichas, con su resultado arriba de
-  «Para ti». Trae también la vista de solo lectura (fase A, #146), que estaba solo en `main`. Todavía no la instala
-  `qdd consola activar` (fase C).
+- **El panel de Antigravity y VS Code ejecuta (RFC 0014, fase B):** la vista confirma pedidos con «s  Sí» y aprueba
+  fichas, con su resultado arriba de «Para ti». Trae también la vista de solo lectura (fase A, #146), que estaba solo
+  en `main`.
 
 ## [2.10.0-rc.81] - 2026-11-15
 
