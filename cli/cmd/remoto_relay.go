@@ -11,13 +11,11 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
-	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/incidentes"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
@@ -298,8 +296,18 @@ func cuentaWindows() string {
 	return u.Username
 }
 
-// remotoCorrer es el servicio: uno por máquina, hasta una señal o hasta que el relay ya no reconozca el PC.
+// remotoCorrer es el servicio: uno por QDD_HOME (MEJ-079), hasta una señal o hasta que el relay ya no reconozca el PC.
 func remotoCorrer(errores io.Writer) int {
+	soltar, err := remoto.UnaSolaVez()
+	if errors.Is(err, remoto.ErrYaCorre) {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return codigoYaCorre
+	}
+	if err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	defer soltar()
 	c, err := remoto.LeerRelay()
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
@@ -310,12 +318,6 @@ func remotoCorrer(errores io.Writer) int {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	soltar, err := unaSolaVez()
-	if err != nil {
-		fmt.Fprintf(errores, "[!] %v\n", err)
-		return 1
-	}
-	defer soltar()
 	ctx, cancelar := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelar()
 	c, _, err = remoto.ActualizarRelay(ctx, remotoConsultarRelay, c)
@@ -409,24 +411,6 @@ func anotarSonda(r remoto.ResultadoSonda, errores io.Writer) {
 // relanzan el /Run de la actualización o el disparador de cada 5 minutos (FND-204).
 const codigoReiniciar = 3
 
-// unaSolaVez deja <QDD_HOME>/remoto/correr.pid con este proceso; si otro vivo ya corre, es un error.
-func unaSolaVez() (func(), error) {
-	dir, err := remoto.DirRemoto()
-	if err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, err
-	}
-	ruta := filepath.Join(dir, "correr.pid")
-	if b, err := os.ReadFile(ruta); err == nil {
-		pid, _ := strconv.Atoi(strings.TrimSpace(string(b)))
-		if pid > 0 && pid != os.Getpid() && consola.ProcesoVivo(pid) {
-			return nil, fmt.Errorf("qdd remoto ya corre en esta máquina (pid %d)", pid)
-		}
-	}
-	if err := os.WriteFile(ruta, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
-		return nil, err
-	}
-	return func() { os.Remove(ruta) }, nil
-}
+// codigoYaCorre es la salida de un qdd remoto correr que no arranca porque otro ya corre con el mismo QDD_HOME
+// (MEJ-079). El servicio lo reintenta (Restart=on-failure), así que toma el relevo cuando el otro termina.
+const codigoYaCorre = 4

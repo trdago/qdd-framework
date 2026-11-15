@@ -131,18 +131,19 @@ func TestRemotoActivar_RechazaUnaClaveSecreta(t *testing.T) {
 	}
 }
 
-func TestRemotoCorrer_UnaSolaVezPorMaquina(t *testing.T) {
+// MEJ-079 (FND-230): un segundo qdd remoto correr con el mismo QDD_HOME sale con su código, sin leer el relay ni
+// conectarse, y dice qué pid tiene el candado.
+func TestRemotoCorrer_OtroConElMismoQDDHomeSaleSinConectarse_MEJ079(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
-	soltar, err := unaSolaVez()
+	soltar, err := remoto.UnaSolaVez()
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir, _ := remoto.DirRemoto()
-	os.WriteFile(dir+"/correr.pid", []byte("1"), 0o600)
-	if _, err := unaSolaVez(); err == nil && runtime.GOOS != "windows" {
-		t.Fatal("con otro vivo (pid 1), no corre otro")
+	defer soltar()
+	var errs bytes.Buffer
+	if c := remotoCorrer(&errs); c != codigoYaCorre || !strings.Contains(errs.String(), "ya corre con este QDD_HOME (pid ") {
+		t.Fatalf("sale con %d y dice quién lo tiene: %d %s", codigoYaCorre, c, errs.String())
 	}
-	soltar()
 }
 
 func TestRemotoRevocar_LocalYEnElRelay(t *testing.T) {

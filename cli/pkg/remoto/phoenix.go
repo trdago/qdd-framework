@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -43,6 +44,8 @@ type Evento struct {
 	Payload    json.RawMessage
 	Presencias map[string][]json.RawMessage
 	Motivo     string
+	// Perdidos son los eventos que no cupieron en la cola antes de este (MEJ-080): el bucle no daba abasto.
+	Perdidos int
 }
 
 // ConfigCanal es lo que hace falta para unirse: la URL del relay, la clave publicable (apikey y access_token: el PC es
@@ -78,6 +81,7 @@ type Canal struct {
 	unido     bool
 	track     json.RawMessage
 	presencia map[string]map[string]json.RawMessage
+	perdidos  atomic.Int64
 }
 
 // NuevoCanal prepara el canal sin conectarlo.
@@ -435,10 +439,14 @@ func (c *Canal) Presencias() map[string][]json.RawMessage {
 	return c.fotoPresencia()
 }
 
+// emitir no bloquea la lectura del relay: un evento que no cabe se pierde, y el siguiente que entra dice cuántos.
 func (c *Canal) emitir(e Evento) {
+	e.Perdidos = int(c.perdidos.Load())
 	select {
 	case c.eventos <- e:
+		c.perdidos.Add(-int64(e.Perdidos))
 	default:
+		c.perdidos.Add(1)
 	}
 }
 
