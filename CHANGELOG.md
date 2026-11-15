@@ -11,6 +11,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Cuando una prueba de jest, dart o flutter falla, el gate dice cuál fue, aunque quede lejos del final de la salida (FND-211, MEJ-030):** antes mostraba «FAIL ./a.test.js» y «1 failed» sin nombrar la prueba. Ahora también reconoce las marcas «✕» y «●» de jest y «[E]» de dart.
 - **Descartar un pedido ya no deja correr a los que lo esperaban (FND-213, MEJ-043):** un despliegue que esperaba un push descartado queda bloqueado, sin botón y diciendo por qué, en vez de poder correr desde el código viejo. Vuelve a esperar si la IA pide de nuevo lo descartado, o queda libre si la IA pide de nuevo el bloqueado.
 - **Un pedido con un argumento con espacios corre como se pidió (FND-212, MEJ-043):** `qdd consola pedir -- git -c credential.helper="!gh auth git-credential" push` ya no parte el argumento; el panel muestra el comando citado, exactamente como corre.
+- **Con QDD Móvil abierto, el PC ya no gasta CPU en el historial de logros que no manda (FND-214):** cuando todos los teléfonos lo piden aparte, el estado se arma sin leerlo ni pasarlo por el filtro de secretos. Además, la prueba que fallaba con la máquina cargada ya no falla.
 
 ## [2.10.0-rc.75] - 2026-11-15
 
