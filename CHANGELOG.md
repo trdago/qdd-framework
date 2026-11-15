@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.74] - 2026-11-15
+
+### Agregado
+
+- **Una pregunta de la terminal sin responder avisa al minuto (#262):** si Claude Code deja abierto un AskUserQuestion o un permiso y nadie lo responde en 1 minuto, llega una notificación del escritorio con el proyecto y la pregunta, una sola vez. Lo que respondes antes, en la terminal o en QDD Móvil, no avisa.
+
 ## [2.10.0-rc.73] - 2026-11-15
 
 ### Agregado
