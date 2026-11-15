@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.83] - 2026-11-15
+
 ### Agregado
 
 - **El panel de Antigravity y VS Code anima solo lo que cambió (RFC 0014, fase D):** como el panel de Claude Code, un
