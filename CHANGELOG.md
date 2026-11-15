@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.75] - 2026-11-15
+
 ### Agregado
 
 - **`qdd doctor` revisa toda la comunicación con QDD Móvil y repara lo que puede (REM-15 a REM-19):**
