@@ -157,6 +157,14 @@ func TestEnviarFirmaYGuardaEnviado(t *testing.T) {
 	}
 }
 
+// FND-218: el relay de QDD Móvil acepta 50 reportes por día por instalación (pedido de la persona: «dejalo en 50»),
+// pero el mensaje del tope en el PC seguía diciendo un número viejo.
+func TestErrTope_DiceElTopeDelRelay_FND218(t *testing.T) {
+	if !strings.Contains(ErrTope.Error(), "50 por día") {
+		t.Fatalf("el mensaje del tope dice el tope del relay (50 por día): %q", ErrTope.Error())
+	}
+}
+
 func TestEnviarTopeYRelaySinFuncion(t *testing.T) {
 	entorno(t)
 	var visto Reporte

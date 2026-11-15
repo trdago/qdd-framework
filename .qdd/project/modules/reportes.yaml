@@ -13,7 +13,7 @@ objetivo_tecnologico:
     arquitectura: 'Nuevo arma el reporte limpio (Limpiar: valores del baúl, credenciales, la ruta del proyecto, la carpeta del usuario y su nombre) con la versión y el sistema. En la terminal de la persona se muestra y se pregunta; sin terminal se guarda en <QDD_HOME>/reportes/pendientes y queda un pedido DePersona «qdd reportar enviar <id>». Enviar firma con la llave ed25519 de la instalación (<QDD_HOME>/reportes/llave, 0600) y hace POST <relay>/functions/v1/reportar; lo enviado queda en enviados/ con el id del relay.'
     decisiones:
         - 'Destino (decisión de la persona, 2026-11-08): el relay propio de QDD (el de QDD Móvil); la cola de mejoras lo lee como una fuente más (RFC 0024).'
-        - 'Quién envía (decisión de la persona): cualquier instalación, con su propia llave y sin cuenta; el relay pone el tope (5 por día y por llave, más uno global por hora).'
+        - 'Quién envía (decisión de la persona): cualquier instalación, con su propia llave y sin cuenta; el relay pone el tope (50 por día y por llave desde la migración 20261108160000 de qdd-movile, decisión de la persona del 2026-11-08: «dejalo en 50»; más uno global por hora).'
         - 'Qué se envía (decisión de la persona): limpio y con confirmación; la persona ve el texto exacto y lo envía con su «sí», y una IA solo lo prepara.'
         - 'La limpieza es más suave que la de incidentes: un reporte lo escribe una persona, así que quedan sus comillas, nombres de archivo y correos (puede dejar un contacto), y salen credenciales, valores del baúl, la ruta del proyecto, la carpeta del usuario y su nombre.'
         - El reporte solo agrega la versión de qdd y el sistema (linux/amd64); ni el nombre del proyecto ni la carpeta.
@@ -31,5 +31,5 @@ fuentes:
     - rfcs/0024-reportar-sin-github.md
     - cli/pkg/reportes
     - cli/cmd/reportar.go
-ultima_revision: "2026-11-08"
-revisado_en_commit: 3e2091d1e8b1
+ultima_revision: "2026-11-15"
+revisado_en_commit: 3b6801f63f6e
