@@ -1,0 +1,9 @@
+id: "FND-232"
+title: "En el teléfono, un nodo de flujo con su tarea cerrada u oculta decía «sin estado en el tablero» — MEJ-083"
+description: "2026-11-15, QDD Móvil 132 con qdd rc.87 (MEJ-083, reportado por qdd-movile): en el flujo «Cómo llega tu respuesta a un ⏳» de qdd-movile, el nodo con la tarea responder-desde-telefono-llega, cerrada desde el 2026-11-06, decía «Tarea responder-desde-telefono-llega: sin estado en el tablero». La app busca el estado de la tarea de un nodo en panel.estado.frentes, que solo trae las tareas visibles (pendientes y dentro del tope); el evento flujo no traía nada de las demás."
+impact: "Un nodo cuya tarea ya terminó se veía como si le faltara algo."
+action_taken: "El evento flujo trae en cada nodo tarea_estado {estado: abierto|cerrado|descartado, simbolos} cuando su tarea existe y no está en los frentes del panel (cerrada, descartada u oculta), calculado del estado completo. Con la tarea a la vista no viene (la app la lee de los frentes, al día), y sin esa tarea tampoco. La huella del teléfono suma solo ese estado fuera del tablero: una tarea que sale del tablero reenvía el flujo, y un avance de una tarea visible no. RFC 0013 y la ficha remoto lo dicen."
+test_result: "cli/pkg/remoto/flujos_tarea_mej083_test.go: tarea cerrada trae su estado y celdas, tarea en el tablero no lo repite, tarea inexistente no trae el campo, y cerrar la tarea cambia la huella y reenvía el flujo con descartado; no compilaban sin el campo (rojo) y pasan. TestFlujos_CambiarUnaTareaNoCambiaLaHuellaNiReenviaElFlujo sigue en verde; el evento de 200 nodos con tarea_estado en todos pesa 108 KB (tope 256 KB)."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

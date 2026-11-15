@@ -234,7 +234,12 @@ func TestFlujos_ElMasGrandeQueSePuedeGuardarCabeEnUnMensaje(t *testing.T) {
 	if err := flujo.Guardar(root, flujo.Flujo{Formato: 1, ID: "grande", Nombre: "Grande", Nodos: nodos}); err != nil {
 		t.Fatalf("este flujo tiene que caber en el tope: %v", err)
 	}
-	b, err := json.Marshal(MensajeFlujo{Version: VersionProtocolo, Clave: "c", Flujo: FlujoTelefono{ID: "grande", Nombre: "Grande", Huella: "h", Nodos: nodos}})
+	// Lo peor: cada nodo con una tarea fuera del tablero, que trae su estado (MEJ-083).
+	telefono := make([]NodoTelefono, len(nodos))
+	for i, n := range nodos {
+		telefono[i] = NodoTelefono{Nodo: n, TareaEstado: &TareaEstado{Estado: "descartado", Simbolos: []string{"✅", "✅", "⏳", "❌", "·", "—"}}}
+	}
+	b, err := json.Marshal(MensajeFlujo{Version: VersionProtocolo, Clave: "c", Flujo: FlujoTelefono{ID: "grande", Nombre: "Grande", Huella: "h", Nodos: telefono}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +288,7 @@ func TestResumenDeFlujos_LlevaLoPorEnviar(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lista []map[string]any
-	if err := json.Unmarshal(resumenDeFlujos(root), &lista); err != nil {
+	if err := json.Unmarshal(resumenDeFlujos(root, nil), &lista); err != nil {
 		t.Fatal(err)
 	}
 	if lista[0]["por_enviar"] != float64(1) || lista[0]["puede_deshacer"] != true {

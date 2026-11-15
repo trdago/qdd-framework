@@ -38,6 +38,9 @@ type ProyectoEstado struct {
 	// ReglasAtrasadas son los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos; pedido de
 	// qdd-movile, 2026-11-07). Sin el campo no se midió (la carpeta no está); [] es al día.
 	ReglasAtrasadas *[]string `json:"reglas_atrasadas,omitempty"`
+	// visibles son las tareas de los frentes del panel, antes de ocultar nada: un nodo cuya tarea no está ahí lleva
+	// tarea_estado (MEJ-083). Solo vive en este PC.
+	visibles map[string]bool
 }
 
 // Estado es lo que publica el PC: qdd remoto estado --json y el evento estado (con Seq).
@@ -108,7 +111,8 @@ func panelDe(qdd string, p registro.Proyecto, now time.Time, conLogrado bool) Pr
 		con = append(con, consola.ConLogrado)
 	}
 	panel := consola.Panel(p.Ruta, now, con...)
-	panel.Flujos = resumenDeFlujos(p.Ruta)
+	out.visibles = tareasVisibles(panel.Estado)
+	panel.Flujos = resumenDeFlujos(p.Ruta, out.visibles)
 	ocultarDelPanel(p.Ruta, &panel)
 	panel.Version = qdd
 	out.Panel = &panel
