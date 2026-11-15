@@ -126,6 +126,9 @@ type DatosConsola struct {
 	// Logrado (con «logrado») es lo que salió bien en los últimos 14 días (logrado.go); sin nada, sale como []: así QDD
 	// Móvil sabe que este qdd lo trae.
 	Logrado *[]Logro `json:"logrado,omitempty"`
+	// LogradoBajoPedido: solo en el panel que publica qdd remoto, que lo entrega a pedido del teléfono
+	// (pkg/remoto/logrado_pedido.go).
+	LogradoBajoPedido bool `json:"logrado_bajo_pedido,omitempty"`
 	// Otros (con «otros») es lo que espera a la persona en los demás proyectos de la máquina (para_ti_otros.go); sin
 	// nada, sale como []: así el panel sabe que este qdd lo trae.
 	Otros *[]ProyectoEsperando `json:"otros,omitempty"`

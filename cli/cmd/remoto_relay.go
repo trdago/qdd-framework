@@ -18,6 +18,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/incidentes"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -321,6 +322,10 @@ func remotoCorrer(errores io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(errores, "[i] sigue con el relay guardado: %v\n", err)
 	}
+	// Hasta que el canal se una, doctor no debe creer lo que dejó el servicio anterior (REM-18).
+	if err := remoto.GuardarConexion(false, time.Now()); err != nil {
+		fmt.Fprintf(errores, "[i] no se anotó el canal: %v\n", err)
+	}
 	canal := remoto.NuevoCanal(remoto.ConfigCanal{Relay: c.URL, Clave: c.Clave, Topico: cred.Topico, PresenceKey: "pc"})
 	go canal.Correr(ctx)
 	bin, _ := os.Executable()
@@ -328,6 +333,22 @@ func remotoCorrer(errores io.Writer) int {
 	b.AlPublicar = func(ok bool) {
 		if err := remoto.GuardarPublicacion(ok, time.Now()); err != nil {
 			fmt.Fprintf(errores, "[i] no se anotó el último envío: %v\n", err)
+		}
+	}
+	b.AlConectar = func(conectado bool, en time.Time) {
+		if err := remoto.GuardarConexion(conectado, en); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el canal: %v\n", err)
+		}
+	}
+	// La sonda (REM-20): el servicio prueba solo el canal con el teléfono y anota cómo salió para doctor. El tope de
+	// reinicios es el mismo que el de doctor por el canal (REM-07, REM-18): ReinicioEn de sonda.json.
+	anterior, _ := remoto.LeerSonda()
+	b.ReinicioSonda = anterior.ReinicioEn
+	b.Sondear = func(ctx context.Context) remoto.ResultadoSonda { return remotoSondear(ctx, c, cred, remoto.TopeSonda) }
+	b.AlSondear = func(r remoto.ResultadoSonda) { anotarSonda(r, errores) }
+	b.AlPesar = func(n int) {
+		if err := remoto.GuardarPeso(n, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el peso del estado: %v\n", err)
 		}
 	}
 	b.Consultar = func(ctx context.Context) (bool, error) {
@@ -345,10 +366,14 @@ func remotoCorrer(errores io.Writer) int {
 	}
 	if errors.Is(err, remoto.ErrCredenciales) {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
+		// doctor lo dice en vez de arrancar otra vez un servicio que saldría igual (REM-15).
+		if err := remoto.GuardarQuitado(cred.Topico, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó que se quitó: %v\n", err)
+		}
 		pausarAlQuitarse()
 		return 0
 	}
-	if errors.Is(err, remoto.ErrActualizado) {
+	if errors.Is(err, remoto.ErrActualizado) || errors.Is(err, remoto.ErrSondaReinicia) {
 		fmt.Fprintf(errores, "[i] %v.\n", err)
 		return codigoReiniciar
 	}
@@ -357,6 +382,26 @@ func remotoCorrer(errores io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// anotarSonda guarda la sonda para doctor y deja un incidente si el relay falló de una forma que no es la red: lo que
+// se reparó como autorreparación, y lo que siguió roto como falla del canal. Ni una ni otra lleva datos del proyecto.
+func anotarSonda(r remoto.ResultadoSonda, errores io.Writer) {
+	reinicio := time.Time{}
+	if r.Reparado == remoto.ReparaReiniciar {
+		reinicio = r.En
+	}
+	if err := remoto.GuardarSonda(r, reinicio); err != nil {
+		fmt.Fprintf(errores, "[i] no se anotó la prueba del canal: %v\n", err)
+	}
+	if r.OK || r.Tramo == remoto.TramoConexion || r.Tramo == remoto.TramoRelay {
+		return
+	}
+	if r.Reparado != "" {
+		registrarAutorreparacion("qdd remoto sonda", "el canal con el teléfono falló en el tramo "+r.Tramo, []string{conReparado(r)[2:]})
+		return
+	}
+	registrarIncidente(incidentes.TipoCanalMovil, "qdd remoto sonda", "", "el canal con el teléfono falló en el tramo "+r.Tramo+" y ya se reinició hace menos de 6 h", nil, "")
 }
 
 // codigoReiniciar es la salida con la que el servicio vuelve a arrancar qdd: así toma la versión nueva tras actualizar

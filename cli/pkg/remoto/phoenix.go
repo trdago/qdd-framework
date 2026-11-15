@@ -55,7 +55,15 @@ type ConfigCanal struct {
 	Vsn         string        // "1.0.0" (por defecto) o "2.0.0"
 	Latido      time.Duration // 0: CadaLatidoWS
 	EsperaMax   time.Duration // 0: esperaMaxima
+	// Eco pide a Realtime que devuelva los broadcasts propios (broadcast.self): solo la sonda lo usa.
+	Eco bool
 }
+
+var (
+	// ErrConexionRelay: no se llegó al relay (red, DNS, URL). ErrCanalRechazado: el relay no deja entrar al canal.
+	ErrConexionRelay  = errors.New("no se pudo conectar al relay")
+	ErrCanalRechazado = errors.New("el relay rechazó el canal")
+)
 
 // Canal es la conexión del PC a su canal. Correr la mantiene viva; Broadcast y Track se pueden llamar desde cualquier
 // goroutine.
@@ -157,7 +165,7 @@ func (c *Canal) sesion(ctx context.Context) error {
 	conn, _, err := websocket.Dial(ctxDial, dir, nil)
 	cancelar()
 	if err != nil {
-		return fmt.Errorf("no se pudo conectar al relay: %w", err)
+		return fmt.Errorf("%w: %w", ErrConexionRelay, err)
 	}
 	conn.SetReadLimit(limiteLectura)
 	ctxSesion, terminar := context.WithCancel(ctx)
@@ -187,12 +195,12 @@ func (c *Canal) soltar(conn *websocket.Conn) {
 	}
 }
 
-// unirse manda phx_join con la config de Supabase (broadcast sin eco ni ack, presence con su clave, canal privado) y
+// unirse manda phx_join con la config de Supabase (broadcast sin ack y sin eco salvo la sonda, presence con su clave, canal privado) y
 // el access_token, y espera la respuesta.
 func (c *Canal) unirse(ctx context.Context, respuestas <-chan Mensaje, errLectura <-chan error) error {
 	payload := map[string]any{
 		"config": map[string]any{
-			"broadcast":        map[string]bool{"self": false, "ack": false},
+			"broadcast":        map[string]bool{"self": c.cfg.Eco, "ack": false},
 			"presence":         map[string]any{"key": c.cfg.PresenceKey, "enabled": true},
 			"postgres_changes": []any{},
 			"private":          true,
@@ -222,7 +230,7 @@ func (c *Canal) unirse(ctx context.Context, respuestas <-chan Mensaje, errLectur
 				continue
 			}
 			if err := errDeRespuesta(m.Payload); err != nil {
-				return fmt.Errorf("el relay rechazó el canal: %w", err)
+				return fmt.Errorf("%w: %w", ErrCanalRechazado, err)
 			}
 			return c.alUnirse(ctx)
 		}

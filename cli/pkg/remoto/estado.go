@@ -50,7 +50,9 @@ type Estado struct {
 	Seq          uint64           `json:"seq,omitempty"`
 	FueraDelPlan int              `json:"fuera_del_plan,omitempty"`
 	Limites      *consola.Limites `json:"limites,omitempty"`
-	Proyectos    []ProyectoEstado `json:"proyectos"`
+	// Diagnostico: la última prueba del canal con el teléfono, solo si falló o reparó algo en el último día (sonda.go).
+	Diagnostico *DiagnosticoCanal `json:"diagnostico,omitempty"`
+	Proyectos   []ProyectoEstado  `json:"proyectos"`
 }
 
 // EstaMaquina es el nombre y el sistema del PC.
