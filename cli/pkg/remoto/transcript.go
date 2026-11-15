@@ -28,8 +28,10 @@ const (
 	maxTexto = 2000
 	// colaInicial es cuántas líneas ve quien empieza a mirar.
 	colaInicial = 40
-	// leerDelFinal es cuánto se lee del final del transcript para la cola inicial.
+	// leerDelFinal es de a cuánto se lee hacia atrás el transcript para la cola inicial.
 	leerDelFinal = 512 << 10
+	// maxCola es lo más lejos del final que se busca la cola inicial (MEJ-078).
+	maxCola = 8 << 20
 )
 
 var noAlfanumerico = regexp.MustCompile(`[^A-Za-z0-9]`)
@@ -152,7 +154,7 @@ type lector struct {
 	resto   []byte
 }
 
-// abrirLector empieza al final del transcript y devuelve las últimas colaInicial líneas.
+// abrirLector empieza al final del transcript y devuelve las últimas colaInicial líneas visibles.
 func abrirLector(archivo string) (*lector, []LineaConsola) {
 	l := &lector{archivo: archivo}
 	if archivo == "" {
@@ -167,21 +169,61 @@ func abrirLector(archivo string) (*lector, []LineaConsola) {
 	if err != nil {
 		return l, nil
 	}
-	desde := max(info.Size()-leerDelFinal, 0)
-	datos := make([]byte, info.Size()-desde)
-	n, _ := f.ReadAt(datos, desde)
-	datos = datos[:n]
-	l.pos = desde + int64(n)
-	if desde > 0 {
-		if i := bytes.IndexByte(datos, '\n'); i >= 0 {
-			datos = datos[i+1:]
-		}
-	}
-	lineas := l.partir(datos)
-	if len(lineas) > colaInicial {
-		lineas = lineas[len(lineas)-colaInicial:]
-	}
+	l.pos = info.Size()
+	lineas, resto := colaDe(f, info.Size())
+	l.resto = resto
 	return l, lineas
+}
+
+// colaDe lee el transcript hacia atrás de a leerDelFinal hasta juntar colaInicial líneas visibles o llegar a maxCola
+// del final (MEJ-078): un resultado de herramienta pesa cientos de KB y no da ninguna línea. Devuelve también lo que
+// sigue al último salto de línea, una línea a medio escribir que el lector completa después.
+func colaDe(f io.ReaderAt, fin int64) ([]LineaConsola, []byte) {
+	var lineas []LineaConsola
+	var resto, pendiente []byte // pendiente: el final de una línea que empieza más atrás
+	vioSalto := false
+	desde := fin
+	for desde > 0 && fin-desde < maxCola && len(lineas) < colaInicial {
+		inicio := max(desde-leerDelFinal, 0)
+		bloque := make([]byte, desde-inicio)
+		n, _ := f.ReadAt(bloque, inicio)
+		bloque = append(bloque[:n], pendiente...)
+		desde = inicio
+		if !vioSalto {
+			j := bytes.LastIndexByte(bloque, '\n')
+			if j < 0 {
+				pendiente = bloque
+				continue
+			}
+			resto = append([]byte{}, bloque[j+1:]...)
+			bloque = bloque[:j]
+			vioSalto = true
+		}
+		pendiente = nil
+		if desde > 0 {
+			i := bytes.IndexByte(bloque, '\n')
+			if i < 0 {
+				pendiente = bloque
+				continue
+			}
+			pendiente = append([]byte{}, bloque[:i]...)
+			bloque = bloque[i+1:]
+		}
+		lineas = append(visibles(bloque), lineas...)
+	}
+	if !vioSalto {
+		resto = pendiente
+	}
+	return lineas[max(len(lineas)-colaInicial, 0):], resto
+}
+
+// visibles son las líneas de la consola de varias líneas completas del transcript.
+func visibles(datos []byte) []LineaConsola {
+	var out []LineaConsola
+	for _, linea := range bytes.Split(datos, []byte("\n")) {
+		out = append(out, LineasDe(linea)...)
+	}
+	return out
 }
 
 // leer devuelve lo nuevo desde la última vez (solo líneas completas).
@@ -212,9 +254,5 @@ func (l *lector) partir(datos []byte) []LineaConsola {
 		return nil
 	}
 	l.resto = append([]byte{}, datos[i+1:]...)
-	var out []LineaConsola
-	for _, linea := range bytes.Split(datos[:i], []byte("\n")) {
-		out = append(out, LineasDe(linea)...)
-	}
-	return out
+	return visibles(datos[:i])
 }
