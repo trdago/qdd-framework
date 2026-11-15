@@ -2,7 +2,8 @@ import { expect, mock, test } from 'claude-code/testing'
 
 // Pedido de la persona (2026-11-08): «deberían quedar en secciones distintas; un botón en la sección Para ti que puedo
 // expandir si quiero y si no solo veo el número con un símbolo de pregunta, pero lo que estamos trabajando siempre
-// primero». Los pedidos y las fichas (acciones) van a la vista en «▶ Para ti»; las preguntas, plegadas en «? N».
+// primero». Los pedidos y las fichas (acciones) van a la vista en «▶ Para ti»; los ⏳, plegados en «? N». Lo abierto en la
+// terminal va arriba, a la vista (MEJ-057, la persona eligió «Arriba con botones», 2026-11-15).
 
 const PANEL = {
   plugin: 'qdd-tareas',
@@ -45,12 +46,12 @@ async function claves(ui) {
   return (await ui.findAll({ type: 'Button' })).map((b) => b.props.key ?? b.key)
 }
 
-test('las acciones se ven; las preguntas quedan plegadas en «? N», después de las acciones', async ($, on) => {
+test('las acciones se ven; los ⏳ quedan plegados en «? N», después de las acciones, y lo de la terminal va arriba', async ($, on) => {
   const ui = await montado($, on, [PEDIDO, FICHA, ESPERA, DIALOGO])
   const boton = await ui.find({ key: 'preguntas-ver' })
-  expect(boton.props.label).toContain('? 2')
+  expect(boton.props.label).toContain('? 1')
   expect(await ui.find({ key: 'espera-0' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /en la terminal/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /#15 ¿Cuál prefieres\?/ })).toBeDefined()
   const orden = (await claves(ui)).filter((k) => ['b-' + PEDIDO.id, 'b-' + FICHA.id, 'preguntas-ver'].includes(k))
   expect(orden).toEqual(['b-' + PEDIDO.id, 'b-' + FICHA.id, 'preguntas-ver'])
 })
@@ -59,9 +60,9 @@ test('al tocar «? N» se despliegan, con su número y sus botones; otro toque l
   const ui = await montado($, on, [PEDIDO, ESPERA, DIALOGO])
   await ui.press({ key: 'preguntas-ver' })
   expect(await ui.find({ key: 'espera-0' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /#15 ¿Cuál prefieres\? · en la terminal/ })).toBeDefined()
   await ui.press({ key: 'preguntas-ver' })
   expect(await ui.find({ key: 'espera-0' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /#15 ¿Cuál prefieres\?/ })).toBeDefined()
 })
 
 test('solo preguntas: «Para ti» muestra solo el «? N»', async ($, on) => {

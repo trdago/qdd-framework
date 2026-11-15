@@ -41,8 +41,9 @@ responde primero, el terminal o un teléfono; un permiso desde el teléfono solo
   qdd consola pregunta esperar <id>         espera hasta --segundos la respuesta de un teléfono; imprime cómo está
   qdd consola pregunta cerrar <id>          la respondió el terminal (o --vencida --motivo …)
   qdd consola pregunta vencer --sesion <id> vence las pendientes de una sesión que se cerró
-  qdd consola pregunta responder <id> <op>  un botón de un ⏳ en el panel: hecho, todavia_no o ya_no_va; imprime
-                                            {aplicado, mensaje} (mensaje: lo que el panel le envía a la IA)
+  qdd consola pregunta responder <id> <op>  un botón de «Para ti»: en un ⏳, hecho, todavia_no o ya_no_va; imprime
+                                            {aplicado, mensaje} (mensaje: lo que el panel le envía a la IA). En una
+                                            pregunta de la terminal, el valor de la opción (a, b… o permitir/negar)
   qdd consola pregunta lista [--json]       la cola de este proyecto`,
 }
 
@@ -122,14 +123,27 @@ func preguntaRegistrar(root string, entrada io.Reader, salida, errores io.Writer
 	return jsonPregunta(salida, map[string]any{"id": p.ID, "accion": "pregunta:" + p.ID, "telefono": telefono})
 }
 
-// preguntaResponder aplica un botón de un ⏳ («Ya lo hice», «Todavía no», «Ya no va») y dice qué quedó en el estado.
+// preguntaResponder aplica un botón de «▶ Para ti»: en un ⏳ («Ya lo hice», «Todavía no», «Ya no va») dice qué quedó en
+// el estado; en una pregunta de la terminal (MEJ-057), la opción elegida, que la sesión entrega a Claude Code.
 func preguntaResponder(root, id, valor string, salida, errores io.Writer) int {
+	if !consola.EsEspera(id) {
+		return preguntaResponderEnPanel(root, id, valor, salida, errores)
+	}
 	p, mensaje, err := consola.ResponderEsperaEnPC(root, id, valor, time.Now())
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
 	return jsonPregunta(salida, map[string]string{"aplicado": p.Aplicado, "mensaje": mensaje})
+}
+
+func preguntaResponderEnPanel(root, id, valor string, salida, errores io.Writer) int {
+	p, err := consola.ResponderPreguntaEnPanel(root, id, valor, time.Now())
+	if err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	return jsonPregunta(salida, map[string]string{"aplicado": "Respondida desde el panel: " + consola.RespuestaDe(p)})
 }
 
 // preguntaEsperar anota que la sesión la sigue esperando y mira la cola hasta que cambie o pase el plazo; imprime cómo

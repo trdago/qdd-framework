@@ -133,3 +133,29 @@ func entregaDe(t *testing.T, b []byte) consola.Entrega {
 
 // Issue #149: el panel responde un ⏳ con «qdd consola pregunta responder»; la respuesta entra por stdin porque es texto
 // de la persona, y lo que devuelve es lo que el panel le envía a la IA.
+
+// MEJ-057: el botón de una opción en «▶ Para ti» responde la pregunta de la terminal con el mismo comando que un ⏳.
+func TestConsolaPregunta_ResponderDesdeElPanelUnaPreguntaDeLaTerminal_MEJ057(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	var salida, errores bytes.Buffer
+	if codigo := preguntaRegistrar(root, strings.NewReader(askPrueba), &salida, &errores); codigo != 0 {
+		t.Fatalf("%d %s", codigo, errores.String())
+	}
+	var r struct{ ID string }
+	json.Unmarshal(salida.Bytes(), &r)
+	salida.Reset()
+	if codigo := preguntaResponder(root, "pregunta:"+r.ID, "b", &salida, &errores); codigo != 0 {
+		t.Fatalf("%d %s", codigo, errores.String())
+	}
+	if !strings.Contains(salida.String(), "No") {
+		t.Fatalf("dice qué quedó respondido: %s", salida.String())
+	}
+	p, _ := consola.PreguntaDe(root, r.ID, time.Now())
+	if e := consola.EntregaDe(p); e.Respuestas["¿Seguimos?"] != "No" || e.Lugar != consola.LugarPanel {
+		t.Fatalf("la sesión recibe la opción del panel: %+v", e)
+	}
+	if codigo := preguntaResponder(root, "pregunta:"+r.ID, "a", &salida, &errores); codigo != 1 {
+		t.Fatalf("ya respondida es un error: %d", codigo)
+	}
+}
