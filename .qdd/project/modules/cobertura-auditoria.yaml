@@ -27,5 +27,5 @@ pruebas:
 fuentes:
     - rfcs/0005-reglas-como-principios.md
     - cli/pkg/audit/cobertura.go
-ultima_revision: "2026-11-05"
-revisado_en_commit: 1e8cb33f0475
+ultima_revision: "2026-11-15"
+revisado_en_commit: c9c0466887ed
