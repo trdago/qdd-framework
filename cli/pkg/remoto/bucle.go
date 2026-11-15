@@ -50,6 +50,9 @@ type Telefono struct {
 	Rol         string `json:"rol"`
 	Dispositivo string `json:"dispositivo"`
 	Mirando     string `json:"mirando"`
+	// VersionApp y Capacidades son opcionales (contrato con qdd-movile, 2026-11-15): lo que la app sabe hacer.
+	VersionApp  string   `json:"version_app,omitempty"`
+	Capacidades []string `json:"capacidades,omitempty"`
 }
 
 // Bucle es qdd remoto correr. Sus campos de estado los toca solo la goroutine de Correr.
@@ -73,9 +76,13 @@ type Bucle struct {
 	CadaLatido time.Duration
 	CadaSondeo time.Duration
 
-	desde       time.Time
-	plan        Plan
-	telefonos   []Telefono
+	desde     time.Time
+	plan      Plan
+	telefonos []Telefono
+	// sinLogrado: el último estado armado no llevó lo logrado porque todos los teléfonos lo piden (logrado_pedido.go);
+	// logrados guarda la última respuesta por proyecto, para no recalcularla dentro de EntreLogrados.
+	sinLogrado  bool
+	logrados    map[string]respuestaGuardada
 	seq         uint64
 	base        bool              // los teléfonos de ahora ya tienen un estado completo
 	enviados    map[string]string // clave → JSON del panel que tienen los teléfonos
@@ -303,6 +310,10 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 		b.alSincronizar(ctx)
 		return
 	}
+	if e.Evento == EventoPedirLogrado {
+		b.alPedirLogrado(ctx, e.Payload)
+		return
+	}
 	if e.Evento == "accion" {
 		b.alAccion(ctx, e.Payload)
 	}
@@ -347,7 +358,9 @@ func (b *Bucle) alPresencia(ctx context.Context, presencias map[string][]json.Ra
 	if antes == 0 {
 		b.logf("%d teléfono(s) en el canal", len(b.telefonos))
 	}
-	if !b.base {
+	// Si cambia quién pide lo logrado (se suma un teléfono que no lo pide, o se va), va un estado completo: un delta lo
+	// mandaría solo cuando cambie algo más.
+	if !b.base || b.todosPidenLogrado() != b.sinLogrado {
 		b.mandarEstado(ctx, b.armar())
 	}
 }
@@ -365,6 +378,7 @@ func (b *Bucle) armar() Estado {
 	b.vigia.vigilar(carpetasDe(reg))
 	e := Armar(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos())
 	ConEjecutar(&e, b.plan, b.ahora())
+	b.aplicarLogradoBajoPedido(&e)
 	e.Diagnostico = diagnosticoDe(b.ultimaSonda, b.ahora())
 	return e
 }

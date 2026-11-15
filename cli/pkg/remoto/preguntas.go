@@ -166,14 +166,21 @@ func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 		panel.Acciones[i] = ocultarAccion(o, a)
 	}
 	if panel.Logrado != nil {
-		logrado := make([]consola.Logro, len(*panel.Logrado))
-		for i, l := range *panel.Logrado {
-			l.Titulo, l.Detalle, l.Salida = o.Ocultar(l.Titulo), o.Ocultar(l.Detalle), salidaParaTelefono(o.Ocultar(l.Salida))
-			l.Motivo, l.Criterio, l.Evidencia = o.Ocultar(l.Motivo), o.Ocultar(l.Criterio), o.Ocultar(l.Evidencia)
-			logrado[i] = l
-		}
+		logrado := ocultarLogrado(o, *panel.Logrado, salidaParaTelefono)
 		panel.Logrado = &logrado
 	}
+}
+
+// ocultarLogrado pasa cada texto de lo logrado por el ocultador (inv. 16), en una copia: la lista de quien la armó no
+// cambia. salida recorta la salida: en el estado, a TopeSalidaTelefono; a pedido, queda la del contrato.
+func ocultarLogrado(o *Ocultador, lista []consola.Logro, salida func(string) string) []consola.Logro {
+	logrado := make([]consola.Logro, len(lista))
+	for i, l := range lista {
+		l.Titulo, l.Detalle, l.Salida = o.Ocultar(l.Titulo), o.Ocultar(l.Detalle), salida(o.Ocultar(l.Salida))
+		l.Motivo, l.Criterio, l.Evidencia = o.Ocultar(l.Motivo), o.Ocultar(l.Criterio), o.Ocultar(l.Evidencia)
+		logrado[i] = l
+	}
+	return logrado
 }
 
 // ocultarTablero tapa los textos que escribe la IA en el tablero: nombres, criterios, lo que espera y lo que falla.
