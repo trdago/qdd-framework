@@ -43,14 +43,14 @@ function preparar(on, r) {
     const argv = [...e.argv]
     r.llamadas.push(argv)
     if (argv.includes('binario')) return { value: { exitCode: 1, stdout: '', stderr: '' } }
-    if (argv[2] === 'panel') return { value: ok({ formato: 1, carpeta: '/work', estado: null, motivo: 'x', acciones: [], ...(r.otros ? { otros: r.otros } : {}) }) }
+    if (argv[2] === 'panel') return { value: ok({ formato: 1, carpeta: '/work', estado: null, motivo: 'x', acciones: r.propias || [], ...(r.otros ? { otros: r.otros } : {}) }) }
     if (argv.includes('responder')) return { value: ok({ aplicado: 'listo', mensaje: 'Respondo a tu ⏳…' }) }
     return { value: ok({}) }
   })
 }
 
-async function montado($, on, otros) {
-  const r = { otros, llamadas: [] as string[][], enviados: [] as string[] }
+async function montado($, on, otros, propias?) {
+  const r = { otros, propias, llamadas: [] as string[][], enviados: [] as string[] }
   preparar(on, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await pausa()
@@ -116,4 +116,37 @@ test('sin otros proyectos (o con un qdd anterior) «Para ti» queda como antes',
   const { ui } = await montado($, on, undefined)
   expect(await ui.find({ type: 'Text', text: /◦ / })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /otros proyectos/ })).toBeUndefined()
+})
+
+// 2026-11-15, captura de la persona: «¿por qué se mezclaron los proyectos en 1 solo proyecto?». Cada «? N preguntas»
+// quedaba a una línea de su nombre y a una línea del nombre siguiente, y lo propio no tenía nombre: se leía como una
+// sola lista. El nombre y su «? N» van en la misma línea, lo demás sangrado debajo, y lo propio lleva su nombre.
+const OTRA = '/home/p/sfrc'
+const SEGUNDO = { proyecto: 'sfrc', carpeta: OTRA, acciones: [{ ...ESPERA, id: 'pregunta:espera-s' }], esperas: [{ pregunta: 'pregunta:espera-s', atender: 'atender:s:0', donde: 'S · Código', texto: '¿Va?' }] }
+const claves = (n) => (n?.children || []).map((c) => c.props?.key ?? c.key)
+
+test('el nombre de cada proyecto y su «? N» van en la misma línea, y lo demás sangrado debajo', async ($, on) => {
+  const { ui } = await montado($, on, [OTRO, SEGUNDO])
+  for (const carpeta of [CARPETA, OTRA]) {
+    const cabecera = await ui.find({ key: 'ot-cab-' + carpeta })
+    expect(cabecera.props.flexDirection).toBe('row')
+    expect(JSON.stringify(cabecera.children[0])).toContain('◦ ' + carpeta.split('/').pop())
+    expect(claves(cabecera)[1]).toBe('ot-ver-' + carpeta)
+    expect(cabecera.children).toHaveLength(2)
+  }
+  const grupo = await ui.find({ key: 'ot-' + CARPETA })
+  expect(grupo.props.rowGap ?? 0).toBe(0)
+  expect((await ui.find({ key: 'ot-cont-' + CARPETA })).props.paddingLeft).toBe(2)
+  expect(await ui.find({ key: 'ot-cont-' + OTRA })).toBeUndefined()
+})
+
+test('con otros proyectos, lo propio lleva su nombre; sin otros, no', async ($, on) => {
+  const { ui } = await montado($, on, [OTRO], [{ ...PEDIDO, id: 'pedido:9' }])
+  expect(await ui.find({ type: 'Text', text: /◦ work · este proyecto/ })).toBeDefined()
+  expect((await ui.find({ key: 'pt-propio-cont' })).props.paddingLeft).toBe(2)
+})
+
+test('sin otros proyectos, lo propio no lleva nombre', async ($, on) => {
+  const { ui } = await montado($, on, undefined, [{ ...PEDIDO, id: 'pedido:9' }])
+  expect(await ui.find({ type: 'Text', text: /este proyecto/ })).toBeUndefined()
 })

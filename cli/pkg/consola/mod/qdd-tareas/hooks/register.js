@@ -2085,7 +2085,7 @@ function enZona(Box, Text, Button, $, aqui) {
 // terminal, a la vista y con un botón por opción (MEJ-057, la persona eligió «Arriba con botones», 2026-11-15); después
 // las acciones (pedidos y fichas), lo que no lleva turno y los hechos, y al final los ⏳, plegados en «? N» (pedido de la
 // persona, 2026-11-08). Lo que se está confirmando cambia su tarjeta por la confirmación.
-function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
+function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = [], carpeta = '') {
   const lista = pedidos(todas)
   const turnos = todas.filter((a) => a.turno)
   const locales = [...sinRegistrar.values()]
@@ -2141,9 +2141,18 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
   }))
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder || enOtros ? COLOR.espera : undefined, resumen, ancho),
-    Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: [...cuerpo, ...otros.map((p) => otroProyecto(Box, Text, Button, $, p, ancho))] }),
+    Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: [...propio(Box, Text, cuerpo, otros, carpeta), ...otros.map((p) => otroProyecto(Box, Text, Button, $, p, ancho))] }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
+}
+
+// propio: con otros proyectos debajo, lo de este proyecto lleva su nombre y va sangrado como el de los demás; sin
+// otros, «Para ti» queda como antes.
+function propio(Box, Text, cuerpo, otros, carpeta) {
+  if (otros.length === 0 || cuerpo.length === 0) return cuerpo
+  const nombre = carpeta.split(/[\\/]/).filter(Boolean).pop() || 'este proyecto'
+  const titulo = Text({ key: 'pt-propio-t', color: COLOR.espera, weight: 'bold', wrap: 'truncate-end', children: ['◦ ' + nombre + ' · este proyecto'] })
+  return [Box({ key: 'pt-propio', flexDirection: 'column', children: [titulo, Box({ key: 'pt-propio-cont', flexDirection: 'column', rowGap: 1, paddingLeft: 2, children: cuerpo })] })]
 }
 
 // esConfirmacionDe: la confirmación abierta es de esta acción de este proyecto (otro proyecto puede repetir el id).
@@ -2169,15 +2178,25 @@ function otroProyecto(Box, Text, Button, $, p, ancho) {
     .filter((a) => a.tipo === 'pedido' || a.tipo === 'aprobar')
     .map((a) => (esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : Button({ key: 'ot-' + p.carpeta + '-' + a.id, label: a.etiqueta, onPress: () => pedir($, a) })))
   const esperas = (p.esperas || []).map((q) => ({ ...q, dir: p.carpeta }))
+  // Captura de la persona (2026-11-15): con un renglón entre el nombre y su «? N», cada cuenta quedaba a la misma distancia
+  // de su proyecto y del siguiente, y todo se leía como un solo proyecto. El nombre y su «? N» van en la misma línea y lo
+  // demás sangrado debajo; el renglón queda solo entre proyectos.
   const titulo = Text({ key: 'ot-t-' + p.carpeta, color: COLOR.espera, weight: 'bold', wrap: 'truncate-end', children: ['◦ ' + p.proyecto] })
-  return Box({ key: 'ot-' + p.carpeta, flexDirection: 'column', rowGap: 1, children: [titulo, ...terminal, ...botones, ...esperasDeOtro(Box, Text, Button, $, p.carpeta, esperas, ancho)] })
+  const cabecera = Box({ key: 'ot-cab-' + p.carpeta, flexDirection: 'row', columnGap: 2, children: [titulo, ...botonEsperasDeOtro(Button, $, p.carpeta, esperas)] })
+  const contenido = [...terminal, ...botones, ...esperasDeOtro(Box, Text, Button, $, p.carpeta, esperas, ancho)]
+  if (contenido.length === 0) return Box({ key: 'ot-' + p.carpeta, flexDirection: 'column', children: [cabecera] })
+  return Box({ key: 'ot-' + p.carpeta, flexDirection: 'column', children: [cabecera, Box({ key: 'ot-cont-' + p.carpeta, flexDirection: 'column', rowGap: 1, paddingLeft: 2, children: contenido })] })
+}
+
+// botonEsperasDeOtro: el «? N» de los ⏳ de otro proyecto, que va en la línea de su nombre.
+function botonEsperasDeOtro(Button, $, carpeta, esperas) {
+  if (esperas.length === 0) return []
+  const abierto = otrosAbiertos.has(carpeta)
+  return [Button({ key: 'ot-ver-' + carpeta, label: (abierto ? '▾ ' : '▸ ') + '? ' + esperas.length + (esperas.length === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarOtro($, carpeta) })]
 }
 
 function esperasDeOtro(Box, Text, Button, $, carpeta, esperas, ancho) {
-  if (esperas.length === 0) return []
-  const abierto = otrosAbiertos.has(carpeta)
-  const boton = Button({ key: 'ot-ver-' + carpeta, label: (abierto ? '▾ ' : '▸ ') + '? ' + esperas.length + (esperas.length === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarOtro($, carpeta) })
-  if (!abierto) return [boton]
+  if (esperas.length === 0 || !otrosAbiertos.has(carpeta)) return []
   const filas = esperas.slice(0, TOPE_ESPERAS).map((q, i) => {
     const texto = Text({ key: 'ot-espera-t-' + carpeta + '-' + i, color: COLOR.espera, wrap: 'wrap', children: [alAncho(q.texto, Math.max(8, ancho - 2))] })
     const donde = Text({ key: 'ot-espera-d-' + carpeta + '-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
@@ -2186,7 +2205,7 @@ function esperasDeOtro(Box, Text, Button, $, carpeta, esperas, ancho) {
   })
   const resto = esperas.length - filas.length
   const mas = resto > 0 ? [Text({ key: 'ot-mas-' + carpeta, dimColor: true, size: 'caption', children: ['y ' + resto + ' más: en el panel de ese proyecto'] })] : []
-  return [boton, ...filas, ...mas]
+  return [...filas, ...mas]
 }
 
 function alternarOtro($, carpeta) {
@@ -2441,7 +2460,7 @@ function dibujarVista($, Box, Text, Button, Input, Select, ancho) {
       cabecera(Box, Text, Button, $, e, lista),
       ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE),
       ...cuerpo,
-      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho, datos.otros || []),
+      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho, datos.otros || [], datos.carpeta || ''),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
       Box({ marginTop: 1, children: [pie(Text)] }),

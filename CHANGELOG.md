@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.88] - 2026-11-15
+
+### Corregido
+
+- **«Para ti» ya no parece mezclar los proyectos en uno (FND-231):** en el panel de Claude Code, el nombre de cada
+  proyecto y su «? N preguntas» van en la misma línea y lo demás sangrado debajo; con otros proyectos, lo de este
+  proyecto lleva su nombre. Antes cada cuenta quedaba a la misma distancia de su proyecto y del siguiente.
+
 ## [2.10.0-rc.87] - 2026-11-15
 
 ### Corregido
