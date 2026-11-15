@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.85] - 2026-11-15
+
 ### Agregado
 
 - **`qdd ambiente levantar` muestra el plan del DNS de un ambiente (RFC 0023, fase 3):** `.qdd/ambientes.yaml` declara
