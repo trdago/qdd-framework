@@ -6,9 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.79] - 2026-11-15
+
 ### Agregado
 
 - **Un tablero que no se queda atrás (RFC 0017 §2 y §3, MEJ-010):** una tarea puede declarar su módulo (`qdd estado tarea <id> --modulo <ficha>`, o `modulo` en `qdd_estado`), y `qdd estado set` anota en ella la hora de su última celda (`tocada_el`). Con los dos, `qdd estado check` avisa sin bloquear de los commits en las rutas de la ficha desde esa celda, y `qdd_project_context` pide a la IA revisar el nombre de la tarea y el criterio de su objetivo cuando la ficha cambió sus decisiones u objetivo operativo después. Solo lo corren check y el contexto, nunca el panel ni la barra; si git tarda más de 200 ms, se limitan al objetivo en foco y lo dicen. Los campos son opcionales: un `estado.yaml` sin ellos no cambia, y un qdd anterior lo lee igual.
+- **`qdd audit` dice qué no pudo revisar (RFC 0005, fase 1):** junto al puntaje informa cuántos principios se evaluaron en
+  todo el proyecto, y qué quedó sin revisar, por qué y dónde. Un 100 ya no sugiere que se revisó todo. No cambia el puntaje
+  ni lo que bloquea. También aparece en `qdd certify` y en las tools MCP. Si las pruebas no corrieron porque una regla ya
+  bloquea, la cobertura lo dice en vez de darlas por revisadas (FND-225).
 
 ### Corregido
 

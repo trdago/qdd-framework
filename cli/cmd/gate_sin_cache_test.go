@@ -107,8 +107,9 @@ func TestCertificar_SiempreEsUnaCorridaCompleta_RFC0020(t *testing.T) {
 		if fin >= 0 {
 			cuerpo = cuerpo[:fin]
 		}
-		if !strings.Contains(cuerpo, "RunAllCompleto()") || strings.Contains(cuerpo, ".RunAll()") {
-			t.Errorf("%s: %s tiene que usar RunAllCompleto", archivo, desde)
+		completo := strings.Contains(cuerpo, "RunAllCompleto()") || strings.Contains(cuerpo, "EvaluarCompleto()")
+		if !completo || strings.Contains(cuerpo, ".RunAll()") || strings.Contains(cuerpo, ".Evaluar()") {
+			t.Errorf("%s: %s tiene que usar RunAllCompleto o EvaluarCompleto", archivo, desde)
 		}
 	}
 }
