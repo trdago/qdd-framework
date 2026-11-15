@@ -135,6 +135,9 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	if g := buildFlujosChecks(projectPath); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
+	if g := buildFlujosCompartidosChecks(projectPath, time.Now()); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	return list
 }
 
@@ -574,6 +577,10 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 		}
 		if g.Name == grupoFlujos {
 			repairFlujos(projectPath, g)
+			continue
+		}
+		if g.Name == grupoFlujosCompartidos {
+			repairFlujosCompartidos(projectPath, g, time.Now())
 			continue
 		}
 		if g.Name == grupoMovil {
