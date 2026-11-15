@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.72] - 2026-11-15
+
+### Cambiado
+
+- **Las preguntas de la terminal van primero en «▶ Para ti», con un botón por opción (MEJ-057):** una pregunta de la IA (AskUserQuestion), un permiso o la pregunta de un comando qdd se ve arriba, con su texto, y se responde desde el panel. Ya no queda plegada en «? N»; los ⏳ sí siguen plegados. Varias preguntas juntas se responden en la terminal.
+
 ## [2.10.0-rc.71] - 2026-11-15
 
 ### Corregido
