@@ -3914,6 +3914,7 @@ const MOTIVOS_GOAL = {
   sin_avance: '3 recordatorios sin avance',
   sin_limite: 'sin límite de uso',
   espera_persona: 'espera tu respuesta',
+  todo_espera: 'todo espera a la persona',
 }
 const goal = { soportado: true, corriendo: false, silencioMs: 0, enTurno: false }
 

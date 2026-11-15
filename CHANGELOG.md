@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **El modo goal deja de empujar a la IA con tareas que esperan a la persona o a otros, y te avisa una vez qué te toca (FND-216, MEJ-055):** antes recordaba «quedan 64 tareas abiertas», contando las que esperan tu respuesta, un uso real, un CI o un tercero; gastaba los 3 recordatorios y se detenía «sin avance» sin decirte nada útil. Ahora el recordatorio nombra solo lo que la IA puede mover (en qdd hoy, 43 de 66). Si no queda nada, el modo queda en pausa («todo espera a la persona» en el panel) y recibes un solo aviso con hasta 5 ⏳, qué y de quién; vuelve a avisar solo si eso cambia, y sigue solo cuando hay algo que la IA puede mover. Una Validación real sin empezar cuenta como uso real tuyo, y una tarea que depende de otra abierta espera a esa otra.
+
 ## [2.10.0-rc.76] - 2026-11-15
 
 ### Corregido
