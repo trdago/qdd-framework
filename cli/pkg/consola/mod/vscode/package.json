@@ -1,0 +1,51 @@
+{
+  "name": "qdd-panel",
+  "displayName": "QDD",
+  "description": "El panel de QDD: el tablero de tareas, los pedidos y las fichas por aprobar",
+  "publisher": "qdd",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "qdd",
+          "title": "QDD",
+          "icon": "media/icono.svg"
+        }
+      ]
+    },
+    "views": {
+      "qdd": [
+        {
+          "type": "webview",
+          "id": "qdd.panel",
+          "name": "Tareas"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "qdd.elegirCarpeta",
+        "title": "QDD: Elegir proyecto",
+        "icon": "$(folder-opened)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "qdd.elegirCarpeta",
+          "when": "view == qdd.panel",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

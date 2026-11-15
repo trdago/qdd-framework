@@ -1,7 +1,7 @@
 # RFC 0014: El panel de QDD en Antigravity (y VS Code)
 
-- Estado: propuesto (2026-11-03), objetivo «El panel de QDD en Antigravity» del estado de qdd
-- Versión: preview en la 2.8.0-rc que salga con la fase A; estable con la siguiente versión que cumpla VER-05
+- Estado: aceptado (2026-11-05), opción recomendada que eligió el modo goal; falta que la persona la confirme. Objetivo «El panel de QDD en Antigravity» del estado de qdd
+- Versión: preview en la primera rc que salga con la fase C, porque antes nada la instala; estable con la siguiente versión que cumpla VER-05
 - Nombres: extensión **`qdd.qdd-panel`** (una vista en la barra de actividad), módulo **`pkg/consola/mod/vscode`**
 
 ## Problema
@@ -17,10 +17,13 @@ igual que en Claude Code, sin lógica repetida: todo sale de `qdd consola panel 
 
 1. **Una extensión de VS Code.** Antigravity es un fork de VS Code y carga sus extensiones; la misma extensión sirve
    en VS Code y Cursor. Es una `WebviewView` en la barra de actividad («QDD»).
-2. **La extensión dibuja; qdd decide (RFC 0006 §3.7).** Lee `qdd consola panel --json` cada 2 s solo mientras la
-   vista está visible, y redibuja si cambió. Para actuar llama `qdd consola accion <id>` y, después de «s  Sí»,
-   `qdd consola accion <id> --confirmado --sesion antigravity`: qdd vuelve a calcular la acción, la autoriza y la lanza
-   aparte (FND-089), igual que en Claude Code. La extensión no conoce reglas de pedidos, fichas ni PRs.
+2. **La extensión dibuja; qdd decide (RFC 0006 §3.7).** Solo mientras la vista está visible, sigue
+   `qdd consola seguir` (RFC 0016: la misma línea JSON que `qdd consola panel --json`, una por cada cambio, con un solo
+   proceso). Con un qdd que no lo trae, lee `qdd consola panel --json` cada 2 s. Para actuar llama
+   `qdd consola accion <id>` y, después de «s  Sí», `qdd consola accion <id> --confirmado`: qdd vuelve a calcular la
+   acción, la autoriza y la lanza aparte (FND-089), igual que en Claude Code. Sin `--sesion`: no hay una sesión de chat
+   que reclame el aviso, y un pedido hecho con aviso pendiente no sale de la cola. La extensión no conoce reglas de
+   pedidos, fichas ni PRs.
 3. **Mismo contrato que los otros paneles.** Lo que no sepa dibujar lo ignora (campos nuevos del JSON); un qdd más
    viejo que no trae un campo no la rompe. Los PRs opcionales (rc.22) se ven igual: no abren la vista.
 4. **Sin shell.** La extensión ejecuta el binario `qdd` con `execFile` y argumentos fijos; el webview solo manda ids
@@ -63,7 +66,24 @@ igual que en Claude Code, sin lógica repetida: todo sale de `qdd consola panel 
 | C | `qdd consola activar/actualizar` y `qdd doctor` la instalan y reparan | un PC limpio queda con la extensión tras `qdd consola activar` |
 | D | Materializar lo que cambia (efectos de RFC 0006) | la vista anima solo lo que cambió, con `qdd consola efectos` |
 
-## Preguntas abiertas
+## Preguntas resueltas (2026-11-05, opción recomendada que eligió el modo goal)
 
-1. ¿Publicarla también en Open VSX para instalarla a mano, o solo vía `qdd consola activar`? (por ahora, solo qdd)
-2. ¿La vista abre sola cuando llega un pedido de la IA, como en Claude Code? (propuesta: sí, salvo los PRs opcionales)
+1. La extensión se instala solo con `qdd consola activar`, sin publicarla en Open VSX.
+2. La vista se abre sola cuando llega un pedido de la IA, como en Claude Code, salvo los PRs opcionales (fase B).
+
+## Fase B (2026-11-15)
+
+El webview muestra «Ejecutar» en cada pedido que se puede confirmar y «Aprobar» en cada ficha; tocarlo (o la tecla del
+pedido con la vista enfocada) pregunta «s  Sí / n  No» (`media/pasos.js`, lógica pura). El Sí manda solo el id; la
+extensión lo busca en la última lectura (`accionDe`: un id que la vista no ofrece no llega a qdd), ejecuta
+`qdd consola accion <id> --confirmado` una cosa a la vez y devuelve el resultado, que se ve arriba de «Para ti»:
+«✓», «◷ Todavía no» (exit 75) o «✗» con las últimas líneas. Sin `--sesion`, como dice la decisión 2.
+
+Queda fuera la pregunta resuelta 2 (abrir la vista sola cuando llega un pedido): enterarse con la vista oculta pide
+leer a qdd en segundo plano, y eso choca con la invariante de la ficha («oculta no deja ningún proceso de qdd»). Se
+retoma con la fase C, junto a cómo `qdd consola activar` deja la extensión.
+
+## Pendiente para la fase C
+
+La extensión busca `qdd` en `QDD_BIN` o en el PATH. En Windows, `execFile` sin shell no ejecuta el `qdd.cmd` de npm:
+`qdd consola activar` tiene que dejarle la ruta del binario real.
