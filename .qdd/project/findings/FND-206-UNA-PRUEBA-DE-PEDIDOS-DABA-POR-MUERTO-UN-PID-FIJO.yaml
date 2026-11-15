@@ -1,0 +1,9 @@
+id: "FND-206"
+title: "Una prueba de pedidos armados daba por muerto el PID fijo 999999 y fallaba si ese proceso existía"
+description: "2026-11-15, Linux, al publicar la rc.71: el pre-push frenó el tag con TestArmado_SiMuereElProcesoQueEsperabaVuelveAPendiente en rojo (cinco de cinco corridas). La prueba anotaba como dueño del pedido armado el PID 999999, dando por hecho que no existe; en este PC ese PID lo tenía un proceso real (HeapHelper), así que qdd lo vio vivo y con razón no devolvió el pedido a pendiente. El código estaba bien; la prueba dependía de la máquina."
+impact: "Bloqueaba al azar el push de un tag (pre-push) y el CI, sin relación con el cambio que se publicaba."
+action_taken: "La prueba usa procesoMuerto(t) (pedidos_vivos_test.go): el PID de un proceso que lanza y deja terminar, como las pruebas de FND-089."
+test_result: "cli/pkg/consola/pedidos_armado_test.go: TestArmado_SiMuereElProcesoQueEsperabaVuelveAPendiente falló cinco de cinco con el PID 999999 vivo y pasa con el arreglo; go test ./pkg/consola en verde."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"
