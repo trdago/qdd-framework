@@ -1,0 +1,9 @@
+id: "FND-233"
+title: "Con dos sesiones en un proyecto, el teléfono mostraba la consola de una y entregaba la instrucción a la otra — MEJ-082"
+description: "2026-11-15, qdd rc.87, proyecto qdd-movile (MEJ-082, reportado por qdd-movile): con dos sesiones de Claude Code abiertas en la carpeta (b88803e4 trabajando y d8344360 inactiva), la consola del teléfono mostraba b88803e4 (TranscriptDe toma el transcript más reciente), pero la instrucción «Prueba desde el telefono…» la tomó d8344360: consola.tomar se la da a la primera sesión viva que la pide. La persona no vio ni el mensaje ni la respuesta en la consola que miraba, y QDD Móvil solo podía decir «Entregado»."
+impact: "Con varias sesiones abiertas, lo que la persona manda desde el teléfono no aparece en la consola que mira, y no sabe a qué sesión llegó."
+action_taken: "Ejecucion.Para: qdd remoto dirige cada instrucción para la IA a la sesión cuya conversación publica la consola (el nombre del transcript es el id de la sesión), si esa sesión late. consola.tomar solo se la da a esa sesión mientras late; si dejó de latir, la toma cualquiera, para que no quede sin entregar. El evento consola trae sesion y el pedido telefono:<solicitud> del panel dice en sesion a qué sesión va o cuál la recibió. RFC 0013 lo documenta."
+test_result: "cli/pkg/consola/telefono_mej082_test.go (dirigida solo la toma esa sesión, si no late la toma otra, el pedido dice la sesión) y cli/pkg/remoto/consola_sesion_mej082_test.go (sesionDeLaConsola es la del transcript que se muestra mientras late; la instrucción del teléfono la toma la sesión de la consola y no la otra; el evento consola trae sesion) no compilaban sin los campos (rojo) y pasan; go test ./pkg/remoto/... ./pkg/consola/ en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

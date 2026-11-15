@@ -194,7 +194,7 @@ existen y el nuestro no se configura a mano.
 | `responder` | relay → PC | El teléfono responde una pregunta de la consola con `qdd_remoto_responder`; el relay lo firma como `accion`, con la respuesta entre la pregunta y el dispositivo (ver «Preguntas desde el teléfono»). |
 | `ejecutar` | relay → PC | Solo Pro: el teléfono llama a `qdd_remoto_ejecutar`; el relay lo firma como `responder`, con el tipo y el texto (ver «Ejecutar desde el teléfono»). |
 | `accion_estado` | PC → teléfono | `{solicitud, estado: recibida/ejecutando/hecha/fallo/ya_aprobado/rechazada/vencida, resultado, lugar}`. |
-| `consola` | PC → teléfono | Fragmentos de la conversación o de un pedido, solo con espectadores. |
+| `consola` | PC → teléfono | Fragmentos de la conversación o de un pedido, solo con espectadores. Lleva `sesion?` (MEJ-082, propuesta de qdd-movile, 2026-11-15): la sesión de Claude Code cuya conversación se muestra (el nombre de su transcript). Una instrucción del teléfono va a esa sesión mientras late (la toma solo ella; si deja de latir, cualquiera), y el pedido `telefono:<solicitud>` del panel dice en `sesion` a qué sesión va o cuál la recibió: con varias sesiones abiertas, la app puede seguir la respuesta en la consola correcta. |
 
 Presence: el PC publica `{rol: "pc", version_qdd, desde}`; cada teléfono `{rol: "movil", dispositivo, mirando}`. Cada
 mensaje lleva `version`; un cliente que no la entiende lo dice y no adivina.

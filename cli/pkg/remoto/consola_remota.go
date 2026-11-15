@@ -31,6 +31,8 @@ type MensajeConsola struct {
 	Inicio   bool           `json:"inicio,omitempty"` // la primera tanda de quien empieza a mirar: reemplaza lo que había
 	Lineas   []LineaConsola `json:"lineas,omitempty"`
 	Pausada  string         `json:"pausada,omitempty"`
+	// Sesion es la sesión de Claude Code cuya conversación se muestra (MEJ-082): una instrucción va a ella si late.
+	Sesion string `json:"sesion,omitempty"`
 }
 
 // mirada es la consola de un proyecto que alguien mira.
@@ -216,7 +218,7 @@ func (b *Bucle) mandarConsola(ctx context.Context, m *mirada) {
 	if len(tanda) > maxLineasMensaje {
 		tanda = tanda[:maxLineasMensaje]
 	}
-	msg := MensajeConsola{Version: VersionProtocolo, Proyecto: m.clave, Inicio: m.inicio, Lineas: tanda}
+	msg := MensajeConsola{Version: VersionProtocolo, Proyecto: m.clave, Inicio: m.inicio, Lineas: tanda, Sesion: sesionDeTranscript(m.lector.archivo)}
 	if !b.broadcast(ctx, "consola", msg) {
 		return
 	}

@@ -449,7 +449,7 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		b.cerrar(ctx, s, EstadoRechazada, "ya corre otro comando mandado desde el teléfono en este proyecto: espera a que termine")
 		return
 	}
-	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: e.Tipo, Texto: e.Texto, Dispositivo: s.Dispositivo, Nombre: s.Nombre}
+	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: e.Tipo, Texto: e.Texto, Dispositivo: s.Dispositivo, Nombre: s.Nombre, Para: paraSesion(e.Tipo, s.Ruta, b.ahora())}
 	if _, err := consola.RegistrarEjecucion(s.Ruta, x, b.ahora()); err != nil {
 		b.cerrar(ctx, s, EstadoFallo, err.Error())
 		return
@@ -497,13 +497,21 @@ func (b *Bucle) enviarFlujo(ctx context.Context, s Solicitud, id, sinNada string
 		return
 	}
 	s.Ejecutar, s.Flujo, s.Lineas = consola.EjecutarIA, id, n
-	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: consola.EjecutarIA, Texto: mensaje, Dispositivo: s.Dispositivo, Nombre: s.Nombre}
+	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: consola.EjecutarIA, Texto: mensaje, Dispositivo: s.Dispositivo, Nombre: s.Nombre, Para: sesionDeLaConsola(s.Ruta, b.ahora())}
 	if _, err := consola.RegistrarEjecucion(s.Ruta, x, b.ahora()); err != nil {
 		b.cerrarSinEntregar(ctx, s, EstadoFallo, err.Error())
 		return
 	}
 	b.marcar()
 	b.encolarInstruccion(ctx, s)
+}
+
+// paraSesion: una instrucción para la IA va a la sesión que el teléfono ve en la consola (MEJ-082); un comando qdd no.
+func paraSesion(tipo, ruta string, now time.Time) string {
+	if tipo != consola.EjecutarIA {
+		return ""
+	}
+	return sesionDeLaConsola(ruta, now)
 }
 
 // correEnElProyecto dice si un comando qdd del teléfono corre ahora en esa carpeta: uno por proyecto a la vez (dos
