@@ -1,0 +1,9 @@
+id: "FND-214"
+title: "El estado para el teléfono leía y ocultaba lo logrado aunque no lo mandara"
+description: "2026-11-15, al revisar por qué TestLogrado_ElEstadoPesaMenosCuandoTodosLoPiden fallaba con la máquina cargada (12 corridas en paralelo: «no se mandó estado» casi siempre): con todos los teléfonos pidiendo lo logrado aparte (rc.75), el bucle igual armaba cada panel con lo logrado, lo pasaba entero por el ocultador (regexp con backtracking: el 90 % del tiempo de armar en el perfil) y después lo descartaba. Con 60 entradas por proyecto, cada estado tardaba más de 1 s y la prueba esperaba 1 s."
+impact: "Con QDD Móvil abierto, cada cambio de cualquier proyecto gastaba CPU en ocultar texto que no salía; en un PC cargado el estado para el teléfono se atrasaba. El CI podía fallar por la prueba."
+action_taken: "remoto.ArmarCon dice si los paneles traen lo logrado; el bucle lo arma sin él cuando todos los teléfonos lo piden, así que ni se lee ni se oculta. Las pruebas de logrado esperan hasta 10 s (vuelven apenas llega el mensaje)."
+test_result: "cli/pkg/remoto/logrado_pedido_test.go: TestLogrado_SinLogradoNoSeArmaNiSeOculta (no compilaba sin ArmarCon; pasa). Estrés: 12 procesos en paralelo × 5 corridas de TestLogrado_*: antes ~24 fallas, después 0. go test ./pkg/remoto en verde."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

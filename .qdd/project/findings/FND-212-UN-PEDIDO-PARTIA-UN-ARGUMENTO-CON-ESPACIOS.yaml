@@ -1,0 +1,9 @@
+id: "FND-212"
+title: "Un pedido partía por sus espacios un argumento que venía entero"
+description: "Reporte de sesión (MEJ-043): «qdd consola pedir -- git -c credential.helper=\"!gh auth git-credential\" push» guardaba el comando como los argumentos unidos con espacios. La shell de quien lo pidió ya había quitado las comillas, así que el pedido corría «git -c credential.helper=!gh auth git-credential push» y git recibía «auth» como subcomando (exit 1). Confirmado en cmd/consola.go: consolaPedir usaba strings.Join(args, \" \")."
+impact: "Un pedido con un argumento con espacios (un credential.helper, un mensaje, una ruta) fallaba al confirmarlo, o hacía otra cosa, aunque el panel mostraba un comando que parecía correcto."
+action_taken: "consola.ComandoDeArgs cita cada argumento para la shell que lo corre: comillas simples en sh, comillas dobles con \\\" en cmd; los que no tienen nada especial van tal cual. Un solo argumento sigue siendo un texto de shell (como el comando de la tool MCP) y va igual que antes. El panel muestra exactamente el texto que corre."
+test_result: "cli/pkg/consola/pedidos_mej043_test.go: TestComandoDeArgs_CitaLosArgumentosConEspacios_FND212 y TestPedido_CorreConSusArgumentosTalCual_FND212 (corre printf con sh -c y cada argumento llega entero); cli/cmd/consola_pedidos_test.go: TestConsolaPedir_UnArgumentoConEspaciosLlegaEntero_FND212 falló antes del arreglo (guardaba el texto partido) y pasa después."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

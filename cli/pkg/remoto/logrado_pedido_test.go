@@ -102,7 +102,7 @@ func TestLogrado_SiTodosLoPidenElEstadoNoLoLlevaYAnunciaQueSePide(t *testing.T) 
 	proyectoConLogrado(t, "p", 3, "ok", time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	est := estadoEnviado(t, tr.esperar(t, time.Second, "estado"))
+	est := estadoEnviado(t, tr.esperar(t, 10*time.Second, "estado"))
 	panel := est.Proyectos[0].Panel
 	if panel.Logrado != nil || !panel.LogradoBajoPedido {
 		t.Fatalf("todos lo piden: sin logrado y con el anuncio: %+v %v", panel.Logrado, panel.LogradoBajoPedido)
@@ -114,7 +114,7 @@ func TestLogrado_SiUnTelefonoNoLoPideElEstadoLoLleva(t *testing.T) {
 	proyectoConLogrado(t, "p", 3, "ok", time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- juntarTelefonos(telefonoCon("d1", CapacidadLogradoBajoPedido), telefonoCon("d2"))
-	panel := estadoEnviado(t, tr.esperar(t, time.Second, "estado")).Proyectos[0].Panel
+	panel := estadoEnviado(t, tr.esperar(t, 10*time.Second, "estado")).Proyectos[0].Panel
 	if panel.Logrado == nil || len(*panel.Logrado) != 3 || !panel.LogradoBajoPedido {
 		t.Fatalf("uno no lo pide: el estado lo lleva, y el PC igual anuncia que sabe: %+v", panel.Logrado)
 	}
@@ -125,11 +125,11 @@ func TestLogrado_SiSeSumaUnTelefonoSinLaCapacidadVaUnEstadoCompletoConLogrado(t 
 	proyectoConLogrado(t, "p", 2, "ok", time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	if est := estadoEnviado(t, tr.esperar(t, time.Second, "estado")); est.Proyectos[0].Panel.Logrado != nil {
+	if est := estadoEnviado(t, tr.esperar(t, 10*time.Second, "estado")); est.Proyectos[0].Panel.Logrado != nil {
 		t.Fatal("al principio todos lo piden")
 	}
 	tr.eventos <- juntarTelefonos(telefonoCon("d1", CapacidadLogradoBajoPedido), telefonoCon("d2"))
-	panel := estadoEnviado(t, tr.esperar(t, time.Second, "estado")).Proyectos[0].Panel
+	panel := estadoEnviado(t, tr.esperar(t, 10*time.Second, "estado")).Proyectos[0].Panel
 	if panel.Logrado == nil || len(*panel.Logrado) != 2 {
 		t.Fatalf("el teléfono nuevo no lo pide: estado completo con logrado, sin esperar un cambio: %+v", panel.Logrado)
 	}
@@ -140,9 +140,9 @@ func TestLogrado_PedirloDevuelveSusEntradasConSuSolicitud(t *testing.T) {
 	_, clave := proyectoConLogrado(t, "p", 3, strings.Repeat("x", 1500)+"fin", time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	tr.esperar(t, time.Second, "estado")
+	tr.esperar(t, 10*time.Second, "estado")
 	tr.eventos <- pedirLogrado(clave, "11111111-1111-1111-1111-111111111111")
-	r := respuestaDe(t, tr.esperar(t, time.Second, EventoLogrado))
+	r := respuestaDe(t, tr.esperar(t, 10*time.Second, EventoLogrado))
 	if r.Version != VersionProtocolo || r.Proyecto != clave || r.Solicitud != "11111111-1111-1111-1111-111111111111" || r.Error != "" || r.Recortado {
 		t.Fatalf("%+v", r)
 	}
@@ -159,7 +159,7 @@ func TestLogrado_UnPedidoInvalidoSeIgnora(t *testing.T) {
 	_, clave := proyectoConLogrado(t, "p", 1, "ok", time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	tr.esperar(t, time.Second, "estado")
+	tr.esperar(t, 10*time.Second, "estado")
 	tr.eventos <- pedirLogrado("Con Mayúsculas", "s1")
 	tr.eventos <- pedirLogrado(clave, strings.Repeat("a", 65))
 	tr.eventos <- pedirLogrado(clave, "")
@@ -177,12 +177,12 @@ func TestLogrado_RepetidoEn5sRecibeLaMismaRespuestaSinRecalcular(t *testing.T) {
 	root, clave := proyectoConLogrado(t, "p", 2, "ok", time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	tr.esperar(t, time.Second, "estado")
+	tr.esperar(t, 10*time.Second, "estado")
 	tr.eventos <- pedirLogrado(clave, "s1")
-	primera := respuestaDe(t, tr.esperar(t, time.Second, EventoLogrado))
+	primera := respuestaDe(t, tr.esperar(t, 10*time.Second, EventoLogrado))
 	anotarLogradoPrueba(t, root, 5, "ok")
 	tr.eventos <- pedirLogrado(clave, "s2")
-	segunda := respuestaDe(t, tr.esperar(t, time.Second, EventoLogrado))
+	segunda := respuestaDe(t, tr.esperar(t, 10*time.Second, EventoLogrado))
 	if segunda.Solicitud != "s2" || len(segunda.Entradas) != len(primera.Entradas) {
 		t.Fatalf("dentro de 5 s, la misma respuesta con su propia solicitud: %d → %d (%s)", len(primera.Entradas), len(segunda.Entradas), segunda.Solicitud)
 	}
@@ -193,9 +193,9 @@ func TestLogrado_MasDe64KBQuitaLoMasViejoYDiceRecortado(t *testing.T) {
 	_, clave := proyectoConLogrado(t, "p", consola.TopeLogrado, strings.Repeat("salida larga ", 160), time.Now())
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	tr.esperar(t, time.Second, "estado")
+	tr.esperar(t, 10*time.Second, "estado")
 	tr.eventos <- pedirLogrado(clave, "s1")
-	e := tr.esperar(t, time.Second, EventoLogrado)
+	e := tr.esperar(t, 10*time.Second, EventoLogrado)
 	r := respuestaDe(t, e)
 	if !r.Recortado || len(r.Entradas) == 0 || len(r.Entradas) >= consola.TopeLogrado || len(e.Payload) > TopeRespuestaLogrado {
 		t.Fatalf("cabe en 64 KB sacando lo más viejo: %d entradas, %d bytes, recortado=%v", len(r.Entradas), len(e.Payload), r.Recortado)
@@ -212,13 +212,13 @@ func TestLogrado_ProyectoDesconocidoOFueraDelPlanDiceElError(t *testing.T) {
 	uno := 1
 	_, tr, _, _ := bucleDePrueba(t, func(b *Bucle) { b.R.(*relayBucleFalso).plan = Plan{Plan: "gratis", PCs: 1, Proyectos: &uno} })
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	tr.esperar(t, time.Second, "estado")
+	tr.esperar(t, 10*time.Second, "estado")
 	tr.eventos <- pedirLogrado("no-existe-abc", "s1")
-	if r := respuestaDe(t, tr.esperar(t, time.Second, EventoLogrado)); r.Error != ErrorLogradoProyecto || r.Entradas == nil || len(r.Entradas) != 0 {
+	if r := respuestaDe(t, tr.esperar(t, 10*time.Second, EventoLogrado)); r.Error != ErrorLogradoProyecto || r.Entradas == nil || len(r.Entradas) != 0 {
 		t.Fatalf("desconocido: %+v", r)
 	}
 	tr.eventos <- pedirLogrado(viejo, "s2")
-	if r := respuestaDe(t, tr.esperar(t, time.Second, EventoLogrado)); r.Error != ErrorLogradoPlan || len(r.Entradas) != 0 {
+	if r := respuestaDe(t, tr.esperar(t, 10*time.Second, EventoLogrado)); r.Error != ErrorLogradoPlan || len(r.Entradas) != 0 {
 		t.Fatalf("fuera del plan: %+v", r)
 	}
 }
@@ -244,11 +244,26 @@ func TestLogrado_ElEstadoPesaMenosCuandoTodosLoPiden(t *testing.T) {
 	}
 	_, tr, _, _ := bucleDePrueba(t)
 	tr.eventos <- telefonoCon("d2")
-	con := tr.esperar(t, time.Second, "estado")
+	con := tr.esperar(t, 10*time.Second, "estado")
 	tr.eventos <- telefonoCon("d1", CapacidadLogradoBajoPedido)
-	sin := tr.esperar(t, time.Second, "estado")
+	sin := tr.esperar(t, 10*time.Second, "estado")
 	t.Logf("estado con logrado %d bytes, bajo pedido %d bytes", len(con.Payload), len(sin.Payload))
 	if len(sin.Payload) >= len(con.Payload)/2 {
 		t.Fatalf("sin lo logrado el estado baja de forma medible: %d → %d", len(con.Payload), len(sin.Payload))
+	}
+}
+
+// FND-214: con todos los teléfonos pidiendo lo logrado, armar el estado no lo lee ni lo pasa por el
+// ocultador para después descartarlo. Ese trabajo, con 60 entradas por proyecto, hacía cada estado lento y la prueba de
+// peso fallaba con la máquina cargada.
+func TestLogrado_SinLogradoNoSeArmaNiSeOculta(t *testing.T) {
+	homeTemporal(t)
+	root, clave := proyectoConLogrado(t, "a", 3, "hecho", time.Now())
+	reg := registro.Registro{Proyectos: []registro.Proyecto{{Ruta: root, Clave: clave}}}
+	if p := ArmarCon("v", reg, time.Now(), 0, false).Proyectos[0]; p.Panel == nil || p.Panel.Logrado != nil {
+		t.Fatalf("sin lo logrado, el panel no lo trae: %+v", p.Panel)
+	}
+	if p := ArmarCon("v", reg, time.Now(), 0, true).Proyectos[0]; p.Panel == nil || p.Panel.Logrado == nil || len(*p.Panel.Logrado) != 3 {
+		t.Fatalf("con lo logrado, el panel lo trae: %+v", p.Panel)
 	}
 }

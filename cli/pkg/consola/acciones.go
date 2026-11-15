@@ -60,6 +60,7 @@ type Accion struct {
 	Estado      string     `json:"estado,omitempty"`    // solo pedidos: pendiente, espera, ejecutando, hecho o fallo
 	Resultado   string     `json:"resultado,omitempty"` // solo pedidos: últimas líneas de la salida
 	Espera      []string   `json:"espera,omitempty"`    // solo pedidos en espera: las teclas de lo que espera
+	Bloqueo     string     `json:"bloqueo,omitempty"`   // un pedido que esperaba a uno descartado: por qué no se confirma (FND-213)
 	Aviso       string     `json:"aviso,omitempty"`     // solo pedidos: «todavía no», lo que dijo la última vez (FND-082)
 	AvisoEn     *time.Time `json:"aviso_en,omitempty"`
 	Proximo     *time.Time `json:"proximo,omitempty"`  // solo pedidos armados: cuándo vuelve a intentarlo

@@ -376,7 +376,7 @@ func (b *Bucle) armar() Estado {
 	}
 	b.errRegistro = ""
 	b.vigia.vigilar(carpetasDe(reg))
-	e := Armar(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos())
+	e := ArmarCon(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos(), !b.todosPidenLogrado())
 	ConEjecutar(&e, b.plan, b.ahora())
 	b.aplicarLogradoBajoPedido(&e)
 	e.Diagnostico = diagnosticoDe(b.ultimaSonda, b.ahora())

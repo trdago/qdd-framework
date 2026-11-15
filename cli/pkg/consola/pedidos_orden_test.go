@@ -113,7 +113,7 @@ func TestPedidos_UnHechoQueOtroEsperaNoSeVa_FND080(t *testing.T) {
 	}
 }
 
-func TestDescartar_LoQueOtroEsperabaLoLibera_FND080(t *testing.T) {
+func TestDescartar_LoQueOtroEsperabaYaNoLoEspera_FND080(t *testing.T) {
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})
 	segundo := mustPedirEnOrden(t, root, "exit 0 # segundo", Orden{Despues: []string{primero.ID}})
@@ -124,8 +124,9 @@ func TestDescartar_LoQueOtroEsperabaLoLibera_FND080(t *testing.T) {
 	if len(cola) != 1 || len(cola[0].Despues) != 0 {
 		t.Fatalf("descartar lo que se esperaba quita la dependencia: %+v", cola)
 	}
-	if a, _ := BuscarAccion(Acciones(root, false), "pedido:"+segundo.ID); a.Tecla != "b" {
-		t.Fatalf("y el que esperaba se puede ejecutar: %+v", a)
+	// Desde FND-213 el que esperaba no queda libre: queda bloqueado hasta que la IA lo pida de nuevo.
+	if a, _ := BuscarAccion(Acciones(root, false), "pedido:"+segundo.ID); a.Tecla != "" || a.Bloqueo == "" {
+		t.Fatalf("y el que esperaba queda bloqueado: %+v", a)
 	}
 }
 
