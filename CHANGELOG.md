@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.86] - 2026-11-15
+
 ### Corregido
 
 - **El nombre de un proyecto ya no llega al teléfono como `Sistema%20de%20gesti%C3%B3n` (MEJ-077, FND-227):** una ruta
