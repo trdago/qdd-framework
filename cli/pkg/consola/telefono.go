@@ -60,19 +60,21 @@ var ErrSinSesion = errors.New("falta la sesión de Claude Code")
 
 // Ejecucion es lo que un teléfono mandó a ejecutar en el proyecto.
 type Ejecucion struct {
-	Solicitud   string     `json:"solicitud"`
-	Tipo        string     `json:"tipo"`
-	Texto       string     `json:"texto"`
-	Dispositivo string     `json:"dispositivo"`
-	Nombre      string     `json:"nombre,omitempty"`
-	Estado      string     `json:"estado"`
-	Codigo      int        `json:"codigo,omitempty"`
-	Salida      string     `json:"salida,omitempty"` // el final de la salida, ya sin secretos (lo pone qdd remoto)
-	Motivo      string     `json:"motivo,omitempty"`
-	Sesion      string     `json:"sesion,omitempty"` // la sesión de Claude Code que recibió la instrucción
-	Creada      time.Time  `json:"creada"`
-	Inicio      *time.Time `json:"inicio,omitempty"`
-	Fin         *time.Time `json:"fin,omitempty"`
+	Solicitud   string `json:"solicitud"`
+	Tipo        string `json:"tipo"`
+	Texto       string `json:"texto"`
+	Dispositivo string `json:"dispositivo"`
+	Nombre      string `json:"nombre,omitempty"`
+	Estado      string `json:"estado"`
+	Codigo      int    `json:"codigo,omitempty"`
+	Salida      string `json:"salida,omitempty"` // el final de la salida, ya sin secretos (lo pone qdd remoto)
+	Motivo      string `json:"motivo,omitempty"`
+	Sesion      string `json:"sesion,omitempty"` // la sesión de Claude Code que recibió la instrucción
+	// Para es la sesión a la que va (MEJ-082): la que el teléfono ve en su consola. Mientras late, solo ella la toma.
+	Para   string     `json:"para,omitempty"`
+	Creada time.Time  `json:"creada"`
+	Inicio *time.Time `json:"inicio,omitempty"`
+	Fin    *time.Time `json:"fin,omitempty"`
 }
 
 func (e Ejecucion) abierta() bool {
@@ -138,7 +140,7 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 	var tomadas []Ejecucion
 	err := conTelefono(root, now, func(cola []Ejecucion) ([]Ejecucion, error) {
 		for i, e := range cola {
-			if e.Tipo != EjecutarIA || e.Estado != EstadoPendiente {
+			if e.Tipo != EjecutarIA || e.Estado != EstadoPendiente || esDeOtraSesion(root, e, sesion, now) {
 				continue
 			}
 			inicio := now.UTC()
@@ -152,6 +154,12 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 	})
 	sort.Slice(tomadas, func(i, j int) bool { return tomadas[i].Creada.Before(tomadas[j].Creada) })
 	return tomadas, err
+}
+
+// esDeOtraSesion: la instrucción va a otra sesión que sigue latiendo (MEJ-082). Si esa ya no late, cualquiera la toma:
+// no se queda sin entregar.
+func esDeOtraSesion(root string, e Ejecucion, sesion string, now time.Time) bool {
+	return e.Para != "" && e.Para != sesion && SesionLate(root, e.Para, now)
 }
 
 // ConfirmarEntrega: Claude Code aceptó la instrucción que esta sesión tomó.
@@ -336,7 +344,7 @@ func accionDelTelefono(root string, e Ejecucion) Accion {
 	a := Accion{
 		ID: prefijoTelefono + e.Solicitud, Tipo: TipoPedido, Etiqueta: etiquetaTelefono(e), Detalle: "qdd " + e.Texto,
 		Carpeta: root, Estado: e.Estado, Resultado: ultimasLineas(e.Salida, lineasSalida), Inicio: e.Inicio, Fin: e.Fin,
-		Origen: OrigenTelefono, Dispositivo: e.Nombre, Solicitud: e.Solicitud,
+		Origen: OrigenTelefono, Dispositivo: e.Nombre, Solicitud: e.Solicitud, Sesion: sesionDeEjecucion(e),
 	}
 	if e.Motivo != "" {
 		a.Resultado = e.Motivo
@@ -358,6 +366,14 @@ func accionDelTelefono(root string, e Ejecucion) Accion {
 		a.Estado = EstadoFallo
 	}
 	return a
+}
+
+// sesionDeEjecucion es la sesión que recibió la instrucción, o a la que va mientras espera (MEJ-082).
+func sesionDeEjecucion(e Ejecucion) string {
+	if e.Sesion != "" {
+		return e.Sesion
+	}
+	return e.Para
 }
 
 // etiquetaTelefono es «qdd <comando>» o la primera línea de la instrucción, hasta MaxMotivo.

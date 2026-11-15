@@ -72,6 +72,24 @@ func TranscriptDe(ruta string) string {
 	return mejor
 }
 
+// sesionDeTranscript es la sesión de Claude Code de un transcript: Claude Code lo nombra <sesión>.jsonl.
+func sesionDeTranscript(archivo string) string {
+	if archivo == "" {
+		return ""
+	}
+	return strings.TrimSuffix(filepath.Base(archivo), ".jsonl")
+}
+
+// sesionDeLaConsola es la sesión que el teléfono ve en la consola del proyecto, si sigue latiendo (MEJ-082): una
+// instrucción del teléfono va a ella. Si la consola muestra una sesión que ya no late (o ninguna), no va dirigida.
+func sesionDeLaConsola(ruta string, now time.Time) string {
+	sesion := sesionDeTranscript(TranscriptDe(ruta))
+	if sesion == "" || !consola.SesionLate(ruta, sesion, now) {
+		return ""
+	}
+	return sesion
+}
+
 // delProyecto confirma con el cwd del transcript que es de este proyecto (o de un worktree o subcarpeta suya).
 func delProyecto(archivo, ruta string) bool {
 	f, err := os.Open(archivo)
