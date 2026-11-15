@@ -17,6 +17,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **`qdd remoto` dice qué pasó con cada pedido de lo logrado (MEJ-080, FND-229):** el registro del servicio anota cada
   `pedir_logrado` como respondido (con cuántas entradas) o ignorado y por qué, y cuántos eventos del relay se perdieron
   si el bucle no daba abasto. Un teléfono cuya presence trae un campo opcional de otro tipo ya no desaparece del canal.
+- **Un solo `qdd remoto correr` por QDD_HOME (MEJ-079, FND-230):** un candado del sistema operativo, que suelta la
+  muerte del proceso, impide que dos publiquen a la vez en el mismo canal. El segundo dice qué pid lo tiene y sale sin
+  conectarse; el servicio toma el relevo cuando el otro termina. Otro QDD_HOME (el PC de muestra) sigue corriendo junto.
 
 ## [2.10.0-rc.85] - 2026-11-15
 
