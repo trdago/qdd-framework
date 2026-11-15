@@ -111,6 +111,15 @@ Workers), no a un `.env`. Rotar un token es cambiarlo una vez en el baúl y volv
 2. **Panel y teléfono:** el pedido de permiso, la lista de tokens con su alcance y vencimiento, y el registro.
 3. **Ambientes:** `.qdd/ambientes.yaml` y `qdd ambiente levantar`, un proveedor a la vez (Cloudflare DNS primero).
 
+## Fase 3: primero el plan (2026-11-15)
+
+El modo goal eligió la opción recomendada: empezar solo con el plan. `.qdd/ambientes.yaml` (formato 1) declara por
+ambiente `dns.zona` y `dns.registros` (A, AAAA, CNAME, TXT, MX, con `proxied`); un campo que no conoce, un tipo raro o
+un registro repetido se rechazan. `qdd ambiente levantar <ambiente>` lee la zona con el token de Cloudflare del baúl
+(el del ambiente si su dirección empieza con él; si no, uno sin ambiente) y muestra el plan: crear, cambiar con lo que
+hay hoy, o igual. Solo hace GET. Lo que la zona tiene sin declarar no aparece: levantar nunca borra lo que el archivo
+no nombra. Aplicar, y los otros proveedores (Supabase, AWS, Resend), quedan para lo que sigue, siempre tras el clic.
+
 ## Lo que el baúl no protege
 
 Es honesto decirlo: en Linux, el llavero abierto lo lee cualquier proceso del mismo usuario, incluida una IA que llame

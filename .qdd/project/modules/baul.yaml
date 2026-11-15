@@ -5,6 +5,8 @@ rutas:
     - cli/pkg/baul
     - cli/cmd/baul.go
     - cli/cmd/baul_doctor.go
+    - cli/pkg/ambientes
+    - cli/cmd/ambiente.go
     - cli/pkg/consola/mod/qdd-tareas/tests/baul-config.test.ts
 objetivo_operativo:
     problema: Con la IA, crear la zona en Cloudflare, el proyecto en Supabase, el rol en AWS o los secretos en GitHub se repite en cada proyecto. Cada vez se busca el token, se copia a un .env o se pega en el chat, y quedan tokens con permisos de más, .env con valores en cada carpeta y llaves en la conversación de una IA.
@@ -35,6 +37,7 @@ pruebas:
     comandos:
         - cd cli && go test ./pkg/baul/
         - cd cli && go test ./cmd/ -run 'Baul'
+        - cd cli && go test ./pkg/ambientes/ && go test ./cmd/ -run 'Ambiente'
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
         - cd cli && go test ./pkg/consola/ -run 'PedidoDePersona|PedidoConfirmado|SesionLate|ElComandoRecibe'
 fuentes:
