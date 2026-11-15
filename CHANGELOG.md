@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **El panel de Antigravity y VS Code anima solo lo que cambió (RFC 0014, fase D):** como el panel de Claude Code, un
+  pedido, una ficha o una tarea nueva o distinta aparece con el acento de los efectos de qdd y se asienta;
+  `qdd consola efectos off` y «reducir movimiento» lo apagan.
+
 ## [2.10.0-rc.82] - 2026-11-15
 
 ### Agregado

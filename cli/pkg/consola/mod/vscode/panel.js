@@ -136,11 +136,12 @@ function resumen(e, paraTi) {
 
 // vista arma lo que se dibuja; sin datos o sin estado, el motivo. Lo que no conoce del JSON lo ignora.
 function vista(datos, falla) {
-  if (!datos) return { motivo: falla || 'sin datos de qdd todavía', version: '', proyecto: '', pedidos: [], fichas: [] }
+  if (!datos) return { motivo: falla || 'sin datos de qdd todavía', version: '', proyecto: '', pedidos: [], fichas: [], efectos: null }
   const acciones = datos.acciones || []
   const delPedido = acciones.filter((a) => a.tipo === 'pedido')
   const comun = {
     version: datos.version || '',
+    efectos: datos.efectos || null,
     proyecto: nombre(datos.carpeta),
     pedidos: delPedido.map((a) => tarjeta(a, datos.carpeta || '')),
     fichas: acciones.filter((a) => a.tipo === 'aprobar').map((a) => ({ id: a.id, etiqueta: a.etiqueta, detalle: a.detalle || '', ejecutar: true, confirmar: a.confirmar !== false })),

@@ -93,6 +93,16 @@ entrada suya en `extensions.json` (las ajenas se copian tal cual; uno ilegible n
 extensión prefiere a `qdd` del PATH mientras exista. El registro de activación (`activo.json`) recuerda los IDE; `qdd
 doctor` revisa en cada uno la versión y la entrada, y `qdd consola desactivar` quita carpeta y entrada.
 
+## Fase D (2026-11-15)
+
+La vista anima solo lo que cambió entre una lectura y la siguiente, con los efectos que entrega
+`qdd consola panel --json` (`efectos`: activo, acento, `abrir_ms`), los mismos que apaga o enciende
+`qdd consola efectos`. `media/materializar.js` (lógica pura) compara por pedido, ficha y fila lo que se muestra; lo
+nuevo o distinto aparece con el acento y se asienta, por CSS. La primera vista no anima, un redibujo por un clic no
+repite la animación y «reducir movimiento» del sistema la apaga. El acento entra al CSS por CSSOM y solo si es un
+color `#hex`; la duración tiene tope de 2 s. Lo que desaparece se va sin animación: la vista no guarda nodos que qdd ya
+no entrega.
+
 ## Pendiente para la fase C (resuelto arriba)
 
 La extensión busca `qdd` en `QDD_BIN` o en el PATH. En Windows, `execFile` sin shell no ejecuta el `qdd.cmd` de npm:

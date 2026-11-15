@@ -47,6 +47,7 @@ function htmlDe(webview, extensionUri) {
 <body>
 <main id="raiz"></main>
 <script src="${recurso('pasos.js')}"></script>
+<script src="${recurso('materializar.js')}"></script>
 <script src="${recurso('vista.js')}"></script>
 </body>
 </html>`

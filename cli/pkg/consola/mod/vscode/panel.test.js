@@ -223,3 +223,10 @@ test('binarioDe: QDD_BIN manda; después la ruta que dejó qdd si existe; si no,
   assert.equal(binarioDe({}, { binario: 'relativo/qdd' }, () => true), 'qdd', 'solo una ruta absoluta')
   assert.equal(binarioDe({}, null, existe), 'qdd')
 })
+
+test('fase D: la vista lleva los efectos que dice qdd, para animar solo lo que cambió', () => {
+  const efectos = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400 }
+  assert.deepEqual(vista({ estado: ESTADO, acciones: [], efectos }, '').efectos, efectos)
+  assert.deepEqual(vista({ estado: null, acciones: [], efectos }, '').efectos, efectos)
+  assert.equal(vista(null, 'x').efectos, null)
+})
