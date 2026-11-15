@@ -99,6 +99,10 @@ type Bucle struct {
 	AlPublicar       func(ok bool)
 	publicacionVista bool
 	publicacionOK    bool
+	// AlConectar recibe cada vez que el canal en tiempo real se une o se cae (qdd doctor, REM-18).
+	AlConectar    func(conectado bool, en time.Time)
+	conexionVista bool
+	conexionUnida bool
 }
 
 type resultadoLatido struct {
@@ -234,12 +238,14 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	if e.Tipo == TipoConectado {
 		b.logf("conectado al relay")
 		b.anotarConexion()
+		b.avisarConexion(true)
 		b.track(ctx)
 		return
 	}
 	if e.Tipo == TipoDesconectado {
 		b.logf("desconectado del relay: %s", e.Motivo)
 		b.anotarCaida(b.ahora())
+		b.avisarConexion(false)
 		b.base = false
 		return
 	}
@@ -349,6 +355,19 @@ func (b *Bucle) broadcast(ctx context.Context, evento string, payload any) bool 
 }
 
 // anotarPublicacion avisa solo cuando cambia: no escribe un archivo por mensaje.
+// avisarConexion avisa solo los cambios: cada reintento fallido emite otro desconectado, y la caída empezó con el primero.
+func (b *Bucle) avisarConexion(conectado bool) {
+	if b.AlConectar == nil || (b.conexionVista && b.conexionUnida == conectado) {
+		return
+	}
+	b.conexionVista, b.conexionUnida = true, conectado
+	en := b.ahora()
+	if !conectado {
+		en = b.caidoDesde
+	}
+	b.AlConectar(conectado, en)
+}
+
 func (b *Bucle) anotarPublicacion(ok bool) {
 	if b.AlPublicar == nil || (b.publicacionVista && b.publicacionOK == ok) {
 		return

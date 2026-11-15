@@ -108,8 +108,8 @@ func TestDoctorMovil_TodoSanoEnVerde(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := buildMovilChecks(m.raiz, now)
-	if len(g.Items) != 5 {
-		t.Fatalf("emparejado, servicio, directorio, relay y proyecto: %+v", g.Items)
+	if len(g.Items) != 7 {
+		t.Fatalf("emparejado, no quitado, directorio, servicio, relay, proyecto y reloj: %+v", g.Items)
 	}
 	for _, i := range g.Items {
 		if !i.Success {

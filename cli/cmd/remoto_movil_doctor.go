@@ -21,6 +21,11 @@ import (
 // la persona. REM-09: el último envío; el texto del error queda en el registro del servicio, nunca en el reporte. REM-10:
 // una cola ilegible se aparta sola y puede traer un mensaje de la persona: doctor la nombra y no la toca. REM-11: el relay
 // guardado frente al directorio firmado; es lo único de este grupo que usa la red, y solo con --fix (FND-171).
+// REM-15: el teléfono quitó este PC; arrancar el servicio no sirve (saldría igual), así que doctor pide emparejar de
+// nuevo y no revisa lo demás. REM-16: credenciales.json o relay.json rotos; --fix aparta el roto y pide el relay al
+// directorio. REM-17: el servicio lanza un qdd que ya no existe (otra versión de node); --fix lo reescribe con el de
+// ahora. REM-18: el canal en tiempo real caído mientras el latido sigue; --fix reinicia el servicio, igual que REM-07.
+// REM-19: acciones descartadas por llegar con la hora corrida; el reloj lo corrige la persona.
 
 const grupoMovil = "12. QDD Móvil (teléfono)"
 
@@ -39,6 +44,11 @@ const (
 	itemMovilEnvio      = "El último envío al teléfono salió (REM-09)"
 	itemMovilColas      = "Colas del teléfono sin apartar (REM-10)"
 	itemMovilDirectorio = "El relay coincide con su directorio firmado (REM-11)"
+	itemMovilQuitado    = "El teléfono no quitó este PC (REM-15)"
+	itemMovilArchivos   = "Credenciales y relay de este PC se leen (REM-16)"
+	itemMovilBinario    = "El servicio lanza un qdd que existe (REM-17)"
+	itemMovilCanal      = "El canal en tiempo real está unido (REM-18)"
+	itemMovilReloj      = "El reloj de este PC coincide con el del teléfono (REM-19)"
 
 	movilSinAnotar     = "no está en el registro"
 	maxLatidosPerdidos = 3
@@ -46,6 +56,10 @@ const (
 
 func buildMovilChecks(root string, now time.Time) *CheckGroup {
 	g := &CheckGroup{Name: grupoMovil}
+	if remoto.CredencialesIlegibles() {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilArchivos, Error: "credenciales.json no se lee y este PC no sabe con qué teléfono está emparejado (qdd doctor --fix lo aparta; después, qdd login)"})
+		return conItemDirectorio(g)
+	}
 	if !estaEmparejado() && !servicioMovilInstalado() {
 		return conItemDirectorio(g)
 	}
@@ -54,14 +68,73 @@ func buildMovilChecks(root string, now time.Time) *CheckGroup {
 		return conItemDirectorio(g)
 	}
 	g.Items = append(g.Items, &CheckItem{Name: itemMovilEmparejado, Success: true})
+	cred, _ := remoto.LeerCredenciales()
+	if en, ok := remoto.QuitadoEn(cred.Topico); ok {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilQuitado, Error: "el teléfono lo quitó el " + en.Local().Format("02/01 15:04") + " y el relay ya no lo reconoce: arrancar el servicio no sirve; empareja de nuevo con qdd remoto desactivar y qdd login"})
+		return conItemColas(g, root)
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilQuitado, Success: true})
+	if motivo := remoto.RelayNoSeLee(); motivo != "" {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilArchivos, Error: motivo + " y el servicio no arranca sin él (qdd doctor --fix lo pide al directorio firmado)"})
+	}
 	// El directorio va antes que el servicio: --fix repara en este orden y el servicio tiene que arrancar con el relay bueno.
-	g = conItemDirectorio(g)
+	g = conItemBinario(conItemDirectorio(g))
 	if !remoto.Corriendo() {
 		g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Error: "no corre y el teléfono no recibe nada (qdd doctor --fix lo arranca)"}, itemMovilProyectoDe(root))
 		return conItemColas(g, root)
 	}
-	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilRelayDe(now), itemMovilProyectoDe(root))
-	return conItemColas(conItemEnvio(g), root)
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilCorre, Success: true}, itemMovilRelayDe(now))
+	g = conItemCanal(g, now)
+	g.Items = append(g.Items, itemMovilProyectoDe(root))
+	return conItemReloj(conItemColas(conItemEnvio(g), root), now)
+}
+
+// conItemBinario: solo systemd y launchd; la tarea de Windows ya la revisa REM-04 contra el qdd de esta versión.
+func conItemBinario(g *CheckGroup) *CheckGroup {
+	s, err := remotoServicio()
+	if err != nil || s.SO == "windows" {
+		return g
+	}
+	if s.BinarioInstalado() == "" {
+		return g
+	}
+	bin, perdido := s.BinarioPerdidoDeEsteHome()
+	if !perdido {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilBinario, Success: true})
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilBinario, Error: bin + " ya no existe y el servicio no puede arrancar (qdd doctor --fix lo reescribe con este qdd)"})
+	return g
+}
+
+// conItemCanal: sin conexion.json el servicio es de una versión anterior y no hay nada que leer.
+func conItemCanal(g *CheckGroup, now time.Time) *CheckGroup {
+	unido, desde, err := remoto.LeerConexion()
+	if err != nil {
+		return g
+	}
+	hace := now.Sub(desde)
+	if unido || hace <= maxLatidosPerdidos*remoto.CadaLatido {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilCanal, Success: true})
+		return g
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilCanal, Error: fmt.Sprintf("caído hace %d min: el teléfono no recibe cambios ni puede aprobar; el motivo está en el registro de qdd remoto (qdd doctor --fix reinicia el servicio)", int(hace.Minutes()))})
+	return g
+}
+
+// conItemReloj: una acción del teléfono vale 5 minutos, y con los relojes corridos se descarta sin que nadie lo vea.
+func conItemReloj(g *CheckGroup, now time.Time) *CheckGroup {
+	desfase, n := remoto.DesfaseReloj(now)
+	if n == 0 {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Success: true})
+		return g
+	}
+	sentido := "adelantado"
+	if desfase < 0 {
+		sentido, desfase = "atrasado", -desfase
+	}
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Error: fmt.Sprintf("%d acciones del teléfono se descartaron en 24 h por la hora; la última, con este PC %d min %s: activa la hora automática en el PC y en el teléfono", n, int(desfase.Minutes()), sentido)})
+	return g
 }
 
 // conItemDirectorio: sin relay guardado no hay nada que comparar, y un PC que nunca activó QDD Móvil no reporta nada.
@@ -76,6 +149,9 @@ func conItemDirectorio(g *CheckGroup) *CheckGroup {
 
 func conItemColas(g *CheckGroup, root string) *CheckGroup {
 	apartadas := consola.ColasApartadas(root)
+	if r := remoto.SolicitudesApartadas(); r != "" {
+		apartadas = append(apartadas, r)
+	}
 	if len(apartadas) == 0 {
 		return g
 	}
@@ -218,8 +294,15 @@ func conItemEnvio(g *CheckGroup) *CheckGroup {
 }
 
 func repairMovil(root string, g *CheckGroup, now time.Time) {
+	// Un servicio reescrito o reiniciado ya arrancó: REM-06, REM-07 y REM-18 no lo vuelven a reiniciar.
+	reiniciado := false
 	for _, item := range g.Items {
 		if item.Success {
+			continue
+		}
+		if item.Name == itemMovilArchivos {
+			fmt.Println("  [~] Apartando el archivo roto de QDD Móvil...")
+			imprimirReparado(repararArchivosMovil())
 			continue
 		}
 		if item.Name == itemMovilDirectorio {
@@ -227,9 +310,25 @@ func repairMovil(root string, g *CheckGroup, now time.Time) {
 			imprimirReparado(repararRelayMovil())
 			continue
 		}
-		if item.Name == itemMovilCorre {
+		if item.Name == itemMovilBinario {
+			fmt.Println("  [~] Reescribiendo el servicio con este qdd...")
+			err := reescribirServicioMovil()
+			reiniciado = err == nil
+			imprimirReparado([]string{"el servicio lanza este qdd y quedó arrancado"}, err)
+			continue
+		}
+		if item.Name == itemMovilCorre && !reiniciado {
 			fmt.Println("  [~] Arrancando el servicio de qdd remoto...")
-			imprimirReparado([]string{"el servicio quedó arrancado"}, arrancarServicioMovil())
+			err := arrancarServicioMovil()
+			reiniciado = err == nil
+			imprimirReparado([]string{"el servicio quedó arrancado"}, err)
+			continue
+		}
+		if (item.Name == itemMovilRelay || item.Name == itemMovilCanal) && !reiniciado {
+			fmt.Println("  [~] Reiniciando el servicio de qdd remoto...")
+			err := reiniciarServicioMovil()
+			reiniciado = err == nil
+			imprimirReparado([]string{"el servicio se reinició: en un minuto vuelve a latir y a unirse al canal"}, err)
 			continue
 		}
 		if item.Name == itemMovilProyecto && strings.HasPrefix(item.Error, movilSinAnotar) {
@@ -237,6 +336,35 @@ func repairMovil(root string, g *CheckGroup, now time.Time) {
 			imprimirReparado([]string{"el proyecto se publica desde el próximo cambio"}, registro.Anotar(root, now))
 		}
 	}
+}
+
+// repararArchivosMovil: unas credenciales rotas no se reconstruyen (el secreto solo lo tenían ellas); un relay roto o
+// perdido se pide al directorio firmado, como al activar.
+func repararArchivosMovil() ([]string, error) {
+	if remoto.CredencialesIlegibles() {
+		ruta, err := remoto.ApartarCredenciales()
+		if err != nil {
+			return nil, err
+		}
+		return []string{"quedaron en " + ruta + "; empareja de nuevo con qdd login"}, nil
+	}
+	c, err := remoto.RecuperarRelay(func(actual remoto.ConfigRelay) (remoto.ConfigRelay, bool, error) {
+		return remoto.ActualizarRelay(context.Background(), remotoConsultarRelay, actual)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("el directorio no respondió: %w; desde esta red no se puede, prueba desde otra", err)
+	}
+	return []string{fmt.Sprintf("quedó el relay del directorio (serie %d)", c.Serie)}, nil
+}
+
+// reescribirServicioMovil escribe el servicio con el qdd que corre doctor y lo enciende: el de antes ya no existe.
+func reescribirServicioMovil() error {
+	s, err := remotoServicio()
+	if err != nil {
+		return err
+	}
+	_, err = s.Instalar(remotoEjecutor)
+	return err
 }
 
 // repararRelayMovil dice lo que hizo. Si no puede consultar, no cambia nada y devuelve el motivo. El servicio solo lee el

@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd doctor` revisa toda la comunicación con QDD Móvil y repara lo que puede (REM-15 a REM-19):**
+  - Si el teléfono quitó este PC, doctor lo dice y pide emparejarlo de nuevo, en vez de arrancar un servicio que vuelve a salir.
+  - Ve `credenciales.json` o `relay.json` rotos, y `--fix` aparta el roto y pide el relay al directorio firmado.
+  - Ve un servicio que lanza un qdd que ya no existe (por ejemplo, tras cambiar de versión de node), y `--fix` lo reescribe con el qdd de ahora.
+  - Ve el canal en tiempo real caído aunque el latido siga respondiendo, y `--fix` reinicia el servicio. También lo reinicia cuando el latido lleva más de 3 minutos sin respuesta (REM-07).
+  - Dice cuántas acciones del teléfono se descartaron por la diferencia de hora entre el PC y el teléfono, y cuántos minutos hay de diferencia.
+  - Nombra `solicitudes.json` cuando el servicio lo apartó por ilegible.
+
 ## [2.10.0-rc.73] - 2026-11-15
 
 ### Agregado

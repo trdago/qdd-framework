@@ -321,6 +321,10 @@ func remotoCorrer(errores io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(errores, "[i] sigue con el relay guardado: %v\n", err)
 	}
+	// Hasta que el canal se una, doctor no debe creer lo que dejó el servicio anterior (REM-18).
+	if err := remoto.GuardarConexion(false, time.Now()); err != nil {
+		fmt.Fprintf(errores, "[i] no se anotó el canal: %v\n", err)
+	}
 	canal := remoto.NuevoCanal(remoto.ConfigCanal{Relay: c.URL, Clave: c.Clave, Topico: cred.Topico, PresenceKey: "pc"})
 	go canal.Correr(ctx)
 	bin, _ := os.Executable()
@@ -328,6 +332,11 @@ func remotoCorrer(errores io.Writer) int {
 	b.AlPublicar = func(ok bool) {
 		if err := remoto.GuardarPublicacion(ok, time.Now()); err != nil {
 			fmt.Fprintf(errores, "[i] no se anotó el último envío: %v\n", err)
+		}
+	}
+	b.AlConectar = func(conectado bool, en time.Time) {
+		if err := remoto.GuardarConexion(conectado, en); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el canal: %v\n", err)
 		}
 	}
 	b.Consultar = func(ctx context.Context) (bool, error) {
@@ -345,6 +354,10 @@ func remotoCorrer(errores io.Writer) int {
 	}
 	if errors.Is(err, remoto.ErrCredenciales) {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
+		// doctor lo dice en vez de arrancar otra vez un servicio que saldría igual (REM-15).
+		if err := remoto.GuardarQuitado(cred.Topico, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó que se quitó: %v\n", err)
+		}
 		pausarAlQuitarse()
 		return 0
 	}

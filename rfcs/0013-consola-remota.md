@@ -514,6 +514,29 @@ cada 5 s. Así el proyecto sabe que hay una sesión abierta, y el latido devuelv
 
 La app en español e inglés desde el principio, con las fichas de las tiendas en los dos.
 
+### Autodiagnóstico en `qdd doctor` (2026-11-15)
+
+Cada pieza de la comunicación entre el PC y el teléfono tiene su revisión en el grupo «QDD Móvil». Doctor solo lee
+archivos de `<QDD_HOME>/remoto` y el servicio instalado. La red la usa solo `--fix`, y solo para preguntar al directorio
+firmado. Lo que necesita a la persona o al teléfono se dice y no se intenta.
+
+| Id | Qué revisa | Qué hace `--fix` |
+|---|---|---|
+| REM-05 | Este PC está emparejado. | Nada: emparejar pide el teléfono (`qdd login`). |
+| REM-15 | El relay no respondió `28000` a este tópico (el servicio deja `quitado.json` con el tópico). Si respondió, no revisa lo demás: arrancar el servicio no sirve. | Nada: pide `qdd remoto desactivar` y `qdd login`. |
+| REM-16 | `credenciales.json` y `relay.json` se leen. | Aparta el archivo roto como `.ilegible`. Pide el relay al directorio. Unas credenciales no se reconstruyen. |
+| REM-11 | El relay guardado coincide con el directorio firmado. | Consulta y, si cambió, reinicia el servicio. |
+| REM-17 | El servicio de systemd o launchd lanza un qdd que existe. Por ejemplo, el de una versión de node que se desinstaló. | Lo reescribe con el qdd que corre doctor. No toca el servicio de otro `QDD_HOME`. |
+| REM-06 | El servicio corre. | Lo arranca o lo instala. |
+| REM-07 | El relay respondió al latido en los últimos 3 min. | Reinicia el servicio. |
+| REM-18 | El canal en tiempo real está unido. Si no, lleva menos de 3 min caído. El servicio deja `conexion.json` en cada cambio. | Reinicia el servicio. Una sola vez, aunque REM-07 también falle. |
+| REM-08 | El proyecto está en el registro y dentro del plan. | Lo anota. Quedar fuera del plan lo decide la persona. |
+| REM-09 | El último envío al teléfono salió. | Nada: el motivo está en el registro del servicio. |
+| REM-10 | No hay colas apartadas por ilegibles: preguntas, teléfono, turnos y `solicitudes.json`. | Nada: pueden traer un mensaje de la persona. |
+| REM-19 | No hay acciones descartadas por la hora en las últimas 24 h. Calcula el desfase con la hora del teléfono que trae el descarte en `log.jsonl`. | Nada: la hora automática se activa en el PC o en el teléfono. |
+
+`log.jsonl` no se recorta: es el registro de quién aprobó qué (inv. 5).
+
 ## Fases (canal preview)
 
 | Fase | Entrega | Hecha cuando |
