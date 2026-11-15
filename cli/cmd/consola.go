@@ -74,6 +74,12 @@ var consolaAccionCmd = &cobra.Command{
 }
 
 func init() {
+	// Con --dir, cualquier comando de la consola actúa en otro proyecto: «Para ti» responde desde un panel lo que espera
+	// a la persona en los demás (para_ti_otros.go).
+	consolaCmd.PersistentFlags().StringVar(&estadoDir, "dir", "", "carpeta del proyecto (por defecto, la actual)")
+}
+
+func init() {
 	consolaActivarCmd.Flags().BoolVar(&consolaSinBarra, "sin-barra", false, "instala solo el panel; no cambia la barra (statusLine)")
 	consolaActivarCmd.Flags().BoolVar(&consolaRecursos, "recursos", false, "la barra suma una línea con disco del proyecto, GPU, RAM y CPU (D · G0 · R · C)")
 	consolaActivarCmd.Flags().BoolVar(&consolaSinRecurso, "sin-recursos", false, "quita la línea de recursos de la barra")

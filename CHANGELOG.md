@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.73] - 2026-11-15
+
+### Agregado
+
+- **«▶ Para ti» trae lo que te espera en todos los proyectos (#256):** el panel de cualquier sesión muestra también las preguntas, los pedidos, las fichas y los ⏳ de tus otros proyectos, bajo el nombre de cada uno, y los responde desde ahí. Lo que confirmas corre en ese proyecto. `qdd consola --dir <carpeta>` actúa en otro proyecto.
+
 ## [2.10.0-rc.72] - 2026-11-15
 
 ### Cambiado

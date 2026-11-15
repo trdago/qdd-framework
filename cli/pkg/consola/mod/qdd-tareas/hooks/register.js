@@ -27,7 +27,7 @@ const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
 // «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
-const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona', 'pregunta']
+const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona', 'pregunta', 'otros']
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.
@@ -1921,12 +1921,13 @@ function confirmacion(Box, Text, Button, $) {
       Text({ dimColor: a.tipo !== 'pedido', mono: a.tipo === 'pedido', wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
       ...(a.tipo === 'pedido' && a.estado === 'espera' ? [Text({ color: COLOR.espera, wrap: 'wrap', children: ['◷ Corre solo cuando ' + esperaDe(a) + ' termine: tu intención queda tomada.'] })] : []),
       ...(a.carpeta ? [Text({ dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['En: ' + enProyecto(a.carpeta)] })] : []),
+      ...(a.dir ? [Text({ color: COLOR.espera, size: 'caption', wrap: 'wrap', children: ['En el proyecto ' + a.proyecto] })] : []),
       Box({
         flexDirection: 'row',
         columnGap: 2,
         marginTop: 1,
         children: [
-          Button({ key: 'si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => ejecutar($, a) }),
+          Button({ key: 'si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => (a.dir ? ejecutarEnOtro($, a) : ejecutar($, a)) }),
           Button({
             key: 'no',
             label: 'n  No',
@@ -1936,7 +1937,7 @@ function confirmacion(Box, Text, Button, $) {
               $.ui.invalidate('ui.render')
             },
           }),
-          ...(a.tipo === 'pedido' ? [Button({ key: 'descartar', label: 'x  Descartar', hotkey: 'x', onPress: () => descartar($, a) })] : []),
+          ...(a.tipo === 'pedido' && !a.dir ? [Button({ key: 'descartar', label: 'x  Descartar', hotkey: 'x', onPress: () => descartar($, a) })] : []),
         ],
       }),
     ],
@@ -2080,13 +2081,14 @@ function enZona(Box, Text, Button, $, aqui) {
 // terminal, a la vista y con un botón por opción (MEJ-057, la persona eligió «Arriba con botones», 2026-11-15); después
 // las acciones (pedidos y fichas), lo que no lleva turno y los hechos, y al final los ⏳, plegados en «? N» (pedido de la
 // persona, 2026-11-08). Lo que se está confirmando cambia su tarjeta por la confirmación.
-function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
+function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
   const lista = pedidos(todas)
   const turnos = todas.filter((a) => a.turno)
   const locales = [...sinRegistrar.values()]
   const seVa = seVan($, Text, new Set(lista.map((a) => a.id)))
   for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(conNumero(a)))
-  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0 && locales.length === 0) return []
+  const enOtros = otros.reduce((n, p) => n + p.acciones.length, 0)
+  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0 && locales.length === 0 && enOtros === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho' && !a.turno)
   const fichas = turnos.filter((a) => a.tipo === 'aprobar')
@@ -2096,13 +2098,13 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
   const armados = lista.filter((a) => estadoDe(a).estado === 'armado').length
   const porResponder = preguntas.length + enTerminal.length + locales.length
-  const nada = corriendo || porResponder ? [] : ['nada por hacer']
-  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(porResponder ? [porResponder + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
+  const nada = corriendo || porResponder || enOtros ? [] : ['nada por hacer']
+  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(porResponder ? [porResponder + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : []), ...(enOtros ? [enOtros + ' en otros proyectos'] : [])].join(' · ')
   const dibujo = (a) => {
     const v = conNumero(a)
     return materializa($, Text, 'p:' + a.id, lineasDeTarjeta(v), tarjeta(Box, Text, Button, $, v), estadoDe(a).estado + '|' + a.tecla + '|' + v.etiqueta)
   }
-  const tarjetaDe = (a) => (confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : dibujo(a))
+  const tarjetaDe = (a) => (esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : dibujo(a))
   const conLugar = new Set(turnos.map((a) => a.id))
   const sueltas = preguntas.filter((q) => !conLugar.has(q.pregunta))
   const puestas = []
@@ -2115,7 +2117,7 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const teclasFichas = teclas(fichas)
   const fila = (a) => {
     if (a.tipo === 'pedido') return [tarjetaDe(a)]
-    if (a.tipo === 'aprobar') return [confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : filaDeFicha(Button, $, a, teclasFichas[a.id])]
+    if (a.tipo === 'aprobar') return [esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : filaDeFicha(Button, $, a, teclasFichas[a.id])]
     if (esDeLaTerminal(a)) return []
     const q = preguntaEn.get(a.id)
     if (!q) return []
@@ -2134,10 +2136,82 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
     return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
   }))
   return [
-    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
-    Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: cuerpo }),
+    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder || enOtros ? COLOR.espera : undefined, resumen, ancho),
+    Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: [...cuerpo, ...otros.map((p) => otroProyecto(Box, Text, Button, $, p, ancho))] }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
+}
+
+// esConfirmacionDe: la confirmación abierta es de esta acción de este proyecto (otro proyecto puede repetir el id).
+function esConfirmacionDe(a) {
+  return confirmando?.id === a.id && (confirmando?.dir || '') === (a.dir || '')
+}
+
+// enCarpeta: lo que corre en otro proyecto lleva su carpeta («Para ti» de todos los proyectos).
+function enCarpeta(a) {
+  return a.dir ? ['--dir', a.dir] : []
+}
+
+// otroProyecto: lo que espera a la persona en otro proyecto (qdd consola panel --con otros), bajo su nombre. Como en lo
+// propio, lo de la terminal y las acciones a la vista y los ⏳ plegados; todo corre allá con --dir, y nada se le
+// escribe a la IA de esta sesión, que trabaja en otro proyecto.
+const otrosAbiertos = new Set()
+
+function otroProyecto(Box, Text, Button, $, p, ancho) {
+  const deAca = (a) => ({ ...a, dir: p.carpeta, proyecto: p.proyecto })
+  const acciones = p.acciones.map(deAca)
+  const terminal = acciones.filter(esDeLaTerminal).map((a) => preguntaArriba(Box, Text, Button, $, a))
+  const botones = acciones
+    .filter((a) => a.tipo === 'pedido' || a.tipo === 'aprobar')
+    .map((a) => (esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : Button({ key: 'ot-' + p.carpeta + '-' + a.id, label: a.etiqueta, onPress: () => pedir($, a) })))
+  const esperas = (p.esperas || []).map((q) => ({ ...q, dir: p.carpeta }))
+  const titulo = Text({ key: 'ot-t-' + p.carpeta, color: COLOR.espera, weight: 'bold', wrap: 'truncate-end', children: ['◦ ' + p.proyecto] })
+  return Box({ key: 'ot-' + p.carpeta, flexDirection: 'column', rowGap: 1, children: [titulo, ...terminal, ...botones, ...esperasDeOtro(Box, Text, Button, $, p.carpeta, esperas, ancho)] })
+}
+
+function esperasDeOtro(Box, Text, Button, $, carpeta, esperas, ancho) {
+  if (esperas.length === 0) return []
+  const abierto = otrosAbiertos.has(carpeta)
+  const boton = Button({ key: 'ot-ver-' + carpeta, label: (abierto ? '▾ ' : '▸ ') + '? ' + esperas.length + (esperas.length === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarOtro($, carpeta) })
+  if (!abierto) return [boton]
+  const filas = esperas.slice(0, TOPE_ESPERAS).map((q, i) => {
+    const texto = Text({ key: 'ot-espera-t-' + carpeta + '-' + i, color: COLOR.espera, wrap: 'wrap', children: [alAncho(q.texto, Math.max(8, ancho - 2))] })
+    const donde = Text({ key: 'ot-espera-d-' + carpeta + '-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
+    const responder = BOTONES_ESPERA.map(([valor, label]) => Button({ key: 'ot-espera-' + carpeta + '-' + i + '-' + valor, label, plain: true, dimColor: true, onPress: () => responderEspera($, q, valor) }))
+    return Box({ key: 'ot-espera-' + carpeta + '-' + i, flexDirection: 'column', children: [texto, donde, Box({ flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: responder })] })
+  })
+  const resto = esperas.length - filas.length
+  const mas = resto > 0 ? [Text({ key: 'ot-mas-' + carpeta, dimColor: true, size: 'caption', children: ['y ' + resto + ' más: en el panel de ese proyecto'] })] : []
+  return [boton, ...filas, ...mas]
+}
+
+function alternarOtro($, carpeta) {
+  const abierto = otrosAbiertos.has(carpeta)
+  otrosAbiertos.delete(carpeta)
+  if (!abierto) otrosAbiertos.add(carpeta)
+  $.ui.invalidate('ui.render')
+}
+
+// ejecutarEnOtro: la acción confirmada de otro proyecto corre allá (qdd consola --dir). El resultado se ve aquí; el
+// pedido avisa al terminar a la sesión que lo pidió, no a esta.
+async function ejecutarEnOtro($, a) {
+  if (ocupado) return
+  ocupado = true
+  confirmando = null
+  resultado = { titulo: a.etiqueta, ok: true, texto: 'ejecutando en ' + a.proyecto + '…', zona: 'pedidos' }
+  $.ui.invalidate('ui.render')
+  const bin = await binario($)
+  try {
+    const r = await $.process.run([bin, 'consola', ...enCarpeta(a), 'accion', a.id, '--confirmado'], { timeoutMs: TOPE_ACCION_MS })
+    const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
+    resultado = { titulo: a.etiqueta + ' · ' + a.proyecto, ok: r.exitCode === 0, texto: texto || 'sin salida', zona: 'pedidos', ...(r.exitCode === CODIGO_TODAVIA_NO ? { todaviaNo: true } : {}) }
+  } catch (err) {
+    resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'pedidos' }
+  }
+  ocupado = false
+  firma = ''
+  await leer($)
+  $.ui.invalidate('ui.render')
 }
 
 // preguntasPlegadas: el botón «? N» y, si la persona lo abrió, las preguntas debajo. filas se calcula solo abierto.
@@ -2162,17 +2236,18 @@ function esDeLaTerminal(a) {
 // preguntaArriba: lo abierto en la terminal, con su número y un botón por opción si es una sola pregunta registrada en
 // qdd (MEJ-057). Varias juntas, o una que qdd no registró, se responden en la terminal.
 function preguntaArriba(Box, Text, Button, $, a) {
-  const v = conNumero(a)
-  const titulo = Text({ key: 'terminal-' + a.id, color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: [v.etiqueta] })
+  const v = a.dir ? a : conNumero(a)
+  const clave = (a.dir ? a.dir + '-' : '') + a.id
+  const titulo = Text({ key: 'terminal-' + clave, color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: [v.etiqueta] })
   const q = a.preguntas?.length === 1 && !a.preguntas[0].multiple ? a.preguntas[0] : null
   if (!q || !q.opciones?.length) {
-    const donde = Text({ key: 'terminal-donde-' + a.id, dimColor: true, size: 'caption', children: ['   respóndela en la terminal'] })
-    return Box({ key: 'arriba-' + a.id, flexDirection: 'column', children: [titulo, donde] })
+    const donde = Text({ key: 'terminal-donde-' + clave, dimColor: true, size: 'caption', children: ['   respóndela en la terminal'] })
+    return Box({ key: 'arriba-' + clave, flexDirection: 'column', children: [titulo, donde] })
   }
-  const texto = q.texto && !v.etiqueta.includes(q.texto) ? [Text({ key: 'terminal-texto-' + a.id, wrap: 'wrap', children: ['   ' + q.texto] })] : []
-  const botones = q.opciones.map((o) => Button({ key: 'pq-' + a.id + '-' + o.valor, label: o.etiqueta, onPress: () => responderEnPanel($, a, o) }))
-  const donde = Text({ key: 'terminal-donde-' + a.id, dimColor: true, size: 'caption', children: ['   o respóndela en la terminal'] })
-  return Box({ key: 'arriba-' + a.id, flexDirection: 'column', children: [titulo, ...texto, Box({ key: 'pq-fila-' + a.id, flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, paddingLeft: 3, children: botones }), donde] })
+  const texto = q.texto && !v.etiqueta.includes(q.texto) ? [Text({ key: 'terminal-texto-' + clave, wrap: 'wrap', children: ['   ' + q.texto] })] : []
+  const botones = q.opciones.map((o) => Button({ key: 'pq-' + clave + '-' + o.valor, label: o.etiqueta, onPress: () => responderEnPanel($, a, o) }))
+  const donde = Text({ key: 'terminal-donde-' + clave, dimColor: true, size: 'caption', children: ['   o respóndela en la terminal'] })
+  return Box({ key: 'arriba-' + clave, flexDirection: 'column', children: [titulo, ...texto, Box({ key: 'pq-fila-' + clave, flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, paddingLeft: 3, children: botones }), donde] })
 }
 
 // responderEnPanel: el botón de una opción. qdd la deja respondida y la sesión que espera la pregunta la entrega a
@@ -2183,7 +2258,7 @@ async function responderEnPanel($, a, o) {
   confirmando = null
   const bin = await binario($)
   try {
-    const salida = await $.process.run([bin, 'consola', 'pregunta', 'responder', a.id, o.valor], { timeoutMs: TOPE_MS })
+    const salida = await $.process.run([bin, 'consola', ...enCarpeta(a), 'pregunta', 'responder', a.id, o.valor], { timeoutMs: TOPE_MS })
     const r = salida.exitCode === 0 ? JSON.parse(salida.stdout || '{}') : null
     resultado = r
       ? { titulo: a.etiqueta, ok: true, texto: r.aplicado || 'Respondida desde el panel: ' + o.etiqueta, zona: 'pedidos' }
@@ -2235,7 +2310,7 @@ async function responderEspera($, q, valor) {
   const bin = await binario($)
   let r = null
   try {
-    const salida = await $.process.run([bin, 'consola', 'pregunta', 'responder', q.pregunta, valor], { timeoutMs: TOPE_MS })
+    const salida = await $.process.run([bin, 'consola', ...enCarpeta(q), 'pregunta', 'responder', q.pregunta, valor], { timeoutMs: TOPE_MS })
     r = salida.exitCode === 0 ? JSON.parse(salida.stdout || '{}') : null
     resultado = { titulo: q.donde, ok: false, texto: ((salida.stdout || '') + (salida.stderr || '')).trim() || 'sin salida', zona: 'pedidos' }
   } catch (err) {
@@ -2243,7 +2318,7 @@ async function responderEspera($, q, valor) {
   }
   if (r) {
     resultado = { titulo: q.donde, ok: true, texto: r.aplicado || 'respondida', zona: 'pedidos' }
-    if (r.mensaje) $.prompt.submit({ text: r.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+    if (r.mensaje && !q.dir) $.prompt.submit({ text: r.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
   }
   ocupado = false
   $.ui.invalidate('ui.render')
@@ -2362,7 +2437,7 @@ function dibujarVista($, Box, Text, Button, Input, Select, ancho) {
       cabecera(Box, Text, Button, $, e, lista),
       ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE),
       ...cuerpo,
-      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho),
+      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho, datos.otros || []),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
       Box({ marginTop: 1, children: [pie(Text)] }),
