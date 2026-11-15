@@ -87,6 +87,29 @@ Lo agregó en paralelo el PR #263 (REM-15 a REM-19) y completa el mapa: la sonda
 | REM-19 | Acciones del teléfono descartadas por la hora: desfase entre el PC y el teléfono. | Nada: la hora la corrige la persona. |
 | REM-20 | La última sonda del servicio (`sonda.json`). | Sin sondear, aplica la reparación de su tramo (directorio o reinicio); el servicio la repite al arrancar. |
 | REM-21 | El peso del último estado completo frente al tope de Realtime (FND-209). | Nada: reducirlo es una decisión. |
+| REM-22 | El último aviso que el relay aceptó y no llegó a ningún teléfono (`push.json`, FND-217). | Nada: solo avisa; nunca reintenta ni bloquea. |
+
+### Avisos que no llegan (REM-22, MEJ-027, 2026-11-15)
+
+Contrato con qdd-movile (relay a1fbc9a): `avisar` responde 200 con `{enviados, destinos, motivo?}`. `destinos` son
+los teléfonos de la máquina con push no revocados. `motivo` va solo con `enviados` 0: `sin_destinos` si `destinos`
+es 0 (gana aunque falte FCM), `sin_fcm` si falta `FCM_CUENTA_SERVICIO` y `fcm_rechazo` si FCM no entregó ninguno.
+Con `enviados` > 0 no va motivo aunque alguno falle.
+
+- **PC**: lee hasta 4 KB de la respuesta; una más larga o sin `enviados` (relay anterior) se trata como antes.
+- **Con `enviados` 0**: el servicio anota en `<QDD_HOME>/remoto/push.json` (0600) la hora, el tipo, el motivo y los
+  destinos, sin el proyecto ni nada secreto. El registro del servicio dice lo mismo una vez por hora para cada tipo y
+  proyecto. Un aviso posterior que sí llega borra el archivo y REM-22 vuelve a verde.
+- **doctor** (sin red, solo aviso, `--fix` no hace nada) muestra la hora y la causa:
+
+| Respuesta | Texto |
+|---|---|
+| `sin_destinos` o `destinos` 0 | ningún teléfono tiene los avisos activados (sin token de push) |
+| `sin_fcm` | falta la configuración de FCM en el relay |
+| `fcm_rechazo` | FCM no entregó: tokens vencidos o FCM caído |
+| `destinos` > 0 sin motivo (relay intermedio, o un motivo nuevo) | FCM no entregó o falta su configuración en el relay |
+| sin `destinos` | el último aviso no llegó a ningún teléfono |
+
 - **Costo**: sin teléfono, ningún broadcast (solo el join). Con teléfono, 2 broadcasts (envío y eco) más la entrega a cada teléfono, cada hora: unos 72 mensajes al día con un teléfono conectado todo el día.
 
 ## Logrado bajo pedido (2026-11-15)

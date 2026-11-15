@@ -247,13 +247,23 @@ func (r *Relay) post(ctx context.Context, ruta string, cuerpo any, out any) erro
 // postConHora es post con el desfase del reloj de este PC frente al del relay (header Date, al segundo): la hora de una
 // acción del teléfono la pone el relay, así que es contra él que se mide (REM-19, con qdd-movile 2026-11-15).
 func (r *Relay) postConHora(ctx context.Context, ruta string, cuerpo any, out any) (time.Duration, bool, error) {
+	desfase, conHora, datos, err := r.postDatos(ctx, ruta, cuerpo, 1<<20)
+	if err != nil || out == nil || len(bytes.TrimSpace(datos)) == 0 {
+		return desfase, conHora, err
+	}
+	return desfase, conHora, json.Unmarshal(datos, out)
+}
+
+// postDatos hace el POST y devuelve el cuerpo de una respuesta buena, leído hasta tope+1 bytes: quien llama sabe así si
+// vino más largo de lo que acepta.
+func (r *Relay) postDatos(ctx context.Context, ruta string, cuerpo any, tope int64) (time.Duration, bool, []byte, error) {
 	b, err := json.Marshal(cuerpo)
 	if err != nil {
-		return 0, false, err
+		return 0, false, nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.URL+ruta, bytes.NewReader(b))
 	if err != nil {
-		return 0, false, err
+		return 0, false, nil, err
 	}
 	req.Header.Set("apikey", r.Clave)
 	req.Header.Set("Authorization", "Bearer "+r.Clave)
@@ -261,20 +271,17 @@ func (r *Relay) postConHora(ctx context.Context, ruta string, cuerpo any, out an
 	req.Header.Set("Accept", "application/json")
 	resp, err := r.HTTP.Do(req)
 	if err != nil {
-		return 0, false, fmt.Errorf("no se pudo hablar con el relay: %w", err)
+		return 0, false, nil, fmt.Errorf("no se pudo hablar con el relay: %w", err)
 	}
 	recibido := time.Now()
 	defer resp.Body.Close()
 	hora, errHora := http.ParseTime(resp.Header.Get("Date"))
 	desfase, conHora := recibido.Sub(hora), errHora == nil
-	datos, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	datos, _ := io.ReadAll(io.LimitReader(resp.Body, tope+1))
 	if resp.StatusCode >= 300 {
-		return desfase, conHora, errorDelRelay(resp.StatusCode, datos)
+		return desfase, conHora, nil, errorDelRelay(resp.StatusCode, datos)
 	}
-	if out == nil || len(bytes.TrimSpace(datos)) == 0 {
-		return desfase, conHora, nil
-	}
-	return desfase, conHora, json.Unmarshal(datos, out)
+	return desfase, conHora, datos, nil
 }
 
 // errorDelRelay traduce la respuesta de PostgREST: 28000 son credenciales malas, 53400 un límite.
@@ -452,8 +459,13 @@ func NombreParaAviso(nombre, clave string) string {
 	return string(out)
 }
 
-// Avisar pide un push a los teléfonos del dueño: solo el tipo y el proyecto (nombre visible y clave).
+// Avisar pide un push a los teléfonos del dueño: solo el tipo y el proyecto (nombre visible y clave). Si el relay dice
+// que no llegó a ningún teléfono, devuelve ErrSinEntrega (MEJ-027).
 func (r *Relay) Avisar(ctx context.Context, topico, firma, tipo, proyecto, clave string) error {
 	cuerpo := map[string]string{"topico": topico, "firma": firma, "tipo": tipo, "proyecto": NombreParaAviso(proyecto, clave), "clave": clave}
-	return r.post(ctx, "/functions/v1/avisar", cuerpo, nil)
+	_, _, datos, err := r.postDatos(ctx, "/functions/v1/avisar", cuerpo, topeCuerpoAvisar)
+	if err != nil {
+		return err
+	}
+	return sinEntregaDe(datos, tipo, clave)
 }
