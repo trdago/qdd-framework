@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Con QDD Móvil abierto, el PC ya no gasta CPU en el historial de logros que no manda (FND-214):** cuando todos los teléfonos lo piden aparte, el estado se arma sin leerlo ni pasarlo por el filtro de secretos. Además, la prueba que fallaba con la máquina cargada ya no falla.
+
 ## [2.10.0-rc.75] - 2026-11-15
 
 ### Agregado

@@ -67,9 +67,15 @@ func EstaMaquina() Maquina {
 // Armar arma el estado de los proyectos del registro (ya ordenado por visto, el más reciente primero). limite es el
 // de proyectos del plan (0: sin límite): se publican los más recientes y FueraDelPlan dice cuántos quedaron fuera.
 func Armar(qdd string, reg registro.Registro, now time.Time, limite int) Estado {
+	return ArmarCon(qdd, reg, now, limite, true)
+}
+
+// ArmarCon es Armar diciendo si los paneles traen lo logrado. Sin él no se lee ni pasa por el ocultador: cuando todos
+// los teléfonos lo piden aparte, ese trabajo se descartaba en cada estado (FND-214).
+func ArmarCon(qdd string, reg registro.Registro, now time.Time, limite int, conLogrado bool) Estado {
 	e := Estado{Version: VersionProtocolo, QDD: qdd, Maquina: EstaMaquina(), En: now.UTC(), Limites: consola.LeerLimites(), Proyectos: []ProyectoEstado{}}
 	for _, p := range Publicables(reg, limite) {
-		e.Proyectos = append(e.Proyectos, PanelDe(qdd, p, now))
+		e.Proyectos = append(e.Proyectos, panelDe(qdd, p, now, conLogrado))
 	}
 	e.FueraDelPlan = len(reg.Proyectos) - len(e.Proyectos)
 	return e
@@ -87,6 +93,10 @@ func Publicables(reg registro.Registro, limite int) []registro.Proyecto {
 // las preguntas de la consola y lo mandado desde el teléfono (opcionales, sin secretos), o con el error si la carpeta
 // ya no está. El ejecutar del panel depende del plan: lo pone ConEjecutar.
 func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
+	return panelDe(qdd, p, now, true)
+}
+
+func panelDe(qdd string, p registro.Proyecto, now time.Time, conLogrado bool) ProyectoEstado {
 	out := ProyectoEstado{Clave: p.Clave, Nombre: filepath.Base(p.Ruta), Ruta: p.Ruta}
 	if info, err := os.Stat(p.Ruta); err != nil || !info.IsDir() {
 		out.Error = ErrCarpetaNoExiste
@@ -94,7 +104,11 @@ func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
 	}
 	reglas := append([]string{}, integration.BloquesViejos(p.Ruta)...)
 	out.ReglasAtrasadas = &reglas
-	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono, consola.ConLogrado)
+	con := []string{consola.TipoPregunta, consola.ConTelefono}
+	if conLogrado {
+		con = append(con, consola.ConLogrado)
+	}
+	panel := consola.Panel(p.Ruta, now, con...)
 	panel.Flujos = resumenDeFlujos(p.Ruta)
 	ocultarDelPanel(p.Ruta, &panel)
 	panel.Version = qdd
