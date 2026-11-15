@@ -3592,6 +3592,27 @@ function anotarSinRegistrar($, e, motivo) {
   sinRegistrar.set(id, { id, tipo: 'pregunta', origen: 'ia', etiqueta: etiquetaLocal(e), ...llamadaDe(e.tool_name, e.tool_input) })
   $.ui.log('qdd no registró la pregunta; «Para ti» la cuenta igual: ' + motivo, { to: 'debug' })
   $.ui.invalidate('ui.render')
+  return id
+}
+
+// Que una pregunta no vuelva a dejar la consola entrampada (después de FND-165): un diálogo de la terminal que sigue
+// abierto a los AVISO_DIALOGO_MS avisa una vez en el escritorio, con el proyecto y la pregunta. La terminal puede estar
+// tapada o la persona lejos; «▶ Para ti» y el teléfono ya la muestran, pero nadie la miraba.
+const AVISO_DIALOGO_MS = 60_000
+const MAX_AVISO_DIALOGO = 140
+let proyectoDeSesion = '' // la carpeta de session.start, para que el aviso diga de qué proyecto es
+
+async function avisarSiSigueAbierto($, e, sigue) {
+  await $.clock.sleep(AVISO_DIALOGO_MS)
+  if (!sigue()) return
+  let texto = etiquetaLocal(e)
+  if (texto.length > MAX_AVISO_DIALOGO) texto = texto.slice(0, MAX_AVISO_DIALOGO - 1) + '…'
+  const titulo = proyectoDeSesion ? 'qdd · ' + proyectoDeSesion : 'qdd'
+  await $.ui.notify('⏳ La terminal te espera hace 1 min: ' + texto, { title: titulo })
+}
+
+function vigilarDialogo($, e, sigue) {
+  avisarSiSigueAbierto($, e, sigue).catch((err) => $.ui.log('no se avisó del diálogo abierto: ' + String(err?.message ?? err)))
 }
 
 function soltarSinRegistrar($, llamada) {
@@ -3646,12 +3667,14 @@ async function preguntarAlTelefono($, e, next) {
   const bin = await binario($)
   const { id, motivo, telefono } = await registrarPregunta($, bin, await sesionPropia($), e)
   if (!id) {
-    anotarSinRegistrar($, e, motivo)
+    const local = anotarSinRegistrar($, e, motivo)
+    vigilarDialogo($, e, () => sinRegistrar.has(local))
     return r
   }
   huboPreguntas = true
   const viva = { ...llamadaDe(e.tool_name, e.tool_input), cerrada: false, aplicada: false }
   preguntasVivas.set(id, viva)
+  vigilarDialogo($, e, () => !viva.cerrada && !viva.aplicada)
   if (viva.llamada && telefono) {
     try {
       $.ui.notice(viva.llamada, '📱 También se puede responder desde QDD Móvil')
@@ -4011,6 +4034,7 @@ async function faltaAlTerminar($, e) {
 export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
+    proyectoDeSesion = String(e.cwd || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop() || ''
     if (interactiva) {
       $.clock.every(TELEFONO_MS, async () => {
         await latirTelefono($)
