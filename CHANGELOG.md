@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.81] - 2026-11-15
+
+### Corregido
+
+- **`qdd version` da la versión:** mostraba el aviso del motor cognitivo deprecado; ahora dice lo mismo que
+  `qdd --version`, en cualquier carpeta (FND-226, #271).
+
 ## [2.10.0-rc.80] - 2026-11-15
 
 ### Cambiado
