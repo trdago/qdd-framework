@@ -1,8 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 // Sprint 8 (MEJ-057, MEJ-026): toda pregunta a la persona, de cualquier tipo, aparece en «▶ Para ti» mientras sigue
-// abierta. Las acciones (pedidos y fichas) se ven; las preguntas cuentan en «? N» y en «N por responder», y se ven al
-// desplegarlo. Una pregunta de la terminal aparece aunque QDD Móvil no esté activado, y aunque qdd no la registre.
+// abierta. Lo abierto en la terminal va arriba a la vista (MEJ-057); las acciones (pedidos y fichas) se ven; los ⏳
+// cuentan en «? N» y se ven al desplegarlo. Todo cuenta en «N por responder». Una pregunta de la terminal aparece aunque QDD Móvil no esté activado, y aunque qdd no la registre.
 
 const PANEL = {
   plugin: 'qdd-tareas',
@@ -99,24 +99,26 @@ function unDialogo($, r, herramienta: string, entrada: any) {
   }
 }
 
-test('cada tipo de pregunta aparece en «Para ti»: las acciones a la vista y las preguntas en «? N»', async ($, on) => {
+test('cada tipo de pregunta aparece en «Para ti»: lo de la terminal y las acciones a la vista, los ⏳ en «? N»', async ($, on) => {
   const r = nuevo({ acciones: Object.values(TIPOS), esperas: [ESPERA_EN_LA_TABLA] })
   const ui = await montado($, on, r)
   expect(await ui.find({ key: 'b-' + TIPOS.pedido.id })).toBeDefined()
   expect(await ui.find({ key: 'b-' + TIPOS.ficha.id })).toBeDefined()
-  expect((await ui.find({ key: 'preguntas-ver' })).props.label).toContain('? 4')
+  for (const a of [TIPOS.ia, TIPOS.permiso, TIPOS.qdd]) {
+    expect(await ui.find({ type: 'Text', text: new RegExp('#' + a.turno + ' ') })).toBeDefined()
+  }
+  expect(await ui.find({ type: 'Text', text: /4 por responder/ })).toBeDefined()
+  expect((await ui.find({ key: 'preguntas-ver' })).props.label).toContain('? 1')
   await ui.press({ key: 'preguntas-ver' })
   expect(await ui.find({ key: 'espera-0' })).toBeDefined()
-  for (const a of [TIPOS.ia, TIPOS.permiso, TIPOS.qdd]) {
-    expect(await ui.find({ type: 'Text', text: new RegExp('#' + a.turno + ' .*en la terminal') })).toBeDefined()
-  }
 })
 
 for (const tipo of ['espera', 'ia', 'permiso', 'qdd']) {
   test('una sola pregunta (' + tipo + ') ya enciende «Para ti» y dice cuántas hay por responder', async ($, on) => {
     const r = nuevo({ acciones: [TIPOS[tipo]], esperas: tipo === 'espera' ? [ESPERA_EN_LA_TABLA] : [] })
     const ui = await montado($, on, r)
-    expect((await ui.find({ key: 'preguntas-ver' }))?.props.label).toContain('? 1')
+    if (tipo === 'espera') expect((await ui.find({ key: 'preguntas-ver' }))?.props.label).toContain('? 1')
+    if (tipo !== 'espera') expect(await ui.find({ type: 'Text', text: new RegExp('#' + TIPOS[tipo].turno + ' ') })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /1 por responder/ })).toBeDefined()
   })
 }
@@ -160,11 +162,11 @@ test('si qdd no registra la pregunta, «Para ti» igual la cuenta en la terminal
   expect(await ui.find({ key: 'preguntas-ver' })).toBeUndefined()
   const d = unDialogo($, r, 'AskUserQuestion', ASK)
   await pausa()
-  expect((await ui.find({ key: 'preguntas-ver' }))?.props.label).toContain('? 1')
-  await ui.press({ key: 'preguntas-ver' })
-  expect(await ui.find({ type: 'Text', text: /Base · ¿Qué base usamos\? · en la terminal/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Base · ¿Qué base usamos\?/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /respóndela en la terminal/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /1 por responder/ })).toBeDefined()
   await d.cerrar()
-  expect(await ui.find({ key: 'preguntas-ver' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Base · ¿Qué base usamos\?/ })).toBeUndefined()
 })
 
 test('un qdd anterior que sin QDD Móvil no registra (id vacío) también deja la pregunta en «Para ti»', async ($, on) => {
@@ -172,8 +174,7 @@ test('un qdd anterior que sin QDD Móvil no registra (id vacío) también deja l
   const ui = await montado($, on, r)
   const d = unDialogo($, r, 'Bash', { command: 'git push origin main' })
   await pausa()
-  expect((await ui.find({ key: 'preguntas-ver' }))?.props.label).toContain('? 1')
-  await ui.press({ key: 'preguntas-ver' })
-  expect(await ui.find({ type: 'Text', text: /Bash: git push origin main · en la terminal/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Bash: git push origin main/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /respóndela en la terminal/ })).toBeDefined()
   await d.cerrar()
 })

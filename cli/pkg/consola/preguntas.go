@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -382,6 +383,48 @@ func nuevoIDPregunta() string {
 // IDPregunta quita el prefijo «pregunta:» de un id de acción (el teléfono puede mandar cualquiera de los dos).
 func IDPregunta(id string) string {
 	return strings.TrimPrefix(strings.TrimSpace(id), prefijoPregunta)
+}
+
+// LugarPanel es el lugar de una pregunta de la terminal respondida con un botón de «▶ Para ti» (MEJ-057).
+const LugarPanel = "el panel"
+
+// ErrVariasPreguntas: el panel responde con un botón solo una pregunta suelta; varias juntas van en la terminal.
+var ErrVariasPreguntas = errors.New("trae varias preguntas juntas: respóndelas en la terminal")
+
+// ResponderPreguntaEnPanel aplica el botón de una opción en «▶ Para ti» a una pregunta de la terminal (AskUserQuestion,
+// un permiso o un comando qdd): queda respondida como desde el teléfono, en LugarPanel, y la sesión que la espera la
+// entrega a Claude Code. Un ⏳ tiene sus propios botones (ResponderEsperaEnPC).
+func ResponderPreguntaEnPanel(root, id, valor string, now time.Time) (Pregunta, error) {
+	p, ok := PreguntaDe(root, id, now)
+	if !ok {
+		return Pregunta{}, ErrPreguntaDesconocida
+	}
+	if len(p.Preguntas) != 1 {
+		return Pregunta{}, ErrVariasPreguntas
+	}
+	respuesta := `{"` + p.Preguntas[0].ID + `":{"opciones":[` + strconv.Quote(valor) + `]}}`
+	return ResponderPregunta(root, id, respuesta, LugarPanel, now)
+}
+
+// EsEspera dice si el id es el de un ⏳ de la persona (esperas_preguntas.go) y no el de una pregunta de la terminal.
+func EsEspera(id string) bool {
+	return strings.HasPrefix(IDPregunta(id), prefijoEspera)
+}
+
+// RespuestaDe es lo que quedó respondido, como lo lee la persona: la etiqueta de cada opción elegida o el texto de «Otra».
+func RespuestaDe(p Pregunta) string {
+	var partes []string
+	for _, q := range p.Preguntas {
+		r := p.Respuesta[q.ID]
+		if r.Otra != nil {
+			partes = append(partes, *r.Otra)
+			continue
+		}
+		for _, v := range r.Opciones {
+			partes = append(partes, etiquetaDe(q, v))
+		}
+	}
+	return strings.Join(partes, ", ")
 }
 
 // ResponderPregunta aplica la respuesta de un teléfono (lugar es su nombre) si la pregunta sigue pendiente y la

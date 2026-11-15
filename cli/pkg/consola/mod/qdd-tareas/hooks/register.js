@@ -2076,9 +2076,10 @@ function enZona(Box, Text, Button, $, aqui) {
   ]
 }
 
-// paraTi es lo que espera a la persona, en el orden que da qdd (RFC 0019) y con su número: primero las acciones (pedidos
-// y fichas), después lo que no lleva turno y los hechos, y al final las preguntas (⏳ y lo abierto en la terminal),
-// plegadas en «? N» (pedido de la persona, 2026-11-08). Lo que se está confirmando cambia su tarjeta por la confirmación.
+// paraTi es lo que espera a la persona, en el orden que da qdd (RFC 0019) y con su número: primero lo abierto en la
+// terminal, a la vista y con un botón por opción (MEJ-057, la persona eligió «Arriba con botones», 2026-11-15); después
+// las acciones (pedidos y fichas), lo que no lleva turno y los hechos, y al final los ⏳, plegados en «? N» (pedido de la
+// persona, 2026-11-08). Lo que se está confirmando cambia su tarjeta por la confirmación.
 function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const lista = pedidos(todas)
   const turnos = todas.filter((a) => a.turno)
@@ -2115,7 +2116,7 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const fila = (a) => {
     if (a.tipo === 'pedido') return [tarjetaDe(a)]
     if (a.tipo === 'aprobar') return [confirmando?.id === a.id ? confirmacion(Box, Text, Button, $) : filaDeFicha(Button, $, a, teclasFichas[a.id])]
-    if (esDeLaTerminal(a)) return [filaDeTerminal(Text, a)]
+    if (esDeLaTerminal(a)) return []
     const q = preguntaEn.get(a.id)
     if (!q) return []
     return espera(conLugarEnLaLista(q, a))
@@ -2124,13 +2125,13 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   // terminal) quedan plegadas en «? N», que se despliega si la persona quiere. Cada una conserva su número de turno.
   const esAccion = (a) => a.tipo === 'pedido' || a.tipo === 'aprobar'
   const enTurno = turnos.filter(esAccion).flatMap(fila)
-  const cuerpo = [...enTurno, ...[...abiertos, ...hechos].map(tarjetaDe), ...seVa]
-  if (porResponder) cuerpo.push(...preguntasPlegadas(Button, $, porResponder, () => {
-    const enLaLista = turnos.filter((a) => !esAccion(a)).flatMap(fila)
+  const arriba = [...enTerminal, ...locales].map((a) => preguntaArriba(Box, Text, Button, $, a))
+  const cuerpo = [...arriba, ...enTurno, ...[...abiertos, ...hechos].map(tarjetaDe), ...seVa]
+  if (preguntas.length) cuerpo.push(...preguntasPlegadas(Button, $, preguntas.length, () => {
+    const enLaLista = turnos.filter((a) => !esAccion(a) && !esDeLaTerminal(a)).flatMap(fila)
     const sinLugar = sueltas.flatMap(espera)
     const resto = preguntas.length - puestas.length
-    const sinRegistrarEnQDD = locales.map((q) => filaDeTerminal(Text, q))
-    return [...enLaLista, ...sinLugar, ...sinRegistrarEnQDD, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
+    return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
   }))
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
@@ -2158,9 +2159,40 @@ function esDeLaTerminal(a) {
   return a.tipo === 'pregunta' && a.turno && a.origen !== 'estado'
 }
 
-function filaDeTerminal(Text, a) {
+// preguntaArriba: lo abierto en la terminal, con su número y un botón por opción si es una sola pregunta registrada en
+// qdd (MEJ-057). Varias juntas, o una que qdd no registró, se responden en la terminal.
+function preguntaArriba(Box, Text, Button, $, a) {
   const v = conNumero(a)
-  return Text({ key: 'terminal-' + a.id, color: COLOR.espera, wrap: 'wrap', children: [v.etiqueta + ' · en la terminal'] })
+  const titulo = Text({ key: 'terminal-' + a.id, color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: [v.etiqueta] })
+  const q = a.preguntas?.length === 1 && !a.preguntas[0].multiple ? a.preguntas[0] : null
+  if (!q || !q.opciones?.length) {
+    const donde = Text({ key: 'terminal-donde-' + a.id, dimColor: true, size: 'caption', children: ['   respóndela en la terminal'] })
+    return Box({ key: 'arriba-' + a.id, flexDirection: 'column', children: [titulo, donde] })
+  }
+  const texto = q.texto && !v.etiqueta.includes(q.texto) ? [Text({ key: 'terminal-texto-' + a.id, wrap: 'wrap', children: ['   ' + q.texto] })] : []
+  const botones = q.opciones.map((o) => Button({ key: 'pq-' + a.id + '-' + o.valor, label: o.etiqueta, onPress: () => responderEnPanel($, a, o) }))
+  const donde = Text({ key: 'terminal-donde-' + a.id, dimColor: true, size: 'caption', children: ['   o respóndela en la terminal'] })
+  return Box({ key: 'arriba-' + a.id, flexDirection: 'column', children: [titulo, ...texto, Box({ key: 'pq-fila-' + a.id, flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, paddingLeft: 3, children: botones }), donde] })
+}
+
+// responderEnPanel: el botón de una opción. qdd la deja respondida y la sesión que espera la pregunta la entrega a
+// Claude Code (preguntarAlTelefono); a la IA no se le escribe nada.
+async function responderEnPanel($, a, o) {
+  if (ocupado) return
+  ocupado = true
+  confirmando = null
+  const bin = await binario($)
+  try {
+    const salida = await $.process.run([bin, 'consola', 'pregunta', 'responder', a.id, o.valor], { timeoutMs: TOPE_MS })
+    const r = salida.exitCode === 0 ? JSON.parse(salida.stdout || '{}') : null
+    resultado = r
+      ? { titulo: a.etiqueta, ok: true, texto: r.aplicado || 'Respondida desde el panel: ' + o.etiqueta, zona: 'pedidos' }
+      : { titulo: a.etiqueta, ok: false, texto: ((salida.stdout || '') + (salida.stderr || '')).trim() || 'sin salida', zona: 'pedidos' }
+  } catch (err) {
+    resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'pedidos' }
+  }
+  ocupado = false
+  $.ui.invalidate('ui.render')
 }
 
 function filaDeFicha(Button, $, a, tecla) {
@@ -3529,7 +3561,8 @@ function decisionDe(e, p) {
   const donde = p.lugar || 'el teléfono'
   if (e.tool_name === PREGUNTAR && p.answers) return { behavior: 'allow', updatedInput: { ...e.tool_input, answers: p.answers } }
   if (e.tool_name !== PREGUNTAR && p.decision === 'permitir') return { behavior: 'allow' }
-  return { behavior: 'deny', message: 'La persona lo negó desde ' + donde + ' (QDD Móvil).' }
+  const app = donde === 'el panel' ? '' : ' (QDD Móvil)'
+  return { behavior: 'deny', message: 'La persona lo negó desde ' + donde + app + '.' }
 }
 
 async function preguntarAlTelefono($, e, next) {

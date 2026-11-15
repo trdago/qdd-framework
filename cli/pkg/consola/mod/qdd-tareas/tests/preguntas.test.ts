@@ -164,3 +164,12 @@ test('al cerrarse la sesión vencen sus preguntas', async ($, on) => {
   await $.session.end({ reason: 'exit' })
   expect(deQDD(r, 'vencer')).toEqual([['qdd', 'consola', 'pregunta', 'vencer', '--sesion', 'sesion-1']])
 })
+
+// MEJ-057: lo que se responde con un botón de «Para ti» llega igual que desde el teléfono, pero dice que fue el panel.
+test('un permiso negado desde el panel lo dice sin nombrar a QDD Móvil', async ($, on) => {
+  const r = nuevo({ esperas: [{ id: 'p1', estado: 'respondida', respondida_en: 'telefono', lugar: 'el panel', decision: 'negar' }] })
+  preparar(on, r)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const negado = await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'git push' } })
+  expect(negado.decision).toEqual({ behavior: 'deny', message: 'La persona lo negó desde el panel.' })
+})
