@@ -25,7 +25,7 @@ import (
 // nuevo y no revisa lo demás. REM-16: credenciales.json o relay.json rotos; --fix aparta el roto y pide el relay al
 // directorio. REM-17: el servicio lanza un qdd que ya no existe (otra versión de node); --fix lo reescribe con el de
 // ahora. REM-18: el canal en tiempo real caído mientras el latido sigue; --fix reinicia el servicio, igual que REM-07.
-// REM-19: acciones descartadas por llegar con la hora corrida; el reloj lo corrige la persona.
+// REM-19: el reloj de este PC frente al del relay, que sella las acciones del teléfono; lo corrige la persona.
 
 const grupoMovil = "12. QDD Móvil (teléfono)"
 
@@ -48,7 +48,7 @@ const (
 	itemMovilArchivos   = "Credenciales y relay de este PC se leen (REM-16)"
 	itemMovilBinario    = "El servicio lanza un qdd que existe (REM-17)"
 	itemMovilCanal      = "El canal en tiempo real está unido (REM-18)"
-	itemMovilReloj      = "El reloj de este PC coincide con el del teléfono (REM-19)"
+	itemMovilReloj      = "El reloj de este PC coincide con el del relay (REM-19)"
 
 	movilSinAnotar     = "no está en el registro"
 	maxLatidosPerdidos = 3
@@ -122,18 +122,35 @@ func conItemCanal(g *CheckGroup, now time.Time) *CheckGroup {
 	return g
 }
 
-// conItemReloj: una acción del teléfono vale 5 minutos, y con los relojes corridos se descarta sin que nadie lo vea.
+// maxDesfaseRelay avisa antes de perder acciones: una acción del teléfono vale 5 minutos desde que el relay la sella.
+const maxDesfaseRelay = 2 * time.Minute
+
+// conItemReloj (REM-19, consensuado con qdd-movile el 2026-11-15): la hora de una acción la pone el relay, así que lo que
+// importa es el reloj de este PC frente al del relay, que da el último latido. Las acciones descartadas por vieja en
+// log.jsonl son la evidencia; si el reloj está bien, llegaron tarde por el canal, y eso es REM-18.
 func conItemReloj(g *CheckGroup, now time.Time) *CheckGroup {
-	desfase, n := remoto.DesfaseReloj(now)
-	if n == 0 {
-		g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Success: true})
+	desfase, conHora := remoto.DesfaseRelay()
+	desfaseLog, n := remoto.DesfaseReloj(now)
+	if !conHora && n > 0 {
+		desfase, conHora = desfaseLog, true
+	}
+	descartadas := ""
+	if n > 0 {
+		descartadas = fmt.Sprintf(" (%d acciones del teléfono se descartaron en 24 h)", n)
+	}
+	if conHora && (desfase > maxDesfaseRelay || desfase < -maxDesfaseRelay) {
+		sentido := "adelantado"
+		if desfase < 0 {
+			sentido, desfase = "atrasado", -desfase
+		}
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Error: fmt.Sprintf("este PC va %d min %s respecto del relay y una acción del teléfono vale 5 min%s: activa la hora automática en este PC", int(desfase.Minutes()), sentido, descartadas)})
 		return g
 	}
-	sentido := "adelantado"
-	if desfase < 0 {
-		sentido, desfase = "atrasado", -desfase
+	if n > 0 {
+		g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Error: "el reloj está bien, pero" + descartadas + " llegaron tarde por el canal en tiempo real: revisa REM-18 y el registro de qdd remoto"})
+		return g
 	}
-	g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Error: fmt.Sprintf("%d acciones del teléfono se descartaron en 24 h por la hora; la última, con este PC %d min %s: activa la hora automática en el PC y en el teléfono", n, int(desfase.Minutes()), sentido)})
+	g.Items = append(g.Items, &CheckItem{Name: itemMovilReloj, Success: true})
 	return g
 }
 

@@ -267,6 +267,42 @@ func TestDoctorMovil_AccionesDescartadasPorLaHoraDicenElDesfase_REM19(t *testing
 	}
 }
 
+// qdd-movile (2026-11-15): la hora de una acción la sella el relay, así que REM-19 mide este PC contra el relay.
+func TestDoctorMovil_ElRelojSeMideContraElRelayAntesDePerderAcciones_REM19(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now()
+	movilSano(t, m, now)
+	if err := remoto.GuardarLatidoConHora(now, -3*time.Minute, true); err != nil {
+		t.Fatal(err)
+	}
+	item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilReloj)
+	if item.Success || !strings.Contains(item.Error, "3 min atrasado respecto del relay") || strings.Contains(item.Error, "descartaron") {
+		t.Fatalf("avisa sin haber perdido nada todavía: %+v", item)
+	}
+	if err := remoto.GuardarLatidoConHora(now, 20*time.Second, true); err != nil {
+		t.Fatal(err)
+	}
+	if item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilReloj); !item.Success {
+		t.Fatalf("20 s no es un reloj corrido: %+v", item)
+	}
+}
+
+func TestDoctorMovil_ConElRelojBienLasDescartadasApuntanAlCanal_REM19(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	movilSano(t, m, now)
+	if err := remoto.GuardarLatidoConHora(now, 5*time.Second, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := remoto.Anotar(remoto.EntradaLog{En: now, Estado: remoto.EstadoDescartada, Resultado: "acción vieja (" + now.Add(-7*time.Minute).Format("2006-01-02T15:04:05Z") + ")"}); err != nil {
+		t.Fatal(err)
+	}
+	item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilReloj)
+	if item.Success || !strings.Contains(item.Error, "llegaron tarde") || !strings.Contains(item.Error, "REM-18") {
+		t.Fatalf("%+v", item)
+	}
+}
+
 func TestDoctorMovil_SolicitudesApartadasSeNombran_REM10(t *testing.T) {
 	m := movilPrueba(t)
 	movilSano(t, m, time.Now())

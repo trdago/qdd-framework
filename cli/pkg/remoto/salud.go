@@ -171,8 +171,9 @@ const ventanaDesfase = 24 * time.Hour
 
 var reAccionVieja = regexp.MustCompile(`vieja \((\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)\)`)
 
-// DesfaseReloj lee log.jsonl: una acción descartada por vieja trae la hora del teléfono, y la línea la del PC. Devuelve
-// la diferencia de la más reciente de las últimas 24 h (PC menos teléfono) y cuántas hubo; 0 y 0 si ninguna.
+// DesfaseReloj lee log.jsonl: una acción descartada por vieja trae la hora que le puso el relay al recibirla (now() de
+// Postgres; el teléfono no encola, reintenta unos 20 s y se rinde, según qdd-movile), y la línea la del PC. Devuelve la
+// diferencia de la más reciente de las últimas 24 h (PC menos relay, más lo que tardó el canal) y cuántas hubo.
 func DesfaseReloj(now time.Time) (time.Duration, int) {
 	ruta, err := rutaRemoto("log.jsonl")
 	if err != nil {
@@ -197,13 +198,13 @@ func DesfaseReloj(now time.Time) (time.Duration, int) {
 		if m == nil {
 			continue
 		}
-		telefono, err := time.Parse(formatoEn, m[1])
+		relay, err := time.Parse(formatoEn, m[1])
 		if err != nil {
 			continue
 		}
 		n++
 		if e.En.After(ultima) {
-			ultima, desfase = e.En, e.En.Sub(telefono)
+			ultima, desfase = e.En, e.En.Sub(relay)
 		}
 	}
 	return desfase, n

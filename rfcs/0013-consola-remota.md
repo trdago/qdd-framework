@@ -533,9 +533,15 @@ firmado. Lo que necesita a la persona o al teléfono se dice y no se intenta.
 | REM-08 | El proyecto está en el registro y dentro del plan. | Lo anota. Quedar fuera del plan lo decide la persona. |
 | REM-09 | El último envío al teléfono salió. | Nada: el motivo está en el registro del servicio. |
 | REM-10 | No hay colas apartadas por ilegibles: preguntas, teléfono, turnos y `solicitudes.json`. | Nada: pueden traer un mensaje de la persona. |
-| REM-19 | No hay acciones descartadas por la hora en las últimas 24 h. Calcula el desfase con la hora del teléfono que trae el descarte en `log.jsonl`. | Nada: la hora automática se activa en el PC o en el teléfono. |
+| REM-19 | El reloj de este PC no se separa más de 2 min del relay. La hora de una acción la sella el relay con `now()` de Postgres; el teléfono no la pone. El desfase sale del header `Date` del último latido y queda en `latido.json`. Las acciones descartadas por viejas en `log.jsonl` en las últimas 24 h son la evidencia. Con el reloj bien, esas acciones llegaron tarde por el canal, y eso lo revisa REM-18. | Nada: la persona activa la hora automática en este PC. |
 
 `log.jsonl` no se recorta: es el registro de quién aprobó qué (inv. 5).
+
+Consenso con qdd-movile (2026-11-15, pedido de la persona): las cinco revisiones nuevas (REM-15 a REM-19) quedan aceptadas. REM-19 se mide contra el relay, por lo que qdd-movile verificó en la app y en el relay:
+
+- El teléfono no encola acciones sin conexión: reintenta con el mismo id cada 5 s, hasta 3 veces, y después se rinde.
+- La app no necesita más para un PC quitado. El teléfono que lo quitó ya lo sabe, y la lista de PCs sale de `qdd_remoto.maquinas`.
+- El PC no puede ver el push, FCM, RevenueCat ni los dispositivos revocados, porque tienen RLS por cuenta. Quedan fuera de doctor.
 
 ## Fases (canal preview)
 

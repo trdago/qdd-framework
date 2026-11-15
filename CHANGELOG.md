@@ -13,7 +13,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
   - Ve `credenciales.json` o `relay.json` rotos, y `--fix` aparta el roto y pide el relay al directorio firmado.
   - Ve un servicio que lanza un qdd que ya no existe (por ejemplo, tras cambiar de versión de node), y `--fix` lo reescribe con el qdd de ahora.
   - Ve el canal en tiempo real caído aunque el latido siga respondiendo, y `--fix` reinicia el servicio. También lo reinicia cuando el latido lleva más de 3 minutos sin respuesta (REM-07).
-  - Dice cuántas acciones del teléfono se descartaron por la diferencia de hora entre el PC y el teléfono, y cuántos minutos hay de diferencia.
+  - Avisa si el reloj de este PC se separa más de 2 minutos del relay, antes de que se pierda una acción del teléfono. La hora de cada acción la pone el relay, y cada acción vale 5 minutos. También dice cuántas acciones se descartaron por eso.
+  - Las cinco revisiones se acordaron con qdd-movile.
   - Nombra `solicitudes.json` cuando el servicio lo apartó por ilegible.
 
 ## [2.10.0-rc.74] - 2026-11-15

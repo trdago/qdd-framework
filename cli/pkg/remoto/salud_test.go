@@ -1,6 +1,9 @@
 package remoto
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -88,6 +91,33 @@ func TestAvisarConexion_UnaCaidaSeAvisaUnaVezConSuPrimeraHora(t *testing.T) {
 		if avisos[i] != want[i] {
 			t.Fatalf("%v", avisos)
 		}
+	}
+}
+
+func TestLatidoConHora_MideElRelojContraElDateDelRelay_REM19(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Date", time.Now().Add(-4*time.Minute).UTC().Format(http.TimeFormat))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"plan":"gratis","pcs":1,"proyectos":3,"consola_permitida":true}`))
+	}))
+	defer srv.Close()
+	r := NuevoRelay(ConfigRelay{URL: srv.URL, Clave: "sb_publishable_a"})
+	_, desfase, conHora, err := r.LatidoConHora(context.Background(), "t", "f", 0, 0, 0)
+	if err != nil || !conHora || desfase < 3*time.Minute || desfase > 5*time.Minute {
+		t.Fatalf("el relay va 4 min atrás: este PC, 4 min adelantado: %v %v %v", desfase, conHora, err)
+	}
+	if err := GuardarLatidoConHora(time.Now(), desfase, conHora); err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := DesfaseRelay(); !ok || (d-desfase).Abs() > time.Millisecond {
+		t.Fatalf("latido.json lo guarda: %v %v", d, ok)
+	}
+	if err := GuardarLatido(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := DesfaseRelay(); ok {
+		t.Fatal("sin hora del relay no hay desfase")
 	}
 }
 

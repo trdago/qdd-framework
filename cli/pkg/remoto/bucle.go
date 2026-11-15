@@ -110,6 +110,13 @@ type resultadoLatido struct {
 	err        error
 	mensajes   int
 	consolaMin int
+	desfase    time.Duration // de este PC frente al relay, si conHora
+	conHora    bool
+}
+
+// latidoConHora es el relay que además dice la hora (Relay); uno de prueba puede no tenerla.
+type latidoConHora interface {
+	LatidoConHora(ctx context.Context, topico, firma string, enCurso, consolaMin, mensajes int) (Plan, time.Duration, bool, error)
 }
 
 // PresenciaPC es la presence del PC: rol, versión de qdd y desde cuándo está encendido.
@@ -643,9 +650,16 @@ func (b *Bucle) latir(ctx context.Context) {
 	go func() {
 		c, cancelar := context.WithTimeout(ctx, 20*time.Second)
 		defer cancelar()
-		p, err := b.R.Latido(c, b.Cred.Topico, b.Cred.Firma, enCurso, consolaMin, mensajes)
+		r := resultadoLatido{mensajes: mensajes, consolaMin: consolaMin}
+		lh, ok := b.R.(latidoConHora)
+		if ok {
+			r.plan, r.desfase, r.conHora, r.err = lh.LatidoConHora(c, b.Cred.Topico, b.Cred.Firma, enCurso, consolaMin, mensajes)
+		}
+		if !ok {
+			r.plan, r.err = b.R.Latido(c, b.Cred.Topico, b.Cred.Firma, enCurso, consolaMin, mensajes)
+		}
 		select {
-		case b.latidos <- resultadoLatido{plan: p, err: err, mensajes: mensajes, consolaMin: consolaMin}:
+		case b.latidos <- r:
 		case <-ctx.Done():
 		}
 	}()
@@ -666,7 +680,7 @@ func (b *Bucle) alLatido(r resultadoLatido) error {
 	limiteAntes, proAntes := b.plan.LimiteProyectos(), b.plan.Pro()
 	b.plan = r.plan
 	b.guardarPlan()
-	if err := GuardarLatido(b.ahora()); err != nil {
+	if err := GuardarLatidoConHora(b.ahora(), r.desfase, r.conHora); err != nil {
 		b.logf("latido guardado: %v", err)
 	}
 	b.alCambiarPlan()
