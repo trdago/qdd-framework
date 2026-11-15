@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.71] - 2026-11-15
+
+### Corregido
+
+- **Las preguntas de la terminal aparecen en «▶ Para ti» aunque no uses QDD Móvil (FND-205, MEJ-057):** una pregunta de la IA (AskUserQuestion) o un permiso de herramienta se ve en el panel con o sin teléfono. Si qdd no alcanza a registrarla, el panel igual la cuenta como «en la terminal» hasta que la respondes. El aviso «También se puede responder desde QDD Móvil» sale solo si tienes el teléfono activado.
+
+### Pruebas
+
+- **Sprint 8: toda pregunta a la persona aparece en «Para ti»:** una prueba por tipo (pregunta de la IA, permiso, comando qdd, ⏳, pedido y ficha) y un contrato que falla si aparece un tipo nuevo sin su prueba.
+
 ## [2.10.0-rc.70] - 2026-11-14
 
 ### Agregado
