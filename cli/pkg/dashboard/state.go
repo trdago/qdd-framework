@@ -127,7 +127,7 @@ func Vigilar(ctx context.Context, cwd string, listo chan struct{}) {
 	defer watcher.Close()
 
 	observarArbol(watcher, filepath.Join(cwd, ".qdd"))
-	difundirEstado()
+	difundir()
 	if listo != nil {
 		close(listo)
 	}
@@ -160,7 +160,7 @@ func Vigilar(ctx context.Context, cwd string, listo chan struct{}) {
 			if pendiente != nil {
 				pendiente.Stop()
 			}
-			pendiente = time.AfterFunc(ventanaDeEventos, difundirEstado)
+			pendiente = time.AfterFunc(ventanaDeEventos, difundir)
 		}
 	}
 }
@@ -175,6 +175,10 @@ func observarArbol(watcher *fsnotify.Watcher, raiz string) {
 		return nil
 	})
 }
+
+// difundir es lo que hace Vigilar con cada ráfaga. Las pruebas del vigilante lo cambian por una difusión liviana:
+// armar el estado sincroniza knowledge.db (SQLite con fsync) y con el disco cargado tarda segundos (FND-215).
+var difundir = difundirEstado
 
 func difundirEstado() {
 	data, _ := json.Marshal(BuildState())
