@@ -170,6 +170,15 @@ function accionDe(datos, id) {
   return { id: a.id, etiqueta: a.etiqueta, confirmar: a.confirmar !== false }
 }
 
+// binarioDe (fase C): QDD_BIN manda; después, la ruta absoluta que qdd dejó en qdd.json al instalar la extensión, si
+// sigue existiendo (en Windows execFile sin shell no encuentra el qdd.cmd de npm); si no, qdd del PATH.
+function binarioDe(env, config, existe) {
+  if (env.QDD_BIN) return env.QDD_BIN
+  const ruta = config?.binario
+  if (typeof ruta !== 'string' || !path.isAbsolute(ruta) || !existe(ruta)) return 'qdd'
+  return ruta
+}
+
 // motivoDeSalida explica por qué qdd no entregó datos.
 function motivoDeSalida(codigo, stderr) {
   if (codigo === 0) return ''
@@ -183,4 +192,4 @@ function carpetaDe(carpetas, elegida, existe) {
   return { carpeta: opciones[0] || '', opciones }
 }
 
-module.exports = { vista, carpetaDe, motivoDeSalida, accionDe }
+module.exports = { vista, carpetaDe, motivoDeSalida, accionDe, binarioDe }

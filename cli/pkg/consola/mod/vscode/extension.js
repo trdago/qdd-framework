@@ -6,7 +6,8 @@
 const vscode = require('vscode')
 const { spawn, execFile } = require('node:child_process')
 const fs = require('node:fs')
-const { vista, carpetaDe, accionDe } = require('./panel.js')
+const path = require('node:path')
+const { vista, carpetaDe, accionDe, binarioDe } = require('./panel.js')
 const { crearLector } = require('./lector.js')
 
 const TOPE_MS = 3000
@@ -16,7 +17,16 @@ const CODIGO_TODAVIA_NO = 75
 const LINEAS_RESULTADO = 4
 const SIN_PROYECTO = 'Abre una carpeta con .qdd para ver su panel'
 
-const binario = () => process.env.QDD_BIN || 'qdd'
+// leerConfig: lo que 'qdd consola activar' dejó junto a la extensión (qdd.json); sin archivo o ilegible, nada.
+function leerConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, 'qdd.json'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+const binario = () => binarioDe(process.env, leerConfig(), fs.existsSync)
 const ultimasLineas = (texto) => String(texto || '').trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
 
 function carpetasAbiertas() {

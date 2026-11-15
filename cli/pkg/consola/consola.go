@@ -74,6 +74,8 @@ type Consola struct {
 	Binario   string   // el binario instalado: la barra lo llama por su ruta, sin pasar por Node; vacío, usa ComandoBarra
 	// BuscarOpenCode devuelve la configuración de OpenCode y si está en esta máquina; por defecto, la detección real.
 	BuscarOpenCode func() (string, bool)
+	// BuscarIDEs devuelve Antigravity y VS Code de esta máquina (RFC 0014); por defecto, la detección real.
+	BuscarIDEs func() []IDE
 }
 
 // Registro es lo que QDD recuerda de la activación, en <QDDHome>/claude/activo.json.
@@ -84,6 +86,7 @@ type Registro struct {
 	Recursos      bool            `json:"recursos,omitempty"`
 	OpenCode      bool            `json:"opencode,omitempty"`
 	OpenCodeDir   string          `json:"opencode_dir,omitempty"`
+	IDEs          []IDE           `json:"ides,omitempty"` // IDE con el panel de QDD (RFC 0014)
 }
 
 // Diagnostico es un control de doctor.
@@ -292,6 +295,12 @@ func (c Consola) Activar(barra bool) ([]string, error) {
 		}
 		reg.OpenCode, reg.OpenCodeDir = registrado, dir
 	}
+	msgs, ides, err := c.activarExtensiones()
+	hecho = append(hecho, msgs...)
+	if err != nil {
+		return hecho, err
+	}
+	reg.IDEs = ides
 	if reg.Barra && reg.Recursos {
 		hecho = append(hecho, "La barra suma la línea de recursos: D (disco del proyecto) · G0… (GPU) · R (RAM) · C (CPU).")
 	}
@@ -529,6 +538,13 @@ func (c Consola) Desactivar() ([]string, error) {
 			return hecho, err
 		}
 	}
+	for _, ide := range reg.IDEs {
+		msg, err := desactivarExtension(ide)
+		if err != nil {
+			return hecho, err
+		}
+		hecho = append(hecho, msg)
+	}
 	if err := os.RemoveAll(c.DirMarketplace()); err != nil {
 		return hecho, err
 	}
@@ -595,6 +611,9 @@ func (c Consola) Diagnosticar() []Diagnostico {
 	}
 	if reg.OpenCode {
 		diags = append(diags, c.diagnosticarOpenCode(reg.OpenCodeDir))
+	}
+	for _, ide := range reg.IDEs {
+		diags = append(diags, c.diagnosticarExtension(ide))
 	}
 	return diags
 }
