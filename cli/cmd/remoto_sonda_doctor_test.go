@@ -228,3 +228,37 @@ func TestRemotoSonda_DiceElTramoSinRepararNiAnotar(t *testing.T) {
 		t.Fatalf("%d %q", codigo, salida.String())
 	}
 }
+
+// REM-22 (MEJ-027, FND-217): un aviso que el relay aceptó pero no llegó a ningún teléfono. Doctor lo dice con su causa y
+// su hora, sin usar la red; solo avisa: --fix no reintenta nada. Un aviso posterior que llegó lo deja en verde.
+func TestDoctorMovil_UnAvisoSinEntregaAvisaConSuCausaYNoSeRepara_REM22(t *testing.T) {
+	m := movilPrueba(t)
+	now := time.Now()
+	movilSano(t, m, now)
+	if item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilPush); !item.Success {
+		t.Fatalf("sin avisos sin entrega, en verde: %+v", item)
+	}
+	destinos := 0
+	en := time.Date(2026, 11, 15, 13, 7, 0, 0, time.Local)
+	if err := remoto.GuardarSinEntrega(remoto.ErrSinEntrega{Tipo: remoto.AvisoPregunta, Destinos: &destinos, Motivo: remoto.MotivoSinDestinos}, en); err != nil {
+		t.Fatal(err)
+	}
+	g := buildMovilChecks(m.raiz, now)
+	item := itemMovil(t, g, itemMovilPush)
+	if item.Success || !strings.Contains(item.Error, "sin token de push") || !strings.Contains(item.Error, "15/11 13:07") {
+		t.Fatalf("dice la causa y la hora: %+v", item)
+	}
+	repairMovil(m.raiz, g, now)
+	if len(*m.corridos) != 0 {
+		t.Fatalf("solo avisa: --fix no hace nada: %v", *m.corridos)
+	}
+	if _, err := remoto.LeerSinEntrega(); err != nil {
+		t.Fatalf("--fix no borra lo anotado: %v", err)
+	}
+	if err := remoto.LimpiarSinEntrega(); err != nil {
+		t.Fatal(err)
+	}
+	if item := itemMovil(t, buildMovilChecks(m.raiz, now), itemMovilPush); !item.Success {
+		t.Fatalf("un aviso que llegó lo deja en verde: %+v", item)
+	}
+}

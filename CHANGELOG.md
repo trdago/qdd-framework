@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **`qdd doctor` dice cuándo un aviso de QDD Móvil no llegó a ningún teléfono y por qué (REM-22, FND-217, MEJ-027):** antes, un push que el relay aceptaba sin entregarlo pasaba por enviado. Ahora el servicio lo anota con la hora y doctor nombra la causa: ningún teléfono con avisos activados, falta FCM en el relay o FCM no entregó. Solo avisa; un aviso que sí llega lo borra.
+
 ## [2.10.0-rc.76] - 2026-11-15
 
 ### Corregido

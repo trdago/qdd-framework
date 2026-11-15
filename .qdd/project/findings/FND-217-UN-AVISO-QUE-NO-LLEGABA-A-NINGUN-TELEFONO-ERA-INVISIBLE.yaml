@@ -1,0 +1,9 @@
+id: "FND-217"
+title: "Un aviso que el relay aceptaba y no llegaba a ningún teléfono era invisible en el PC"
+description: "2026-11-15, MEJ-027: la Edge Function avisar responde 200 con {enviados} aunque el push no salga a ningún teléfono (sin token de push, sin FCM en el relay o FCM rechazando todo), y Relay.Avisar descartaba el cuerpo: para el PC todo aviso con 200 había llegado. Ni el registro del servicio ni qdd doctor podían decir por qué el teléfono no sonaba."
+impact: "La persona no recibía avisos de pedidos, fichas o preguntas en QDD Móvil y nada en el PC lo señalaba ni nombraba la causa."
+action_taken: "Relay.Avisar lee hasta 4 KB de la respuesta y, con enviados 0, devuelve ErrSinEntrega con destinos y motivo (contrato con qdd-movile, relay a1fbc9a; sin enviados, como antes). El servicio lo anota en <QDD_HOME>/remoto/push.json (hora, tipo, motivo y destinos; nada del proyecto), lo dice en su registro una vez por hora por tipo y proyecto, y un aviso entregado lo borra. qdd doctor REM-22, sin red, muestra la hora y la causa por motivo; solo avisa y --fix no hace nada."
+test_result: "cli/pkg/remoto/avisar_entrega_test.go: TestAvisar_SinEntregaDiceLaCausa_FND217 (casos de resultadoEnvio de qdd-movile; no compilaba sin ErrSinEntrega), TestAvisar_ConEntregaOSinCamposEsComoAntes_FND217, TestAvisar_UnCuerpoGrandeSeCortaYNoEsFalla_FND217, TestBucle_UnAvisoSinEntregaQuedaParaDoctorYUnoEntregadoLoLimpia_FND217, TestBucle_ElRegistroNoRepiteElMismoAvisoSinEntregaEnUnaHora_FND217; cli/cmd/remoto_sonda_doctor_test.go: TestDoctorMovil_UnAvisoSinEntregaAvisaConSuCausaYNoSeRepara_REM22. go test ./pkg/remoto y del paquete cmd en verde."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"
