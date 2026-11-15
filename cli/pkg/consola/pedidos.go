@@ -82,8 +82,11 @@ type Pedido struct {
 	Codigo  int        `json:"codigo,omitempty"`
 	Salida  string     `json:"salida,omitempty"`  // últimas líneas de la salida
 	Despues []string   `json:"despues,omitempty"` // ids de los pedidos que tienen que quedar hechos antes
-	Aviso   string     `json:"aviso,omitempty"`   // «todavía no»: lo que dijo la última vez que salió con CodigoTodaviaNo
-	AvisoEn *time.Time `json:"aviso_en,omitempty"`
+	// Descartados son los pedidos que este esperaba y se descartaron (FND-213): hasta que la IA lo pida de nuevo, o pida
+	// de nuevo lo descartado, no se confirma ni corre.
+	Descartados []Descartado `json:"descartados,omitempty"`
+	Aviso       string       `json:"aviso,omitempty"` // «todavía no»: lo que dijo la última vez que salió con CodigoTodaviaNo
+	AvisoEn     *time.Time   `json:"aviso_en,omitempty"`
 	// PID es el qdd que lo ejecuta y Hijo, el comando; si los dos murieron sin anotar el resultado (un
 	// /reload-plugins, una terminal cerrada), el pedido se cortó (FND-089).
 	PID  int `json:"pid,omitempty"`
@@ -411,10 +414,10 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
-				return conOrden(conMarcaDePersona(cola, p.ID, orden.DePersona), p.ID, orden, &nuevo)
+				return conOrden(sinBloqueo(conMarcaDePersona(cola, p.ID, orden.DePersona), p.ID), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
-				return conOrden(cola, p.ID, orden, &nuevo)
+				return conOrden(sinBloqueo(cola, p.ID), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
@@ -439,7 +442,7 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 			tecla = preferida
 		}
 		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual()), DePersona: orden.DePersona}
-		return conOrden(append(cola, p), p.ID, orden, &nuevo)
+		return conOrden(reenganchar(append(cola, p), p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
 }
@@ -524,7 +527,11 @@ func Descartar(root, idOTecla string) error {
 			id = cola[i].ID
 		}
 		resto := make([]Pedido, 0, len(cola))
+		var descartado Pedido
 		for _, p := range cola {
+			if p.ID == id {
+				descartado = p
+			}
 			if p.ID == id && p.Estado == EstadoEjecutando {
 				return nil, fmt.Errorf("el pedido %s se está ejecutando: espera a que termine", id)
 			}
@@ -541,7 +548,7 @@ func Descartar(root, idOTecla string) error {
 		if len(resto) == len(cola) {
 			return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
 		}
-		return sinDependencia(resto, id), nil
+		return bloquearDependientes(resto, descartado), nil
 	})
 }
 
@@ -567,6 +574,10 @@ func accionesDePedidos(root string) []Accion {
 		// Uno que espera a otro también se confirma: queda armado y corre cuando el otro termina.
 		if p.Ejecutable() {
 			a.Tecla = p.Tecla
+		}
+		// Uno que esperaba a un descartado no se confirma: esperaría algo que ya no va a correr (FND-213).
+		if p.Ejecutable() && len(p.Descartados) > 0 {
+			a.Tecla, a.Bloqueo = "", bloqueoDe(p)
 		}
 		if p.Estado == EstadoArmado {
 			a.Espera, a.Proximo, a.Intentos = esperaA(p, cola), p.Proximo, p.Intentos

@@ -2,6 +2,7 @@ package consola
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -71,6 +72,9 @@ func esperaA(p Pedido, cola []Pedido) []string {
 				faltan = append(faltan, nombreDe(q))
 			}
 		}
+	}
+	for _, d := range p.Descartados {
+		faltan = append(faltan, d.Nombre+" (descartado)")
 	}
 	return faltan
 }
@@ -221,7 +225,16 @@ func ciclo(cola []Pedido) bool {
 	return false
 }
 
-// sinDependencia quita id de lo que esperan los demás: lo que se descarta ya no bloquea a nadie.
+// Descartado es un pedido que otro esperaba y se descartó (FND-213): con qué tecla y motivo lo vio la persona, y su
+// comando y carpeta, para reconocerlo si la IA lo pide de nuevo.
+type Descartado struct {
+	Nombre  string `json:"nombre"`
+	Motivo  string `json:"motivo"`
+	Comando string `json:"comando"`
+	Carpeta string `json:"carpeta"`
+}
+
+// sinDependencia quita id de lo que esperan los demás.
 func sinDependencia(cola []Pedido, id string) []Pedido {
 	for i := range cola {
 		resto := cola[i].Despues[:0:0]
@@ -233,6 +246,62 @@ func sinDependencia(cola []Pedido, id string) []Pedido {
 		cola[i].Despues = resto
 		if len(resto) == 0 {
 			cola[i].Despues = nil
+		}
+	}
+	return cola
+}
+
+// bloquearDependientes: lo que esperaba a un pedido descartado no queda libre (FND-213). Un despliegue que esperaba un
+// push descartado correría desde el código viejo. Queda bloqueado, con el motivo a la vista, hasta que la IA lo pida de
+// nuevo o pida de nuevo lo descartado; uno ya confirmado (armado) deja de esperar.
+func bloquearDependientes(cola []Pedido, d Pedido) []Pedido {
+	marca := Descartado{Nombre: nombreDe(d), Motivo: d.Motivo, Comando: d.Comando, Carpeta: d.Carpeta}
+	for i := range cola {
+		if !slices.Contains(cola[i].Despues, d.ID) || !cola[i].Abierto() {
+			continue
+		}
+		cola[i].Descartados = append(cola[i].Descartados, marca)
+		if cola[i].Estado == EstadoArmado {
+			cola[i] = desarmado(cola[i], "Dejó de esperar: "+bloqueoDe(cola[i])+".")
+		}
+	}
+	return sinDependencia(cola, d.ID)
+}
+
+// bloqueoDe dice por qué un pedido no se confirma: lo que esperaba se descartó.
+func bloqueoDe(p Pedido) string {
+	var nombres []string
+	for _, d := range p.Descartados {
+		nombres = append(nombres, d.Nombre+" «"+d.Motivo+"»")
+	}
+	return "esperaba a " + strings.Join(nombres, ", ") + ", que se descartó: la IA tiene que pedirlo de nuevo o descartarlo"
+}
+
+// sinBloqueo: la IA pidió de nuevo un pedido bloqueado, sabiendo que lo que esperaba se descartó; vuelve a poder correr.
+func sinBloqueo(cola []Pedido, id string) []Pedido {
+	for i := range cola {
+		if cola[i].ID == id {
+			cola[i].Descartados = nil
+		}
+	}
+	return cola
+}
+
+// reenganchar: la IA pidió de nuevo lo que se había descartado (el mismo comando en la misma carpeta); los que lo
+// esperaban vuelven a esperar al nuevo.
+func reenganchar(cola []Pedido, nuevo Pedido) []Pedido {
+	for i := range cola {
+		resto := cola[i].Descartados[:0:0]
+		for _, d := range cola[i].Descartados {
+			if d.Comando == nuevo.Comando && d.Carpeta == nuevo.Carpeta && cola[i].ID != nuevo.ID {
+				cola[i].Despues = append(cola[i].Despues, nuevo.ID)
+				continue
+			}
+			resto = append(resto, d)
+		}
+		cola[i].Descartados = resto
+		if len(resto) == 0 {
+			cola[i].Descartados = nil
 		}
 	}
 	return cola

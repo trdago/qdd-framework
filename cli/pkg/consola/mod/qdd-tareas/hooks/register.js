@@ -1996,6 +1996,10 @@ function tarjeta(Box, Text, Button, $, a) {
   }
   const caja = (cabeza, resto) => Box({ key: 'pedido-' + a.id, flexDirection: 'column', children: [cabeza, ...resto] })
   const gris = (marca) => Text({ key: 'que', dimColor: true, wrap: 'truncate-end', children: [marca + '  ' + a.etiqueta] })
+  // FND-213: esperaba a uno que se descartó; qdd dice por qué no se confirma.
+  if (s.estado === 'espera' && !a.tecla && a.bloqueo) {
+    return caja(gris('◌'), [comando, Text({ key: 'bloqueo', color: COLOR.espera, wrap: 'wrap', size: 'caption', children: ['   ' + a.bloqueo] }), ...meta('')])
+  }
   if (s.estado === 'espera' && !a.tecla) {
     return caja(gris('◌'), [comando, ...meta('espera a ' + esperaDe(a))])
   }

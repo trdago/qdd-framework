@@ -501,6 +501,16 @@ test('un pedido ejecutándose o hecho se ve en gris y no se puede clickear (FND-
   expect((await ui.findAll({ type: 'Text', text: /\$ git push/ })).length).toBe(1)
 })
 
+// FND-213: un pedido que esperaba a uno descartado no se confirma y dice por qué.
+test('un pedido que esperaba a uno descartado queda sin botón y dice por qué (FND-213)', async ($, on) => {
+  const bloqueado = { ...PEDIDO, tecla: undefined, estado: 'espera', espera: ['a (descartado)'], bloqueo: 'esperaba a a «Push del tag», que se descartó: la IA tiene que pedirlo de nuevo o descartarlo' }
+  preparar(on, ok({ ...PANEL, acciones: [bloqueado] }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ key: 'b-pedido:1' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /esperaba a a «Push del tag», que se descartó/ })).toBeDefined()
+})
+
 test('un pedido que falló muestra su error y se puede reintentar con su misma tecla', async ($, on) => {
   const fallo = { ...PEDIDO, estado: 'fallo', resultado: 'Permission denied (publickey)', fin: '2026-10-30T12:05:00-03:00' }
   preparar(on, ok({ ...PANEL, acciones: [fallo] }))
