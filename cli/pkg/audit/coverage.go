@@ -294,7 +294,7 @@ const (
 	maxFallasEnLog = 40
 )
 
-// logDeFallo es el final de la salida y, antes, las líneas anteriores que dicen «fail» (FND-162): una suite larga deja
+// logDeFallo es el final de la salida y, antes, las líneas anteriores que marcan una falla (FND-162, FND-211): una suite larga deja
 // el nombre de lo que falló lejos del final, y sin él un fallo que no se repite no se puede investigar.
 func logDeFallo(salida string) string {
 	lineas := strings.Split(strings.TrimRight(salida, "\n"), "\n")
@@ -304,11 +304,23 @@ func logDeFallo(salida string) string {
 	corte := len(lineas) - lineasDelLog
 	var fallas []string
 	for _, l := range lineas[:corte] {
-		if len(fallas) < maxFallasEnLog && strings.Contains(strings.ToLower(l), "fail") {
+		if len(fallas) < maxFallasEnLog && esLineaDeFalla(l) {
 			fallas = append(fallas, l)
 		}
 	}
 	return strings.Join(append(fallas, lineas[corte:]...), "\n")
+}
+
+// esLineaDeFalla reconoce la línea que nombra una prueba que falló, con la marca de cada herramienta (FND-211): «fail»
+// (go, bun, pytest, vitest), «✕» y «●» de jest, y «[E]» de dart y flutter. «● Console» de jest es salida, no una falla.
+func esLineaDeFalla(l string) bool {
+	if strings.Contains(strings.ToLower(l), "fail") {
+		return true
+	}
+	if strings.Contains(l, "● Console") {
+		return false
+	}
+	return strings.Contains(l, "✕") || strings.Contains(l, "●") || strings.HasSuffix(strings.TrimSpace(l), "[E]")
 }
 
 // RunCoverageCheck evalúa que las pruebas del proyecto se ejecuten y pasen

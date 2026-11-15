@@ -1,0 +1,9 @@
+id: "FND-211"
+title: "El gate no nombraba la prueba de jest o de dart que falló lejos del final de la salida"
+description: "MEJ-030 (2026-11-05): el TEST FAILURE LOG de qdd audit mostraba el final de la salida («164 pass, 1 fail») sin nombrar la prueba. Para bun y go ya lo había corregido FND-162 (7cdccec): antes del final se rescatan las líneas que dicen «fail». Verificado el 2026-11-15 con salidas reales: claude plugin test, go test, flutter test (que además cierra con «Failing tests:») y pytest nombran la prueba. jest no: marca la prueba con «✕» y su detalle con «●», sin la palabra «fail». Con jest 29 y la suite que falla corriendo primero (121 líneas), el gate mostraba «FAIL ./a.test.js» y «Tests: 1 failed», pero no «✕ prueba a3» ni «● suite a › prueba a3». dart y flutter marcan la línea con «[E]» al final."
+impact: "En un proyecto con jest y una suite larga, el gate decía qué archivo falló pero no qué prueba; un fallo que no se repite no se podía investigar."
+action_taken: "logDeFallo rescata antes del final las líneas con la marca de falla de cada herramienta (esLineaDeFalla): «fail» como antes, «✕» y «●» de jest y «[E]» de dart y flutter. «● Console» de jest es salida de la prueba y no ocupa el tope de 40 líneas."
+test_result: "cli/pkg/audit/coverage_test.go: TestLogDeFallo_NombraLaPruebaDeJestQueFallaPrimero_FND211 (con la salida real de jest guardada en cli/pkg/audit/testdata/jest_falla_temprana.txt) y TestLogDeFallo_ReconoceLasMarcasDeCadaHerramienta_FND211. Fallaban antes del cambio y pasan después. vitest no se corrió de verdad: su resumen final ya nombra la prueba con «FAIL»."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"
