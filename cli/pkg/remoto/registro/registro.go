@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -112,7 +113,7 @@ func Anotar(root string, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	clave := estado.ClaveLocal(root)
+	clave := estado.ClaveLocal(RutaReal(root))
 	reg, err := leerDe(ruta)
 	if err != nil {
 		return err
@@ -120,20 +121,52 @@ func Anotar(root string, now time.Time) error {
 	if p, ok := buscar(reg, clave); ok && now.Sub(p.Visto) < Refresco && !now.Before(p.Visto) {
 		return nil
 	}
-	nombre, err := ClaveDe(root)
+	nombre, err := ClaveDe(RutaReal(root))
 	if err != nil {
 		return err
 	}
 	return cambiar(ruta, func(reg Registro) Registro {
 		var resto []Proyecto
 		for _, p := range reg.Proyectos {
-			if p.Ruta != clave {
+			if p.Ruta != clave && RutaReal(p.Ruta) != clave {
 				resto = append(resto, p)
 			}
 		}
 		reg.Proyectos = append(resto, Proyecto{Ruta: clave, Clave: nombre, Visto: now})
 		return reg
 	})
+}
+
+// RutaReal (MEJ-077): una ruta que llegó codificada como URL (Sistema%20de%20gesti%C3%B3n, de un file:// del editor) y
+// cuya carpeta no existe así, pero sí decodificada, es la decodificada. Una carpeta real con % queda tal cual.
+func RutaReal(ruta string) string {
+	if !strings.Contains(ruta, "%") || existe(ruta) {
+		return ruta
+	}
+	dec, err := url.PathUnescape(ruta)
+	if err != nil || !existe(dec) {
+		return ruta
+	}
+	return dec
+}
+
+// NombreDe es el nombre del proyecto que ven el panel y el teléfono: su carpeta, decodificada si llegó codificada como
+// URL y no existe así (MEJ-077). Lo que no se puede decodificar queda tal cual.
+func NombreDe(ruta string) string {
+	base := filepath.Base(ruta)
+	if !strings.Contains(base, "%") || existe(ruta) {
+		return base
+	}
+	dec, err := url.PathUnescape(base)
+	if err != nil {
+		return base
+	}
+	return dec
+}
+
+func existe(ruta string) bool {
+	_, err := os.Stat(ruta)
+	return err == nil
 }
 
 func buscar(reg Registro, ruta string) (Proyecto, bool) {

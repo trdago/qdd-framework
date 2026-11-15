@@ -1,0 +1,9 @@
+id: "FND-228"
+title: "La consola remota abría casi vacía cuando el transcript traía resultados de herramienta grandes — MEJ-078"
+description: "2026-11-15, reportado desde QDD Móvil 130 (MEJ-078): al entrar a un proyecto, la consola mostraba 4 o 5 líneas y el resto en blanco. abrirLector (pkg/remoto/transcript.go) leía solo los últimos 512 KB del transcript para la cola inicial de 40 líneas; en una sesión con capturas o salidas largas, cada resultado de herramienta (que la consola no muestra) pesa cientos de KB, así que esos 512 KB eran unas pocas líneas JSON y casi ninguna visible."
+impact: "Quien abría la consola desde el teléfono no veía el contexto reciente de la conversación justo en las sesiones más activas."
+action_taken: "colaDe lee el transcript hacia atrás de a 512 KB hasta juntar 40 líneas visibles o llegar a 8 MB del final (maxCola), uniendo las líneas que cruzan de un bloque a otro; lo que sigue al último salto de línea (una línea a medio escribir) queda en el lector para completarse después. Medido en un transcript real de 39 MB: 40 líneas visibles en 19 ms, así que no hace falta saltar líneas sin decodificarlas."
+test_result: "cli/pkg/remoto/transcript_mej078_test.go: TestLector_LaColaInicialSonLasUltimasLineasVisiblesAunqueHayaResultadosGrandes_MEJ078 (con el código anterior daba 3 de 40) y TestLector_UnaLineaAMedioEscribirMasGrandeQueUnBloqueSeCompletaDespues_MEJ078 fallaban con el código anterior y pasan; TestLector_LaColaInicialNoLeeMasDeOchoMB_MEJ078 fija el tope. go test ./pkg/remoto/... en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

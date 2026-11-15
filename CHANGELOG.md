@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **El nombre de un proyecto ya no llega al teléfono como `Sistema%20de%20gesti%C3%B3n` (MEJ-077, FND-227):** una ruta
+  que llegó codificada como URL se registra decodificada (y reemplaza la entrada codificada que ya estaba), y el
+  teléfono y «Para ti» de otros proyectos muestran el nombre decodificado. Una carpeta real con `%` queda tal cual.
+- **La consola remota ya no abre casi vacía en sesiones con resultados grandes (MEJ-078, FND-228):** la cola inicial
+  lee el transcript hacia atrás hasta juntar las últimas 40 líneas visibles (como mucho 8 MB del final), en vez de solo
+  los últimos 512 KB, que con capturas o salidas largas eran 3 o 4 líneas.
+
 ## [2.10.0-rc.85] - 2026-11-15
 
 ### Agregado
