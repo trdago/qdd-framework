@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.76] - 2026-11-15
+
 ### Corregido
 
 - **Cuando una prueba de jest, dart o flutter falla, el gate dice cuál fue, aunque quede lejos del final de la salida (FND-211, MEJ-030):** antes mostraba «FAIL ./a.test.js» y «1 failed» sin nombrar la prueba. Ahora también reconoce las marcas «✕» y «●» de jest y «[E]» de dart.
