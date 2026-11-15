@@ -83,7 +83,17 @@ Queda fuera la pregunta resuelta 2 (abrir la vista sola cuando llega un pedido):
 leer a qdd en segundo plano, y eso choca con la invariante de la ficha («oculta no deja ningún proceso de qdd»). Se
 retoma con la fase C, junto a cómo `qdd consola activar` deja la extensión.
 
-## Pendiente para la fase C
+## Fase C (2026-11-15)
+
+`qdd consola activar` (y `actualizar` y `doctor --fix`, que pasan por lo mismo) instala la extensión en cada IDE con
+carpeta de extensiones (`~/.antigravity-ide/extensions`, `~/.vscode/extensions`): copia los archivos embebidos en
+`qdd.qdd-panel-<versión>` con esa versión en su `package.json`, quita las carpetas de versiones anteriores, deja una sola
+entrada suya en `extensions.json` (las ajenas se copian tal cual; uno ilegible no se toca y lo dice) y la saca de
+`.obsolete` si estaba marcada. Con un qdd instalado por npm deja `qdd.json` con la ruta del binario real, que la
+extensión prefiere a `qdd` del PATH mientras exista. El registro de activación (`activo.json`) recuerda los IDE; `qdd
+doctor` revisa en cada uno la versión y la entrada, y `qdd consola desactivar` quita carpeta y entrada.
+
+## Pendiente para la fase C (resuelto arriba)
 
 La extensión busca `qdd` en `QDD_BIN` o en el PATH. En Windows, `execFile` sin shell no ejecuta el `qdd.cmd` de npm:
 `qdd consola activar` tiene que dejarle la ruta del binario real.

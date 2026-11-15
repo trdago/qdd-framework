@@ -208,7 +208,7 @@ func (f *claudeFalso) versionCarpeta() string {
 func nuevaConsola(t *testing.T, version string, f *claudeFalso) Consola {
 	t.Helper()
 	return Consola{Version: version, QDDHome: filepath.Join(t.TempDir(), "qdd"), ClaudeDir: filepath.Join(t.TempDir(), "claude"), Run: f.run,
-		BuscarOpenCode: func() (string, bool) { return "", false }}
+		BuscarOpenCode: func() (string, bool) { return "", false }, BuscarIDEs: func() []IDE { return nil }}
 }
 
 func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente_CCC_C08(t *testing.T) {

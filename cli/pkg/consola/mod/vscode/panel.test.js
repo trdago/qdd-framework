@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { vista, carpetaDe, motivoDeSalida, accionDe } = require('./panel.js')
+const { vista, carpetaDe, motivoDeSalida, accionDe, binarioDe } = require('./panel.js')
 
 const ESTADO = {
   actualizado: '2026-11-05T20:50:00-03:00',
@@ -212,4 +212,14 @@ test('accionDe solo da lo que la vista ofrece: un id inventado o un pedido hecho
   assert.deepEqual(accionDe(datos, 'aprobar:pagos'), { id: 'aprobar:pagos', etiqueta: 'Aprobar', confirmar: true })
   for (const id of ['pedido:2', 'pregunta:x', 'auditar', '--confirmado', '', undefined]) assert.equal(accionDe(datos, id), null, String(id))
   assert.equal(accionDe(null, 'pedido:1'), null)
+})
+
+// Fase C: en Windows, execFile sin shell no encuentra el qdd.cmd de npm; qdd deja su ruta real en qdd.json al instalar.
+test('binarioDe: QDD_BIN manda; después la ruta que dejó qdd si existe; si no, qdd del PATH', () => {
+  const existe = (r) => r === '/opt/qdd/bin/qdd'
+  assert.equal(binarioDe({ QDD_BIN: '/a/qdd' }, { binario: '/opt/qdd/bin/qdd' }, existe), '/a/qdd')
+  assert.equal(binarioDe({}, { binario: '/opt/qdd/bin/qdd' }, existe), '/opt/qdd/bin/qdd')
+  assert.equal(binarioDe({}, { binario: '/ya/no/esta' }, existe), 'qdd', 'un qdd que se movió o se desinstaló no deja la vista sin datos')
+  assert.equal(binarioDe({}, { binario: 'relativo/qdd' }, () => true), 'qdd', 'solo una ruta absoluta')
+  assert.equal(binarioDe({}, null, existe), 'qdd')
 })
