@@ -2082,9 +2082,10 @@ function enZona(Box, Text, Button, $, aqui) {
 function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const lista = pedidos(todas)
   const turnos = todas.filter((a) => a.turno)
+  const locales = [...sinRegistrar.values()]
   const seVa = seVan($, Text, new Set(lista.map((a) => a.id)))
   for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(conNumero(a)))
-  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0) return []
+  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0 && locales.length === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho' && !a.turno)
   const fichas = turnos.filter((a) => a.tipo === 'aprobar')
@@ -2093,7 +2094,7 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
   const enEspera = lista.filter((a) => estadoDe(a).estado === 'espera').length
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
   const armados = lista.filter((a) => estadoDe(a).estado === 'armado').length
-  const porResponder = preguntas.length + enTerminal.length
+  const porResponder = preguntas.length + enTerminal.length + locales.length
   const nada = corriendo || porResponder ? [] : ['nada por hacer']
   const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(porResponder ? [porResponder + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
   const dibujo = (a) => {
@@ -2128,7 +2129,8 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho) {
     const enLaLista = turnos.filter((a) => !esAccion(a)).flatMap(fila)
     const sinLugar = sueltas.flatMap(espera)
     const resto = preguntas.length - puestas.length
-    return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
+    const sinRegistrarEnQDD = locales.map((q) => filaDeTerminal(Text, q))
+    return [...enLaLista, ...sinLugar, ...sinRegistrarEnQDD, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
   }))
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
@@ -3453,14 +3455,47 @@ function llamadaDe(tool, entrada) {
   return { llamada: '', candidatas: new Set(libres.map(([id]) => id)) }
 }
 
+// registrarPregunta devuelve su id en qdd ('' si no quedó, con el motivo) y si QDD Móvil también la responde (un qdd
+// anterior a «telefono» registraba solo con QDD Móvil).
 async function registrarPregunta($, bin, mia, e) {
   try {
     const r = await $.process.run([bin, 'consola', 'pregunta', 'registrar'], { stdin: JSON.stringify({ sesion: mia, herramienta: e.tool_name, entrada: e.tool_input }), timeoutMs: TOPE_MS })
-    if (r.exitCode !== 0) return ''
-    return String(JSON.parse(r.stdout).id || '')
-  } catch {
-    return ''
+    if (r.exitCode !== 0) return { id: '', motivo: ((r.stdout || '') + (r.stderr || '')).trim() }
+    const d = JSON.parse(r.stdout)
+    return { id: String(d.id || ''), motivo: String(d.motivo || ''), telefono: d.telefono !== false }
+  } catch (err) {
+    return { id: '', motivo: String(err?.message ?? err) }
   }
+}
+
+// MEJ-057 (FND-205): lo que la terminal pregunta y qdd no registró (cola tomada, qdd anterior sin QDD Móvil) igual se
+// cuenta en «▶ Para ti», como «en la terminal», hasta que termina su herramienta o la sesión.
+const sinRegistrar = new Map() // id local → { id, tipo, origen, etiqueta, llamada, candidatas }
+let localesSinRegistrar = 0
+
+function etiquetaLocal(e) {
+  const q = e.tool_input?.questions?.[0]
+  if (e.tool_name === PREGUNTAR && q) return '❓ ' + (q.header ? q.header + ' · ' : '') + q.question
+  const detalle = e.tool_input?.command || e.tool_input?.description || e.tool_input?.file_path || e.tool_input?.url || ''
+  return '🔐 ' + e.tool_name + (detalle ? ': ' + String(detalle).split('\n')[0] : '')
+}
+
+function anotarSinRegistrar($, e, motivo) {
+  const id = 'local:' + ++localesSinRegistrar
+  sinRegistrar.set(id, { id, tipo: 'pregunta', origen: 'ia', etiqueta: etiquetaLocal(e), ...llamadaDe(e.tool_name, e.tool_input) })
+  $.ui.log('qdd no registró la pregunta; «Para ti» la cuenta igual: ' + motivo, { to: 'debug' })
+  $.ui.invalidate('ui.render')
+}
+
+function soltarSinRegistrar($, llamada) {
+  const antes = sinRegistrar.size
+  for (const [id, q] of sinRegistrar) {
+    // Una sin llamada reconocible no se puede atar a su herramienta: sale cuando termina la siguiente, no queda fantasma.
+    const atada = q.llamada || q.candidatas.size
+    if (llamada && atada && q.llamada !== llamada && !q.candidatas.has(llamada)) continue
+    sinRegistrar.delete(id)
+  }
+  if (sinRegistrar.size !== antes) $.ui.invalidate('ui.render')
 }
 
 // esperarTelefono pide a qdd, de a ESPERA_PREGUNTA_S, la respuesta de un teléfono; null si la terminal ganó, venció o
@@ -3501,12 +3536,15 @@ async function preguntarAlTelefono($, e, next) {
   const r = await next(e)
   if (r?.decision || !interactiva || e.agent_id) return r
   const bin = await binario($)
-  const id = await registrarPregunta($, bin, await sesionPropia($), e)
-  if (!id) return r
+  const { id, motivo, telefono } = await registrarPregunta($, bin, await sesionPropia($), e)
+  if (!id) {
+    anotarSinRegistrar($, e, motivo)
+    return r
+  }
   huboPreguntas = true
   const viva = { ...llamadaDe(e.tool_name, e.tool_input), cerrada: false, aplicada: false }
   preguntasVivas.set(id, viva)
-  if (viva.llamada) {
+  if (viva.llamada && telefono) {
     try {
       $.ui.notice(viva.llamada, '📱 También se puede responder desde QDD Móvil')
     } catch {}
@@ -3520,6 +3558,7 @@ async function preguntarAlTelefono($, e, next) {
 
 // cerrarPreguntasDe: terminó la herramienta que preguntaba sin que el teléfono decidiera: la respondió la terminal.
 async function cerrarPreguntasDe($, llamada) {
+  soltarSinRegistrar($, llamada)
   const vivas = [...preguntasVivas].filter(([, v]) => v.llamada === llamada || v.candidatas.has(llamada))
   if (vivas.length === 0) return
   for (const [id, v] of vivas) {
@@ -3534,6 +3573,7 @@ async function cerrarPreguntasDe($, llamada) {
 
 // vencerPreguntas: la sesión se cierra; lo que esperaba al teléfono ya no se puede responder.
 async function vencerPreguntas($) {
+  soltarSinRegistrar($, '')
   for (const v of preguntasVivas.values()) v.cerrada = true
   preguntasVivas.clear()
   if (!huboPreguntas) return
