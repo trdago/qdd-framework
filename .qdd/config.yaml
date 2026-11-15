@@ -24,6 +24,7 @@ test_commands:
     - cd cli && go test -count=1 ./cmd/ ./pkg/blueprints/
     - cd npm && npm test
     - cd cli/pkg/consola/mod/opencode && node --test panel.test.js
+    - cd cli/pkg/consola/mod/vscode && node --test
     - comando: cd cli/pkg/consola/mod/qdd-tareas && claude plugin validate . && claude plugin test
       requiere: [claude]
       # No se repite si ya pasó con estos mismos archivos (RFC 0020).
