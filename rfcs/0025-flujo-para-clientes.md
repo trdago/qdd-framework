@@ -312,6 +312,12 @@ Un grupo «Flujos compartidos»:
 
 `--fix` repara todo eso sin tocar ninguna propuesta.
 
+Hecho (2026-11-15): FLC-01 a FLC-03 en el grupo «15. Flujos compartidos», que aparece solo si el proyecto compartió
+algo y se revisa sin red, leyendo el archivo local de invitaciones. `--fix` revoca en el relay la invitación huérfana
+(sin red la deja viva, porque sigue viva allá) y sube las fotos pendientes. FLC-02 solo avisa. Hoy el PC no sabe qué
+revisión tiene la foto del relay, así que FLC-03 cuenta las fotos que quedaron por subir (`FotosPorSubir`), no compara
+revisiones. FLC-04 es FLU-02, en el grupo «13. Flujos». FLC-05 y FLC-06 llegan con la fase 5.
+
 ## Fases
 
 1. **Versiones, plantillas y archivo de solo lectura.** `Revision`, el historial, `version`, `comparar` y `volver`.

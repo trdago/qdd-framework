@@ -208,6 +208,11 @@ func avisar(ctx context.Context, e Entorno, l *Local) error {
 		}
 		v.Avisada = true
 	}
+	return subirFotos(ctx, e, l)
+}
+
+// subirFotos le sube al relay las fotos nuevas, una por una; la que falla queda para el próximo intento.
+func subirFotos(ctx context.Context, e Entorno, l *Local) error {
 	for len(l.FotosPorSubir) > 0 {
 		id := l.FotosPorSubir[0]
 		foto, err := e.Foto(id)

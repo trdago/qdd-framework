@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **`qdd doctor` revisa los flujos compartidos (RFC 0025, FLC-01 a FLC-03):** un grupo nuevo, solo en proyectos que
+  compartieron un flujo, nombra las invitaciones vivas de un flujo que ya no existe (`--fix` las revoca), las
+  propuestas sin resolver de más de 7 días (solo avisa) y las fotos que el relay todavía no tiene (`--fix` las sube).
+  `--fix` nunca toca una propuesta.
+
 ## [2.10.0-rc.83] - 2026-11-15
 
 ### Agregado
