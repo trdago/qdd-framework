@@ -1,0 +1,9 @@
+id: "FND-207"
+title: "El ciclo de mejoras llamaba «descartada» a un issue cerrado como resuelto y pedía cerrar issues ya cerrados"
+description: "2026-11-12 (MEJ-066): #149 y #155 se cerraron en GitHub con un pedido y un comentario de evidencia antes de ser tarea. El ciclo solo lee los issues abiertos, así que al no verlos marcó MEJ-023 y MEJ-029 como descartadas («el issue se cerró en GitHub antes de ser tarea») sin saber cómo se cerraron. Al corregirlas a hecha, pedirCierre dejó en el panel dos pedidos «gh issue close» para issues que ya estaban cerrados; se descartaron a mano."
+impact: "Una mejora resuelta figuraba como descartada, y el panel le pedía a la persona aprobar cierres que no hacían falta (ruido en «Para ti» y un comentario repetido en GitHub si los aprobaba)."
+action_taken: "pkg/mejoras: Fuentes.Cerrado consulta cómo se cerró el issue (gh api repos/<repo>/issues/<n>, state_reason). Si es «completed», la mejora queda hecha, sin pedir el cierre; si es otro motivo, queda descartada; y si no se puede saber, sigue en la cola con un aviso. pedirCierre solo pide cerrar un issue que este ciclo vio abierto: si ya está cerrado lo marca como pedido sin dejar pedido, y sin leer GitHub espera al próximo ciclo."
+test_result: "cli/pkg/mejoras/cierre_mej066_test.go (5 escenarios) y TestCierreDeAPI_DiceComoSeCerro_MEJ066 fallaban sin el arreglo (no compilaban: faltaba Fuentes.Cerrado) y pasan con él; go test ./pkg/mejoras ./cmd en verde."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

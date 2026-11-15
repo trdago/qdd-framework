@@ -39,3 +39,18 @@ func TestIssuesDeAPI_SinPullRequestsYConQuienLoEscribio(t *testing.T) {
 		t.Fatal("una respuesta ilegible es un error que el ciclo avisa")
 	}
 }
+
+func TestCierreDeAPI_DiceComoSeCerro_MEJ066(t *testing.T) {
+	if m, err := CierreDeAPI([]byte(`{"state":"closed","state_reason":"completed"}`)); err != nil || m != "completed" {
+		t.Fatalf("%q %v", m, err)
+	}
+	if m, err := CierreDeAPI([]byte(`{"state":"closed","state_reason":"not_planned"}`)); err != nil || m != "not_planned" {
+		t.Fatalf("%q %v", m, err)
+	}
+	if _, err := CierreDeAPI([]byte(`{"state":"open","state_reason":null}`)); err == nil {
+		t.Fatal("abierto no se cerró")
+	}
+	if _, err := CierreDeAPI([]byte("no es json")); err == nil {
+		t.Fatal("ilegible")
+	}
+}

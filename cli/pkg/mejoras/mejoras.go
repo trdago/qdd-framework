@@ -109,6 +109,9 @@ type Issue struct {
 type Fuentes struct {
 	// GitHub devuelve el repositorio (owner/repo) y sus issues abiertos, o ErrSinGitHub si no aplica.
 	GitHub func(root string) (string, []Issue, error)
+	// Cerrado dice cómo se cerró un issue que dejó de estar abierto: «completed», «not_planned»… (state_reason). Sin
+	// ella, un issue de la cola que se cerró se descarta (MEJ-066).
+	Cerrado func(root, repo string, numero int) (string, error)
 	// Relay devuelve los reportes del relay posteriores a desde, o ErrSinRelay si este proyecto no los lee (relay.go).
 	Relay func(root, desde string) ([]ReporteRelay, error)
 }
@@ -219,6 +222,8 @@ type cicloEnCurso struct {
 	now  time.Time
 	cola []Mejora
 	r    Resumen
+	// abiertos son los issues abiertos que leyó este ciclo; nil si GitHub no se leyó (MEJ-066).
+	abiertos map[string]bool
 }
 
 func (c *cicloEnCurso) recibirEntrada() error {
@@ -262,14 +267,37 @@ func (c *cicloEnCurso) leerGitHub(f Fuentes) {
 			c.r.Avisos = append(c.r.Avisos, err.Error())
 		}
 	}
+	c.abiertos = abiertos
 	prefijo := "github:" + repo + "#"
 	for i, m := range c.cola {
 		if m.Estado != EnCola || !strings.HasPrefix(m.Ref, prefijo) || abiertos[m.Ref] {
 			continue
 		}
-		c.cola[i].Estado, c.cola[i].Motivo = Descartada, "el issue se cerró en GitHub antes de ser tarea"
-		c.guardar(i)
+		c.alCerrarseEnGitHub(i, f, repo)
 	}
+}
+
+// alCerrarseEnGitHub: un issue de la cola que ya no está abierto se cerró como resuelto (hecha, sin pedir cerrarlo) o
+// por otro motivo (descartada). Si no se sabe cómo, espera al próximo ciclo (MEJ-066).
+func (c *cicloEnCurso) alCerrarseEnGitHub(i int, f Fuentes, repo string) {
+	motivo := ""
+	if f.Cerrado != nil {
+		_, n, _ := issueDe(c.cola[i].Ref)
+		var err error
+		motivo, err = f.Cerrado(c.root, repo, n)
+		if err != nil {
+			c.r.Avisos = append(c.r.Avisos, fmt.Sprintf("no se supo cómo se cerró el issue #%d: %v", n, err))
+			return
+		}
+	}
+	if motivo == "completed" {
+		c.cola[i].Estado, c.cola[i].Motivo, c.cola[i].CierrePedido = Hecha, "el issue se cerró en GitHub como resuelto antes de ser tarea", true
+		c.r.Hechas = append(c.r.Hechas, c.cola[i].ID)
+		c.guardar(i)
+		return
+	}
+	c.cola[i].Estado, c.cola[i].Motivo = Descartada, "el issue se cerró en GitHub antes de ser tarea"
+	c.guardar(i)
 }
 
 // admitido: de quien tiene acceso al repositorio, o con la etiqueta mejora.
@@ -350,6 +378,16 @@ func (c *cicloEnCurso) pedirCierre(i int) {
 	}
 	repo, n, ok := issueDe(m.Ref)
 	if !ok {
+		return
+	}
+	// Solo se pide cerrar lo que este ciclo vio abierto: sin leer GitHub no se sabe, y uno cerrado (por el PR o a mano)
+	// no se pide cerrar otra vez (MEJ-066).
+	if c.abiertos == nil {
+		return
+	}
+	if !c.abiertos[m.Ref] {
+		c.cola[i].CierrePedido = true
+		c.guardar(i)
 		return
 	}
 	comentario := "Resuelto: " + m.Motivo + " (" + m.ID + ", cola de mejoras de QDD)"
