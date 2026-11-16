@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.97] - 2026-11-16
+
+### Agregado
+
+- **La consola de QDD Móvil dice cuándo Claude está trabajando (FND-239):** Claude Code escribe cada respuesta solo al
+  terminarla, así que en una respuesta larga el teléfono no veía nada hasta 40 s. Ahora el evento `consola` trae
+  `trabajando` (desde cuándo) y la app puede mostrar «trabajando… N s» mientras tanto.
+
 ## [2.10.0-rc.96] - 2026-11-16
 
 ### Agregado
