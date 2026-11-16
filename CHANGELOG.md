@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.94] - 2026-11-15
+
+### Cambiado
+
+- **«Para ti» muestra solo el proyecto de la consola (MEJ-086, FND-237):** lo que te espera en otros proyectos ya no
+  llena el tablero; una línea los cuenta y los nombra («+ 2 proyectos te esperan: … · ver en Proyectos (y)») y abre la
+  vista Proyectos.
+
 ## [2.10.0-rc.93] - 2026-11-15
 
 ### Corregido
