@@ -12,7 +12,8 @@ import (
 // «Para ti» de todos los proyectos (2026-11-15): la persona mira el panel de una sesión, y cada panel mostraba solo su
 // proyecto; así no vio las fichas ni las preguntas de notificador, abiertas en otra sesión. Con --con otros, el panel
 // trae lo que espera a la persona en los demás proyectos de la máquina (registro de proyectos, el visto más
-// recientemente primero), con su carpeta, para responderlo desde ahí con 'qdd consola --dir <carpeta> …'.
+// recientemente primero), con su carpeta. MEJ-086 (la persona eligió «Solo este + una línea», 2026-11-15): el panel
+// ya no los dibuja; solo los cuenta y nombra en una línea que abre la vista Proyectos.
 
 const (
 	// ConOtros es el opcional del panel que trae los demás proyectos.
