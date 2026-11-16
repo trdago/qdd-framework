@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.91] - 2026-11-15
+
+### Corregido
+
+- **Un mensaje del teléfono ya no queda «ejecutando» en una sesión detenida en un permiso (MEJ-084, FND-234):** una
+  sesión de Claude Code que espera un diálogo en la terminal (por ejemplo, un trabajo en segundo plano detenido en un
+  permiso) ya no toma lo que mandas desde QDD Móvil; lo recibe otra sesión abierta, o esa misma cuando respondes el
+  diálogo. Mientras espera, el pedido del teléfono dice por qué.
+
 ## [2.10.0-rc.90] - 2026-11-15
 
 ### Corregido
