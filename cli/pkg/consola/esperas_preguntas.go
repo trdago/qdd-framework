@@ -25,6 +25,9 @@ import (
 // «¿Confirmas [a]?» volvía al teléfono ya respondida. Un ⏳ que nombra un pedido hecho de su misma tarea (en las últimas
 // VidaHechos) ya no pregunta nada: 'qdd estado check' le pide a la IA actualizarlo (EsperasTrasPedido). Una tecla que
 // nunca tuvo pedido sigue siendo pregunta.
+// MEJ-085 (qdd-movile, 2026-11-15): lo mismo con un pedido retirado («la tarea siguió cambiando»): el ⏳ que lo nombra
+// por su tecla pedía una acción que ya no estaba en el panel. Uno retirado de su misma tarea (se recuerda VidaRetirado)
+// deja de preguntarse, y 'qdd estado check' le pide a la IA pedirlo de nuevo o actualizar el ⏳ (EsperasTrasRetiro).
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta la respuesta se perdía (la instrucción vence a los 30 min y la
 // pregunta seguía «respondida» 24 h).
 // Botones (propuesta de qdd-movile aprobada por la persona, 2026-11-07): cada ⏳ trae «Ya lo hice», «Todavía no» y «Ya no
@@ -91,6 +94,26 @@ func respondidaPorPedido(tarea, bloqueo string, abiertas map[string]bool, hechas
 	return cubiertaPorPedido(bloqueo, hechas[tarea])
 }
 
+// teclasRetiradas son, por tarea, las teclas de sus pedidos retirados que siguen en la cola (VidaRetirado).
+func teclasRetiradas(cola []Pedido) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, p := range cola {
+		if p.Estado != EstadoRetirado || p.Tarea == "" || p.Tecla == "" {
+			continue
+		}
+		if out[p.Tarea] == nil {
+			out[p.Tarea] = map[string]bool{}
+		}
+		out[p.Tarea][p.Tecla] = true
+	}
+	return out
+}
+
+// sinPedidoQueLaCubra: el ⏳ nombra un pedido de su tarea que ya terminó bien o se retiró (FND-176, MEJ-085).
+func sinPedidoQueLaCubra(tarea, bloqueo string, abiertas map[string]bool, hechas, retiradas map[string]map[string]bool) bool {
+	return respondidaPorPedido(tarea, bloqueo, abiertas, hechas) || respondidaPorPedido(tarea, bloqueo, abiertas, retiradas)
+}
+
 // esperasDeLaPersona son las preguntas pendientes de los ⏳ de la persona de las tareas abiertas.
 func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 	e, err := estado.Load(root)
@@ -98,7 +121,8 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 		return nil
 	}
 	var out []Pregunta
-	abiertas := teclasAbiertas(PedidosA(root, now))
+	cola := PedidosA(root, now)
+	abiertas, retiradas := teclasAbiertas(cola), teclasRetiradas(cola)
 	hechas := teclasHechas(root, now)
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
@@ -111,7 +135,7 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 			if c.Verifica != "" {
 				continue
 			}
-			if cubiertaPorPedido(bloqueo, abiertas) || respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
+			if cubiertaPorPedido(bloqueo, abiertas) || sinPedidoQueLaCubra(f.ID, bloqueo, abiertas, hechas, retiradas) {
 				continue
 			}
 			out = append(out, preguntaDeEspera(f, etapa, bloqueo, now))
@@ -141,7 +165,8 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 		return nil
 	}
 	var out []EsperaSinPregunta
-	abiertas := teclasAbiertas(PedidosA(root, now))
+	cola := PedidosA(root, now)
+	abiertas, retiradas := teclasAbiertas(cola), teclasRetiradas(cola)
 	hechas := teclasHechas(root, now)
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
@@ -150,7 +175,7 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" || c.Verifica != "" {
 				continue
 			}
-			if cubiertaPorPedido(bloqueo, abiertas) || respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
+			if cubiertaPorPedido(bloqueo, abiertas) || sinPedidoQueLaCubra(f.ID, bloqueo, abiertas, hechas, retiradas) {
 				continue
 			}
 			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})
@@ -162,21 +187,29 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 // EsperasTrasPedido son los ⏳ de la persona que esperan un pedido que ya terminó bien (FND-176): el teléfono ya no los
 // pregunta, y 'qdd estado check' le pide a la IA reflejar en la tabla lo que pasó.
 func EsperasTrasPedido(root string, now time.Time) []EsperaSinPregunta {
+	return esperasQueNombran(root, now, teclasHechas(root, now))
+}
+
+// EsperasTrasRetiro son los ⏳ de la persona que nombran un pedido retirado de su tarea (MEJ-085): el teléfono ya no
+// los pregunta, y 'qdd estado check' le pide a la IA pedirlo de nuevo o actualizar el ⏳.
+func EsperasTrasRetiro(root string, now time.Time) []EsperaSinPregunta {
+	return esperasQueNombran(root, now, teclasRetiradas(PedidosA(root, now)))
+}
+
+// esperasQueNombran son los ⏳ de la persona que nombran, sin un pedido abierto con esa tecla, una de las teclas de su
+// tarea.
+func esperasQueNombran(root string, now time.Time, teclas map[string]map[string]bool) []EsperaSinPregunta {
 	e, err := estado.Load(root)
 	if err != nil {
 		return nil
 	}
 	var out []EsperaSinPregunta
 	abiertas := teclasAbiertas(PedidosA(root, now))
-	hechas := teclasHechas(root, now)
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
 			bloqueo := strings.TrimSpace(c.Bloqueo)
-			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) {
-				continue
-			}
-			if !respondidaPorPedido(f.ID, bloqueo, abiertas, hechas) {
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || !respondidaPorPedido(f.ID, bloqueo, abiertas, teclas) {
 				continue
 			}
 			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})
