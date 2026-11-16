@@ -1,0 +1,9 @@
+id: "FND-237"
+title: "El tablero de una consola mostraba lo de otros proyectos en «Para ti» — MEJ-086"
+description: "2026-11-15 (MEJ-086 y la pregunta de la persona «¿por qué 2 consolas aún en Para ti muestran todos los proyectos?»): desde #256 (2026-11-15 02:49) «▶ Para ti» de cada consola dibujaba, bajo lo propio, lo que esperaba a la persona en hasta 6 proyectos más, con sus pedidos, fichas, preguntas y ⏳. qdd consola panel --json sin --con otros mostraba solo el proyecto, pero el mod lo pedía con --con otros, así que el tablero de la derecha parecía no filtrar por la carpeta de la sesión, aunque doctor estaba limpio."
+impact: "El tablero de una sesión se llenaba con lo de otros proyectos; la persona no distinguía qué era de la consola que tenía delante."
+action_taken: "Decisión de la persona (AskUserQuestion, 2026-11-15): «Solo este + una línea». «▶ Para ti» muestra solo el proyecto de la sesión; si otros esperan a la persona, una línea «+ N proyectos te esperan: a, b · ver en Proyectos (y)» abre la vista Proyectos, que dice cuánto espera en cada uno. Se quitó del mod lo que dibujaba y respondía otros proyectos desde aquí (--dir). Ficha estado actualizada."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/para-ti-otros.test.ts reescrito: lo de otro proyecto no se dibuja y una línea lo cuenta, con varios los nombra, la línea abre Proyectos, sin otros no hay línea. Fallaban con el panel anterior (rojo) y pasan; claude plugin test (324) en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

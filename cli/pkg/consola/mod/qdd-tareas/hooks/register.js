@@ -1925,13 +1925,12 @@ function confirmacion(Box, Text, Button, $) {
       Text({ dimColor: a.tipo !== 'pedido', mono: a.tipo === 'pedido', wrap: 'wrap', children: ['Ejecutará: ' + a.detalle] }),
       ...(a.tipo === 'pedido' && a.estado === 'espera' ? [Text({ color: COLOR.espera, wrap: 'wrap', children: ['◷ Corre solo cuando ' + esperaDe(a) + ' termine: tu intención queda tomada.'] })] : []),
       ...(a.carpeta ? [Text({ dimColor: true, size: 'caption', wrap: 'truncate-start', children: ['En: ' + enProyecto(a.carpeta)] })] : []),
-      ...(a.dir ? [Text({ color: COLOR.espera, size: 'caption', wrap: 'wrap', children: ['En el proyecto ' + a.proyecto] })] : []),
       Box({
         flexDirection: 'row',
         columnGap: 2,
         marginTop: 1,
         children: [
-          Button({ key: 'si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => (a.dir ? ejecutarEnOtro($, a) : ejecutar($, a)) }),
+          Button({ key: 'si', label: 's  Sí', hotkey: 's', variant: 'primary', onPress: () => ejecutar($, a) }),
           Button({
             key: 'no',
             label: 'n  No',
@@ -1941,7 +1940,7 @@ function confirmacion(Box, Text, Button, $) {
               $.ui.invalidate('ui.render')
             },
           }),
-          ...(a.tipo === 'pedido' && !a.dir ? [Button({ key: 'descartar', label: 'x  Descartar', hotkey: 'x', onPress: () => descartar($, a) })] : []),
+          ...(a.tipo === 'pedido' ? [Button({ key: 'descartar', label: 'x  Descartar', hotkey: 'x', onPress: () => descartar($, a) })] : []),
         ],
       }),
     ],
@@ -2089,14 +2088,13 @@ function enZona(Box, Text, Button, $, aqui) {
 // terminal, a la vista y con un botón por opción (MEJ-057, la persona eligió «Arriba con botones», 2026-11-15); después
 // las acciones (pedidos y fichas), lo que no lleva turno y los hechos, y al final los ⏳, plegados en «? N» (pedido de la
 // persona, 2026-11-08). Lo que se está confirmando cambia su tarjeta por la confirmación.
-function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = [], carpeta = '') {
+function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
   const lista = pedidos(todas)
   const turnos = todas.filter((a) => a.turno)
   const locales = [...sinRegistrar.values()]
   const seVa = seVan($, Text, new Set(lista.map((a) => a.id)))
   for (const a of lista) tarjetasVistas.set(a.id, lineasDeTarjeta(conNumero(a)))
-  const enOtros = otros.reduce((n, p) => n + p.acciones.length, 0)
-  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0 && locales.length === 0 && enOtros === 0) return []
+  if (lista.length === 0 && seVa.length === 0 && preguntas.length === 0 && turnos.length === 0 && locales.length === 0 && otros.length === 0) return []
   const hechos = lista.filter((a) => estadoDe(a).estado === 'hecho')
   const abiertos = lista.filter((a) => estadoDe(a).estado !== 'hecho' && !a.turno)
   const fichas = turnos.filter((a) => a.tipo === 'aprobar')
@@ -2106,8 +2104,8 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = [], carpe
   const corriendo = lista.filter((a) => estadoDe(a).estado === 'ejecutando').length
   const armados = lista.filter((a) => estadoDe(a).estado === 'armado').length
   const porResponder = preguntas.length + enTerminal.length + locales.length
-  const nada = corriendo || porResponder || enOtros ? [] : ['nada por hacer']
-  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(porResponder ? [porResponder + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : []), ...(enOtros ? [enOtros + ' en otros proyectos'] : [])].join(' · ')
+  const nada = corriendo || porResponder ? [] : ['nada por hacer']
+  const resumen = [...(porHacer ? [porHacer + ' por hacer'] : nada), ...(porResponder ? [porResponder + ' por responder'] : []), ...(corriendo ? [corriendo + ' ejecutando'] : []), ...(armados ? [armados + (armados === 1 ? ' armado' : ' armados')] : []), ...(enEspera ? [enEspera + ' en espera'] : []), ...(hechos.length ? [hechos.length + (hechos.length === 1 ? ' hecho' : ' hechos')] : [])].join(' · ')
   const dibujo = (a) => {
     const v = conNumero(a)
     return materializa($, Text, 'p:' + a.id, lineasDeTarjeta(v), tarjeta(Box, Text, Button, $, v), estadoDe(a).estado + '|' + a.tecla + '|' + v.etiqueta)
@@ -2144,101 +2142,25 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = [], carpe
     return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
   }))
   return [
-    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder || enOtros ? COLOR.espera : undefined, resumen, ancho),
-    Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: [...propio(Box, Text, cuerpo, otros, carpeta), ...otros.map((p) => otroProyecto(Box, Text, Button, $, p, ancho))] }),
+    separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
+    Box({ key: 'pedidos', flexDirection: 'column', rowGap: 1, children: [...cuerpo, ...otrosEnUnaLinea(Button, $, otros)] }),
     ...enZona(Box, Text, Button, $, 'pedidos'),
   ]
 }
 
-// propio: con otros proyectos debajo, lo de este proyecto lleva su nombre y va sangrado como el de los demás; sin
-// otros, «Para ti» queda como antes.
-function propio(Box, Text, cuerpo, otros, carpeta) {
-  if (otros.length === 0 || cuerpo.length === 0) return cuerpo
-  const nombre = carpeta.split(/[\\/]/).filter(Boolean).pop() || 'este proyecto'
-  const titulo = Text({ key: 'pt-propio-t', color: COLOR.espera, weight: 'bold', wrap: 'truncate-end', children: ['◦ ' + nombre + ' · este proyecto'] })
-  return [Box({ key: 'pt-propio', flexDirection: 'column', children: [titulo, Box({ key: 'pt-propio-cont', flexDirection: 'column', rowGap: 1, paddingLeft: 2, children: cuerpo })] })]
+// otrosEnUnaLinea: los demás proyectos que esperan a la persona, contados y nombrados en una línea que abre la vista
+// Proyectos (MEJ-086, la persona eligió «Solo este + una línea», 2026-11-15). Así el tablero de esta consola es de su
+// proyecto, y lo de los demás no se pierde (#256).
+function otrosEnUnaLinea(Button, $, otros) {
+  if (otros.length === 0) return []
+  const cuantos = otros.length === 1 ? '+ 1 proyecto te espera: ' : '+ ' + otros.length + ' proyectos te esperan: '
+  const label = cuantos + otros.map((p) => p.proyecto).join(', ') + ' · ver en Proyectos (y)'
+  return [Button({ key: 'pt-otros', label, plain: true, dimColor: true, onPress: () => abrirProyectos($) })]
 }
 
-// esConfirmacionDe: la confirmación abierta es de esta acción de este proyecto (otro proyecto puede repetir el id).
+// esConfirmacionDe: la confirmación abierta es de esta acción.
 function esConfirmacionDe(a) {
-  return confirmando?.id === a.id && (confirmando?.dir || '') === (a.dir || '')
-}
-
-// enCarpeta: lo que corre en otro proyecto lleva su carpeta («Para ti» de todos los proyectos).
-function enCarpeta(a) {
-  return a.dir ? ['--dir', a.dir] : []
-}
-
-// otroProyecto: lo que espera a la persona en otro proyecto (qdd consola panel --con otros), bajo su nombre. Como en lo
-// propio, lo de la terminal y las acciones a la vista y los ⏳ plegados; todo corre allá con --dir, y nada se le
-// escribe a la IA de esta sesión, que trabaja en otro proyecto.
-const otrosAbiertos = new Set()
-
-function otroProyecto(Box, Text, Button, $, p, ancho) {
-  const deAca = (a) => ({ ...a, dir: p.carpeta, proyecto: p.proyecto })
-  const acciones = p.acciones.map(deAca)
-  const terminal = acciones.filter(esDeLaTerminal).map((a) => preguntaArriba(Box, Text, Button, $, a))
-  const botones = acciones
-    .filter((a) => a.tipo === 'pedido' || a.tipo === 'aprobar')
-    .map((a) => (esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : Button({ key: 'ot-' + p.carpeta + '-' + a.id, label: a.etiqueta, onPress: () => pedir($, a) })))
-  const esperas = (p.esperas || []).map((q) => ({ ...q, dir: p.carpeta }))
-  // Captura de la persona (2026-11-15): con un renglón entre el nombre y su «? N», cada cuenta quedaba a la misma distancia
-  // de su proyecto y del siguiente, y todo se leía como un solo proyecto. El nombre y su «? N» van en la misma línea y lo
-  // demás sangrado debajo; el renglón queda solo entre proyectos.
-  const titulo = Text({ key: 'ot-t-' + p.carpeta, color: COLOR.espera, weight: 'bold', wrap: 'truncate-end', children: ['◦ ' + p.proyecto] })
-  const cabecera = Box({ key: 'ot-cab-' + p.carpeta, flexDirection: 'row', columnGap: 2, children: [titulo, ...botonEsperasDeOtro(Button, $, p.carpeta, esperas)] })
-  const contenido = [...terminal, ...botones, ...esperasDeOtro(Box, Text, Button, $, p.carpeta, esperas, ancho)]
-  if (contenido.length === 0) return Box({ key: 'ot-' + p.carpeta, flexDirection: 'column', children: [cabecera] })
-  return Box({ key: 'ot-' + p.carpeta, flexDirection: 'column', children: [cabecera, Box({ key: 'ot-cont-' + p.carpeta, flexDirection: 'column', rowGap: 1, paddingLeft: 2, children: contenido })] })
-}
-
-// botonEsperasDeOtro: el «? N» de los ⏳ de otro proyecto, que va en la línea de su nombre.
-function botonEsperasDeOtro(Button, $, carpeta, esperas) {
-  if (esperas.length === 0) return []
-  const abierto = otrosAbiertos.has(carpeta)
-  return [Button({ key: 'ot-ver-' + carpeta, label: (abierto ? '▾ ' : '▸ ') + '? ' + esperas.length + (esperas.length === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarOtro($, carpeta) })]
-}
-
-function esperasDeOtro(Box, Text, Button, $, carpeta, esperas, ancho) {
-  if (esperas.length === 0 || !otrosAbiertos.has(carpeta)) return []
-  const filas = esperas.slice(0, TOPE_ESPERAS).map((q, i) => {
-    const texto = Text({ key: 'ot-espera-t-' + carpeta + '-' + i, color: COLOR.espera, wrap: 'wrap', children: [alAncho(q.texto, Math.max(8, ancho - 2))] })
-    const donde = Text({ key: 'ot-espera-d-' + carpeta + '-' + i, dimColor: true, size: 'caption', wrap: 'truncate-end', children: [q.donde] })
-    const responder = BOTONES_ESPERA.map(([valor, label]) => Button({ key: 'ot-espera-' + carpeta + '-' + i + '-' + valor, label, plain: true, dimColor: true, onPress: () => responderEspera($, q, valor) }))
-    return Box({ key: 'ot-espera-' + carpeta + '-' + i, flexDirection: 'column', children: [texto, donde, Box({ flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, children: responder })] })
-  })
-  const resto = esperas.length - filas.length
-  const mas = resto > 0 ? [Text({ key: 'ot-mas-' + carpeta, dimColor: true, size: 'caption', children: ['y ' + resto + ' más: en el panel de ese proyecto'] })] : []
-  return [...filas, ...mas]
-}
-
-function alternarOtro($, carpeta) {
-  const abierto = otrosAbiertos.has(carpeta)
-  otrosAbiertos.delete(carpeta)
-  if (!abierto) otrosAbiertos.add(carpeta)
-  $.ui.invalidate('ui.render')
-}
-
-// ejecutarEnOtro: la acción confirmada de otro proyecto corre allá (qdd consola --dir). El resultado se ve aquí; el
-// pedido avisa al terminar a la sesión que lo pidió, no a esta.
-async function ejecutarEnOtro($, a) {
-  if (ocupado) return
-  ocupado = true
-  confirmando = null
-  resultado = { titulo: a.etiqueta, ok: true, texto: 'ejecutando en ' + a.proyecto + '…', zona: 'pedidos' }
-  $.ui.invalidate('ui.render')
-  const bin = await binario($)
-  try {
-    const r = await $.process.run([bin, 'consola', ...enCarpeta(a), 'accion', a.id, '--confirmado'], { timeoutMs: TOPE_ACCION_MS })
-    const texto = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-LINEAS_RESULTADO).join('\n')
-    resultado = { titulo: a.etiqueta + ' · ' + a.proyecto, ok: r.exitCode === 0, texto: texto || 'sin salida', zona: 'pedidos', ...(r.exitCode === CODIGO_TODAVIA_NO ? { todaviaNo: true } : {}) }
-  } catch (err) {
-    resultado = { titulo: a.etiqueta, ok: false, texto: String(err?.message ?? err), zona: 'pedidos' }
-  }
-  ocupado = false
-  firma = ''
-  await leer($)
-  $.ui.invalidate('ui.render')
+  return confirmando?.id === a.id
 }
 
 // preguntasPlegadas: el botón «? N» y, si la persona lo abrió, las preguntas debajo. filas se calcula solo abierto.
@@ -2263,8 +2185,8 @@ function esDeLaTerminal(a) {
 // preguntaArriba: lo abierto en la terminal, con su número y un botón por opción si es una sola pregunta registrada en
 // qdd (MEJ-057). Varias juntas, o una que qdd no registró, se responden en la terminal.
 function preguntaArriba(Box, Text, Button, $, a) {
-  const v = a.dir ? a : conNumero(a)
-  const clave = (a.dir ? a.dir + '-' : '') + a.id
+  const v = conNumero(a)
+  const clave = a.id
   const titulo = Text({ key: 'terminal-' + clave, color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: [v.etiqueta] })
   const q = a.preguntas?.length === 1 && !a.preguntas[0].multiple ? a.preguntas[0] : null
   if (!q || !q.opciones?.length) {
@@ -2285,7 +2207,7 @@ async function responderEnPanel($, a, o) {
   confirmando = null
   const bin = await binario($)
   try {
-    const salida = await $.process.run([bin, 'consola', ...enCarpeta(a), 'pregunta', 'responder', a.id, o.valor], { timeoutMs: TOPE_MS })
+    const salida = await $.process.run([bin, 'consola', 'pregunta', 'responder', a.id, o.valor], { timeoutMs: TOPE_MS })
     const r = salida.exitCode === 0 ? JSON.parse(salida.stdout || '{}') : null
     resultado = r
       ? { titulo: a.etiqueta, ok: true, texto: r.aplicado || 'Respondida desde el panel: ' + o.etiqueta, zona: 'pedidos' }
@@ -2337,7 +2259,7 @@ async function responderEspera($, q, valor) {
   const bin = await binario($)
   let r = null
   try {
-    const salida = await $.process.run([bin, 'consola', ...enCarpeta(q), 'pregunta', 'responder', q.pregunta, valor], { timeoutMs: TOPE_MS })
+    const salida = await $.process.run([bin, 'consola', 'pregunta', 'responder', q.pregunta, valor], { timeoutMs: TOPE_MS })
     r = salida.exitCode === 0 ? JSON.parse(salida.stdout || '{}') : null
     resultado = { titulo: q.donde, ok: false, texto: ((salida.stdout || '') + (salida.stderr || '')).trim() || 'sin salida', zona: 'pedidos' }
   } catch (err) {
@@ -2345,7 +2267,7 @@ async function responderEspera($, q, valor) {
   }
   if (r) {
     resultado = { titulo: q.donde, ok: true, texto: r.aplicado || 'respondida', zona: 'pedidos' }
-    if (r.mensaje && !q.dir) $.prompt.submit({ text: r.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
+    if (r.mensaje) $.prompt.submit({ text: r.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
   }
   ocupado = false
   $.ui.invalidate('ui.render')
@@ -2464,7 +2386,7 @@ function dibujarVista($, Box, Text, Button, Input, Select, ancho) {
       cabecera(Box, Text, Button, $, e, lista),
       ...formularioFlujoNuevo($, Box, Text, Button, Input, PANE),
       ...cuerpo,
-      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho, datos.otros || [], datos.carpeta || ''),
+      ...paraTi(Box, Text, Button, $, lista, datos.esperas_persona || [], ancho, datos.otros || []),
       ...fallas(Box, Text, e?.fallas || [], ancho),
       ...acciones(Box, Text, Button, $, lista, ancho),
       Box({ marginTop: 1, children: [pie(Text)] }),

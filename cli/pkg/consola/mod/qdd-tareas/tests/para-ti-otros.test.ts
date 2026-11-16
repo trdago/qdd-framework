@@ -1,9 +1,10 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-// «Para ti» de todos los proyectos (2026-11-15): la persona mira el panel de una sesión y no vio las fichas ni las
-// preguntas de notificador, abiertas en otra. El panel muestra, debajo de lo propio, lo que espera a la persona en los
-// demás proyectos (qdd consola panel --con otros) y lo responde ahí mismo con 'qdd consola --dir <carpeta> …'. Como en
-// lo propio: lo de la terminal y las acciones a la vista, los ⏳ plegados.
+// «Para ti» de todos los proyectos (#256, 2026-11-15): la persona no vio las fichas ni las preguntas de notificador,
+// abiertas en otra sesión, y el panel pasó a mostrar debajo de lo propio lo que la espera en los demás proyectos.
+// MEJ-086 (2026-11-15): así el tablero de cada consola mostraba proyectos que no eran el de la sesión. La persona eligió
+// «Solo este + una línea»: «Para ti» muestra solo este proyecto y, si otros la esperan, una línea que los cuenta y abre
+// la vista Proyectos (y), donde está el detalle.
 
 const PANEL = {
   plugin: 'qdd-tareas',
@@ -57,96 +58,37 @@ async function montado($, on, otros, propias?) {
   return { r, ui: await $.ui.mount({ ...PANEL }) }
 }
 
-const k = (a) => 'ot-' + CARPETA + '-' + a.id
-const deQDD = (r, que: string) => r.llamadas.filter((a) => a.includes('--dir') && a.includes(que))
+const OTRO_MAS = { proyecto: 'fairplay_agent', carpeta: '/home/p/fairplay_agent', acciones: [FICHA], esperas: [] }
 
-test('el panel pide lo de los demás proyectos', async ($, on) => {
+test('el panel pide lo de los demás proyectos para contarlos', async ($, on) => {
   const { r } = await montado($, on, [])
   const panel = r.llamadas.find((a) => a[2] === 'panel')
-  expect(panel?.[panel.indexOf('--con') + 1]).toContain('otros')
+  expect(panel?.[panel.indexOf('--con') + 1].split(',')).toContain('otros')
 })
 
-test('lo de otro proyecto va en «Para ti» bajo su nombre: la terminal y las acciones a la vista, los ⏳ plegados', async ($, on) => {
-  const { ui } = await montado($, on, [OTRO])
-  expect(await ui.find({ type: 'Text', text: /◦ notificador_de_ofertas/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /❓ Push · ¿Subo a producción\?/ })).toBeDefined()
-  expect(await ui.find({ key: k(FICHA) })).toBeDefined()
-  expect(await ui.find({ key: k(PEDIDO) })).toBeDefined()
-  expect((await ui.find({ key: 'ot-ver-' + CARPETA })).props.label).toContain('? 1')
-  expect(await ui.find({ type: 'Text', text: /4 en otros proyectos/ })).toBeDefined()
-})
-
-test('aprobar una ficha de otro proyecto pide confirmación, nombra el proyecto y corre allá', async ($, on) => {
-  const { r, ui } = await montado($, on, [OTRO])
-  await ui.press({ key: k(FICHA) })
-  expect(await ui.find({ type: 'Text', text: /notificador_de_ofertas/ })).toBeDefined()
-  expect(deQDD(r, 'accion')).toEqual([])
-  await ui.press({ key: 'si' })
-  await pausa()
-  expect(deQDD(r, 'accion')).toEqual([['qdd', 'consola', '--dir', CARPETA, 'accion', FICHA.id, '--confirmado']])
-})
-
-test('un pedido de otro proyecto se confirma desde aquí y corre en su proyecto', async ($, on) => {
-  const { r, ui } = await montado($, on, [OTRO])
-  await ui.press({ key: k(PEDIDO) })
-  await ui.press({ key: 'si' })
-  await pausa()
-  expect(deQDD(r, 'accion')).toEqual([['qdd', 'consola', '--dir', CARPETA, 'accion', PEDIDO.id, '--confirmado']])
-  expect(r.enviados).toEqual([])
-})
-
-test('una pregunta de la terminal de otro proyecto se responde con su botón', async ($, on) => {
-  const { r, ui } = await montado($, on, [OTRO])
-  await ui.press({ key: 'pq-' + CARPETA + '-' + ASK.id + '-b' })
-  await pausa()
-  expect(deQDD(r, 'responder')).toEqual([['qdd', 'consola', '--dir', CARPETA, 'pregunta', 'responder', ASK.id, 'b']])
-})
-
-test('un ⏳ de otro proyecto se despliega y se responde allá, sin escribirle a la IA de esta sesión', async ($, on) => {
-  const { r, ui } = await montado($, on, [OTRO])
-  await ui.press({ key: 'ot-ver-' + CARPETA })
-  expect(await ui.find({ type: 'Text', text: /¿SES listo\?/ })).toBeDefined()
-  await ui.press({ key: 'ot-espera-' + CARPETA + '-0-hecho' })
-  await pausa()
-  expect(deQDD(r, 'responder')).toEqual([['qdd', 'consola', '--dir', CARPETA, 'pregunta', 'responder', ESPERA.id, 'hecho']])
-  expect(r.enviados).toEqual([])
-})
-
-test('sin otros proyectos (o con un qdd anterior) «Para ti» queda como antes', async ($, on) => {
-  const { ui } = await montado($, on, undefined)
+test('lo de otro proyecto no se dibuja en «Para ti»: una línea lo cuenta (MEJ-086)', async ($, on) => {
+  const { ui } = await montado($, on, [OTRO], [{ ...PEDIDO, id: 'pedido:9', etiqueta: 'Publicar aquí', tecla: 'b' }])
+  expect(await ui.find({ type: 'Button', text: /Publicar aquí/ })).toBeDefined()
+  expect(await ui.find({ type: 'Button', text: /Subir d5b19cc4/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /¿Subo a producción\?/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /◦ / })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /otros proyectos/ })).toBeUndefined()
+  expect(await ui.find({ key: 'pt-otros' })).toMatchObject({ props: { label: '+ 1 proyecto te espera: notificador_de_ofertas · ver en Proyectos (y)', plain: true } })
 })
 
-// 2026-11-15, captura de la persona: «¿por qué se mezclaron los proyectos en 1 solo proyecto?». Cada «? N preguntas»
-// quedaba a una línea de su nombre y a una línea del nombre siguiente, y lo propio no tenía nombre: se leía como una
-// sola lista. El nombre y su «? N» van en la misma línea, lo demás sangrado debajo, y lo propio lleva su nombre.
-const OTRA = '/home/p/sfrc'
-const SEGUNDO = { proyecto: 'sfrc', carpeta: OTRA, acciones: [{ ...ESPERA, id: 'pregunta:espera-s' }], esperas: [{ pregunta: 'pregunta:espera-s', atender: 'atender:s:0', donde: 'S · Código', texto: '¿Va?' }] }
-const claves = (n) => (n?.children || []).map((c) => c.props?.key ?? c.key)
-
-test('el nombre de cada proyecto y su «? N» van en la misma línea, y lo demás sangrado debajo', async ($, on) => {
-  const { ui } = await montado($, on, [OTRO, SEGUNDO])
-  for (const carpeta of [CARPETA, OTRA]) {
-    const cabecera = await ui.find({ key: 'ot-cab-' + carpeta })
-    expect(cabecera.props.flexDirection).toBe('row')
-    expect(JSON.stringify(cabecera.children[0])).toContain('◦ ' + carpeta.split('/').pop())
-    expect(claves(cabecera)[1]).toBe('ot-ver-' + carpeta)
-    expect(cabecera.children).toHaveLength(2)
-  }
-  const grupo = await ui.find({ key: 'ot-' + CARPETA })
-  expect(grupo.props.rowGap ?? 0).toBe(0)
-  expect((await ui.find({ key: 'ot-cont-' + CARPETA })).props.paddingLeft).toBe(2)
-  expect(await ui.find({ key: 'ot-cont-' + OTRA })).toBeUndefined()
+test('con varios proyectos, la línea los cuenta y los nombra', async ($, on) => {
+  const { ui } = await montado($, on, [OTRO, OTRO_MAS])
+  expect(await ui.find({ key: 'pt-otros' })).toMatchObject({ props: { label: '+ 2 proyectos te esperan: notificador_de_ofertas, fairplay_agent · ver en Proyectos (y)' } })
 })
 
-test('con otros proyectos, lo propio lleva su nombre; sin otros, no', async ($, on) => {
-  const { ui } = await montado($, on, [OTRO], [{ ...PEDIDO, id: 'pedido:9' }])
-  expect(await ui.find({ type: 'Text', text: /◦ work · este proyecto/ })).toBeDefined()
-  expect((await ui.find({ key: 'pt-propio-cont' })).props.paddingLeft).toBe(2)
+test('la línea abre la vista Proyectos', async ($, on) => {
+  const { r, ui } = await montado($, on, [OTRO])
+  await ui.press({ key: 'pt-otros' })
+  await pausa()
+  expect(r.llamadas.some((a) => a[1] === 'consola' && a[2] === 'proyectos')).toBe(true)
 })
 
-test('sin otros proyectos, lo propio no lleva nombre', async ($, on) => {
-  const { ui } = await montado($, on, undefined, [{ ...PEDIDO, id: 'pedido:9' }])
-  expect(await ui.find({ type: 'Text', text: /este proyecto/ })).toBeUndefined()
+test('sin otros proyectos (o con un qdd anterior) no hay línea', async ($, on) => {
+  const { ui } = await montado($, on, undefined, [PEDIDO])
+  expect(await ui.find({ type: 'Button', text: /Subir d5b19cc4/ })).toBeDefined()
+  expect(await ui.find({ key: 'pt-otros' })).toBeUndefined()
 })
