@@ -304,6 +304,7 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 	}
 	sinPregunta := consola.EsperasSinPregunta(root, time.Now())
 	trasPedido := consola.EsperasTrasPedido(root, time.Now())
+	trasRetiro := consola.EsperasTrasRetiro(root, time.Now())
 	desfasadas := estado.Desfasadas(e)
 	commits := estado.CommitsDesdeSuCelda(root, e)
 	if estadoJSON {
@@ -311,7 +312,7 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		if estadoResp == "" {
 			revision = []string{"EPF-C08"}
 		}
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "esperas_tras_pedido": append([]consola.EsperaSinPregunta{}, trasPedido...), "tareas_desfasadas": desfasadas, "commits_desde_su_celda": commits}, "", "  ")
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "esperas_tras_pedido": append([]consola.EsperaSinPregunta{}, trasPedido...), "esperas_tras_retiro": append([]consola.EsperaSinPregunta{}, trasRetiro...), "tareas_desfasadas": desfasadas, "commits_desde_su_celda": commits}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -330,6 +331,7 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 	}
 	avisarEsperasSinPregunta(os.Stdout, sinPregunta)
 	avisarEsperasTrasPedido(os.Stdout, trasPedido)
+	avisarEsperasTrasRetiro(os.Stdout, trasRetiro)
 	avisarDesfasadas(os.Stdout, desfasadas)
 	avisarCommitsEnTareas(os.Stdout, commits)
 	salirSiHay(vs)
@@ -379,6 +381,17 @@ func avisarEsperasTrasPedido(salida io.Writer, esperas []consola.EsperaSinPregun
 		return
 	}
 	fmt.Fprintf(salida, "[i] ⏳ de la persona cuyo pedido ya terminó: %d. El teléfono ya no los pregunta; refleja lo que pasó con qdd_estado set:\n", len(esperas))
+	for _, e := range esperas {
+		fmt.Fprintf(salida, "    %s\n", e.Linea())
+	}
+}
+
+// avisarEsperasTrasRetiro avisa, sin bloquear, de los ⏳ de la persona que nombran un pedido retirado (MEJ-085).
+func avisarEsperasTrasRetiro(salida io.Writer, esperas []consola.EsperaSinPregunta) {
+	if len(esperas) == 0 {
+		return
+	}
+	fmt.Fprintf(salida, "[i] ⏳ de la persona cuyo pedido se retiró (su tarea siguió cambiando): %d. El teléfono ya no los pregunta; si todavía va, pídelo de nuevo; si no, actualiza el ⏳ con qdd_estado set:\n", len(esperas))
 	for _, e := range esperas {
 		fmt.Fprintf(salida, "    %s\n", e.Linea())
 	}

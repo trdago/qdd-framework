@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/estado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -86,11 +88,43 @@ func tomarRetirados(root, sesion string, now time.Time) []string {
 				continue
 			}
 			cola[i].Avisado = true
-			avisos = append(avisos, fmt.Sprintf("[qdd · panel] Se retiró tu pedido «%s»: su tarea «%s» siguió cambiando. Si todavía va, pídelo de nuevo.", p.Motivo, p.Tarea))
+			avisos = append(avisos, fmt.Sprintf("[qdd · panel] Se retiró tu pedido «%s»: su tarea «%s» siguió cambiando. Si todavía va, pídelo de nuevo.%s", p.Motivo, p.Tarea, esperasDelRetirado(root, p)))
 		}
 		return cola, nil
 	})
 	return avisos
+}
+
+// esperasDelRetirado nombra los ⏳ de la persona que piden ese pedido por su tecla (MEJ-085): sin él en el panel, piden
+// una acción que no existe hasta que la IA lo pide de nuevo o los actualiza.
+func esperasDelRetirado(root string, p Pedido) string {
+	e, err := estado.Load(root)
+	if err != nil || p.Tecla == "" {
+		return ""
+	}
+	var donde []string
+	for _, f := range e.Abiertos() {
+		donde = append(donde, esperasQuePiden(e, f, p)...)
+	}
+	if len(donde) == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" El ⏳ %s pide [%s]: pídelo de nuevo o actualízalo con qdd_estado set.", strings.Join(donde, ", "), p.Tecla)
+}
+
+// esperasQuePiden son los ⏳ de la persona de la tarea del pedido que lo nombran por su tecla.
+func esperasQuePiden(e estado.Estado, f estado.Frente, p Pedido) []string {
+	if f.ID != p.Tarea {
+		return nil
+	}
+	var donde []string
+	for _, etapa := range e.EtapasDe(f) {
+		c := f.Celdas[etapa]
+		if estado.NormalizarEstado(c.Estado) == estado.Espera && esDeLaPersona(c.DeQuien) && cubiertaPorPedido(c.Bloqueo, map[string]bool{p.Tecla: true}) {
+			donde = append(donde, "«"+f.Nombre+" · "+etapa+"»")
+		}
+	}
+	return donde
 }
 
 func retiradoPorAvisar(p Pedido, sesion string) bool {

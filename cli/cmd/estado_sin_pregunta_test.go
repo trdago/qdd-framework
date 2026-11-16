@@ -40,3 +40,20 @@ func TestAvisarEsperasTrasPedido_PideActualizarElEstado_FND176(t *testing.T) {
 		}
 	}
 }
+
+// MEJ-085: un ⏳ que nombra un pedido retirado no llega al teléfono; el check le pide a la IA pedirlo de nuevo o
+// actualizarlo.
+func TestAvisarEsperasTrasRetiro_PidePedirloDeNuevoOActualizar_MEJ085(t *testing.T) {
+	var salida bytes.Buffer
+	avisarEsperasTrasRetiro(&salida, nil)
+	if salida.Len() != 0 {
+		t.Fatalf("sin esperas, no dice nada: %q", salida.String())
+	}
+	avisarEsperasTrasRetiro(&salida, []consola.EsperaSinPregunta{{Tarea: "Barra", Etapa: "PR", Bloqueo: "¿Confirmas [a]?"}})
+	texto := salida.String()
+	for _, debe := range []string{"[i]", "Barra · PR", "¿Confirmas [a]?", "se retiró", "pídelo de nuevo", "qdd_estado set"} {
+		if !strings.Contains(texto, debe) {
+			t.Fatalf("debe decir %q: %q", debe, texto)
+		}
+	}
+}

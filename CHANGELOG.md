@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.92] - 2026-11-15
+
+### Corregido
+
+- **Un ⏳ ya no te pide la tecla de un pedido que se retiró (MEJ-085, FND-235):** si un pedido sale del panel porque su
+  tarea siguió cambiando, el ⏳ que lo nombraba deja de preguntarse en el teléfono. `qdd estado check` y el aviso del
+  retiro le piden a la IA pedirlo de nuevo o actualizar el ⏳.
+
 ## [2.10.0-rc.91] - 2026-11-15
 
 ### Corregido

@@ -1,0 +1,9 @@
+id: "FND-235"
+title: "Un ⏳ seguía pidiendo la [tecla] de un pedido retirado — MEJ-085"
+description: "2026-11-15, qdd rc.87, proyecto notificador_de_ofertas (MEJ-085, reportado por qdd-movile): los ⏳ #329 y #338 le pedían a la persona confirmar pedidos por su tecla. Esos pedidos se retiraron a las 07:02 («la tarea siguió cambiando») y los ⏳ siguieron pidiendo esas teclas toda la tarde. FND-176 ya dejaba de preguntar un ⏳ cuyo pedido terminó bien, pero un pedido retirado no contaba: el ⏳ volvía a ser pregunta y el teléfono pedía una acción que ya no estaba en el panel. El aviso del retiro a la IA no decía qué ⏳ lo nombraba."
+impact: "Desde el teléfono la persona lee una acción que no puede hacer, sin forma de saber que la tecla ya no existe."
+action_taken: "Un ⏳ de la persona que nombra la tecla de un pedido retirado de su misma tarea (mientras sigue en la cola, VidaRetirado) deja de preguntarse al teléfono, como uno cuyo pedido terminó (FND-176). qdd estado check lo lista (esperas_tras_retiro en --json) para que la IA lo pida de nuevo o actualice el ⏳, y el aviso del retiro a la sesión que lo pidió nombra ese ⏳. Si la IA lo pide de nuevo, vuelve con su tecla y el ⏳ queda cubierto otra vez. Ficha estado actualizada."
+test_result: "cli/pkg/consola/espera_pedido_retirado_mej085_test.go (no se pregunta al teléfono y el check lo lista; pedido de nuevo vuelve a cubrirlo; un retirado de otra tarea no lo cubre; el aviso del retiro nombra el ⏳) y cli/cmd/estado_sin_pregunta_test.go (el aviso del check) fallaban antes del cambio (rojo) y pasan; go test ./pkg/consola/ ./cmd/ en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"
