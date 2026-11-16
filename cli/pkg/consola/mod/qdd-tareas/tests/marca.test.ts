@@ -174,6 +174,27 @@ test('una versión nueva sin botón (Windows) se avisa en la cabecera con lo que
   expect(await ui.find({ type: 'Text', text: aviso })).toMatchObject({ props: { color: AMBAR, wrap: 'wrap' } })
 })
 
+// FND-236: Claude Code lee el mod al abrir la consola; una abierta antes de actualizar sigue con el anterior. El panel
+// dice de qué versión es (el instalador cambia la marca por la suya) para que qdd avise que hay que reiniciarla.
+test('el panel le dice a qdd de qué versión es, y el aviso de reiniciar sale en la cabecera (FND-236)', async ($, on) => {
+  const leidas: string[][] = []
+  const aviso = '⟳ Este panel es de qdd 2.10.0-rc.87 y está instalado 2.10.0-rc.92: cierra esta consola y ábrela con claude --continue'
+  mock.clock(on)
+  mock.env(on, {})
+  on('session.start', () => ({ cwd: '/work/tienda' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    leidas.push(e.argv)
+    return { value: { exitCode: 0, stdout: JSON.stringify({ ...PANEL, aviso_version: aviso }), stderr: '' } }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/tienda' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const panel = leidas.find((a) => a.includes('panel') && a.includes('--con'))
+  expect(panel?.[panel.indexOf('--con') + 1].split(',')).toContain('panel:__QDD_VERSION__')
+  expect(await ui.find({ type: 'Text', text: aviso })).toMatchObject({ props: { color: AMBAR, wrap: 'wrap' } })
+})
+
 test('la actualización de qdd se ofrece como pedido, pero no abre el panel', async ($, on) => {
   const aperturas: unknown[] = []
   const clock = mock.clock(on)

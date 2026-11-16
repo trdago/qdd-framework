@@ -1,6 +1,7 @@
 package consola
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
@@ -187,6 +188,9 @@ func (c Consola) EscribirMarketplace() error {
 				return err
 			}
 		}
+		if rel == "hooks/register.js" {
+			data = conVersionDelPanel(data, c.Version)
+		}
 		return escribir(filepath.Join(destino, filepath.FromSlash(rel)), data)
 	})
 	if err != nil {
@@ -214,6 +218,16 @@ func conVersion(manifiesto []byte, version string) ([]byte, error) {
 	m["version"] = version
 	data, _ := json.MarshalIndent(m, "", "  ")
 	return append(data, '\n'), nil
+}
+
+// conVersionDelPanel deja en el mod la versión que lo instala (FND-236): el panel la manda a qdd, que avisa si la
+// consola sigue con un mod anterior.
+func conVersionDelPanel(mod []byte, version string) []byte {
+	if version == "" {
+		return mod
+	}
+	v, _ := json.Marshal(version)
+	return bytes.Replace(mod, []byte(`"`+marcaVersionPanel+`"`), v, 1)
 }
 
 func escribir(ruta string, data []byte) error {

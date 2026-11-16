@@ -52,7 +52,7 @@ test('con el flujo abierto los cambios llegan solos y no se lanza un proceso por
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await clock.advance(2000)
   await new Promise((res) => setTimeout(res, 20))
-  expect(r.lanzados).toEqual([['qdd', 'consola', 'seguir', '--con', 'atender,herramientas,mejoras,flujos,esperas_persona,pregunta,otros,telefono:sesion-1']])
+  expect(r.lanzados).toEqual([['qdd', 'consola', 'seguir', '--con', 'atender,herramientas,mejoras,flujos,esperas_persona,pregunta,otros,panel:__QDD_VERSION__,telefono:sesion-1']])
   expect(await ui.find({ type: 'Text', text: /primero/ })).toBeDefined()
 
   const antes = lecturas(r)
