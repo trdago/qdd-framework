@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -28,6 +29,7 @@ const (
 	itemRemotoCuenta    = "La tarea de inicio es solo de tu usuario (REM-12)"
 	itemRemotoReintento = "La tarea vuelve a lanzar qdd remoto si termina (REM-13)"
 	itemRemotoSobrante  = "No queda otra tarea de qdd remoto (REM-14)"
+	itemRemotoVentana   = "QDD Móvil corre sin ventana (REM-23)"
 )
 
 func buildRemotoChecks() *CheckGroup {
@@ -71,10 +73,29 @@ func itemsServicioRemoto() []*CheckItem {
 	if s.TareaSinReintento() {
 		items = append(items, &CheckItem{Name: itemRemotoReintento, Error: "solo arranca al iniciar sesión: si qdd remoto termina (por ejemplo, al actualizar qdd), el teléfono se queda sin este PC hasta el próximo inicio de sesión (qdd doctor --fix la registra con un reintento cada 5 minutos y la arranca)"})
 	}
+	if item := itemVentana(s); item != nil {
+		items = append(items, item)
+	}
 	if s.TareaSobrante(remotoConsultar) {
 		items = append(items, &CheckItem{Name: itemRemotoSobrante, Error: "queda la tarea «qdd-remoto», registrada a mano, que también lanza qdd remoto y puede apuntar a una versión desinstalada (qdd doctor --fix la apaga y la borra; la de qdd es «QDD remoto»)"})
 	}
 	return items
+}
+
+// itemVentana (REM-23, FND-238): en Windows, con un qdd que trae qddw.exe, la tarea lo lanza y qddw.exe está. Sin
+// lanzador (otro sistema, una compilación a mano) no hay nada que revisar.
+func itemVentana(s remoto.Servicio) *CheckItem {
+	if s.Lanzador == "" {
+		return nil
+	}
+	if s.TareaConVentana() {
+		return &CheckItem{Name: itemRemotoVentana, Error: "la tarea lanza qdd.exe y Windows le abre una ventana de consola que no puedes cerrar sin desconectar el teléfono (qdd doctor --fix la pasa a qddw.exe, que corre sin ventana)"}
+	}
+	if s.LanzadorFalta() {
+		return &CheckItem{Name: itemRemotoVentana, Error: "falta " + s.Lanzador + " (¿un antivirus lo quitó?): al iniciar sesión QDD Móvil no arrancaría (qdd doctor --fix lo vuelve a dejar desde qdd.exe)"}
+	}
+	registro, _ := remoto.RutaRegistroCorrer()
+	return &CheckItem{Name: itemRemotoVentana + " · registro en " + registro, Success: true}
 }
 
 func itemDejaVivo(deja bool) *CheckItem {
@@ -99,13 +120,13 @@ func repairRemoto(g *CheckGroup) {
 			imprimirReparado([]string{"el servicio ya no mata lo que lanzó"}, err)
 			continue
 		}
-		if item.Name == itemRemotoVersion || item.Name == itemRemotoCuenta || item.Name == itemRemotoReintento {
+		if item.Name == itemRemotoVersion || item.Name == itemRemotoCuenta || item.Name == itemRemotoReintento || item.Name == itemRemotoVentana {
 			fmt.Println("  [~] Poniendo al día la tarea de qdd remoto...")
 			s, err := remotoServicio()
 			if err == nil {
 				err = s.RenovarTarea(remotoEjecutor)
 			}
-			imprimirReparado([]string{"la tarea lanza la versión instalada, es solo de tu usuario, vuelve sola si termina y quedó corriendo"}, err)
+			imprimirReparado([]string{"la tarea lanza la versión instalada sin ventana, es solo de tu usuario, vuelve sola si termina y quedó corriendo"}, err)
 			continue
 		}
 		if item.Name == itemRemotoSobrante {

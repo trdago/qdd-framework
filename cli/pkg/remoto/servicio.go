@@ -45,6 +45,9 @@ type Servicio struct {
 	// Cuenta es DOMINIO\usuario en Windows: la tarea es solo suya. Sin usuario vale para cualquiera del equipo, y Windows
 	// pide administrador para registrarla (FND-195).
 	Cuenta string
+	// Lanzador es qddw.exe junto a Bin (Windows, si este qdd lo trae): la tarea lo lanza y qdd remoto corre sin ventana
+	// (sprint 9, FND-238). Vacío: la tarea lanza Bin, como antes.
+	Lanzador string
 }
 
 // Archivo es dónde queda el servicio.
@@ -197,7 +200,7 @@ func (s Servicio) tareaXML() string {
     <Hidden>true</Hidden>
     <RestartOnFailure><Interval>PT1M</Interval><Count>999</Count></RestartOnFailure>
   </Settings>
-  <Actions Context="Author"><Exec><Command>` + escaparXML(s.Bin) + `</Command><Arguments>remoto correr</Arguments></Exec></Actions>
+  <Actions Context="Author"><Exec><Command>` + escaparXML(s.programaTarea()) + `</Command><Arguments>remoto correr</Arguments></Exec></Actions>
 </Task>
 `
 }
@@ -286,6 +289,9 @@ func (s Servicio) Instalar(correr Ejecutor) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(archivo), 0o700); err != nil {
 		return "", err
 	}
+	if err := s.dejarLanzadorDeLaTarea(); err != nil {
+		return "", err
+	}
 	if err := os.WriteFile(archivo, contenido, 0o600); err != nil {
 		return "", err
 	}
@@ -308,7 +314,34 @@ func (s Servicio) TareaSinEstaVersion() bool {
 		return false
 	}
 	xml, ok := s.tareaInstalada()
-	return ok && !strings.Contains(xml, s.comandoTarea())
+	return ok && !strings.Contains(xml, comando(s.Bin)) && !strings.Contains(xml, comando(s.Lanzador))
+}
+
+// TareaConVentana: la tarea de esta versión lanza qdd.exe, y Windows le abre una ventana de consola; este qdd trae
+// qddw.exe, que corre sin ventana (FND-238).
+func (s Servicio) TareaConVentana() bool {
+	if s.SO != "windows" || s.Lanzador == "" {
+		return false
+	}
+	xml, ok := s.tareaInstalada()
+	return ok && strings.Contains(xml, comando(s.Bin))
+}
+
+// LanzadorFalta: la tarea lanza qddw.exe, pero no está (un antivirus, una instalación a medias) o es de otro qdd: al
+// iniciar sesión, QDD Móvil no arrancaría.
+func (s Servicio) LanzadorFalta() bool {
+	if s.SO != "windows" || s.Lanzador == "" {
+		return false
+	}
+	xml, ok := s.tareaInstalada()
+	return ok && strings.Contains(xml, comando(s.Lanzador)) && !s.lanzadorAlDia()
+}
+
+func (s Servicio) dejarLanzadorDeLaTarea() error {
+	if s.SO != "windows" {
+		return nil
+	}
+	return s.dejarLanzador()
 }
 
 // TareaSinCuenta: la tarea de Windows instalada se dispara para cualquier usuario, así que registrarla pide administrador
@@ -337,7 +370,19 @@ func (s Servicio) tareaInstalada() (string, bool) {
 }
 
 func (s Servicio) comandoTarea() string {
-	return "<Command>" + escaparXML(s.Bin) + "</Command>"
+	return comando(s.programaTarea())
+}
+
+// programaTarea es lo que lanza la tarea: qddw.exe si este qdd lo trae (FND-238); si no, qdd.exe.
+func (s Servicio) programaTarea() string {
+	if s.Lanzador != "" {
+		return s.Lanzador
+	}
+	return s.Bin
+}
+
+func comando(programa string) string {
+	return "<Command>" + escaparXML(programa) + "</Command>"
 }
 
 // TareaSinReintento: la tarea de Windows instalada solo arranca al iniciar sesión, así que si qdd remoto termina (al ver
@@ -348,17 +393,22 @@ func (s Servicio) TareaSinReintento() bool {
 }
 
 // RenovarTarea pone al día la tarea de Windows y deja lo demás como está: el binario de esta versión, porque su carpeta
-// cambia con cada una (FND-142), el usuario, si le faltaba (FND-195), y el disparador que la relanza (FND-204). Después
+// cambia con cada una (FND-142), el usuario, si le faltaba (FND-195), el disparador que la relanza (FND-204) y qddw.exe,
+// que la corre sin ventana (FND-238): lo deja si falta y la tarea pasa a lanzarlo. Después
 // la arranca: lo que corría termina al ver la versión nueva, y RestartOnFailure no lo relanza. Si todavía corre, /Run no
 // abre otra (IgnoreNew) y el disparador la lanza a los 5 minutos de terminar. Sin tarea instalada, o ya al día, no hace
 // nada.
 func (s Servicio) RenovarTarea(correr Ejecutor) error {
 	version, cuenta, reintento := s.TareaSinEstaVersion(), s.TareaSinCuenta(), s.TareaSinReintento()
-	if !version && !cuenta && !reintento {
+	ventana, falta := s.TareaConVentana(), s.LanzadorFalta()
+	if !version && !cuenta && !reintento && !ventana && !falta {
 		return nil
 	}
+	if err := s.dejarLanzadorDeLaTarea(); err != nil {
+		return err
+	}
 	xml, _ := s.tareaInstalada()
-	if version {
+	if version || ventana {
 		xml = reComandoTarea.ReplaceAllLiteralString(xml, s.comandoTarea())
 	}
 	if cuenta {

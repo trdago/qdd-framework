@@ -516,6 +516,16 @@ cada 5 s. Así el proyecto sabe que hay una sesión abierta, y el latido devuelv
 
 La app en español e inglés desde el principio, con las fichas de las tiendas en los dos.
 
+### Windows sin ventana (sprint 9, 2026-11-15)
+
+La tarea «QDD remoto» lanzaba `qdd.exe remoto correr`, un programa de consola, y Windows le abría una ventana que la
+persona tenía que dejar abierta. Ahora lanza `qddw.exe`: un programa de ventanas que corre el `qdd.exe` de su misma
+carpeta sin ventana y sale con su código, así la tarea lo relanza como antes. Si Windows termina `qddw.exe`, termina
+también `qdd.exe`; los pedidos que lanzó siguen corriendo. `qdd.exe` lo lleva dentro y lo deja a su lado al registrar o
+renovar la tarea: el zip y el instalador de npm no cambian. Sin consola, el registro va a `<QDD_HOME>/remoto/correr.log`
+(1 MB y una copia). REM-23, en el grupo «Consola remota» de doctor, ve una tarea que todavía lanza `qdd.exe` o a la que le
+falta `qddw.exe`, y `--fix` la renueva. Un PC con la tarea anterior pasa al lanzador al actualizar qdd (FND-142).
+
 ### Autodiagnóstico en `qdd doctor` (2026-11-15)
 
 Cada pieza de la comunicación entre el PC y el teléfono tiene su revisión en el grupo «QDD Móvil». Doctor solo lee
