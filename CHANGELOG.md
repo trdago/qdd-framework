@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.95] - 2026-11-15
+
+### Agregado
+
+- **QDD Móvil corre en Windows sin ventana de consola (sprint 9, FND-238):** la tarea que lo arranca al iniciar sesión
+  lanza `qddw.exe`, que corre qdd sin abrir ninguna ventana; si termina, la tarea lo vuelve a lanzar como antes. Su
+  registro queda en `<QDD_HOME>/remoto/correr.log` (1 MB y una copia). Al actualizar qdd, la tarea pasa sola a
+  `qddw.exe`; `qdd doctor` lo revisa (REM-23) y `qdd doctor --fix` lo repara si falta.
+
 ## [2.10.0-rc.94] - 2026-11-15
 
 ### Cambiado
