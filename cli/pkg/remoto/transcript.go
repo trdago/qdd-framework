@@ -170,6 +170,60 @@ type lector struct {
 	archivo string
 	pos     int64
 	resto   []byte
+	// trabajando es desde cuándo Claude está trabajando en el turno en curso (hora del transcript); vacío si no
+	// (FND-239).
+	trabajando string
+}
+
+// marca es lo que una línea del transcript dice del trabajo de Claude.
+type marca struct {
+	Type        string `json:"type"`
+	Subtype     string `json:"subtype"`
+	QuerySource string `json:"querySource"`
+	IsMeta      bool   `json:"isMeta"`
+	IsSidechain bool   `json:"isSidechain"`
+	Timestamp   string `json:"timestamp"`
+	Message     struct {
+		Content json.RawMessage `json:"content"`
+	} `json:"message"`
+}
+
+// trabajoTras sigue desde cuándo trabaja Claude a lo largo de unas líneas completas (FND-239): Claude Code escribe
+// cada respuesta en el transcript solo al terminarla, así que sin esto el teléfono no ve nada mientras tanto. La
+// primera api-request del hilo principal empieza el trabajo; el fin del turno (turn_duration), una compactación, una
+// interrupción o un mensaje nuevo de la persona lo terminan.
+func trabajoTras(desde string, datos []byte) string {
+	for _, linea := range bytes.Split(datos, []byte("\n")) {
+		desde = trabajoDeLinea(desde, linea)
+	}
+	return desde
+}
+
+func trabajoDeLinea(desde string, linea []byte) string {
+	if !bytes.Contains(linea, []byte(`"api-request"`)) && !bytes.Contains(linea, []byte(`"system"`)) && !bytes.Contains(linea, []byte(`"user"`)) {
+		return desde
+	}
+	var m marca
+	if json.Unmarshal(linea, &m) != nil {
+		return desde
+	}
+	if m.Type == "api-request" && (m.QuerySource == "" || m.QuerySource == "repl_main_thread") && desde == "" {
+		return m.Timestamp
+	}
+	if m.Type == "system" && (m.Subtype == "turn_duration" || m.Subtype == "compact_boundary") {
+		return ""
+	}
+	if m.IsMeta || m.IsSidechain {
+		return desde
+	}
+	var texto string
+	if m.Type == "user" && json.Unmarshal(m.Message.Content, &texto) == nil && !strings.HasPrefix(strings.TrimSpace(texto), "<") {
+		return ""
+	}
+	if m.Type == "user" && bytes.Contains(m.Message.Content, []byte("[Request interrupted by user")) {
+		return ""
+	}
+	return desde
 }
 
 // abrirLector empieza al final del transcript y devuelve las últimas colaInicial líneas visibles.
@@ -188,16 +242,18 @@ func abrirLector(archivo string) (*lector, []LineaConsola) {
 		return l, nil
 	}
 	l.pos = info.Size()
-	lineas, resto := colaDe(f, info.Size())
-	l.resto = resto
+	lineas, resto, leido := colaDe(f, info.Size())
+	l.resto, l.trabajando = resto, trabajoTras("", leido)
 	return l, lineas
 }
 
 // colaDe lee el transcript hacia atrás de a leerDelFinal hasta juntar colaInicial líneas visibles o llegar a maxCola
 // del final (MEJ-078): un resultado de herramienta pesa cientos de KB y no da ninguna línea. Devuelve también lo que
-// sigue al último salto de línea, una línea a medio escribir que el lector completa después.
-func colaDe(f io.ReaderAt, fin int64) ([]LineaConsola, []byte) {
+// sigue al último salto de línea, una línea a medio escribir que el lector completa después, y las líneas completas que
+// leyó, en orden, para saber si Claude está trabajando (FND-239).
+func colaDe(f io.ReaderAt, fin int64) ([]LineaConsola, []byte, []byte) {
 	var lineas []LineaConsola
+	var leido []byte
 	var resto, pendiente []byte // pendiente: el final de una línea que empieza más atrás
 	vioSalto := false
 	desde := fin
@@ -228,11 +284,12 @@ func colaDe(f io.ReaderAt, fin int64) ([]LineaConsola, []byte) {
 			bloque = bloque[i+1:]
 		}
 		lineas = append(visibles(bloque), lineas...)
+		leido = append(append(append([]byte{}, bloque...), '\n'), leido...)
 	}
 	if !vioSalto {
 		resto = pendiente
 	}
-	return lineas[max(len(lineas)-colaInicial, 0):], resto
+	return lineas[max(len(lineas)-colaInicial, 0):], resto, leido
 }
 
 // visibles son las líneas de la consola de varias líneas completas del transcript.
@@ -272,5 +329,6 @@ func (l *lector) partir(datos []byte) []LineaConsola {
 		return nil
 	}
 	l.resto = append([]byte{}, datos[i+1:]...)
+	l.trabajando = trabajoTras(l.trabajando, datos[:i])
 	return visibles(datos[:i])
 }

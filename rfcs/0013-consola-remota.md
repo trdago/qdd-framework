@@ -516,6 +516,16 @@ cada 5 s. Así el proyecto sabe que hay una sesión abierta, y el latido devuelv
 
 La app en español e inglés desde el principio, con las fichas de las tiendas en los dos.
 
+### La consola dice si Claude está trabajando (FND-239, 2026-11-15)
+
+Desde el teléfono, la persona vio la consola llegar hasta 40 s tarde. Medido en un PC con 300 respuestas: qdd lee y manda
+en menos de 1 s, pero Claude Code escribe cada respuesta en el transcript solo al terminarla (mediana 2-4 s, p90 7-14 s,
+máximo 30-50 s). La terminal ya la muestra; el teléfono no tiene nada que leer. Eso no se acelera desde qdd. El evento
+`consola` trae `trabajando`: la hora del transcript en que empezó el turno en curso, vacía si no trabaja. La primera
+`api-request` del hilo principal la pone; `turn_duration`, una compactación, una interrupción o un mensaje nuevo de la
+persona la quitan. Un cambio sale aunque no haya líneas nuevas, con el tope de 2 mensajes por segundo (inv. 13). Es
+aditivo: una app vieja no lo lee. Propuesto a qdd-movile el 2026-11-15; sale cuando lo acepte.
+
 ### Windows sin ventana (sprint 9, 2026-11-15)
 
 La tarea «QDD remoto» lanzaba `qdd.exe remoto correr`, un programa de consola, y Windows le abría una ventana que la
