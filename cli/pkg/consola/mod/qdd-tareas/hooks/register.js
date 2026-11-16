@@ -27,7 +27,11 @@ const TOPE_AUDITAR_MS = 600000
 const LINEAS_RESULTADO = 4
 // OPCIONALES son los tipos de acción opcionales que este panel dibuja; qdd los ofrece solo si se piden (FND-092).
 // «herramientas» y «mejoras» piden esos datos en el mismo JSON, sin un proceso propio para leerlos (MEJ-020).
-const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona', 'pregunta', 'otros']
+// VERSION_DEL_PANEL la cambia el instalador por la versión de qdd que lo instala (FND-236): Claude Code lee este archivo
+// al abrir la consola, así que una abierta antes de actualizar sigue con el anterior. El panel la manda como
+// «panel:<versión>» y qdd avisa que hay que reiniciar la consola; un qdd anterior ignora lo que no conoce en --con.
+const VERSION_DEL_PANEL = "__QDD_VERSION__"
+const OPCIONALES = ['atender', 'herramientas', 'mejoras', 'flujos', 'esperas_persona', 'pregunta', 'otros', 'panel:' + VERSION_DEL_PANEL]
 // Tarea en curso (RFC 0006 §3.13, blueprint estado-por-tareas): el ● late con un tic local de LATIDO_MS (cambia de
 // fase cada 2 tics, 1 s) y destella un tic con el color de acento en cada pulso. Los pulsos del agente van a la CLI
 // como mucho cada PULSO_MIN_MS.

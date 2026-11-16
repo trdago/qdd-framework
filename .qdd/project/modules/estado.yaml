@@ -77,6 +77,7 @@ objetivo_tecnologico:
         - 'Un ciclo por mensaje (qdd 2.8.0, RFC 0006 §3.9): el mod llama qdd consola ciclo --modo <permission_mode> en cada mensaje de la persona. Un pedido hecho antes del último ciclo ya se vio y sale del tablero (y del resultado del panel); el modo queda para qdd_project_context y para doctor.'
         - 'La palabra visible es «tarea» (blueprint estado-por-tareas): ayuda, tabla, panel y errores. La clave frentes del YAML y el parámetro frente de qdd_estado se mantienen por compatibilidad.'
         - qdd consola activar instala el mod embebido con la versión de la CLI, con los comandos oficiales de Claude Code (alcance de usuario); nada se escribe en el proyecto.
+        - 'Panel viejo (FND-236, 2026-11-15): Claude Code lee el mod al abrir la consola. El instalador cambia la marca __QDD_VERSION__ de register.js por su versión; el panel la manda como panel:<versión> en --con (un qdd anterior lo ignora) y, si no es la del qdd que responde, aviso_version dice «⟳ Este panel es de qdd X y está instalado Y: cierra esta consola y ábrela con claude --continue». Un mod sin instalar (la marca) o un qdd dev no avisan.'
         - 'La ficha del estado se busca por el blueprint que la generó: estado-por-tareas y, como legado, estado-por-frente (RFC 0009); un proyecto migrado conserva el id de su módulo.'
         - 'EPF-C08 lo revisa qdd estado check --respuesta: cada «<tarea> · <etapa>: <estado>» del texto es el de la tabla, y una afirmación sobre una tarea o etapa que no está en ella la contradice (blueprint estado-por-tareas 2.0.0).'
         - 'El panel de Claude Code también dibuja las herramientas del proyecto (ficha herramientas, RFC 0011): ⚙ Config a la derecha de la primera fila, con su lista y el paso a paso para agregar una, y una pestaña (qdd-herr-<id>) por herramienta. Su lógica vive en qdd herramienta; el panel solo dibuja, pide y nunca le pide nada a la IA al usarlas.'
@@ -196,4 +197,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-15"
-revisado_en_commit: 9337ad42904a
+revisado_en_commit: 06636ffeed3b

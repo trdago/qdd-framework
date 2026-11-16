@@ -270,6 +270,9 @@ func conLoQuePide(datos *consola.DatosConsola, root string, now time.Time, con [
 		if strings.HasPrefix(c, prefijoTelefonoEnFlujo) {
 			datos.TelefonoEnFlujo = true
 		}
+		if panel, ok := strings.CutPrefix(c, consola.PrefijoVersionPanel); ok {
+			datos.AvisoVersion = primero(consola.AvisoDeReinicio(panel, Version), datos.AvisoVersion)
+		}
 		if c == "mejoras" {
 			toca := mejoras.TocaCiclo(root, now)
 			datos.MejorasToca = &toca
