@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.93] - 2026-11-15
+
+### Corregido
+
+- **El panel avisa si su consola sigue con una versión anterior (FND-236):** Claude Code lee el panel al abrir la
+  consola, así que una abierta antes de actualizar no ve las correcciones. Ahora la cabecera dice «⟳ Este panel es de
+  qdd X y está instalado Y: cierra esta consola y ábrela con claude --continue». Las consolas que ya estaban abiertas
+  antes de rc.93 no traen la versión y no avisan: reinícialas una vez.
+
 ## [2.10.0-rc.92] - 2026-11-15
 
 ### Corregido
