@@ -1,0 +1,35 @@
+qdd_certificate:
+  version: "1.1"
+  sprint_id: "9"
+  status: "PASSING"
+  goal: "En Windows, QDD Móvil (qdd remoto correr) corre desde que la persona inicia sesión sin abrir ninguna ventana de consola, se relanza solo si termina, deja su registro en un archivo con tope que doctor nombra, y un PC con la tarea anterior pasa a la nueva al actualizar qdd o con 'qdd doctor --fix'."
+
+  scenarios:
+    happy_path:
+      - "Dado Windows con QDD Móvil activado, cuando la persona inicia sesión, entonces la tarea «QDD remoto» lanza qddw.exe, que corre qdd.exe remoto correr sin ninguna ventana, y doctor lo ve corriendo"
+      - "Dado que qdd remoto corre sin consola, cuando escribe su registro, entonces queda en <QDD_HOME>/remoto/correr.log"
+      - "Dado un PC con la tarea anterior (lanza qdd.exe y abre una ventana), cuando se instala la versión nueva (consola activar) o corre 'qdd doctor --fix', entonces qddw.exe queda junto a qdd.exe y la tarea lo lanza"
+      - "Dado qdd remoto activar en Windows, cuando registra la tarea, entonces deja qddw.exe junto a qdd.exe y la tarea lo lanza desde el primer momento"
+    error_paths:
+      - "Si falta qddw.exe (antivirus o instalación a medias), doctor lo dice (la tarea no arrancaría) y 'qdd doctor --fix' lo vuelve a dejar desde el qdd.exe instalado, sin descargar nada"
+      - "Si qdd remoto termina con error, qddw.exe sale con el mismo código y la tarea lo relanza (RestartOnFailure y el reintento cada 5 minutos)"
+      - "Si qdd.exe no está junto a qddw.exe, qddw.exe sale con 2; la tarea apunta a una versión que ya no está y doctor lo ve (REM-04)"
+      - "El registro no crece sin tope: al pasar 1 MB se guarda una copia (correr.log.1) y se empieza de nuevo"
+      - "Una segunda copia de qdd remoto sale sola con 4 (MEJ-079), también lanzada por qddw.exe"
+    edge_cases:
+      - "Un qdd compilado sin el lanzador (desarrollo, otro sistema) deja la tarea como antes y no avisa nada"
+      - "Linux y macOS no cambian: systemd y launchd siguen lanzando qdd remoto correr"
+      - "Un qddw.exe que ya corre no se reescribe: si es igual al embebido no se toca"
+
+  technical_constraints:
+    - "Pruebas primero: cada escenario es una prueba que falla antes del cambio; cada falla es un finding con su prueba de regresión"
+    - "qddw.exe se compila con -H=windowsgui y solo usa la biblioteca estándar: chico, sin consola nunca"
+    - "qdd.exe lleva qddw.exe embebido (solo la compilación de Windows del release): el zip y npm/install.js no cambian"
+    - "Sin permisos de administrador: la tarea sigue siendo del usuario (InteractiveToken)"
+    - "Las pruebas no tocan la máquina real: HOME, QDD_HOME y CLAUDE_CONFIG_DIR temporales; ningún schtasks real"
+    - "La prueba de «sin ventana» corre en el runner de Windows de CI: el proceso que lanza qddw.exe no tiene consola (GetConsoleWindow = 0)"
+    - "Zero else y guardas"
+
+  executable_tests:
+    - "cd cli && go test ./qddw/ ./pkg/remoto/ ./cmd/ -run 'Lanzador|SinVentana|RegistroRotado|Servicio|Tarea|RemotoDoctor'"
+    - "cd cli && GOOS=windows go vet ./qddw/ ./pkg/remoto/"

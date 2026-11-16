@@ -81,7 +81,10 @@ var remotoCorrerCmd = &cobra.Command{
 	Short:  "El proceso que publica este PC en QDD Móvil (lo corre el servicio)",
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(remotoCorrer(os.Stderr))
+		registro, cerrar := registroDeCorrer()
+		codigo := remotoCorrer(registro)
+		cerrar()
+		os.Exit(codigo)
 	},
 }
 
@@ -251,6 +254,24 @@ func quitarServicio(salida, errores io.Writer) {
 	fmt.Fprintln(salida, "[+] Servicio detenido.")
 }
 
+// registroDeCorrer: lanzado por qddw.exe (Windows, sin consola), el registro va a <QDD_HOME>/remoto/correr.log, con tope
+// (FND-238). Con consola, o con systemd y launchd, que recogen la salida, sigue en stderr; si el archivo no se puede
+// abrir, también.
+func registroDeCorrer() (io.Writer, func()) {
+	if os.Getenv(remoto.EnvSinConsola) != "1" {
+		return os.Stderr, func() {}
+	}
+	ruta, err := remoto.RutaRegistroCorrer()
+	if err != nil {
+		return os.Stderr, func() {}
+	}
+	r, err := remoto.AbrirRegistroRotado(ruta, remoto.TopeRegistroCorrer)
+	if err != nil {
+		return os.Stderr, func() {}
+	}
+	return r, func() { r.Close() }
+}
+
 // servicioRemoto arma el servicio de este sistema con el binario que corre y el PATH de la terminal.
 func servicioRemoto() (remoto.Servicio, error) {
 	usuario, err := remotoUsuario()
@@ -268,7 +289,15 @@ func servicioRemoto() (remoto.Servicio, error) {
 	if err != nil {
 		return remoto.Servicio{}, err
 	}
-	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir, Cuenta: cuentaWindows()}, nil
+	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir, Cuenta: cuentaWindows(), Lanzador: lanzadorDe(bin)}, nil
+}
+
+// lanzadorDe: en Windows, qddw.exe junto al qdd que corre, si este qdd lo trae (FND-238).
+func lanzadorDe(bin string) string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	return remoto.RutaLanzador(bin)
 }
 
 // pausarAlQuitarse: el teléfono quitó este PC; en Windows la tarea se desactiva para que el disparador de cada 5
