@@ -33,7 +33,7 @@ func entorno(t *testing.T) {
 
 func nuevo(t *testing.T, titulo, detalle string) Reporte {
 	t.Helper()
-	r, err := Nuevo(Datos{Titulo: titulo, Detalle: detalle, Tipo: "bug", Version: "2.10.0-rc.41", SO: "linux/amd64"}, ctxPrueba, nil)
+	r, err := Nuevo(Datos{Titulo: titulo, Detalle: detalle, Tipo: "bug", Verifico: "lo repito", Version: "2.10.0-rc.41", SO: "linux/amd64"}, ctxPrueba, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestNuevoValidaTipoYTamanos(t *testing.T) {
 			t.Fatalf("debió rechazar %+v", d)
 		}
 	}
-	r, err := Nuevo(Datos{Titulo: "  hola  ", Version: "v", SO: "s"}, ctxPrueba, nil)
+	r, err := Nuevo(Datos{Titulo: "  hola  ", Verifico: "lo repito", Version: "v", SO: "s"}, ctxPrueba, nil)
 	if err != nil || r.Tipo != "bug" || r.Titulo != "hola" || r.Formato != 1 {
 		t.Fatalf("sin tipo es un bug, con el título recortado: %+v %v", r, err)
 	}

@@ -151,6 +151,9 @@ func Admitir(root, id string, now time.Time) error {
 			if m.Estado != PorAdmitir {
 				return fmt.Errorf("%s no espera admisión (está %s)", id, m.Estado)
 			}
+			if rep, sigue, version, ok := VerificacionDe(m.Titulo); ok {
+				return aplicarVerificacion(cola, m, rep, sigue, version)
+			}
 			m.Estado = EnCola
 			return escribir(m)
 		}

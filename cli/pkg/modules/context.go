@@ -19,6 +19,7 @@ var workingMethod = []string{
 	"Pruebas primero: escribe o ajusta la prueba que expresa el cambio, comprueba que falla y recién entonces implementa.",
 	"Cero 'else' y salida temprana (cláusulas de guarda) en todas las funciones, en cualquier lenguaje. No es una moda: " + PorQueCeroElse + ".",
 	"Todo bug se documenta como finding en .qdd/project/findings/ con su prueba de regresión.",
+	"Quien reporta valida: un reporte a otro proyecto o a QDD dice desde el inicio cómo lo vas a verificar (qdd reportar --verifico), y queda contigo un ⏳ para hacerlo. Cuando sale el arreglo lo repites y lo cierras con evidencia (qdd reportar --verifique REP-N --evidencia …, o --sigue-fallando para reabrir el mismo). Quien arregla lo deja arreglada, no hecho: se cierra solo con esa verificación.",
 	"No se commitea ni se despliega sin pasar el gate (qdd_audit): pruebas del proyecto + reglas QDD.",
 	"Si un módulo tiene un estándar de la organización (blueprint), se construye aplicándolo con qdd_blueprint_apply: sus preguntas las responde el humano (nunca tú) y sus invariantes no se discuten.",
 	"Lo temporal va en ./tmp (git lo ignora): scripts de un solo uso, pruebas manuales, descargas, logs y salidas. Nunca lo dejes en la raíz ni en las carpetas de código; si algo vale la pena conservar, muévelo a su lugar con su prueba.",

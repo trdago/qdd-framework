@@ -45,6 +45,11 @@ por mejora, 2 abiertas como mucho. Es determinista: solo lo que ya es tarea pasa
   qdd mejoras ciclo [--si-toca] [--json]     recibe, sigue las tareas y entrega (--si-toca: solo cada 10 min)
   qdd mejoras lista [--json]                 la cola y en qué está cada mejora
   qdd mejoras admitir <MEJ-NNN>              admite un reporte del relay (lo confirma la persona)
+  qdd mejoras arreglada <MEJ-NNN> --en <versión> --como "…"   un reporte del relay arreglado fuera del ciclo
+
+Quien reporta valida (MEJ-087): un reporte del relay arreglado queda «arreglada», no hecha. Se cierra cuando
+quien lo reportó manda 'qdd reportar --verifique REP-N --evidencia …' y la persona lo admite; si sigue fallando,
+vuelve a la cola el mismo reporte con la evidencia nueva.
 
 En el repositorio de QDD, el ciclo lee además los reportes que llegan al relay con 'qdd reportar'. Esos entran
 por_admitir: la persona los admite con el pedido 📮 del panel, como la etiqueta «mejora» de un issue.`,
@@ -58,11 +63,47 @@ var mejorasAdmitirCmd = &cobra.Command{
 		if err := autorizarAdmision(args[0], os.Getenv(consola.VarPedido), preguntaDeTerminal(), confirmado); err != nil {
 			salirCon("%v", err)
 		}
+		verificacion := esVerificacion(root, args[0])
 		if err := mejoras.Admitir(root, args[0], time.Now()); err != nil {
 			salirCon("%v", err)
 		}
+		if verificacion {
+			fmt.Printf("[+] %s era la verificación de quien reportó: quedó aplicada al reporte que nombra ('qdd mejoras lista').\n", args[0])
+			return
+		}
 		fmt.Printf("[+] %s admitida: el próximo ciclo la entrega en su turno.\n", args[0])
 	},
+}
+
+var (
+	mejorasArregladaEn   string
+	mejorasArregladaComo string
+)
+
+var mejorasArregladaCmd = &cobra.Command{
+	Use: "arreglada <MEJ-NNN> --en <versión> --como \"qué cambió\"", Short: "Marca arreglado un reporte admitido que se arregló fuera del ciclo: espera la verificación de quien lo reportó (MEJ-087)", Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if strings.TrimSpace(mejorasArregladaEn) == "" || strings.TrimSpace(mejorasArregladaComo) == "" {
+			salirCon("di en qué versión salió y qué cambió: --en 2.10.0-rc.91 --como \"…\"")
+		}
+		if err := mejoras.Arreglar(estadoRaiz(), args[0], mejorasArregladaEn, mejorasArregladaComo, time.Now()); err != nil {
+			salirCon("%v", err)
+		}
+		fmt.Printf("[+] %s arreglada en %s: se cierra cuando quien lo reportó lo verifique.\n", args[0], mejorasArregladaEn)
+	},
+}
+
+// esVerificacion: la mejora es una verificación de quien reportó (MEJ-087), no un reporte nuevo.
+func esVerificacion(root, id string) bool {
+	cola, _ := mejoras.Lista(root)
+	for _, m := range cola {
+		if m.ID != id {
+			continue
+		}
+		_, _, _, ok := mejoras.VerificacionDe(m.Titulo)
+		return ok
+	}
+	return false
 }
 
 // autorizarAdmision: un reporte del relay lo admite la persona, con el pedido 📮 que confirmó o con su «sí» en la
@@ -138,7 +179,9 @@ func init() {
 	mejorasCicloCmd.Flags().BoolVar(&mejorasSiToca, "si-toca", false, "solo si pasaron 10 min desde el último ciclo")
 	mejorasCicloCmd.Flags().BoolVar(&mejorasJSON, "json", false, "salida JSON")
 	mejorasListaCmd.Flags().BoolVar(&mejorasJSON, "json", false, "salida JSON")
-	mejorasCmd.AddCommand(mejorasReportarCmd, mejorasCicloCmd, mejorasListaCmd, mejorasAdmitirCmd)
+	mejorasArregladaCmd.Flags().StringVar(&mejorasArregladaEn, "en", "", "la versión en que salió el arreglo")
+	mejorasArregladaCmd.Flags().StringVar(&mejorasArregladaComo, "como", "", "qué cambió, en una línea")
+	mejorasCmd.AddCommand(mejorasReportarCmd, mejorasCicloCmd, mejorasListaCmd, mejorasAdmitirCmd, mejorasArregladaCmd)
 	rootCmd.AddCommand(mejorasCmd)
 }
 

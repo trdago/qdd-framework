@@ -358,16 +358,24 @@ func (c *cicloEnCurso) seguir(i int, tareas map[string]estado.Frente) int {
 	if f.Estado == estado.EstadoAbierto {
 		return 1
 	}
-	c.cola[i].Estado, c.cola[i].Motivo = Hecha, f.MotivoCierre
-	if f.Estado == estado.EstadoDescartado {
-		c.cola[i].Estado = Descartada
-	}
+	c.cola[i].Estado, c.cola[i].Motivo = terminada(m, f), f.MotivoCierre
 	c.guardar(i)
 	if c.cola[i].Estado == Hecha {
 		c.r.Hechas = append(c.r.Hechas, m.ID)
 		c.pedirCierre(i)
 	}
 	return 0
+}
+
+// terminada es cómo queda una mejora cuya tarea se cerró: un reporte del relay espera a quien lo reportó (MEJ-087).
+func terminada(m Mejora, f estado.Frente) string {
+	if f.Estado == estado.EstadoDescartado {
+		return Descartada
+	}
+	if m.Fuente == FuenteRelay {
+		return Arreglada
+	}
+	return Hecha
 }
 
 // pedirCierre deja en el panel el cierre del issue de una mejora hecha, una sola vez: publicar es de la persona.

@@ -31,6 +31,10 @@ var (
 	reportarDetalle       string
 	reportarDetalleDe     string
 	reportarTipo          string
+	reportarVerifico      string
+	reportarVerifique     string
+	reportarEvidencia     string
+	reportarSigue         bool
 	preguntaEnviarReporte = "¿Enviar este reporte a QDD?"
 )
 
@@ -59,7 +63,31 @@ func ofrecerReporte(o ofrecimiento) (int, error) {
 		return 1, guardarSinEnviar(o, err)
 	}
 	fmt.Fprintf(o.Salida, "[✓] Enviado a QDD como %s. Gracias.\n", id)
+	anotarVerificacion(o.Root, id, o.Reporte, o.Ahora)
 	return 0, nil
+}
+
+// anotarVerificacion deja a quien reporta un ⏳ suyo para verificar el arreglo (MEJ-087), en la última etapa de su
+// tablero, con cómo lo verifica y el comando que lo cierra. Sin tablero, o si el reporte no dice cómo verificarlo (una
+// mejora, una pregunta, una verificación), no hace nada: el envío ya salió.
+func anotarVerificacion(root, id string, r reportes.Reporte, now time.Time) {
+	verifico := reportes.VerificoDe(r.Detalle)
+	if root == "" || verifico == "" {
+		return
+	}
+	e, err := estado.Load(root)
+	if err != nil || len(e.Etapas) == 0 {
+		return
+	}
+	tarea, err := estado.Nueva(root, estado.CambioNueva{Nombre: recortarMotivo("Verificar " + id + ": " + r.Titulo)}, now)
+	if err != nil {
+		return
+	}
+	bloqueo := "Cuando salga el arreglo de " + id + ": " + verifico + ". Repítelo y ciérralo con qdd reportar --verifique " + id + " --evidencia \"qué corriste y qué viste\" (o --sigue-fallando)."
+	if estado.Set(root, estado.Cambio{Frente: tarea, Etapa: e.Etapas[len(e.Etapas)-1], Estado: estado.Espera, Bloqueo: bloqueo, DeQuien: "IA"}, now) != nil {
+		return
+	}
+	fmt.Printf("[+] Quien reporta valida: quedó el ⏳ %s en tu tablero para verificar el arreglo de %s.\n", tarea, id)
 }
 
 // guardarSinEnviar: si el envío falla, el reporte no se pierde; queda pendiente para reintentarlo.
@@ -154,7 +182,7 @@ func raizActual() string {
 }
 
 var reportarCmd = &cobra.Command{
-	Use:   "reportar --titulo \"…\" [--detalle \"…\" | --detalle-de <archivo>] [--tipo bug|mejora|pregunta]",
+	Use:   "reportar --titulo \"…\" [--detalle \"…\" | --detalle-de <archivo>] [--tipo bug|mejora|pregunta] --verifico \"…\" | --verifique REP-N --evidencia \"…\" [--sigue-fallando]",
 	Short: "Envía un problema o una idea a QDD sin GitHub: limpio, a la vista y solo con tu «sí»",
 	Long: `Envía un reporte al relay de QDD, sin cuenta de GitHub. Antes de enviarlo quita secretos, valores del baúl,
 la ruta del proyecto, tu carpeta y tu nombre de usuario, y te muestra el texto exacto. Sale solo con tu «sí»:
@@ -172,6 +200,7 @@ en tu terminal se pregunta; desde una IA queda un pedido 📮 en el panel que so
 		r, err := reportes.Nuevo(reportes.Datos{
 			Titulo: reportarTitulo, Detalle: detalle, Tipo: reportarTipo,
 			Version: strings.TrimSpace(Version), SO: runtime.GOOS + "/" + runtime.GOARCH,
+			Verifico: reportarVerifico, VerificaDe: reportarVerifique, Evidencia: reportarEvidencia, SigueFallando: reportarSigue,
 		}, incidentes.ContextoDe(root), baul.ValoresDelLlavero())
 		if err != nil {
 			salirCon("%v", err)
@@ -211,6 +240,7 @@ var reportarEnviarCmd = &cobra.Command{
 			salirCon("%v", err)
 		}
 		fmt.Printf("[✓] Enviado a QDD como %s. Gracias.\n", id)
+		anotarVerificacion(root, id, r, time.Now())
 	},
 }
 
@@ -252,6 +282,10 @@ func init() {
 	reportarCmd.Flags().StringVar(&reportarDetalle, "detalle", "", "pasos, qué esperabas y qué viste (máx. 6000)")
 	reportarCmd.Flags().StringVar(&reportarDetalleDe, "detalle-de", "", "lee el detalle de un archivo")
 	reportarCmd.Flags().StringVar(&reportarTipo, "tipo", "bug", "bug, mejora o pregunta")
+	reportarCmd.Flags().StringVar(&reportarVerifico, "verifico", "", "cómo verificarás el arreglo: qué haces y qué esperas ver (un bug lo exige)")
+	reportarCmd.Flags().StringVar(&reportarVerifique, "verifique", "", "verificaste el arreglo de un reporte tuyo (REP-123): lo cierra con --evidencia")
+	reportarCmd.Flags().StringVar(&reportarEvidencia, "evidencia", "", "con --verifique: qué corriste y qué viste")
+	reportarCmd.Flags().BoolVar(&reportarSigue, "sigue-fallando", false, "con --verifique: el arreglo no lo resolvió; reabre el mismo reporte")
 	reportarCmd.MarkFlagsMutuallyExclusive("detalle", "detalle-de")
 	reportarCmd.AddCommand(reportarEnviarCmd, reportarLlaveCmd, reportarEnviadosCmd)
 	rootCmd.AddCommand(reportarCmd)
