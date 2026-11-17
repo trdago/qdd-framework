@@ -12,6 +12,7 @@ objetivo_operativo:
 objetivo_tecnologico:
     arquitectura: 'pkg/mejoras es determinista y no llama a ningún modelo. Ciclo(root, fuentes, now) toma el candado de la cola y sigue cinco pasos: recibe la entrada local, lee GitHub, sigue a sus tareas, entrega a la IA hasta el tope y anota la hora. (1) La entrada local es <QDD_HOME>/claude/mejoras-entrada/<proyecto>.json, donde escribe qdd mejoras reportar; cada reporte se pasa a la cola y se borra de la entrada. (2) GitHub se lee con gh issue list en el repositorio del remote origin, sin terminal y con el entorno de git limpio. (3) Seguir las tareas: una tarea cerrada deja su MEJ hecha, una descartada lo deja descartado, y si la tarea ya no está, el MEJ vuelve a la cola. (4) Entregar: crea el objetivo mejora-continua si falta y una tarea por MEJ, en orden, hasta 2 abiertas. (5) Anota la hora del ciclo en <QDD_HOME>/claude/mejoras-ciclo/<proyecto>.json. La cola es un archivo por mejora, .qdd/project/cola_de_mejoras/MEJ-NNN-<slug>.yaml, como los findings, y solo el ciclo la escribe. qdd mejoras ciclo [--si-toca] corre el ciclo; con --si-toca, solo si pasaron 10 min desde el último. Lo llama el mod qdd-tareas cada minuto, y el botón «Ciclo de mejoras» del panel lo corre sin --si-toca.'
     decisiones:
+        - 'Quien reporta valida (MEJ-087, propuesta de la persona, 2026-11-16): un reporte del relay cuya tarea termina queda arreglada, no hecha (qdd mejoras arreglada si se arregló fuera del ciclo). Se cierra cuando la persona admite la verificación de quien lo reportó («Verificado REP-N en <versión>», que arma qdd reportar --verifique): esa mejora queda hecha con la evidencia. «Sigue fallando REP-N» reabre la misma, con la evidencia agregada al detalle; una verificación de un reporte que no está en la cola no se admite. Los reportes de sesiones y de GitHub se cierran como antes.'
         - 'Pedido de la persona (2026-11-03): la cola se llama cola_de_mejoras y vive en archivos del proyecto. El objetivo del tablero es mejora-continua, con una tarea por reporte o issue y 2 abiertas como máximo. El gestor es determinista y la IA solo recibe lo que ya es tarea. El ciclo corre cada 10 min y también con un clic en el panel.'
         - 'Sin tool MCP propia (como herramientas y remoto): tools/list ya está al tope de 16.000 caracteres de la ficha mcp. Las sesiones reportan con la CLI, qdd mejoras reportar --proyecto <nombre>, que no cuesta tokens fijos en cada sesión.'
         - 'Es un comando del binario qdd (qdd mejoras), no un binario aparte: se instala, versiona y diagnostica igual que el resto, y doctor lo revisa.'
@@ -36,5 +37,5 @@ fuentes:
     - cli/pkg/estado/objetivos.go
     - cli/pkg/consola/preguntas.go
     - cli/pkg/remoto/registro/registro.go
-ultima_revision: "2026-11-15"
-revisado_en_commit: df8812381c6b
+ultima_revision: "2026-11-16"
+revisado_en_commit: 879eefab93c7
