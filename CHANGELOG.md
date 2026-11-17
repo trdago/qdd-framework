@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.96] - 2026-11-16
+
+### Agregado
+
+- **Quien reporta valida (MEJ-087, REP-503):** un bug enviado con `qdd reportar` dice cómo lo verificará quien lo
+  reporta (`--verifico`), y al enviarlo le queda un ⏳ en su tablero. En la cola de QDD, un reporte arreglado queda
+  `arreglada` y se cierra solo cuando quien lo reportó manda `qdd reportar --verifique REP-N --evidencia …`; con
+  `--sigue-fallando` se reabre el mismo. `qdd mejoras arreglada` marca uno arreglado fuera del ciclo. La regla está en
+  la forma de trabajo de `qdd_project_context`.
+
 ## [2.10.0-rc.95] - 2026-11-15
 
 ### Agregado
