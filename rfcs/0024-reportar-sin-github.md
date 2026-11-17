@@ -99,3 +99,23 @@ repositorio de QDD lee el relay; sin llave lectora el ciclo avisa cómo serlo.
   escribir un contacto en el detalle, y lo verá en la vista previa antes de enviarlo.
 - Un tope por llave no frena a quien cree muchas llaves. El tope global por hora pone el límite. Si hay abuso, el
   relay puede pedir más adelante una prueba de trabajo, sin cambiar el contrato del PC.
+
+## Quien reporta valida (MEJ-087, 2026-11-16)
+
+Propuesta de la persona: «quien reporta es responsable de validar y garantizar que se solucionó por completo». Quien
+sufre la falla es quien mejor sabe cómo se ve resuelta.
+
+- **Al reportar.** Un `bug` exige `--verifico`: qué hará quien reporta y qué espera ver cuando salga el arreglo. Es la
+  prueba de aceptación de quien lo arregla. Viaja al final del detalle firmado, así que el relay no cambia. Al
+  enviarlo, si el proyecto tiene tablero, queda en él un ⏳ de quien reporta con eso y el comando que lo cierra.
+- **Al arreglar.** En la cola de QDD, un reporte del relay cuya tarea termina queda `arreglada`, no hecho. Uno
+  arreglado fuera del ciclo se marca con `qdd mejoras arreglada <MEJ> --en <versión> --como …`.
+- **Al verificar.** Quien reporta repite su escenario con la versión nueva y manda
+  `qdd reportar --verifique REP-N --evidencia …`. Viaja como «Verificado REP-N en <versión>». Al admitirlo la persona,
+  la mejora de ese reporte queda hecha con la evidencia. Con `--sigue-fallando` viaja como «Sigue fallando REP-N en
+  <versión>» y reabre la misma mejora con la evidencia agregada, sin un duplicado.
+- **La regla** está en la forma de trabajo que entrega `qdd_project_context`, junto a «todo bug es un finding».
+
+Falta, y se acuerda con qdd-movile porque cambia el relay: que el relay guarde el estado de cada reporte (recibido,
+arreglado en <versión>, verificado) y lo devuelva a quien lo envió. Así su ⏳ sabe en qué versión verificar sin
+esperar a que se lo digan.

@@ -33,6 +33,12 @@ type Datos struct {
 	Tipo    string
 	Version string
 	SO      string
+	// Verifico es cómo verificará el arreglo quien reporta; un bug lo exige (MEJ-087).
+	Verifico string
+	// VerificaDe, Evidencia y SigueFallando arman la verificación de un reporte anterior (REP-N) en vez de uno nuevo.
+	VerificaDe    string
+	Evidencia     string
+	SigueFallando bool
 }
 
 // Reporte es el cuerpo exacto que recibe el relay; Instalacion, En y Firma se ponen al enviar.
@@ -111,6 +117,10 @@ func palabra(s, p, marcador string) string {
 
 // Nuevo arma el reporte limpio y lo valida con los topes del relay.
 func Nuevo(d Datos, c incidentes.Contexto, valores []string) (Reporte, error) {
+	d, err := conVerificacion(d)
+	if err != nil {
+		return Reporte{}, err
+	}
 	tipo := strings.TrimSpace(d.Tipo)
 	if tipo == "" {
 		tipo = "bug"

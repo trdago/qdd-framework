@@ -29,7 +29,7 @@ func entornoReporte(t *testing.T) (string, reportes.Reporte) {
 	if err := os.MkdirAll(filepath.Join(root, ".qdd"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	r, err := reportes.Nuevo(reportes.Datos{Titulo: "Se cae el panel", Detalle: "al abrir", Version: "v", SO: "linux/amd64"}, incidentes.Contexto{}, nil)
+	r, err := reportes.Nuevo(reportes.Datos{Titulo: "Se cae el panel", Detalle: "al abrir", Verifico: "abro el panel", Version: "v", SO: "linux/amd64"}, incidentes.Contexto{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
