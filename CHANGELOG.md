@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+
+- **Certificar QDD desde cero (`e2e/limpio/certificar.sh`):** cada PR instala el paquete de su rama en un Debian 12
+  fijo por digest, aislado con bubblewrap, sin red ni nada de esta máquina, y lo usa como una persona nueva: init,
+  doctor, estado, pedido, learn, certify y audit. Tarda ~1 s por corrida (Docker tardaba 0,3-0,45 s solo en arrancar)
+  y no necesita daemon. `--version X` certifica la versión publicada en npm.
+
 ## [2.10.0-rc.96] - 2026-11-16
 
 ### Agregado

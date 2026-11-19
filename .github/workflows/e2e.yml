@@ -4,9 +4,41 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * 0' # Run weekly on Sunday
+  pull_request:
+    branches: [ "main", "feat/**" ]
 
 jobs:
+  # Certifica la rama desde cero: Debian 12 fijo por digest, aislado con bubblewrap y sin red (e2e/limpio).
+  limpio:
+    name: Certificar desde cero (bwrap)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      # Ubuntu 24.04 restringe los espacios de nombres de usuario sin privilegios, que bubblewrap necesita.
+      - name: Install bubblewrap
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/qdd/limpio
+          key: limpio-${{ hashFiles('e2e/limpio/raiz.sh') }}
+
+      - name: Certificar
+        run: e2e/limpio/certificar.sh
+
   e2e-verification:
+    if: github.event_name != 'pull_request'
     name: Verify NPM Distribution & Initialization
     runs-on: ubuntu-latest
     
