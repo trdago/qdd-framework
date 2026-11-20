@@ -74,6 +74,23 @@ tarea_en_el_estado() {
   qdd estado --json | grep -qF "\"$id\"" || { echo "la tarea $id no está en el estado"; return 1; }
 }
 
+# presupuesto <tope> <qué> <comando…>: lo que una IA recibe en cada sesión cabe en su presupuesto de caracteres
+# (~4 por token). Un proyecto nuevo es el piso: si ya se pasa acá, se pasa en todos.
+presupuesto() {
+  local tope="$1" que="$2"
+  shift 2
+  local n
+  n=$("$@" 2>/dev/null | wc -c)
+  echo "$que: $n caracteres (tope $tope)"
+  [ "$n" -gt 0 ] && [ "$n" -le "$tope" ]
+}
+
+tools_list() {
+  printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"limpio","version":"0"}}}' \
+    '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' |
+    timeout 20 qdd mcp-server 2>/dev/null | grep '"id":2' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.stringify(JSON.parse(s).result.tools)))'
+}
+
 esperado="${QDD_LIMPIO_VERSION:-$(tar -xzOf /mnt/qdd-framework.tgz package/package.json | node -pe 'JSON.parse(require("fs").readFileSync(0)).version')}"
 
 echo "Ambiente limpio: $(. /etc/os-release && echo "$PRETTY_NAME"), node $(node --version), git $(git --version | cut -d' ' -f3)"
@@ -85,6 +102,8 @@ paso "qdd init detecta Node y deja .qdd" bash -c 'qdd init && test -d .qdd'
 paso "qdd doctor sin ✗ ni ❌" bash -c 's=$(qdd doctor 2>&1); c=$?; printf "%s\n" "$s"; [ $c -eq 0 ] && ! grep -qE "❌|✗" <<<"$s"'
 paso "qdd estado: init, una tarea y su celda" tarea_en_el_estado
 paso "qdd consola pedir deja el pedido" contiene "echo hola" bash -c "qdd consola pedir -m 'Probar el ambiente' 'echo hola' && qdd consola pedidos"
+paso "tokens: tools/list del MCP ≤ 18.000" presupuesto 18000 "tools/list" tools_list
+paso "tokens: qdd_project_context ≤ 8.000" presupuesto 8000 "qdd_project_context" qdd modules context suma.js
 paso "qdd learn" qdd learn
 paso "qdd certify" qdd certify
 paso "qdd audit aprueba el proyecto nuevo" qdd audit

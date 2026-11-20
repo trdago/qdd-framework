@@ -17,8 +17,9 @@ import (
 
 func registerProjectContextTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_project_context",
-		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo obligatoria, cómo se prueba, la ficha de los módulos a tocar, el mapa de módulos y las zonas sin ficha."),
-		mcp.WithString("paths", mcp.Description("Archivos o carpetas a modificar, por coma o línea (relativos a la raíz). Sin rutas: el mapa general.")),
+		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo, cómo se prueba y la ficha de lo que tocas."),
+		mcp.WithString("paths", mcp.Description("Archivos o carpetas a tocar, por coma o línea (relativos a la raíz). Sin rutas: el mapa.")),
+		mcp.WithString("detalle", mcp.Description("«completo»: fichas enteras y mapa.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleProjectContextTool)
 }
@@ -36,6 +37,7 @@ func handleProjectContextTool(ctx context.Context, request mcp.CallToolRequest) 
 		ModoVisto:    visto,
 
 		TareasPorRevisar: estado.LineasPorRevisar(root),
+		Completo:         stringArg(request, "detalle") == "completo",
 	})
 	if notice != "" {
 		text = notice + "\n" + text
