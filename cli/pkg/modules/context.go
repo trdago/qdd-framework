@@ -55,7 +55,16 @@ type ContextInput struct {
 	// TareasPorRevisar: tareas del estado cuya ficha cambió después de su última celda, una línea cada una (RFC 0017 §3;
 	// las calcula el paquete estado, que depende de este).
 	TareasPorRevisar []string
+	// Completo trae las fichas enteras y el mapa aunque haya rutas. Por defecto las decisiones salen en una línea y el
+	// mapa solo sin rutas: con fichas grandes el contexto pasaba el tope de una herramienta (MEJ-073).
+	Completo bool
 }
+
+// largoDecision es lo que se muestra de cada decisión en el contexto liviano: su primera frase, hasta este largo.
+const largoDecision = 160
+
+// maxDecisiones es desde cuántas decisiones una ficha pide dividirse.
+const maxDecisiones = 25
 
 // lineaDelProyecto es lo que se hace sin pedir autorización cuando la IA puede actuar sola.
 const lineaDelProyecto = "Sigue sin pedir autorización todo lo que continúa la línea del proyecto: las tareas abiertas del estado, " +
@@ -85,8 +94,8 @@ func ReglaDeAutorizacion(modo string) []string {
 	return []string{"Modo sin medir (no hay un mensaje reciente con el panel de qdd): pide autorización como lo pida la consola.", loDefinido, loDelChat}
 }
 
-// BuildContext arma la abstracción del proyecto para una IA: propósito, forma
-// de trabajo, fichas relevantes (completas), mapa de módulos y zonas sin ficha.
+// BuildContext arma la abstracción del proyecto para una IA: propósito, forma de trabajo, la ficha de lo que va a tocar
+// (decisiones en una línea salvo Completo), el mapa de módulos (sin rutas o Completo) y las zonas sin ficha.
 func BuildContext(in ContextInput) string {
 	mods, loadErrs := Load(in.Root)
 	var b strings.Builder
@@ -108,10 +117,14 @@ func BuildContext(in ContextInput) string {
 		fmt.Fprintf(&b, "\n⚠️ Ficha ilegible: %v\n", err)
 	}
 
-	if len(in.Paths) > 0 {
-		writeRelevant(&b, in.Root, mods, in.Estandares, in.Paths)
+	if len(in.Paths) == 0 || in.Completo {
+		writeRelevant(&b, in, mods)
+		writeIndex(&b, in.Root, mods)
+		writeUncovered(&b, in.Root, mods)
+		return b.String()
 	}
-	writeIndex(&b, in.Root, mods)
+	writeRelevant(&b, in, mods)
+	fmt.Fprintf(&b, "\n## Mapa de módulos\n%d módulos con ficha: el mapa sale con qdd_project_context sin rutas.\n", len(mods))
 	writeUncovered(&b, in.Root, mods)
 	return b.String()
 }
@@ -189,8 +202,15 @@ func estandarPara(estandares []Estandar, rel string) (Estandar, bool) {
 	return Estandar{}, false
 }
 
-func writeRelevant(b *strings.Builder, root string, mods []Module, estandares []Estandar, paths []string) {
+func writeRelevant(b *strings.Builder, in ContextInput, mods []Module) {
+	if len(in.Paths) == 0 {
+		return
+	}
+	root, estandares, paths := in.Root, in.Estandares, in.Paths
 	b.WriteString("\n## Módulos que vas a tocar\n")
+	if !in.Completo {
+		b.WriteString("Decisiones en una línea: la ficha entera con qdd_project_context detalle=completo ('qdd modules context --completo <rutas>').\n")
+	}
 	seen := map[string]bool{}
 	for _, p := range paths {
 		rel := relativeTo(root, p)
@@ -208,7 +228,7 @@ func writeRelevant(b *strings.Builder, root string, mods []Module, estandares []
 				continue
 			}
 			seen[m.ID] = true
-			writeModule(b, root, m)
+			writeModule(b, root, m, in.Completo)
 		}
 	}
 }
@@ -224,7 +244,7 @@ func relativeTo(root, p string) string {
 	return filepath.ToSlash(rel)
 }
 
-func writeModule(b *strings.Builder, root string, m Module) {
+func writeModule(b *strings.Builder, root string, m Module, completo bool) {
 	fmt.Fprintf(b, "\n### %s (`%s`), %s\n", m.Nombre, m.ID, m.Estado)
 	if warning := statusWarning(root, m); warning != "" {
 		b.WriteString("⚠️ " + warning + "\n")
@@ -233,16 +253,48 @@ func writeModule(b *strings.Builder, root string, m Module) {
 	writeField(b, "Blueprint", m.Blueprint)
 	b.WriteString("- **Objetivo operativo**\n")
 	fmt.Fprintf(b, "  - Problema: %s\n", m.ObjetivoOperativo.Problema)
-	writeField(b, "Usuarios", m.ObjetivoOperativo.Usuarios)
+	if completo {
+		writeField(b, "Usuarios", m.ObjetivoOperativo.Usuarios)
+	}
 	fmt.Fprintf(b, "  - Criterio de éxito: %s\n", m.ObjetivoOperativo.CriterioDeExito)
-	writeField(b, "Caso real", m.ObjetivoOperativo.CasoReal)
+	if completo {
+		writeField(b, "Caso real", m.ObjetivoOperativo.CasoReal)
+	}
 	b.WriteString("- **Objetivo tecnológico**\n")
 	fmt.Fprintf(b, "  - Arquitectura: %s\n", m.ObjetivoTecnologico.Arquitectura)
-	writeItems(b, "Decisiones", m.ObjetivoTecnologico.Decisiones)
+	writeItems(b, "Decisiones", decisionesDe(m, completo))
+	if len(m.ObjetivoTecnologico.Decisiones) > maxDecisiones {
+		fmt.Fprintf(b, "  - ⚠️ %d decisiones: la ficha creció más de lo que una IA lee con cuidado; propón dividirla en módulos (MEJ-073).\n", len(m.ObjetivoTecnologico.Decisiones))
+	}
 	writeItems(b, "Invariantes (no romper)", m.ObjetivoTecnologico.Invariantes)
 	writeItems(b, "Cómo se prueba", append(append([]string{}, m.Pruebas.Comandos...), m.Pruebas.Goldensets...))
 	writeItems(b, "ADRs", m.ADRs)
 	writeItems(b, "Findings", m.Findings)
+}
+
+// decisionesDe: enteras con completo; si no, la primera frase de cada una, hasta largoDecision.
+func decisionesDe(m Module, completo bool) []string {
+	if completo {
+		return m.ObjetivoTecnologico.Decisiones
+	}
+	out := make([]string, 0, len(m.ObjetivoTecnologico.Decisiones))
+	for _, d := range m.ObjetivoTecnologico.Decisiones {
+		out = append(out, primeraFrase(d, largoDecision))
+	}
+	return out
+}
+
+// primeraFrase corta en el primer punto seguido de espacio, o en max runas con «…».
+func primeraFrase(s string, max int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if i := strings.Index(s, ". "); i >= 0 && len([]rune(s[:i+1])) <= max {
+		return s[:i+1] + " …"
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max-1]) + "…"
 }
 
 func statusWarning(root string, m Module) string {
