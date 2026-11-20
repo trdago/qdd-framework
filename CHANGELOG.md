@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.100] - 2026-11-20
+
 ### Changed
 
 - **Panel, baúl:** agregar un acceso es un asistente de una pregunta por pantalla (sitio, correo, cuenta, descripción, ambiente y el token al final). Enter responde y pasa a la siguiente con el foco en ella; lo respondido queda arriba y un clic vuelve a esa pregunta. Ya no hay nombres de campo partidos en el panel angosto ni campos que se ven vacíos tras Enter. Nombre, dónde, vencimiento y variable se abren desde «Más opciones». Modificar abre en el resumen con todo respondido. El asistente (`hooks/asistente.js`) queda como pieza común para los demás formularios del panel.
