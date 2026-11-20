@@ -17,6 +17,7 @@ objetivo_tecnologico:
         - 'bubblewrap sobre un Debian fijo, no Docker, microVM ni unikernel: arranca en ~25 ms contra 0,3-0,45 s de docker run, sin daemon ni RAM fija. Un unikernel corre un solo proceso sin fork y QDD lanza git, node y sh. Opción recomendada que eligió el modo goal (2026-11-19); falta que la persona la confirme.'
         - La raíz se baja del registro sin Docker y se fija por digest, no por etiqueta, para que dos corridas usen exactamente el mismo sistema.
         - Sin red al certificar la rama; con --version baja la versión publicada de npm y comparte la red.
+        - 'Presupuesto de tokens (FND-240, 2026-11-20): un proyecto nuevo es el piso de lo que una IA recibe en cada sesión; tools/list del MCP (≤ 18.000 caracteres) y qdd_project_context (≤ 8.000) se miden ahí, y si ya se pasan, se pasan en todos.'
         - 'qdd init no crea el estado: el paso lo inicia con qdd estado init, como lo pide el aviso de FND-147.'
     invariantes:
         - Nada de esta máquina entra al ambiente salvo la raíz, el paquete, el binario y dentro.sh, todos en solo lectura; nunca HOME ni credenciales.
@@ -27,5 +28,5 @@ pruebas:
     comandos:
         - e2e/limpio/certificar.sh
         - e2e/limpio/certificar.sh --version <versión publicada>
-ultima_revision: "2026-11-19"
-revisado_en_commit: ab795fac1bd4
+ultima_revision: "2026-11-20"
+revisado_en_commit: 67c96cb31c2e
