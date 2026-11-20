@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/qdd-framework/qdd/pkg/baul"
 	"github.com/zalando/go-keyring"
@@ -147,5 +148,54 @@ func TestBaulPanel_RenombrarYAmbientes(t *testing.T) {
 	}
 	if strings.Join(d.Ambientes, ",") != strings.Join(baul.Ambientes, ",") {
 		t.Fatalf("la lista trae los ambientes de la dirección: %v", d.Ambientes)
+	}
+}
+
+// Pedido de la persona (2026-11-20): agregar pregunta correo, sitio, cuenta, el token y una descripción. Agregar nunca
+// pisa un acceso que ya existe, y editar cambia los datos sin pedir el token.
+func TestBaulPanel_AgregarNoPisaYEditarNoPideElToken(t *testing.T) {
+	baulDePrueba(t)
+	e := baul.Entrada{Nombre: "cloudflare-trdago", Tipo: "cloudflare", Donde: baul.EnLlavero, Correo: "yo@x.cl", Cuenta: "trdago"}
+	if err := baul.Guardar(e, "valor-de-prueba-123", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	copiado := &copiadoFalso{valor: "otro-valor-1234567"}
+	var salida bytes.Buffer
+	if err := agregarDelPortapapeles(&salida, e, copiado); err == nil || !strings.Contains(err.Error(), "ya existe") {
+		t.Fatalf("agregar no pisa uno que ya existe: %v", err)
+	}
+	if copiado.valor == "" {
+		t.Fatal("se niega antes de leer el portapapeles: lo copiado sigue ahí")
+	}
+	cmd := baulEditarCmd
+	for _, f := range []string{"correo", "url", "cuenta", "descripcion", "ambiente", "vence"} {
+		if cmd.Flags().Lookup(f) == nil || baulGuardarCmd.Flags().Lookup(f) == nil {
+			t.Fatalf("guardar y editar reciben --%s", f)
+		}
+	}
+	if err := cmd.Flags().Set("descripcion", "DNS de los proyectos"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cmd.Flags().Set("descripcion", ""); cmd.Flags().Lookup("descripcion").Changed = false })
+	salida.Reset()
+	if err := editarEnBaul(&salida, cmd, "cloudflare-trdago"); err != nil {
+		t.Fatal(err)
+	}
+	g, _ := baul.Buscar("cloudflare-trdago")
+	if g.Descripcion != "DNS de los proyectos" || g.Correo != "yo@x.cl" {
+		t.Fatalf("editar cambia solo lo que se dice: %+v", g)
+	}
+	var lista bytes.Buffer
+	listarBaulJSON(&lista)
+	var d struct {
+		Sitios []baul.SitioConocido `json:"sitios"`
+	}
+	if err := json.Unmarshal(lista.Bytes(), &d); err != nil || len(d.Sitios) != len(baul.Sitios) || d.Sitios[0].Etiqueta != "Cloudflare" {
+		t.Fatalf("la lista para el panel trae los sitios: %s %v", lista.String(), err)
+	}
+	lista.Reset()
+	listarBaul(&lista)
+	if !strings.Contains(lista.String(), "trdago") || !strings.Contains(lista.String(), "yo@x.cl") {
+		t.Fatalf("la lista muestra la cuenta y el correo: %s", lista.String())
 	}
 }

@@ -28,16 +28,16 @@ func tituloOp(nombre string) string {
 
 // Guardar deja el valor en su lugar y la entrada en el índice, verificada si se puede.
 func Guardar(e Entrada, valor string, ahora time.Time) error {
+	anterior, errAnterior := Buscar(e.Nombre)
+	if errAnterior == nil {
+		conservarAcceso(&e, anterior)
+	}
 	e, err := completar(e)
 	if err != nil {
 		return err
 	}
 	if strings.TrimSpace(valor) == "" {
 		return fmt.Errorf("el valor está vacío")
-	}
-	anterior, errAnterior := Buscar(e.Nombre)
-	if e.Direccion == "" && errAnterior == nil {
-		e.Direccion = anterior.Direccion
 	}
 	if err := direccionLibre(e); err != nil {
 		return err
