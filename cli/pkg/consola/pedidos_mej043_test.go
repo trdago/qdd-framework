@@ -139,3 +139,23 @@ func TestHechoPorLaPersona_SigueLiberandoALosQueEsperaban(t *testing.T) {
 		t.Fatalf("lo que la persona hizo cumple la espera: %+v", a)
 	}
 }
+
+// FND-242: un pedido corre aparte, sin la sesión de Claude Code en su entorno. Uno que usa el baúl (qdd ambiente
+// levantar) falló con «sin sesión de Claude Code ni terminal no hay a quién pedirle permiso» (2026-11-20). El comando
+// corre con la sesión que lo pidió: el permiso 🔑 llega al panel de esa sesión.
+func TestPedido_CorreConLaSesionQueLoPidio_FND242(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("la shell de esta prueba es sh")
+	}
+	root := proyectoConCola(t)
+	const sesion = "2a4886f1-7ef9-470c-85ff-48fdb864f404"
+	t.Setenv("CLAUDE_CODE_SESSION_ID", sesion)
+	p := mustPedirEnOrden(t, root, `printf 'sesion=%s|' "$CLAUDE_CODE_SESSION_ID"`, Orden{})
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	correrPedido(t, root, p.ID)
+	for _, q := range PedidosA(root, time.Now()) {
+		if q.ID == p.ID && !strings.Contains(q.Salida, "sesion="+sesion+"|") {
+			t.Fatalf("el comando no recibió la sesión que lo pidió: %q", q.Salida)
+		}
+	}
+}

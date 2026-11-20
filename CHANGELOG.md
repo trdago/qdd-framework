@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.102] - 2026-11-20
+
+### Fixed
+
+- **Pedidos con el baúl (FND-242):** un pedido corre aparte, fuera de Claude Code, y su comando no sabía de qué sesión venía. Uno que usa un token del baúl (como `qdd ambiente levantar`) fallaba con «no hay a quién pedirle permiso». Ahora corre con la sesión que lo pidió y el baúl deja el 🔑 en su panel.
+
 ## [2.10.0-rc.101] - 2026-11-20
 
 ### Added
