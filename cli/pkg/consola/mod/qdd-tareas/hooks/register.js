@@ -3217,19 +3217,32 @@ function vistaConfig($, Box, Text, Button, Input, Select, ancho) {
       cancelar,
     ]
   }
+  // El baúl va primero (pedido de la persona, 2026-11-20: «en config debería estar el vault»): debajo de las
+  // herramientas no se veía.
   return [
+    ...(config.vista === 'lista' ? vistaBaul($, Box, Text, Button, Input, Select, ancho) : []),
     separador(Box, Text, 't-config', 'Herramientas del proyecto', undefined, 'k cierra', ancho),
     Box({ key: 'h-config', flexDirection: 'column', rowGap: 1, children: [...aviso, ...cuerpo] }),
-    ...(config.vista === 'lista' ? vistaBaul($, Box, Text, Button, Input, Select, ancho) : []),
   ]
 }
 
 // ── Baúl de accesos en Config (pedido de la persona, 2026-11-09: «el baúl de contraseñas se debe poder administrar
 // desde config en el panel de la derecha: agregar, quitar, modificar»). El panel nunca ve un valor: la persona copia el
 // token y «Pegar del portapapeles» le pide a qdd que lo lea, lo vacíe, lo pruebe con su API y lo guarde (eligió esa
-// opción). Modificar es guardar de nuevo el mismo nombre; quitar pide «¿Seguro?» y corre con --si.
+// opción). Modificar es guardar de nuevo el mismo nombre; quitar pide «¿Seguro?» y corre con --si. Modificar también
+// cambia el nombre con qdd baul renombrar, sin pedir el valor de nuevo, y la dirección se arma con campos: el ambiente de
+// una lista y las demás partes escritas (pedido de la persona, 2026-11-20: «de forma fácil y de forma estándar …
+// quitar, agregar, modificar los nombres»).
 let baulDeConfig = { lista: null, falla: '', form: null, quitando: '', aviso: '', hecho: '', ocupado: false }
 const LUGARES_BAUL = [{ value: 'llavero', label: 'llavero del sistema' }, { value: '1password', label: '1Password' }]
+// AMBIENTES_BAUL: los de un qdd anterior a «ambientes» en baul --json.
+const AMBIENTES_BAUL = ['dev', 'qa', 'prod', 'global']
+const PARTES_DIRECCION = [
+  { campo: 'servidor', placeholder: 'el host o producto: db-prod-01, github.com, api.cloudflare.com' },
+  { campo: 'servicio', placeholder: 'el sistema que lo usa: notificador, ci, dns' },
+  { campo: 'clase', placeholder: 'qué es: token, postgres, oracle, ssh, client' },
+  { campo: 'cuenta', placeholder: 'el usuario o identificador: app_user, trdago' },
+]
 
 async function leerBaul($) {
   const bin = await binario($)
@@ -3240,7 +3253,7 @@ async function leerBaul($) {
       return
     }
     const d = JSON.parse(r.stdout)
-    baulDeConfig = { ...baulDeConfig, lista: { tokens: d.tokens || [], tipos: d.tipos || [], portapapeles: Boolean(d.portapapeles) }, falla: '' }
+    baulDeConfig = { ...baulDeConfig, lista: { tokens: d.tokens || [], tipos: d.tipos || [], ambientes: d.ambientes || AMBIENTES_BAUL, portapapeles: Boolean(d.portapapeles) }, falla: '' }
   } catch (err) {
     baulDeConfig = { ...baulDeConfig, lista: null, falla: 'No pude leer el baúl: ' + String(err?.message ?? err) }
   }
@@ -3265,6 +3278,7 @@ async function correrBaul($, argv, despues = {}) {
   baulDeConfig = { ...baulDeConfig, ...(aviso ? {} : despues), ocupado: false, aviso, hecho }
   await leerBaul($)
   $.ui.invalidate('ui.render')
+  return !aviso
 }
 
 function cambiarBaul($, cambio) {
@@ -3272,12 +3286,46 @@ function cambiarBaul($, cambio) {
   $.ui.invalidate('ui.render')
 }
 
-function pegarDelPortapapeles($) {
+// direccionDelForm arma ambiente/servidor/servicio/clase/cuenta. Sin ambiente no hay dirección; con ambiente van todas
+// las partes. qdd la normaliza y la valida.
+function direccionDelForm(f) {
+  if (!f.ambiente) return { direccion: '' }
+  const faltan = PARTES_DIRECCION.map((p) => p.campo).filter((c) => !String(f[c] || '').trim())
+  if (faltan.length) return { falta: 'falta ' + faltan.join(', ').replace(/, ([^,]*)$/, ' y $1') + ' de la dirección (o deja el ambiente en «sin dirección»)' }
+  return { direccion: [f.ambiente, ...PARTES_DIRECCION.map((p) => String(f[p.campo]).trim())].join('/') }
+}
+
+function partesDeDireccion(direccion) {
+  const partes = String(direccion || '').split('/')
+  if (partes.length !== PARTES_DIRECCION.length + 1) return { ambiente: '' }
+  return Object.fromEntries([['ambiente', partes[0]], ...PARTES_DIRECCION.map((p, i) => [p.campo, partes[i + 1]])])
+}
+
+const renombra = (f) => f.modo === 'modificar' && f.nombre !== f.original
+
+// renombrarBaul corre qdd baul renombrar y deja el formulario con el nombre nuevo. Devuelve si qdd lo hizo.
+async function renombrarBaul($, f) {
+  if (!f.nombre) {
+    cambiarBaul($, { aviso: '⚠ falta el nombre nuevo', hecho: '' })
+    return false
+  }
+  const hecho = await correrBaul($, ['renombrar', f.original, f.nombre])
+  if (hecho && baulDeConfig.form) baulDeConfig.form = { ...baulDeConfig.form, original: f.nombre }
+  return hecho
+}
+
+async function pegarDelPortapapeles($) {
   const f = baulDeConfig.form
-  const falta = !f.nombre ? 'falta el nombre' : f.tipo === 'otro' && !f.variable ? 'falta la variable de entorno donde va' : ''
+  const d = direccionDelForm(f)
+  const falta = !f.nombre ? 'falta el nombre' : f.tipo === 'otro' && !f.variable ? 'falta la variable de entorno donde va' : d.falta || ''
   if (falta) return cambiarBaul($, { aviso: '⚠ ' + falta, hecho: '' })
-  const argv = ['guardar', f.nombre, '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.tipo === 'otro' ? ['--variable', f.variable] : []), ...(f.direccion ? ['--direccion', f.direccion] : [])]
+  if (renombra(f) && !(await renombrarBaul($, f))) return
+  const argv = ['guardar', f.nombre, '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.tipo === 'otro' ? ['--variable', f.variable] : []), ...(d.direccion ? ['--direccion', d.direccion] : [])]
   return correrBaul($, argv, { form: null })
+}
+
+async function soloRenombrar($) {
+  if (await renombrarBaul($, baulDeConfig.form)) cambiarBaul($, { form: null })
 }
 
 function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
@@ -3292,7 +3340,7 @@ function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
   if (b.form) return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...formularioBaul($, Box, Text, Button, Input, Select, b)] })]
   const filas = b.lista.tokens.map((t) => (b.quitando === t.nombre ? confirmarQuitarToken($, Box, Text, Button, t) : filaToken($, Box, Text, Button, t)))
   const vacio = Text({ key: 'b-vacio', dimColor: true, wrap: 'wrap', children: ['El baúl está vacío. Guarda aquí los tokens que usa la IA (Cloudflare, GitHub, Supabase…): nunca los pegues en el chat.'] })
-  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar token', variant: 'primary', onPress: () => cambiarBaul($, { form: { modo: 'agregar', nombre: '', tipo: 'cloudflare', en: 'llavero', variable: '', direccion: '' }, aviso: '', hecho: '' }) })] })
+  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar token', variant: 'primary', onPress: () => cambiarBaul($, { form: { modo: 'agregar', nombre: '', tipo: 'cloudflare', en: 'llavero', variable: '', ambiente: '' }, aviso: '', hecho: '' }) })] })
   return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...(filas.length ? filas : [vacio]), agregar] })]
 }
 
@@ -3304,7 +3352,7 @@ function detalleDeToken(t) {
 }
 
 function filaToken($, Box, Text, Button, t) {
-  const modificar = () => cambiarBaul($, { form: { modo: 'modificar', nombre: t.nombre, tipo: t.tipo, en: t.donde, variable: t.variable || '', direccion: t.direccion || '' }, aviso: '', hecho: '' })
+  const modificar = () => cambiarBaul($, { form: { modo: 'modificar', nombre: t.nombre, original: t.nombre, tipo: t.tipo, en: t.donde, variable: t.variable || '', ...partesDeDireccion(t.direccion) }, aviso: '', hecho: '' })
   return Box({
     key: 'b-fila-' + t.nombre,
     flexDirection: 'row',
@@ -3363,24 +3411,30 @@ function formularioBaul($, Box, Text, Button, Input, Select, b) {
     $.ui.invalidate('ui.render')
   }
   const cancelar = Button({ key: 'b-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: null, aviso: '' }) })
-  const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un token' : 'Modificar «' + f.nombre + '»'] })
+  const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un token' : 'Modificar «' + f.original + '»'] })
+  const ambientes = [{ value: '', label: 'sin dirección' }, ...b.lista.ambientes.map((a) => ({ value: a, label: a }))]
+  const partes = f.ambiente ? PARTES_DIRECCION.map((p) => Input({ key: 'b-' + p.campo, label: p.campo[0].toUpperCase() + p.campo.slice(1), placeholder: p.placeholder, value: f[p.campo] || '', submitLabel: 'listo', onInput: poner(p.campo), onSubmit: poner(p.campo) })) : []
   const campos = [
-    ...(f.modo === 'agregar' ? [Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'cloudflare, gh-trabajo… (minúsculas, - y _)', value: f.nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') })] : []),
-    Input({ key: 'b-direccion', label: 'Dirección', placeholder: 'ambiente/servidor/servicio/clase/cuenta (prod/db-01/notificador/postgres/app_user; ambiente: dev, qa, prod o global)', value: f.direccion, submitLabel: 'listo', onInput: poner('direccion'), onSubmit: poner('direccion') }),
+    Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'cloudflare, gh-trabajo… (minúsculas, - y _)', value: f.nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') }),
     Select({ key: 'b-tipo', label: 'Tipo', options: b.lista.tipos.map((t) => ({ value: t, label: t })), value: f.tipo, onSelect: poner('tipo') }),
     Select({ key: 'b-en', label: 'Dónde', options: LUGARES_BAUL, value: f.en, onSelect: poner('en') }),
     ...(f.tipo === 'otro' ? [Input({ key: 'b-variable', label: 'Variable', placeholder: 'MI_API_KEY', value: f.variable, submitLabel: 'listo', onInput: poner('variable'), onSubmit: poner('variable') })] : []),
+    Select({ key: 'b-ambiente', label: 'Ambiente', options: ambientes, value: f.ambiente || '', onSelect: poner('ambiente') }),
+    ...partes,
   ]
+  const renombrar = renombra(f) ? [Button({ key: 'b-renombrar', label: '✎ Solo cambiar el nombre', plain: true, onPress: () => soloRenombrar($) })] : []
   if (!b.lista.portapapeles) {
-    const comando = 'qdd baul guardar ' + (f.nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en) + (f.direccion ? ' --direccion ' + f.direccion : '')
-    return [encabezado, ...campos, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando] }), cancelar]
+    const d = direccionDelForm(f)
+    const comando = 'qdd baul guardar ' + (f.nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en) + (d.direccion ? ' --direccion ' + d.direccion : '')
+    return [encabezado, ...campos, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando] }), Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [...renombrar, cancelar] })]
   }
   const pista = f.tipo === 'aws-sso' ? 'Copia el nombre del perfil de aws sso' : 'Copia el token'
+  const pistaModificar = f.modo === 'modificar' ? ' Para cambiar solo el nombre no hace falta copiar nada.' : ''
   return [
     encabezado,
     ...campos,
-    Text({ key: 'b-pista', color: COLOR.secundario, wrap: 'wrap', children: [pista + ' y presiona «Pegar del portapapeles»: qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda. Nunca lo ves aquí ni pasa por el chat.'] }),
-    Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [Button({ key: 'b-pegar', label: '📋 Pegar del portapapeles', variant: 'primary', onPress: () => pegarDelPortapapeles($) }), cancelar] }),
+    Text({ key: 'b-pista', color: COLOR.secundario, wrap: 'wrap', children: [pista + ' y presiona «Pegar del portapapeles»: qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda. Nunca lo ves aquí ni pasa por el chat.' + pistaModificar] }),
+    Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [Button({ key: 'b-pegar', label: '📋 Pegar del portapapeles', variant: 'primary', onPress: () => pegarDelPortapapeles($) }), ...renombrar, cancelar] }),
   ]
 }
 

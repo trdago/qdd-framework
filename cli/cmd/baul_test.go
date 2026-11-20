@@ -119,3 +119,33 @@ func TestBaulLista_MuestraLaDireccion(t *testing.T) {
 		t.Fatal("guardar recibe --direccion")
 	}
 }
+
+// Pedido de la persona (2026-11-20): Config cambia el nombre de un token con qdd baul renombrar, y arma la dirección con
+// los ambientes que da qdd.
+func TestBaulPanel_RenombrarYAmbientes(t *testing.T) {
+	baulDePrueba(t)
+	e := baul.Entrada{Nombre: "mio", Tipo: "otro", Donde: baul.EnLlavero, Variable: "MI_TOKEN"}
+	var salida bytes.Buffer
+	if err := guardarDelPortapapeles(&salida, e, &copiadoFalso{valor: "valor-de-prueba-123"}); err != nil {
+		t.Fatal(err)
+	}
+	salida.Reset()
+	if err := renombrarEnBaul(&salida, "mio", "mio-prod"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(salida.String(), "mio-prod") || strings.Contains(salida.String(), "valor-de-prueba-123") {
+		t.Fatalf("dice el nombre nuevo, nunca el valor: %q", salida.String())
+	}
+	var lista bytes.Buffer
+	listarBaulJSON(&lista)
+	var d struct {
+		Tokens    []baul.Entrada `json:"tokens"`
+		Ambientes []string       `json:"ambientes"`
+	}
+	if err := json.Unmarshal(lista.Bytes(), &d); err != nil || len(d.Tokens) != 1 || d.Tokens[0].Nombre != "mio-prod" {
+		t.Fatalf("la lista trae el nombre nuevo: %s %v", lista.String(), err)
+	}
+	if strings.Join(d.Ambientes, ",") != strings.Join(baul.Ambientes, ",") {
+		t.Fatalf("la lista trae los ambientes de la dirección: %v", d.Ambientes)
+	}
+}

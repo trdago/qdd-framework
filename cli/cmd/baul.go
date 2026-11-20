@@ -48,6 +48,7 @@ con permiso de la persona: por sesión, por proyecto, por token y por fin, hasta
   qdd baul guardar <nombre> --tipo <tipo> --portapapeles
                                                lo lee del portapapeles y lo vacía (Config en el panel)
   qdd baul quitar <nombre> [--si]              lo borra de su lugar, del índice y de los permisos
+  qdd baul renombrar <nombre> <nuevo>          le cambia el nombre; el valor y los permisos lo siguen
   qdd baul verificar <nombre>                  lo prueba contra su API y anota dueño, alcance y vencimiento
   qdd baul usar <nombre> --para "<fin>" -- <comando>
   qdd baul registro                            cada uso, encadenado
@@ -67,8 +68,8 @@ diga «Sí». El token va solo al entorno del comando y su salida sale con los v
 	},
 }
 
-// listarBaulJSON es la lista para Config en el panel: los tokens (nunca un valor), los tipos y si este sistema puede
-// leer el portapapeles.
+// listarBaulJSON es la lista para Config en el panel: los tokens (nunca un valor), los tipos, los ambientes de la
+// dirección y si este sistema puede leer el portapapeles.
 func listarBaulJSON(w io.Writer) {
 	indice, err := baul.Indice()
 	if err != nil {
@@ -80,7 +81,7 @@ func listarBaulJSON(w io.Writer) {
 	}
 	slices.Sort(tipos)
 	leer, _ := portapapeles().(interface{ Disponible() bool })
-	out, err := listas.Marshal(map[string]any{"tokens": indice, "tipos": tipos, "portapapeles": leer != nil && leer.Disponible()})
+	out, err := listas.Marshal(map[string]any{"tokens": indice, "tipos": tipos, "ambientes": baul.Ambientes, "portapapeles": leer != nil && leer.Disponible()})
 	if err != nil {
 		salirCon("%v", err)
 	}
@@ -239,6 +240,25 @@ func mostrarVerificacionEn(w io.Writer, nombre string) {
 	fmt.Fprintf(w, "[✓] %s: dueño %s · %s · vence %s\n", nombre, guion(e.Duenio), guion(e.Alcance), fecha(e.Vence))
 }
 
+var baulRenombrarCmd = &cobra.Command{
+	Use:   "renombrar <nombre> <nuevo>",
+	Short: "Le cambia el nombre a un token: el valor no sale de su lugar y los permisos lo siguen",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := renombrarEnBaul(os.Stdout, args[0], args[1]); err != nil {
+			salirCon("%v", err)
+		}
+	},
+}
+
+func renombrarEnBaul(w io.Writer, viejo, nuevo string) error {
+	if err := baul.Renombrar(viejo, nuevo, time.Now()); err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "[✓] %s ahora se llama %s.\n", viejo, nuevo)
+	return nil
+}
+
 var baulVerificarCmd = &cobra.Command{
 	Use:   "verificar <nombre>",
 	Short: "Prueba el token contra su API (solo lectura) y anota dueño, alcance y vencimiento",
@@ -338,6 +358,6 @@ func init() {
 	baulCmd.Flags().BoolVar(&baulJSON, "json", false, "la lista para el panel, en JSON")
 	baulUsarCmd.Flags().StringVar(&baulPara, "para", "", "el fin: para qué se usa (el permiso es por fin)")
 	_ = baulUsarCmd.MarkFlagRequired("para")
-	baulCmd.AddCommand(baulGuardarCmd, baulQuitarCmd, baulVerificarCmd, baulUsarCmd, baulPermitirCmd, baulRegistroCmd)
+	baulCmd.AddCommand(baulGuardarCmd, baulQuitarCmd, baulRenombrarCmd, baulVerificarCmd, baulUsarCmd, baulPermitirCmd, baulRegistroCmd)
 	rootCmd.AddCommand(baulCmd)
 }

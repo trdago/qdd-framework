@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.98] - 2026-11-20
+
+### Added
+- **Baúl en Config, más fácil y estándar** (pedido de la persona: «en config debería estar el vault … quitar, agregar, modificar los nombres»). El baúl va primero en Config, antes que las herramientas. Modificar ahora cambia el nombre de un token sin pedir ni mostrar su valor («✎ Solo cambiar el nombre», o renombra y guarda el valor nuevo con «📋 Pegar del portapapeles»). La dirección estándar se arma con campos: el ambiente de una lista (dev, qa, prod, global) y servidor, servicio, clase y cuenta.
+- `qdd baul renombrar <nombre> <nuevo>`: el valor no sale de su lugar (llavero o 1Password), los permisos y solicitudes lo siguen y queda en el registro con el nombre anterior.
+
 ## [2.10.0-rc.97] - 2026-11-20
 
 ### Agregado

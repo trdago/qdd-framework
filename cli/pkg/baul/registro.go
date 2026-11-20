@@ -21,8 +21,9 @@ type Linea struct {
 	En       time.Time `json:"en"`
 	Quien    string    `json:"quien,omitempty"` // «persona» (su terminal) o la sesión de la IA
 	Proyecto string    `json:"proyecto,omitempty"`
-	Accion   string    `json:"accion"` // guardar, verificar, pedir, permitir, usar
+	Accion   string    `json:"accion"` // guardar, verificar, pedir, permitir, usar, quitar, renombrar
 	Token    string    `json:"token"`
+	Antes    string    `json:"antes,omitempty"` // renombrar: el nombre anterior
 	Fin      string    `json:"fin,omitempty"`
 	Comando  string    `json:"comando,omitempty"`
 	Codigo   *int      `json:"codigo,omitempty"`
