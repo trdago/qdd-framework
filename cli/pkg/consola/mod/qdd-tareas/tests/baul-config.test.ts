@@ -43,9 +43,11 @@ function preparar(on, r) {
   })
 }
 
+const AMBIENTES = ['dev', 'qa', 'prod', 'global']
+
 const nuevo = (tokens = [CF, GH], portapapeles = true) => ({
   llamadas: [] as string[][],
-  lista: ok({ tokens, tipos: TIPOS, portapapeles }),
+  lista: ok({ tokens, tipos: TIPOS, ambientes: AMBIENTES, portapapeles }),
   respuestas: {} as Record<string, Salida>,
 })
 const esperar = () => new Promise((res) => setTimeout(res, 20))
@@ -107,7 +109,6 @@ test('modificar reemplaza el valor con lo copiado, y puede cambiarlo de lugar', 
   const r = nuevo()
   const ui = await abrirConfig($, on, r)
   await ui.press({ key: 'b-modificar-gh-viejo' })
-  expect(await ui.find({ key: 'b-nombre' })).toBeUndefined()
   await ui.select({ key: 'b-en', value: 'llavero' })
   await ui.press({ key: 'b-pegar' })
   await esperar()
@@ -157,7 +158,11 @@ test('agregar lleva la dirección; la fila la muestra y modificar la conserva', 
   expect(await ui.find({ type: 'Text', text: /prod\/db-prod-01\/notificador\/postgres\/app_user · otro · llavero/ })).toBeDefined()
   await ui.press({ key: 'b-agregar' })
   await ui.input({ key: 'b-nombre', text: 'pg-admin', kind: 'change' })
-  await ui.input({ key: 'b-direccion', text: 'prod/db-prod-01/notificador/postgres/admin', kind: 'change' })
+  await ui.select({ key: 'b-ambiente', value: 'prod' })
+  await ui.input({ key: 'b-servidor', text: 'db-prod-01', kind: 'change' })
+  await ui.input({ key: 'b-servicio', text: 'notificador', kind: 'change' })
+  await ui.input({ key: 'b-clase', text: 'postgres', kind: 'change' })
+  await ui.input({ key: 'b-cuenta', text: 'admin', kind: 'change' })
   await ui.select({ key: 'b-tipo', value: 'otro' })
   await ui.input({ key: 'b-variable', text: 'PGPASSWORD', kind: 'change' })
   await ui.press({ key: 'b-pegar' })
@@ -167,4 +172,87 @@ test('agregar lleva la dirección; la fila la muestra y modificar la conserva', 
   await ui.press({ key: 'b-pegar' })
   await esperar()
   expect(baul(r)).toContainEqual(['qdd', 'baul', 'guardar', 'pg-app', '--tipo', 'otro', '--en', 'llavero', '--portapapeles', '--variable', 'PGPASSWORD', '--direccion', 'prod/db-prod-01/notificador/postgres/app_user'])
+})
+
+// Pedido de la persona (2026-11-20): «en config debería estar el vault y permitir ingresar de forma fácil y de forma
+// estándar las keys al vault y gestionarlas, o sea quitar, agregar, modificar los nombres».
+const claves = async (ui) => (await ui.findAll({ type: 'Button' })).map((b) => b.props.key ?? b.key)
+
+test('el baúl va primero en Config, antes que las herramientas', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrirConfig($, on, r)
+  const orden = await claves(ui)
+  expect(orden.indexOf('b-agregar')).toBeGreaterThanOrEqual(0)
+  expect(orden.indexOf('b-agregar')).toBeLessThan(orden.indexOf('h-agregar'))
+})
+
+test('modificar cambia el nombre sin pedir el valor de nuevo', async ($, on) => {
+  const r = nuevo()
+  r.respuestas.renombrar = ok('[✓] cloudflare ahora se llama cf-prod.\n')
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-modificar-cloudflare' })
+  expect(await ui.find({ key: 'b-renombrar' })).toBeUndefined()
+  await ui.input({ key: 'b-nombre', text: 'cf-prod', kind: 'change' })
+  await ui.press({ key: 'b-renombrar' })
+  await esperar()
+  expect(baul(r)).toContainEqual(['qdd', 'baul', 'renombrar', 'cloudflare', 'cf-prod'])
+  expect(baul(r).some((a) => a[2] === 'guardar')).toBe(false)
+  expect(await ui.find({ type: 'Text', text: /ahora se llama cf-prod/ })).toBeDefined()
+  expect(await ui.find({ key: 'b-pegar' })).toBeUndefined()
+})
+
+test('cambiar el nombre y pegar un valor nuevo renombra primero y guarda con el nombre nuevo', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-modificar-cloudflare' })
+  await ui.input({ key: 'b-nombre', text: 'cf-prod', kind: 'change' })
+  await ui.press({ key: 'b-pegar' })
+  await esperar()
+  const hechos = baul(r).filter((a) => a[2] === 'renombrar' || a[2] === 'guardar')
+  expect(hechos).toEqual([
+    ['qdd', 'baul', 'renombrar', 'cloudflare', 'cf-prod'],
+    ['qdd', 'baul', 'guardar', 'cf-prod', '--tipo', 'cloudflare', '--en', 'llavero', '--portapapeles'],
+  ])
+})
+
+test('si qdd no pudo renombrar, no guarda el valor con el nombre nuevo', async ($, on) => {
+  const r = nuevo()
+  r.respuestas.renombrar = { exitCode: 1, stdout: '', stderr: 'ya hay un token llamado gh-viejo: quítalo o elige otro nombre' }
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-modificar-cloudflare' })
+  await ui.input({ key: 'b-nombre', text: 'gh-viejo', kind: 'change' })
+  await ui.press({ key: 'b-pegar' })
+  await esperar()
+  expect(baul(r).some((a) => a[2] === 'guardar')).toBe(false)
+  expect(await ui.find({ type: 'Text', text: /ya hay un token llamado gh-viejo/ })).toBeDefined()
+})
+
+test('la dirección se arma con campos: ambiente de la lista y las demás partes, todas o ninguna', async ($, on) => {
+  const r = nuevo([])
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-agregar' })
+  expect(await ui.find({ key: 'b-direccion' })).toBeUndefined()
+  expect(await ui.find({ key: 'b-servidor' })).toBeUndefined()
+  await ui.input({ key: 'b-nombre', text: 'gh-ci', kind: 'change' })
+  await ui.select({ key: 'b-tipo', value: 'github' })
+  await ui.select({ key: 'b-ambiente', value: 'global' })
+  await ui.input({ key: 'b-servidor', text: 'github.com', kind: 'change' })
+  await ui.press({ key: 'b-pegar' })
+  expect(baul(r).some((a) => a[2] === 'guardar')).toBe(false)
+  expect(await ui.find({ type: 'Text', text: /falta servicio, clase y cuenta/ })).toBeDefined()
+  await ui.input({ key: 'b-servicio', text: 'ci', kind: 'change' })
+  await ui.input({ key: 'b-clase', text: 'token', kind: 'change' })
+  await ui.input({ key: 'b-cuenta', text: 'trdago', kind: 'change' })
+  await ui.press({ key: 'b-pegar' })
+  await esperar()
+  expect(baul(r)).toContainEqual(['qdd', 'baul', 'guardar', 'gh-ci', '--tipo', 'github', '--en', 'llavero', '--portapapeles', '--direccion', 'global/github.com/ci/token/trdago'])
+})
+
+test('un qdd anterior, sin ambientes en la lista, igual ofrece los cuatro', async ($, on) => {
+  const r = nuevo([])
+  r.lista = ok({ tokens: [], tipos: TIPOS, portapapeles: true })
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-agregar' })
+  const ambiente = await ui.find({ key: 'b-ambiente' })
+  expect(ambiente.props.options.map((o) => o.value)).toEqual(['', 'dev', 'qa', 'prod', 'global'])
 })
