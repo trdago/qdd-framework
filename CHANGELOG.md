@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.100] - 2026-11-20
+
+### Changed
+
+- **Panel, baúl:** agregar un acceso es un asistente de una pregunta por pantalla (sitio, correo, cuenta, descripción, ambiente y el token al final). Enter responde y pasa a la siguiente con el foco en ella; lo respondido queda arriba y un clic vuelve a esa pregunta. Ya no hay nombres de campo partidos en el panel angosto ni campos que se ven vacíos tras Enter. Nombre, dónde, vencimiento y variable se abren desde «Más opciones». Modificar abre en el resumen con todo respondido. El asistente (`hooks/asistente.js`) queda como pieza común para los demás formularios del panel.
+
+- **Panel, baúl:** la lista dice «1 acceso», los datos de cada acceso van en su propia línea a todo el ancho (el correo ya no se corta) y un ID de cuenta largo se muestra acortado. Lo que responde qdd va una línea debajo de otra. Al verificar, la línea dice solo lo que se sabe («la API lo acepta · token active»), sin «dueño -» ni «vence -». En Modificar, «← Atrás» devuelve al resumen.
+
+### Fixed
+
+- **Baúl, Cloudflare:** un token creado en la cuenta (Account API Token) se rechazaba con 401, porque qdd solo lo probaba en `/user/tokens/verify`. Con el ID de cuenta (32 caracteres) en Cuenta, ahora se prueba primero en `/accounts/<id>/tokens/verify`. Sin el ID, el aviso dice que lo escribas. El id del token ya no se anota como su dueño. En el panel, la pregunta de Cloudflare pide el ID de cuenta, y un ID largo ya no se usa para el nombre: va la parte del correo (`cloudflare-chilefplay`).
+
 ## [2.10.0-rc.99] - 2026-11-20
 
 ### Changed

@@ -199,3 +199,20 @@ func TestBaulPanel_AgregarNoPisaYEditarNoPideElToken(t *testing.T) {
 		t.Fatalf("la lista muestra la cuenta y el correo: %s", lista.String())
 	}
 }
+
+// La línea de una verificación dice solo lo que se sabe: sin «dueño -» ni «vence -» (2026-11-20).
+func TestLineaVerificacion_SoloLoQueSeSabe(t *testing.T) {
+	vence := time.Date(2027, 1, 31, 15, 0, 0, 0, time.UTC)
+	casos := []struct {
+		e    baul.Entrada
+		dice string
+	}{
+		{baul.Entrada{Alcance: "token active"}, "[✓] cf: la API lo acepta · token active"},
+		{baul.Entrada{Duenio: "yo@x.cl", Alcance: "repo", Vence: &vence}, "[✓] cf: la API lo acepta · dueño yo@x.cl · repo · vence 2027-01-31"},
+	}
+	for _, c := range casos {
+		if got := lineaVerificacion("cf", c.e); got != c.dice {
+			t.Errorf("%+v: %q, quería %q", c.e, got, c.dice)
+		}
+	}
+}

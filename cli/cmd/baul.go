@@ -170,7 +170,7 @@ var baulGuardarCmd = &cobra.Command{
 			salirCon("%v", err)
 		}
 		if baulTipo != "otro" {
-			if _, err := baul.VerificarValor(baulTipo, valor); errors.Is(err, baul.ErrRechazado) {
+			if _, err := baul.VerificarValor(e, valor); errors.Is(err, baul.ErrRechazado) {
 				salirCon("no se guardó: %v", err)
 			}
 		}
@@ -273,10 +273,25 @@ func mostrarVerificacionEn(w io.Writer, nombre string) {
 		fmt.Fprintf(w, "[i] %s sin verificar: %v\n", nombre, err)
 		return
 	}
-	fmt.Fprintf(w, "[✓] %s: dueño %s · %s · vence %s\n", nombre, guion(e.Duenio), guion(e.Alcance), fecha(baul.VenceEn(e)))
+	fmt.Fprintln(w, lineaVerificacion(nombre, e))
 	if aviso := baul.CorreoDistinto(e); aviso != "" {
 		fmt.Fprintf(w, "[!] %s\n", aviso)
 	}
+}
+
+// lineaVerificacion dice solo lo que se sabe del token: sin «dueño -» ni «vence -».
+func lineaVerificacion(nombre string, e baul.Entrada) string {
+	partes := []string{"[✓] " + nombre + ": la API lo acepta"}
+	if e.Duenio != "" {
+		partes = append(partes, "dueño "+e.Duenio)
+	}
+	if e.Alcance != "" {
+		partes = append(partes, e.Alcance)
+	}
+	if v := baul.VenceEn(e); v != nil {
+		partes = append(partes, "vence "+fecha(v))
+	}
+	return strings.Join(partes, " · ")
 }
 
 var baulRenombrarCmd = &cobra.Command{
