@@ -1,0 +1,9 @@
+id: "FND-239"
+title: "La consola llega al teléfono hasta 40 s tarde"
+description: "2026-11-15, desde el teléfono: la consola de una sesión llegaba a QDD Móvil hasta 40 s después de verse en la terminal. Medido en este PC: qdd arma el estado en ~100 ms, manda sin esperar respuesta y Claude Code escribe cada línea 0,2-3 s después de su hora. Pero escribe cada respuesta solo al terminarla: sobre 300 respuestas, mediana 2-4 s, p90 7-14 s, máximo 30-50 s. La terminal muestra el texto mientras se genera; el transcript, que es lo que lee qdd, no lo tiene hasta el final."
+impact: "Mientras Claude genera una respuesta larga, el teléfono no muestra nada y parece colgado; la persona no sabe si mandar otra instrucción."
+action_taken: "El retraso no se acelera desde qdd. El evento consola trae trabajando: desde cuándo Claude trabaja en el turno en curso, sacado del transcript (la primera api-request del hilo principal; lo quitan turn_duration, compact_boundary, una interrupción o un mensaje nuevo de la persona; las líneas isMeta y los subagentes no cuentan). Un cambio sale aunque no haya líneas nuevas. Aditivo: una app vieja no lo lee. Propuesto a qdd-movile por su cola de mejoras; el PR queda en borrador hasta que lo acepte. RFC 0013 y la ficha remoto actualizadas."
+test_result: "cli/pkg/remoto/consola_trabajando_test.go (5 pruebas: empieza y termina con el turno, sigue igual con herramientas y líneas isMeta, la interrupción y la compactación lo terminan, un subagente no cuenta, la cola inicial lo trae, y el cambio sale sin líneas nuevas) no compilaban sin el cambio y pasan; la de isMeta falló antes de su arreglo. Probado sobre el transcript real de esta sesión: trabajando = hora del inicio del turno en curso. go test ./pkg/remoto/... en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"
