@@ -1,0 +1,31 @@
+id: ambiente-limpio
+nombre: Certificar QDD desde cero en un ambiente limpio
+estado: aprobado
+rutas:
+    - e2e/limpio/certificar.sh
+    - e2e/limpio/dentro.sh
+    - e2e/limpio/raiz.sh
+    - .github/workflows/e2e.yml
+objetivo_operativo:
+    problema: Las pruebas corren en el PC de quien desarrolla, con su HOME, su qdd instalado y su Claude Code. Algo que solo funciona por lo que ya hay en esta máquina no se nota hasta que lo instala otra persona.
+    usuarios: Quien publica una versión de QDD y el CI de cada PR.
+    criterio_de_exito: Cada PR instala el paquete de su rama en un Debian sin nada de esta máquina y lo usa como una persona nueva (init, doctor, estado, pedido, learn, certify, audit); el primer paso que falla corta con su salida. Corre en segundos y sin daemon.
+    caso_real: '2026-11-19: la persona pidió certificar QDD replicando el uso en un ambiente controlado desde cero, con algo más rápido y liviano que Docker. El ambiente quedó en ~1 s por corrida.'
+objetivo_tecnologico:
+    arquitectura: raiz.sh baja node:22-bookworm (Debian 12, Node 22, git) del registro por su digest de amd64, verifica el sha256 de cada capa, aplica las marcas .wh. y la deja en ~/.cache/qdd/limpio. certificar.sh compila el binario de la rama, hace npm pack y monta raíz, paquete y dentro.sh en solo lectura con bubblewrap; dentro.sh corre los pasos con HOME en tmpfs y mide cada uno.
+    decisiones:
+        - 'bubblewrap sobre un Debian fijo, no Docker, microVM ni unikernel: arranca en ~25 ms contra 0,3-0,45 s de docker run, sin daemon ni RAM fija. Un unikernel corre un solo proceso sin fork y QDD lanza git, node y sh. Opción recomendada que eligió el modo goal (2026-11-19); falta que la persona la confirme.'
+        - La raíz se baja del registro sin Docker y se fija por digest, no por etiqueta, para que dos corridas usen exactamente el mismo sistema.
+        - Sin red al certificar la rama; con --version baja la versión publicada de npm y comparte la red.
+        - 'qdd init no crea el estado: el paso lo inicia con qdd estado init, como lo pide el aviso de FND-147.'
+    invariantes:
+        - Nada de esta máquina entra al ambiente salvo la raíz, el paquete, el binario y dentro.sh, todos en solo lectura; nunca HOME ni credenciales.
+        - Lo que escribe el ambiente muere con él.
+        - Una capa o un manifiesto que no coincide con su sha256 corta la preparación de la raíz.
+        - Un paquete roto no certifica (un binario que no responde a --version falla en la instalación).
+pruebas:
+    comandos:
+        - e2e/limpio/certificar.sh
+        - e2e/limpio/certificar.sh --version <versión publicada>
+ultima_revision: "2026-11-19"
+revisado_en_commit: ab795fac1bd4
