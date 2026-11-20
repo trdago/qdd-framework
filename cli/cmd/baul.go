@@ -170,7 +170,7 @@ var baulGuardarCmd = &cobra.Command{
 			salirCon("%v", err)
 		}
 		if baulTipo != "otro" {
-			if _, err := baul.VerificarValor(baulTipo, valor); errors.Is(err, baul.ErrRechazado) {
+			if _, err := baul.VerificarValor(e, valor); errors.Is(err, baul.ErrRechazado) {
 				salirCon("no se guardó: %v", err)
 			}
 		}

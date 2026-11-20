@@ -276,14 +276,44 @@ func TestVerificar_CloudflareYRechazado(t *testing.T) {
 		w.Write([]byte(`{"success":true,"result":{"id":"abc","status":"active","expires_on":"2027-01-01T00:00:00Z"}}`))
 	}))
 	defer srv.Close()
-	t.Cleanup(func(u string) func() { return func() { apis["cloudflare"] = u } }(apis["cloudflare"]))
-	apis["cloudflare"] = srv.URL
-	v, err := VerificarValor("cloudflare", secreto)
+	t.Cleanup(func(u string) func() { return func() { apiCloudflare = u } }(apiCloudflare))
+	apiCloudflare = srv.URL
+	cf := Entrada{Tipo: "cloudflare"}
+	v, err := VerificarValor(cf, secreto)
 	if err != nil || v.Vence == nil || v.Vence.Year() != 2027 || v.Alcance == "" {
 		t.Fatalf("verificado: %+v %v", v, err)
 	}
-	if _, err := VerificarValor("cloudflare", "malo"); !errors.Is(err, ErrRechazado) {
+	if _, err := VerificarValor(cf, "malo"); !errors.Is(err, ErrRechazado) {
 		t.Fatalf("un token que la API rechaza: %v", err)
+	}
+}
+
+// Un token creado en la cuenta de Cloudflare (Account API Token) se prueba en /accounts/<id>/tokens/verify: en
+// /user/tokens/verify da 401 (visto el 2026-11-20: la persona escribió el ID de cuenta y qdd lo rechazó igual).
+func TestVerificar_CloudflareTokenDeCuentaConSuID(t *testing.T) {
+	entorno(t)
+	const id = "02d7f74f9a0ecb1439218b0631cf0aaa"
+	var rutas []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rutas = append(rutas, r.URL.Path)
+		if r.URL.Path != "/accounts/"+id+"/tokens/verify" || r.Header.Get("Authorization") != "Bearer "+secreto {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Write([]byte(`{"success":true,"result":{"id":"tok","status":"active"}}`))
+	}))
+	defer srv.Close()
+	t.Cleanup(func(u string) func() { return func() { apiCloudflare = u } }(apiCloudflare))
+	apiCloudflare = srv.URL
+	if _, err := VerificarValor(Entrada{Tipo: "cloudflare", Cuenta: strings.ToUpper(id)}, secreto); err != nil {
+		t.Fatalf("token de cuenta con su ID: %v (rutas %v)", err, rutas)
+	}
+	_, err := VerificarValor(Entrada{Tipo: "cloudflare", Cuenta: "trdago"}, secreto)
+	if !errors.Is(err, ErrRechazado) || !strings.Contains(err.Error(), "ID de cuenta") {
+		t.Fatalf("sin el ID, el aviso dice que lo escriba: %v", err)
+	}
+	if strings.Contains(err.Error(), secreto) {
+		t.Fatal("el aviso repite el token")
 	}
 }
 
@@ -296,7 +326,7 @@ func TestVerificar_GithubAnotaDuenioYAlcances(t *testing.T) {
 	defer srv.Close()
 	t.Cleanup(func(u string) func() { return func() { apis["github"] = u } }(apis["github"]))
 	apis["github"] = srv.URL
-	v, err := VerificarValor("github", "gh")
+	v, err := VerificarValor(Entrada{Tipo: "github"}, "gh")
 	if err != nil || v.Duenio != "trdago" || v.Alcance != "repo, workflow" {
 		t.Fatalf("%+v %v", v, err)
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -17,13 +18,17 @@ import (
 // ErrRechazado: la API no acepta el token.
 var ErrRechazado = errors.New("la API rechazó el token")
 
-// apis: las pruebas las cambian por un servidor de prueba.
+// apis y apiCloudflare: las pruebas las cambian por un servidor de prueba.
 var apis = map[string]string{
-	"cloudflare": "https://api.cloudflare.com/client/v4/user/tokens/verify",
-	"github":     "https://api.github.com/user",
-	"supabase":   "https://api.supabase.com/v1/projects",
-	"resend":     "https://api.resend.com/domains",
+	"github":   "https://api.github.com/user",
+	"supabase": "https://api.supabase.com/v1/projects",
+	"resend":   "https://api.resend.com/domains",
 }
+
+var apiCloudflare = "https://api.cloudflare.com/client/v4"
+
+// idCuentaCloudflare: el identificador de una cuenta de Cloudflare, 32 caracteres hexadecimales.
+var idCuentaCloudflare = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 var binAWS = "aws"
 
@@ -34,15 +39,40 @@ type Verificacion struct {
 	Vence   *time.Time
 }
 
-// VerificarValor llama a la API del tipo. «otro» no se verifica.
-func VerificarValor(tipo, valor string) (Verificacion, error) {
-	if tipo == "aws-sso" {
+// VerificarValor llama a la API del tipo del acceso. «otro» no se verifica.
+func VerificarValor(e Entrada, valor string) (Verificacion, error) {
+	if e.Tipo == "aws-sso" {
 		return verificarAWS(valor)
 	}
-	url, ok := apis[tipo]
-	if !ok {
-		return Verificacion{}, fmt.Errorf("el tipo %s no se verifica", tipo)
+	if e.Tipo == "cloudflare" {
+		return verificarCloudflare(e.Cuenta, valor)
 	}
+	url, ok := apis[e.Tipo]
+	if !ok {
+		return Verificacion{}, fmt.Errorf("el tipo %s no se verifica", e.Tipo)
+	}
+	return verificarEn(e.Tipo, url, valor)
+}
+
+// verificarCloudflare: un token de la cuenta (Account API Token) solo se acepta en /accounts/<id>/tokens/verify, y
+// uno del usuario en /user/tokens/verify. Con el ID de cuenta en Cuenta se prueba primero el de la cuenta.
+func verificarCloudflare(cuenta, valor string) (Verificacion, error) {
+	id := strings.ToLower(strings.TrimSpace(cuenta))
+	if !idCuentaCloudflare.MatchString(id) {
+		v, err := verificarEn("cloudflare", apiCloudflare+"/user/tokens/verify", valor)
+		if errors.Is(err, ErrRechazado) {
+			return v, fmt.Errorf("%w: si es un token de la cuenta, escribe su ID de cuenta (32 caracteres) en Cuenta", err)
+		}
+		return v, err
+	}
+	v, err := verificarEn("cloudflare", apiCloudflare+"/accounts/"+id+"/tokens/verify", valor)
+	if !errors.Is(err, ErrRechazado) {
+		return v, err
+	}
+	return verificarEn("cloudflare", apiCloudflare+"/user/tokens/verify", valor)
+}
+
+func verificarEn(tipo, url, valor string) (Verificacion, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return Verificacion{}, err
@@ -136,7 +166,7 @@ func Verificar(nombre string, ahora time.Time) (Entrada, error) {
 	if err != nil {
 		return e, err
 	}
-	v, errV := VerificarValor(e.Tipo, valor)
+	v, errV := VerificarValor(e, valor)
 	if errV != nil && !errors.Is(errV, ErrRechazado) {
 		return e, errV
 	}

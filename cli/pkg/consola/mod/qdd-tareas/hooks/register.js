@@ -3304,11 +3304,15 @@ function sitioDe(t, sitios) {
 
 const slug = (s) => slugDeGrupo(s || '')
 
-// nombreSugerido: sitio-cuenta (o la parte del correo antes de la @), con el ambiente si no es global.
+// nombreSugerido: sitio-cuenta, con el ambiente si no es global. Si la cuenta es un ID largo (el de una cuenta de
+// Cloudflare, un UUID), o no hay, va la parte del correo antes de la @: «cloudflare-02d7f74f…» no se lee.
+const pareceId = (s) => /^[0-9a-f-]{16,}$/i.test(String(s || ''))
+
 function nombreSugerido(f) {
   const host = hostDeUrl(f.url).split('.')
   const sitio = f.tipo === 'otro' ? host[Math.max(0, host.length - 2)] : f.tipo === 'aws-sso' ? 'aws' : f.tipo
-  const quien = f.cuenta || String(f.correo || '').split('@')[0]
+  const usuario = String(f.correo || '').split('@')[0]
+  const quien = f.cuenta && !(pareceId(f.cuenta) && usuario) ? f.cuenta : usuario
   const ambiente = f.ambiente && f.ambiente !== 'global' ? f.ambiente : ''
   return [sitio, quien, ambiente].map((x) => slug(x)).filter(Boolean).join('-').slice(0, 40).replace(/-+$/, '')
 }
@@ -3510,9 +3514,12 @@ function pasosBaul() {
       id: 'cuenta',
       etiqueta: 'Cuenta',
       tipo: 'texto',
-      pregunta: (f) => '¿Cuál es tu usuario o ID de cuenta en ' + sitioDelForm(f) + '?',
-      ejemplo: 'mi-usuario',
-      ayuda: 'Con el sitio y esto se arma el nombre del acceso.',
+      pregunta: (f) => (f.tipo === 'cloudflare' ? '¿Cuál es el ID de cuenta de Cloudflare?' : '¿Cuál es tu usuario o ID de cuenta en ' + sitioDelForm(f) + '?'),
+      ejemplo: (f) => (f.tipo === 'cloudflare' ? '32 letras y números: 02d7f74f…' : 'mi-usuario'),
+      ayuda: (f) =>
+        f.tipo === 'cloudflare'
+          ? 'Son 32 caracteres: está en Account Home, en el menú «⋯» de la cuenta, o en el comando de prueba que muestra Cloudflare al crear el token. qdd prueba el token con él (un token de cuenta lo necesita).'
+          : 'Con el sitio y esto se arma el nombre del acceso.',
       valida: (v, f) => (v || f.correo || f.modo === 'modificar' ? '' : 'Falta el usuario o el correo: escribe al menos uno.'),
     },
     { id: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', pregunta: '¿Para qué es? (opcional)', ejemplo: 'DNS de los proyectos', ayuda: 'Vacío y Enter para saltarla.' },

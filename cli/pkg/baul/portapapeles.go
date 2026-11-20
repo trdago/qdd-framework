@@ -45,7 +45,7 @@ func GuardarDelPortapapeles(e Entrada, p Portapapeles, ahora time.Time) (string,
 		return aviso, err
 	}
 	if e.Tipo != "otro" && e.Tipo != "aws-sso" {
-		if _, err := VerificarValor(e.Tipo, valor); errors.Is(err, ErrRechazado) {
+		if _, err := VerificarValor(e, valor); errors.Is(err, ErrRechazado) {
 			return aviso, fmt.Errorf("no se guardó: %w", err)
 		}
 	}

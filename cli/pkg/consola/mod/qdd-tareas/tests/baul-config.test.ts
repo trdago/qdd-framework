@@ -130,7 +130,7 @@ test('agregar va de a una pregunta y Enter pasa a la siguiente: sitio, correo, c
   expect((await ui.find({ key: 'b-ir-tipo' })).props.label).toMatch(/✓ Sitio: Cloudflare/)
 
   await responder(ui, 'correo', 'yo@x.cl')
-  expect(await ui.find({ type: 'Text', text: /¿Cuál es tu usuario o ID de cuenta en Cloudflare\?/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /¿Cuál es el ID de cuenta de Cloudflare\?/ })).toBeDefined()
   await responder(ui, 'cuenta', 'trdago')
   expect(await ui.find({ type: 'Text', text: /¿Para qué es\?/ })).toBeDefined()
   await responder(ui, 'descripcion', '')
@@ -160,6 +160,22 @@ test('al abrir el asistente y tras cada Enter el panel pide las teclas para la p
   expect(r.aperturas.filter((e) => e.focus).length).toBeGreaterThan(antes)
 })
 
+// La persona (2026-11-20) escribió en Cuenta el ID de cuenta de Cloudflare asociado a su token: el nombre salía
+// «cloudflare-02d7f74f9a0ecb1439218b0631cf0», ilegible. Un ID largo no sirve de nombre: va la parte del correo.
+test('con un ID de cuenta largo el nombre sale del correo, y en Cloudflare la pregunta pide el ID de cuenta', async ($, on) => {
+  const r = nuevo([])
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-agregar' })
+  await ui.select({ key: 'b-tipo', value: 'cloudflare' })
+  await responder(ui, 'correo', 'chilefplay@gmail.com')
+  expect(await ui.find({ type: 'Text', text: /¿Cuál es el ID de cuenta de Cloudflare\?/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /32 caracteres/ })).toBeDefined()
+  await responder(ui, 'cuenta', '02d7f74f9a0ecb1439218b0631cf0aaa')
+  await responder(ui, 'descripcion', '')
+  await ui.select({ key: 'b-ambiente', value: 'global' })
+  expect(await ui.find({ type: 'Text', text: /«cloudflare-chilefplay»/ })).toBeDefined()
+})
+
 test('Enter con un dato que no vale se queda en la pregunta y dice por qué', async ($, on) => {
   const r = nuevo([])
   const ui = await abrirConfig($, on, r)
@@ -187,6 +203,7 @@ test('otro sitio pide su URL y el nombre sale de su dominio, con el ambiente si 
   await responder(ui, 'url', 'https://app.sendgrid.com/settings')
   expect(await ui.find({ type: 'Text', text: /¿Con qué correo entras a app\.sendgrid\.com\?/ })).toBeDefined()
   await responder(ui, 'correo', '')
+  expect(await ui.find({ type: 'Text', text: /¿Cuál es tu usuario o ID de cuenta en app\.sendgrid\.com\?/ })).toBeDefined()
   await responder(ui, 'cuenta', 'ventas')
   await responder(ui, 'descripcion', 'envíos del sitio')
   await ui.select({ key: 'b-ambiente', value: 'prod' })
