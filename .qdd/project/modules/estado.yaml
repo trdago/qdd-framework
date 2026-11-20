@@ -58,6 +58,7 @@ objetivo_tecnologico:
         - 'Una versión nueva de qdd se ofrece como pedido opcional del canal instalado, igual que un PR: qdd pregunta a npm cada hora, aparte; lo que dice el registro solo se acepta con forma de versión, porque termina dentro de un comando. En Windows es un aviso sin botón mientras npm no pueda reemplazar qdd.exe en uso (issue #107).'
         - 'El panel dibuja tres niveles (títulos en negrita, texto y detalle atenuado) con los colores de la marca de QDD Móvil, en la tabla COLOR del mod: ámbar para lo que espera, azul para lo que corre, verde y rojo para lo que terminó. El texto normal queda en el color de la terminal, porque un mod no puede leer si el tema es claro. Una tarea ocupa una fila y los botones de la cabecera van en su propia fila.'
         - 'Comandos para la persona (RFC 0006 §3.9): la IA deja un comando con qdd_consola_pedir o qdd consola pedir; la cola vive en <QDD_HOME>/claude/pedidos (una por proyecto, no se versiona, tope 9, sin duplicados) y el panel la muestra en «▶ Para ti», con teclas a, b, d… que da qdd. Vale cualquier comando: corre con la shell del sistema en su carpeta.'
+        - 'Un pedido corre con la sesión que lo pidió (FND-242): el comando recibe CLAUDE_CODE_SESSION_ID de Pidio o, si no hay, de la sesión que lo confirmó. Corre aparte, fuera de Claude Code, y sin ella lo que pide permiso (el baúl) no tenía a quién preguntarle.'
         - 'Estados de un pedido (qdd 2.6.2): pendiente → ejecutando → hecho o fallo. Cada pedido guarda su tecla desde que se pide; ejecutando y hecho se ven en gris y sin botón, con falla se ve en rojo con «↻ Reintentar». Un hecho se sigue viendo 30 min; uno ejecutándose más de 15 min se da por cortado (fallo). La cola se cambia con un archivo de bloqueo.'
         - 'Límites de Claude (FND-130): limites.json no retrocede. En la misma ventana lo usado solo sube, una ventana más nueva manda y una que ya pasó no se guarda, porque cada barra escribe lo último que supo su sesión.'
         - 'En Linux un pedido corre en su propio scope (systemd-run --user --scope, FND-129): Setsid no lo saca del cgroup, y lanzado desde una unidad de systemd moriría al detenerse. Sin systemd de usuario se lanza como antes.'
@@ -197,5 +198,5 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
-ultima_revision: "2026-11-15"
-revisado_en_commit: aff1a056dd37
+ultima_revision: "2026-11-20"
+revisado_en_commit: 7eb2b29796f4
