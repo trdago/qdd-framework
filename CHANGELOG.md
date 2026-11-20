@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.99] - 2026-11-20
+
+### Changed
+- **Agregar un acceso al baúl pregunta lo que sabes de él** (pedido de la persona: «qdd es muy engorroso … que me preguntara siempre el correo … sitio seleccionable y si es otro que me pida la url, usuario o id de cuenta, pass o token, descripción opcional»). Config pide Correo, Sitio (Cloudflare, GitHub, Supabase, Resend, AWS u «Otro sitio…» con su URL), Usuario o ID de cuenta, Descripción y Ambiente, y al final «📋 Pegar token y guardar». El nombre se arma solo (`cloudflare-trdago`); Nombre, Dónde, Vence el y la variable quedan en «Más opciones». La dirección de cinco partes ya no se pide.
+- Agregar nunca reemplaza otro acceso con el mismo nombre (`guardar --nuevo`).
+- Modificar tiene «Guardar cambios», que no pide el token, y «📋 Pegar token nuevo».
+
+### Added
+- `qdd baul editar <nombre>`: cambia correo, URL, cuenta, descripción, ambiente o vencimiento sin pedir el valor.
+- `--vence AAAA-MM-DD` en guardar y editar: el vencimiento que declara la persona cuando la API no lo informa (CXF `expiryDate`, OWASP, NIST SP 800-57). Doctor avisa dos semanas antes; la fecha de la API manda.
+- Verificar avisa si la API dice que el token es de otro correo que el escrito.
+
 ## [2.10.0-rc.98] - 2026-11-20
 
 ### Added
