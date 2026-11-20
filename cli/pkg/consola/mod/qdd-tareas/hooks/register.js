@@ -9,6 +9,8 @@
 // Sin qdd, con un qdd antiguo o sin .qdd/project/estado.yaml, el panel dice cómo crearlo y el resto de la consola
 // sigue igual. QDD_BIN apunta a otro binario de qdd (p. ej. uno de prueba).
 
+import * as asistente from './asistente.js'
+
 const PANE = 'qdd-tareas'
 const TITULO = 'Tareas'
 const INTERVALO_MS = 2000
@@ -3363,12 +3365,17 @@ async function guardarCambios($) {
 }
 
 function formAgregar() {
-  return { modo: 'agregar', correo: '', tipo: 'cloudflare', url: '', cuenta: '', descripcion: '', ambiente: 'global', vence: '', nombre: '', nombreEditado: false, en: 'llavero', variable: '', mas: false }
+  return { modo: 'agregar', paso: 'tipo', vistos: [], aviso: '', correo: '', tipo: 'cloudflare', url: '', cuenta: '', descripcion: '', ambiente: 'global', vence: '', nombre: '', nombreEditado: false, en: 'llavero', variable: '', mas: false }
 }
 
+// formModificar abre en el resumen: todo respondido, y un clic en una respuesta vuelve a su pregunta. La URL cuenta
+// como respondida solo en uno «otro»: si cambia a otro sitio, el asistente la pide.
 function formModificar(t) {
   return {
     modo: 'modificar',
+    paso: 'fin',
+    vistos: ['tipo', ...(t.tipo === 'otro' ? ['url'] : []), 'correo', 'cuenta', 'descripcion', 'ambiente'],
+    aviso: '',
     original: t.nombre,
     nombre: t.nombre,
     nombreEditado: false,
@@ -3395,11 +3402,12 @@ function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
     ...(b.ocupado ? [Text({ key: 'b-ocupado', color: COLOR.enCurso, children: ['⟳ qdd está en eso…'] })] : []),
     ...(b.hecho ? [Text({ key: 'b-hecho', color: COLOR.bien, wrap: 'wrap', children: [b.hecho] })] : []),
     ...(b.aviso ? [Text({ key: 'b-aviso', color: COLOR.falla, wrap: 'wrap', children: [b.aviso] })] : []),
+    ...(b.pista ? [Text({ key: 'b-pista-foco', color: COLOR.espera, wrap: 'wrap', children: [b.pista] })] : []),
   ]
-  if (b.form) return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...formularioBaul($, Box, Text, Button, Input, Select, b)] })]
+  if (b.form) return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...formularioBaul($, { Box, Text, Button, Input, Select }, b)] })]
   const filas = b.lista.tokens.map((t) => (b.quitando === t.nombre ? confirmarQuitarToken($, Box, Text, Button, t) : filaToken($, Box, Text, Button, t, b.lista.sitios)))
   const vacio = Text({ key: 'b-vacio', dimColor: true, wrap: 'wrap', children: ['El baúl está vacío. Guarda aquí los tokens y contraseñas que usa la IA (Cloudflare, GitHub, Supabase…): nunca los pegues en el chat.'] })
-  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar acceso', variant: 'primary', onPress: () => cambiarBaul($, { form: formAgregar(), aviso: '', hecho: '' }) })] })
+  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar acceso', variant: 'primary', onPress: () => abrirFormBaul($, formAgregar()) })] })
   return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...(filas.length ? filas : [vacio]), agregar] })]
 }
 
@@ -3433,7 +3441,7 @@ function filaToken($, Box, Text, Button, t, sitios) {
         columnGap: 2,
         children: [
           Button({ key: 'b-verificar-' + t.nombre, label: 'Verificar', plain: true, dimColor: true, onPress: () => correrBaul($, ['verificar', t.nombre]) }),
-          Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: () => cambiarBaul($, { form: formModificar(t), aviso: '', hecho: '' }) }),
+          Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: () => abrirFormBaul($, formModificar(t)) }),
           Button({ key: 'b-quitar-' + t.nombre, label: 'Quitar', plain: true, onPress: () => cambiarBaul($, { quitando: t.nombre, aviso: '', hecho: '' }) }),
         ],
       }),
@@ -3464,52 +3472,147 @@ function confirmarQuitarToken($, Box, Text, Button, t) {
   })
 }
 
-function formularioBaul($, Box, Text, Button, Input, Select, b) {
-  const f = b.form
-  const poner = (campo) => (v) => {
-    baulDeConfig.form = { ...baulDeConfig.form, [campo]: v, ...(campo === 'nombre' ? { nombreEditado: true } : {}) }
-    $.ui.invalidate('ui.render')
-  }
-  const texto = (campo, label, placeholder) => Input({ key: 'b-' + campo, label, placeholder, value: f[campo] || '', submitLabel: 'listo', onInput: poner(campo), onSubmit: poner(campo) })
-  const sitios = [...b.lista.sitios.map((s) => ({ value: s.tipo, label: s.etiqueta })), { value: 'otro', label: 'Otro sitio…' }]
-  const nombre = nombreDelForm(f)
-  const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un acceso' : 'Modificar «' + f.original + '»'] })
-  const campos = [
-    texto('correo', 'Correo', 'el de la cuenta: yo@empresa.cl (vacío si no tiene)'),
-    Select({ key: 'b-sitio', label: 'Sitio', options: sitios, value: f.tipo, onSelect: poner('tipo') }),
-    ...(f.tipo === 'otro' ? [texto('url', 'URL', 'la dirección del sitio: app.sendgrid.com')] : []),
-    texto('cuenta', 'Usuario o ID de cuenta', 'trdago, el id de la cuenta o el usuario de la base'),
-    texto('descripcion', 'Descripción', 'opcional: para qué es (DNS de los proyectos, envíos…)'),
-    Select({ key: 'b-ambiente', label: 'Ambiente', options: b.lista.ambientes.map((a) => ({ value: a, label: a })), value: f.ambiente || 'global', onSelect: poner('ambiente') }),
+// Las preguntas de agregar, en el orden que pidió la persona (2026-11-20): el sitio primero, porque las demás lo nombran.
+const CORREO_BAUL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+const sitioDelForm = (f) => (f.tipo === 'otro' ? hostDeUrl(f.url) || 'el sitio' : sitioDe(f, baulDeConfig.lista?.sitios || SITIOS_BAUL))
+
+function pasosBaul() {
+  const sitios = baulDeConfig.lista?.sitios || SITIOS_BAUL
+  const ambientes = baulDeConfig.lista?.ambientes || AMBIENTES_BAUL
+  return [
+    {
+      id: 'tipo',
+      etiqueta: 'Sitio',
+      tipo: 'opciones',
+      pregunta: '¿De qué sitio es el acceso?',
+      opciones: () => [...sitios.map((s) => ({ value: s.tipo, label: s.etiqueta })), { value: 'otro', label: 'Otro sitio…' }],
+      ayuda: 'Si no está en la lista, elige «Otro sitio…» y te pide su dirección.',
+    },
+    {
+      id: 'url',
+      etiqueta: 'URL',
+      tipo: 'texto',
+      visible: (f) => f.tipo === 'otro',
+      pregunta: '¿Cuál es la dirección del sitio?',
+      ejemplo: 'app.sendgrid.com',
+      valida: (v) => (hostDeUrl(v) ? '' : 'Falta la dirección del sitio: escribe su dominio, como app.sendgrid.com.'),
+    },
+    {
+      id: 'correo',
+      etiqueta: 'Correo',
+      tipo: 'texto',
+      pregunta: (f) => '¿Con qué correo entras a ' + sitioDelForm(f) + '?',
+      ejemplo: 'yo@empresa.cl',
+      ayuda: 'Si la cuenta no tiene correo, déjalo vacío y presiona Enter.',
+      valida: (v) => (!v || CORREO_BAUL.test(v) ? '' : '«' + v + '» no parece un correo: revísalo o déjalo vacío.'),
+    },
+    {
+      id: 'cuenta',
+      etiqueta: 'Cuenta',
+      tipo: 'texto',
+      pregunta: (f) => '¿Cuál es tu usuario o ID de cuenta en ' + sitioDelForm(f) + '?',
+      ejemplo: 'mi-usuario',
+      ayuda: 'Con el sitio y esto se arma el nombre del acceso.',
+      valida: (v, f) => (v || f.correo || f.modo === 'modificar' ? '' : 'Falta el usuario o el correo: escribe al menos uno.'),
+    },
+    { id: 'descripcion', etiqueta: 'Descripción', tipo: 'texto', pregunta: '¿Para qué es? (opcional)', ejemplo: 'DNS de los proyectos', ayuda: 'Vacío y Enter para saltarla.' },
+    { id: 'ambiente', etiqueta: 'Ambiente', tipo: 'opciones', pregunta: '¿En qué ambiente se usa?', opciones: () => ambientes.map((a) => ({ value: a, label: a === 'global' ? 'global (todos)' : a })) },
+    // Más opciones: fuera del recorrido, se abren con un clic desde el final.
+    {
+      id: 'nombre',
+      etiqueta: 'Nombre',
+      tipo: 'texto',
+      aparte: true,
+      valor: nombreDelForm,
+      pregunta: '¿Con qué nombre lo guardo?',
+      ejemplo: 'cloudflare-dns',
+      ayuda: 'Minúsculas, números, - y _. Es el que usa la IA para pedirlo.',
+      valida: (v) => (NOMBRE_BAUL.test(v) ? '' : '«' + v + '» no vale: usa minúsculas, números, - y _ (hasta 40).'),
+    },
+    { id: 'en', etiqueta: 'Dónde', tipo: 'opciones', aparte: true, pregunta: '¿Dónde se guarda el valor?', opciones: () => LUGARES_BAUL },
+    {
+      id: 'vence',
+      etiqueta: 'Vence el',
+      tipo: 'texto',
+      aparte: true,
+      pregunta: '¿Cuándo vence? (opcional)',
+      ejemplo: 'AAAA-MM-DD',
+      ayuda: 'Si el sitio no lo informa: qdd doctor te avisa dos semanas antes. Vacío y Enter lo borra.',
+      valida: (v) => (!v || /^\d{4}-\d{2}-\d{2}$/.test(v) ? '' : 'La fecha va como AAAA-MM-DD (2027-01-31).'),
+    },
+    { id: 'variable', etiqueta: 'Variable', tipo: 'texto', aparte: true, visible: (f) => f.tipo === 'otro', pregunta: '¿En qué variable de entorno va?', ejemplo: 'SENDGRID_TOKEN', ayuda: 'Vacío: sale del sitio.' },
+    { id: 'fin', tipo: 'fin' },
   ]
-  const mas = f.mas
-    ? [
-        Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'minúsculas, números, - y _', value: nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') }),
-        Select({ key: 'b-en', label: 'Dónde', options: LUGARES_BAUL, value: f.en, onSelect: poner('en') }),
-        texto('vence', 'Vence el', 'AAAA-MM-DD, si el sitio no lo informa: doctor te avisa dos semanas antes'),
-        ...(f.tipo === 'otro' ? [texto('variable', 'Variable', 'la de entorno donde va: SENDGRID_TOKEN (sin ella, sale del sitio)')] : []),
-      ]
-    : [Text({ key: 'b-nombre-auto', color: COLOR.secundario, wrap: 'wrap', children: ['Se guarda como «' + (nombre || '…') + '» en el ' + (f.en === '1password' ? '1Password' : 'llavero del sistema') + '.'] })]
-  const masOpciones = Button({ key: 'b-mas', label: f.mas ? 'Menos opciones' : 'Más opciones', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: { ...f, mas: !f.mas } }) })
-  const cancelar = Button({ key: 'b-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: null, aviso: '' }) })
+}
+
+// avanzarBaul deja el asistente en su nuevo paso y le da las teclas a ese campo: sin eso, tras Enter lo que se escribe
+// se iría al chat.
+function avanzarBaul($, form) {
+  const antes = baulDeConfig.form?.paso
+  cambiarBaul($, { form, pista: '' })
+  if (form.paso === antes) return
+  enfocarBaul($, claveDelPaso(form))
+}
+
+// abrirFormBaul: el botón que se pulsó desaparece, así que sin esto Enter no le llega a la primera pregunta.
+function abrirFormBaul($, form) {
+  cambiarBaul($, { form, aviso: '', hecho: '', pista: '' })
+  enfocarBaul($, claveDelPaso(form))
+}
+
+function claveDelPaso(form) {
+  if (form.paso !== 'fin') return 'b-' + form.paso
+  if (!baulDeConfig.lista.portapapeles) return 'b-mas'
+  return form.modo === 'agregar' ? 'b-pegar' : 'b-guardar'
+}
+
+async function enfocarBaul($, key) {
+  const s = { pista: '' }
+  await enfocarCampo($, PANE, s, key)
+  if (s.pista) cambiarBaul($, { pista: s.pista })
+}
+
+function formularioBaul($, c, b) {
+  const pasos = pasosBaul()
+  const f = b.form
+  return asistente.dibujar(c, f, pasos, {
+    prefijo: 'b-',
+    titulo: f.modo === 'agregar' ? 'Agregar un acceso' : 'Modificar «' + f.original + '»',
+    conAvance: f.modo === 'agregar',
+    colores: { titulo: COLOR.texto, pregunta: COLOR.texto, secundario: COLOR.secundario, falla: COLOR.falla },
+    fin: finBaul($, c, b),
+    onCambio: (id, v) => cambiarBaul($, { form: { ...baulDeConfig.form, [id]: v } }),
+    onResponder: (id, v) => avanzarBaul($, asistente.responder(pasos, { ...baulDeConfig.form, ...(id === 'nombre' ? { nombreEditado: true } : {}) }, id, v)),
+    onIr: (id) => avanzarBaul($, asistente.irA(baulDeConfig.form, id)),
+    onAtras: () => avanzarBaul($, asistente.atras(pasos, baulDeConfig.form)),
+    onCancelar: () => cambiarBaul($, { form: null, aviso: '', pista: '' }),
+  })
+}
+
+// finBaul: el último paso. Dice con qué nombre y dónde queda, y cómo entra el token (por el portapapeles: nunca se
+// escribe aquí). Más opciones muestra lo que casi nunca se cambia como filas que abren su pregunta.
+function finBaul($, c, b) {
+  const { Box, Text, Button } = c
+  const f = b.form
+  const nombre = nombreDelForm(f)
+  const donde = f.en === '1password' ? '1Password' : 'llavero del sistema'
+  const queda = Text({ key: 'b-nombre-auto', color: COLOR.secundario, wrap: 'wrap', children: [(f.modo === 'agregar' ? 'Se guarda como «' : 'Queda como «') + (nombre || '…') + '» en el ' + donde + '.'] })
+  const mas = f.mas ? [asistente.filasAparte(c, f, pasosBaul(), { prefijo: 'b-', onIr: (id) => avanzarBaul($, asistente.irA(baulDeConfig.form, id)) })] : []
+  const masOpciones = Button({ key: 'b-mas', label: f.mas ? 'Menos opciones' : 'Más opciones (nombre, dónde, vence)', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: { ...f, mas: !f.mas } }) })
   const guardar = f.modo === 'modificar' ? [Button({ key: 'b-guardar', label: 'Guardar cambios', variant: 'primary', onPress: () => guardarCambios($) })] : []
+  const acciones = (botones) => Box({ key: 'b-acciones', flexDirection: 'column', rowGap: 1, children: [...botones, masOpciones, ...mas] })
   if (!b.lista.portapapeles) {
     const comando = 'qdd baul guardar ' + (nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en) + ' ' + datosSinVacios(f).map((v) => (/\s/.test(v) ? '"' + v + '"' : v)).join(' ')
-    return [encabezado, ...campos, ...mas, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando.trim()] }), Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [...guardar, masOpciones, cancelar] })]
+    return [queda, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando.trim()] }), acciones(guardar)]
   }
-  const secreto = f.tipo === 'aws-sso' ? 'el nombre del perfil de aws sso' : 'el token o la contraseña'
+  const secreto = f.tipo === 'aws-sso' ? 'el nombre del perfil de aws sso' : 'el token o la contraseña de ' + sitioDelForm(f)
   const estilo = f.modo === 'agregar' ? { variant: 'primary' } : { plain: true }
   const pegar = Button({ key: 'b-pegar', label: f.modo === 'agregar' ? '📋 Pegar token y guardar' : '📋 Pegar token nuevo', ...estilo, onPress: () => pegarDelPortapapeles($) })
-  const pista = f.modo === 'agregar'
-    ? 'Por último, copia ' + secreto + ' y presiona «📋 Pegar token y guardar»: qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda. Nunca se ve aquí ni pasa por el chat.'
-    : '«Guardar cambios» no pide el token. Para cambiarlo, copia ' + secreto + ' nuevo y presiona «📋 Pegar token nuevo».'
-  return [
-    encabezado,
-    ...campos,
-    ...mas,
-    Text({ key: 'b-pista', color: COLOR.secundario, wrap: 'wrap', children: [pista] }),
-    Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [...guardar, pegar, masOpciones, cancelar] }),
-  ]
+  const pista =
+    f.modo === 'agregar'
+      ? 'Copia ' + secreto + ' y presiona «📋 Pegar token y guardar». qdd lo lee, vacía el portapapeles, lo prueba y lo guarda: nunca se ve aquí ni pasa por el chat.'
+      : '«Guardar cambios» no pide el token. Para cambiarlo, copia ' + secreto + ' nuevo y presiona «📋 Pegar token nuevo».'
+  return [queda, Text({ key: 'b-pista', color: COLOR.texto, wrap: 'wrap', children: [pista] }), acciones([...guardar, pegar])]
 }
 
 // COMANDO_QDD: qdd en posición de comando (al inicio o tras ; & | ( ` o un salto de línea), con asignaciones VAR=…
