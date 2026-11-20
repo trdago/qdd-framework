@@ -6,7 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.97] - 2026-11-20
+
 ### Agregado
+
+- **`qdd_project_context` liviano (MEJ-073, FND-240):** cada decisión de una ficha sale en una línea y, con rutas, el
+  mapa de módulos en una sola línea; invariantes, criterio de éxito, arquitectura y pruebas siguen enteros. En qdd,
+  una carpeta bajó de 50.537 a 20.940 caracteres. `detalle=completo` (o `qdd modules context --completo`) trae todo,
+  y una ficha con más de 25 decisiones pide dividirse. El ambiente limpio certifica en cada PR que `tools/list` y
+  `project_context` caben en su presupuesto.
 
 - **Certificar QDD desde cero (`e2e/limpio/certificar.sh`):** cada PR instala el paquete de su rama en un Debian 12
   fijo por digest, aislado con bubblewrap, sin red ni nada de esta máquina, y lo usa como una persona nueva: init,
