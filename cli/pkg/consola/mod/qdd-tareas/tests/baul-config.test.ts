@@ -103,6 +103,26 @@ test('Config lista los accesos con sitio, cuenta y correo, nunca un valor, y mar
   expect(await ui.find({ key: 'b-agregar' })).toBeDefined()
 })
 
+// Lo que se vio al guardar el token de Cloudflare (2026-11-20): «1 accesos», el ID de cuenta largo tapando el correo
+// en la fila, y el resultado de qdd en una sola línea con « · [✓]» en medio.
+test('un acceso se cuenta en singular y un ID de cuenta largo se acorta para que se vea el correo', async ($, on) => {
+  const CF2 = { ...CF, nombre: 'cloudflare-chilefplay', cuenta: '02d7f74f9a0ecb1439218b0631cf0aaa', correo: 'chilefplay@gmail.com', descripcion: '' }
+  const r = nuevo([CF2])
+  const ui = await abrirConfig($, on, r)
+  expect(await ui.find({ type: 'Text', text: '1 acceso' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Cloudflare · 02d7f74f… · chilefplay@gmail\.com · llavero/ })).toBeDefined()
+})
+
+test('lo que responde qdd va una línea debajo de otra', async ($, on) => {
+  const r = nuevo([])
+  r.respuestas.guardar = ok('[✓] cloudflare-trdago quedó en el llavero.\n[✓] cloudflare-trdago: la API lo acepta · token active\n')
+  const ui = await abrirConfig($, on, r)
+  await hastaElFinal(ui, 'yo@x.cl', 'trdago')
+  await ui.press({ key: 'b-pegar' })
+  await esperar()
+  expect(await ui.find({ type: 'Text', text: /quedó en el llavero\.\n\[✓\] cloudflare-trdago: la API lo acepta/ })).toBeDefined()
+})
+
 test('el baúl va primero en Config, antes que las herramientas', async ($, on) => {
   const r = nuevo()
   const ui = await abrirConfig($, on, r)
@@ -320,6 +340,17 @@ test('modificar abre el resumen con todo respondido; cambiar un dato y «Guardar
   await esperar()
   expect(guardados(r)).toEqual([['qdd', 'baul', 'editar', 'cloudflare-trdago', '--correo', 'otra@x.cl', '--cuenta', 'trdago', '--descripcion', '', '--ambiente', 'global', '--vence', '']])
   expect(await ui.find({ key: 'b-guardar' })).toBeUndefined()
+})
+
+test('modificar: en el resumen no hay Atrás, y desde una pregunta Atrás vuelve al resumen', async ($, on) => {
+  const r = nuevo()
+  const ui = await abrirConfig($, on, r)
+  await ui.press({ key: 'b-modificar-cloudflare-trdago' })
+  expect(await visible(ui, 'b-atras')).toBe(false)
+  expect(await ui.find({ type: 'Text', text: /copia el nuevo token o contraseña de Cloudflare/ })).toBeDefined()
+  await ui.press({ key: 'b-ir-cuenta' })
+  await ui.press({ key: 'b-atras' })
+  expect(await visible(ui, 'b-guardar')).toBe(true)
 })
 
 test('modificar: cambiar el nombre lo renombra y después guarda los datos', async ($, on) => {

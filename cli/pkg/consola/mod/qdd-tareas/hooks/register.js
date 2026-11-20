@@ -3277,8 +3277,8 @@ async function correrBaul($, argv, despues = {}) {
   try {
     const r = await $.process.run([bin, 'baul', ...argv], { timeoutMs: TOPE_ACCION_MS })
     const lineas = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').filter(Boolean)
-    hecho = r.exitCode === 0 ? lineas.join(' · ') || '✓ listo' : ''
-    aviso = r.exitCode === 0 ? '' : lineas.join(' · ') || 'qdd baul salió con ' + r.exitCode
+    hecho = r.exitCode === 0 ? lineas.join('\n') || '✓ listo' : ''
+    aviso = r.exitCode === 0 ? '' : lineas.join('\n') || 'qdd baul salió con ' + r.exitCode
   } catch (err) {
     aviso = String(err?.message ?? err)
   }
@@ -3400,7 +3400,7 @@ function formModificar(t) {
 
 function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
   const b = baulDeConfig
-  const titulo = separador(Box, Text, 't-baul', '🔑 Baúl de accesos', undefined, b.lista ? b.lista.tokens.length + ' accesos' : '', ancho)
+  const titulo = separador(Box, Text, 't-baul', '🔑 Baúl de accesos', undefined, b.lista ? b.lista.tokens.length + (b.lista.tokens.length === 1 ? ' acceso' : ' accesos') : '', ancho)
   if (!b.lista) return [titulo, Text({ key: 'b-falla', color: COLOR.espera, wrap: 'wrap', children: [b.falla || 'Leyendo el baúl…'] })]
   const resultado = [
     ...(b.ocupado ? [Text({ key: 'b-ocupado', color: COLOR.enCurso, children: ['⟳ qdd está en eso…'] })] : []),
@@ -3420,35 +3420,38 @@ const fechaCorta = (iso) => (iso ? String(iso).slice(0, 10) : '')
 function detalleDeToken(t, sitios) {
   const ambiente = t.ambiente && t.ambiente !== 'global' ? t.ambiente : ''
   const vence = t.vence || t.vence_declarado
-  const partes = [sitioDe(t, sitios), t.cuenta, t.correo, ambiente, t.descripcion, t.direccion, t.donde, vence ? 'vence ' + fechaCorta(vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
+  const partes = [sitioDe(t, sitios), pareceId(t.cuenta) ? String(t.cuenta).slice(0, 8) + '…' : t.cuenta, t.correo, ambiente, t.descripcion, t.direccion, t.donde, vence ? 'vence ' + fechaCorta(vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
   return partes.filter(Boolean).join(' · ')
 }
 
+// filaToken: el nombre con sus botones, y los datos en la línea de abajo, a todo el ancho (al lado de los botones el
+// correo se cortaba, 2026-11-20).
 function filaToken($, Box, Text, Button, t, sitios) {
+  const color = t.rechazado ? COLOR.falla : COLOR.secundario
+  const detalle = t.rechazado ? 'RECHAZADO por su API: modifícalo con un token vigente · ' + sitioDe(t, sitios) : detalleDeToken(t, sitios)
   return Box({
     key: 'b-fila-' + t.nombre,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    columnGap: 2,
+    flexDirection: 'column',
     children: [
       Box({
-        flexDirection: 'column',
-        flexShrink: 1,
-        children: [
-          Text({ key: 'b-n-' + t.nombre, weight: 'bold', color: t.rechazado ? COLOR.falla : COLOR.texto, wrap: 'truncate-end', children: [t.nombre] }),
-          Text({ key: 'b-d-' + t.nombre, color: t.rechazado ? COLOR.falla : COLOR.secundario, size: 'caption', wrap: 'truncate-end', children: [t.rechazado ? 'RECHAZADO por su API: modifícalo con un token vigente · ' + sitioDe(t, sitios) : detalleDeToken(t, sitios)] }),
-        ],
-      }),
-      Box({
         flexDirection: 'row',
-        flexShrink: 0,
+        justifyContent: 'space-between',
         columnGap: 2,
         children: [
-          Button({ key: 'b-verificar-' + t.nombre, label: 'Verificar', plain: true, dimColor: true, onPress: () => correrBaul($, ['verificar', t.nombre]) }),
-          Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: () => abrirFormBaul($, formModificar(t)) }),
-          Button({ key: 'b-quitar-' + t.nombre, label: 'Quitar', plain: true, onPress: () => cambiarBaul($, { quitando: t.nombre, aviso: '', hecho: '' }) }),
+          Text({ key: 'b-n-' + t.nombre, weight: 'bold', color: t.rechazado ? COLOR.falla : COLOR.texto, wrap: 'truncate-end', children: [t.nombre] }),
+          Box({
+            flexDirection: 'row',
+            flexShrink: 0,
+            columnGap: 2,
+            children: [
+              Button({ key: 'b-verificar-' + t.nombre, label: 'Verificar', plain: true, dimColor: true, onPress: () => correrBaul($, ['verificar', t.nombre]) }),
+              Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: () => abrirFormBaul($, formModificar(t)) }),
+              Button({ key: 'b-quitar-' + t.nombre, label: 'Quitar', plain: true, onPress: () => cambiarBaul($, { quitando: t.nombre, aviso: '', hecho: '' }) }),
+            ],
+          }),
         ],
       }),
+      Text({ key: 'b-d-' + t.nombre, color, size: 'caption', wrap: 'wrap', children: [detalle] }),
     ],
   })
 }
@@ -3586,12 +3589,13 @@ function formularioBaul($, c, b) {
     prefijo: 'b-',
     titulo: f.modo === 'agregar' ? 'Agregar un acceso' : 'Modificar «' + f.original + '»',
     conAvance: f.modo === 'agregar',
+    volverAlFin: f.modo === 'modificar',
     colores: { titulo: COLOR.texto, pregunta: COLOR.texto, secundario: COLOR.secundario, falla: COLOR.falla },
     fin: finBaul($, c, b),
     onCambio: (id, v) => cambiarBaul($, { form: { ...baulDeConfig.form, [id]: v } }),
     onResponder: (id, v) => avanzarBaul($, asistente.responder(pasos, { ...baulDeConfig.form, ...(id === 'nombre' ? { nombreEditado: true } : {}) }, id, v)),
     onIr: (id) => avanzarBaul($, asistente.irA(baulDeConfig.form, id)),
-    onAtras: () => avanzarBaul($, asistente.atras(pasos, baulDeConfig.form)),
+    onAtras: () => avanzarBaul($, f.modo === 'modificar' ? asistente.irA(baulDeConfig.form, 'fin') : asistente.atras(pasos, baulDeConfig.form)),
     onCancelar: () => cambiarBaul($, { form: null, aviso: '', pista: '' }),
   })
 }
@@ -3613,12 +3617,13 @@ function finBaul($, c, b) {
     return [queda, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando.trim()] }), acciones(guardar)]
   }
   const secreto = f.tipo === 'aws-sso' ? 'el nombre del perfil de aws sso' : 'el token o la contraseña de ' + sitioDelForm(f)
+  const nuevoSecreto = f.tipo === 'aws-sso' ? 'el nombre del perfil de aws sso' : 'el nuevo token o contraseña de ' + sitioDelForm(f)
   const estilo = f.modo === 'agregar' ? { variant: 'primary' } : { plain: true }
   const pegar = Button({ key: 'b-pegar', label: f.modo === 'agregar' ? '📋 Pegar token y guardar' : '📋 Pegar token nuevo', ...estilo, onPress: () => pegarDelPortapapeles($) })
   const pista =
     f.modo === 'agregar'
       ? 'Copia ' + secreto + ' y presiona «📋 Pegar token y guardar». qdd lo lee, vacía el portapapeles, lo prueba y lo guarda: nunca se ve aquí ni pasa por el chat.'
-      : '«Guardar cambios» no pide el token. Para cambiarlo, copia ' + secreto + ' nuevo y presiona «📋 Pegar token nuevo».'
+      : '«Guardar cambios» no pide el token. Para cambiarlo, copia ' + nuevoSecreto + ' y presiona «📋 Pegar token nuevo».'
   return [queda, Text({ key: 'b-pista', color: COLOR.texto, wrap: 'wrap', children: [pista] }), acciones([...guardar, pegar])]
 }
 

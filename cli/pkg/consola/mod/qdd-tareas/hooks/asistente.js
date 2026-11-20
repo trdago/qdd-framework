@@ -72,7 +72,7 @@ export function filasAparte({ Box, Button }, s, pasos, a) {
 }
 
 // dibujar: el título con el avance, lo ya respondido, la pregunta a la vista (o el fin) y Atrás / Cancelar.
-// a = { prefijo, titulo, conAvance, colores: { titulo, pregunta, secundario, falla }, fin: [elementos],
+// a = { prefijo, titulo, conAvance, volverAlFin (el fin es el inicio, como al modificar: ahí no hay Atrás), colores: { titulo, pregunta, secundario, falla }, fin: [elementos],
 //       onCambio(id, v), onResponder(id, v), onIr(id), onAtras(), onCancelar() }
 export function dibujar(c, s, pasos, a) {
   const { Box, Text, Button, Input, Select } = c
@@ -84,7 +84,7 @@ export function dibujar(c, s, pasos, a) {
   const filas = hechos.map((p) => Button({ key: a.prefijo + 'ir-' + p.id, label: corto('✓ ' + p.etiqueta + ': ' + resumen(p, s)), plain: true, onPress: () => a.onIr(p.id) }))
   const cuerpo = paso.tipo === 'fin' ? a.fin : preguntaDe(c, s, paso, a, i === lista.length - 2 || paso.aparte)
   const botones = [
-    ...(i !== 0 ? [Button({ key: a.prefijo + 'atras', label: '← Atrás', plain: true, dimColor: true, onPress: a.onAtras })] : []),
+    ...(i !== 0 && !(a.volverAlFin && paso.tipo === 'fin') ? [Button({ key: a.prefijo + 'atras', label: '← Atrás', plain: true, dimColor: true, onPress: a.onAtras })] : []),
     Button({ key: a.prefijo + 'cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: a.onCancelar }),
   ]
   return [

@@ -280,8 +280,12 @@ func TestVerificar_CloudflareYRechazado(t *testing.T) {
 	apiCloudflare = srv.URL
 	cf := Entrada{Tipo: "cloudflare"}
 	v, err := VerificarValor(cf, secreto)
-	if err != nil || v.Vence == nil || v.Vence.Year() != 2027 || v.Alcance == "" {
+	if err != nil || v.Vence == nil || v.Vence.Year() != 2027 || !strings.Contains(v.Alcance, "active") {
 		t.Fatalf("verificado: %+v %v", v, err)
+	}
+	// Cloudflare no dice de quién es el token: su id no es un dueño (se leía «dueño 7d032d9c…», 2026-11-20).
+	if v.Duenio != "" {
+		t.Fatalf("el id del token quedó como dueño: %q", v.Duenio)
 	}
 	if _, err := VerificarValor(cf, "malo"); !errors.Is(err, ErrRechazado) {
 		t.Fatalf("un token que la API rechaza: %v", err)

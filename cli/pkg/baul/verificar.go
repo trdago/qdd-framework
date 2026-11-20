@@ -108,7 +108,8 @@ func leerVerificacion(tipo string, cuerpo json.RawMessage, h http.Header) Verifi
 			} `json:"result"`
 		}
 		_ = json.Unmarshal(cuerpo, &r)
-		v := Verificacion{Duenio: r.Result.ID, Alcance: "token " + r.Result.Status + " (los permisos se ven en el panel de Cloudflare)"}
+		// Cloudflare no dice de quién es el token: su id no es un dueño.
+		v := Verificacion{Alcance: "token " + r.Result.Status + " (los permisos se ven en el panel de Cloudflare)"}
 		if t, err := time.Parse(time.RFC3339, r.Result.Expires); err == nil {
 			v.Vence = &t
 		}
