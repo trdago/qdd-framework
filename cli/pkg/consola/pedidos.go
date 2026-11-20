@@ -562,7 +562,7 @@ func accionesDePedidos(root string) []Accion {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
-			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
+			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID, pidio: p.Pidio,
 			despues: p.Despues, tareaTurno: p.Tarea, DePersona: p.DePersona,
 		}
 		if p.porAvisar() {
@@ -662,6 +662,9 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 	c := exec.Command(shell, flag, a.Detalle)
 	c.Dir = a.Carpeta
 	c.Env = append(entornoDelPedido(os.Environ(), runtime.GOOS, bashDelPedido()), VarPedido+"="+a.pedido)
+	if s := sesionDelPedido(a); s != "" {
+		c.Env = append(c.Env, "CLAUDE_CODE_SESSION_ID="+s)
+	}
 	c.Stdout = io.MultiWriter(salida, &copia)
 	c.Stderr = io.MultiWriter(salida, &copia)
 	err := c.Start()
@@ -672,6 +675,15 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 	codigo := codigoDe(err, a, io.MultiWriter(salida, &copia))
 	terminar(root, a.pedido, codigo, ultimasLineas(salidaLegible(copia.Bytes()), lineasSalida), armar)
 	return codigo
+}
+
+// sesionDelPedido: la sesión con la que corre el comando. Un pedido corre aparte, fuera de Claude Code, y sin ella lo
+// que pide permiso (el baúl) no tiene a quién preguntarle (FND-242): la que lo pidió o, si no hay, la que lo confirmó.
+func sesionDelPedido(a Accion) string {
+	if a.pidio != "" {
+		return a.pidio
+	}
+	return sesionValida(a.Sesion)
 }
 
 // bashDelPedido solo se busca en Windows (FND-197).

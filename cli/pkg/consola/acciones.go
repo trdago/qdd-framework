@@ -90,6 +90,7 @@ type Accion struct {
 	Args        []string   `json:"-"`
 	ficha       string
 	pedido      string
+	pidio       string   // la sesión de la IA que lo pidió: el comando corre con ella (FND-242)
 	claveTurno  string   // lo que identifica su turno, si no es el id (RFC 0019)
 	tareaTurno  string   // la tarea a la que pertenece, para sus dependencias
 	despues     []string // los pedidos que espera
