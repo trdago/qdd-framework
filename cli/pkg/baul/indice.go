@@ -35,19 +35,28 @@ var Tipos = map[string]string{
 
 // Entrada es lo que el índice sabe de un token. Nunca el valor.
 type Entrada struct {
-	Nombre     string     `json:"nombre"`
-	Tipo       string     `json:"tipo"`
-	Donde      string     `json:"donde"`
-	Variable   string     `json:"variable"`
-	Direccion  string     `json:"direccion,omitempty"` // servidor/servicio/clase/cuenta, normalizada (direccion.go)
-	Perfil     string     `json:"perfil,omitempty"`    // aws-sso: el perfil de aws sso, no una llave
-	Alcance    string     `json:"alcance,omitempty"`
-	Duenio     string     `json:"duenio,omitempty"`
-	Vence      *time.Time `json:"vence,omitempty"`
-	Verificado *time.Time `json:"verificado,omitempty"`
-	Rechazado  bool       `json:"rechazado,omitempty"`
-	Guardado   time.Time  `json:"guardado"`
-	Usado      *time.Time `json:"usado,omitempty"`
+	Nombre    string `json:"nombre"`
+	Tipo      string `json:"tipo"`
+	Donde     string `json:"donde"`
+	Variable  string `json:"variable"`
+	Direccion string `json:"direccion,omitempty"` // servidor/servicio/clase/cuenta, normalizada (direccion.go)
+	Perfil    string `json:"perfil,omitempty"`    // aws-sso: el perfil de aws sso, no una llave
+	// Lo que la persona sabe del acceso (acceso.go): correo, la URL de un sitio «otro», usuario o id de cuenta,
+	// descripción y ambiente.
+	Correo      string `json:"correo,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Cuenta      string `json:"cuenta,omitempty"`
+	Descripcion string `json:"descripcion,omitempty"`
+	Ambiente    string `json:"ambiente,omitempty"`
+	// VenceDeclarado es el que dijo la persona, para una API que no lo informa (CXF expiryDate).
+	VenceDeclarado *time.Time `json:"vence_declarado,omitempty"`
+	Alcance        string     `json:"alcance,omitempty"`
+	Duenio         string     `json:"duenio,omitempty"`
+	Vence          *time.Time `json:"vence,omitempty"`
+	Verificado     *time.Time `json:"verificado,omitempty"`
+	Rechazado      bool       `json:"rechazado,omitempty"`
+	Guardado       time.Time  `json:"guardado"`
+	Usado          *time.Time `json:"usado,omitempty"`
 }
 
 var nombreValido = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,39}$`)
@@ -167,8 +176,12 @@ func completar(e Entrada) (Entrada, error) {
 	if variable != "" {
 		e.Variable = variable
 	}
+	e, err := normalizarAcceso(e)
+	if err != nil {
+		return e, err
+	}
 	if !variableValida.MatchString(e.Variable) {
-		return e, fmt.Errorf("el tipo «otro» necesita la variable de entorno donde va (--variable NOMBRE)")
+		return e, fmt.Errorf("el tipo «otro» necesita la URL del sitio (--url) o la variable de entorno donde va (--variable NOMBRE)")
 	}
 	if e.Donde != EnLlavero && e.Donde != EnUnoPass {
 		return e, fmt.Errorf("dónde guardarlo %q: llavero o 1password", e.Donde)

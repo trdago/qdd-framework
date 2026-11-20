@@ -57,8 +57,8 @@ func diagnosticarVigentes(indice []Entrada, ahora time.Time) Diagnostico {
 			malos = append(malos, e.Nombre+" rechazado")
 			continue
 		}
-		if e.Vence != nil && e.Vence.Sub(ahora) < porVencer {
-			malos = append(malos, e.Nombre+" vence el "+e.Vence.Local().Format("2006-01-02"))
+		if vence := VenceEn(e); vence != nil && vence.Sub(ahora) < porVencer {
+			malos = append(malos, e.Nombre+" vence el "+vence.Local().Format("2006-01-02"))
 		}
 	}
 	if len(malos) == 0 {

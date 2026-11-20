@@ -29,6 +29,14 @@ var (
 	baulVariable  string
 	baulDireccion string
 	baulPara      string
+	// Lo que la persona sabe del acceso (pedido de la persona, 2026-11-20).
+	baulCorreo      string
+	baulURL         string
+	baulCuenta      string
+	baulDescripcion string
+	baulAmbiente    string
+	baulVence       string
+	baulNuevo       bool
 	// Desde Config en el panel (pedido de la persona, 2026-11-09).
 	baulPortapapeles bool
 	baulSi           bool
@@ -49,11 +57,15 @@ con permiso de la persona: por sesión, por proyecto, por token y por fin, hasta
                                                lo lee del portapapeles y lo vacía (Config en el panel)
   qdd baul quitar <nombre> [--si]              lo borra de su lugar, del índice y de los permisos
   qdd baul renombrar <nombre> <nuevo>          le cambia el nombre; el valor y los permisos lo siguen
+  qdd baul editar <nombre> --correo/--cuenta/--descripcion/--ambiente/--url/--vence
+                                               cambia sus datos sin pedir el valor
   qdd baul verificar <nombre>                  lo prueba contra su API y anota dueño, alcance y vencimiento
   qdd baul usar <nombre> --para "<fin>" -- <comando>
   qdd baul registro                            cada uso, encadenado
 
-Tipos: cloudflare, github, supabase, resend, aws-sso (guarda el perfil de aws sso) y otro (con --variable).
+Tipos: cloudflare, github, supabase, resend, aws-sso (guarda el perfil de aws sso) y otro (con --url del sitio, o
+--variable). Cada acceso puede llevar --correo, --cuenta (usuario o id), --descripcion, --ambiente (dev, qa, prod o
+global) y --vence AAAA-MM-DD si su API no dice cuándo vence.
 
 Una IA usa 'qdd baul usar'. Sin permiso, deja un pedido «🔑» en el panel y sale con 75; corre de nuevo cuando la persona
 diga «Sí». El token va solo al entorno del comando y su salida sale con los valores del baúl tapados.`,
@@ -68,8 +80,8 @@ diga «Sí». El token va solo al entorno del comando y su salida sale con los v
 	},
 }
 
-// listarBaulJSON es la lista para Config en el panel: los tokens (nunca un valor), los tipos, los ambientes de la
-// dirección y si este sistema puede leer el portapapeles.
+// listarBaulJSON es la lista para Config en el panel: los tokens (nunca un valor), los tipos, los sitios de la lista,
+// los ambientes y si este sistema puede leer el portapapeles.
 func listarBaulJSON(w io.Writer) {
 	indice, err := baul.Indice()
 	if err != nil {
@@ -81,7 +93,7 @@ func listarBaulJSON(w io.Writer) {
 	}
 	slices.Sort(tipos)
 	leer, _ := portapapeles().(interface{ Disponible() bool })
-	out, err := listas.Marshal(map[string]any{"tokens": indice, "tipos": tipos, "ambientes": baul.Ambientes, "portapapeles": leer != nil && leer.Disponible()})
+	out, err := listas.Marshal(map[string]any{"tokens": indice, "tipos": tipos, "ambientes": baul.Ambientes, "sitios": baul.Sitios, "portapapeles": leer != nil && leer.Disponible()})
 	if err != nil {
 		salirCon("%v", err)
 	}
@@ -98,9 +110,9 @@ func listarBaul(w io.Writer) {
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "NOMBRE\tDIRECCIÓN\tTIPO\tDÓNDE\tDUEÑO\tALCANCE\tVENCE\tUSADO")
+	fmt.Fprintln(tw, "NOMBRE\tSITIO\tCUENTA\tCORREO\tAMBIENTE\tDIRECCIÓN\tDÓNDE\tDUEÑO\tALCANCE\tVENCE\tUSADO")
 	for _, e := range indice {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Nombre, guion(e.Direccion), e.Tipo, e.Donde, guion(e.Duenio), guion(alcanceDe(e)), fecha(e.Vence), fecha(e.Usado))
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Nombre, guion(baul.Sitio(e)), guion(e.Cuenta), guion(e.Correo), guion(e.Ambiente), guion(e.Direccion), e.Donde, guion(e.Duenio), guion(alcanceDe(e)), fecha(baul.VenceEn(e)), fecha(e.Usado))
 	}
 	tw.Flush()
 }
@@ -131,12 +143,27 @@ var baulGuardarCmd = &cobra.Command{
 	Short: "Guarda un token: pide el valor oculto en tu terminal (nunca por argumentos, variables ni el chat)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		e := baul.Entrada{Nombre: args[0], Tipo: baulTipo, Donde: baulEn, Variable: baulVariable, Direccion: baulDireccion}
+		e := baul.Entrada{Nombre: args[0], Tipo: baulTipo, Donde: baulEn, Variable: baulVariable, Direccion: baulDireccion,
+			Correo: baulCorreo, URL: baulURL, Cuenta: baulCuenta, Descripcion: baulDescripcion, Ambiente: baulAmbiente}
+		vence, err := baul.FechaDeclarada(baulVence)
+		if err != nil {
+			salirCon("%v", err)
+		}
+		e.VenceDeclarado = vence
+		if baulPortapapeles && baulNuevo {
+			if err := agregarDelPortapapeles(os.Stdout, e, portapapeles()); err != nil {
+				salirCon("%v", err)
+			}
+			return
+		}
 		if baulPortapapeles {
 			if err := guardarDelPortapapeles(os.Stdout, e, portapapeles()); err != nil {
 				salirCon("%v", err)
 			}
 			return
+		}
+		if _, err := baul.Buscar(args[0]); baulNuevo && err == nil {
+			salirCon("%s ya existe en el baúl: para cambiar su token, guárdalo sin --nuevo", args[0])
 		}
 		valor, err := leerValorOculto(os.Stdin, baulTipo)
 		if err != nil {
@@ -156,6 +183,15 @@ var baulGuardarCmd = &cobra.Command{
 		}
 		mostrarVerificacion(args[0])
 	},
+}
+
+// agregarDelPortapapeles es agregar desde el panel: se niega antes de leer el portapapeles si el nombre ya existe, para
+// que un acceso nuevo nunca reemplace a otro.
+func agregarDelPortapapeles(w io.Writer, e baul.Entrada, p baul.Portapapeles) error {
+	if _, err := baul.Buscar(e.Nombre); err == nil {
+		return fmt.Errorf("%s ya existe en el baúl: para cambiar su token usa Modificar, o dale otro nombre a este", e.Nombre)
+	}
+	return guardarDelPortapapeles(w, e, p)
 }
 
 // guardarDelPortapapeles guarda lo copiado (lo vacía siempre que lo leyó) y dice cómo quedó, sin el valor.
@@ -237,7 +273,10 @@ func mostrarVerificacionEn(w io.Writer, nombre string) {
 		fmt.Fprintf(w, "[i] %s sin verificar: %v\n", nombre, err)
 		return
 	}
-	fmt.Fprintf(w, "[✓] %s: dueño %s · %s · vence %s\n", nombre, guion(e.Duenio), guion(e.Alcance), fecha(e.Vence))
+	fmt.Fprintf(w, "[✓] %s: dueño %s · %s · vence %s\n", nombre, guion(e.Duenio), guion(e.Alcance), fecha(baul.VenceEn(e)))
+	if aviso := baul.CorreoDistinto(e); aviso != "" {
+		fmt.Fprintf(w, "[!] %s\n", aviso)
+	}
 }
 
 var baulRenombrarCmd = &cobra.Command{
@@ -256,6 +295,33 @@ func renombrarEnBaul(w io.Writer, viejo, nuevo string) error {
 		return err
 	}
 	fmt.Fprintf(w, "[✓] %s ahora se llama %s.\n", viejo, nuevo)
+	return nil
+}
+
+var baulEditarCmd = &cobra.Command{
+	Use:   "editar <nombre>",
+	Short: "Cambia el correo, la cuenta, la descripción, el ambiente o la URL de un acceso, sin pedir su valor",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := editarEnBaul(os.Stdout, cmd, args[0]); err != nil {
+			salirCon("%v", err)
+		}
+	},
+}
+
+// editarEnBaul pasa solo los datos que se dijeron: un flag vacío borra ese dato, uno que no se dio no se toca.
+func editarEnBaul(w io.Writer, cmd *cobra.Command, nombre string) error {
+	dado := func(flag string, v *string) *string {
+		if !cmd.Flags().Changed(flag) {
+			return nil
+		}
+		return v
+	}
+	c := baul.Cambios{Correo: dado("correo", &baulCorreo), URL: dado("url", &baulURL), Cuenta: dado("cuenta", &baulCuenta), Descripcion: dado("descripcion", &baulDescripcion), Ambiente: dado("ambiente", &baulAmbiente), Vence: dado("vence", &baulVence)}
+	if err := baul.Editar(nombre, c, time.Now()); err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "[✓] %s quedó al día.\n", nombre)
 	return nil
 }
 
@@ -348,16 +414,25 @@ var baulRegistroCmd = &cobra.Command{
 }
 
 func init() {
-	baulGuardarCmd.Flags().StringVar(&baulTipo, "tipo", "", "cloudflare, github, supabase, resend, aws-sso u otro")
+	baulGuardarCmd.Flags().StringVar(&baulTipo, "tipo", "", "el sitio: cloudflare, github, supabase, resend, aws-sso u otro (con --url)")
 	baulGuardarCmd.Flags().StringVar(&baulEn, "en", baul.EnLlavero, "llavero o 1password")
 	baulGuardarCmd.Flags().StringVar(&baulVariable, "variable", "", "con --tipo otro: la variable de entorno donde va")
 	baulGuardarCmd.Flags().StringVar(&baulDireccion, "direccion", "", "ambiente/servidor/servicio/clase/cuenta (p. ej. prod/db-01/notificador/postgres/app_user; ambiente: dev, qa, prod o global): una dirección es de una sola entrada")
 	baulGuardarCmd.Flags().BoolVar(&baulPortapapeles, "portapapeles", false, "lee el valor del portapapeles y lo vacía (lo usa Config en el panel)")
+	baulGuardarCmd.Flags().BoolVar(&baulNuevo, "nuevo", false, "solo si el nombre no existe: agregar nunca reemplaza otro acceso")
+	for _, c := range []*cobra.Command{baulGuardarCmd, baulEditarCmd} {
+		c.Flags().StringVar(&baulCorreo, "correo", "", "el correo de la cuenta")
+		c.Flags().StringVar(&baulURL, "url", "", "con --tipo otro: la dirección del sitio (app.sendgrid.com)")
+		c.Flags().StringVar(&baulCuenta, "cuenta", "", "el usuario o id de la cuenta")
+		c.Flags().StringVar(&baulDescripcion, "descripcion", "", "para qué es, en una línea")
+		c.Flags().StringVar(&baulAmbiente, "ambiente", "", "dev, qa, prod o global")
+		c.Flags().StringVar(&baulVence, "vence", "", "AAAA-MM-DD: cuándo vence, si su API no lo dice (doctor avisa antes)")
+	}
 	_ = baulGuardarCmd.MarkFlagRequired("tipo")
 	baulQuitarCmd.Flags().BoolVar(&baulSi, "si", false, "sin preguntar (el panel lo pasa tras «¿Seguro?»)")
 	baulCmd.Flags().BoolVar(&baulJSON, "json", false, "la lista para el panel, en JSON")
 	baulUsarCmd.Flags().StringVar(&baulPara, "para", "", "el fin: para qué se usa (el permiso es por fin)")
 	_ = baulUsarCmd.MarkFlagRequired("para")
-	baulCmd.AddCommand(baulGuardarCmd, baulQuitarCmd, baulRenombrarCmd, baulVerificarCmd, baulUsarCmd, baulPermitirCmd, baulRegistroCmd)
+	baulCmd.AddCommand(baulGuardarCmd, baulQuitarCmd, baulRenombrarCmd, baulEditarCmd, baulVerificarCmd, baulUsarCmd, baulPermitirCmd, baulRegistroCmd)
 	rootCmd.AddCommand(baulCmd)
 }

@@ -3229,20 +3229,24 @@ function vistaConfig($, Box, Text, Button, Input, Select, ancho) {
 // ── Baúl de accesos en Config (pedido de la persona, 2026-11-09: «el baúl de contraseñas se debe poder administrar
 // desde config en el panel de la derecha: agregar, quitar, modificar»). El panel nunca ve un valor: la persona copia el
 // token y «Pegar del portapapeles» le pide a qdd que lo lea, lo vacíe, lo pruebe con su API y lo guarde (eligió esa
-// opción). Modificar es guardar de nuevo el mismo nombre; quitar pide «¿Seguro?» y corre con --si. Modificar también
-// cambia el nombre con qdd baul renombrar, sin pedir el valor de nuevo, y la dirección se arma con campos: el ambiente de
-// una lista y las demás partes escritas (pedido de la persona, 2026-11-20: «de forma fácil y de forma estándar …
-// quitar, agregar, modificar los nombres»).
+// opción). Quitar pide «¿Seguro?» y corre con --si.
+// El formulario pregunta lo que la persona sabe del acceso, no cómo lo guarda qdd (pedido de la persona, 2026-11-20:
+// «correo … sitio seleccionable y si es otro que me pida la url, usuario o id de cuenta, pass o token, descripción
+// opcional»). El nombre se arma solo (sitio-cuenta) y, con Dónde y la variable, queda en «Más opciones». Agregar nunca
+// pisa otro acceso (--nuevo); modificar guarda los datos sin pedir el token (qdd baul editar) y cambia el nombre con
+// qdd baul renombrar.
 let baulDeConfig = { lista: null, falla: '', form: null, quitando: '', aviso: '', hecho: '', ocupado: false }
 const LUGARES_BAUL = [{ value: 'llavero', label: 'llavero del sistema' }, { value: '1password', label: '1Password' }]
-// AMBIENTES_BAUL: los de un qdd anterior a «ambientes» en baul --json.
+// AMBIENTES_BAUL y SITIOS_BAUL: los de un qdd anterior a «ambientes» y «sitios» en baul --json.
 const AMBIENTES_BAUL = ['dev', 'qa', 'prod', 'global']
-const PARTES_DIRECCION = [
-  { campo: 'servidor', placeholder: 'el host o producto: db-prod-01, github.com, api.cloudflare.com' },
-  { campo: 'servicio', placeholder: 'el sistema que lo usa: notificador, ci, dns' },
-  { campo: 'clase', placeholder: 'qué es: token, postgres, oracle, ssh, client' },
-  { campo: 'cuenta', placeholder: 'el usuario o identificador: app_user, trdago' },
+const SITIOS_BAUL = [
+  { tipo: 'cloudflare', etiqueta: 'Cloudflare', host: 'cloudflare.com' },
+  { tipo: 'github', etiqueta: 'GitHub', host: 'github.com' },
+  { tipo: 'supabase', etiqueta: 'Supabase', host: 'supabase.com' },
+  { tipo: 'resend', etiqueta: 'Resend', host: 'resend.com' },
+  { tipo: 'aws-sso', etiqueta: 'AWS (perfil de SSO)', host: 'aws.amazon.com' },
 ]
+const NOMBRE_BAUL = /^[a-z0-9][a-z0-9_-]{0,39}$/
 
 async function leerBaul($) {
   const bin = await binario($)
@@ -3253,15 +3257,16 @@ async function leerBaul($) {
       return
     }
     const d = JSON.parse(r.stdout)
-    baulDeConfig = { ...baulDeConfig, lista: { tokens: d.tokens || [], tipos: d.tipos || [], ambientes: d.ambientes || AMBIENTES_BAUL, portapapeles: Boolean(d.portapapeles) }, falla: '' }
+    const lista = { tokens: d.tokens || [], tipos: d.tipos || [], ambientes: d.ambientes || AMBIENTES_BAUL, sitios: d.sitios || SITIOS_BAUL, portapapeles: Boolean(d.portapapeles) }
+    baulDeConfig = { ...baulDeConfig, lista, falla: '' }
   } catch (err) {
     baulDeConfig = { ...baulDeConfig, lista: null, falla: 'No pude leer el baúl: ' + String(err?.message ?? err) }
   }
 }
 
-// correrBaul corre un subcomando del baúl y muestra su última línea: ✓ en verde, el resto como aviso.
+// correrBaul corre un subcomando del baúl y muestra su salida: ✓ en verde, el resto como aviso. Devuelve si salió bien.
 async function correrBaul($, argv, despues = {}) {
-  if (baulDeConfig.ocupado) return
+  if (baulDeConfig.ocupado) return false
   baulDeConfig = { ...baulDeConfig, ocupado: true, aviso: '', hecho: '' }
   $.ui.invalidate('ui.render')
   const bin = await binario($)
@@ -3286,51 +3291,105 @@ function cambiarBaul($, cambio) {
   $.ui.invalidate('ui.render')
 }
 
-// direccionDelForm arma ambiente/servidor/servicio/clase/cuenta. Sin ambiente no hay dirección; con ambiente van todas
-// las partes. qdd la normaliza y la valida.
-function direccionDelForm(f) {
-  if (!f.ambiente) return { direccion: '' }
-  const faltan = PARTES_DIRECCION.map((p) => p.campo).filter((c) => !String(f[c] || '').trim())
-  if (faltan.length) return { falta: 'falta ' + faltan.join(', ').replace(/, ([^,]*)$/, ' y $1') + ' de la dirección (o deja el ambiente en «sin dirección»)' }
-  return { direccion: [f.ambiente, ...PARTES_DIRECCION.map((p) => String(f[p.campo]).trim())].join('/') }
+const hostDeUrl = (u) => String(u || '').trim().replace(/^[a-z]+:\/\//i, '').split(/[/?#]/)[0].toLowerCase()
+
+// sitioDe: la etiqueta del sitio de un acceso (Cloudflare, o el host de la URL de uno «otro»).
+function sitioDe(t, sitios) {
+  const s = sitios.find((x) => x.tipo === t.tipo)
+  if (s) return s.etiqueta
+  return hostDeUrl(t.url) || t.tipo
 }
 
-function partesDeDireccion(direccion) {
-  const partes = String(direccion || '').split('/')
-  if (partes.length !== PARTES_DIRECCION.length + 1) return { ambiente: '' }
-  return Object.fromEntries([['ambiente', partes[0]], ...PARTES_DIRECCION.map((p, i) => [p.campo, partes[i + 1]])])
+const slug = (s) => slugDeGrupo(s || '')
+
+// nombreSugerido: sitio-cuenta (o la parte del correo antes de la @), con el ambiente si no es global.
+function nombreSugerido(f) {
+  const host = hostDeUrl(f.url).split('.')
+  const sitio = f.tipo === 'otro' ? host[Math.max(0, host.length - 2)] : f.tipo === 'aws-sso' ? 'aws' : f.tipo
+  const quien = f.cuenta || String(f.correo || '').split('@')[0]
+  const ambiente = f.ambiente && f.ambiente !== 'global' ? f.ambiente : ''
+  return [sitio, quien, ambiente].map((x) => slug(x)).filter(Boolean).join('-').slice(0, 40).replace(/-+$/, '')
 }
 
-const renombra = (f) => f.modo === 'modificar' && f.nombre !== f.original
+const nombreDelForm = (f) => (f.nombreEditado ? f.nombre : f.modo === 'modificar' ? f.original : nombreSugerido(f))
 
-// renombrarBaul corre qdd baul renombrar y deja el formulario con el nombre nuevo. Devuelve si qdd lo hizo.
-async function renombrarBaul($, f) {
-  if (!f.nombre) {
-    cambiarBaul($, { aviso: '⚠ falta el nombre nuevo', hecho: '' })
-    return false
-  }
-  const hecho = await correrBaul($, ['renombrar', f.original, f.nombre])
-  if (hecho && baulDeConfig.form) baulDeConfig.form = { ...baulDeConfig.form, original: f.nombre }
+// faltaEnForm: lo que el formulario necesita antes de correr qdd ('' si nada).
+function faltaEnForm(f) {
+  const nombre = nombreDelForm(f)
+  if (f.tipo === 'otro' && !hostDeUrl(f.url)) return 'falta la URL del sitio'
+  if (f.modo === 'agregar' && !f.cuenta && !f.correo) return 'falta el usuario o el correo de la cuenta'
+  if (f.vence && !/^\d{4}-\d{2}-\d{2}$/.test(String(f.vence).trim())) return 'la fecha de vencimiento va como AAAA-MM-DD (2027-01-31)'
+  if (!NOMBRE_BAUL.test(nombre)) return 'el nombre «' + nombre + '» no vale: usa minúsculas, números, - y _ (en Más opciones)'
+  if (f.modo === 'agregar' && baulDeConfig.lista.tokens.some((t) => t.nombre === nombre)) return 'ya tienes un acceso llamado «' + nombre + '»: para cambiar su token usa Modificar, o dale otro nombre en Más opciones'
+  return ''
+}
+
+// datosDelForm: los flags de lo que la persona escribió. En modificar van todos, también vacíos, para que borrar un
+// dato lo borre.
+function datosDelForm(f) {
+  const campos = [['correo', f.correo], ['cuenta', f.cuenta], ['descripcion', f.descripcion], ['ambiente', f.ambiente], ['vence', f.vence], ...(f.tipo === 'otro' ? [['url', f.url]] : [])]
+  return campos.filter(([, v]) => f.modo === 'modificar' || v).flatMap(([k, v]) => ['--' + k, String(v || '').trim()])
+}
+
+// renombrarSiCambio corre qdd baul renombrar si el nombre cambió. Devuelve si se puede seguir.
+async function renombrarSiCambio($, f) {
+  const nombre = nombreDelForm(f)
+  if (f.modo !== 'modificar' || nombre === f.original) return true
+  const hecho = await correrBaul($, ['renombrar', f.original, nombre])
+  if (hecho && baulDeConfig.form) baulDeConfig.form = { ...baulDeConfig.form, original: nombre, nombreEditado: false }
   return hecho
 }
 
 async function pegarDelPortapapeles($) {
   const f = baulDeConfig.form
-  const d = direccionDelForm(f)
-  const falta = !f.nombre ? 'falta el nombre' : f.tipo === 'otro' && !f.variable ? 'falta la variable de entorno donde va' : d.falta || ''
+  const falta = faltaEnForm(f)
   if (falta) return cambiarBaul($, { aviso: '⚠ ' + falta, hecho: '' })
-  if (renombra(f) && !(await renombrarBaul($, f))) return
-  const argv = ['guardar', f.nombre, '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.tipo === 'otro' ? ['--variable', f.variable] : []), ...(d.direccion ? ['--direccion', d.direccion] : [])]
+  if (!(await renombrarSiCambio($, f))) return
+  const argv = ['guardar', nombreDelForm(baulDeConfig.form), '--tipo', f.tipo, '--en', f.en, '--portapapeles', ...(f.modo === 'agregar' ? ['--nuevo'] : []), ...(f.tipo === 'otro' && f.variable ? ['--variable', f.variable] : []), ...datosSinVacios(f)]
   return correrBaul($, argv, { form: null })
 }
 
-async function soloRenombrar($) {
-  if (await renombrarBaul($, baulDeConfig.form)) cambiarBaul($, { form: null })
+// datosSinVacios: guardar conserva lo que no se dice, así que no lleva los vacíos (borrar un dato es «Guardar cambios»).
+const datosSinVacios = (f) => datosDelForm({ ...f, modo: 'agregar' })
+
+// guardarCambios guarda los datos sin pedir el token: renombra si cambió el nombre y corre qdd baul editar.
+async function guardarCambios($) {
+  const f = baulDeConfig.form
+  const falta = faltaEnForm(f)
+  if (falta) return cambiarBaul($, { aviso: '⚠ ' + falta, hecho: '' })
+  if (f.tipo !== f.tipoOriginal || f.en !== f.enOriginal) return cambiarBaul($, { aviso: '⚠ cambiar el sitio o dónde se guarda pide el token de nuevo: cópialo y usa «📋 Pegar token nuevo»', hecho: '' })
+  if (!(await renombrarSiCambio($, f))) return
+  return correrBaul($, ['editar', nombreDelForm(baulDeConfig.form), ...datosDelForm(f)], { form: null })
+}
+
+function formAgregar() {
+  return { modo: 'agregar', correo: '', tipo: 'cloudflare', url: '', cuenta: '', descripcion: '', ambiente: 'global', vence: '', nombre: '', nombreEditado: false, en: 'llavero', variable: '', mas: false }
+}
+
+function formModificar(t) {
+  return {
+    modo: 'modificar',
+    original: t.nombre,
+    nombre: t.nombre,
+    nombreEditado: false,
+    correo: t.correo || '',
+    tipo: t.tipo,
+    tipoOriginal: t.tipo,
+    url: t.url || '',
+    cuenta: t.cuenta || '',
+    descripcion: t.descripcion || '',
+    ambiente: t.ambiente || 'global',
+    vence: fechaCorta(t.vence_declarado),
+    en: t.donde,
+    enOriginal: t.donde,
+    variable: t.variable || '',
+    mas: false,
+  }
 }
 
 function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
   const b = baulDeConfig
-  const titulo = separador(Box, Text, 't-baul', '🔑 Baúl de accesos', undefined, b.lista ? b.lista.tokens.length + ' tokens' : '', ancho)
+  const titulo = separador(Box, Text, 't-baul', '🔑 Baúl de accesos', undefined, b.lista ? b.lista.tokens.length + ' accesos' : '', ancho)
   if (!b.lista) return [titulo, Text({ key: 'b-falla', color: COLOR.espera, wrap: 'wrap', children: [b.falla || 'Leyendo el baúl…'] })]
   const resultado = [
     ...(b.ocupado ? [Text({ key: 'b-ocupado', color: COLOR.enCurso, children: ['⟳ qdd está en eso…'] })] : []),
@@ -3338,21 +3397,22 @@ function vistaBaul($, Box, Text, Button, Input, Select, ancho) {
     ...(b.aviso ? [Text({ key: 'b-aviso', color: COLOR.falla, wrap: 'wrap', children: [b.aviso] })] : []),
   ]
   if (b.form) return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...formularioBaul($, Box, Text, Button, Input, Select, b)] })]
-  const filas = b.lista.tokens.map((t) => (b.quitando === t.nombre ? confirmarQuitarToken($, Box, Text, Button, t) : filaToken($, Box, Text, Button, t)))
-  const vacio = Text({ key: 'b-vacio', dimColor: true, wrap: 'wrap', children: ['El baúl está vacío. Guarda aquí los tokens que usa la IA (Cloudflare, GitHub, Supabase…): nunca los pegues en el chat.'] })
-  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar token', variant: 'primary', onPress: () => cambiarBaul($, { form: { modo: 'agregar', nombre: '', tipo: 'cloudflare', en: 'llavero', variable: '', ambiente: '' }, aviso: '', hecho: '' }) })] })
+  const filas = b.lista.tokens.map((t) => (b.quitando === t.nombre ? confirmarQuitarToken($, Box, Text, Button, t) : filaToken($, Box, Text, Button, t, b.lista.sitios)))
+  const vacio = Text({ key: 'b-vacio', dimColor: true, wrap: 'wrap', children: ['El baúl está vacío. Guarda aquí los tokens y contraseñas que usa la IA (Cloudflare, GitHub, Supabase…): nunca los pegues en el chat.'] })
+  const agregar = Box({ key: 'b-agregar-fila', children: [Button({ key: 'b-agregar', label: '+ Agregar acceso', variant: 'primary', onPress: () => cambiarBaul($, { form: formAgregar(), aviso: '', hecho: '' }) })] })
   return [titulo, Box({ key: 'b-cuerpo', flexDirection: 'column', rowGap: 1, children: [...resultado, ...(filas.length ? filas : [vacio]), agregar] })]
 }
 
 const fechaCorta = (iso) => (iso ? String(iso).slice(0, 10) : '')
 
-function detalleDeToken(t) {
-  const partes = [t.direccion, t.tipo, t.donde, t.duenio, t.alcance, t.vence ? 'vence ' + fechaCorta(t.vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
+function detalleDeToken(t, sitios) {
+  const ambiente = t.ambiente && t.ambiente !== 'global' ? t.ambiente : ''
+  const vence = t.vence || t.vence_declarado
+  const partes = [sitioDe(t, sitios), t.cuenta, t.correo, ambiente, t.descripcion, t.direccion, t.donde, vence ? 'vence ' + fechaCorta(vence) : '', t.usado ? 'usado ' + fechaCorta(t.usado) : 'sin usar']
   return partes.filter(Boolean).join(' · ')
 }
 
-function filaToken($, Box, Text, Button, t) {
-  const modificar = () => cambiarBaul($, { form: { modo: 'modificar', nombre: t.nombre, original: t.nombre, tipo: t.tipo, en: t.donde, variable: t.variable || '', ...partesDeDireccion(t.direccion) }, aviso: '', hecho: '' })
+function filaToken($, Box, Text, Button, t, sitios) {
   return Box({
     key: 'b-fila-' + t.nombre,
     flexDirection: 'row',
@@ -3364,7 +3424,7 @@ function filaToken($, Box, Text, Button, t) {
         flexShrink: 1,
         children: [
           Text({ key: 'b-n-' + t.nombre, weight: 'bold', color: t.rechazado ? COLOR.falla : COLOR.texto, wrap: 'truncate-end', children: [t.nombre] }),
-          Text({ key: 'b-d-' + t.nombre, color: t.rechazado ? COLOR.falla : COLOR.secundario, size: 'caption', wrap: 'truncate-end', children: [t.rechazado ? 'RECHAZADO por su API: modifícalo con un token vigente · ' + t.tipo : detalleDeToken(t)] }),
+          Text({ key: 'b-d-' + t.nombre, color: t.rechazado ? COLOR.falla : COLOR.secundario, size: 'caption', wrap: 'truncate-end', children: [t.rechazado ? 'RECHAZADO por su API: modifícalo con un token vigente · ' + sitioDe(t, sitios) : detalleDeToken(t, sitios)] }),
         ],
       }),
       Box({
@@ -3373,7 +3433,7 @@ function filaToken($, Box, Text, Button, t) {
         columnGap: 2,
         children: [
           Button({ key: 'b-verificar-' + t.nombre, label: 'Verificar', plain: true, dimColor: true, onPress: () => correrBaul($, ['verificar', t.nombre]) }),
-          Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: modificar }),
+          Button({ key: 'b-modificar-' + t.nombre, label: 'Modificar', plain: true, onPress: () => cambiarBaul($, { form: formModificar(t), aviso: '', hecho: '' }) }),
           Button({ key: 'b-quitar-' + t.nombre, label: 'Quitar', plain: true, onPress: () => cambiarBaul($, { quitando: t.nombre, aviso: '', hecho: '' }) }),
         ],
       }),
@@ -3407,34 +3467,48 @@ function confirmarQuitarToken($, Box, Text, Button, t) {
 function formularioBaul($, Box, Text, Button, Input, Select, b) {
   const f = b.form
   const poner = (campo) => (v) => {
-    baulDeConfig.form = { ...baulDeConfig.form, [campo]: v }
+    baulDeConfig.form = { ...baulDeConfig.form, [campo]: v, ...(campo === 'nombre' ? { nombreEditado: true } : {}) }
     $.ui.invalidate('ui.render')
   }
-  const cancelar = Button({ key: 'b-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: null, aviso: '' }) })
-  const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un token' : 'Modificar «' + f.original + '»'] })
-  const ambientes = [{ value: '', label: 'sin dirección' }, ...b.lista.ambientes.map((a) => ({ value: a, label: a }))]
-  const partes = f.ambiente ? PARTES_DIRECCION.map((p) => Input({ key: 'b-' + p.campo, label: p.campo[0].toUpperCase() + p.campo.slice(1), placeholder: p.placeholder, value: f[p.campo] || '', submitLabel: 'listo', onInput: poner(p.campo), onSubmit: poner(p.campo) })) : []
+  const texto = (campo, label, placeholder) => Input({ key: 'b-' + campo, label, placeholder, value: f[campo] || '', submitLabel: 'listo', onInput: poner(campo), onSubmit: poner(campo) })
+  const sitios = [...b.lista.sitios.map((s) => ({ value: s.tipo, label: s.etiqueta })), { value: 'otro', label: 'Otro sitio…' }]
+  const nombre = nombreDelForm(f)
+  const encabezado = Text({ key: 'b-form-titulo', weight: 'bold', color: COLOR.texto, wrap: 'wrap', children: [f.modo === 'agregar' ? 'Agregar un acceso' : 'Modificar «' + f.original + '»'] })
   const campos = [
-    Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'cloudflare, gh-trabajo… (minúsculas, - y _)', value: f.nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') }),
-    Select({ key: 'b-tipo', label: 'Tipo', options: b.lista.tipos.map((t) => ({ value: t, label: t })), value: f.tipo, onSelect: poner('tipo') }),
-    Select({ key: 'b-en', label: 'Dónde', options: LUGARES_BAUL, value: f.en, onSelect: poner('en') }),
-    ...(f.tipo === 'otro' ? [Input({ key: 'b-variable', label: 'Variable', placeholder: 'MI_API_KEY', value: f.variable, submitLabel: 'listo', onInput: poner('variable'), onSubmit: poner('variable') })] : []),
-    Select({ key: 'b-ambiente', label: 'Ambiente', options: ambientes, value: f.ambiente || '', onSelect: poner('ambiente') }),
-    ...partes,
+    texto('correo', 'Correo', 'el de la cuenta: yo@empresa.cl (vacío si no tiene)'),
+    Select({ key: 'b-sitio', label: 'Sitio', options: sitios, value: f.tipo, onSelect: poner('tipo') }),
+    ...(f.tipo === 'otro' ? [texto('url', 'URL', 'la dirección del sitio: app.sendgrid.com')] : []),
+    texto('cuenta', 'Usuario o ID de cuenta', 'trdago, el id de la cuenta o el usuario de la base'),
+    texto('descripcion', 'Descripción', 'opcional: para qué es (DNS de los proyectos, envíos…)'),
+    Select({ key: 'b-ambiente', label: 'Ambiente', options: b.lista.ambientes.map((a) => ({ value: a, label: a })), value: f.ambiente || 'global', onSelect: poner('ambiente') }),
   ]
-  const renombrar = renombra(f) ? [Button({ key: 'b-renombrar', label: '✎ Solo cambiar el nombre', plain: true, onPress: () => soloRenombrar($) })] : []
+  const mas = f.mas
+    ? [
+        Input({ key: 'b-nombre', label: 'Nombre', placeholder: 'minúsculas, números, - y _', value: nombre, submitLabel: 'listo', onInput: poner('nombre'), onSubmit: poner('nombre') }),
+        Select({ key: 'b-en', label: 'Dónde', options: LUGARES_BAUL, value: f.en, onSelect: poner('en') }),
+        texto('vence', 'Vence el', 'AAAA-MM-DD, si el sitio no lo informa: doctor te avisa dos semanas antes'),
+        ...(f.tipo === 'otro' ? [texto('variable', 'Variable', 'la de entorno donde va: SENDGRID_TOKEN (sin ella, sale del sitio)')] : []),
+      ]
+    : [Text({ key: 'b-nombre-auto', color: COLOR.secundario, wrap: 'wrap', children: ['Se guarda como «' + (nombre || '…') + '» en el ' + (f.en === '1password' ? '1Password' : 'llavero del sistema') + '.'] })]
+  const masOpciones = Button({ key: 'b-mas', label: f.mas ? 'Menos opciones' : 'Más opciones', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: { ...f, mas: !f.mas } }) })
+  const cancelar = Button({ key: 'b-cancelar', label: 'Cancelar', plain: true, dimColor: true, onPress: () => cambiarBaul($, { form: null, aviso: '' }) })
+  const guardar = f.modo === 'modificar' ? [Button({ key: 'b-guardar', label: 'Guardar cambios', variant: 'primary', onPress: () => guardarCambios($) })] : []
   if (!b.lista.portapapeles) {
-    const d = direccionDelForm(f)
-    const comando = 'qdd baul guardar ' + (f.nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en) + (d.direccion ? ' --direccion ' + d.direccion : '')
-    return [encabezado, ...campos, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando] }), Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [...renombrar, cancelar] })]
+    const comando = 'qdd baul guardar ' + (nombre || '<nombre>') + ' --tipo ' + f.tipo + (f.en === 'llavero' ? '' : ' --en ' + f.en) + ' ' + datosSinVacios(f).map((v) => (/\s/.test(v) ? '"' + v + '"' : v)).join(' ')
+    return [encabezado, ...campos, ...mas, Text({ key: 'b-sin-portapapeles', color: COLOR.espera, wrap: 'wrap', children: ['Este sistema no puede leer el portapapeles (instala wl-clipboard o xclip). Guárdalo en tu terminal: ' + comando.trim()] }), Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [...guardar, masOpciones, cancelar] })]
   }
-  const pista = f.tipo === 'aws-sso' ? 'Copia el nombre del perfil de aws sso' : 'Copia el token'
-  const pistaModificar = f.modo === 'modificar' ? ' Para cambiar solo el nombre no hace falta copiar nada.' : ''
+  const secreto = f.tipo === 'aws-sso' ? 'el nombre del perfil de aws sso' : 'el token o la contraseña'
+  const estilo = f.modo === 'agregar' ? { variant: 'primary' } : { plain: true }
+  const pegar = Button({ key: 'b-pegar', label: f.modo === 'agregar' ? '📋 Pegar token y guardar' : '📋 Pegar token nuevo', ...estilo, onPress: () => pegarDelPortapapeles($) })
+  const pista = f.modo === 'agregar'
+    ? 'Por último, copia ' + secreto + ' y presiona «📋 Pegar token y guardar»: qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda. Nunca se ve aquí ni pasa por el chat.'
+    : '«Guardar cambios» no pide el token. Para cambiarlo, copia ' + secreto + ' nuevo y presiona «📋 Pegar token nuevo».'
   return [
     encabezado,
     ...campos,
-    Text({ key: 'b-pista', color: COLOR.secundario, wrap: 'wrap', children: [pista + ' y presiona «Pegar del portapapeles»: qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda. Nunca lo ves aquí ni pasa por el chat.' + pistaModificar] }),
-    Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [Button({ key: 'b-pegar', label: '📋 Pegar del portapapeles', variant: 'primary', onPress: () => pegarDelPortapapeles($) }), ...renombrar, cancelar] }),
+    ...mas,
+    Text({ key: 'b-pista', color: COLOR.secundario, wrap: 'wrap', children: [pista] }),
+    Box({ key: 'b-acciones', flexDirection: 'row', columnGap: 2, children: [...guardar, pegar, masOpciones, cancelar] }),
   ]
 }
 
