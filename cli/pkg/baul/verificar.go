@@ -84,7 +84,8 @@ func verificarEn(tipo, url, valor string) (Verificacion, error) {
 		return Verificacion{}, fmt.Errorf("no se pudo verificar (sin red?): %v", err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+	// Un 400 también es un rechazo: así contesta Cloudflare un token mal formado (6003, FND-241).
+	if res.StatusCode == http.StatusBadRequest || res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
 		return Verificacion{}, fmt.Errorf("%w (%d)", ErrRechazado, res.StatusCode)
 	}
 	if res.StatusCode >= 300 {

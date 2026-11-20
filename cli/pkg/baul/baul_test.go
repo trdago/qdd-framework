@@ -292,6 +292,30 @@ func TestVerificar_CloudflareYRechazado(t *testing.T) {
 	}
 }
 
+// FND-241: un token mal formado (2 caracteres copiados por error) Cloudflare lo contesta con 400 «Invalid request
+// headers» (6003), no con 401. qdd lo tomaba como «no se pudo verificar» y lo guardaba igual (cloudflare-tenderbot,
+// 2026-11-20). Un 400 de la API también es un rechazo.
+func TestVerificar_UnTokenMalFormadoEsRechazo_FND241(t *testing.T) {
+	entorno(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"success":false,"errors":[{"code":6003,"message":"Invalid request headers"}]}`))
+	}))
+	defer srv.Close()
+	t.Cleanup(func(u string) func() { return func() { apiCloudflare = u } }(apiCloudflare))
+	apiCloudflare = srv.URL
+	if _, err := VerificarValor(Entrada{Tipo: "cloudflare"}, "ab"); !errors.Is(err, ErrRechazado) {
+		t.Fatalf("un 400 de la API tiene que ser un rechazo: %v", err)
+	}
+	_, err := GuardarDelPortapapeles(Entrada{Nombre: "cf", Tipo: "cloudflare", Donde: "llavero"}, &portapapelesFalso{valor: "ab"}, time.Now())
+	if !errors.Is(err, ErrRechazado) {
+		t.Fatalf("se guardó un token que la API no acepta: %v", err)
+	}
+	if _, err := Buscar("cf"); err == nil {
+		t.Fatal("quedó en el índice")
+	}
+}
+
 // Un token creado en la cuenta de Cloudflare (Account API Token) se prueba en /accounts/<id>/tokens/verify: en
 // /user/tokens/verify da 401 (visto el 2026-11-20: la persona escribió el ID de cuenta y qdd lo rechazó igual).
 func TestVerificar_CloudflareTokenDeCuentaConSuID(t *testing.T) {
