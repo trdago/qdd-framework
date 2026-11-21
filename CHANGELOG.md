@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.107] - 2026-11-20
+
+### Fixed
+
+- **La consola del teléfono saltaba a una sesión vieja (FND-244, MEJ-091):** Claude Code agrega a sesiones viejas datos sin hora, y eso alcanzaba para que una de ellas le ganara a la que trabaja. El teléfono la mostraba y apagaba «Claude está trabajando». Ahora la consola sigue a la sesión con el turno más reciente.
+
 ## [2.10.0-rc.106] - 2026-11-20
 
 ### Added

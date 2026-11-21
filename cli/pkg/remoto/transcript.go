@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -49,12 +50,38 @@ func carpetaCodificada(ruta string) string {
 	return noAlfanumerico.ReplaceAllString(ruta, "-")
 }
 
-// TranscriptDe es el transcript más reciente del proyecto (ruta = estado.ClaveLocal), o "" si no hay.
+// TranscriptDe es el transcript del proyecto (ruta = estado.ClaveLocal) con el turno más reciente, o "" si no hay.
+// Manda la hora de su última línea con hora, no la del archivo: Claude Code agrega a sesiones viejas metadatos sin hora
+// (cost-state, last-prompt) y con la fecha del archivo una vieja le ganaba a la que trabaja (FND-244). Con la misma
+// hora, la del archivo. Se recorre del archivo más nuevo al más viejo y se para cuando uno es anterior a la mejor hora:
+// ninguna línea es más nueva que su archivo, así que no se lee el final de cada transcript.
 func TranscriptDe(ruta string) string {
+	mejor, mejorT, mejorM := "", time.Time{}, time.Time{}
+	for _, c := range transcriptsPorFecha(ruta) {
+		if !mejorT.IsZero() && c.mod.Before(mejorT) {
+			break
+		}
+		cuando := ultimaHora(c.archivo)
+		if !masNuevo(cuando, c.mod, mejorT, mejorM) || !delProyecto(c.archivo, ruta) {
+			continue
+		}
+		mejor, mejorT, mejorM = c.archivo, cuando, c.mod
+	}
+	return mejor
+}
+
+type transcript struct {
+	archivo string
+	mod     time.Time
+}
+
+// transcriptsPorFecha son los transcripts de las carpetas del proyecto (y de sus worktrees y subcarpetas), del archivo
+// más nuevo al más viejo.
+func transcriptsPorFecha(ruta string) []transcript {
 	base := filepath.Join(consola.ClaudeDir(), "projects")
 	cod := carpetaCodificada(ruta)
 	dirs, _ := filepath.Glob(filepath.Join(base, cod+"*"))
-	mejor, mejorT := "", time.Time{}
+	var out []transcript
 	for _, d := range dirs {
 		nombre := filepath.Base(d)
 		if nombre != cod && !strings.HasPrefix(nombre, cod+"-") {
@@ -62,14 +89,60 @@ func TranscriptDe(ruta string) string {
 		}
 		archivos, _ := filepath.Glob(filepath.Join(d, "*.jsonl"))
 		for _, a := range archivos {
-			info, err := os.Stat(a)
-			if err != nil || !info.ModTime().After(mejorT) || !delProyecto(a, ruta) {
-				continue
+			if info, err := os.Stat(a); err == nil {
+				out = append(out, transcript{archivo: a, mod: info.ModTime()})
 			}
-			mejor, mejorT = a, info.ModTime()
 		}
 	}
-	return mejor
+	sort.SliceStable(out, func(i, j int) bool { return out[i].mod.After(out[j].mod) })
+	return out
+}
+
+func masNuevo(cuando, mod, mejorT, mejorM time.Time) bool {
+	if !cuando.Equal(mejorT) {
+		return cuando.After(mejorT)
+	}
+	return mod.After(mejorM)
+}
+
+// ultimaHora es la hora más nueva de las líneas con "timestamp" del final del transcript (los últimos leerDelFinal
+// bytes); cero si no hay ninguna.
+func ultimaHora(archivo string) time.Time {
+	f, err := os.Open(archivo)
+	if err != nil {
+		return time.Time{}
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return time.Time{}
+	}
+	desde := max(info.Size()-leerDelFinal, 0)
+	datos := make([]byte, info.Size()-desde)
+	if _, err := f.ReadAt(datos, desde); err != nil && err != io.EOF {
+		return time.Time{}
+	}
+	var mas time.Time
+	for _, linea := range bytes.Split(datos, []byte("\n")) {
+		if cuando := horaDeLinea(linea); cuando.After(mas) {
+			mas = cuando
+		}
+	}
+	return mas
+}
+
+func horaDeLinea(linea []byte) time.Time {
+	if !bytes.Contains(linea, []byte(`"timestamp"`)) {
+		return time.Time{}
+	}
+	var l struct {
+		Timestamp string `json:"timestamp"`
+	}
+	if json.Unmarshal(linea, &l) != nil {
+		return time.Time{}
+	}
+	cuando, _ := time.Parse(time.RFC3339Nano, l.Timestamp)
+	return cuando
 }
 
 // sesionDeTranscript es la sesión de Claude Code de un transcript: Claude Code lo nombra <sesión>.jsonl.
