@@ -261,6 +261,7 @@ func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 }
 
 // contrato: remoto#76b499d6
+// contrato: remoto#1958cd48
 func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("1c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", "doctor", "d1", ahoraEn())
@@ -269,6 +270,12 @@ func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	estadoDe(t, tr, time.Second)
 	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoFallo || !strings.Contains(got.Resultado, "args=doctor") {
 		t.Fatalf("un código distinto de 0 es fallo, con la salida: %+v", got)
+	}
+	// El fallo también pasa por el ocultador (inv. 16): el qdd falso imprime un ghp_ antes de salir con 3.
+	for _, env := range tr.Enviados() {
+		if strings.Contains(string(env.Payload), "ghp_") {
+			t.Fatalf("inv. 16: %s sale con el token: %s", env.Evento, env.Payload)
+		}
 	}
 	if x, _ := consola.EjecucionDe(root, e.Solicitud, time.Now()); x.Estado != consola.EstadoFallo || x.Codigo != 3 {
 		t.Fatalf("la cola anota la falla y su código: %+v", x)

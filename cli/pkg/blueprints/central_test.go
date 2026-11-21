@@ -251,11 +251,15 @@ func TestMigrar_WorksEvenIfTheOriginIsGone(t *testing.T) {
 
 // contrato: blueprints#496ebf9e
 // contrato: doctor#9fdd2a35
+// contrato: blueprints#1833c507
 func TestMigrar_NeverDiscardsEditedOrUnlockedCopies(t *testing.T) {
 	root, _ := legacyProject(t)
 	edited := filepath.Join(root, Dir, "auth", ManifestName)
-	writeFile(t, edited, strings.Replace(authBlueprint, "nunca por nombre de rol", "o por rol", 1))
-	writeFile(t, filepath.Join(root, Dir, "crm", ManifestName), strings.Replace(authBlueprint, "id: auth", "id: crm", 1))
+	editado := strings.Replace(authBlueprint, "nunca por nombre de rol", "o por rol", 1)
+	writeFile(t, edited, editado)
+	crm := filepath.Join(root, Dir, "crm", ManifestName)
+	sinLock := strings.Replace(authBlueprint, "id: auth", "id: crm", 1)
+	writeFile(t, crm, sinLock)
 
 	m, err := Migrar(root)
 	if err != nil {
@@ -264,8 +268,11 @@ func TestMigrar_NeverDiscardsEditedOrUnlockedCopies(t *testing.T) {
 	if len(m.Migrados) != 0 || len(m.Pendientes) != 2 {
 		t.Fatalf("las copias editadas o sin lockfile quedan pendientes: %+v", m)
 	}
-	if _, err := os.Stat(edited); err != nil {
-		t.Fatal("una copia editada no se borra: sus cambios deben llegar al repositorio de la organización")
+	if b, err := os.ReadFile(edited); err != nil || string(b) != editado {
+		t.Fatal("una copia editada no se borra ni se toca: sus cambios deben llegar al repositorio de la organización")
+	}
+	if b, err := os.ReadFile(crm); err != nil || string(b) != sinLock {
+		t.Fatal("una copia fuera del lockfile no se borra ni se toca")
 	}
 	problems := Check(root)
 	if !hasRule(problems, "BP-05-LEGACY") {

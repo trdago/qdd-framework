@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/baul"
+	"github.com/spf13/pflag"
 	"github.com/zalando/go-keyring"
 )
 
@@ -216,4 +219,45 @@ func TestLineaVerificacion_SoloLoQueSeSabe(t *testing.T) {
 			t.Errorf("%+v: %q, quería %q", c.e, got, c.dice)
 		}
 	}
+}
+
+// No existe «qdd baul ver»: ningún subcomando, alias ni opción del baúl muestra un valor.
+// contrato: baul#d66e3930
+func TestBaul_NoExisteUnComandoQueMuestreElValor(t *testing.T) {
+	prohibidos := map[string]bool{"ver": true, "mostrar": true, "show": true, "get": true, "leer": true, "revelar": true, "reveal": true,
+		"print": true, "imprimir": true, "cat": true, "exportar": true, "export": true, "valor": true}
+	if len(baulCmd.Commands()) == 0 {
+		t.Fatal("la prueba necesita los subcomandos del baúl")
+	}
+	for _, c := range baulCmd.Commands() {
+		for _, n := range append([]string{c.Name()}, c.Aliases...) {
+			if prohibidos[n] {
+				t.Errorf("qdd baul %s mostraría un valor", n)
+			}
+		}
+		c.Flags().VisitAll(func(f *pflag.Flag) {
+			if prohibidos[f.Name] || f.Name == "mostrar-valor" {
+				t.Errorf("qdd baul %s --%s mostraría un valor", c.Name(), f.Name)
+			}
+		})
+	}
+	if c, _, err := rootCmd.Find([]string{"baul", "ver", "cf"}); err == nil && c != baulCmd {
+		t.Errorf("qdd baul ver existe: %s", c.CommandPath())
+	}
+}
+
+// Las pruebas de cmd no alcanzan el llavero real aunque olviden baulDePrueba: TestMain pone el de prueba.
+// contrato: baul#df85a0cf
+func TestPruebasCmd_NoTocanElLlaveroNiElQDDHomeReal(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	if q := os.Getenv("QDD_HOME"); q == "" || (home != "" && strings.HasPrefix(q, filepath.Join(home, ".local", "share", "qdd"))) {
+		t.Fatalf("QDD_HOME de las pruebas: %q", q)
+	}
+	if runtime.GOOS != "linux" {
+		return
+	}
+	if err := keyring.Set("qdd-pruebas", "centinela", "x"); err != nil {
+		t.Fatalf("sin el llavero de prueba, guardar iría al Secret Service de la persona: %v", err)
+	}
+	keyring.Delete("qdd-pruebas", "centinela")
 }

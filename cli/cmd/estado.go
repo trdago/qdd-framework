@@ -30,6 +30,7 @@ var (
 	estadoResp      string
 	estadoIntervalo time.Duration
 	estadoCambio    estado.Cambio
+	estadoAprobado  bool
 	estadoMotivo    string
 	estadoDescarta  bool
 	estadoFin       bool
@@ -120,12 +121,12 @@ func init() {
 	estadoInitCmd.Flags().StringVar(&estadoEtapas, "etapas", "", "etapas separadas por coma (si la ficha dice «propias»)")
 	f := estadoSetCmd.Flags()
 	f.StringVar(&estadoCambio.Nombre, "nombre", "", "nombre de la tarea (al crearla o para renombrarla)")
-	f.StringVar(&estadoCambio.Evidencia, "evidencia", "", "evidencia del ✅: commit, versión, n/n pruebas o id de corrida")
+	f.StringVar(&estadoCambio.Evidencia, "evidencia", "", "evidencia del ✅: commit, versión, n/n pruebas, id de corrida o lo que confirmó la persona")
 	f.StringVar(&estadoCambio.Bloqueo, "bloqueo", "", "qué espera el ⏳")
 	f.StringVar(&estadoCambio.DeQuien, "de-quien", "", "de quién lo espera el ⏳")
 	f.StringVar(&estadoCambio.Falla, "falla", "", "la falla del ❌, nombrada")
 	f.StringVar(&estadoCambio.RequiereAprobacion, "requiere-aprobacion", "", "quién debe aprobar antes de pasar a ✅")
-	f.BoolVar(&estadoCambio.Aprobado, "aprobado", false, "marca la aprobación como dada")
+	f.BoolVar(&estadoAprobado, "aprobado", false, "pide la aprobación a la persona: deja un pedido 🔑 con qdd estado aprobar (la IA nunca aprueba)")
 	f.BoolVar(&estadoCambio.AunqueExista, "aunque-exista", false, "con --nombre: la crea aunque se parezca a una tarea abierta")
 	estadoCerrarCmd.Flags().StringVar(&estadoMotivo, "motivo", "", "por qué se cierra (obligatorio)")
 	estadoCerrarCmd.Flags().BoolVar(&estadoDescarta, "descartado", false, "se descarta en vez de cerrarse")
@@ -136,6 +137,7 @@ func init() {
 	estadoCheckCmd.Flags().BoolVar(&estadoJSON, "json", false, "salida JSON")
 	estadoWatchCmd.Flags().DurationVar(&estadoIntervalo, "intervalo", time.Second, "cada cuánto revisa si el archivo cambió")
 
+	estadoCmd.AddCommand(estadoAprobarCmd)
 	estadoCmd.AddCommand(estadoVerCmd, estadoInitCmd, estadoSetCmd, estadoCerrarCmd, estadoActivaCmd, estadoPulsoCmd, estadoCheckCmd, estadoStatuslineCmd, estadoWatchCmd)
 	rootCmd.AddCommand(estadoCmd)
 }
@@ -253,6 +255,13 @@ func runEstadoSet(cmd *cobra.Command, args []string) {
 		salirCon("%v", err)
 	}
 	fmt.Printf("[+] %s › %s = %s\n", c.Frente, c.Etapa, estado.NormalizarEstado(c.Estado))
+	if !estadoAprobado {
+		return
+	}
+	if err := pedirAprobacion(estadoRaiz(), c.Frente, c.Etapa, time.Now()); err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Printf("[i] La aprobación la da la persona: quedó en el panel «%s».\n", comandoAprobar(c.Frente, c.Etapa))
 }
 
 func runEstadoCerrar(cmd *cobra.Command, args []string) {

@@ -51,6 +51,7 @@ objetivo_tecnologico:
         - 'Audio (RFC 0025): lo abre el moderador, que tiene la cuenta de QDD, con el acepto de todos; elige whisper local o Claude. La transcripción completa queda en su PC como historia-usuaria de la sesión, fuera de git.'
         - 'Historias de usuario y notas compartidas (RFC 0025): Flujo.Historias guarda solo las aprobadas {id h<n>, como, quiero, para, criterios hasta 10, nodos, origen, tarea}; quitar un nodo lo saca de ellas y reescribir el flujo las conserva. qdd flujo historia tarea crea la tarea con estado.Nueva y la anota. Item.Visible compartida deja que el cliente vea una nota, característica o función; una prueba nunca. La persona ve en la propuesta si el experto pidió compartirla y puede volverla interna después.'
         - 'Enlace en Cloudflare (RFC 0025, fase 3b; propuesta de la persona, 2026-11-08): con un token de Cloudflare en el baúl, compartir publica la página en el Worker qdd-flujos de la cuenta de la persona (pkg/enlaces, KV por id al azar de 128 bits) y da un enlace. Sin el token en el entorno, qdd se vuelve a correr con qdd baul usar y el fin «compartir flujos por enlace», así que el permiso es el del baúl. El panel tiene «↗ Compartir» (c) en la esquina de la pestaña Flujos: un clic, invitación de cliente, enlace copiado con $.ui.copy. Sin Cloudflare, el archivo de siempre.'
+        - 'Una IA (CLAUDECODE) no crea un enlace con rol: llevaría la llave de la invitación a su salida y de ahí al chat. Se rechaza antes de crear la invitación y la persona lo comparte desde el panel, que corre sin CLAUDECODE (FND-268, 2026-11-21)'
     invariantes:
         - Un flujo inválido no se escribe.
         - Un archivo roto se ve con su problema en el panel y en qdd flujo lista; no desaparece.
@@ -82,5 +83,5 @@ fuentes:
     - cli/cmd/flujo_editar.go
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
-ultima_revision: "2026-11-15"
-revisado_en_commit: 3b6801f63f6e
+ultima_revision: "2026-11-21"
+revisado_en_commit: 26b048487706

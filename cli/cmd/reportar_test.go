@@ -2,7 +2,13 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +17,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/incidentes"
+	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/qdd-framework/qdd/pkg/reportes"
 	"github.com/spf13/cobra"
 )
@@ -122,5 +129,52 @@ func TestReportar_NoLoFrenaElGatekeeper(t *testing.T) {
 	}
 	if deReportar(rootCmd) {
 		t.Fatal("el resto sigue pasando por el gatekeeper")
+	}
+}
+
+// salidaDe corre f con stdout y stderr a un tubo y devuelve lo que escribió.
+func salidaDe(t *testing.T, f func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	viejoOut, viejoErr := os.Stdout, os.Stderr
+	os.Stdout, os.Stderr = w, w
+	defer func() { os.Stdout, os.Stderr = viejoOut, viejoErr }()
+	f()
+	w.Close()
+	b, _ := io.ReadAll(r)
+	return string(b)
+}
+
+// qdd reportar llave muestra la pública y qdd reportar enviados lo enviado; ninguno imprime la llave privada.
+// contrato: reportes#a48b9544
+func TestReportarLlaveYEnviados_NuncaImprimenLaPrivada(t *testing.T) {
+	_, r := entornoReporte(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"id":"REP-9"}`)
+	}))
+	defer srv.Close()
+	if _, err := reportes.Enviar(context.Background(), remoto.ConfigRelay{URL: srv.URL, Clave: "anon"}, r, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	salida := salidaDe(t, func() {
+		reportarLlaveCmd.Run(reportarLlaveCmd, nil)
+		reportarEnviadosCmd.Run(reportarEnviadosCmd, nil)
+	})
+	publica, _ := reportes.Publica()
+	if !strings.Contains(salida, publica) || !strings.Contains(salida, "REP-9") {
+		t.Fatalf("la prueba necesita la pública y lo enviado en la salida: %q", salida)
+	}
+	llave, err := reportes.Llave()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{base64.StdEncoding.EncodeToString(llave.Seed()), hex.EncodeToString(llave.Seed()), base64.StdEncoding.EncodeToString(llave), hex.EncodeToString(llave)} {
+		if strings.Contains(salida, f) {
+			t.Fatal("qdd reportar imprimió la llave privada")
+		}
 	}
 }

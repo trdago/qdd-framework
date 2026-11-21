@@ -81,6 +81,10 @@ func informar(cmd *cobra.Command, r resultadoCompartir) {
 
 func compartirPorEnlace(cmd *cobra.Command, root string, f flujo.Flujo, foto flujo.Foto, ahora time.Time) {
 	token := os.Getenv(variableCloudflare)
+	_, hayEntrada := entradaCloudflare()
+	if err := enlaceConLlaveParaIA(flujoRol, os.Getenv("CLAUDECODE"), token != "" || hayEntrada); err != nil {
+		salirCon("%v", err)
+	}
 	if token == "" {
 		compartirConElBaul(cmd, root, f, foto, ahora)
 		return
@@ -106,6 +110,16 @@ func compartirPorEnlace(cmd *cobra.Command, root string, f flujo.Flujo, foto flu
 		"Enlace para %s (%s, vence el %s, hasta %d propuestas): quien lo abra propone y cada propuesta llega a tu panel. "+
 			"Lleva la llave de la invitación después de #: mándaselo solo a esa persona. Para cerrarlo: qdd flujo compartir --revocar %s",
 		paraQuien(), inv.Rol, inv.Vence.Local().Format("02/01 15:04"), flujoTope, inv.ID)})
+}
+
+// enlaceConLlaveParaIA (flujo#51f50f31): el enlace de una invitación lleva su llave y qdd no la guarda, así que solo
+// sale donde lo ve la persona. Una IA lo imprimiría al chat: se rechaza antes de crear la invitación. El panel corre
+// compartir sin CLAUDECODE. Sin Cloudflare la invitación va en un archivo, no en la salida.
+func enlaceConLlaveParaIA(rol, claudecode string, cloudflare bool) error {
+	if rol == "" || claudecode == "" || !cloudflare {
+		return nil
+	}
+	return errors.New("el enlace de una invitación lleva su llave y no se muestra a una IA: la persona lo comparte desde el panel (↗ Compartir en el flujo)")
 }
 
 // publicarSoloLectura sube la página de solo lectura; el flujo conserva su enlace, así que volver a compartir lo

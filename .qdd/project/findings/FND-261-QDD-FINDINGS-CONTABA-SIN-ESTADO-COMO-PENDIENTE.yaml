@@ -1,0 +1,9 @@
+id: "FND-261"
+title: "La tool MCP qdd_findings contaba como pendiente un finding sin estado o descartado"
+description: "processFindingsFiles (cmd/mcp_agile.go) leía los YAML por su cuenta y sumaba a «Pendientes» todo lo que no era resuelto: los sin estado y los wontfix. Con la misma carpeta, qdd_findings decía «Pendientes: 3» donde pkg/findings, qdd_score, report, evolution y el dashboard decían 1 abierto, 1 sin estado y 1 descartado."
+impact: "La IA, que lee qdd_findings, veía deuda abierta que no existía y trataba como abierto un finding cuyo estado le toca decidir a una persona (ficha findings: «Ningún otro paquete interpreta el campo status»; criterio: un sin estado se informa como 'sin estado')."
+action_taken: "qdd_findings lee con findings.Leer y cuenta con findings.Contar: dice Resueltos, Pendientes, Descartados y Sin estado por separado, y la línea de un finding sin estado dice «SIN ESTADO». Se quitó el struct Finding de cmd/mcp.go, que solo usaba ese lector."
+test_result: "cli/cmd/indicadores_test.go TestIndicadores_QddFindingsCuentaComoPkgFindings_FND261 falló («Total: 5 | Resueltos: 2 | Pendientes: 3», sin «Sin estado: 1») y pasa con el arreglo."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

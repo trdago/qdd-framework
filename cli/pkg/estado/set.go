@@ -24,7 +24,6 @@ type Cambio struct {
 	DeQuien            string
 	Falla              string
 	RequiereAprobacion string
-	Aprobado           bool
 	// Verifica: un ⏳ que qdd revisa solo (verificar.go), p. ej. «npm:qdd-framework@2.10.0-rc.43».
 	Verifica string
 	// AunqueExista crea la tarea aunque su nombre repita el de una abierta (FND-109).
@@ -91,7 +90,7 @@ func Set(root string, c Cambio, now time.Time) error {
 	}
 	anterior := e.Frentes[i].Celdas[c.Etapa]
 	celda := Celda{Estado: estado, Evidencia: c.Evidencia, Bloqueo: bloqueo, DeQuien: c.DeQuien, Falla: c.Falla,
-		RequiereAprobacion: anterior.RequiereAprobacion, Aprobado: anterior.Aprobado || c.Aprobado, Verifica: verifica}
+		RequiereAprobacion: anterior.RequiereAprobacion, Aprobado: aprobacionVigente(anterior, estado, c.Evidencia), Verifica: verifica}
 	if c.RequiereAprobacion != "" {
 		celda.RequiereAprobacion = c.RequiereAprobacion
 	}
@@ -174,4 +173,34 @@ func (e Estado) puedeNombrar(id, nombre string, aunqueExista bool) error {
 		return e.ValidarTarea(id)
 	}
 	return e.puedeCrear(id, nombre, aunqueExista)
+}
+
+// aprobacionVigente: un set nunca da una aprobación, solo conserva la que hay. La de un ✅ vale para ese ✅: si la celda
+// ya estaba en ✅ y cambia de evidencia (otra versión) o de estado, el siguiente ✅ necesita la suya.
+func aprobacionVigente(anterior Celda, estado, evidencia string) bool {
+	if !anterior.Aprobado || NormalizarEstado(anterior.Estado) != Hecho {
+		return anterior.Aprobado
+	}
+	return estado == Hecho && anterior.Evidencia == evidencia
+}
+
+// Aprobar da la aprobación que una celda espera. La llama solo «qdd estado aprobar», que exige el «s  Sí» de la persona
+// en su pedido o su terminal: ni un set ni la IA aprueban.
+func Aprobar(root, frente, etapa string, now time.Time) error {
+	e, err := cargarParaEscribir(root)
+	if err != nil {
+		return err
+	}
+	i := e.buscar(frente)
+	if i < 0 {
+		return fmt.Errorf("no hay una tarea %q", frente)
+	}
+	c, ok := e.Frentes[i].Celdas[etapa]
+	if !ok || c.RequiereAprobacion == "" {
+		return fmt.Errorf("%s › %s no espera aprobación", frente, etapa)
+	}
+	c.Aprobado = true
+	e.Frentes[i].Celdas[etapa] = c
+	e.Frentes[i].TocadaEl = now.Format(time.RFC3339)
+	return guardarValidado(root, e, frente, now)
 }

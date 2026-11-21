@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -55,6 +56,50 @@ func TestMCP_AnotacionesVerdaderasYSinRelleno(t *testing.T) {
 	for nombre, st := range tools {
 		if st.Tool.Annotations.DestructiveHint != nil {
 			t.Errorf("%s repite el valor por defecto del protocolo (destructiveHint): es relleno en cada sesión", nombre)
+		}
+	}
+}
+
+// Las reglas de seguridad que cada descripción tiene que conservar aunque se acorte: quién responde, quién confirma y
+// qué no ejecuta la IA. Una frase por regla, tal como la lee la IA en tools/list.
+var reglasDeSeguridadMCP = map[string][]string{
+	"qdd_blueprint_apply":   {"preguntas son del HUMANO", "nunca las respondas tú", "la aprueba un humano"},
+	"qdd_blueprint_propose": {"SOLO con confirmación explícita del humano", "no lo elijas tú"},
+	"qdd_consola_pedir":     {"Corre solo si confirma", "nunca lo ejecutes tú"},
+	"qdd_module_save":       {"SIEMPRE queda en borrador", "la aprueba un humano"},
+	"qdd_blueprint_add":     {"solo los que pidió el humano", "nunca la inventes"},
+}
+
+// reglasDeSeguridadParam son las de un parámetro: lo que la IA solo pasa si el humano lo pidió.
+var reglasDeSeguridadParam = map[string]map[string]string{
+	"qdd_blueprint_add":        {"origen": "SOLO si el humano lo indicó", "reemplazar": "SOLO si el humano lo pidió"},
+	"qdd_blueprint_contribute": {"origen": "SOLO si el humano la indicó"},
+	"qdd_blueprint_apply":      {"respuestas": "Del humano"},
+}
+
+// contrato: mcp#904a6912
+func TestMCP_DescripcionesConservanLasReglasDeSeguridad(t *testing.T) {
+	s := server.NewMCPServer("reglas", "1")
+	registerMCPTools(s)
+	tools := s.ListTools()
+	for nombre, frases := range reglasDeSeguridadMCP {
+		st, ok := tools[nombre]
+		if !ok {
+			t.Errorf("%s ya no está registrada: revisa dónde quedó su regla de seguridad", nombre)
+			continue
+		}
+		for _, f := range frases {
+			if !strings.Contains(st.Tool.Description, f) {
+				t.Errorf("%s perdió la regla «%s»: %q", nombre, f, st.Tool.Description)
+			}
+		}
+	}
+	for nombre, params := range reglasDeSeguridadParam {
+		for p, f := range params {
+			m, _ := tools[nombre].Tool.InputSchema.Properties[p].(map[string]interface{})
+			if d, _ := m["description"].(string); !strings.Contains(d, f) {
+				t.Errorf("%s.%s perdió la regla «%s»: %q", nombre, p, f, d)
+			}
 		}
 	}
 }

@@ -1,0 +1,9 @@
+id: "FND-266"
+title: "EPF-C04 daba por validada una Validación real cuya evidencia era otro despliegue"
+description: "Medido 2026-11-21 al probar el invariante «Desplegado no es validado» (estado-por-tareas#6ecea039): checkDesplegadoNoEsValidado solo rechazaba una Validación real ✅ con la MISMA cadena de evidencia que Producción. Con Producción ✅ «v1.2.0», una Validación real ✅ «v1.2.1», «commit e29393e» o «tag v1.2.1» pasaba qdd estado check y qdd audit, y sin Producción en ✅ no se revisaba nada."
+impact: "Una tarea desplegada se podía presentar como validada en el tablero, el teléfono y el reporte con solo nombrar una versión o un commit, que dicen qué se desplegó y no que alguien lo usó."
+action_taken: "Validación real en ✅ con una evidencia que es solo una versión o un commit (opcionalmente «tag», «versión», «release» o «commit» delante), o la misma de Producción, es EPF-C04 aunque Producción no esté en ✅. Revisado contra los estado.yaml de los 8 proyectos de este PC: ninguno queda con un EPF-C04 nuevo. Queda fuera, para decidir: que una etapa propia del proyecto cumpla el rol de Validación real (el blueprint lo pide en la opción «propias» y «sin-codigo»; el código solo conoce el nombre «Validación real»)."
+test_result: "cli/pkg/estado/evidencia_test.go TestCheck_EPFC04_ValidacionRealConLaEvidenciaDeUnDespliegue falló sin el arreglo («Validación real ✅ con \"v1.2.1\" (un despliegue) no es validado», igual con commit, tag y 1.2.1-rc.2) y pasa con él; los usos reales («uso real del 2026-10-02», «Ana cobró 3 pedidos con v1.2.0 (corrida 4082)») siguen válidos."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

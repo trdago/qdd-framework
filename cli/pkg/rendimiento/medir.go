@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
 // Opciones de una medición. Entorno se suma al de la caja (las pruebas lo usan para su qdd falso).
@@ -91,7 +93,8 @@ func prepararCaja(extra []string) (caja, error) {
 		return caja{}, err
 	}
 	c := caja{dir: dir, proyecto: filepath.Join(dir, "proyecto")}
-	entorno := sinVariables(os.Environ(), variablesDeLaCaja)
+	// Sin las variables con que git elige repositorio: desde un hook, git y qdd trabajarían en el de la persona (FND-263).
+	entorno := gitenv.Limpio(sinVariables(os.Environ(), variablesDeLaCaja))
 	for _, v := range variablesDeLaCaja {
 		ruta := filepath.Join(dir, "usuario", strings.ToLower(v))
 		if err := os.MkdirAll(ruta, 0o700); err != nil {

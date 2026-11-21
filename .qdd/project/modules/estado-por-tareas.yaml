@@ -31,7 +31,7 @@ objetivo_tecnologico:
         - 'Vocabulario «tarea»: Una línea de trabajo del proyecto; es una fila de la tabla (antes «frente»).'
         - 'Vocabulario «etapa»: Un paso por el que pasa toda tarea; es una columna de la tabla.'
         - 'Vocabulario «estado»: El valor de una celda, uno de cuatro: ✅ hecho, ⏳ en curso o esperando, ❌ falta o falla, — no aplica.'
-        - 'Vocabulario «evidencia»: Lo que respalda un ✅ (commit, versión, n/n pruebas o id de corrida).'
+        - 'Vocabulario «evidencia»: Lo que respalda un ✅ (commit, versión, n/n pruebas, id de corrida o lo que confirmó la persona).'
         - 'Vocabulario «bloqueo»: Lo que espera un ⏳ y de quién.'
         - 'Vocabulario «validación real»: Ver el resultado funcionando en un uso real; no es lo mismo que desplegado.'
         - 'Vocabulario «en curso»: Una tarea que el agente declaró y que latió hace menos de la vida; el panel la muestra «● running».'
@@ -101,13 +101,15 @@ objetivo_tecnologico:
         - La vida es de 120 s sin pulsos; el panel envía como mucho un pulso cada 5 s
         - 'Se ve como «● running»: el ● alterna tenue y brillante cada 1 s y destella en acento durante un 1 s con cada pulso'
         - 'Las etapas del proyecto, en orden: Código · Pruebas · PR · Publicación (pedido del usuario, 2026-11-01: las que ya usa .qdd/project/estado.yaml)'
+        - "La aprobación la da la persona con qdd estado aprobar, desde su pedido \U0001F511 (DePersona, que el modo goal no lanza) o su terminal; «aprobado» en un set solo deja ese pedido. Vale para el ✅ que aprueba (FND-267, 2026-11-21)"
     invariantes:
         - Cada celda tiene exactamente un estado
-        - 'Un ✅ lleva evidencia: commit, versión, n/n pruebas o id de corrida'
+        - 'Un ✅ lleva evidencia que dice cómo se sabe: commit, versión, n/n pruebas, id de corrida o lo que confirmó la persona; vacía o una palabra suelta («listo», «ok») no vale'
         - Un ⏳ dice qué espera y de quién
         - Una falla conocida se reporta igual como ❌ y se nombra
         - 'Desplegado no es validado: «Producción ✅ v1.2.0 y Validación real ⏳ espera ver un uso real de la persona»'
         - Lo que requiere aprobación lo dice en la celda y nunca avanza sin ella
+        - "La aprobación la da solo la persona (qdd estado aprobar, desde su pedido \U0001F511 o su terminal; el modo goal no la lanza) y vale para el ✅ que aprueba: otra evidencia necesita la suya"
         - Una tarea no desaparece en silencio
         - 'No hay credenciales ni datos personales en el reporte: ni en la tabla ni en el texto'
         - El texto y la tabla no se contradicen
@@ -137,5 +139,5 @@ pruebas:
 fuentes:
     - .qdd/blueprints.lock.yaml
     - .qdd/project/blueprints/estado-por-tareas.yaml
-ultima_revision: "2026-11-15"
-revisado_en_commit: 6fdd01ac600e
+ultima_revision: "2026-11-21"
+revisado_en_commit: 26b048487706

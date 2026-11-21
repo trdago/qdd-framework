@@ -189,7 +189,7 @@ func (s Servicio) plist() string {
 func (s Servicio) tareaXML() string {
 	return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo><Description>QDD remoto: el panel de este PC en QDD Móvil</Description></RegistrationInfo>
+  <RegistrationInfo><Description>QDD remoto: el panel de este PC en QDD Móvil` + s.marcaHomeTarea() + `</Description></RegistrationInfo>
   <Triggers><LogonTrigger><Enabled>true</Enabled>` + s.usuarioTarea() + `</LogonTrigger>` + reintentoTarea + `</Triggers>
   <Principals><Principal id="Author">` + s.usuarioTarea() + `<LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
   <Settings>
@@ -203,6 +203,15 @@ func (s Servicio) tareaXML() string {
   <Actions Context="Author"><Exec><Command>` + escaparXML(s.programaTarea()) + `</Command><Arguments>remoto correr</Arguments></Exec></Actions>
 </Task>
 `
+}
+
+// marcaHomeTarea: la tarea no lleva variables de entorno, así que dice en su descripción el QDD_HOME con que se activó;
+// sin él, es la del QDD_HOME de siempre (FND-260).
+func (s Servicio) marcaHomeTarea() string {
+	if s.QDDHome == "" {
+		return ""
+	}
+	return " (QDD_HOME=" + escaparXML(s.QDDHome) + ")"
 }
 
 func (s Servicio) usuarioTarea() string {
@@ -258,16 +267,20 @@ func (s Servicio) Comandos(encender bool) [][]string {
 	return nil
 }
 
-// esDeEsteHome mira el QDD_HOME del archivo instalado. En Windows el archivo ya vive en <QDD_HOME>/remoto.
+// esDeEsteHome mira el QDD_HOME del archivo instalado. En Windows la tarea es una sola por usuario aunque su archivo
+// viva en <QDD_HOME>/remoto: la descripción dice con qué QDD_HOME se activó (FND-260).
 func (s Servicio) esDeEsteHome(contenido string) bool {
 	if s.SO == "windows" {
-		return true
+		contenido = desdeUTF16([]byte(contenido))
 	}
 	if s.QDDHome == "" {
 		return !strings.Contains(contenido, "QDD_HOME")
 	}
 	if s.SO == "darwin" {
 		return strings.Contains(contenido, "<key>QDD_HOME</key><string>"+escaparXML(s.QDDHome)+"</string>")
+	}
+	if s.SO == "windows" {
+		return strings.Contains(contenido, s.marcaHomeTarea()+"</Description>")
 	}
 	return strings.Contains(contenido, comillasSystemd("QDD_HOME="+s.QDDHome))
 }

@@ -1,0 +1,9 @@
+id: "FND-265"
+title: "flujo.Historial leía fuera de la carpeta de flujos con un id con ruta"
+description: "Medido 2026-11-21 al probar la invariante flujo#d7ab8543 («el id de un flujo no puede salir de la carpeta de flujos»): Cargar, CargarVersion, PorEnviar y las ediciones validaban el id, pero flujo.Historial no. 'qdd flujo historial ../x' abría <flujos>/../x.historial.jsonl, es decir .qdd/project/x.historial.jsonl, y mostraba lo que hubiera ahí como revisiones."
+impact: "Un id con ruta (de la IA, del teléfono o de un script) leía y mostraba archivos .historial.jsonl fuera de la carpeta de flujos; quitarRevision, que se apoya en Historial, quedaba a una llamada de reescribir uno."
+action_taken: "Historial devuelve nada si el id no cumple idValido (minúsculas, números y guiones), como PorEnviar y PuedeDeshacer. La prueba recorre todas las funciones exportadas que reciben un id."
+test_result: "cli/pkg/flujo/id_fuera_test.go TestID_ConRutaNoSaleDeLaCarpeta falló sin el arreglo («Historial leyó fuera de la carpeta de flujos: [{Rev:9 … Resumen:secreto de afuera}]») y pasa con él."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

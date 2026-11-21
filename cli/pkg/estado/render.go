@@ -167,6 +167,9 @@ func CheckRespuesta(e Estado, respuesta string, now time.Time) []Violacion {
 			vs = append(vs, Violacion{ID: "EPF-A01", Frente: etiqueta, Mensaje: "está en la respuesta y no en el archivo"})
 		}
 	}
+	if secretoODatoPersonal.MatchString(respuesta) {
+		vs = append(vs, Violacion{ID: "EPF-C07", Mensaje: "el reporte trae algo que parece una credencial o un dato personal: no va ni en la tabla ni en el texto"})
+	}
 	return append(vs, checkAfirmaciones(e, respuesta)...)
 }
 

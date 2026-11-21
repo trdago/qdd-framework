@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,6 +20,7 @@ func TestHerramienta_CampoIgualValorLlegaEntero(t *testing.T) {
 	}
 }
 
+// contrato: herramientas#bb7175a2
 func TestHerramienta_ElListadoDiceLoQueFaltaEnEstaMaquina(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("la herramienta de prueba es un script de sh")
@@ -44,9 +46,13 @@ func TestHerramienta_ElListadoDiceLoQueFaltaEnEstaMaquina(t *testing.T) {
 	if vs, _ = listadoDeHerramientas(root); !strings.Contains(vs[0].Aviso, "SIM_CLAVE_DE_PRUEBA") {
 		t.Fatalf("sin la variable lo dice: %+v", vs)
 	}
-	t.Setenv("SIM_CLAVE_DE_PRUEBA", "x")
+	t.Setenv("SIM_CLAVE_DE_PRUEBA", "valor-de-prueba-4321")
 	if vs, _ = listadoDeHerramientas(root); vs[0].Aviso != "" || vs[0].Archivo != ".qdd/herramientas/sim.yaml" {
 		t.Fatalf("lista para usar: %+v", vs)
+	}
+	// Lo que va al panel (qdd herramienta listar --json) nombra la variable, nunca trae su valor.
+	if b, _ := json.Marshal(vs); !strings.Contains(string(b), "SIM_CLAVE_DE_PRUEBA") || strings.Contains(string(b), "valor-de-prueba-4321") {
+		t.Fatalf("el listado nombra la variable y nunca su valor: %s", b)
 	}
 }
 

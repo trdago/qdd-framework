@@ -6,6 +6,32 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.109] - 2026-11-21
+
+### Added
+
+- **Pruebas para las promesas de más riesgo:** 46 pruebas nuevas para las promesas de ficha de alto riesgo que nadie demostraba (secretos, aprobaciones, el teléfono, el baúl, los datos). Cada una cita su invariante con `contrato:`. Escribirlas encontró los 11 bugs de abajo.
+- **`qdd estado aprobar <tarea> <etapa>` (FND-267):** la aprobación que una celda espera la das tú, desde su pedido 🔑 en el panel o en tu terminal. El modo goal no lo lanza.
+- **Pruebas herméticas sin red:** si hay `bwrap`, las pruebas de Go corren sin red (solo localhost). Una prueba que llama a internet falla en vez de salir, y CI instala bubblewrap para correrlas así.
+
+### Changed
+
+- **Un ✅ necesita una evidencia que diga cómo se sabe:** vacía o una palabra suelta («listo», «ok», «hecho») ya no vale. Lo que confirmaste desde el panel sigue valiendo. Ninguna de las 1045 celdas ✅ de los proyectos de este PC queda afuera.
+
+### Fixed
+
+- **La IA podía dar una aprobación (FND-267):** `--aprobado` y `aprobado` en `qdd_estado` la marcaban sin ti, y una aprobación vieja valía para un ✅ nuevo. Ahora dejan tu pedido 🔑, y la aprobación vale solo para el ✅ que aprobaste.
+- **El enlace de una invitación con su llave llegaba al chat (FND-268):** si una IA corre `qdd flujo compartir --enlace --rol`, ahora se rechaza antes de crear la invitación. Lo compartes tú desde el panel.
+- **Textos al teléfono sin ocultar secretos (FND-250):** el motivo de un pedido y otros textos ahora pasan por el ocultador.
+- **Una herramienta repetía un token (FND-251):** si un token iba escrito fuera de los argumentos, el rechazo lo repetía.
+- **La revisión de credenciales del estado (FND-252):** no miraba el texto del reporte ni toda la lista mínima de credenciales y datos personales.
+- **`qdd remoto desactivar` en Windows (FND-260):** ya no borra la tarea programada de otro QDD_HOME.
+- **`qdd_findings` (FND-261):** ya no cuenta como pendiente un finding sin estado o descartado.
+- **`doctor --fix` (FND-262):** aparta un `cognitive_history.json` ilegible en vez de pisarlo con `[]`.
+- **`qdd rendimiento` (FND-263):** ya no hereda el GIT_DIR de quien lo lanza.
+- **El historial de un flujo (FND-265):** ya no lee fuera de su carpeta con un id que trae una ruta.
+- **Desplegado no es validado (FND-266):** una Validación real ✅ con solo una versión o un commit como evidencia ya no pasa.
+
 ## [2.10.0-rc.108] - 2026-11-21
 
 ### Added

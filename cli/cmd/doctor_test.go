@@ -62,7 +62,9 @@ func validateDoctorReportContains(t *testing.T, qddDir, expectedStatus string) {
 	}
 }
 
+// FND-262: --fix pisaba un cognitive_history.json ilegible con [] y se perdía lo que tenía; ahora lo aparta antes.
 func TestSelectiveFixDashboardContracts(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
 	tempDir := t.TempDir()
 
 	historyPath := filepath.Join(tempDir, ".qdd", "project", "metrics", "cognitive_history.json")
@@ -82,6 +84,10 @@ func TestSelectiveFixDashboardContracts(t *testing.T) {
 	}
 	if string(content) != "[]" {
 		t.Errorf("Expected repaired JSON to be '[]', got '%s'", string(content))
+	}
+	apartado, err := os.ReadFile(historyPath + ".ilegible")
+	if err != nil || string(apartado) != "corrupted_no_json" {
+		t.Errorf("--fix no descarta información: el historial ilegible queda apartado al lado: %q, %v", apartado, err)
 	}
 }
 
