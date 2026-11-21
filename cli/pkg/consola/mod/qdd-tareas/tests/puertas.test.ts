@@ -75,3 +75,28 @@ test('PowerShell también pasa por las puertas', async ($, on) => {
   await iniciar($)
   expect(JSON.stringify(await correr($, 'git commit -m x', 'PowerShell'))).toContain('no hay un qdd audit')
 })
+
+// Puerta ficha (etapa 2): antes de editar, el panel le pasa a qdd el archivo y las rutas cuyo contexto ya pidió la sesión.
+test('antes de editar pregunta con el archivo y lo que la sesión ya leyó', async ($, on) => {
+  const r = nuevo({ exitCode: 0, stdout: '', stderr: '' })
+  preparar(on, r)
+  await iniciar($)
+  await $.tool.call({ tool: 'mcp__qdd__qdd_project_context', paths: 'cli/pkg/baul, cli/cmd/baul.go\ncli/pkg/puertas', tool_use_id: 'u1' })
+  await correr($, "cd cli && qdd modules context pkg/estado 'cmd/estado.go' --completo && go test ./...")
+  await $.tool.call({ tool: 'Edit', file_path: '/work/qdd/cli/pkg/baul/verificar.go', old_string: 'a', new_string: 'b', tool_use_id: 'u2' })
+  const editar = r.revisiones.find((a) => a.includes('--editar'))
+  expect(editar).toEqual(['qdd', 'puertas', 'revisar', '--dir', '/work/qdd', '--sesion', 'sesion-1', '--editar', '/work/qdd/cli/pkg/baul/verificar.go',
+    '--leida', 'cli/pkg/baul', '--leida', 'cli/cmd/baul.go', '--leida', 'cli/pkg/puertas', '--leida', 'pkg/estado', '--leida', 'cmd/estado.go'])
+})
+
+test('una edición que la puerta ficha rechaza no se hace', async ($, on) => {
+  const r = nuevo({ exitCode: 2, stdout: 'Puerta de QDD: antes de editar cli/pkg/baul/verificar.go lee su ficha «baul»', stderr: '' })
+  preparar(on, r)
+  await iniciar($)
+  for (const tool of ['Edit', 'Write', 'MultiEdit']) {
+    const res = await $.tool.call({ tool, file_path: '/work/qdd/cli/pkg/baul/verificar.go', tool_use_id: 'u3' }).catch((err) => ({ deny: String(err) }))
+    expect(JSON.stringify(res)).toContain('lee su ficha')
+  }
+  const nb = await $.tool.call({ tool: 'NotebookEdit', notebook_path: '/work/qdd/x.ipynb', tool_use_id: 'u4' }).catch((err) => ({ deny: String(err) }))
+  expect(JSON.stringify(nb)).toContain('lee su ficha')
+})

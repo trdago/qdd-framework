@@ -4096,17 +4096,46 @@ async function cicloPropuestas($) {
 // lo intenta por una herramienta de shell recibe una negativa aquí y, si lo esquiva, un rechazo de qdd (FND-146).
 const GOAL_MS = 5000
 const ACCION_GOAL = 'goal-activar'
-// Puertas (ficha puertas, etapa 1): un comando de la IA que nombra un commit o una publicación pasa antes por 'qdd
-// puertas revisar', que decide sin modelo. Solo su 2 lo rechaza, con el mensaje de qdd; si falla o tarda más de 2 s, el
+// Puertas (ficha puertas): un comando de la IA que nombra un commit o una publicación pasa antes por 'qdd puertas
+// revisar', que decide sin modelo. Solo su 2 lo rechaza, con el mensaje de qdd; si falla o tarda más de 2 s, el
 // comando pasa (una puerta nunca bloquea por una falla propia). Lo demás no gasta un proceso.
 const NOMBRA_PUERTA = /\bgit\b[^\n]*\b(commit|push)\b|\bgh\s+(pr\s+merge|release\s+create)\b|\bpublish\b/
 const TOPE_PUERTAS_MS = 2000
 let carpetaDeSesion = ''
 
-async function rechazoDePuertas($, e) {
+// Puerta ficha (etapa 2): antes de editar, qdd recibe el archivo y las rutas cuyo contexto ya pidió esta sesión (por
+// qdd_project_context o 'qdd modules context'), que el panel recuerda mientras vive.
+const HERRAMIENTAS_EDICION = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
+const PIDE_CONTEXTO = /\bqdd\S*\s+modules\s+context\b([^;&|\n]*)/g
+const MAX_LEIDAS = 200
+const leidas = []
+
+function anotarLeidas(e) {
+  if (e.tool === 'mcp__qdd__qdd_project_context') sumarLeidas(String(e.paths || '').split(/[,\n]/))
+  if (!HERRAMIENTAS_SHELL.has(e.tool)) return
+  for (const m of String(e.command || '').matchAll(PIDE_CONTEXTO)) sumarLeidas(m[1].trim().split(/\s+/).filter((p) => !p.startsWith('-')))
+}
+
+function sumarLeidas(rutas) {
+  for (const ruta of rutas.map((p) => p.trim().replace(/^(['"])(.*)\1$/, '$2')).filter(Boolean)) {
+    if (!leidas.includes(ruta)) leidas.push(ruta)
+  }
+  leidas.splice(0, Math.max(0, leidas.length - MAX_LEIDAS))
+}
+
+function preguntaDePuertas(e) {
   const comando = String(e.command || '')
-  if (!HERRAMIENTAS_SHELL.has(e.tool) || !NOMBRA_PUERTA.test(comando)) return ''
-  const args = [await binario($), 'puertas', 'revisar', '--dir', String(e.cwd || carpetaDeSesion || '.'), '--sesion', await sesionPropia($), '--', comando]
+  if (HERRAMIENTAS_SHELL.has(e.tool) && NOMBRA_PUERTA.test(comando)) return ['--', comando]
+  const archivo = String(e.file_path || e.notebook_path || '')
+  if (!HERRAMIENTAS_EDICION.has(e.tool) || !archivo) return null
+  return ['--editar', archivo, ...leidas.flatMap((l) => ['--leida', l])]
+}
+
+async function rechazoDePuertas($, e) {
+  anotarLeidas(e)
+  const pregunta = preguntaDePuertas(e)
+  if (!pregunta) return ''
+  const args = [await binario($), 'puertas', 'revisar', '--dir', String(e.cwd || carpetaDeSesion || '.'), '--sesion', await sesionPropia($), ...pregunta]
   const revision = $.process.run(args, { timeoutMs: TOPE_PUERTAS_MS }).catch(() => null)
   const r = await Promise.race([revision, $.clock.sleep(TOPE_PUERTAS_MS).then(() => null)])
   if (r?.exitCode !== 2) return ''

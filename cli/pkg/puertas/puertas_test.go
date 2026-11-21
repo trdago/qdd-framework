@@ -24,7 +24,7 @@ func TestAcciones_VeLoQueCommiteaOPublica(t *testing.T) {
 		"git -C /w push origin +refs/tags/v1:refs/tags/v1": {{Puerta: PuertaPublicar, Dir: "/w", Que: "git push", Refs: []string{"+refs/tags/v1:refs/tags/v1"}}},
 	}
 	for comando, want := range casos {
-		got := Acciones(comando)
+		got := sinFinding(Acciones(comando))
 		if !igualesAcciones(got, want) {
 			t.Errorf("%q:\n got %+v\nwant %+v", comando, got, want)
 		}
@@ -45,7 +45,7 @@ func TestAcciones_ElTextoNoEsUnComando(t *testing.T) {
 			t.Errorf("%q no commitea ni publica: %+v", comando, got)
 		}
 	}
-	got := Acciones("git commit -q -m \"$(cat <<'EOF'\nfix: algo; gh pr merge 1\nEOF\n)\"")
+	got := sinFinding(Acciones("git commit -q -m \"$(cat <<'EOF'\nfix: algo; gh pr merge 1\nEOF\n)\""))
 	if len(got) != 1 || got[0].Puerta != PuertaAudit {
 		t.Fatalf("un mensaje en heredoc dentro de comillas es un solo commit: %+v", got)
 	}
@@ -165,6 +165,17 @@ func TestAnotar_FueraDelProyectoYSinRutas(t *testing.T) {
 	}
 }
 
+// sinFinding: la puerta finding de cada commit se prueba aparte (etapa2_test.go).
+func sinFinding(acciones []Accion) []Accion {
+	var out []Accion
+	for _, a := range acciones {
+		if a.Puerta != PuertaFinding {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 func igualesAcciones(a, b []Accion) bool {
 	if len(a) != len(b) {
 		return false
@@ -224,6 +235,21 @@ func TestEsTag(t *testing.T) {
 	for ref, want := range casos {
 		if got := EsTag(dir, ref); got != want {
 			t.Errorf("%s: got %v want %v", ref, got, want)
+		}
+	}
+}
+
+func TestLeidaCubre(t *testing.T) {
+	cubiertas := func(ruta string) []string {
+		if strings.HasPrefix(ruta, "cli/pkg/baul") || ruta == "cli/cmd/baul.go" {
+			return []string{"baul"}
+		}
+		return nil
+	}
+	casos := map[string]bool{"cli/pkg/baul": true, "cli/cmd/baul.go": true, "cli/pkg": false, "cli/pkg/estado": false, "": false}
+	for leida, want := range casos {
+		if got := LeidaCubre(leida, "cli/pkg/baul/verificar.go", "baul", cubiertas); got != want {
+			t.Errorf("leída %q: got %v want %v", leida, got, want)
 		}
 	}
 }
