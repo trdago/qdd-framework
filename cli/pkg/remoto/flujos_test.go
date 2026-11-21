@@ -321,6 +321,7 @@ func TestMensajeFlujo_LasPreguntasDelFlujoSalenSinSecretos(t *testing.T) {
 }
 
 // Los ítems de un nodo (2026-11-07) viajan al teléfono sin secretos (inv. 16), con su estado intacto.
+// contrato: flujo#44ad1ed8
 func TestMensajeFlujo_LosItemsSalenSinSecretos(t *testing.T) {
 	root := t.TempDir()
 	clave := "ghp_abcdefghijklmnopqrstuvwxyz0123456789"

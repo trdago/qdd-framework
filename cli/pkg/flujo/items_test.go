@@ -10,6 +10,7 @@ import (
 // desde el mismo nodo se agrega algo específico que probar. En un flujo cualquiera sirven para notas, características y
 // funciones.
 
+// contrato: flujo#44ad1ed8
 func TestItem_UnaPruebaNacePendienteYSeMarcaConSuEvidencia(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	f, linea := editar(t, root, DePersona, AgregarItem("b", ItemPrueba, "rechaza una firma vencida", ahoraDePrueba))
@@ -35,6 +36,7 @@ func TestItem_UnaPruebaNacePendienteYSeMarcaConSuEvidencia(t *testing.T) {
 	}
 }
 
+// contrato: flujo#44ad1ed8
 func TestItem_NotasCaracteristicasYFuncionesNoTienenEstado(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	for _, tipo := range []string{ItemNota, ItemCaracteristica, ItemFuncion} {
@@ -58,6 +60,7 @@ func TestItem_NotasCaracteristicasYFuncionesNoTienenEstado(t *testing.T) {
 	}
 }
 
+// contrato: flujo#44ad1ed8
 func TestItem_LoQueNoSePuedeNoEscribe(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	malos := []Cambio{
@@ -79,6 +82,7 @@ func TestItem_LoQueNoSePuedeNoEscribe(t *testing.T) {
 	}
 }
 
+// contrato: flujo#44ad1ed8
 func TestItem_QuitarLoSacaDelNodo(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, AgregarItem("b", ItemNota, "uno", ahoraDePrueba))
@@ -103,6 +107,7 @@ func TestValidar_UnItemRaroSeNombra(t *testing.T) {
 	}
 }
 
+// contrato: flujo#44ad1ed8
 func TestReemplazar_ConservaLosItems(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, AgregarItem("b", ItemPrueba, "x", ahoraDePrueba))
@@ -115,6 +120,7 @@ func TestReemplazar_ConservaLosItems(t *testing.T) {
 	}
 }
 
+// contrato: flujo#44ad1ed8
 func TestOperacion_ItemsDesdeElTelefono(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	aplicar(t, root, `{"op":"item-agregar","flujo":"pago","nodo":"b","tipo":"prueba","texto":"rechaza vencidas"}`)
@@ -152,5 +158,31 @@ func TestListar_CuentaLasPruebasDeCadaFlujo(t *testing.T) {
 	p := Listar(root, sinEstado)[0].Pruebas
 	if p == nil || p.Pasa != 1 || p.Falla != 1 || p.Pendiente != 1 {
 		t.Fatalf("el mapa de flujos muestra cuántas pasan, fallan y faltan: %+v", p)
+	}
+}
+
+// Tope de 50 ítems por nodo y de 300 caracteres de evidencia: lo que pasa no se escribe.
+// contrato: flujo#44ad1ed8
+func TestItem_TopesDelNodoYDeLaEvidencia(t *testing.T) {
+	root := flujoGuardado(t, cadena()...)
+	for i := 0; i < 50; i++ {
+		if _, _, err := Editar(root, "pago", DePersona, ahoraDePrueba, AgregarItem("b", ItemPrueba, "prueba", ahoraDePrueba)); err != nil {
+			t.Fatalf("el ítem %d cabe: %v", i+1, err)
+		}
+	}
+	if _, _, err := Editar(root, "pago", DePersona, ahoraDePrueba, AgregarItem("b", ItemNota, "la 51", ahoraDePrueba)); err == nil {
+		t.Fatal("el ítem 51 se rechaza")
+	}
+	if _, _, err := Editar(root, "pago", DeIA, ahoraDePrueba, MarcarItem("b", "i1", PruebaPasa, strings.Repeat("e", 301), ahoraDePrueba)); err == nil {
+		t.Fatal("una evidencia de más de 300 se rechaza")
+	}
+	f, _ := Cargar(root, "pago")
+	items := nodoDe(t, f, "b").Items
+	if len(items) != 50 || items[0].Estado != PruebaPendiente {
+		t.Fatalf("lo rechazado no se escribe: %d ítems, %+v", len(items), items[0])
+	}
+	f, _ = editar(t, root, DeIA, MarcarItem("b", "i1", PruebaPasa, strings.Repeat("e", 300), ahoraDePrueba))
+	if got := nodoDe(t, f, "b").Items[0]; got.Estado != PruebaPasa || len(got.Evidencia) != 300 {
+		t.Fatalf("300 caracteres caben: %+v", got)
 	}
 }

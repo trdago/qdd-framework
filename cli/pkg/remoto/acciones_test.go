@@ -162,6 +162,7 @@ func TestAccion_AprobarUnaFichaUnaSolaVezYQuedaEnElLog(t *testing.T) {
 
 // contrato: remoto#6e30dfb4
 // contrato: remoto#76b499d6
+// contrato: remoto#389ef195
 func TestAccion_LoQueNoSeOfreceOLoQueNoVieneDelRelaySeRechaza(t *testing.T) {
 	homeTemporal(t)
 	_, clave := proyectoConFicha(t, "pagos")

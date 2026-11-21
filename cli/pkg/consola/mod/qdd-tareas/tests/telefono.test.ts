@@ -44,6 +44,7 @@ const latidos = (r) => r.llamadas.filter((a) => a[2] === 'telefono' && a[3] === 
 
 // contrato: remoto#b613d6de
 
+// contrato: remoto#0b183847
 test('la instrucción del teléfono llega a la IA como mensaje de la persona, una vez, y se notifica', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] }] })
   const clock = preparar(on, r)
@@ -57,6 +58,7 @@ test('la instrucción del teléfono llega a la IA como mensaje de la persona, un
   expect(r.enviados.length).toBe(1)
 })
 
+// contrato: remoto#0b183847
 test('un mensaje que no viene marcado del teléfono no se envía (nunca un «!» o «/» suelto)', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'x', mensaje: '!rm -rf ~' }, { solicitud: 's2', nombre: 'x', mensaje: '/clear' }] }] })
   preparar(on, r)
@@ -92,6 +94,7 @@ test('si Claude Code descarta el mensaje, qdd la marca sin entregar y no la conf
   expect(r.notificaciones).toEqual([])
 })
 
+// contrato: remoto#0b183847
 test('sin terminal no late ni recibe nada', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel', mensaje: MENSAJE }] }] })
   const clock = preparar(on, r)
