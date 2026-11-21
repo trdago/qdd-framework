@@ -161,9 +161,17 @@ func Buscar(root, id string) (Herramienta, error) {
 // Guardar valida la definición, corre su prueba de humo y, si todo pasa, la guarda tal como vino (con sus
 // comentarios). Devuelve la ruta relativa o, si no se guarda, por qué.
 func Guardar(root string, data []byte) (string, []string) {
+	rel, problemas := guardar(root, data)
+	return rel, sinCredenciales(problemas)
+}
+
+func guardar(root string, data []byte) (string, []string) {
 	h, err := Parse(data)
 	if err != nil {
 		return "", []string{err.Error()}
+	}
+	if credencialEntera.Match(data) {
+		return "", []string{"la definición trae un secreto con formato de credencial. Los secretos van en una variable de entorno (entorno: [NOMBRE]) o en un campo, nunca escritos en la definición"}
 	}
 	if problemas := append(Validar(h), validarComando(root, h.Comando)...); len(problemas) > 0 {
 		return "", problemas
@@ -316,7 +324,17 @@ var (
 	banderaDeSecreto = regexp.MustCompile(`(?i)^--?[a-z-]*(token|secret|secreto|password|passwd|clave|api-?key|apikey)$`)
 	// formatos conocidos de credenciales
 	credencial = regexp.MustCompile(`(ghp_|gho_|ghs_|github_pat_|glpat-|xox[abpr]-|npm_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{16,})`)
+	// credencialEntera es la credencial completa, para buscarla en cualquier texto y taparla en un mensaje
+	credencialEntera = regexp.MustCompile(`\b(?:(?:ghp_|gho_|ghs_|github_pat_|glpat-|xox[abpr]-)[A-Za-z0-9_-]+|npm_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{16,})`)
 )
+
+// sinCredenciales tapa en cada mensaje lo que tiene formato de credencial: un rechazo nunca repite el secreto.
+func sinCredenciales(problemas []string) []string {
+	for i, p := range problemas {
+		problemas[i] = credencialEntera.ReplaceAllString(p, "•••")
+	}
+	return problemas
+}
 
 // secretos encuentra valores de secretos escritos en la definición; nunca los repite en el mensaje.
 func secretos(donde string, partes []string) []string {
