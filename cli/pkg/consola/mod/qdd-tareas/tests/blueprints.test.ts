@@ -175,6 +175,7 @@ test('📦 Sin repositorio de blueprints (entradas null) la vista se dibuja con 
 
 // FND-189: ninguna vista deja el panel en negro. Si una lanza, se ve «✗ la vista … falló», se puede volver al tablero
 // y la falla queda en qdd incidentes, sin datos del proyecto.
+// contrato: estado#4606a394
 test('✗ Una vista que falla se dice, deja volver al tablero y queda como incidente (FND-189)', async ($, on) => {
   const r = nuevo()
   const roto = { inventario: { entradas: [{ id: 'x', estado: 'al-dia', razones: 7 }], instalados: 'x', problemas: 'no es lista' }, acciones: [] }

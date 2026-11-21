@@ -65,18 +65,23 @@ func imprimirHooks(cambios []string) {
 }
 
 // hookPuertas decide la puerta del hook. Sale con 2 si rechaza: el hook corta el commit solo con ese código. Dentro de Claude Code el panel ya
-// anotó la decisión del mismo commit: el hook decide igual pero no la anota otra vez.
+// anotó la decisión del mismo commit: el hook decide igual pero no la anota otra vez. Sin los hechos antes de topePuertas,
+// deja pasar y anota el error (FND-277).
 func hookPuertas(dir, hook, archivo string) (int, string) {
 	a := puertas.Accion{Puerta: puertas.PuertaAudit}
 	if hook == "commit-msg" {
 		a = puertas.Accion{Puerta: puertas.PuertaFinding, ArchivoMensaje: archivo}
 	}
 	inicio := time.Now()
-	h, proyecto, ok := hechosDe(dir, a)
+	anotar := os.Getenv("CLAUDECODE") == ""
+	h, proyecto, ok, aTiempo := hechosConTope(dir, a, inicio.Add(topePuertas))
+	if !aTiempo && anotar {
+		anotarTarde(dir, a, estado.SesionActual(), inicio)
+	}
 	if !ok {
 		return 0, ""
 	}
-	codigo, mensaje, _ := aplicarPuerta(h, proyecto, estado.SesionActual(), inicio, os.Getenv("CLAUDECODE") == "")
+	codigo, mensaje, _ := aplicarPuerta(h, proyecto, estado.SesionActual(), inicio, anotar)
 	return codigo, mensaje
 }
 

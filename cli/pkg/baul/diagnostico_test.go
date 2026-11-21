@@ -48,6 +48,7 @@ func TestDiagnosticar_VencidoRechazadoYSinUso(t *testing.T) {
 	}
 }
 
+// contrato: baul#0bf182a7
 func TestDiagnosticar_RegistroRotoYFixLoAparta(t *testing.T) {
 	root := entorno(t)
 	guardarCloudflare(t)

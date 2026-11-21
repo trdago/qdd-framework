@@ -120,6 +120,7 @@ func TestCiclo_UnReporteDeUnaSesionQuedaEnLaColaYEsTareaDelObjetivo(t *testing.T
 	}
 }
 
+// contrato: mejoras#94bd81a0
 func TestCiclo_EsIdempotenteYNoDuplicaUnReporteRepetido(t *testing.T) {
 	root := proyecto(t)
 	reportar(t, root, "Las consultas no salen en el tablero", t0)
@@ -229,6 +230,7 @@ func TestCiclo_SeguridadYBugsVanPrimeroYUnIssueCerradoEnLaColaSeDescarta(t *test
 	}
 }
 
+// contrato: mejoras#65b59eb8
 func TestCiclo_UnaMejoraDeGitHubTerminadaDejaElCierreDelIssueComoPedido(t *testing.T) {
 	root := proyecto(t)
 	issue := Issue{Numero: 12, Titulo: "Mejora del dueño", Asociacion: "OWNER", Creado: t0}
@@ -255,6 +257,7 @@ func TestCiclo_UnaMejoraDeGitHubTerminadaDejaElCierreDelIssueComoPedido(t *testi
 	}
 }
 
+// contrato: mejoras#b214e579
 func TestCiclo_SiGitHubFallaSigueConLoDemasYLoDice(t *testing.T) {
 	root := proyecto(t)
 	reportar(t, root, "Primera mejora", t0)

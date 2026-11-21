@@ -1,0 +1,9 @@
+id: "FND-285"
+title: "qdd evolution decidía por su cuenta qué certificación está pendiente y solo reconocía «pending»"
+description: "Medido 2026-11-21 al probar el invariante «Ningún otro paquete interpreta el campo status de una certificación. Todos usan Normalizar» (certificaciones#ec8154f1): pkg/evolution comparaba el status con «pending» (strings.EqualFold). Con 14 certificaciones del proyecto de estados variados, certificaciones.ContarEn contaba 7 pendientes (pending, Pending, draft, borrador, pendiente, in_progress, in-progress) y evolution.Analyze listaba solo 2."
+impact: "qdd evolution no recomendaba cerrar una certificación en «borrador» o «in_progress» y pasaba a recomendar otra cosa, mientras el dashboard, qdd_score y report sí la contaban como pendiente: dos indicadores de QDD decían cosas distintas de los mismos archivos."
+action_taken: "ProjectCert.isPending usa certificaciones.Normalizar(status) == certificaciones.Pendiente. Ningún otro paquete compara el status de una certificación por su cuenta (revisados cmd/, pkg/dashboard, pkg/evolution)."
+test_result: "cli/pkg/certificaciones/lectores_test.go TestLectores_EvolutionCuentaPendientesConNormalizar falló sin el arreglo («evolution ve 2 pendientes …; certificaciones.Normalizar ve 7») y pasa con él; las pruebas de pkg/evolution siguen pasando."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

@@ -595,6 +595,73 @@ test('cada herramienta del agente late la tarea sin demorarla, con un pulso a la
   expect(pulsos().length).toBe(2)
 })
 
+// Un qdd que nunca responde al pulso no demora la herramienta ni el subagente: el pulso va sin esperar.
+// contrato: estado-por-tareas#24b379fd
+test('un pulso que qdd nunca responde no demora la herramienta ni el subagente', async ($, on) => {
+  const clock = mock.clock(on)
+  mock.env(on, {})
+  const pulsos: string[][] = []
+  on('session.start', () => ({ cwd: '/work' }))
+  on('command.register', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('process.run', ($, e) => {
+    if (e.argv[1] === 'estado' && e.argv[2] === 'pulso') {
+      pulsos.push([...e.argv])
+      return new Promise(() => {})
+    }
+    return { value: ok(EN_CURSO('2026-10-30T10:00:00-03:00')) }
+  })
+  on('tool.call', () => ({ result: 'hecho' }))
+  on('agent.spawn', () => ({ model: 'sonnet' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const aTiempo = (p: Promise<unknown>) => Promise.race([p, new Promise((res) => setTimeout(() => res('colgada'), 500))])
+
+  expect(await aTiempo($.tool.call({ tool: 'Bash', command: 'ls' }))).toMatchObject({ result: 'hecho' })
+  expect(await aTiempo($.agent.spawn({ prompt: 'revisa' }))).toMatchObject({ model: 'sonnet' })
+  await clock.advance(1)
+  expect(pulsos.length).toBeGreaterThan(0)
+})
+
+// El latido no llama la atención: cada pulso (de la IA o de un comando, que llega en el JSON) destella el ● una vez y
+// el panel no se abre, no toma el foco ni avisa.
+// contrato: estado-por-tareas#a92284ec
+test('el latido es sutil: un destello por pulso, sin abrir ni enfocar el panel ni sonar', async ($, on) => {
+  const aperturas: unknown[] = []
+  const avisos: unknown[] = []
+  const salida = ok(EN_CURSO('2026-10-30T10:00:00-03:00'))
+  const clock = preparar(on, salida, [], undefined, aperturas)
+  on('ui.notify', ($, e) => {
+    avisos.push(e)
+    return { value: undefined }
+  })
+  on('tool.call', () => ({ result: 'hecho' }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const antes = aperturas.length
+  const color = async () => (await ui.find({ type: 'Text', text: '●' }))?.props?.color
+
+  // destellos cuenta cuántas veces el ● pasa al acento mientras el reloj avanza ms, mirando cada 250 ms.
+  const destellos = async (ms: number) => {
+    let n = 0
+    let antes = await color()
+    if (antes === '#d4be98') n++
+    for (let t = 0; t < ms; t += 250) {
+      await clock.advance(250)
+      const ahora = await color()
+      if (ahora === '#d4be98' && antes !== '#d4be98') n++
+      antes = ahora
+    }
+    return n
+  }
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(await destellos(4000)).toBe(1)
+  salida.stdout = JSON.stringify(EN_CURSO('2026-10-30T10:00:07-03:00'))
+  expect(await destellos(6000)).toBe(1)
+
+  expect(aperturas.length).toBe(antes)
+  expect(avisos).toEqual([])
+})
+
 // Uso medido (2026-10-30): sin tarea en curso el pulso igual va, sin destello; qdd no toca la actividad y lo anota
 // como uso real.
 test('sin tarea en curso, las herramientas igual envían el pulso (uso real), sin destello', async ($, on) => {
@@ -999,6 +1066,7 @@ test('si los cuadros no llegan a tiempo, se corta y se dibuja lo de siempre, sin
   expect(topes[0]).toBeLessThanOrEqual(250)
 })
 
+// contrato: estado#9376e8fe
 test('con los efectos apagados el panel no pide cuadros (materializar)', async ($, on) => {
   const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
   prepararMat(on, () => ({ ...PANEL, efectos: { ...EFECTOS, activo: false } }), mats)

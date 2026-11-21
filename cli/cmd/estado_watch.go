@@ -72,6 +72,11 @@ func tamano(fd int) (int, int) {
 }
 
 func dibujar(root string, ancho, alto int) {
+	fmt.Print(limpiar + strings.Join(lineasDelWatch(root, ancho, alto), "\r\n"))
+}
+
+// lineasDelWatch es lo que dibuja el panel en una terminal de ancho × alto.
+func lineasDelWatch(root string, ancho, alto int) []string {
 	var lineas []string
 	e, err := estado.Load(root)
 	if err != nil {
@@ -84,7 +89,11 @@ func dibujar(root string, ancho, alto int) {
 		lineas = append(lineas[:alto-2], "…")
 	}
 	lineas = append(lineas, "", "q para salir")
-	fmt.Print(limpiar + strings.Join(lineas, "\r\n"))
+	// Ninguna línea más ancha que la terminal (FND-271): el aviso sin estado.yaml y el tablero bajo 20 columnas no cabían.
+	for i, l := range lineas {
+		lineas[i] = estado.Truncar(l, ancho)
+	}
+	return lineas
 }
 
 // leerTeclaQ pone la entrada en modo crudo (si es una terminal) y avisa en salir al leer «q» o Ctrl-C. Devuelve cómo

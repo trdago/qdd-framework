@@ -3,7 +3,7 @@
 - Estado: implementada en qdd. El punto 1 está publicado en la rc.9 (2026-11-05); los puntos 2 y 3, en la rama
   `feat/tablero-no-se-queda-atras` (2026-11-15), para la 2.10.0-rc.79. La persona aprobó el aporte al blueprint
   `estado-por-tareas` («dale», 2026-11-06); su propuesta al repositorio de blueprints sigue pendiente.
-- Origen: MEJ-010, reporte de sfrc. La persona dueña de sfrc pidió: «las tareas y objetivos sí mutan en el tiempo, él tiene
+- Origen: MEJ-010, reporte de proyecto-a. La persona dueña de proyecto-a pidió: «las tareas y objetivos sí mutan en el tiempo, él tiene
   que darse cuenta y mantenerlos actualizado».
 
 ## Resumen
@@ -38,8 +38,8 @@ sigue visible en la cola.
 
 Es la idea 1 del reporte, y hoy no se puede hacer por dos motivos medidos en el código:
 
-- Una celda no guarda cuándo se escribió, y `estado.yaml` no siempre está en git: en qdd no se versiona; en sfrc,
-  notificador_de_ofertas y llmlocal sí.
+- Una celda no guarda cuándo se escribió, y `estado.yaml` no siempre está en git: en qdd no se versiona; en proyecto-a,
+  proyecto-b y proyecto-c sí.
 - Una tarea no dice qué rutas toca.
 
 **Propuesta, con campos opcionales:**
@@ -50,7 +50,7 @@ Es la idea 1 del reporte, y hoy no se puede hacer por dos motivos medidos en el 
 
 **Costo:** corre `git log` por tarea con módulo, solo en `check` y nunca en el panel ni en la barra. Si pasa de 200 ms en
 total, se limita a las tareas abiertas del objetivo en foco. Medido en Linux, con un `git log` por módulo y una ventana de
-7 días (2026-11-05): 40 ms en sfrc (18 módulos, 43 commits) y 57 ms en qdd (7 módulos de una copia atrasada, 625 commits).
+7 días (2026-11-05): 40 ms en proyecto-a (18 módulos, 43 commits) y 57 ms en qdd (7 módulos de una copia atrasada, 625 commits).
 Falta medirlo en Windows.
 
 **Falsos positivos:** un commit que no cambia lo que falta también avisa. Por eso no bloquea.
@@ -86,7 +86,7 @@ tope de 200 ms y el foco primero. Medido con el mismo peor caso: el contexto pas
 
 ### 4. Requisitos sin tarea: no se automatiza
 
-Es la idea 4 del reporte. En sfrc faltaban tareas para indicadores, fichas técnicas y borrado por conservación. Una ficha
+Es la idea 4 del reporte. En proyecto-a faltaban tareas para indicadores, fichas técnicas y borrado por conservación. Una ficha
 tiene invariantes y un criterio de éxito, pero no una lista de requisitos que se pueda contar, y decidir que una tarea cubre
 un requisito es juzgar un texto. Un chequeo así daría una respuesta inventada, contra el principio de que cada función de QDD
 sea determinista.

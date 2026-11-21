@@ -95,3 +95,29 @@ func TestPorDecidir(t *testing.T) {
 		t.Errorf("PorDecidir = %+v; want solo CERT-C (el catálogo no declara estado del proyecto)", got)
 	}
 }
+
+// Un archivo que no dice su status, o dice uno desconocido, queda SinEstado
+// aunque el resto del archivo parezca decir que se cumplió.
+// contrato: certificaciones#6c6425b0
+func TestLeer_EstadoFaltanteONoReconocidoEsSinEstado(t *testing.T) {
+	dir := t.TempDir()
+	escribir(t, dir, "project", "CERT-X.yaml", "id: CERT-X\nresult: passed\ncertified: true\napproved: true\nscore: 100\nestado: cumple\n")
+	escribir(t, dir, "project", "CERT-Y.yaml", "id: CERT-Y\nstatus: quizás\nresult: passed\ncertified: true\n")
+	escribir(t, dir, "project", "CERT-Z.yaml", "id: CERT-Z\nstatus:\n  value: certified\n")
+
+	cs, err := Leer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cs) != 3 {
+		t.Fatalf("Leer = %+v; want 3 certificaciones", cs)
+	}
+	for _, c := range cs {
+		if c.Estado != SinEstado {
+			t.Errorf("%s: Estado = %q; want SinEstado (no se infiere del resto del archivo)", c.ID, c.Estado)
+		}
+	}
+	if got := Contar(cs); got.Cumplen != 0 || got.SinEstado != 3 {
+		t.Errorf("Contar = %+v; want 3 sin estado y ninguna cumplida", got)
+	}
+}

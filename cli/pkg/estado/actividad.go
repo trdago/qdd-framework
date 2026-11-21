@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/candado"
@@ -109,8 +110,15 @@ func tareaAbierta(root, id string) error {
 	return nil
 }
 
+// quienHerramienta: «quién» nombra la herramienta que trabaja (claude-code, mcp), nunca a una persona: sin espacios,
+// mayúsculas ni datos personales (FND-276).
+var quienHerramienta = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,39}$`)
+
 // Activar deja la tarea en curso: la declara el agente al empezar a trabajarla.
 func Activar(root, id, quien string, now time.Time) error {
+	if quien != "" && (!quienHerramienta.MatchString(quien) || secretoODatoPersonal.MatchString(quien)) {
+		return fmt.Errorf("--quien nombra la herramienta que la trabaja (p. ej. claude-code), no a una persona: la actividad no guarda datos personales")
+	}
 	soltar, err := bloquearActividad(root)
 	if err != nil {
 		return err

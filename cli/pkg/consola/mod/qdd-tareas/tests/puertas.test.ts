@@ -58,6 +58,7 @@ test('un comando que no commitea ni publica no gasta un proceso', async ($, on) 
 })
 
 // Invariante: una puerta que no puede decidir deja pasar y nunca bloquea por una falla propia.
+// contrato: puertas#91d6f84a
 test('si qdd falla o no responde a tiempo, el comando pasa', async ($, on) => {
   const r = nuevo({ exitCode: 1, stdout: 'Error: unknown command "puertas" for "qdd"', stderr: '' })
   const clock = preparar(on, r)

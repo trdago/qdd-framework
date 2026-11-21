@@ -91,6 +91,7 @@ test('un flujo nuevo o cambiado abre la pestaña Flujos sin quitarle el foco a l
   expect(abiertos.some((e) => e.id === 'qdd-flujos')).toBe(true)
 })
 
+// contrato: flujo#367dc97e
 test('la pestaña muestra las líneas de qdd, y se dibuja de nuevo solo si cambia el flujo o el ancho', async ($, on) => {
   const r = nuevo([PAGO])
   await empezar($, on, r)
@@ -109,6 +110,7 @@ test('la pestaña muestra las líneas de qdd, y se dibuja de nuevo solo si cambi
   expect(await angosta.find({ type: 'Text', text: '( Llega ) a 40' })).toBeDefined()
 })
 
+// contrato: flujo#367dc97e
 test('un cambio en el flujo se ve sin un proceso de más', async ($, on) => {
   const r = nuevo([PAGO])
   await empezar($, on, r)

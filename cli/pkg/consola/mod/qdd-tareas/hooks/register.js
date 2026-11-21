@@ -59,6 +59,9 @@ const tarjetasVistas = new Map() // id de pedido → sus líneas, para que al ir
 // TOPE_VISTOS: celdas de tareas que ya no existen. Al llegar se olvida todo: lo peor es materializar otra vez lo visible.
 const TOPE_VISTOS = 2000
 let Client = null
+// CON_CLIENT: las superficies que dibujan Client. La tabla de las demás (vscode, mobile) también trae el nombre, pero
+// dibuja un fragmento: ahí la fila se quedaba en blanco (FND-272).
+const CON_CLIENT = new Set(['terminal', 'desktop'])
 let contador = 0
 
 function conEfectos() {
@@ -4442,7 +4445,7 @@ export function register(on) {
 
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const { Box, Text, Button, Input, Select, Client: cliente } = $.ui.resolve(e)
-    Client = cliente || null
+    Client = CON_CLIENT.has(e.surface) ? cliente || null : null
     pantalla.columnas = e.viewport?.columns || pantalla.columnas
     pantalla.completa = e.viewport?.isFullscreen === true && e.props.placement === 'dock'
     const ancho = e.props.bodyColumns || 40

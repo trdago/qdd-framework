@@ -18,6 +18,8 @@ func escribirHistorial(t *testing.T, dir, contenido string) {
 // FND-051 (reemplaza la decisión de FND-021): el dashboard mostraba 100
 // "World-Class" con pruebas que fallaban, porque su puntaje solo contaba
 // findings abiertos. Ahora muestra el puntaje único de la última certificación.
+// contrato: dashboard#5c623d60
+// contrato: dashboard#f88cd0d7
 func TestPuntajeDelDashboard(t *testing.T) {
 	dir := t.TempDir()
 
@@ -39,6 +41,7 @@ func TestPuntajeDelDashboard(t *testing.T) {
 }
 
 // FND-051: sin historial el gráfico mostraba una evolución inventada (40 → 75 → 100).
+// contrato: dashboard#f88cd0d7
 func TestLoadHistoricalTrends_NoInventaDatos(t *testing.T) {
 	var s QDDState
 	loadHistoricalTrends(&s, t.TempDir())

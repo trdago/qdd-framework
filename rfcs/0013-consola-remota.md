@@ -24,7 +24,7 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 - **Un solo canal por PC**, manejado por un único proceso de qdd en Go (`qdd remoto`), que publica todos los proyectos.
 - **La app es un cliente más del protocolo**: el panel, la app y cualquier cliente futuro hablan lo mismo.
 - **Relay de desarrollo (2026-11-02):** mientras no exista el proyecto Supabase Pro propio, se usa el proyecto Supabase
-  del notificador de ofertas, con todo lo nuestro en un **esquema nuevo `qdd_remoto`**. Las políticas sobre
+  del proyecto-b, con todo lo nuestro en un **esquema nuevo `qdd_remoto`**. Las políticas sobre
   `realtime.messages` se limitan a los temas `qdd:pc:%`, así que no cambian el acceso de los demás proyectos.
 - **Planes, push, secretos, dispositivos, idiomas (complementos del usuario, 2026-11-02):** ver las secciones de abajo.
   El backend vive en `qdd-movil/supabase/` (migraciones, RLS, Edge Functions, límites por plan) y se despliega con la CLI
@@ -266,7 +266,7 @@ desde la terminal: gana la primera respuesta.
   (a). Para un comando futuro que pregunte por su cuenta, el diseño ya existe: `qdd consola pregunta registrar` con
   `origen:"qdd"`, `etiqueta` y `preguntas` explícitas, y después `qdd consola pregunta esperar <id>` hasta tener la
   respuesta. Ningún comando lo usa todavía.
-- **(d) Lo que el estado espera de la persona** (pedido de sfrc, 2026-11-03): cada ⏳ cuyo «de quién» es la persona,
+- **(d) Lo que el estado espera de la persona** (pedido de proyecto-a, 2026-11-03): cada ⏳ cuyo «de quién» es la persona,
   en una tarea abierta, es una pregunta `origen:"estado"` de respuesta libre: una sola pregunta `q1`, con la tarea y la
   etapa como `encabezado`, lo que espera como `texto`, `otra:true` y sin opciones. Se responde con
   `{"q1":{"otra":"…"}}`. No se guarda una copia: sale del estado cada vez que se lee la cola, con un id
@@ -599,7 +599,7 @@ integrada, PC de demostración para la revisión, borrar la cuenta desde la app,
 ## Preguntas abiertas
 
 1. ¿«¿Cómo vamos?» desde el teléfono debe llegar a la conversación de Claude Code, o basta con ver la tabla?
-2. **Usuarios compartidos.** En el relay de desarrollo, el Auth es el del notificador: una cuenta de QDD Móvil es una
+2. **Usuarios compartidos.** En el relay de desarrollo, el Auth es el del proyecto-b: una cuenta de QDD Móvil es una
    cuenta de ese proyecto. Vale para desarrollar; para las tiendas hace falta el proyecto propio.
 
 ## Modo goal en el teléfono (RFC 0015)

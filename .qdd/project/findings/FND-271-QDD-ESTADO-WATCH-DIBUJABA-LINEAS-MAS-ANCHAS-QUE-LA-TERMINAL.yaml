@@ -1,0 +1,9 @@
+id: "FND-271"
+title: "qdd estado watch dibujaba líneas más anchas que la terminal"
+description: "Medido 2026-11-21 al probar el invariante «Ninguna línea del panel es más ancha que la terminal» (estado#327eb03e): sin estado.yaml legible, el título «Estado por tarea · <carpeta>» y «Créalo con 'qdd estado init'.» salían sin cortar (60 columnas con una carpeta de 41 caracteres en una terminal de 8 a 59); con tablero, bajo 20 columnas estado.Panel dibujaba a 20 aunque la terminal fuera más angosta."
+impact: "En un panel lateral angosto (tmux, un split del IDE) las líneas largas se partían o desbordaban y el tablero se descuadraba."
+action_taken: "El dibujo se separó en lineasDelWatch (sin cambio de comportamiento) y cada línea se corta al ancho de la terminal con estado.Truncar antes de imprimirla."
+test_result: "cli/cmd/estado_watch_ancho_test.go TestEstadoWatch_NingunaLineaMasAnchaQueLaTerminal_FND271 falló sin el arreglo (sin estado: «una línea de 60» a 8 columnas; con tablero: «una línea de 20» a 8 columnas) y pasa con él en todos los anchos de 8 a 80."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

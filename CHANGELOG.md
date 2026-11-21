@@ -6,6 +6,36 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.110] - 2026-11-21
+
+### Added
+
+- **Cada promesa de las fichas aprobadas tiene su prueba:** las 231 invariantes de las fichas aprobadas de qdd tienen una prueba que las cita y que falla si la promesa se rompe. En la oleada 2 se cubrieron las 82 que faltaban: se citaron las pruebas que ya existían y se escribieron las que no había.
+- **doctor exige una prueba por grupo:** si se agrega un grupo de diagnóstico sin una prueba que lo llame, falla una prueba. El grupo de verificaciones ahora tiene la suya.
+- **La documentación no nombra proyectos reales:** docs/ y rfcs/ usan nombres genéricos (proyecto-a, proyecto-b, proyecto-c). En tu PC, `make test` compara cada palabra con las huellas de `~/.config/qdd/huellas-privadas`, que viven fuera del repositorio. En CI la prueba se salta.
+
+### Changed
+
+- **Cuatro promesas reescritas para que se puedan probar** (decididas en modo goal con la opción recomendada):
+  - un pedido que espera se arma con su tecla y corre cuando el otro termina;
+  - lo que el asistente propone desde una conversación queda en este PC y nunca va al relay ni a git;
+  - un remote que no es de GitHub no cuenta como falla;
+  - la regla general de doctor pasa a ser una decisión.
+
+### Fixed
+
+- **Pulsos (FND-275):** si `qdd estado pulso` no podía anotar el pulso, cortaba el script que lo producía. Ahora avisa y sigue.
+- **`--quien` (FND-276):** `qdd estado activa --quien` guardaba correos, nombres o teléfonos. Ahora solo acepta el nombre de una herramienta.
+- **Puertas (FND-277):** una puerta que tardaba más de 2 s dejaba pasar sin anotar el error. Ahora tiene un tope de 1,5 s, deja pasar y anota el error.
+- **Ciclos (FND-270):** cambiar un ciclo, o el ciclo de un objetivo, escribía `estado.yaml` sin validar sus tareas.
+- **`qdd estado watch` (FND-271):** ya no dibuja líneas más anchas que la terminal.
+- **Panel en VS Code y el teléfono (FND-272):** con los efectos encendidos, las filas quedaban en blanco.
+- **Registro de uso (FND-280):** si otro proceso tenía tomado el registro, cada comando esperaba hasta 2 s. Ahora espera 250 ms como máximo.
+- **`qdd evolution` (FND-285):** ahora cuenta las certificaciones pendientes igual que el resto de QDD. Antes veía 2 de 7.
+- **`qdd run --keep-alive` (FND-286):** si el agente borraba la evidencia en el sandbox, también se borraba la original.
+- **Dashboard (FND-287):** sin fuente inventaba líneas de log y una versión. Ahora dice «sin medir».
+- **Una prueba de la barra (recursos) fallaba a veces:** su medición lenta escribía en la carpeta temporal mientras se borraba.
+
 ## [2.10.0-rc.109] - 2026-11-21
 
 ### Added

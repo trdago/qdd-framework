@@ -242,6 +242,8 @@ func TestActivar_InstalaElPanelConLaVersionDeLaCLIYEsIdempotente_CCC_C08(t *test
 	}
 }
 
+// El mod lleva las puertas al panel: doctor ve si el instalado no es el de la CLI y --fix lo actualiza.
+// contrato: puertas#77eb9692
 func TestActivar_ConCLINuevaActualizaElPanelYDoctorLoDetecta_CCC_C09(t *testing.T) {
 	f := &claudeFalso{}
 	vieja := nuevaConsola(t, "2.2.0", f)

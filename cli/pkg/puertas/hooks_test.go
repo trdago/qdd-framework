@@ -39,6 +39,7 @@ func TestInstalarHooks_CreaLosQueFaltan(t *testing.T) {
 
 // Los hooks conviven con lo que ya hay: el bloque va después del shebang (un exit 0 al final no lo salta) y lo ajeno
 // queda igual.
+// contrato: puertas#77eb9692
 func TestInstalarHooks_NoTocaLoAjeno(t *testing.T) {
 	dir := repoDePrueba(t)
 	ajeno := "#!/usr/bin/env bash\nnpx lint-staged\nexit 0\n"
@@ -105,6 +106,7 @@ func TestMensajeSinComentarios(t *testing.T) {
 }
 
 // Invariante: una puerta que no puede decidir deja pasar. El hook corre de verdad con sh -e (como husky) y un qdd falso.
+// contrato: puertas#91d6f84a
 func TestHook_SoloElRechazoCortaElCommit(t *testing.T) {
 	dir := repoDePrueba(t)
 	if _, err := InstalarHooks(dir); err != nil {

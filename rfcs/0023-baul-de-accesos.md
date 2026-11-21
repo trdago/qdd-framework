@@ -62,7 +62,7 @@ se usó. Ningún valor.
 1. La sesión sale de `CLAUDE_CODE_SESSION_ID`, y el proyecto, de la carpeta. Sin sesión (la terminal de la persona),
    el permiso es de esa terminal y dura lo que ella.
 2. Si esa sesión no tiene permiso para ese token y ese fin en ese proyecto, `usar` no corre nada: deja un pedido en el
-   panel, «¿Permitir que esta sesión use cloudflare para "crear la zona de ejemplo.cl" en notificador, hasta cerrar la
+   panel, «¿Permitir que esta sesión use cloudflare para "crear la zona de ejemplo.cl" en proyecto-b, hasta cerrar la
    consola?», y sale con 75 («todavía no»).
 3. Con el «Sí» de la persona en el panel, el permiso queda en `<QDD_HOME>/baul/permisos.json` con la sesión, el
    proyecto, el token y el fin.

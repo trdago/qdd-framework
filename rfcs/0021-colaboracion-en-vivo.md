@@ -9,7 +9,7 @@ Con LLM, escribir código es barato y lo caro es que todos entiendan lo mismo. C
 bien. Pero algunos cambios no pueden esperar al merge: si una consola cambia el modelo de datos, las demás tienen que
 saberlo apenas ocurre, para adaptarse antes de construir sobre algo que ya no existe.
 
-Hoy eso se coordina a mano. El 2026-11-07, en este PC, las consolas `qdd-6e`, `qdd-movile-13` y `sfrc-35` se pasaron por
+Hoy eso se coordina a mano. El 2026-11-07, en este PC, las consolas `qdd-6e`, `qdd-movile-13` y `proyecto-a-35` se pasaron por
 mensajes los nombres de un evento nuevo (`sincronizar`), un campo (`reglas_atrasadas`) y un cambio de un blueprint que
 no debía salir junto con otro. Cada mensaje lo escribió una IA y lo leyó otra.
 

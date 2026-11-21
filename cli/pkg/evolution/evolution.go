@@ -8,6 +8,7 @@ package evolution
 
 import (
 	"encoding/json"
+	"github.com/qdd-framework/qdd/pkg/certificaciones"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"os"
 	"path/filepath"
@@ -53,8 +54,10 @@ type ProjectCert struct {
 	Status string `yaml:"status"`
 }
 
+// isPending usa el lector único de certificaciones: borrador, draft o
+// in_progress también son pendientes (FND-285).
 func (c ProjectCert) isPending() bool {
-	return strings.EqualFold(strings.TrimSpace(c.Status), "pending")
+	return certificaciones.Normalizar(c.Status) == certificaciones.Pendiente
 }
 
 // CoreCert mirrors .qdd/core/certification/*.yaml — the certifications

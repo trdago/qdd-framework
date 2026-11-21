@@ -10,6 +10,7 @@ import (
 // Rule: Prohibido usar 'else'
 
 // FND-145: la barra leía stdin hasta su fin. Con un stdin que nadie cierra, el proceso quedaba vivo para siempre.
+// contrato: estado#c753dafb
 func TestLeerEntradaBarra_StdinQueNadieCierraNoLaCuelga_FND145(t *testing.T) {
 	r, w := io.Pipe()
 	defer w.Close()

@@ -357,6 +357,7 @@ const conItems = (r) => {
   return r
 }
 
+// contrato: flujo#44ad1ed8
 test('la fila del nodo resume sus pruebas y la ficha lista cada ítem', async ($, on) => {
   const r = conItems(nuevo())
   const ui = await abrir($, on, r)
@@ -370,6 +371,7 @@ test('la fila del nodo resume sus pruebas y la ficha lista cada ítem', async ($
   expect(await ui.find({ key: 'fl-item-pasa-i4' })).toBeUndefined()
 })
 
+// contrato: flujo#44ad1ed8
 test('una prueba se marca desde el nodo', async ($, on) => {
   const r = conItems(nuevo())
   const ui = await abrir($, on, r)
@@ -413,6 +415,7 @@ test('las historias de usuario se ven en su nodo', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /otra cosa/ })).toBeUndefined()
 })
 
+// contrato: flujo#44ad1ed8
 test('agregar un ítem elige su tipo y no llama a la IA en el acto', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, r)

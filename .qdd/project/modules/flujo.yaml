@@ -67,7 +67,7 @@ objetivo_tecnologico:
         - 'Preguntar (pedido de la persona, 2026-11-07): la persona le pregunta a un nodo, o al flujo completo, qué hace o qué significa una palabra. La pregunta queda marcada (pregunta: true) bajo el nodo o en Flujo.Comentarios, y le llega a la IA en el acto con el contexto del nodo en la pista (descripción, de dónde viene y qué sigue), para que responda orientada a ese nodo sin releer el flujo. La IA responde con qdd flujo responder <flujo> [<nodo>] "<texto>", que no la vuelve a llamar. En el panel: botón Preguntar (g) en cada nodo y «Preguntar sobre el flujo» (i) sobre los nodos; en el teléfono, la operación preguntar. Los comentarios del flujo completo viajan al teléfono pasados por el ocultador, como los de un nodo.'
         - Nada de un cliente, un experto, el asistente o una transcripción entra al flujo sin la aprobación de la persona, una propuesta por vez, ni en modo goal.
         - La foto que va al cliente nunca lleva tareas, pruebas, evidencias, comentarios o notas internas ni rutas del proyecto. De una historia de usuario no lleva su origen ni su tarea.
-        - Ni el audio ni la transcripción pasan por el relay ni van a git.
+        - Lo que el asistente propone desde una conversación (origen transcripcion@mm:ss) queda en la cola local de este PC (QDD_HOME) y nunca va al relay ni a git; cuando llegue el audio (RFC 0025, fase 5), ni el audio ni la transcripción pasan por el relay ni van a git.
         - El token de una invitación solo vive en el archivo del invitado o en el fragmento de su enlace; qdd no lo guarda ni lo sube a Cloudflare, y el panel muestra el enlace solo en el panel, nunca en el chat.
         - "Una propuesta la aprueba solo la persona, con el pedido \U0001F4DD que confirmó o en su terminal."
 pruebas:
@@ -84,4 +84,4 @@ fuentes:
     - cli/pkg/flujo/dibujo.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-21"
-revisado_en_commit: 26b048487706
+revisado_en_commit: 42a06e10cd55

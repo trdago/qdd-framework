@@ -117,6 +117,7 @@ func escribir(t *testing.T, ruta string, data []byte, mtime time.Time) {
 	}
 }
 
+// contrato: foto#94bda7c7
 func TestValidar_SoloImagenesYConTope(t *testing.T) {
 	if tipo, err := Validar(png1x1); err != nil || tipo != "image/png" {
 		t.Fatalf("un PNG: %q %v", tipo, err)
@@ -134,6 +135,7 @@ func TestValidar_SoloImagenesYConTope(t *testing.T) {
 }
 
 // Un wl-paste de prueba en el PATH: el producto ejecuta el lector real del sistema.
+// contrato: foto#a822eaed
 func TestTraer_DelPortapapelesQuedaEnTmpFotos(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("lector de prueba en sh")
@@ -222,6 +224,7 @@ func TestDiagnostico_DiceSiHayConQueLeerElPortapapeles(t *testing.T) {
 
 // Botón 📷 del panel (pedido de la persona, 2026-11-07): el panel pregunta seguido si hay una imagen copiada, así que la
 // consulta solo lista los tipos (≈1 ms con wl-paste) y no copia la imagen. Donde no hay una consulta barata, «no se sabe».
+// contrato: foto#fabe13dc
 func TestHayImagen_SoloListaLosTiposDelPortapapeles(t *testing.T) {
 	wayland := Entorno{GOOS: "linux", Env: func(k string) string { return map[string]string{"WAYLAND_DISPLAY": "wayland-0"}[k] }}
 	x11 := Entorno{GOOS: "linux", Env: func(k string) string { return map[string]string{"DISPLAY": ":0"}[k] }}

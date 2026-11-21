@@ -141,17 +141,31 @@ func Cerrar(root, frente, motivo string, descartado bool, now time.Time) error {
 // guardarValidado escribe solo si el frente tocado cumple las invariantes. Las violaciones de otros frentes no bloquean
 // (se ven con 'check'), para no impedir arreglar un frente por culpa de otro.
 func guardarValidado(root string, e Estado, frente string, now time.Time) error {
-	var propias []string
-	for _, v := range Check(e, nil) {
-		if v.Frente == frente {
-			propias = append(propias, v.String())
-		}
-	}
-	if len(propias) > 0 {
+	return guardarTareasValidadas(root, e, []string{frente}, now)
+}
+
+// guardarTareasValidadas es guardarValidado de varias tareas: las que reformó un cambio de ciclo (FND-270).
+func guardarTareasValidadas(root string, e Estado, tareas []string, now time.Time) error {
+	if propias := violacionesDe(e, tareas); len(propias) > 0 {
 		return fmt.Errorf("no se escribió: %s", strings.Join(propias, "; "))
 	}
 	e.Actualizado = now.Format(time.RFC3339)
 	return Save(root, e)
+}
+
+// violacionesDe son las violaciones de esas tareas; las de las demás no bloquean.
+func violacionesDe(e Estado, tareas []string) []string {
+	tocada := map[string]bool{}
+	for _, id := range tareas {
+		tocada[id] = true
+	}
+	var propias []string
+	for _, v := range Check(e, nil) {
+		if tocada[v.Frente] {
+			propias = append(propias, v.String())
+		}
+	}
+	return propias
 }
 
 // errEtapaAjena nombra las etapas de la tarea; con ciclos, también su ciclo (EPT-K02).

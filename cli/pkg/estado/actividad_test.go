@@ -203,3 +203,60 @@ func TestRutaLocal_FueraDelRepositorioYPorProyecto(t *testing.T) {
 		t.Fatal("dos proyectos con el mismo nombre no comparten archivo")
 	}
 }
+
+// contrato: estado#90e25ac1
+// 120 s sin pulsos la apagan; cerrarla o descartarla la apagan al instante, aunque acabe de latir.
+func TestActividad_120SinPulsosLaApaganYCerrarODescartarTambien(t *testing.T) {
+	root := proyectoConTareas(t, "a", "b", "c")
+	for _, id := range []string{"a", "b", "c"} {
+		if err := Activar(root, id, "", ahora); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Pulsar(root, "a", FuenteComando, ahora.Add(100*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	en := EnCurso(LeerActividad(root), ahora.Add(119*time.Second))
+	if len(en) != 3 {
+		t.Fatalf("a los 119 s siguen en curso: %+v", en)
+	}
+	en = EnCurso(LeerActividad(root), ahora.Add(120*time.Second))
+	if _, ok := en["b"]; ok || len(en) != 1 {
+		t.Fatalf("a los 120 s sin pulsos se apaga; la que latió a los 100 s sigue: %+v", en)
+	}
+	if err := Cerrar(root, "a", "terminada", false, ahora.Add(101*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := Cerrar(root, "c", "ya no va", true, ahora.Add(101*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if en := EnCurso(LeerActividad(root), ahora.Add(102*time.Second)); len(en) != 1 || en["b"].Pulso == "" {
+		t.Fatalf("cerrar y descartar la apagan; la otra sigue: %+v", en)
+	}
+}
+
+// contrato: estado#8c838d48
+// Sin tarea en curso, un pulso sin id no hace nada: ni error ni archivo de actividad.
+func TestPulsar_SinTareaEnCursoNoEscribeNada(t *testing.T) {
+	root := proyectoConTareas(t, "a")
+	ruta, err := RutaLocal(root, CarpetaActividad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fuente := range []string{FuenteAgente, FuenteSubagente, FuenteComando} {
+		if id, err := Pulsar(root, "", fuente, ahora); err != nil || id != "" {
+			t.Fatalf("%s: sin tarea en curso no late nada: %q %v", fuente, id, err)
+		}
+	}
+	if _, err := os.Stat(ruta); err == nil {
+		t.Fatal("un pulso sin tarea en curso no escribe la actividad")
+	}
+	_ = Activar(root, "a", "", ahora)
+	antes, _ := os.ReadFile(ruta)
+	if id, _ := Pulsar(root, "", FuenteAgente, ahora.Add(VidaActividad+time.Second)); id != "" {
+		t.Fatal("una tarea vencida no está en curso: el pulso no la revive")
+	}
+	if despues, _ := os.ReadFile(ruta); string(antes) != string(despues) {
+		t.Fatalf("y no reescribe el archivo:\n%s\n%s", antes, despues)
+	}
+}

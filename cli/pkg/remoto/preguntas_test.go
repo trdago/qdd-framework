@@ -246,6 +246,7 @@ func TestArmar_ElTableroYLosPedidosSalenSinSecretos_FND157(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestPanel_LasEleccionesDelModoGoalSalenSinSecretos(t *testing.T) {
 	root := t.TempDir()
 	panel := consola.DatosConsola{Goal: &consola.Goal{Activo: true, Elegidas: []consola.Elegida{{Etiqueta: "token ghp_123456789012345678901234567890123456", Eleccion: "ejecutar"}}}}

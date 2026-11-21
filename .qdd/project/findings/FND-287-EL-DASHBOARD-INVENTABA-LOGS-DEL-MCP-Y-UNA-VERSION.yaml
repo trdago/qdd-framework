@@ -1,0 +1,9 @@
+id: "FND-287"
+title: "El dashboard inventaba dos líneas de log del MCP y una versión cuando no tenía fuente"
+description: "Medido 2026-11-21 al probar el invariante «Los datos simulados y los mocks solo existen en las pruebas. Si un indicador no tiene una fuente real, el dashboard muestra 'sin medir'» (dashboard#f88cd0d7): en un proyecto sin .qdd/mcp.log ni .qdd/state.json, BuildState devolvía version «v0.1.1» y mcp_logs con «[MCP] Servidor QDD inicializado.» y «[MCP] Escuchando intenciones en stdio/SSE...», escritas en el código del producto (initDefaultState, ensureDefaultMCPLogs). La página, además, mostraba «v1.1.0» si la versión venía vacía."
+impact: "La consola del agente mostraba actividad del MCP que nunca ocurrió y la cabecera una versión que nadie midió: quien mira el dashboard cree que el servidor MCP está conectado y en qué versión está el proyecto sin que haya fuente."
+action_taken: "BuildState deja la versión vacía sin state.json y no agrega líneas al log sin mcp.log (se borró ensureDefaultMCPLogs); la página muestra «sin medir» como versión y su mensaje existente «Esperando actividad del agente...» cuando no hay log."
+test_result: "cli/pkg/dashboard/contrato_test.go TestBuildState_SinFuenteDiceSinMedirYNoInventa falló sin el arreglo (versión «v0.1.1» y las dos líneas «[MCP] …») y pasa con él; TestBuildState_ConFuenteMuestraLaFuente pasa: con mcp.log y state.json se muestran sus valores. Las pruebas de la página (cli/ui, vitest) siguen pasando."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
