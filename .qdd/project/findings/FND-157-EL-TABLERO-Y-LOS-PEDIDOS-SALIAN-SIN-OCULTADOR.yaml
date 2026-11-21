@@ -1,0 +1,9 @@
+id: "FND-157"
+title: "El tablero y los pedidos se publicaban al teléfono sin pasar por el ocultador"
+description: "Encontrado al revisar FND-155. La invariante 16 de remoto dice que nada que parezca un secreto sale del PC, pero ocultarDelPanel solo pasaba las preguntas, lo mandado desde el teléfono y las elecciones del modo goal. Los textos del tablero y las acciones de tipo pedido o ficha salían tal cual, incluido el comando exacto de un pedido."
+impact: "Un token escrito en un ⏳, en una falla, en un nombre o en el comando de un pedido salía del PC por el relay hacia los teléfonos emparejados. No se revisó si eso ocurrió en la práctica."
+action_taken: "ocultarDelPanel tapa todo el texto del tablero y todas las acciones. El teléfono actúa por id, así que tapar un comando no cambia lo que se ejecuta. Lee los .env en cada armado: 8 ms en caliente y 132 ms en frío para 24 proyectos, medido solo en Linux."
+test_result: "cli/pkg/remoto/preguntas_test.go: TestArmar_ElTableroYLosPedidosSalenSinSecretos_FND157 revisa el JSON publicado entero. Falló antes del cambio, con el token en criterio, detalle, etiqueta, nombre, pregunta y texto."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

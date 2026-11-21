@@ -1,0 +1,9 @@
+id: "FND-180"
+title: "El dibujo de un flujo dejaba fuera un nodo cuando las ramas se cruzaban"
+description: "Con ramas que llegan unas a otras antes de juntarse (n1 → n2, n3, n4 y n3 → n2), el dibujo no mostraba un nodo. La prueba al azar del dibujo usa 400 flujos con una semilla fija y no lo veía; con 60 semillas (24 000 dibujos) faltaba un nodo en 8. Lo encontró la IA al medir el cambio de desvíos al costado (#186)."
+impact: "La persona veía un flujo incompleto en el panel y en el teléfono, sin aviso. Rompía la invariante «todo nodo aparece en el dibujo»."
+action_taken: "Con los desvíos al costado, un atajo a un nodo que otra rama alcanza se escribe como «↷ salta a X» y esa rama sigue con todo el ancho; un atajo solo vale si una rama que se dibuja llega a su destino. En 24 000 dibujos al azar ya no falta ningún nodo."
+test_result: "cli/pkg/flujo/desvios_test.go: TestDibujar_CadaNodoApareceAunqueLasRamasSeCrucen_FND180 (falla con el dibujo anterior) y TestDibujar_DosRamasQueSeAlcanzanEntreSiSeDibujan."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

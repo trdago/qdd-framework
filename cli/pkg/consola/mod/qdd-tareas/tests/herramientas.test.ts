@@ -112,6 +112,32 @@ test('una acción una-vez corre con sus campos, cada uno un argumento, y muestra
   expect(await ui.find({ type: 'Text', text: /✓ Enviar como usuario/ })).toBeDefined()
 })
 
+// MEJ-014: una salida sin saltos de línea (una barra de progreso) crecía sin tope, y cada trozo la redibujaba entera.
+test('una salida en vivo sin saltos de línea tiene un tope en bytes y se sigue viendo lo último', { timeoutMs: 30000 }, async ($, on) => {
+  const r = nuevo()
+  const clock = preparar(on, { herramientas: [SIM] }, r)
+  on('process.spawn', async function* ($, e) {
+    if (e.argv.includes('seguir')) return { value: { code: 1, signal: null } }
+    for (let i = 0; i < 40; i += 1) yield { stream: 'stdout', text: 'x'.repeat(1024 * 1024) }
+    yield { stream: 'stdout', text: 'FIN' }
+    await new Promise(() => {})
+    return { code: 0, signal: null }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/bot' })
+  const ui = await $.ui.mount({ ...pestaña('sim', 'Simulador WS'), surface: 'terminal' })
+  await ui.press({ key: 'h-accion-logs' })
+  await ui.press({ key: 'h-correr' })
+  let elemento
+  for (let i = 0; i < 100 && !elemento; i += 1) {
+    await clock.advance(100)
+    await new Promise((res) => setTimeout(res, 50))
+    elemento = await ui.find({ type: 'Text', text: /xFIN/ })
+  }
+  expect(elemento).toBeDefined()
+  // Lo que se ve es lo último (Claude Code dibuja solo los primeros 100.000 caracteres). El elemento trae su texto dos veces.
+  expect(JSON.stringify(elemento).length).toBeLessThan(2 * 100000)
+})
+
 test('una acción en-vivo muestra su salida mientras corre y ■ la detiene (HER-C05)', async ($, on) => {
   const r = nuevo()
   preparar(on, { herramientas: [SIM] }, r)
@@ -120,6 +146,7 @@ test('una acción en-vivo muestra su salida mientras corre y ■ la detiene (HER
   let cortada = false
   const lanzados: string[][] = []
   on('process.spawn', async function* ($, e) {
+    if (e.argv.includes('seguir')) return { value: { code: 1, signal: null } }
     lanzados.push([...e.argv])
     try {
       yield { stream: 'stdout', text: 'evento 1\n' }
@@ -189,7 +216,7 @@ test('⚙ Config agrega una herramienta: lista los candidatos o una ruta, la IA 
   const clock = preparar(on, estado, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/bot' })
   const ui = await $.ui.mount({ ...TAREAS, surface: 'terminal' })
-  expect(await ui.find({ key: 'config' })).toMatchObject({ props: { label: '⚙ Config' } })
+  expect(await ui.find({ key: 'config' })).toMatchObject({ props: { label: 'Config' } })
   await ui.press({ key: 'config' })
   expect(await ui.find({ type: 'Text', text: /No hay herramientas/ })).toBeDefined()
   await ui.press({ key: 'h-agregar' })
@@ -248,7 +275,7 @@ test('lo que le falta a una herramienta en esta máquina se ve en su pestaña y 
   preparar(on, { herramientas: [{ ...SIM, aviso: 'falta la variable de entorno BOT_TOKEN' }] }, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/bot' })
   const ui = await $.ui.mount({ ...pestaña('sim', 'Simulador WS'), surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /⚠ falta la variable de entorno BOT_TOKEN/ })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: /⚠ falta la variable de entorno BOT_TOKEN/ })).toMatchObject({ props: { color: '#d8a657' } })
   await ui.press({ key: 'h-accion-logs' })
   expect(await ui.find({ key: 'h-correr' })).toBeUndefined()
 })

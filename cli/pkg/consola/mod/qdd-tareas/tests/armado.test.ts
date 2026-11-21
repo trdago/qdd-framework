@@ -49,8 +49,8 @@ test('un pedido armado dice primero y en color que ya tiene tu intención; el de
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.advance(1000)
-  expect(await ui.find({ type: 'Text', text: '◷  Instalar rc.12' })).toMatchObject({ props: { color: 'yellow', weight: 'bold' } })
-  expect(await ui.find({ type: 'Text', text: /^\s*Armado · corre solo cuando esté listo · intento 2/ })).toMatchObject({ props: { color: 'yellow' } })
+  expect(await ui.find({ type: 'Text', text: '◷  Instalar rc.12' })).toMatchObject({ props: { color: '#d8a657', weight: 'bold' } })
+  expect(await ui.find({ type: 'Text', text: /^\s*Armado · corre solo cuando esté listo · intento 2/ })).toMatchObject({ props: { color: '#d8a657' } })
   expect(await ui.find({ type: 'Text', text: /npm preview tiene 2\.8\.0-rc\.11/ })).toMatchObject({ props: { dimColor: true } })
   // Sin tecla: no se acepta dos veces; sí se puede dejar de esperar.
   expect(await ui.find({ key: 'b-pedido:3' })).toBeUndefined()
@@ -78,6 +78,6 @@ test('un «todavía no» sin armar se lee primero y en color, no en gris', async
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.advance(1000)
-  expect(await ui.find({ type: 'Text', text: /^\s*◷ Todavía no/ })).toMatchObject({ props: { color: 'yellow', weight: 'bold' } })
+  expect(await ui.find({ type: 'Text', text: /^\s*◷ Todavía no/ })).toMatchObject({ props: { color: '#d8a657', weight: 'bold' } })
   expect(await ui.find({ type: 'Text', text: /Dejó de esperar tras 2h0m0s/ })).toMatchObject({ props: { dimColor: true } })
 })

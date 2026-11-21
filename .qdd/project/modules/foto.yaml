@@ -4,6 +4,7 @@ estado: aprobado
 rutas:
     - cli/pkg/foto
     - cli/cmd/foto.go
+    - cli/pkg/consola/mod/qdd-tareas/tests/foto.test.ts
 objetivo_operativo:
     problema: 'Una captura pegada en la terminal (Ctrl+Shift+V) llega a la IA como los bytes del PNG en texto: no la puede ver, y la persona tiene que explicar con palabras lo que ya capturó.'
     usuarios: Quien trabaja con una IA en la consola (Claude Code, OpenCode u otra con MCP) en Linux, Windows o macOS, y la IA que necesita ver lo que la persona ve.
@@ -12,6 +13,7 @@ objetivo_operativo:
 objetivo_tecnologico:
     arquitectura: pkg/foto elige el lector del portapapeles por sistema (wl-paste con Wayland y xclip con X11, PowerShell -STA con System.Windows.Forms en Windows, osascript en macOS), lo ejecuta con un tope de 10 s, valida que sea una imagen de hasta 5 MB y la guarda en tmp/fotos con un .gitignore propio. Sin imagen en el portapapeles, toma la imagen más nueva de las carpetas de capturas del sistema. cmd/foto.go expone qdd foto (imprime la ruta) y la tool MCP qdd_foto (entrega la imagen como contenido de imagen).
     decisiones:
+        - "Botón \U0001F4F7 Foto del panel (pedido de la persona, 2026-11-07: la IA gastaba tokens en descubrir qdd foto): el panel pregunta cada 2 s con qdd foto --hay, que solo lista los tipos del portapapeles (wl-paste --list-types o xclip TARGETS, ≈7 ms) y responde si, no o no_se. Con si aparece el botón (tecla t); con no_se (Windows, macOS o sin escritorio, donde no hay consulta barata) queda siempre y deja de preguntar. Al pulsarlo corre qdd foto --json y escribe «mira <ruta_corta>» en el cursor del chat con $.prompt.fill (insert), sin enviarlo. La API de los mods no adjunta imágenes al chat: por eso va la ruta."
         - 'El sistema se pasa explícito (Entorno: GOOS, Home, Env), así cada sistema se prueba desde cualquiera.'
         - En Windows y macOS la ruta de destino va en la variable QDD_FOTO y nunca dentro del script, para no escapar comillas.
         - 'De dónde: auto (portapapeles y, si no tiene una imagen, la última captura), portapapeles o captura. La salida siempre dice de dónde salió la imagen y, si es una captura, hace cuánto.'
@@ -30,5 +32,5 @@ pruebas:
 fuentes:
     - cli/pkg/foto/foto.go
     - docs/command-reference.md
-ultima_revision: "2026-10-31"
-revisado_en_commit: 2b2e4c60af01
+ultima_revision: "2026-11-07"
+revisado_en_commit: 6bf8bdb0f417

@@ -1,0 +1,9 @@
+id: "FND-244"
+title: "La consola del teléfono saltaba a una sesión vieja de la misma carpeta"
+description: "MEJ-091 (REP-507, qdd-movile, 2026-11-20): TranscriptDe elegía el transcript con la fecha de archivo más nueva. Claude Code agrega a sesiones viejas metadatos sin hora (cost-state, last-prompt), por ejemplo al cerrar un proceso, y eso bastaba para que la vieja ganara. A las 23:02:28 la sesión d8344360 (último turno el 17-11) recibió esos metadatos y el teléfono dejó de mostrar «Claude está trabajando» a las 23:02:36 con el turno de b88803e4 en curso."
+impact: "El teléfono mostraba otra conversación y apagaba el «trabajando» mientras la IA trabajaba; una instrucción desde el teléfono podía ir a una sesión que no era la que la persona veía en el PC."
+action_taken: "TranscriptDe elige por la hora de la última línea con timestamp del final del transcript (ultimaHora) y, con la misma hora, por la fecha del archivo. Recorre del archivo más nuevo al más viejo y para cuando uno es anterior a la mejor hora: con los 2588 transcripts de qdd tarda ~22 ms."
+test_result: "cli/pkg/remoto/transcript_sesion_vieja_test.go TestTranscriptDe_UnaSesionViejaConMetadatosNoLeGanaALaQueTrabaja_FND244 (la reproducción del reporte: metadatos sin hora en la vieja no la hacen ganar; un turno nuevo sí) y TestUltimaHora_LaUltimaLineaConHora. Falló con el código anterior y pasa después; go test ./pkg/remoto en verde."
+status: resolved
+detectado_por: otro_proyecto
+date: "2026-11-20"

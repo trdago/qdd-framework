@@ -187,7 +187,7 @@ func TestPanel_ConEstado(t *testing.T) {
 	}
 }
 
-// §3.9: la ✕ de una tarea pide confirmación y la deja «descartada» con su motivo; sale del panel.
+// §3.9: «Quitar» pide confirmación, no pide motivo y deja la tarea «descartada» con la nota de quién la quitó; sale del panel.
 func TestEjecutar_DescartarTareaConLaX_CCC_C22(t *testing.T) {
 	root := proyectoConFichas(t, nil, nil)
 	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n  - id: a\n    nombre: Frente A\n    estado: abierto\n    celdas:\n      Código: {estado: ✅, evidencia: abc}\n      Pruebas: {estado: ⏳, bloqueo: correr la suite, de_quien: CI}\n"
@@ -215,5 +215,88 @@ func TestEjecutar_DescartarTareaConLaX_CCC_C22(t *testing.T) {
 	escrito, _ := os.ReadFile(filepath.Join(root, ".qdd/project/estado.yaml"))
 	if !strings.Contains(string(escrito), "descartado") || !strings.Contains(string(escrito), MotivoDescarte) {
 		t.Fatalf("queda en el archivo con estado y motivo:\n%s", escrito)
+	}
+	if !strings.Contains(MotivoDescarte, "la quitó la persona") || strings.Contains(a.Etiqueta, "Descartar") || !strings.Contains(a.Etiqueta, "Quitar") {
+		t.Fatalf("se lee como quitar: %q, %q", MotivoDescarte, a.Etiqueta)
+	}
+}
+
+// proyectoConEspera deja una tarea con una etapa ⏳ y la otra en el estado pedido.
+func proyectoConEspera(t *testing.T, pruebas string) string {
+	t.Helper()
+	root := proyectoConFichas(t, nil, nil)
+	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n  - id: a\n    nombre: Frente A\n    estado: abierto\n    celdas:\n      Código: {estado: ⏳, bloqueo: verla en producción, de_quien: humano}\n      Pruebas: " + pruebas + "\n"
+	if err := os.MkdirAll(filepath.Join(root, ".qdd/project"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".qdd/project/estado.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// «✓ Ya lo vi» se ofrece con algo en ⏳, pide confirmación y dice qué va a marcar; sin nada más que hacer, la tarea sale del panel.
+func TestEjecutar_YaLoViDejaListaLaEsperaYCierraLaTarea(t *testing.T) {
+	root := proyectoConEspera(t, "{estado: ✅, evidencia: abc}")
+	a, err := BuscarAccion(Acciones(root, true), "ya-lo-vi:a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Autorizar(a, false); err == nil {
+		t.Fatal("escribe en estado.yaml: exige --confirmado")
+	}
+	if a.Tipo != TipoYaLoVi || !strings.Contains(a.Etiqueta, "Frente A") || !strings.Contains(a.Detalle, "Código") {
+		t.Fatalf("acción: %+v", a)
+	}
+	var salida bytes.Buffer
+	if codigo := a.Ejecutar(root, "qdd-que-no-se-usa", &salida); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, salida.String())
+	}
+	if !strings.Contains(salida.String(), "Código") || !strings.Contains(salida.String(), "cerrada") {
+		t.Fatalf("el resultado dice qué hizo: %s", salida.String())
+	}
+	if d := Panel(root, time.Now()); len(d.Estado.Frentes) != 0 {
+		t.Fatalf("la tarea vista sale del panel: %+v", d.Estado.Frentes)
+	}
+	escrito, _ := os.ReadFile(filepath.Join(root, ".qdd/project/estado.yaml"))
+	if !strings.Contains(string(escrito), "la vio la persona") || !strings.Contains(string(escrito), "sin medición") {
+		t.Fatalf("la evidencia dice que nadie midió:\n%s", escrito)
+	}
+}
+
+// Sin ⏳ no hay nada que ver: no se ofrece, y una falla no se borra con «ya lo vi».
+func TestAcciones_YaLoViSoloConAlgoEnEspera(t *testing.T) {
+	root := proyectoConFichas(t, nil, nil)
+	yaml := "formato: 1\netapas: [Código]\nfrentes:\n  - id: a\n    nombre: Frente A\n    estado: abierto\n    celdas:\n      Código: {estado: ❌, falla: no compila}\n"
+	if err := os.MkdirAll(filepath.Join(root, ".qdd/project"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".qdd/project/estado.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BuscarAccion(Acciones(root, true), "ya-lo-vi:a"); err == nil {
+		t.Fatal("una tarea sin ⏳ no ofrece «Ya lo vi»")
+	}
+	if _, err := BuscarAccion(Acciones(root, true), "descartar:a"); err != nil {
+		t.Fatalf("«Quitar» se sigue ofreciendo: %v", err)
+	}
+}
+
+// Queda trabajo: la tarea sigue abierta y el resultado no dice que se cerró.
+func TestEjecutar_YaLoViConTrabajoPendienteNoCierra(t *testing.T) {
+	root := proyectoConEspera(t, "{estado: ·}")
+	a, err := BuscarAccion(Acciones(root, true), "ya-lo-vi:a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var salida bytes.Buffer
+	if codigo := a.Ejecutar(root, "qdd-que-no-se-usa", &salida); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, salida.String())
+	}
+	if strings.Contains(salida.String(), "cerrada") {
+		t.Fatalf("no se cerró: %s", salida.String())
+	}
+	if d := Panel(root, time.Now()); len(d.Estado.Frentes) != 1 {
+		t.Fatalf("la tarea sigue en el panel: %+v", d.Estado.Frentes)
 	}
 }

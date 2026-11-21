@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
@@ -47,6 +50,9 @@ type Telefono struct {
 	Rol         string `json:"rol"`
 	Dispositivo string `json:"dispositivo"`
 	Mirando     string `json:"mirando"`
+	// VersionApp y Capacidades son opcionales (contrato con qdd-movile, 2026-11-15): lo que la app sabe hacer.
+	VersionApp  string   `json:"version_app,omitempty"`
+	Capacidades []string `json:"capacidades,omitempty"`
 }
 
 // Bucle es qdd remoto correr. Sus campos de estado los toca solo la goroutine de Correr.
@@ -58,21 +64,33 @@ type Bucle struct {
 	Bin   string    // el qdd que ejecuta las acciones
 	Log   io.Writer // una línea por suceso
 	Ahora func() time.Time
+	// Consultar pregunta al directorio por el relay si la conexión no vuelve (directorio.go); sin ella, no consulta.
+	Consultar      func(context.Context) (bool, error)
+	CadaConsulta   time.Duration
+	EsperaConsulta time.Duration
+	caidoDesde     time.Time
+	consultadoEn   time.Time
+	consultas      chan resultadoConsulta
 
 	Agrupar    time.Duration
 	CadaLatido time.Duration
 	CadaSondeo time.Duration
 
-	desde       time.Time
-	plan        Plan
-	telefonos   []Telefono
+	desde     time.Time
+	plan      Plan
+	telefonos []Telefono
+	// sinLogrado: el último estado armado no llevó lo logrado porque todos los teléfonos lo piden (logrado_pedido.go);
+	// logrados guarda la última respuesta por proyecto, para no recalcularla dentro de EntreLogrados.
+	sinLogrado  bool
+	logrados    map[string]respuestaGuardada
 	seq         uint64
 	base        bool              // los teléfonos de ahora ya tienen un estado completo
 	enviados    map[string]string // clave → JSON del panel que tienen los teléfonos
 	estructura  map[string]string
-	limites     string                     // huella de los límites de Claude que tienen los teléfonos
-	vistos      map[string]map[string]bool // clave → pedidos y fichas que esperan (para el push)
-	goalVisto   map[string]string          // clave → en qué estaba el modo goal (para el push)
+	limites     string                       // huella de los límites de Claude que tienen los teléfonos
+	flujos      map[string]string            // huella de cada flujo que tienen los teléfonos, por proyecto e id
+	vistos      map[string]map[string]string // clave → pedidos y fichas que esperan, con su tipo (para el push)
+	goalVisto   map[string]string            // clave → en qué estaba el modo goal (para el push)
 	mensajes    int
 	consolaSeg  float64
 	sinPush     bool
@@ -84,6 +102,34 @@ type Bucle struct {
 	extras      extrasBucle
 	huellaBin   huella
 	conHuella   bool
+
+	// Sondear prueba el canal con el teléfono (sonda.go): al arrancar, tras PrimeraSonda, y luego cada CadaSonda. Sin
+	// ella no hay sonda. AlSondear recibe cada resultado, con la reparación que se aplicó; ReinicioSonda es el último
+	// reinicio que pidió una sonda (de sonda.json), para no reiniciar más de una vez cada EntreReinicios.
+	Sondear       func(context.Context) ResultadoSonda
+	AlSondear     func(ResultadoSonda)
+	PrimeraSonda  time.Duration
+	CadaSonda     time.Duration
+	ReinicioSonda time.Time
+	sondas        chan ResultadoSonda
+	ultimaSonda   *ResultadoSonda
+
+	// sinEntregaVisto: cuándo se anotó en el registro cada tipo y proyecto sin entrega (una vez por hora); sinEntregaLimpio:
+	// push.json ya se borró desde el último aviso sin entrega (MEJ-027, REM-22).
+	sinEntregaVisto  map[string]time.Time
+	sinEntregaLimpio bool
+
+	// AlPesar recibe cuántos bytes pesó cada estado completo que salió (qdd doctor, REM-21; FND-209).
+	AlPesar func(bytes int)
+
+	// AlPublicar recibe si un envío al teléfono salió, solo cuando cambia (qdd doctor, REM-09).
+	AlPublicar       func(ok bool)
+	publicacionVista bool
+	publicacionOK    bool
+	// AlConectar recibe cada vez que el canal en tiempo real se une o se cae (qdd doctor, REM-18).
+	AlConectar    func(conectado bool, en time.Time)
+	conexionVista bool
+	conexionUnida bool
 }
 
 type resultadoLatido struct {
@@ -91,6 +137,13 @@ type resultadoLatido struct {
 	err        error
 	mensajes   int
 	consolaMin int
+	desfase    time.Duration // de este PC frente al relay, si conHora
+	conHora    bool
+}
+
+// latidoConHora es el relay que además dice la hora (Relay); uno de prueba puede no tenerla.
+type latidoConHora interface {
+	LatidoConHora(ctx context.Context, topico, firma string, enCurso, consolaMin, mensajes int) (Plan, time.Duration, bool, error)
 }
 
 // PresenciaPC es la presence del PC: rol, versión de qdd y desde cuándo está encendido.
@@ -117,8 +170,22 @@ func (b *Bucle) logf(formato string, args ...any) {
 func (b *Bucle) iniciar() {
 	b.desde = b.ahora().UTC()
 	b.plan = PlanGratis()
-	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]bool{}, map[string]string{}
+	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]string{}, map[string]string{}
 	b.latidos, b.avisos = make(chan resultadoLatido, 1), make(chan error, 8)
+	b.consultas = make(chan resultadoConsulta, 1)
+	b.sondas = make(chan ResultadoSonda, 1)
+	if b.PrimeraSonda <= 0 {
+		b.PrimeraSonda = PrimeraSonda
+	}
+	if b.CadaSonda <= 0 {
+		b.CadaSonda = CadaSonda
+	}
+	if b.CadaConsulta <= 0 {
+		b.CadaConsulta = CadaConsulta
+	}
+	if b.EsperaConsulta <= 0 {
+		b.EsperaConsulta = EsperaConsulta
+	}
 	if b.Agrupar <= 0 {
 		b.Agrupar = Agrupar
 	}
@@ -129,12 +196,12 @@ func (b *Bucle) iniciar() {
 		b.CadaSondeo = CadaSondeo
 	}
 	b.vigia = nuevaVigia()
-	b.huellaBin, b.conHuella = huellaDe(b.Bin)
+	b.huellaBin, b.conHuella = huellaDe(consola.RutaVigilada(b.Bin))
 	b.iniciarExtras()
 }
 
 // Correr es el bucle; vuelve con ErrCredenciales si el relay ya no reconoce la máquina (se quitó desde el teléfono) y
-// con ErrActualizado si su qdd se reemplazó en el disco.
+// con ErrActualizado si su qdd se reemplazó en el disco, o con ErrRelayCambio si el directorio dio otro relay.
 func (b *Bucle) Correr(ctx context.Context) error {
 	b.iniciar()
 	go b.vigia.correr(ctx)
@@ -145,6 +212,8 @@ func (b *Bucle) Correr(ctx context.Context) error {
 	defer latido.Stop()
 	sondeo := time.NewTicker(b.CadaSondeo)
 	defer sondeo.Stop()
+	sonda := b.relojSonda()
+	defer sonda.Stop()
 	for {
 		var agrupado <-chan time.Time
 		if b.agrupando != nil {
@@ -168,12 +237,28 @@ func (b *Bucle) Correr(ctx context.Context) error {
 				b.logf("%v", ErrActualizado)
 				return ErrActualizado
 			}
+			b.quizasConsultar(ctx)
 			b.marcar()
+		case r := <-b.consultas:
+			if r.err != nil {
+				b.logf("directorio del relay: %v", r.err)
+			}
+			if r.cambio {
+				b.logf("%v", ErrRelayCambio)
+				return ErrRelayCambio
+			}
 		case <-b.vigia.Cambios():
 			b.marcar()
 		case <-agrupado:
 			b.agrupando = nil
 			b.recalcular(ctx)
+		case <-sonda.C:
+			b.correrSonda(ctx)
+		case r := <-b.sondas:
+			if err := b.alSonda(ctx, r); err != nil {
+				return err
+			}
+			sonda.Reset(b.CadaSonda)
 		case r := <-b.extras.resultados:
 			b.alResultado(ctx, r)
 		case <-b.extras.consolaTick:
@@ -200,13 +285,20 @@ func (b *Bucle) marcar() {
 }
 
 func (b *Bucle) alEvento(ctx context.Context, e Evento) {
+	if e.Perdidos > 0 {
+		b.logf("se perdieron %d eventos del relay: el bucle estaba ocupado", e.Perdidos)
+	}
 	if e.Tipo == TipoConectado {
 		b.logf("conectado al relay")
+		b.anotarConexion()
+		b.avisarConexion(true)
 		b.track(ctx)
 		return
 	}
 	if e.Tipo == TipoDesconectado {
 		b.logf("desconectado del relay: %s", e.Motivo)
+		b.anotarCaida(b.ahora())
+		b.avisarConexion(false)
 		b.base = false
 		return
 	}
@@ -220,6 +312,14 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	if e.Evento == "sync" {
 		b.mandarEstado(ctx, b.armar())
 		b.reenviarSolicitudes(ctx)
+		return
+	}
+	if e.Evento == "sincronizar" {
+		b.alSincronizar(ctx)
+		return
+	}
+	if e.Evento == EventoPedirLogrado {
+		b.alPedirLogrado(ctx, e.Payload)
 		return
 	}
 	if e.Evento == "accion" {
@@ -243,13 +343,43 @@ func Telefonos(presencias map[string][]json.RawMessage) []Telefono {
 	sort.Strings(claves)
 	for _, k := range claves {
 		for _, m := range presencias[k] {
-			var t Telefono
-			if json.Unmarshal(m, &t) == nil && t.Rol == "movil" {
+			if t, ok := telefonoDe(m); ok {
 				out = append(out, t)
 			}
 		}
 	}
 	return out
+}
+
+// telefonoDe lee una presence de rol movil. Un campo opcional de un tipo inesperado (version_app 130 en vez de
+// "130") no la borra del canal (MEJ-080): sin teléfonos, el PC no contesta nada.
+func telefonoDe(m json.RawMessage) (Telefono, bool) {
+	var t Telefono
+	if json.Unmarshal(m, &t) == nil {
+		return t, t.Rol == "movil"
+	}
+	var campos map[string]any
+	if json.Unmarshal(m, &campos) != nil {
+		return Telefono{}, false
+	}
+	texto := func(clave string) string {
+		v, ok := campos[clave]
+		if !ok || v == nil {
+			return ""
+		}
+		if s, ok := v.(string); ok {
+			return s
+		}
+		return fmt.Sprint(v)
+	}
+	t = Telefono{Rol: texto("rol"), Dispositivo: texto("dispositivo"), Mirando: texto("mirando"), VersionApp: texto("version_app")}
+	lista, _ := campos["capacidades"].([]any)
+	for _, c := range lista {
+		if s, ok := c.(string); ok {
+			t.Capacidades = append(t.Capacidades, s)
+		}
+	}
+	return t, t.Rol == "movil"
 }
 
 func (b *Bucle) alPresencia(ctx context.Context, presencias map[string][]json.RawMessage) {
@@ -266,7 +396,9 @@ func (b *Bucle) alPresencia(ctx context.Context, presencias map[string][]json.Ra
 	if antes == 0 {
 		b.logf("%d teléfono(s) en el canal", len(b.telefonos))
 	}
-	if !b.base {
+	// Si cambia quién pide lo logrado (se suma un teléfono que no lo pide, o se va), va un estado completo: un delta lo
+	// mandaría solo cuando cambie algo más.
+	if !b.base || b.todosPidenLogrado() != b.sinLogrado {
 		b.mandarEstado(ctx, b.armar())
 	}
 }
@@ -282,8 +414,10 @@ func (b *Bucle) armar() Estado {
 	}
 	b.errRegistro = ""
 	b.vigia.vigilar(carpetasDe(reg))
-	e := Armar(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos())
+	e := ArmarCon(b.QDD, reg, b.ahora(), b.plan.LimiteProyectos(), !b.todosPidenLogrado())
 	ConEjecutar(&e, b.plan, b.ahora())
+	b.aplicarLogradoBajoPedido(&e)
+	e.Diagnostico = diagnosticoDe(b.ultimaSonda, b.ahora())
 	return e
 }
 
@@ -303,10 +437,34 @@ func (b *Bucle) recalcular(ctx context.Context) {
 func (b *Bucle) broadcast(ctx context.Context, evento string, payload any) bool {
 	if err := b.T.Broadcast(ctx, evento, payload); err != nil {
 		b.logf("no se pudo mandar %s: %v", evento, err)
+		b.anotarPublicacion(false)
 		return false
 	}
 	b.mensajes++
+	b.anotarPublicacion(true)
 	return true
+}
+
+// anotarPublicacion avisa solo cuando cambia: no escribe un archivo por mensaje.
+// avisarConexion avisa solo los cambios: cada reintento fallido emite otro desconectado, y la caída empezó con el primero.
+func (b *Bucle) avisarConexion(conectado bool) {
+	if b.AlConectar == nil || (b.conexionVista && b.conexionUnida == conectado) {
+		return
+	}
+	b.conexionVista, b.conexionUnida = true, conectado
+	en := b.ahora()
+	if !conectado {
+		en = b.caidoDesde
+	}
+	b.AlConectar(conectado, en)
+}
+
+func (b *Bucle) anotarPublicacion(ok bool) {
+	if b.AlPublicar == nil || (b.publicacionVista && b.publicacionOK == ok) {
+		return
+	}
+	b.publicacionVista, b.publicacionOK = true, ok
+	b.AlPublicar(ok)
 }
 
 // mandarEstado manda el estado completo con el siguiente seq: es la base de los deltas.
@@ -322,16 +480,59 @@ func (b *Bucle) mandarEstado(ctx context.Context, e Estado) {
 	}
 	b.base = true
 	b.enviados, b.estructura, b.limites = paneles(e), estructuraDe(e), e.Limites.Huella()
+	b.flujos = nil
+	b.pesar(e)
+	b.mandarFlujos(ctx, e)
+}
+
+// pesar mide el estado completo que salió: Realtime descarta sin aviso uno que pasa su tope (FND-209).
+func (b *Bucle) pesar(e Estado) {
+	if b.AlPesar == nil {
+		return
+	}
+	datos, err := json.Marshal(e)
+	if err != nil {
+		return
+	}
+	b.AlPesar(len(datos))
 }
 
 // paneles es el JSON de cada panel, para saber cuál cambió.
 func paneles(e Estado) map[string]string {
 	out := map[string]string{}
 	for _, p := range e.Proyectos {
-		b, _ := json.Marshal(p.Panel)
+		b, _ := json.Marshal(sinLoVolatil(p.Panel))
 		out[p.Clave] = string(b)
 	}
 	return out
+}
+
+// sinLoVolatil es la copia del panel con la que se decide si vale un mensaje: lo que avanza solo con el reloj o con cada
+// herramienta (hace, el pulso de una tarea en curso y los reintentos de un pedido armado) no gasta uno. Viaja igual, al
+// día, con el siguiente cambio real. Que una tarea deje de estar en curso o cambie el estado de un pedido sí es real.
+func sinLoVolatil(panel *consola.DatosConsola) *consola.DatosConsola {
+	if panel == nil {
+		return nil
+	}
+	p := *panel
+	p.Acciones = slices.Clone(panel.Acciones)
+	for i := range p.Acciones {
+		a := &p.Acciones[i]
+		a.Proximo, a.Intentos, a.Inicio, a.AvisoEn = nil, 0, nil, nil
+	}
+	if panel.Estado == nil {
+		return &p
+	}
+	d := *panel.Estado
+	d.Hace = ""
+	d.Frentes = slices.Clone(panel.Estado.Frentes)
+	for i, f := range d.Frentes {
+		if f.Actividad != nil {
+			d.Frentes[i].Actividad = &estado.ActividadPanel{Running: f.Actividad.Running}
+		}
+	}
+	p.Estado = &d
+	return &p
 }
 
 // estructuraDe es lo que un delta no puede decir de cada proyecto (nombre, ruta y error) y cuántos quedaron fuera
@@ -339,9 +540,17 @@ func paneles(e Estado) map[string]string {
 func estructuraDe(e Estado) map[string]string {
 	out := map[string]string{"": fmt.Sprint(e.FueraDelPlan)}
 	for _, p := range e.Proyectos {
-		out[p.Clave] = p.Nombre + "\x00" + p.Ruta + "\x00" + p.Error
+		out[p.Clave] = p.Nombre + "\x00" + p.Ruta + "\x00" + p.Error + "\x00" + reglasDe(p)
 	}
 	return out
+}
+
+// reglasDe es reglas_atrasadas en una línea, para la estructura: renovarlas manda el estado completo.
+func reglasDe(p ProyectoEstado) string {
+	if p.ReglasAtrasadas == nil {
+		return "-"
+	}
+	return strings.Join(*p.ReglasAtrasadas, ",")
 }
 
 // pideEstado: cambió algo que un delta no dice (un proyecto nuevo, un nombre, un error, los de fuera del plan). Que
@@ -404,48 +613,114 @@ func (b *Bucle) mandarCambios(ctx context.Context, e Estado) {
 	if d.Limites != nil {
 		b.limites = d.Limites.Huella()
 	}
+	b.mandarFlujos(ctx, e)
 }
 
-// esperan son los pedidos pendientes y las fichas en borrador de un panel: lo que espera a la persona.
+// esperan son los pedidos pendientes, las fichas en borrador y las preguntas y permisos pendientes de un panel: lo que
+// espera a la persona.
 func esperan(p ProyectoEstado) map[string]string {
 	out := map[string]string{}
 	if p.Panel == nil {
 		return out
 	}
+	// Sin consola: no hay una sesión de Claude Code abierta (la app lo lee igual: ejecutar sin ia).
+	sinConsola := p.Panel.Ejecutar != nil && !p.Panel.Ejecutar.IA
 	for _, a := range p.Panel.Acciones {
-		if a.Tipo == consola.TipoPedido && a.Estado == consola.EstadoPendiente {
-			out[a.ID] = AvisoPedido
-		}
-		if a.Tipo == consola.TipoAprobar {
-			out[a.ID] = AvisoFicha
+		if aviso := avisoDe(a, sinConsola); aviso != "" {
+			out[a.ID] = aviso
 		}
 	}
 	return out
 }
 
-// avisarNuevos pide un push cuando aparece un pedido o una ficha nueva en un panel. La primera vez que se ve un
-// proyecto es la base: lo que ya esperaba no se avisa.
+// avisoDe sigue el contrato que comparten la app, el relay y qdd (qdd-movile test/fixtures/esperas.json, copiado en
+// testdata): qué acción espera a la persona y con qué push. "" si no espera.
+func avisoDe(a consola.Accion, sinConsola bool) string {
+	if a.Tipo == consola.TipoAprobar {
+		return AvisoFicha
+	}
+	if a.Tipo == consola.TipoPedido && pedidoEspera(a) {
+		return AvisoPedido
+	}
+	if a.Tipo != consola.TipoPregunta || (a.Estado != "" && a.Estado != consola.PreguntaPendiente) {
+		return ""
+	}
+	if a.Origen != consola.OrigenEstado {
+		return avisoDePregunta(a.Origen)
+	}
+	// Un ⏳ sin «¿…?» es una nota de la tarea; sin consola, uno que necesita una IA no se puede resolver (FND-012).
+	if !preguntaEscrita(a) || (sinConsola && !a.SinSesion) {
+		return ""
+	}
+	return AvisoPregunta
+}
+
+// pedidoEspera: pendiente (vacío en las colas de qdd 2.6.0), en espera de otro, o que falló y se puede reintentar; uno
+// lanzado desde el teléfono no se reintenta (FND-210).
+func pedidoEspera(a consola.Accion) bool {
+	if a.Estado == consola.EstadoFallo {
+		return a.Origen != consola.OrigenTelefono
+	}
+	return a.Estado == "" || a.Estado == consola.EstadoPendiente || a.Estado == consola.EstadoEspera
+}
+
+var rePreguntaEscrita = regexp.MustCompile(`¿[^?]+\?`)
+
+func preguntaEscrita(a consola.Accion) bool {
+	for _, q := range a.Preguntas {
+		if rePreguntaEscrita.MatchString(q.Texto) {
+			return true
+		}
+	}
+	return false
+}
+
+// avisoDePregunta: un permiso de herramienta tiene su push; una pregunta de la IA o de un comando qdd, el suyo.
+func avisoDePregunta(origen string) string {
+	if origen == consola.OrigenPermiso {
+		return AvisoPermiso
+	}
+	return AvisoPregunta
+}
+
+// resueltoDe es el push que quita de la bandeja el aviso de un tipo. El aviso agrupa todos los de ese tipo y proyecto,
+// así que se manda solo cuando ya no queda ninguno (FND-028 de qdd-movile).
+var resueltoDe = map[string]string{AvisoPedido: AvisoPedidoResuelto, AvisoFicha: AvisoFichaResuelta, AvisoPregunta: AvisoPreguntaResuelta, AvisoPermiso: AvisoPermisoResuelto}
+
+// tiposQueEsperan son los push que piden algo a la persona, en el orden en que se avisan.
+var tiposQueEsperan = []string{AvisoPedido, AvisoFicha, AvisoPregunta, AvisoPermiso}
+
+// avisarNuevos pide un push cuando aparece un pedido o una ficha nueva en un panel, y otro cuando ya no queda ninguno de
+// ese tipo. La primera vez que se ve un proyecto es la base: lo que ya esperaba no se avisa. Sin panel no se sabe qué
+// espera, así que no cambia nada: ni se resuelve ni vuelve a ser nuevo.
 func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 	for _, p := range e.Proyectos {
 		b.avisarGoal(ctx, p)
+		if p.Panel == nil {
+			continue
+		}
 		ahora := esperan(p)
 		antes, conocido := b.vistos[p.Clave]
-		b.vistos[p.Clave] = map[string]bool{}
-		for id := range ahora {
-			b.vistos[p.Clave][id] = true
-		}
+		b.vistos[p.Clave] = ahora
 		if !conocido {
 			continue
 		}
-		tipos := map[string]bool{}
+		nuevos, hay, habia := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		for id, tipo := range ahora {
-			if !antes[id] {
-				tipos[tipo] = true
+			hay[tipo] = true
+			if _, ya := antes[id]; !ya {
+				nuevos[tipo] = true
 			}
 		}
-		for _, tipo := range []string{AvisoPedido, AvisoFicha} {
-			if tipos[tipo] {
+		for _, tipo := range antes {
+			habia[tipo] = true
+		}
+		for _, tipo := range tiposQueEsperan {
+			if nuevos[tipo] {
 				b.avisar(ctx, tipo, p.Nombre, p.Clave)
+			}
+			if habia[tipo] && !hay[tipo] {
+				b.avisar(ctx, resueltoDe[tipo], p.Nombre, p.Clave)
 			}
 		}
 	}
@@ -484,6 +759,10 @@ func (b *Bucle) avisar(ctx context.Context, tipo, nombre, clave string) {
 		c, cancelar := context.WithTimeout(ctx, 15*time.Second)
 		defer cancelar()
 		err := b.R.Avisar(c, b.Cred.Topico, b.Cred.Firma, tipo, nombre, clave)
+		var rechazada ErrRechazada
+		if esResuelto(tipo) && errors.As(err, &rechazada) {
+			return // un relay viejo no lo conoce, y la app igual limpia la bandeja al abrirse
+		}
 		select {
 		case b.avisos <- err:
 		default:
@@ -491,9 +770,19 @@ func (b *Bucle) avisar(ctx context.Context, tipo, nombre, clave string) {
 	}()
 }
 
+func esResuelto(tipo string) bool {
+	return slices.Contains([]string{AvisoPedidoResuelto, AvisoFichaResuelta, AvisoPreguntaResuelta, AvisoPermisoResuelto}, tipo)
+}
+
 func (b *Bucle) alAviso(err error) {
 	if err == nil {
 		b.sinPush = false
+		b.limpiarSinEntrega()
+		return
+	}
+	var sinEntrega ErrSinEntrega
+	if errors.As(err, &sinEntrega) {
+		b.anotarSinEntrega(sinEntrega)
 		return
 	}
 	if errors.Is(err, ErrNoDisponible) && b.sinPush {
@@ -507,6 +796,36 @@ func (b *Bucle) alAviso(err error) {
 	b.logf("push: %v", err)
 }
 
+// anotarSinEntrega deja el aviso que no llegó para doctor (REM-22) y lo anota en el registro una vez por hora por tipo y
+// proyecto. Solo avisa: no se reintenta (MEJ-027).
+func (b *Bucle) anotarSinEntrega(e ErrSinEntrega) {
+	ahora := b.ahora()
+	if err := GuardarSinEntrega(e, ahora); err != nil {
+		b.logf("no se anotó el push sin entrega: %v", err)
+	}
+	b.sinEntregaLimpio = false
+	clave := e.Tipo + "|" + e.Clave
+	if anterior, ok := b.sinEntregaVisto[clave]; ok && ahora.Sub(anterior) < entreRegistrosSinEntrega {
+		return
+	}
+	if b.sinEntregaVisto == nil {
+		b.sinEntregaVisto = map[string]time.Time{}
+	}
+	b.sinEntregaVisto[clave] = ahora
+	b.logf("%v", e)
+}
+
+// limpiarSinEntrega borra lo anotado cuando un aviso sí llega; una vez por arranque y después de cada anotado.
+func (b *Bucle) limpiarSinEntrega() {
+	if b.sinEntregaLimpio {
+		return
+	}
+	b.sinEntregaLimpio = true
+	if err := LimpiarSinEntrega(); err != nil {
+		b.logf("no se limpió el push sin entrega: %v", err)
+	}
+}
+
 // latir da el latido en segundo plano con lo consumido desde el anterior.
 func (b *Bucle) latir(ctx context.Context) {
 	mensajes := min(b.mensajes, maxMensajesLatido)
@@ -517,9 +836,16 @@ func (b *Bucle) latir(ctx context.Context) {
 	go func() {
 		c, cancelar := context.WithTimeout(ctx, 20*time.Second)
 		defer cancelar()
-		p, err := b.R.Latido(c, b.Cred.Topico, b.Cred.Firma, enCurso, consolaMin, mensajes)
+		r := resultadoLatido{mensajes: mensajes, consolaMin: consolaMin}
+		lh, ok := b.R.(latidoConHora)
+		if ok {
+			r.plan, r.desfase, r.conHora, r.err = lh.LatidoConHora(c, b.Cred.Topico, b.Cred.Firma, enCurso, consolaMin, mensajes)
+		}
+		if !ok {
+			r.plan, r.err = b.R.Latido(c, b.Cred.Topico, b.Cred.Firma, enCurso, consolaMin, mensajes)
+		}
 		select {
-		case b.latidos <- resultadoLatido{plan: p, err: err, mensajes: mensajes, consolaMin: consolaMin}:
+		case b.latidos <- r:
 		case <-ctx.Done():
 		}
 	}()
@@ -540,6 +866,9 @@ func (b *Bucle) alLatido(r resultadoLatido) error {
 	limiteAntes, proAntes := b.plan.LimiteProyectos(), b.plan.Pro()
 	b.plan = r.plan
 	b.guardarPlan()
+	if err := GuardarLatidoConHora(b.ahora(), r.desfase, r.conHora); err != nil {
+		b.logf("latido guardado: %v", err)
+	}
 	b.alCambiarPlan()
 	if b.plan.Pro() != proAntes {
 		b.marcar()

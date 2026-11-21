@@ -37,10 +37,18 @@ type ErrLimite struct{ Motivo string }
 
 func (e ErrLimite) Error() string { return e.Motivo }
 
+// ErrRechazada: el relay rechazó la petición por inválida (400), como un tipo de aviso que un relay viejo no conoce.
+type ErrRechazada struct{ Texto string }
+
+func (e ErrRechazada) Error() string { return e.Texto }
+
 // ConfigRelay es <QDD_HOME>/remoto/relay.json: la URL del relay y su clave publicable.
 type ConfigRelay struct {
 	URL   string `json:"url"`
 	Clave string `json:"clave"`
+	// Serie es la última vista en el directorio (directorio.go); Propio, un relay de la persona, que no se consulta.
+	Serie  int  `json:"serie,omitempty"`
+	Propio bool `json:"propio,omitempty"`
 }
 
 // Credenciales es <QDD_HOME>/remoto/credenciales.json: la máquina, su canal y su firma (que solo conocen el PC y el
@@ -131,13 +139,6 @@ func GuardarRelay(c ConfigRelay) error {
 		return err
 	}
 	return guardarPrivado("relay.json", c)
-}
-
-// RelayPorDefecto es el relay de QDD Móvil que qdd usa la primera vez (issue #102); lo opera qdd-movile. Lleva solo la
-// clave publicable: se publica en npm.
-var RelayPorDefecto = ConfigRelay{
-	URL:   "https://vrozxrlkyvbeikxbgdgb.supabase.co",
-	Clave: "sb_publishable_WFcy-WCo4ZtaV1JIlEaPkw_q4ECzs3T",
 }
 
 // LeerRelay devuelve la config guardada; vuelve a validar la clave por si alguien editó el archivo.
@@ -239,13 +240,30 @@ func NuevoRelay(c ConfigRelay) *Relay {
 }
 
 func (r *Relay) post(ctx context.Context, ruta string, cuerpo any, out any) error {
+	_, _, err := r.postConHora(ctx, ruta, cuerpo, out)
+	return err
+}
+
+// postConHora es post con el desfase del reloj de este PC frente al del relay (header Date, al segundo): la hora de una
+// acción del teléfono la pone el relay, así que es contra él que se mide (REM-19, con qdd-movile 2026-11-15).
+func (r *Relay) postConHora(ctx context.Context, ruta string, cuerpo any, out any) (time.Duration, bool, error) {
+	desfase, conHora, datos, err := r.postDatos(ctx, ruta, cuerpo, 1<<20)
+	if err != nil || out == nil || len(bytes.TrimSpace(datos)) == 0 {
+		return desfase, conHora, err
+	}
+	return desfase, conHora, json.Unmarshal(datos, out)
+}
+
+// postDatos hace el POST y devuelve el cuerpo de una respuesta buena, leído hasta tope+1 bytes: quien llama sabe así si
+// vino más largo de lo que acepta.
+func (r *Relay) postDatos(ctx context.Context, ruta string, cuerpo any, tope int64) (time.Duration, bool, []byte, error) {
 	b, err := json.Marshal(cuerpo)
 	if err != nil {
-		return err
+		return 0, false, nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.URL+ruta, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return 0, false, nil, err
 	}
 	req.Header.Set("apikey", r.Clave)
 	req.Header.Set("Authorization", "Bearer "+r.Clave)
@@ -253,17 +271,17 @@ func (r *Relay) post(ctx context.Context, ruta string, cuerpo any, out any) erro
 	req.Header.Set("Accept", "application/json")
 	resp, err := r.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("no se pudo hablar con el relay: %w", err)
+		return 0, false, nil, fmt.Errorf("no se pudo hablar con el relay: %w", err)
 	}
+	recibido := time.Now()
 	defer resp.Body.Close()
-	datos, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	hora, errHora := http.ParseTime(resp.Header.Get("Date"))
+	desfase, conHora := recibido.Sub(hora), errHora == nil
+	datos, _ := io.ReadAll(io.LimitReader(resp.Body, tope+1))
 	if resp.StatusCode >= 300 {
-		return errorDelRelay(resp.StatusCode, datos)
+		return desfase, conHora, nil, errorDelRelay(resp.StatusCode, datos)
 	}
-	if out == nil || len(bytes.TrimSpace(datos)) == 0 {
-		return nil
-	}
-	return json.Unmarshal(datos, out)
+	return desfase, conHora, datos, nil
 }
 
 // errorDelRelay traduce la respuesta de PostgREST: 28000 son credenciales malas, 53400 un límite.
@@ -271,6 +289,7 @@ func errorDelRelay(status int, datos []byte) error {
 	var e struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
+		Error   string `json:"error"` // las Edge Functions
 	}
 	_ = json.Unmarshal(datos, &e)
 	if e.Code == "28000" {
@@ -285,10 +304,17 @@ func errorDelRelay(status int, datos []byte) error {
 	if status == http.StatusNotFound {
 		return ErrNoDisponible
 	}
+	texto := fmt.Sprintf("el relay respondió %d", status)
 	if e.Message != "" {
-		return fmt.Errorf("el relay respondió %d: %s", status, e.Message)
+		texto += ": " + e.Message
 	}
-	return fmt.Errorf("el relay respondió %d", status)
+	if e.Error != "" {
+		texto += ": " + e.Error
+	}
+	if status == http.StatusBadRequest {
+		return ErrRechazada{Texto: texto}
+	}
+	return errors.New(texto)
 }
 
 func (r *Relay) rpc(ctx context.Context, fn string, args any, out any) error {
@@ -352,10 +378,16 @@ func (p Plan) MotivoPausa() string {
 
 // Latido da el latido del minuto: tareas en curso, minutos de consola y mensajes desde el anterior.
 func (r *Relay) Latido(ctx context.Context, topico, firma string, enCurso, consolaMin, mensajes int) (Plan, error) {
+	p, _, _, err := r.LatidoConHora(ctx, topico, firma, enCurso, consolaMin, mensajes)
+	return p, err
+}
+
+// LatidoConHora es Latido con el desfase de este PC frente al relay (ver postConHora); false si el relay no dio hora.
+func (r *Relay) LatidoConHora(ctx context.Context, topico, firma string, enCurso, consolaMin, mensajes int) (Plan, time.Duration, bool, error) {
 	var p Plan
 	args := map[string]any{"p_topico": topico, "p_firma": firma, "p_en_curso": enCurso, "p_consola_min": consolaMin, "p_mensajes": mensajes}
-	err := r.rpc(ctx, "qdd_remoto_latido", args, &p)
-	return p, err
+	desfase, conHora, err := r.postConHora(ctx, "/rest/v1/rpc/qdd_remoto_latido", args, &p)
+	return p, desfase, conHora, err
 }
 
 // Dispositivo es un teléfono del dueño de la máquina.
@@ -397,6 +429,14 @@ const (
 	// El modo goal se detuvo o terminó (RFC 0015).
 	AvisoGoalPausado   = "goal_pausado"
 	AvisoGoalTerminado = "goal_terminado"
+	// Ya no espera nada de ese tipo: el relay manda un push solo de datos y la app quita el aviso de la bandeja.
+	AvisoPedidoResuelto = "pedido_resuelto"
+	AvisoFichaResuelta  = "ficha_resuelto"
+	// Una pregunta de la IA o de un comando qdd, y un permiso de herramienta, también esperan a la persona (FND-208).
+	AvisoPregunta         = "pregunta"
+	AvisoPermiso          = "permiso"
+	AvisoPreguntaResuelta = "pregunta_resuelto"
+	AvisoPermisoResuelto  = "permiso_resuelto"
 )
 
 // NombreParaAviso deja el nombre visible del proyecto como lo acepta avisar (^[\p{L}\p{N} ._()-]{1,80}$): lo demás
@@ -419,8 +459,13 @@ func NombreParaAviso(nombre, clave string) string {
 	return string(out)
 }
 
-// Avisar pide un push a los teléfonos del dueño: solo el tipo y el proyecto (nombre visible y clave).
+// Avisar pide un push a los teléfonos del dueño: solo el tipo y el proyecto (nombre visible y clave). Si el relay dice
+// que no llegó a ningún teléfono, devuelve ErrSinEntrega (MEJ-027).
 func (r *Relay) Avisar(ctx context.Context, topico, firma, tipo, proyecto, clave string) error {
 	cuerpo := map[string]string{"topico": topico, "firma": firma, "tipo": tipo, "proyecto": NombreParaAviso(proyecto, clave), "clave": clave}
-	return r.post(ctx, "/functions/v1/avisar", cuerpo, nil)
+	_, _, datos, err := r.postDatos(ctx, "/functions/v1/avisar", cuerpo, topeCuerpoAvisar)
+	if err != nil {
+		return err
+	}
+	return sinEntregaDe(datos, tipo, clave)
 }

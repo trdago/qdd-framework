@@ -1,0 +1,9 @@
+id: "FND-140"
+title: "Los botones de la cabecera del panel se pisaban si no cabían junto al título"
+description: "El título, la carpeta y los botones ↻, Blueprints, Config y Abrir carpeta compartían una sola fila que no se doblaba. Con un panel de 58 columnas se dibujaba «l: ↻brp: 📦 Blueprints  k: ⚙ Confi». La carpeta y Abrir carpeta dejaban de verse."
+impact: "La persona veía la cabecera desordenada y cortada, y no encontraba el botón para abrir la carpeta."
+action_taken: "Los botones van en su propia fila, que se dobla si no cabe, sin emojis anchos. La carpeta y la versión quedan a la derecha del título."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/marca.test.ts: «los botones de la cabecera van en su propia fila… (FND-140)». Comprobado en una sesión real de Claude Code 2.1.300 con captura de pantalla."
+status: resolved
+detectado_por: humano
+date: "2026-11-05"

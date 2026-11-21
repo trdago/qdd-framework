@@ -150,6 +150,149 @@ test('una descarga que tar no puede abrir falla', { skip: os.platform() === 'win
   assert.ok(!fs.existsSync(d.destino));
 });
 
+// ── FND-142: en Windows, qdd.exe vive fuera del paquete, en una carpeta por versión ───────────────────────────────────
+
+const { carpetaDeVersiones, destinoDelBinario, respondeBinario, moverBinario, instalarCopia, registrarVersion } = require('../install.js');
+
+test('en Windows el binario va a una carpeta por versión, fuera del paquete', () => {
+  const carpeta = carpetaDeVersiones({ os: 'windows', env: { LOCALAPPDATA: 'L' } });
+  assert.strictEqual(carpeta, path.join('L', 'qdd', 'bin'));
+  assert.strictEqual(destinoDelBinario({ carpeta, version: '2.10.0', binDir: 'paquete', binaryName: 'qdd.exe' }), path.join('L', 'qdd', 'bin', '2.10.0', 'qdd.exe'));
+});
+
+test('en Linux, en macOS y en Windows sin LOCALAPPDATA sigue dentro del paquete', () => {
+  assert.strictEqual(carpetaDeVersiones({ os: 'linux', env: { LOCALAPPDATA: 'L' } }), '');
+  assert.strictEqual(carpetaDeVersiones({ os: 'darwin', env: {} }), '');
+  assert.strictEqual(carpetaDeVersiones({ os: 'windows', env: {} }), '');
+  assert.strictEqual(destinoDelBinario({ carpeta: '', version: '2.10.0', binDir: 'paquete', binaryName: 'qdd' }), path.join('paquete', 'qdd'));
+});
+
+test('el binario de la descarga llega a su carpeta de versión, que se crea', { skip: os.platform() === 'win32' }, (t) => {
+  const d = carpetaDescarga(t, { qdd: '#!/bin/sh\necho qdd version v9\n' });
+  const destino = path.join(d.dir, 'local', 'qdd', 'bin', '9.0.0', 'qdd');
+  assert.strictEqual(instalarDescarga({ os: 'linux', paquete: d.paquete, carpeta: d.dir, binaryName: 'qdd', binDir: d.binDir, env: {}, destino }), destino);
+  assert.ok(fs.existsSync(destino));
+  assert.ok(!fs.existsSync(d.destino), 'dentro del paquete no queda nada que npm no pueda reemplazar');
+});
+
+test('respondeBinario: solo un binario que corre', { skip: os.platform() === 'win32' }, (t) => {
+  const raiz = crearRaiz(t);
+  const bueno = path.join(raiz, 'bueno');
+  const malo = path.join(raiz, 'malo');
+  fs.writeFileSync(bueno, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  fs.writeFileSync(malo, '#!/bin/sh\nexit 3\n', { mode: 0o755 });
+  assert.strictEqual(respondeBinario(bueno), true);
+  assert.strictEqual(respondeBinario(malo), false);
+  assert.strictEqual(respondeBinario(path.join(raiz, 'no-existe')), false);
+});
+
+test('moverBinario copia si el destino está en otro volumen', (t) => {
+  const raiz = crearRaiz(t);
+  const origen = path.join(raiz, 'origen');
+  const destino = path.join(raiz, 'destino');
+  fs.writeFileSync(origen, 'binario');
+  const otroVolumen = () => { throw Object.assign(new Error('cross-device'), { code: 'EXDEV' }); };
+  moverBinario(origen, destino, otroVolumen);
+  assert.strictEqual(fs.readFileSync(destino, 'utf8'), 'binario');
+  assert.ok(!fs.existsSync(origen));
+  assert.ok(!fs.existsSync(destino + '.nuevo'));
+});
+
+test('moverBinario no esconde otro error ni lo reintenta', (t) => {
+  const raiz = crearRaiz(t);
+  const origen = path.join(raiz, 'origen');
+  fs.writeFileSync(origen, 'binario');
+  let intentos = 0;
+  const sinPermiso = () => { intentos++; throw Object.assign(new Error('denied'), { code: 'EACCES' }); };
+  assert.throws(() => moverBinario(origen, path.join(raiz, 'destino'), sinPermiso, { dormir: () => {} }), /denied/);
+  assert.strictEqual(intentos, 1);
+  assert.ok(fs.existsSync(origen));
+});
+
+// #175: en Windows, un antivirus retiene unos segundos el qdd.exe recién ejecutado y renameSync falla con EBUSY.
+test('moverBinario espera mientras el binario nuevo está ocupado (#175)', (t) => {
+  const raiz = crearRaiz(t);
+  const origen = path.join(raiz, 'origen');
+  const destino = path.join(raiz, 'destino');
+  fs.writeFileSync(origen, 'binario');
+  let intentos = 0;
+  const ocupadoDosVeces = (a, b) => {
+    intentos++;
+    if (intentos <= 2) {
+      throw Object.assign(new Error('busy'), { code: intentos === 1 ? 'EBUSY' : 'EPERM' });
+    }
+    fs.renameSync(a, b);
+  };
+  const esperas = [];
+  moverBinario(origen, destino, ocupadoDosVeces, { dormir: (ms) => esperas.push(ms) });
+  assert.strictEqual(fs.readFileSync(destino, 'utf8'), 'binario');
+  assert.strictEqual(esperas.length, 2);
+});
+
+test('moverBinario copia si el binario nuevo sigue ocupado (#175)', (t) => {
+  const raiz = crearRaiz(t);
+  const origen = path.join(raiz, 'origen');
+  const destino = path.join(raiz, 'destino');
+  fs.writeFileSync(origen, 'binario');
+  const ocupado = () => { throw Object.assign(new Error('busy'), { code: 'EBUSY' }); };
+  moverBinario(origen, destino, ocupado, { dormir: () => {} });
+  assert.strictEqual(fs.readFileSync(destino, 'utf8'), 'binario');
+  assert.ok(!fs.existsSync(destino + '.nuevo'));
+});
+
+test('instalarCopia deja el binario indicado solo si responde', { skip: os.platform() === 'win32' }, (t) => {
+  const raiz = crearRaiz(t);
+  const bueno = path.join(raiz, 'bueno');
+  fs.writeFileSync(bueno, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const destino = path.join(raiz, 'qdd', 'bin', '9.0.0', 'qdd');
+  assert.strictEqual(instalarCopia(bueno, destino), destino);
+  assert.ok(fs.existsSync(destino));
+  const malo = path.join(raiz, 'malo');
+  fs.writeFileSync(malo, '#!/bin/sh\nexit 3\n', { mode: 0o755 });
+  const otro = path.join(raiz, 'qdd', 'bin', '9.0.1', 'qdd');
+  assert.throws(() => instalarCopia(malo, otro));
+  assert.ok(!fs.existsSync(otro));
+});
+
+function carpetaConVersiones(t, ...versiones) {
+  const carpeta = path.join(crearRaiz(t), 'bin');
+  for (const v of versiones) {
+    fs.mkdirSync(path.join(carpeta, v), { recursive: true });
+    fs.writeFileSync(path.join(carpeta, v, 'qdd.exe'), 'exe');
+  }
+  return carpeta;
+}
+
+test('registrarVersion escribe el puntero y deja la versión nueva y la anterior', (t) => {
+  const carpeta = carpetaConVersiones(t, '2.9.0', '2.9.1', '2.10.0-rc.1', '2.10.0', 'no-es-version');
+  fs.writeFileSync(path.join(carpeta, 'actual.txt'), '2.10.0-rc.1');
+  registrarVersion({ carpeta, version: '2.10.0' });
+  assert.strictEqual(fs.readFileSync(path.join(carpeta, 'actual.txt'), 'utf8'), '2.10.0');
+  assert.deepStrictEqual(fs.readdirSync(carpeta).sort(), ['2.10.0', '2.10.0-rc.1', 'actual.txt', 'no-es-version']);
+});
+
+test('registrarVersion no para por una versión que sigue corriendo', (t) => {
+  const carpeta = carpetaConVersiones(t, '2.9.0', '2.9.1', '2.10.0');
+  const borradas = [];
+  const enUso = (ruta) => {
+    borradas.push(path.basename(ruta));
+    throw Object.assign(new Error('en uso'), { code: 'EBUSY' });
+  };
+  registrarVersion({ carpeta, version: '2.10.0', borrar: enUso });
+  assert.deepStrictEqual(borradas.sort(), ['2.9.0', '2.9.1']);
+  assert.strictEqual(fs.readFileSync(path.join(carpeta, 'actual.txt'), 'utf8'), '2.10.0');
+});
+
+test('reinstalar la misma versión no toca el puntero: nada tiene que reiniciarse', (t) => {
+  const carpeta = carpetaConVersiones(t, '2.10.0');
+  const puntero = path.join(carpeta, 'actual.txt');
+  fs.writeFileSync(puntero, '2.10.0');
+  const antes = new Date(Date.now() - 60000);
+  fs.utimesSync(puntero, antes, antes);
+  registrarVersion({ carpeta, version: '2.10.0' });
+  assert.strictEqual(fs.statSync(puntero).mtimeMs, antes.getTime());
+});
+
 // FND-143: varios qdd a la vez sin binario (un panel, por ejemplo) no bajan cada uno el suyo.
 const { tomarTurno } = require('../install.js');
 

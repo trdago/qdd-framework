@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,16 +19,18 @@ type testCommand struct {
 	Args     []string
 	Env      []string // variables extra (ver sinCacheEnElProyecto)
 	Requiere []string // programas que la suite necesita; sin ellos queda sin medir
+	Rutas    []string // de qué depende; con los mismos archivos no se repite (RFC 0020)
 }
 
 type qddTestConfig struct {
 	TestCommands []comandoDePrueba `yaml:"test_commands"`
 }
 
-// comandoDePrueba es un texto o {comando, requiere: [programas]} en test_commands.
+// comandoDePrueba es un texto o {comando, requiere: [programas], rutas: [carpetas]} en test_commands.
 type comandoDePrueba struct {
 	Comando  string   `yaml:"comando"`
 	Requiere []string `yaml:"requiere"`
+	Rutas    []string `yaml:"rutas"`
 }
 
 func (c *comandoDePrueba) UnmarshalYAML(node *yaml.Node) error {
@@ -82,7 +85,7 @@ func declaredTestCommands(cwd string) []testCommand {
 		if c == "" {
 			continue
 		}
-		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}, Requiere: tc.Requiere})
+		cmds = append(cmds, testCommand{Label: c, Dir: cwd, Args: []string{"sh", "-c", c}, Requiere: tc.Requiere, Rutas: tc.Rutas})
 	}
 	return cmds
 }
@@ -214,15 +217,21 @@ func pythonBin(cwd string) string {
 // fallo de pruebas: antes se trataba como "ignorable" y el gate aprobaba.
 // Devuelve también la salida, para explicar el fallo (pistaDeFallo).
 func runTestCommand(tc testCommand) (string, error) {
+	out, err := salidaDeSuite(tc)
+	if err == nil {
+		return "", nil
+	}
+	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, logDeFallo(out))
+	return out + "\n" + err.Error(), err
+}
+
+// salidaDeSuite corre la suite sin imprimir nada.
+func salidaDeSuite(tc testCommand) (string, error) {
 	cmd := exec.Command(tc.Args[0], tc.Args[1:]...)
 	cmd.Dir = tc.Dir
 	cmd.Env = append(os.Environ(), tc.Env...)
 	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return "", nil
-	}
-	fmt.Fprintf(os.Stderr, "TEST FAILURE LOG (%s):\n%s\n", tc.Label, tailLines(string(out), 60))
-	return string(out) + "\n" + err.Error(), err
+	return string(out), err
 }
 
 // señalesDeDependencias delatan que las pruebas no llegaron a correr porque
@@ -280,12 +289,38 @@ func hayPruebasDart(testDir string) bool {
 	return encontrado
 }
 
-func tailLines(s string, n int) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) <= n {
-		return strings.Join(lines, "\n")
+const (
+	lineasDelLog   = 60
+	maxFallasEnLog = 40
+)
+
+// logDeFallo es el final de la salida y, antes, las líneas anteriores que marcan una falla (FND-162, FND-211): una suite larga deja
+// el nombre de lo que falló lejos del final, y sin él un fallo que no se repite no se puede investigar.
+func logDeFallo(salida string) string {
+	lineas := strings.Split(strings.TrimRight(salida, "\n"), "\n")
+	if len(lineas) <= lineasDelLog {
+		return strings.Join(lineas, "\n")
 	}
-	return strings.Join(lines[len(lines)-n:], "\n")
+	corte := len(lineas) - lineasDelLog
+	var fallas []string
+	for _, l := range lineas[:corte] {
+		if len(fallas) < maxFallasEnLog && esLineaDeFalla(l) {
+			fallas = append(fallas, l)
+		}
+	}
+	return strings.Join(append(fallas, lineas[corte:]...), "\n")
+}
+
+// esLineaDeFalla reconoce la línea que nombra una prueba que falló, con la marca de cada herramienta (FND-211): «fail»
+// (go, bun, pytest, vitest), «✕» y «●» de jest, y «[E]» de dart y flutter. «● Console» de jest es salida, no una falla.
+func esLineaDeFalla(l string) bool {
+	if strings.Contains(strings.ToLower(l), "fail") {
+		return true
+	}
+	if strings.Contains(l, "● Console") {
+		return false
+	}
+	return strings.Contains(l, "✕") || strings.Contains(l, "●") || strings.HasSuffix(strings.TrimSpace(l), "[E]")
 }
 
 // RunCoverageCheck evalúa que las pruebas del proyecto se ejecuten y pasen
@@ -314,7 +349,13 @@ func RunCoverageCheck(cwd string) []Violation {
 			})
 			continue
 		}
+		huella := huellaDeSuite(tc)
+		if en, ok := yaPasoConEsaHuella(tc.Dir, huella); ok {
+			fmt.Fprintf(os.Stderr, "[QA] SIN CAMBIOS: %s (pasó a las %s con estos mismos archivos; qdd audit --completo la repite)\n", tc.Label, en.Local().Format("15:04"))
+			continue
+		}
 		fmt.Fprintf(os.Stderr, "[QA] Ejecutando pruebas: %s (en %s)\n", tc.Label, tc.Dir)
+		inicio := time.Now()
 		if salida, err := runTestCommand(tc); err != nil {
 			fmt.Fprintf(os.Stderr, "[QA] FALLÓ: %s\n", tc.Label)
 			violations = append(violations, Violation{
@@ -324,7 +365,8 @@ func RunCoverageCheck(cwd string) []Violation {
 			})
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "[QA] OK: %s\n", tc.Label)
+		recordarSuite(tc.Dir, huella)
+		fmt.Fprintf(os.Stderr, "[QA] OK: %s (%s)\n", tc.Label, time.Since(inicio).Round(100*time.Millisecond))
 	}
 
 	// QA-02-E2E-TESTS: Exigir entorno de pruebas End-to-End

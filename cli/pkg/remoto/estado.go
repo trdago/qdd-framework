@@ -5,11 +5,11 @@ package remoto
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -35,6 +35,12 @@ type ProyectoEstado struct {
 	Ruta   string                `json:"ruta"`
 	Panel  *consola.DatosConsola `json:"panel,omitempty"`
 	Error  string                `json:"error,omitempty"`
+	// ReglasAtrasadas son los archivos con el bloque de reglas de un qdd anterior (integration.BloquesViejos; pedido de
+	// qdd-movile, 2026-11-07). Sin el campo no se midió (la carpeta no está); [] es al día.
+	ReglasAtrasadas *[]string `json:"reglas_atrasadas,omitempty"`
+	// visibles son las tareas de los frentes del panel, antes de ocultar nada: un nodo cuya tarea no está ahí lleva
+	// tarea_estado (MEJ-083). Solo vive en este PC.
+	visibles map[string]bool
 }
 
 // Estado es lo que publica el PC: qdd remoto estado --json y el evento estado (con Seq).
@@ -46,7 +52,9 @@ type Estado struct {
 	Seq          uint64           `json:"seq,omitempty"`
 	FueraDelPlan int              `json:"fuera_del_plan,omitempty"`
 	Limites      *consola.Limites `json:"limites,omitempty"`
-	Proyectos    []ProyectoEstado `json:"proyectos"`
+	// Diagnostico: la última prueba del canal con el teléfono, solo si falló o reparó algo en el último día (sonda.go).
+	Diagnostico *DiagnosticoCanal `json:"diagnostico,omitempty"`
+	Proyectos   []ProyectoEstado  `json:"proyectos"`
 }
 
 // EstaMaquina es el nombre y el sistema del PC.
@@ -61,9 +69,15 @@ func EstaMaquina() Maquina {
 // Armar arma el estado de los proyectos del registro (ya ordenado por visto, el más reciente primero). limite es el
 // de proyectos del plan (0: sin límite): se publican los más recientes y FueraDelPlan dice cuántos quedaron fuera.
 func Armar(qdd string, reg registro.Registro, now time.Time, limite int) Estado {
+	return ArmarCon(qdd, reg, now, limite, true)
+}
+
+// ArmarCon es Armar diciendo si los paneles traen lo logrado. Sin él no se lee ni pasa por el ocultador: cuando todos
+// los teléfonos lo piden aparte, ese trabajo se descartaba en cada estado (FND-214).
+func ArmarCon(qdd string, reg registro.Registro, now time.Time, limite int, conLogrado bool) Estado {
 	e := Estado{Version: VersionProtocolo, QDD: qdd, Maquina: EstaMaquina(), En: now.UTC(), Limites: consola.LeerLimites(), Proyectos: []ProyectoEstado{}}
 	for _, p := range Publicables(reg, limite) {
-		e.Proyectos = append(e.Proyectos, PanelDe(qdd, p, now))
+		e.Proyectos = append(e.Proyectos, panelDe(qdd, p, now, conLogrado))
 	}
 	e.FueraDelPlan = len(reg.Proyectos) - len(e.Proyectos)
 	return e
@@ -81,33 +95,28 @@ func Publicables(reg registro.Registro, limite int) []registro.Proyecto {
 // las preguntas de la consola y lo mandado desde el teléfono (opcionales, sin secretos), o con el error si la carpeta
 // ya no está. El ejecutar del panel depende del plan: lo pone ConEjecutar.
 func PanelDe(qdd string, p registro.Proyecto, now time.Time) ProyectoEstado {
-	out := ProyectoEstado{Clave: p.Clave, Nombre: filepath.Base(p.Ruta), Ruta: p.Ruta}
+	return panelDe(qdd, p, now, true)
+}
+
+func panelDe(qdd string, p registro.Proyecto, now time.Time, conLogrado bool) ProyectoEstado {
+	out := ProyectoEstado{Clave: p.Clave, Nombre: registro.NombreDe(p.Ruta), Ruta: p.Ruta}
 	if info, err := os.Stat(p.Ruta); err != nil || !info.IsDir() {
 		out.Error = ErrCarpetaNoExiste
 		return out
 	}
-	panel := consola.Panel(p.Ruta, now, consola.TipoPregunta, consola.ConTelefono)
-	sinEsperasSinSesion(p.Ruta, &panel, now)
+	reglas := append([]string{}, integration.BloquesViejos(p.Ruta)...)
+	out.ReglasAtrasadas = &reglas
+	con := []string{consola.TipoPregunta, consola.ConTelefono}
+	if conLogrado {
+		con = append(con, consola.ConLogrado)
+	}
+	panel := consola.Panel(p.Ruta, now, con...)
+	out.visibles = tareasVisibles(panel.Estado)
+	panel.Flujos = resumenDeFlujos(p.Ruta, out.visibles)
 	ocultarDelPanel(p.Ruta, &panel)
 	panel.Version = qdd
 	out.Panel = &panel
 	return out
-}
-
-// sinEsperasSinSesion: un ⏳ lo resuelve la IA con la respuesta; sin una sesión abierta no hay quien, y el teléfono no lo
-// ofrece (FND-124). Las preguntas de la consola siguen: tienen su propia vida.
-func sinEsperasSinSesion(root string, panel *consola.DatosConsola, now time.Time) {
-	if consola.HaySesion(root, now) {
-		return
-	}
-	var quedan []consola.Accion
-	for _, a := range panel.Acciones {
-		if a.Tipo == consola.TipoPregunta && a.Origen == consola.OrigenEstado {
-			continue
-		}
-		quedan = append(quedan, a)
-	}
-	panel.Acciones = quedan
 }
 
 // Linea es el proyecto en una línea (qdd remoto estado sin --json): nombre, foco, tareas, esperan y fallan.

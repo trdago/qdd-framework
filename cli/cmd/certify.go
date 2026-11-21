@@ -42,9 +42,10 @@ func runCertify(cmd *cobra.Command, args []string) {
 
 	engine := audit.NewEngine(cwd)
 	fmt.Println("[+] Ejecutando motor de auditoría...")
-	violations := engine.RunAll()
+	resultado := engine.EvaluarCompleto()
+	violations := resultado.Violaciones
 
-	fmt.Print(formatAuditResult(violations))
+	fmt.Print(formatAuditResult(resultado))
 
 	fmt.Println("[+] Generando certificado histórico...")
 	cert, err := audit.GenerateCertificate(cwd, violations)
@@ -59,7 +60,9 @@ func runCertify(cmd *cobra.Command, args []string) {
 	fmt.Printf(" Fecha:        %s\n", cert.Timestamp)
 	fmt.Printf(" Violaciones:  %d\n", cert.TotalViolations)
 	fmt.Printf(" Score:        %d/100\n", cert.Score)
-	
+	fmt.Printf(" Cobertura:    %d de %d principios evaluados en todo el proyecto\n", resultado.Cobertura.Evaluados, resultado.Cobertura.Aplicables)
+	fmt.Printf(" Seguridad:    %s\n", coberturaDeCategoria(resultado.Cobertura, "seguridad"))
+
 	printTendency(cert.Tendency)
 	if cert.EscalaNueva {
 		fmt.Println(" Nota:         QDD cambió su escala de puntaje; la tendencia se mide desde esta certificación.")
@@ -139,4 +142,3 @@ func executeHumanCertifier(runnerPath, target string) error {
 
 	return cmd.Run()
 }
-

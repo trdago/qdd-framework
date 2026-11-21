@@ -8,15 +8,15 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
-	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/incidentes"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -30,12 +30,19 @@ var (
 	remotoClave      string
 	remotoSinServ    bool
 	remotoEjecutor   remoto.Ejecutor = ejecutarSistema
+	remotoConsultar  remoto.Consulta = consultarSistema
 	remotoUsuario                    = os.UserHomeDir
 	remotoPlazo                      = remoto.VigenciaOferta
 	remotoCadaEspera time.Duration
 
-	remotoRelayPorDefecto = remoto.RelayPorDefecto
+	remotoConsultarRelay = remoto.DirectorioDeFabrica().Consultar
 )
+
+// consultarSistema corre un comando que solo lee y devuelve lo que imprimió.
+func consultarSistema(nombre string, args ...string) (string, error) {
+	out, err := exec.Command(nombre, args...).Output()
+	return string(out), err
+}
 
 func ejecutarSistema(nombre string, args ...string) error {
 	out, err := exec.Command(nombre, args...).CombinedOutput()
@@ -74,7 +81,10 @@ var remotoCorrerCmd = &cobra.Command{
 	Short:  "El proceso que publica este PC en QDD Móvil (lo corre el servicio)",
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(remotoCorrer(os.Stderr))
+		registro, cerrar := registroDeCorrer()
+		codigo := remotoCorrer(registro)
+		cerrar()
+		os.Exit(codigo)
 	},
 }
 
@@ -92,19 +102,43 @@ func contexto(ctx context.Context) context.Context {
 	return ctx
 }
 
-// relayDeFlags: las banderas mandan y se guardan; si no, lo guardado; la primera vez, el relay que trae qdd (issue #102).
-func relayDeFlags() (remoto.ConfigRelay, error) {
+// relayDeFlags: las banderas mandan y dejan el relay como propio; si no, lo guardado, confirmado con el directorio; la
+// primera vez, lo que diga el directorio.
+func relayDeFlags(errores io.Writer) (remoto.ConfigRelay, error) {
 	if remotoRelayURL != "" || remotoClave != "" {
-		return guardarYLeerRelay(remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave})
+		return guardarYLeerRelay(remoto.ConfigRelay{URL: remotoRelayURL, Clave: remotoClave, Propio: true})
 	}
 	c, err := remoto.LeerRelay()
+	if err == nil {
+		return relayConfirmado(context.Background(), c, errores), nil
+	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return c, err
 	}
-	if remotoRelayPorDefecto.URL == "" {
-		return c, errors.New("falta el relay: esta versión de qdd no trae uno por defecto; usa 'qdd login --relay <url> --clave <publicable>'")
+	c, err = remotoConsultarRelay(context.Background(), 0)
+	if err != nil {
+		return c, fmt.Errorf("falta el relay: %v; vuelve a intentarlo o usa 'qdd login --relay <url> --clave <publicable>'", err)
 	}
-	return guardarYLeerRelay(remotoRelayPorDefecto)
+	return guardarYLeerRelay(c)
+}
+
+// relayConfirmado es el relay con el que se sigue. Nunca calla (FND-171): quien va a escanear un código tiene que saber si
+// nada confirmó el relay o si se reemplazó el que tenía guardado como propio.
+func relayConfirmado(ctx context.Context, actual remoto.ConfigRelay, errores io.Writer) remoto.ConfigRelay {
+	c, cambio, err := remoto.ConfirmarRelay(ctx, remotoConsultarRelay, actual, estaEmparejado())
+	if err != nil {
+		fmt.Fprintf(errores, "[!] no se pudo confirmar el relay con el directorio (%v): sigue con el guardado, que puede estar retirado. Si el teléfono no conecta, usa 'qdd doctor --fix' desde otra red.\n", err)
+		return c
+	}
+	if cambio && actual.Propio {
+		fmt.Fprintln(errores, "[i] El relay guardado como propio no coincide con el directorio y este PC no estaba emparejado: se reemplazó. Si el tuyo es otro, usa 'qdd login --relay <url> --clave <publicable>'.")
+	}
+	return c
+}
+
+func estaEmparejado() bool {
+	_, err := remoto.LeerCredenciales()
+	return err == nil
 }
 
 func guardarYLeerRelay(c remoto.ConfigRelay) (remoto.ConfigRelay, error) {
@@ -116,7 +150,7 @@ func guardarYLeerRelay(c remoto.ConfigRelay) (remoto.ConfigRelay, error) {
 
 func remotoActivar(ctx context.Context, salida, errores io.Writer) int {
 	ctx = contexto(ctx)
-	c, err := relayDeFlags()
+	c, err := relayDeFlags(errores)
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
@@ -175,7 +209,7 @@ func remotoEmparejar(ctx context.Context, salida, errores io.Writer) int {
 		fmt.Fprintln(errores, "[!] falta el relay: usa 'qdd login'")
 		return 1
 	}
-	if _, err := emparejarYGuardar(ctx, c, salida); err != nil {
+	if _, err := emparejarYGuardar(ctx, relayConfirmado(ctx, c, errores), salida); err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
@@ -220,6 +254,24 @@ func quitarServicio(salida, errores io.Writer) {
 	fmt.Fprintln(salida, "[+] Servicio detenido.")
 }
 
+// registroDeCorrer: lanzado por qddw.exe (Windows, sin consola), el registro va a <QDD_HOME>/remoto/correr.log, con tope
+// (FND-238). Con consola, o con systemd y launchd, que recogen la salida, sigue en stderr; si el archivo no se puede
+// abrir, también.
+func registroDeCorrer() (io.Writer, func()) {
+	if os.Getenv(remoto.EnvSinConsola) != "1" {
+		return os.Stderr, func() {}
+	}
+	ruta, err := remoto.RutaRegistroCorrer()
+	if err != nil {
+		return os.Stderr, func() {}
+	}
+	r, err := remoto.AbrirRegistroRotado(ruta, remoto.TopeRegistroCorrer)
+	if err != nil {
+		return os.Stderr, func() {}
+	}
+	return r, func() { r.Close() }
+}
+
 // servicioRemoto arma el servicio de este sistema con el binario que corre y el PATH de la terminal.
 func servicioRemoto() (remoto.Servicio, error) {
 	usuario, err := remotoUsuario()
@@ -237,11 +289,54 @@ func servicioRemoto() (remoto.Servicio, error) {
 	if err != nil {
 		return remoto.Servicio{}, err
 	}
-	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir}, nil
+	return remoto.Servicio{SO: runtime.GOOS, Bin: bin, Usuario: usuario, QDDHome: os.Getenv(blueprints.HomeEnv), Path: os.Getenv("PATH"), DirQDD: dir, Cuenta: cuentaWindows(), Lanzador: lanzadorDe(bin)}, nil
 }
 
-// remotoCorrer es el servicio: uno por máquina, hasta una señal o hasta que el relay ya no reconozca el PC.
+// lanzadorDe: en Windows, qddw.exe junto al qdd que corre, si este qdd lo trae (FND-238).
+func lanzadorDe(bin string) string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	return remoto.RutaLanzador(bin)
+}
+
+// pausarAlQuitarse: el teléfono quitó este PC; en Windows la tarea se desactiva para que el disparador de cada 5
+// minutos no lo vuelva a lanzar (FND-204). qdd remoto activar la registra de nuevo. Una falla no cambia la salida.
+func pausarAlQuitarse() {
+	s, err := remotoServicio()
+	if err != nil {
+		return
+	}
+	for _, c := range s.ComandosAlQuitarse() {
+		_ = remotoEjecutor(c[0], c[1:]...)
+	}
+}
+
+// cuentaWindows es DOMINIO\usuario de quien corre qdd en Windows: la tarea de inicio es solo suya (FND-195). Fuera de
+// Windows no hace falta.
+func cuentaWindows() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	u, err := user.Current()
+	if err != nil {
+		return ""
+	}
+	return u.Username
+}
+
+// remotoCorrer es el servicio: uno por QDD_HOME (MEJ-079), hasta una señal o hasta que el relay ya no reconozca el PC.
 func remotoCorrer(errores io.Writer) int {
+	soltar, err := remoto.UnaSolaVez()
+	if errors.Is(err, remoto.ErrYaCorre) {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return codigoYaCorre
+	}
+	if err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	defer soltar()
 	c, err := remoto.LeerRelay()
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
@@ -252,24 +347,64 @@ func remotoCorrer(errores io.Writer) int {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	soltar, err := unaSolaVez()
-	if err != nil {
-		fmt.Fprintf(errores, "[!] %v\n", err)
-		return 1
-	}
-	defer soltar()
 	ctx, cancelar := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelar()
+	c, _, err = remoto.ActualizarRelay(ctx, remotoConsultarRelay, c)
+	if err != nil {
+		fmt.Fprintf(errores, "[i] sigue con el relay guardado: %v\n", err)
+	}
+	// Hasta que el canal se una, doctor no debe creer lo que dejó el servicio anterior (REM-18).
+	if err := remoto.GuardarConexion(false, time.Now()); err != nil {
+		fmt.Fprintf(errores, "[i] no se anotó el canal: %v\n", err)
+	}
 	canal := remoto.NuevoCanal(remoto.ConfigCanal{Relay: c.URL, Clave: c.Clave, Topico: cred.Topico, PresenceKey: "pc"})
 	go canal.Correr(ctx)
 	bin, _ := os.Executable()
 	b := &remoto.Bucle{QDD: Version, Cred: cred, T: canal, R: remoto.NuevoRelay(c), Bin: bin, Log: errores}
+	b.AlPublicar = func(ok bool) {
+		if err := remoto.GuardarPublicacion(ok, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el último envío: %v\n", err)
+		}
+	}
+	b.AlConectar = func(conectado bool, en time.Time) {
+		if err := remoto.GuardarConexion(conectado, en); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el canal: %v\n", err)
+		}
+	}
+	// La sonda (REM-20): el servicio prueba solo el canal con el teléfono y anota cómo salió para doctor. El tope de
+	// reinicios es el mismo que el de doctor por el canal (REM-07, REM-18): ReinicioEn de sonda.json.
+	anterior, _ := remoto.LeerSonda()
+	b.ReinicioSonda = anterior.ReinicioEn
+	b.Sondear = func(ctx context.Context) remoto.ResultadoSonda { return remotoSondear(ctx, c, cred, remoto.TopeSonda) }
+	b.AlSondear = func(r remoto.ResultadoSonda) { anotarSonda(r, errores) }
+	b.AlPesar = func(n int) {
+		if err := remoto.GuardarPeso(n, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó el peso del estado: %v\n", err)
+		}
+	}
+	b.Consultar = func(ctx context.Context) (bool, error) {
+		actual, err := remoto.LeerRelay()
+		if err != nil {
+			return false, err
+		}
+		_, cambio, err := remoto.ActualizarRelay(ctx, remotoConsultarRelay, actual)
+		return cambio, err
+	}
 	err = b.Correr(ctx)
+	if errors.Is(err, remoto.ErrRelayCambio) {
+		fmt.Fprintf(errores, "[i] %v.\n", err)
+		return codigoReiniciar
+	}
 	if errors.Is(err, remoto.ErrCredenciales) {
 		fmt.Fprintln(errores, "[i] El relay ya no reconoce este PC: se quitó desde el teléfono. Vuelve a emparejarlo con 'qdd remoto desactivar' y 'qdd remoto activar'.")
+		// doctor lo dice en vez de arrancar otra vez un servicio que saldría igual (REM-15).
+		if err := remoto.GuardarQuitado(cred.Topico, time.Now()); err != nil {
+			fmt.Fprintf(errores, "[i] no se anotó que se quitó: %v\n", err)
+		}
+		pausarAlQuitarse()
 		return 0
 	}
-	if errors.Is(err, remoto.ErrActualizado) {
+	if errors.Is(err, remoto.ErrActualizado) || errors.Is(err, remoto.ErrSondaReinicia) {
 		fmt.Fprintf(errores, "[i] %v.\n", err)
 		return codigoReiniciar
 	}
@@ -280,28 +415,31 @@ func remotoCorrer(errores io.Writer) int {
 	return 0
 }
 
-// codigoReiniciar es la salida con la que el servicio vuelve a arrancar qdd (los tres reinician ante una salida
-// distinta de 0): así toma la versión nueva tras actualizar qdd (FND-120).
+// anotarSonda guarda la sonda para doctor y deja un incidente si el relay falló de una forma que no es la red: lo que
+// se reparó como autorreparación, y lo que siguió roto como falla del canal. Ni una ni otra lleva datos del proyecto.
+func anotarSonda(r remoto.ResultadoSonda, errores io.Writer) {
+	reinicio := time.Time{}
+	if r.Reparado == remoto.ReparaReiniciar {
+		reinicio = r.En
+	}
+	if err := remoto.GuardarSonda(r, reinicio); err != nil {
+		fmt.Fprintf(errores, "[i] no se anotó la prueba del canal: %v\n", err)
+	}
+	if r.OK || r.Tramo == remoto.TramoConexion || r.Tramo == remoto.TramoRelay {
+		return
+	}
+	if r.Reparado != "" {
+		registrarAutorreparacion("qdd remoto sonda", "el canal con el teléfono falló en el tramo "+r.Tramo, []string{conReparado(r)[2:]})
+		return
+	}
+	registrarIncidente(incidentes.TipoCanalMovil, "qdd remoto sonda", "", "el canal con el teléfono falló en el tramo "+r.Tramo+" y ya se reinició hace menos de 6 h", nil, "")
+}
+
+// codigoReiniciar es la salida con la que el servicio vuelve a arrancar qdd: así toma la versión nueva tras actualizar
+// qdd (FND-120). systemd y launchd reinician ante una salida distinta de 0; en Windows, RestartOnFailure no, y lo
+// relanzan el /Run de la actualización o el disparador de cada 5 minutos (FND-204).
 const codigoReiniciar = 3
 
-// unaSolaVez deja <QDD_HOME>/remoto/correr.pid con este proceso; si otro vivo ya corre, es un error.
-func unaSolaVez() (func(), error) {
-	dir, err := remoto.DirRemoto()
-	if err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, err
-	}
-	ruta := filepath.Join(dir, "correr.pid")
-	if b, err := os.ReadFile(ruta); err == nil {
-		pid, _ := strconv.Atoi(strings.TrimSpace(string(b)))
-		if pid > 0 && pid != os.Getpid() && consola.ProcesoVivo(pid) {
-			return nil, fmt.Errorf("qdd remoto ya corre en esta máquina (pid %d)", pid)
-		}
-	}
-	if err := os.WriteFile(ruta, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
-		return nil, err
-	}
-	return func() { os.Remove(ruta) }, nil
-}
+// codigoYaCorre es la salida de un qdd remoto correr que no arranca porque otro ya corre con el mismo QDD_HOME
+// (MEJ-079). El servicio lo reintenta (Restart=on-failure), así que toma el relevo cuando el otro termina.
+const codigoYaCorre = 4

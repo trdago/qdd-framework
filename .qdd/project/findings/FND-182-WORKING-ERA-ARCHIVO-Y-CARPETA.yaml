@@ -1,0 +1,9 @@
+id: "FND-182"
+title: ".qdd/working era a la vez el archivo del comando que corre y la carpeta de los flujos"
+description: "Cada comando de qdd escribía su nombre en .qdd/working como archivo y lo borraba al terminar, pero los flujos guardan sus registros y candados en .qdd/working/flujos. Si un comando salía con os.Exit, el archivo quedaba y qdd flujo crear, comentar o editar fallaban con «not a directory». Llegó por la cola de mejoras (MEJ-036 y MEJ-037)."
+impact: "La persona no podía crear ni comentar flujos en ese proyecto hasta borrar el archivo a mano, y el error no decía por qué."
+action_taken: "El nombre del comando va ahora en .qdd/working/comando, y solo si el proyecto tiene .qdd. El comando y los flujos quitan el archivo viejo que dejan las versiones anteriores (otras consolas abiertas pueden seguir escribiéndolo); el dashboard lee la marca nueva y la vieja."
+test_result: "cli/pkg/flujo/working_test.go: TestEditar_ConElMarcadorViejoEnWorkingSigueFuncionando_FND182 (falla antes del arreglo); cli/cmd/working_test.go: TestMarcarComando_VaDentroDeWorkingYReemplazaElArchivoViejo_FND182 y TestMarcarComando_FueraDeUnProyectoNoCreaNada; cli/pkg/dashboard/working_test.go: TestLoadWorkingOn_LeeLaMarcaNuevaYLaVieja_FND182."
+status: resolved
+detectado_por: ia
+date: "2026-11-08"

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,8 +29,10 @@ const (
 	maxTexto = 2000
 	// colaInicial es cuántas líneas ve quien empieza a mirar.
 	colaInicial = 40
-	// leerDelFinal es cuánto se lee del final del transcript para la cola inicial.
+	// leerDelFinal es de a cuánto se lee hacia atrás el transcript para la cola inicial.
 	leerDelFinal = 512 << 10
+	// maxCola es lo más lejos del final que se busca la cola inicial (MEJ-078).
+	maxCola = 8 << 20
 )
 
 var noAlfanumerico = regexp.MustCompile(`[^A-Za-z0-9]`)
@@ -47,12 +50,38 @@ func carpetaCodificada(ruta string) string {
 	return noAlfanumerico.ReplaceAllString(ruta, "-")
 }
 
-// TranscriptDe es el transcript más reciente del proyecto (ruta = estado.ClaveLocal), o "" si no hay.
+// TranscriptDe es el transcript del proyecto (ruta = estado.ClaveLocal) con el turno más reciente, o "" si no hay.
+// Manda la hora de su última línea con hora, no la del archivo: Claude Code agrega a sesiones viejas metadatos sin hora
+// (cost-state, last-prompt) y con la fecha del archivo una vieja le ganaba a la que trabaja (FND-244). Con la misma
+// hora, la del archivo. Se recorre del archivo más nuevo al más viejo y se para cuando uno es anterior a la mejor hora:
+// ninguna línea es más nueva que su archivo, así que no se lee el final de cada transcript.
 func TranscriptDe(ruta string) string {
+	mejor, mejorT, mejorM := "", time.Time{}, time.Time{}
+	for _, c := range transcriptsPorFecha(ruta) {
+		if !mejorT.IsZero() && c.mod.Before(mejorT) {
+			break
+		}
+		cuando := ultimaHora(c.archivo)
+		if !masNuevo(cuando, c.mod, mejorT, mejorM) || !delProyecto(c.archivo, ruta) {
+			continue
+		}
+		mejor, mejorT, mejorM = c.archivo, cuando, c.mod
+	}
+	return mejor
+}
+
+type transcript struct {
+	archivo string
+	mod     time.Time
+}
+
+// transcriptsPorFecha son los transcripts de las carpetas del proyecto (y de sus worktrees y subcarpetas), del archivo
+// más nuevo al más viejo.
+func transcriptsPorFecha(ruta string) []transcript {
 	base := filepath.Join(consola.ClaudeDir(), "projects")
 	cod := carpetaCodificada(ruta)
 	dirs, _ := filepath.Glob(filepath.Join(base, cod+"*"))
-	mejor, mejorT := "", time.Time{}
+	var out []transcript
 	for _, d := range dirs {
 		nombre := filepath.Base(d)
 		if nombre != cod && !strings.HasPrefix(nombre, cod+"-") {
@@ -60,14 +89,78 @@ func TranscriptDe(ruta string) string {
 		}
 		archivos, _ := filepath.Glob(filepath.Join(d, "*.jsonl"))
 		for _, a := range archivos {
-			info, err := os.Stat(a)
-			if err != nil || !info.ModTime().After(mejorT) || !delProyecto(a, ruta) {
-				continue
+			if info, err := os.Stat(a); err == nil {
+				out = append(out, transcript{archivo: a, mod: info.ModTime()})
 			}
-			mejor, mejorT = a, info.ModTime()
 		}
 	}
-	return mejor
+	sort.SliceStable(out, func(i, j int) bool { return out[i].mod.After(out[j].mod) })
+	return out
+}
+
+func masNuevo(cuando, mod, mejorT, mejorM time.Time) bool {
+	if !cuando.Equal(mejorT) {
+		return cuando.After(mejorT)
+	}
+	return mod.After(mejorM)
+}
+
+// ultimaHora es la hora más nueva de las líneas con "timestamp" del final del transcript (los últimos leerDelFinal
+// bytes); cero si no hay ninguna.
+func ultimaHora(archivo string) time.Time {
+	f, err := os.Open(archivo)
+	if err != nil {
+		return time.Time{}
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return time.Time{}
+	}
+	desde := max(info.Size()-leerDelFinal, 0)
+	datos := make([]byte, info.Size()-desde)
+	if _, err := f.ReadAt(datos, desde); err != nil && err != io.EOF {
+		return time.Time{}
+	}
+	var mas time.Time
+	for _, linea := range bytes.Split(datos, []byte("\n")) {
+		if cuando := horaDeLinea(linea); cuando.After(mas) {
+			mas = cuando
+		}
+	}
+	return mas
+}
+
+func horaDeLinea(linea []byte) time.Time {
+	if !bytes.Contains(linea, []byte(`"timestamp"`)) {
+		return time.Time{}
+	}
+	var l struct {
+		Timestamp string `json:"timestamp"`
+	}
+	if json.Unmarshal(linea, &l) != nil {
+		return time.Time{}
+	}
+	cuando, _ := time.Parse(time.RFC3339Nano, l.Timestamp)
+	return cuando
+}
+
+// sesionDeTranscript es la sesión de Claude Code de un transcript: Claude Code lo nombra <sesión>.jsonl.
+func sesionDeTranscript(archivo string) string {
+	if archivo == "" {
+		return ""
+	}
+	return strings.TrimSuffix(filepath.Base(archivo), ".jsonl")
+}
+
+// sesionDeLaConsola es la sesión que el teléfono ve en la consola del proyecto, si sigue latiendo (MEJ-082): una
+// instrucción del teléfono va a ella. Si la consola muestra una sesión que ya no late (o ninguna), no va dirigida.
+func sesionDeLaConsola(ruta string, now time.Time) string {
+	sesion := sesionDeTranscript(TranscriptDe(ruta))
+	if sesion == "" || !consola.SesionLate(ruta, sesion, now) {
+		return ""
+	}
+	return sesion
 }
 
 // delProyecto confirma con el cwd del transcript que es de este proyecto (o de un worktree o subcarpeta suya).
@@ -150,9 +243,63 @@ type lector struct {
 	archivo string
 	pos     int64
 	resto   []byte
+	// trabajando es desde cuándo Claude está trabajando en el turno en curso (hora del transcript); vacío si no
+	// (FND-239).
+	trabajando string
 }
 
-// abrirLector empieza al final del transcript y devuelve las últimas colaInicial líneas.
+// marca es lo que una línea del transcript dice del trabajo de Claude.
+type marca struct {
+	Type        string `json:"type"`
+	Subtype     string `json:"subtype"`
+	QuerySource string `json:"querySource"`
+	IsMeta      bool   `json:"isMeta"`
+	IsSidechain bool   `json:"isSidechain"`
+	Timestamp   string `json:"timestamp"`
+	Message     struct {
+		Content json.RawMessage `json:"content"`
+	} `json:"message"`
+}
+
+// trabajoTras sigue desde cuándo trabaja Claude a lo largo de unas líneas completas (FND-239): Claude Code escribe
+// cada respuesta en el transcript solo al terminarla, así que sin esto el teléfono no ve nada mientras tanto. La
+// primera api-request del hilo principal empieza el trabajo; el fin del turno (turn_duration), una compactación, una
+// interrupción o un mensaje nuevo de la persona lo terminan.
+func trabajoTras(desde string, datos []byte) string {
+	for _, linea := range bytes.Split(datos, []byte("\n")) {
+		desde = trabajoDeLinea(desde, linea)
+	}
+	return desde
+}
+
+func trabajoDeLinea(desde string, linea []byte) string {
+	if !bytes.Contains(linea, []byte(`"api-request"`)) && !bytes.Contains(linea, []byte(`"system"`)) && !bytes.Contains(linea, []byte(`"user"`)) {
+		return desde
+	}
+	var m marca
+	if json.Unmarshal(linea, &m) != nil {
+		return desde
+	}
+	if m.Type == "api-request" && (m.QuerySource == "" || m.QuerySource == "repl_main_thread") && desde == "" {
+		return m.Timestamp
+	}
+	if m.Type == "system" && (m.Subtype == "turn_duration" || m.Subtype == "compact_boundary") {
+		return ""
+	}
+	if m.IsMeta || m.IsSidechain {
+		return desde
+	}
+	var texto string
+	if m.Type == "user" && json.Unmarshal(m.Message.Content, &texto) == nil && !strings.HasPrefix(strings.TrimSpace(texto), "<") {
+		return ""
+	}
+	if m.Type == "user" && bytes.Contains(m.Message.Content, []byte("[Request interrupted by user")) {
+		return ""
+	}
+	return desde
+}
+
+// abrirLector empieza al final del transcript y devuelve las últimas colaInicial líneas visibles.
 func abrirLector(archivo string) (*lector, []LineaConsola) {
 	l := &lector{archivo: archivo}
 	if archivo == "" {
@@ -167,21 +314,64 @@ func abrirLector(archivo string) (*lector, []LineaConsola) {
 	if err != nil {
 		return l, nil
 	}
-	desde := max(info.Size()-leerDelFinal, 0)
-	datos := make([]byte, info.Size()-desde)
-	n, _ := f.ReadAt(datos, desde)
-	datos = datos[:n]
-	l.pos = desde + int64(n)
-	if desde > 0 {
-		if i := bytes.IndexByte(datos, '\n'); i >= 0 {
-			datos = datos[i+1:]
-		}
-	}
-	lineas := l.partir(datos)
-	if len(lineas) > colaInicial {
-		lineas = lineas[len(lineas)-colaInicial:]
-	}
+	l.pos = info.Size()
+	lineas, resto, leido := colaDe(f, info.Size())
+	l.resto, l.trabajando = resto, trabajoTras("", leido)
 	return l, lineas
+}
+
+// colaDe lee el transcript hacia atrás de a leerDelFinal hasta juntar colaInicial líneas visibles o llegar a maxCola
+// del final (MEJ-078): un resultado de herramienta pesa cientos de KB y no da ninguna línea. Devuelve también lo que
+// sigue al último salto de línea, una línea a medio escribir que el lector completa después, y las líneas completas que
+// leyó, en orden, para saber si Claude está trabajando (FND-239).
+func colaDe(f io.ReaderAt, fin int64) ([]LineaConsola, []byte, []byte) {
+	var lineas []LineaConsola
+	var leido []byte
+	var resto, pendiente []byte // pendiente: el final de una línea que empieza más atrás
+	vioSalto := false
+	desde := fin
+	for desde > 0 && fin-desde < maxCola && len(lineas) < colaInicial {
+		inicio := max(desde-leerDelFinal, 0)
+		bloque := make([]byte, desde-inicio)
+		n, _ := f.ReadAt(bloque, inicio)
+		bloque = append(bloque[:n], pendiente...)
+		desde = inicio
+		if !vioSalto {
+			j := bytes.LastIndexByte(bloque, '\n')
+			if j < 0 {
+				pendiente = bloque
+				continue
+			}
+			resto = append([]byte{}, bloque[j+1:]...)
+			bloque = bloque[:j]
+			vioSalto = true
+		}
+		pendiente = nil
+		if desde > 0 {
+			i := bytes.IndexByte(bloque, '\n')
+			if i < 0 {
+				pendiente = bloque
+				continue
+			}
+			pendiente = append([]byte{}, bloque[:i]...)
+			bloque = bloque[i+1:]
+		}
+		lineas = append(visibles(bloque), lineas...)
+		leido = append(append(append([]byte{}, bloque...), '\n'), leido...)
+	}
+	if !vioSalto {
+		resto = pendiente
+	}
+	return lineas[max(len(lineas)-colaInicial, 0):], resto, leido
+}
+
+// visibles son las líneas de la consola de varias líneas completas del transcript.
+func visibles(datos []byte) []LineaConsola {
+	var out []LineaConsola
+	for _, linea := range bytes.Split(datos, []byte("\n")) {
+		out = append(out, LineasDe(linea)...)
+	}
+	return out
 }
 
 // leer devuelve lo nuevo desde la última vez (solo líneas completas).
@@ -212,9 +402,6 @@ func (l *lector) partir(datos []byte) []LineaConsola {
 		return nil
 	}
 	l.resto = append([]byte{}, datos[i+1:]...)
-	var out []LineaConsola
-	for _, linea := range bytes.Split(datos[:i], []byte("\n")) {
-		out = append(out, LineasDe(linea)...)
-	}
-	return out
+	l.trabajando = trabajoTras(l.trabajando, datos[:i])
+	return visibles(datos[:i])
 }

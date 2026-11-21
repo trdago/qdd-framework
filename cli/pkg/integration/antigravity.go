@@ -17,7 +17,7 @@ func (a *AntigravityAdapter) Name() string {
 
 func (a *AntigravityAdapter) Sync(projectPath string) error {
 	rulesPath := filepath.Join(projectPath, ".antigravityrules")
-	
+
 	err := SafeInjectIdempotent(rulesPath)
 	if err != nil {
 		return fmt.Errorf("Antigravity adapter failed to sync %s: %w", rulesPath, err)
@@ -63,7 +63,7 @@ func ensureWorkflowFrontmatter(qddWorkflowPath string) {
 		os.WriteFile(qddWorkflowPath, []byte(frontmatter), 0644)
 		return
 	}
-	
+
 	content, err := os.ReadFile(qddWorkflowPath)
 	if err != nil {
 		return
@@ -142,10 +142,10 @@ func syncAntigravityMCP(projectPath string) error {
 	if err := os.MkdirAll(cursorDir, 0755); err != nil {
 		return err
 	}
-	
+
 	mcpPath := filepath.Join(cursorDir, "mcp.json")
 	qddCmd := resolveQDDPath()
-	
+
 	mcpData := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
 			"qdd": map[string]interface{}{

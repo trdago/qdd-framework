@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -27,6 +28,8 @@ import (
 // sin avance real se detiene y avisa. Lo activa solo la persona (panel o teléfono). Las preguntas de diseño de un
 // blueprint, las que no traen opción recomendada y los permisos de Claude Code siempre la esperan. Todo queda en
 // <QDD_HOME>/claude/goal/<proyecto>.json, y cada elección, en Elegidas.
+// Solo empuja lo que la IA puede mover (MEJ-055, FND-216: estado.Movibles). Si todo lo abierto espera a la persona o a
+// terceros, queda en pausa y la avisa una vez con lo que espera; vuelve a avisar solo si ese conjunto cambia.
 
 const (
 	GoalTrabajando = "trabajando"
@@ -37,6 +40,7 @@ const (
 	MotivoSinAvance     = "sin_avance"
 	MotivoSinLimite     = "sin_limite"
 	MotivoEsperaPersona = "espera_persona"
+	MotivoTodoEspera    = "todo_espera"
 
 	// SilencioGoal es cuánto silencio de la consola espera antes de recordarle a la IA lo que queda.
 	SilencioGoal = 2 * time.Minute
@@ -53,6 +57,9 @@ const (
 	vigenciaLimites = 10 * time.Minute
 	topeHuellaGoal  = 5 * time.Second
 	maxTareasGoal   = 5
+	maxEsperasGoal  = 5
+	// maxLineaEsperaGoal recorta cada ⏳ del aviso: qué, de quién y un bloqueo corto.
+	maxLineaEsperaGoal = 90
 )
 
 // Elegida es una decisión que tomó el modo: qué era, qué eligió y cuándo.
@@ -80,6 +87,8 @@ type goalGuardado struct {
 	Recordado     *time.Time `json:"recordado,omitempty"`
 	OcupadaPor    string     `json:"ocupada_por,omitempty"`
 	OcupadaEn     *time.Time `json:"ocupada_en,omitempty"`
+	// EsperaAvisada es la huella de lo que esperaba cuando avisó «todo espera»: con la misma no vuelve a avisar.
+	EsperaAvisada string `json:"espera_avisada,omitempty"`
 }
 
 // EntradaGoal es lo que el mod sabe de la sesión: cuánto lleva en silencio y si está haciendo algo.
@@ -206,7 +215,7 @@ func ActivarGoal(root, desde string, now time.Time) error {
 	}
 	return conGoalGuardado(root, func(g *goalGuardado) error {
 		g.Activo, g.Estado, g.Motivo, g.Desde, g.Recordatorios = true, GoalTrabajando, "", &now, 0
-		g.ActivadoDesde, g.Huella, g.Recordado = desde, "", nil
+		g.ActivadoDesde, g.Huella, g.Recordado, g.EsperaAvisada = desde, "", nil, ""
 		return nil
 	})
 }
@@ -215,6 +224,7 @@ func ActivarGoal(root, desde string, now time.Time) error {
 func DesactivarGoal(root string, now time.Time) error {
 	return conGoalGuardado(root, func(g *goalGuardado) error {
 		g.Activo, g.Estado, g.Motivo, g.Desde, g.Recordatorios, g.Huella, g.Recordado = false, "", "", nil, 0, "", nil
+		g.EsperaAvisada = ""
 		return nil
 	})
 }
@@ -252,15 +262,22 @@ func vueltaGoal(root, bin string, g *goalGuardado, in EntradaGoal, now time.Time
 		r.Aviso = pausar(g, MotivoEsperaPersona, "🎯 Modo goal en pausa: hay una pregunta o un permiso que solo tú puedes responder.")
 		return r
 	}
-	g.Estado, g.Motivo = GoalTrabajando, ""
-	if in.Ocupada || in.Silencio < SilencioGoal || len(elegidas) > 0 || otraOcupada(g, in.Sesion, now) || hayPedidoEnMarcha(root, now) {
-		return r
-	}
 	e, err := estado.Load(root)
 	if err != nil {
+		g.Estado, g.Motivo = GoalTrabajando, ""
 		return r
 	}
 	abiertas := e.Abiertos()
+	movibles, esperas := e.Movibles(filepath.Base(root))
+	callada := !in.Ocupada && in.Silencio >= SilencioGoal && len(elegidas) == 0 && !otraOcupada(g, in.Sesion, now) && !hayPedidoEnMarcha(root, now)
+	if len(abiertas) > 0 && len(movibles) == 0 {
+		r.Aviso = todoEspera(g, esperas, callada)
+		return r
+	}
+	g.Estado, g.Motivo, g.EsperaAvisada = GoalTrabajando, "", ""
+	if !callada {
+		return r
+	}
 	if len(abiertas) == 0 {
 		g.Estado = GoalTerminado
 		r.Aviso = "🎯 Modo goal terminado: no quedan tareas abiertas."
@@ -279,8 +296,53 @@ func vueltaGoal(root, bin string, g *goalGuardado, in EntradaGoal, now time.Time
 	}
 	g.Recordatorios++
 	g.Recordado = &now
-	r.Mensaje = mensajeGoal(abiertas)
+	r.Mensaje = mensajeGoal(movibles, len(esperas))
 	return r
+}
+
+// todoEspera deja el modo en pausa porque la IA no tiene nada que mover. Avisa a la persona cuando la consola calla, una
+// vez por cada conjunto distinto de esperas.
+func todoEspera(g *goalGuardado, esperas []estado.EsperaAjena, callada bool) string {
+	g.Estado, g.Motivo = GoalPausado, MotivoTodoEspera
+	huella := huellaEsperas(esperas)
+	if !callada || huella == g.EsperaAvisada {
+		return ""
+	}
+	g.EsperaAvisada = huella
+	return avisoTodoEspera(esperas)
+}
+
+func huellaEsperas(esperas []estado.EsperaAjena) string {
+	h := sha256.New()
+	for _, x := range esperas {
+		fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\n", x.Frente.ID, x.Etapa, x.Bloqueo, x.DeQuien)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func avisoTodoEspera(esperas []estado.EsperaAjena) string {
+	var lineas []string
+	for i, x := range esperas {
+		if i == maxEsperasGoal {
+			lineas = append(lineas, fmt.Sprintf("y %d más", len(esperas)-maxEsperasGoal))
+			break
+		}
+		lineas = append(lineas, recortar(lineaEspera(x), maxLineaEsperaGoal))
+	}
+	return "🎯 Modo goal en pausa: todo espera a la persona o a otros, no queda nada que la IA pueda mover. " +
+		strings.Join(lineas, "; ") + ". Sigue solo cuando algo de esto cambie."
+}
+
+func lineaEspera(x estado.EsperaAjena) string {
+	quien := x.DeQuien
+	if strings.TrimSpace(quien) == "" {
+		quien = "sin decir de quién"
+	}
+	bloqueo := x.Bloqueo
+	if strings.TrimSpace(bloqueo) == "" {
+		bloqueo = "sin bloqueo escrito"
+	}
+	return fmt.Sprintf("⏳ %s · %s: %s (%s)", x.Frente.Nombre, x.Etapa, bloqueo, quien)
 }
 
 // otraOcupada: otra terminal del proyecto trabajó hace poco. Se le recuerda a la que trabaja, no a la que mira.
@@ -396,7 +458,7 @@ func recomendadas(q ItemPregunta) ([]string, []string) {
 func correrPedidos(root, bin, sesion string, now time.Time) []Elegida {
 	var elegidas []Elegida
 	for _, a := range accionesDePedidos(root) {
-		if a.PR != 0 || (a.Estado != EstadoPendiente && a.Estado != EstadoEspera) {
+		if a.PR != 0 || a.VersionNueva != "" || a.DePersona || (a.Estado != EstadoPendiente && a.Estado != EstadoEspera) {
 			continue
 		}
 		if a.Lanzar(root, bin, sesion, io.Discard) != 0 {
@@ -429,21 +491,25 @@ func hayPedidoEnMarcha(root string, now time.Time) bool {
 	return false
 }
 
-func mensajeGoal(abiertas []estado.Frente) string {
+func mensajeGoal(movibles []estado.Frente, esperan int) string {
 	var nombres []string
-	for i, f := range abiertas {
+	for i, f := range movibles {
 		if i == maxTareasGoal {
 			break
 		}
 		nombres = append(nombres, f.Nombre)
 	}
 	resto := ""
-	if len(abiertas) > maxTareasGoal {
-		resto = fmt.Sprintf(" y %d más", len(abiertas)-maxTareasGoal)
+	if len(movibles) > maxTareasGoal {
+		resto = fmt.Sprintf(" y %d más", len(movibles)-maxTareasGoal)
 	}
-	return fmt.Sprintf("🎯 Modo goal: quedan %d tareas abiertas (%s%s). Sigue con la siguiente sin esperar a la persona. "+
+	ajenas := ""
+	if esperan > 0 {
+		ajenas = fmt.Sprintf(" Además, %d esperan a la persona o a otros: no las empujes.", esperan)
+	}
+	return fmt.Sprintf("🎯 Modo goal: quedan %d tareas que puedes mover (%s%s).%s Sigue con la siguiente sin esperar a la persona. "+
 		"Refleja en el estado lo que termines. Lo que necesite de ella, pídelo con una opción recomendada o déjalo como pedido.",
-		len(abiertas), strings.Join(nombres, ", "), resto)
+		len(movibles), strings.Join(nombres, ", "), resto, ajenas)
 }
 
 // huellaGoal es lo que cuenta como avance real: el contenido del tablero (sin su fecha), el último commit y los cambios

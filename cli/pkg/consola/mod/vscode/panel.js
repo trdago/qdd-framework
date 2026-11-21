@@ -53,7 +53,8 @@ function tarjeta(a, raiz) {
   const estado = a.estado || 'pendiente'
   const donde = enProyecto(raiz, a.carpeta)
   const lugar = donde ? 'en ' + donde : ''
-  const base = { id: a.id, etiqueta: a.etiqueta, comando: primeraLinea(a.detalle), tecla: '', marca: '', tono: 'normal', meta: lugar, notas: [] }
+  const accion = { ejecutar: ejecutable(a), confirmar: a.confirmar !== false }
+  const base = { id: a.id, etiqueta: a.etiqueta, comando: primeraLinea(a.detalle), tecla: '', marca: '', tono: 'normal', meta: lugar, notas: [], ...accion }
   if (estado === 'espera' && !a.tecla) return { ...base, marca: '◌', tono: 'tenue', meta: unir('espera a ' + esperaDe(a), lugar) }
   if (estado === 'espera') return { ...base, tecla: a.tecla, meta: unir('espera a ' + esperaDe(a), 'confírmalo y corre solo', lugar) }
   if (estado === 'armado') return { ...base, marca: '◷', tono: 'espera', notas: notasDeArmado(a) }
@@ -135,14 +136,15 @@ function resumen(e, paraTi) {
 
 // vista arma lo que se dibuja; sin datos o sin estado, el motivo. Lo que no conoce del JSON lo ignora.
 function vista(datos, falla) {
-  if (!datos) return { motivo: falla || 'sin datos de qdd todavía', version: '', proyecto: '', pedidos: [], fichas: [] }
+  if (!datos) return { motivo: falla || 'sin datos de qdd todavía', version: '', proyecto: '', pedidos: [], fichas: [], efectos: null }
   const acciones = datos.acciones || []
   const delPedido = acciones.filter((a) => a.tipo === 'pedido')
   const comun = {
     version: datos.version || '',
+    efectos: datos.efectos || null,
     proyecto: nombre(datos.carpeta),
     pedidos: delPedido.map((a) => tarjeta(a, datos.carpeta || '')),
-    fichas: acciones.filter((a) => a.tipo === 'aprobar').map((a) => ({ id: a.id, etiqueta: a.etiqueta })),
+    fichas: acciones.filter((a) => a.tipo === 'aprobar').map((a) => ({ id: a.id, etiqueta: a.etiqueta, detalle: a.detalle || '', ejecutar: true, confirmar: a.confirmar !== false })),
   }
   const e = datos.estado
   if (!e) return { ...comun, motivo: datos.motivo || 'el proyecto no tiene estado por tareas' }
@@ -158,6 +160,26 @@ function vista(datos, falla) {
   }
 }
 
+// accionDe (fase B): lo que la vista ofrece ejecutar con ese id, o null. El webview solo manda ids y no se le cree: un
+// id que no es un pedido confirmable ni una ficha por aprobar en la última lectura no llega a qdd, que igual vuelve a
+// calcular la acción y la autoriza.
+function accionDe(datos, id) {
+  const a = (datos?.acciones || []).find((x) => x.id === id)
+  if (!a || typeof id !== 'string') return null
+  if (a.tipo === 'pedido' && !ejecutable(a)) return null
+  if (a.tipo !== 'pedido' && a.tipo !== 'aprobar') return null
+  return { id: a.id, etiqueta: a.etiqueta, confirmar: a.confirmar !== false }
+}
+
+// binarioDe (fase C): QDD_BIN manda; después, la ruta absoluta que qdd dejó en qdd.json al instalar la extensión, si
+// sigue existiendo (en Windows execFile sin shell no encuentra el qdd.cmd de npm); si no, qdd del PATH.
+function binarioDe(env, config, existe) {
+  if (env.QDD_BIN) return env.QDD_BIN
+  const ruta = config?.binario
+  if (typeof ruta !== 'string' || !path.isAbsolute(ruta) || !existe(ruta)) return 'qdd'
+  return ruta
+}
+
 // motivoDeSalida explica por qué qdd no entregó datos.
 function motivoDeSalida(codigo, stderr) {
   if (codigo === 0) return ''
@@ -171,4 +193,4 @@ function carpetaDe(carpetas, elegida, existe) {
   return { carpeta: opciones[0] || '', opciones }
 }
 
-module.exports = { vista, carpetaDe, motivoDeSalida }
+module.exports = { vista, carpetaDe, motivoDeSalida, accionDe, binarioDe }

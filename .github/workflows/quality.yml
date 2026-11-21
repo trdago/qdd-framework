@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "feat/**" ]
 
 jobs:
   quality-gates:
@@ -29,6 +29,10 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      # La suite del panel (requiere: claude) quedaba «sin medir» y nunca corría en el CI (FND-174). No usa credenciales.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.319
+
       - name: Build Framework
         run: |
           make build
@@ -40,3 +44,163 @@ jobs:
       - name: Run Architecture Audit
         run: |
           make audit
+
+      # Una dependencia nueva se agrega sin tocar las rutas (RFC 0020).
+      - name: Check Suite Paths
+        run: qdd audit --verificar-rutas
+
+  panel-windows:
+    # El flujo del panel (RFC 0016) depende de cómo el sistema avisa escrituras y cierra tuberías: se prueba en Windows.
+    name: Flujo del panel en Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Pruebas del flujo
+        working-directory: cli
+        run: go test ./pkg/consola/ ./pkg/remoto/ -run "Seguir|SenalesDelPanel|BinarioCambio|VigiaBinario|RutaVigilada|BinarioPorVersion|RenovarBinario|TareaSinEstaVersion|TestBarra_|FND193|FND194|FND195|FND197|FND238" -count=1 -v
+
+      # Sprint 9 (FND-238): el qdd que lanza qddw.exe no tiene ventana de consola y termina con él.
+      - name: QDD Móvil sin ventana
+        working-directory: cli
+        run: go test ./qddw/ -count=1 -v
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Actualizar qdd con el panel abierto (issue 107)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $bin = "$env:RUNNER_TEMP\qdd-ci.exe"
+          # El dashboard no es parte de esta prueba: basta con un archivo para compilar.
+          New-Item -ItemType Directory -Force cli/ui/dist | Out-Null
+          Set-Content cli/ui/dist/index.html ''
+          New-Item -ItemType Directory -Force cli/cmd/core_assets | Out-Null
+          Copy-Item -Recurse .qdd/core cli/cmd/core_assets/core
+          go -C cli build -o $bin .
+          $env:QDD_INSTALL_BINARIO = $bin
+          function Instalar($v) {
+            Push-Location npm
+            npm version $v --no-git-tag-version --allow-same-version | Out-Null
+            $tgz = npm pack --silent
+            npm i -g ".\$tgz"
+            Remove-Item $tgz
+            Pop-Location
+          }
+          $dir = "$env:LOCALAPPDATA\qdd\bin"
+          Instalar 9.9.1
+          if (-not (Test-Path "$dir\9.9.1\qdd.exe")) { throw 'qdd.exe no quedó en la carpeta de su versión' }
+          if ((Get-Content "$dir\actual.txt") -ne '9.9.1') { throw 'el puntero no dice 9.9.1' }
+          $flujo = Start-Process "$dir\9.9.1\qdd.exe" -ArgumentList 'consola','seguir' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\flujo.out" -RedirectStandardError "$env:RUNNER_TEMP\flujo.err"
+          Start-Sleep -Seconds 5
+          if ($flujo.HasExited) { Get-Content "$env:RUNNER_TEMP\flujo.err"; throw 'el flujo no quedó corriendo' }
+          Instalar 9.9.2
+          if (-not (Test-Path "$dir\9.9.2\qdd.exe")) { throw 'qdd.exe no quedó en la carpeta de la versión nueva' }
+          if ((Get-Content "$dir\actual.txt") -ne '9.9.2') { throw 'el puntero no dice 9.9.2' }
+          if (Test-Path "$(npm root -g)\qdd-framework\bin\qdd.exe") { throw 'dentro del paquete no debe quedar qdd.exe' }
+          qdd --version
+          if (-not $flujo.WaitForExit(60000)) { throw 'el flujo no vio la versión nueva' }
+          # La barra termina aunque nadie cierre su stdin (FND-145).
+          $inicio = New-Object System.Diagnostics.ProcessStartInfo "$dir\9.9.2\qdd.exe"
+          $inicio.Arguments = 'consola statusline'
+          $inicio.RedirectStandardInput = $true
+          $inicio.UseShellExecute = $false
+          $barra = [System.Diagnostics.Process]::Start($inicio)
+          if (-not $barra.WaitForExit(10000)) { $barra.Kill(); throw 'la barra quedó viva con stdin abierto' }
+          # Reinstalar la misma versión no descarga nada ni reemplaza el binario.
+          Remove-Item Env:QDD_INSTALL_BINARIO
+          Instalar 9.9.2
+          qdd --version
+          # La barra y el panel van directo al binario, y actualizar los lleva al nuevo (MEJ-019, issue 109). El claude falso
+          # basta: lo que se prueba es la barra que queda, no el plugin.
+          $env:CLAUDE_CONFIG_DIR = "$env:RUNNER_TEMP\claude-ci"
+          $env:QDD_HOME = "$env:RUNNER_TEMP\qdd-home"
+          $falso = "$env:RUNNER_TEMP\claude-falso"
+          New-Item -ItemType Directory -Force $falso, $env:CLAUDE_CONFIG_DIR | Out-Null
+          Set-Content "$falso\claude.cmd" '@echo []'
+          $env:PATH = "$falso;$env:PATH"
+          function ComandoDeLaBarra { (Get-Content "$env:CLAUDE_CONFIG_DIR\settings.json" -Raw | ConvertFrom-Json).statusLine.command }
+          qdd consola activar
+          if ((ComandoDeLaBarra) -notlike '*qdd/bin/9.9.2/qdd.exe" consola statusline*') { throw "la barra no va directo: $(ComandoDeLaBarra)" }
+          $env:QDD_INSTALL_BINARIO = $bin
+          Instalar 9.9.3
+          Remove-Item Env:QDD_INSTALL_BINARIO
+          $comando = ComandoDeLaBarra
+          if ($comando -notlike '*qdd/bin/9.9.3/qdd.exe" consola statusline*') { throw "actualizar no renovó la barra: $comando" }
+          if ((qdd consola binario) -ne "$dir\9.9.3\qdd.exe") { throw 'el panel no recibe la ruta del binario' }
+          # Sin node ni el envoltorio en el PATH, la barra responde: su respaldo («|| qdd») no tendría a quién llamar.
+          $bash = "$env:ProgramFiles\Git\bin\bash.exe"
+          $guion = "$env:RUNNER_TEMP\barra.sh"
+          Set-Content $guion $comando -NoNewline
+          $conNode = $env:PATH
+          $env:PATH = ($conNode -split ';' | Where-Object { $_ -and -not (Test-Path "$_\node.exe") -and -not (Test-Path "$_\qdd.cmd") }) -join ';'
+          if (Get-Command node, qdd -ErrorAction SilentlyContinue) { throw 'node o qdd siguen en el PATH: la prueba no probaría nada' }
+          '{}' | & $bash $guion
+          # Solo se informa: un tope de tiempo en un runner compartido fallaría por la carga, no por el código.
+          function Mediana($que, [scriptblock]$orden) {
+            $ms = 1..8 | ForEach-Object { (Measure-Command { & $orden | Out-Null }).TotalMilliseconds } | Sort-Object
+            Write-Host ("{0,-22} {1,6:N0} ms" -f $que, $ms[4])
+          }
+          Mediana 'barra directa' { '{}' | & $bash $guion }
+          Mediana 'panel directo' { & "$dir\9.9.3\qdd.exe" consola panel --json }
+          $env:PATH = $conNode
+          Mediana 'barra por envoltorio' { '{}' | & $bash -c 'qdd consola statusline' }
+          Mediana 'panel por envoltorio' { cmd /c qdd consola panel --json }
+
+  rendimiento:
+    # qdd rendimiento (RFC 0022): la misma medición en cada sistema operativo, sin tokens. Falla si qdd deja procesos;
+    # pasar un presupuesto solo avisa. El informe de cada sistema queda como artefacto para recalibrar los presupuestos.
+    name: Rendimiento en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Pruebas del medidor
+        working-directory: cli
+        run: go test ./pkg/rendimiento/ -count=1 -v
+
+      - name: Medir qdd
+        shell: bash
+        run: |
+          mkdir -p cli/ui/dist cli/cmd/core_assets
+          echo '' > cli/ui/dist/index.html
+          cp -r .qdd/core cli/cmd/core_assets/core
+          # En Windows un ejecutable sin .exe no se puede lanzar.
+          bin="$RUNNER_TEMP/qdd-medir${{ runner.os == 'Windows' && '.exe' || '' }}"
+          go -C cli build -o "$bin" .
+          set +e
+          "$bin" rendimiento --segundos 30 --json > "$RUNNER_TEMP/rendimiento-${{ matrix.os }}.json"
+          codigo=$?
+          set -e
+          cat "$RUNNER_TEMP/rendimiento-${{ matrix.os }}.json"
+          if [ "$codigo" = 2 ]; then echo "::warning::qdd pasó algún presupuesto de rendimiento en ${{ matrix.os }}"; exit 0; fi
+          exit "$codigo"
+
+      - name: Guardar el informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendimiento-${{ matrix.os }}
+          path: ${{ runner.temp }}/rendimiento-${{ matrix.os }}.json

@@ -1,0 +1,9 @@
+id: "FND-187"
+title: "Un pedido que terminó bien se le avisó a la IA como cortado"
+description: "«📮 Admitir MEJ-044» corrió en 90 ms y quedó hecho, con su salida. A la IA le llegó «falló (exit -1) … se cortó: el proceso que lo ejecutaba terminó sin anotar el resultado». Una lectura de la cola lo vio ejecutándose con sus procesos muertos, en el traspaso entre 'qdd consola accion' y 'qdd consola correr', y lo dio por cortado. El panel armó el aviso con esa lectura y lo reclamó cuando el pedido ya estaba hecho: el reclamo revisaba la cola de ese momento, pero el mensaje era el de antes. Además, el resultado real llegaba después del corte sin volver a avisarse."
+impact: "La IA cree que falló algo que salió bien y puede reintentarlo o buscar una causa que no existe. Con un comando que no se puede repetir (un tag, un merge), reintentarlo es un error."
+action_taken: "'qdd consola avisado' devuelve el mensaje calculado con la cola bloqueada, y el panel envía ese (con un qdd anterior, el de su lectura). Si el resultado real llega después de un corte, terminar vuelve a dejar el aviso pendiente. Un pedido no se da por cortado en sus primeros 5 s (GraciaCorte), mientras quien lo lanza y quien lo corre se pasan la posta."
+test_result: "cli/pkg/consola/pedidos_vivos_test.go: TestPedidos_UnoRecienLanzadoNoSeDaPorCortado_FND187, TestAviso_ElResultadoRealDespuesDeUnCorteSeVuelveAAvisar_FND187 y TestAviso_ElMensajeEsElDeLaColaAlReclamarlo_FND187; cmd/consola_pedidos_test.go (consolaAvisado imprime el mensaje); tests/aviso.test.ts del panel («a la IA le llega el resultado que qdd da al reclamarlo»). Fallan antes del arreglo y pasan después."
+status: resolved
+detectado_por: ia
+date: "2026-11-08"

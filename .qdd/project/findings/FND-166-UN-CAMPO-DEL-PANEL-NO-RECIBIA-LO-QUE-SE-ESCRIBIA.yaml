@@ -1,0 +1,9 @@
+id: "FND-166"
+title: "Un campo del panel recién abierto no recibía lo que se escribía: se iba al chat"
+description: "Un clic en un botón del panel no le da las teclas a la pestaña. El Input que abre ese botón necesita un segundo clic, sobre el mismo campo, y nada lo avisa: lo escrito cae en el chat y Enter se lo manda a la IA. Es la causa más probable de «no me deja contestar nada» en «⏳ Te esperan» (#158, ya retirado), aunque esa pantalla no se volvió a probar."
+impact: "Lo que la persona creía escribir en el panel le llegaba a la IA como mensaje suelto. Reproducido el 2026-11-06 en un panel real aislado: «se debe rechazar antes» quedó en el chat y el comentario, vacío."
+action_taken: "Los formularios de un flujo piden las teclas con $.ui.open({ focus: true }) y $.ui.focus. Si Claude Code no las suelta, por ejemplo con texto en el chat, el panel dice «Haz clic en el campo para escribir aquí». Crear un flujo se hace en la misma pestaña, porque una pestaña nueva queda atrás y sin teclas mientras otra tiene el foco. Los Input de herramientas siguen igual: quedan abiertos en la tarea campos-herramientas-tomen-teclas."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/flujo-editar.test.ts: «abrir un formulario le da las teclas al campo» y «si Claude Code no suelta las teclas». Clics y teclas reales en un panel aislado: comentar, agregar y crear un flujo escriben en su campo y, al enviar, el teclado vuelve al chat."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

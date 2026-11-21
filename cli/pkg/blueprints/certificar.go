@@ -69,7 +69,7 @@ func huellaDe(b Blueprint) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("la receta se certifica desde su carpeta: %w", err)
 	}
-	sum := sha256.Sum256(versionLine.ReplaceAll(data, []byte("version:")))
+	sum := sha256.Sum256(versionLine.ReplaceAll(sinCRLF(data), []byte("version:")))
 	return hex.EncodeToString(sum[:]), nil
 }
 

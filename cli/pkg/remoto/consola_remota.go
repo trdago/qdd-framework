@@ -31,6 +31,11 @@ type MensajeConsola struct {
 	Inicio   bool           `json:"inicio,omitempty"` // la primera tanda de quien empieza a mirar: reemplaza lo que había
 	Lineas   []LineaConsola `json:"lineas,omitempty"`
 	Pausada  string         `json:"pausada,omitempty"`
+	// Sesion es la sesión de Claude Code cuya conversación se muestra (MEJ-082): una instrucción va a ella si late.
+	Sesion string `json:"sesion,omitempty"`
+	// Trabajando es desde cuándo Claude trabaja en el turno en curso (hora del transcript, RFC 3339); vacío si no
+	// trabaja. Claude Code escribe cada respuesta al terminarla: la app muestra «trabajando… N s» mientras (FND-239).
+	Trabajando string `json:"trabajando,omitempty"`
 }
 
 // mirada es la consola de un proyecto que alguien mira.
@@ -44,6 +49,8 @@ type mirada struct {
 	quienes   map[string]bool // los teléfonos que la miran: uno nuevo recibe el inicio y la pausa (FND-110)
 	pedidosA  time.Time
 	buscado   time.Time
+	// trabajando es lo último que se mandó de Trabajando: un cambio sale aunque no haya líneas nuevas (FND-239).
+	trabajando string
 }
 
 type estadoConsola struct {
@@ -134,7 +141,7 @@ func (b *Bucle) tickConsola(ctx context.Context) {
 	}
 	for i := range claves {
 		m := c.miradas[claves[(c.turno+i)%len(claves)]]
-		if len(m.pendiente) == 0 && !m.inicio {
+		if len(m.pendiente) == 0 && !m.inicio && m.lector.trabajando == m.trabajando {
 			continue
 		}
 		c.turno = (c.turno + i + 1) % len(claves)
@@ -216,11 +223,11 @@ func (b *Bucle) mandarConsola(ctx context.Context, m *mirada) {
 	if len(tanda) > maxLineasMensaje {
 		tanda = tanda[:maxLineasMensaje]
 	}
-	msg := MensajeConsola{Version: VersionProtocolo, Proyecto: m.clave, Inicio: m.inicio, Lineas: tanda}
+	msg := MensajeConsola{Version: VersionProtocolo, Proyecto: m.clave, Inicio: m.inicio, Lineas: tanda, Sesion: sesionDeTranscript(m.lector.archivo), Trabajando: m.lector.trabajando}
 	if !b.broadcast(ctx, "consola", msg) {
 		return
 	}
-	m.pendiente, m.inicio = m.pendiente[len(tanda):], false
+	m.pendiente, m.inicio, m.trabajando = m.pendiente[len(tanda):], false, msg.Trabajando
 }
 
 // alCambiarQuienes: si empezó a mirar un teléfono que no estaba, la consola vuelve a mandar su tanda de inicio (las

@@ -249,3 +249,24 @@ func TestAutorizacion_SegunElModoDeLaIA(t *testing.T) {
 		t.Fatalf("el contexto trae la regla del modo: %s", ctx)
 	}
 }
+
+// MEJ-021: la forma de trabajo es lo que cada agente lee antes de tocar código; sin esta regla nadie declara su tarea.
+func TestMetodoDeTrabajo_PideDeclararLaTareaEnCurso_MEJ021(t *testing.T) {
+	metodo := MetodoDeTrabajo()
+	for _, debe := range []string{"accion=activar", "accion=terminar"} {
+		if !strings.Contains(metodo, debe) {
+			t.Errorf("la forma de trabajo debe decir %q:\n%s", debe, metodo)
+		}
+	}
+}
+
+// Decisión de la persona (2026-11-07): Docker en desarrollo solo para la base de datos; si alguien igual lo quiere para la
+// app, la IA avisa antes que será más lento y por qué.
+func TestMetodoDeTrabajo_DockerSoloParaLaBaseDeDatos(t *testing.T) {
+	metodo := MetodoDeTrabajo()
+	for _, debe := range []string{"Docker", "base de datos", "más lento", "directo en el PC", "docker-en-desarrollo.md"} {
+		if !strings.Contains(metodo, debe) {
+			t.Errorf("la forma de trabajo no dice %q", debe)
+		}
+	}
+}

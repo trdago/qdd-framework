@@ -1,0 +1,9 @@
+id: "FND-159"
+title: "Un ⏳ de «usuario» no contaba como de la persona"
+description: "Reportado por qdd-movile con la rc.9 en un teléfono real: fairplay_agent publicaba esperan_persona 0 con 4 de sus 5 ⏳ de «usuario», y la fila «4 esperan una consola» desapareció de la app. qdd solo reconocía la palabra «persona». En los tableros de esta máquina, 12 ⏳ dicen «usuario» y 31 «persona» o «la persona»."
+impact: "Esos ⏳ no se contaban en esperan_persona. Por la misma regla, un ⏳ de «usuario» con una pregunta no llegaba al teléfono como pregunta ni al chat como espera, y qdd estado check no lo listaba."
+action_taken: "estado.DeLaPersona reconoce también «usuario», sin distinguir mayúsculas. Un texto libre como «usuario o qdd-26» cuenta como de la persona, porque le puede tocar a ella. Como consecuencia, esos ⏳ ahora también aparecen como preguntas y esperas."
+test_result: "cli/pkg/estado/sin_empezar_test.go: TestDeLaPersona_UsuarioTambienEsLaPersona_FND159, con los valores reales de los tableros. Falló antes del cambio. Falta verlo en el teléfono con fairplay_agent."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

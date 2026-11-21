@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/estado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -65,12 +67,84 @@ func sesionValida(sesion string) string {
 	return s
 }
 
+// tomarRetirados devuelve, una sola vez, el aviso de cada pedido retirado que pidió esta sesión (RFC 0017). Lee antes de
+// bloquear la cola: casi nunca hay nada, y esto corre con cada mensaje de la persona.
+func tomarRetirados(root, sesion string, now time.Time) []string {
+	sesion = sesionValida(sesion)
+	if sesion == "" {
+		return nil
+	}
+	hay := false
+	for _, p := range PedidosA(root, now) {
+		hay = hay || retiradoPorAvisar(p, sesion)
+	}
+	if !hay {
+		return nil
+	}
+	var avisos []string
+	_ = conCola(root, now, func(cola []Pedido) ([]Pedido, error) {
+		for i, p := range cola {
+			if !retiradoPorAvisar(p, sesion) {
+				continue
+			}
+			cola[i].Avisado = true
+			avisos = append(avisos, fmt.Sprintf("[qdd · panel] Se retiró tu pedido «%s»: su tarea «%s» siguió cambiando. Si todavía va, pídelo de nuevo.%s", p.Motivo, p.Tarea, esperasDelRetirado(root, p)))
+		}
+		return cola, nil
+	})
+	return avisos
+}
+
+// esperasDelRetirado nombra los ⏳ de la persona que piden ese pedido por su tecla (MEJ-085): sin él en el panel, piden
+// una acción que no existe hasta que la IA lo pide de nuevo o los actualiza.
+func esperasDelRetirado(root string, p Pedido) string {
+	e, err := estado.Load(root)
+	if err != nil || p.Tecla == "" {
+		return ""
+	}
+	var donde []string
+	for _, f := range e.Abiertos() {
+		donde = append(donde, esperasQuePiden(e, f, p)...)
+	}
+	if len(donde) == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" El ⏳ %s pide [%s]: pídelo de nuevo o actualízalo con qdd_estado set.", strings.Join(donde, ", "), p.Tecla)
+}
+
+// esperasQuePiden son los ⏳ de la persona de la tarea del pedido que lo nombran por su tecla.
+func esperasQuePiden(e estado.Estado, f estado.Frente, p Pedido) []string {
+	if f.ID != p.Tarea {
+		return nil
+	}
+	var donde []string
+	for _, etapa := range e.EtapasDe(f) {
+		c := f.Celdas[etapa]
+		if estado.NormalizarEstado(c.Estado) == estado.Espera && esDeLaPersona(c.DeQuien) && cubiertaPorPedido(c.Bloqueo, map[string]bool{p.Tecla: true}) {
+			donde = append(donde, "«"+f.Nombre+" · "+etapa+"»")
+		}
+	}
+	return donde
+}
+
+func retiradoPorAvisar(p Pedido, sesion string) bool {
+	return p.Estado == EstadoRetirado && p.Pidio == sesion && !p.Avisado
+}
+
 // Avisado marca que la sesión ya recibió el aviso del pedido (id con o sin el prefijo «pedido:»). Solo la sesión que
 // lo confirmó lo reclama, y una sola vez: si ya se avisó, si es de otra sesión o si no terminó, es un error.
 func Avisado(root, id, sesion string) error {
+	_, err := ReclamarAviso(root, id, sesion)
+	return err
+}
+
+// ReclamarAviso es Avisado y además devuelve el mensaje del pedido tal como quedó al reclamarlo: el panel lo arma con
+// una lectura anterior, que pudo cambiar entremedio (FND-187).
+func ReclamarAviso(root, id, sesion string) (string, error) {
 	id = strings.TrimPrefix(id, prefijoPedido)
 	sesion = sesionValida(sesion)
-	return conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
+	var mensaje string
+	err := conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
 		i := indiceID(cola, id)
 		if i < 0 {
 			return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
@@ -79,6 +153,8 @@ func Avisado(root, id, sesion string) error {
 			return nil, errSinAviso
 		}
 		cola[i].Avisado = true
+		mensaje = mensajeAviso(cola[i])
 		return cola, nil
 	})
+	return mensaje, err
 }

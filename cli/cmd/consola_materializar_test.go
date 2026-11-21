@@ -30,6 +30,30 @@ func TestConsolaMaterializar_DevuelveLosCuadrosDeLoQueCambio(t *testing.T) {
 	}
 }
 
+// MEJ-017: abrir el panel lanzaba un proceso por celda (21 con 4 tareas). Un dibujo pide todo de una vez, y cada pedido
+// conserva su dirección y su semilla.
+func TestConsolaMaterializar_UnLoteDevuelveCadaPedidoEnOrden(t *testing.T) {
+	entrada := `{"lote":[{"lineas":[[{"texto":"a"}]],"abrir":true,"semilla":1},{"lineas":[[{"texto":"b"}]],"abrir":false,"semilla":2}]}`
+	var out, errs bytes.Buffer
+	estilo := materializar.Estilo{AbrirMs: 800, CerrarMs: 400}
+	if code := consolaMaterializar(strings.NewReader(entrada), &out, &errs, estilo); code != 0 {
+		t.Fatalf("exit %d: %s", code, errs.String())
+	}
+	var r respuestaLote
+	if err := json.Unmarshal(out.Bytes(), &r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Lote) != 2 {
+		t.Fatalf("lote = %+v", r)
+	}
+	if got := r.Lote[0].Cuadros; len(got) != 20 || got[19][0][0].Texto != "a" {
+		t.Fatalf("abrir: 20 cuadros que terminan en «a»: %+v", got)
+	}
+	if got := r.Lote[1].Cuadros; len(got) != 10 {
+		t.Fatalf("cerrar dura la mitad: %d cuadros", len(got))
+	}
+}
+
 func TestConsolaMaterializar_CerrarUsaSuDuracionYUnaEntradaRotaEsError(t *testing.T) {
 	var out, errs bytes.Buffer
 	estilo := materializar.Estilo{AbrirMs: 800, CerrarMs: 400}

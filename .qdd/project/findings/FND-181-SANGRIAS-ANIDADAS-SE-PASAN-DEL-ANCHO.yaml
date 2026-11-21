@@ -1,0 +1,9 @@
+id: "FND-181"
+title: "Ramas con sangría anidadas cuatro niveles se pasan del ancho"
+description: "Una rama lado a lado que adentro tiene ramas con sangría, tres o cuatro niveles, suma 3 columnas por nivel más una caja de 7 y pasa del ancho de su rama. En 24 000 dibujos al azar pasa en 2 (antes de los desvíos al costado, en 12). Caso: semilla 23, ronda 220, ancho 50 (n0 → n1, n3, n7, n6; n1 → n2, n4; n2 → n5, n6; n5 → n8, n9; n8 → n10 → n8): una línea ocupa 59 columnas."
+impact: "En flujos muy ramificados y un panel angosto, una línea del dibujo se corta a la derecha. No se pierde ningún nodo."
+action_taken: "Pendiente. Arreglo probable: cuando una rama con sangría ya no deja minAncho a su interior, que bifurcacion pase a sangría desde el nivel de arriba en vez de ir lado a lado. Se mide con la prueba de 60 semillas."
+test_result: "Reproducible con flujoAlAzar(rand.NewSource(23)), ronda 220, ancho 50, en cli/pkg/flujo."
+status: open
+detectado_por: ia
+date: "2026-11-07"

@@ -233,13 +233,19 @@ func TestAccion_UnPedidoCorreUnaVezYOtroTelefonoVeYaAprobado(t *testing.T) {
 	if hecha.Estado != EstadoHecha || strings.Contains(hecha.Resultado, "supersecreto") || !strings.Contains(hecha.Resultado, Oculto) {
 		t.Fatalf("hecha, con el resultado sin secretos (inv. 16): %+v", hecha)
 	}
-	select {
-	case av := <-rl.avisos:
-		if av.Tipo != AvisoTerminoBien || av.Clave != clave {
-			t.Fatalf("push de cómo terminó: %+v", av)
+	// Al empezar a correr el pedido ya no espera a la persona: su aviso se quita, y ese push puede llegar antes o después.
+	vistos := map[string]bool{}
+	limite := time.After(2 * time.Second)
+	for !vistos[AvisoTerminoBien] || !vistos[AvisoPedidoResuelto] {
+		select {
+		case av := <-rl.avisos:
+			if av.Clave != clave || (av.Tipo != AvisoTerminoBien && av.Tipo != AvisoPedidoResuelto) {
+				t.Fatalf("push de cómo terminó: %+v", av)
+			}
+			vistos[av.Tipo] = true
+		case <-limite:
+			t.Fatalf("al terminar un pedido aprobado desde el teléfono, push: %v", vistos)
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("al terminar un pedido aprobado desde el teléfono, push")
 	}
 	pd, _ := pedidoDe(root, p.ID)
 	if pd.Sesion != "remoto:d1" || pd.Avisado != true {

@@ -18,7 +18,7 @@ import (
 // agente la lea al retomar y la actualice al avanzar sin pasar por la terminal.
 
 // descripcionEstadoMCP dice «tarea» (blueprint estado-por-tareas); el parámetro sigue llamándose «frente» por compatibilidad.
-const descripcionEstadoMCP = "Estado por tarea (estado.yaml). Retomar: ver, desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto); se cumple con evidencia. nueva: qdd da el id. tarea: objetivo y depende_de."
+const descripcionEstadoMCP = "Estado por tarea. Retomar: ver desde los ⏳. Avanzar: set antes de reportar (✅ evidencia · ⏳ qué y de quién o verifica pr:N|npm:p@v · ❌ falla). objetivo: criterio, foco, ciclo («-» proyecto). nueva: qdd pone id. tarea: objetivo, depende_de, modulo (ficha); «-» vacía."
 
 func registerEstadoTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_estado",
@@ -32,17 +32,19 @@ func registerEstadoTool(s *server.MCPServer) {
 		mcp.WithString("evidencia"),
 		mcp.WithString("bloqueo"),
 		mcp.WithString("de_quien"),
+		mcp.WithString("verifica"),
 		mcp.WithString("falla"),
 		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba el ✅.")),
 		mcp.WithBoolean("aprobado", mcp.Description("Dada por quien debía; nunca tú.")),
 		mcp.WithString("motivo", mcp.Description("Del cierre.")),
 		mcp.WithBoolean("descartado", mcp.Description("En vez de cerrar.")),
 		mcp.WithString("respuesta"),
-		mcp.WithString("objetivo", mcp.Description("Id; «-» ninguno.")),
+		mcp.WithString("objetivo", mcp.Description("Id.")),
 		mcp.WithString("criterio"),
 		mcp.WithBoolean("foco"),
 		mcp.WithBoolean("reabrir"),
-		mcp.WithString("depende_de", mcp.Description("Ids con coma; «-» ninguna.")),
+		mcp.WithString("depende_de", mcp.Description("Ids con coma.")),
+		mcp.WithString("modulo"),
 		mcp.WithString("ciclo"),
 		mcp.WithBoolean("aunque_exista"),
 	)
@@ -59,7 +61,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoEscritura(err, "tarea creada: "+id)
 	}
 	if accion == "set" {
-		return resultadoEscritura(estado.Set(root, cambioDesde(request), now), "celda actualizada")
+		return resultadoSet(root, cambioDesde(request), now)
 	}
 	if accion == "cerrar" {
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
@@ -122,6 +124,7 @@ func cambioDesde(request mcp.CallToolRequest) estado.Cambio {
 		Evidencia:          stringArg(request, "evidencia"),
 		Bloqueo:            stringArg(request, "bloqueo"),
 		DeQuien:            stringArg(request, "de_quien"),
+		Verifica:           stringArg(request, "verifica"),
 		Falla:              stringArg(request, "falla"),
 		RequiereAprobacion: stringArg(request, "requiere_aprobacion"),
 		Aprobado:           boolArg(request, "aprobado"),
@@ -140,6 +143,10 @@ func cambioTareaDesde(request mcp.CallToolRequest) estado.CambioTarea {
 		c.CambiaDependencias = true
 		c.DependeDe = listaDeIDs(strings.TrimPrefix(d, "-"))
 	}
+	if m := strings.TrimSpace(stringArg(request, "modulo")); m != "" {
+		c.CambiaModulo = true
+		c.Modulo = strings.TrimPrefix(m, "-")
+	}
 	return c
 }
 
@@ -148,6 +155,22 @@ func resultadoEscritura(err error, ok string) (*mcp.CallToolResult, error) {
 		return mcp.NewToolResultError("no se escribió: " + err.Error()), nil
 	}
 	return mcp.NewToolResultText(ok + " en " + estado.Ruta + "."), nil
+}
+
+// resultadoSet recuerda declarar la tarea en el momento en que se la ve avanzar sin declarar (MEJ-021). No la enciende:
+// un ✅ también puede ser el último de una tarea ya terminada, y el teléfono diría «Trabajando» sin nadie trabajando.
+func resultadoSet(root string, c estado.Cambio, now time.Time) (*mcp.CallToolResult, error) {
+	if err := estado.Set(root, c, now); err != nil {
+		return resultadoEscritura(err, "")
+	}
+	hecho := "celda actualizada en " + estado.Ruta + "."
+	if estado.NormalizarEstado(c.Estado) != estado.Hecho {
+		return mcp.NewToolResultText(hecho), nil
+	}
+	if estado.TareaDeLaSesion(estado.LeerActividad(root), estado.SesionActual(), now) != "" {
+		return mcp.NewToolResultText(hecho), nil
+	}
+	return mcp.NewToolResultText(hecho + " Sin tarea en curso: si sigues en una, declárala con accion=activar."), nil
 }
 
 func resultadoCheck(e estado.Estado, root, respuesta string, now time.Time) *mcp.CallToolResult {

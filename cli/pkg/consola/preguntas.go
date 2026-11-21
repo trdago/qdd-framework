@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -47,8 +48,6 @@ const (
 	// LatidoPregunta: una pendiente cuya sesión no la volvió a esperar (qdd consola pregunta esperar) en este tiempo,
 	// vence: Claude Code se cerró o se cayó sin avisar.
 	LatidoPregunta = time.Minute
-	// VidaPregunta es lo más que una pregunta espera al teléfono; el terminal la sigue esperando.
-	VidaPregunta = 30 * time.Minute
 	// VidaCerrada es cuánto se sigue viendo una respondida o vencida («ya respondida en el PC»).
 	VidaCerrada = 5 * time.Minute
 	// MaxPreguntasCola es el tope de la cola (las más nuevas).
@@ -138,8 +137,14 @@ type Pregunta struct {
 	Motivo       string                   `json:"motivo,omitempty"` // por qué venció
 	Respuesta    map[string]RespuestaItem `json:"respuesta,omitempty"`
 	Instruccion  string                   `json:"instruccion,omitempty"` // la instrucción que lleva la respuesta a un ⏳ (FND-141)
+	SinSesion    bool                     `json:"sin_sesion,omitempty"`  // un ⏳: se responde aunque no haya una sesión abierta
+	Aplicado     string                   `json:"aplicado,omitempty"`    // qué quedó en el estado al responder un ⏳
 	Creada       time.Time                `json:"creada"`
 	Vista        time.Time                `json:"vista"` // la última vez que su sesión la esperó
+	claveTurno   string                   // lo que identifica su turno (RFC 0019), solo de un ⏳ vivo
+	tareaTurno   string                   // la tarea del ⏳
+	etapa        string                   // la etapa del ⏳
+	bloqueo      string                   // el bloqueo entero del ⏳
 	Cerrada      *time.Time               `json:"cerrada,omitempty"`
 }
 
@@ -168,6 +173,10 @@ type Entrega struct {
 
 // EntregaDe arma lo que recibe Claude Code: en AskUserQuestion, cada respuesta por el texto de su pregunta (varias
 // opciones separadas por coma, como el diálogo); en un permiso, permitir o negar.
+// MarcaGoal va al final de cada respuesta que eligió el modo goal (FND-198): la IA la recibe como texto de la respuesta
+// y no la atribuye a la persona.
+const MarcaGoal = " [la eligió el modo goal (su opción recomendada), no la persona]"
+
 func EntregaDe(p Pregunta) Entrega {
 	e := Entrega{ID: p.ID, Estado: p.Estado, RespondidaEn: p.RespondidaEn, Lugar: p.Lugar, Motivo: p.Motivo}
 	if p.Estado != PreguntaRespondida || p.RespondidaEn != EnTelefono {
@@ -189,6 +198,12 @@ func EntregaDe(p Pregunta) Entrega {
 			etiquetas = append(etiquetas, etiquetaDe(q, v))
 		}
 		e.Respuestas[q.Texto] = strings.Join(etiquetas, ", ")
+	}
+	if p.Lugar != LugarGoal {
+		return e
+	}
+	for k, v := range e.Respuestas {
+		e.Respuestas[k] = v + MarcaGoal
 	}
 	return e
 }
@@ -370,13 +385,55 @@ func IDPregunta(id string) string {
 	return strings.TrimPrefix(strings.TrimSpace(id), prefijoPregunta)
 }
 
+// LugarPanel es el lugar de una pregunta de la terminal respondida con un botón de «▶ Para ti» (MEJ-057).
+const LugarPanel = "el panel"
+
+// ErrVariasPreguntas: el panel responde con un botón solo una pregunta suelta; varias juntas van en la terminal.
+var ErrVariasPreguntas = errors.New("trae varias preguntas juntas: respóndelas en la terminal")
+
+// ResponderPreguntaEnPanel aplica el botón de una opción en «▶ Para ti» a una pregunta de la terminal (AskUserQuestion,
+// un permiso o un comando qdd): queda respondida como desde el teléfono, en LugarPanel, y la sesión que la espera la
+// entrega a Claude Code. Un ⏳ tiene sus propios botones (ResponderEsperaEnPC).
+func ResponderPreguntaEnPanel(root, id, valor string, now time.Time) (Pregunta, error) {
+	p, ok := PreguntaDe(root, id, now)
+	if !ok {
+		return Pregunta{}, ErrPreguntaDesconocida
+	}
+	if len(p.Preguntas) != 1 {
+		return Pregunta{}, ErrVariasPreguntas
+	}
+	respuesta := `{"` + p.Preguntas[0].ID + `":{"opciones":[` + strconv.Quote(valor) + `]}}`
+	return ResponderPregunta(root, id, respuesta, LugarPanel, now)
+}
+
+// EsEspera dice si el id es el de un ⏳ de la persona (esperas_preguntas.go) y no el de una pregunta de la terminal.
+func EsEspera(id string) bool {
+	return strings.HasPrefix(IDPregunta(id), prefijoEspera)
+}
+
+// RespuestaDe es lo que quedó respondido, como lo lee la persona: la etiqueta de cada opción elegida o el texto de «Otra».
+func RespuestaDe(p Pregunta) string {
+	var partes []string
+	for _, q := range p.Preguntas {
+		r := p.Respuesta[q.ID]
+		if r.Otra != nil {
+			partes = append(partes, *r.Otra)
+			continue
+		}
+		for _, v := range r.Opciones {
+			partes = append(partes, etiquetaDe(q, v))
+		}
+	}
+	return strings.Join(partes, ", ")
+}
+
 // ResponderPregunta aplica la respuesta de un teléfono (lugar es su nombre) si la pregunta sigue pendiente y la
 // respuesta le sirve. Una cerrada devuelve *PreguntaCerrada con cómo quedó; una inválida, ErrRespuestaInvalida con el
 // motivo, y la cola no cambia.
 func ResponderPregunta(root, id, respuesta, lugar string, now time.Time) (Pregunta, error) {
 	id = IDPregunta(id)
 	if strings.HasPrefix(id, prefijoEspera) {
-		return responderEspera(root, id, respuesta, lugar, now)
+		return responderEspera(root, id, respuesta, lugar, EnTelefono, now)
 	}
 	var out Pregunta
 	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
@@ -581,7 +638,7 @@ func PreguntaDe(root, id string, now time.Time) (Pregunta, bool) {
 // PreguntasA es la cola a la hora now, con los ⏳ de la persona del estado (esperas_preguntas.go): las pendientes
 // primero, después las cerradas, las más nuevas antes.
 func PreguntasA(root string, now time.Time) []Pregunta {
-	return conEsperas(normalizarPreguntas(leerPreguntas(root, false), now), esperasDeLaPersona(root, now))
+	return conEsperas(normalizarPreguntas(leerPreguntas(root, false), now), esperasDeLaPersona(root, now), now)
 }
 
 func indicePregunta(cola []Pregunta, id string) int {
@@ -593,14 +650,11 @@ func indicePregunta(cola []Pregunta, id string) int {
 	return -1
 }
 
-// normalizarPreguntas vence las pendientes que su sesión dejó de esperar o que pasaron VidaPregunta, quita las
+// normalizarPreguntas vence las pendientes que su sesión dejó de esperar (FND-165: mientras la espera, no vencen), quita las
 // cerradas hace más de VidaCerrada y deja las MaxPreguntasCola más nuevas.
 func normalizarPreguntas(cola []Pregunta, now time.Time) []Pregunta {
 	out := make([]Pregunta, 0, len(cola))
 	for _, p := range cola {
-		if p.Estado == PreguntaPendiente && now.Sub(p.Creada) > VidaPregunta {
-			p = cerrarEnPC(p, PreguntaVencida, "pasaron "+VidaPregunta.String()+" sin respuesta desde el teléfono; sigue esperando en la consola del PC", now)
-		}
 		if p.Estado == PreguntaPendiente && now.Sub(p.Vista) > LatidoPregunta {
 			p = cerrarEnPC(p, PreguntaVencida, "la sesión de Claude Code ya no la espera (se cerró o se cortó)", now)
 		}
@@ -688,7 +742,8 @@ func accionesDePreguntas(root string, now time.Time) []Accion {
 		a := Accion{
 			ID: prefijoPregunta + p.ID, Tipo: TipoPregunta, Etiqueta: p.Etiqueta, Detalle: p.Preguntas[0].Texto,
 			Estado: p.Estado, Sesion: p.Sesion, Origen: p.Origen, RespondidaEn: p.RespondidaEn,
-			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo,
+			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo, SinSesion: p.SinSesion,
+			claveTurno: p.claveTurno, tareaTurno: p.tareaTurno,
 		}
 		if p.Permiso != nil {
 			a.Detalle = p.Permiso.Detalle

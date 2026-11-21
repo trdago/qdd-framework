@@ -17,7 +17,7 @@ func TestNoElseInCode(t *testing.T) {
 		}
 
 		if info.IsDir() {
-			return checkSkipDir(info.Name())
+			return checkSkipDir(projectRoot, path, info.Name())
 		}
 
 		if !shouldCheckFileForElse(info.Name()) {
@@ -26,7 +26,7 @@ func TestNoElseInCode(t *testing.T) {
 
 		return checkFileContentForElse(t, path)
 	})
-	
+
 	if err != nil {
 		t.Fatalf("Error scanning files: %v", err)
 	}
@@ -43,8 +43,12 @@ var skippedDirs = map[string]bool{
 	"core_assets":  true,
 }
 
-func checkSkipDir(name string) error {
+// checkSkipDir salta las carpetas de skippedDirs y el tmp de la raíz, donde el método deja lo temporal (FND-219).
+func checkSkipDir(root, path, name string) error {
 	if skippedDirs[name] {
+		return filepath.SkipDir
+	}
+	if filepath.Clean(path) == filepath.Join(root, "tmp") {
 		return filepath.SkipDir
 	}
 	return nil
@@ -62,9 +66,9 @@ func isExcludedFile(name string) bool {
 }
 
 func hasValidExtension(name string) bool {
-	return strings.HasSuffix(name, ".go") || 
-		strings.HasSuffix(name, ".js") || 
-		strings.HasSuffix(name, ".ts") || 
+	return strings.HasSuffix(name, ".go") ||
+		strings.HasSuffix(name, ".js") ||
+		strings.HasSuffix(name, ".ts") ||
 		strings.HasSuffix(name, ".vue") ||
 		strings.HasSuffix(name, ".sh") ||
 		strings.HasSuffix(name, ".yml") ||
@@ -85,7 +89,7 @@ func checkFileContentForElse(t *testing.T, path string) error {
 	target3 := "v-el" + "se"
 	target4 := "!el" + "se"
 	target5 := "${el" + "se}"
-	
+
 	if strings.Contains(code, target1) || strings.Contains(code, target2) || strings.Contains(code, target3) || strings.Contains(code, target4) || strings.Contains(code, target5) {
 		t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
 		return nil
@@ -94,7 +98,7 @@ func checkFileContentForElse(t *testing.T, path string) error {
 	lines := strings.Split(code, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "el" + "se" || trimmed == "} el" + "se" || trimmed == "el" + "se {" || strings.HasPrefix(trimmed, "el" + "se ") || trimmed == target4 || trimmed == target5 {
+		if trimmed == "el"+"se" || trimmed == "} el"+"se" || trimmed == "el"+"se {" || strings.HasPrefix(trimmed, "el"+"se ") || trimmed == target4 || trimmed == target5 {
 			if !strings.Contains(line, "\"") && !strings.Contains(line, "'") && !strings.Contains(line, "`") {
 				t.Errorf("🚨 Regla violada (CLEAN-01): Se detectó un 'else' en el archivo %s. Debes refactorizar para usar Early Returns o v-if negado.", path)
 				return nil

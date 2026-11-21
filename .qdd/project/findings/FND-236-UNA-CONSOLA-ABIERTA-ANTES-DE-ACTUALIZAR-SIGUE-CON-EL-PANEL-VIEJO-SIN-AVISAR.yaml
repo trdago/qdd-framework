@@ -1,0 +1,9 @@
+id: "FND-236"
+title: "Una consola abierta antes de actualizar sigue con el panel anterior sin avisar"
+description: "2026-11-15: la persona preguntó por qué dos consolas (notificador_de_ofertas y fairplay_agent) seguían mezclando los proyectos en «Para ti» después de instalar rc.88, que lo corrige (FND-231). Todas sus consolas se abrieron antes de las 20:45, cuando llegó rc.88 (19:03, 19:07, 10 y 11 de noviembre): Claude Code lee el mod qdd-tareas al abrir la consola y no lo vuelve a leer, así que seguían dibujando con rc.87 o anteriores. Nada en el panel decía que su código era de otra versión que el qdd instalado."
+impact: "Después de cada actualización, una corrección del panel parece no haber llegado en las consolas abiertas, y la persona no sabe que tiene que reiniciarlas."
+action_taken: "El instalador (EscribirMarketplace) cambia la marca __QDD_VERSION__ de hooks/register.js por la versión que instala. El panel la manda como «panel:<versión>» en --con, en la lectura y en el flujo; un qdd anterior ignora lo que no conoce en --con. Si no es la del qdd que responde, aviso_version (que la cabecera ya muestra) dice «⟳ Este panel es de qdd X y está instalado Y: cierra esta consola y ábrela con claude --continue…». Un mod sin instalar o un qdd dev no avisan. Ficha estado actualizada."
+test_result: "cli/pkg/consola/panel_viejo_test.go (el mod instalado lleva la versión y doctor lo sigue viendo al día; el aviso solo con otra versión), cli/cmd/panel_viejo_test.go (conLoQuePide avisa con panel:<otra> y deja el aviso que había si está al día) y el mod (tests/marca.test.ts: manda panel:<versión> y la cabecera muestra el aviso) fallaban antes del cambio y pasan; go test ./pkg/consola/ ./cmd/ y claude plugin test (329) en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,5 +122,74 @@ func TestRunCoverageCheck_WritesNothingToStdout(t *testing.T) {
 	n, _ := r.Read(buf)
 	if n > 0 {
 		t.Errorf("RunCoverageCheck escribió en stdout (rompe MCP): %q", string(buf[:n]))
+	}
+}
+
+// FND-162: el log guardaba las últimas 60 líneas. La suite del mod imprime casi 200, así que el gate decía «1 fail» sin
+// nombrar la prueba, y un fallo que aparece solo con carga no se podía investigar.
+func TestLogDeFallo_NombraLoQueFallaAunqueQuedeLejosDelFinal(t *testing.T) {
+	var lineas []string
+	for i := range 200 {
+		lineas = append(lineas, fmt.Sprintf("(pass) prueba %d", i))
+	}
+	lineas[20] = "(fail) la prueba que falló"
+	lineas = append(lineas, " 199 pass", " 1 fail")
+
+	log := logDeFallo(strings.Join(lineas, "\n"))
+	if !strings.Contains(log, "(fail) la prueba que falló") {
+		t.Fatalf("no nombra la prueba que falló:\n%s", log)
+	}
+	if !strings.Contains(log, " 1 fail") || strings.Contains(log, "(pass) prueba 100") {
+		t.Fatalf("debe seguir mostrando solo el final, más lo que falló:\n%s", log)
+	}
+	if strings.Count(log, " 1 fail") != 1 {
+		t.Fatalf("lo que ya está en el final no se repite:\n%s", log)
+	}
+}
+
+func TestLogDeFallo_UnaSalidaCortaQuedaIgualYLasFallasTienenTope(t *testing.T) {
+	corta := "--- FAIL: TestX\nFAIL\nexit status 1"
+	if got := logDeFallo(corta); got != corta {
+		t.Fatalf("una salida corta se muestra tal cual: %q", got)
+	}
+	var lineas []string
+	for i := range 500 {
+		lineas = append(lineas, fmt.Sprintf("FAIL prueba %d", i))
+	}
+	if got := strings.Count(logDeFallo(strings.Join(lineas, "\n")), "\n") + 1; got > 60+maxFallasEnLog+1 {
+		t.Fatalf("el log no debe crecer sin límite: %d líneas", got)
+	}
+}
+
+// FND-211 (MEJ-030): jest marca la prueba que falló con «✕» y su detalle con «●», sin la palabra «fail». Con la suite que
+// falla primero, el gate mostraba «FAIL ./a.test.js» y «1 failed», pero no cuál prueba. Salida real de jest 29 (-i).
+func TestLogDeFallo_NombraLaPruebaDeJestQueFallaPrimero_FND211(t *testing.T) {
+	salida, err := os.ReadFile(filepath.Join("testdata", "jest_falla_temprana.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	log := logDeFallo(string(salida))
+	for _, debe := range []string{"✕ prueba a3", "● suite a › prueba a3", "Tests:       1 failed"} {
+		if !strings.Contains(log, debe) {
+			t.Errorf("el log del gate no trae %q:\n%s", debe, log)
+		}
+	}
+}
+
+// FND-211: dart y flutter marcan la prueba que falló con «[E]» al final de la línea; un «● Console» de jest es salida de
+// la prueba, no una falla, y no ocupa el tope.
+func TestLogDeFallo_ReconoceLasMarcasDeCadaHerramienta_FND211(t *testing.T) {
+	var lineas []string
+	for i := range 120 {
+		lineas = append(lineas, fmt.Sprintf("00:00 +%d: prueba %d", i, i))
+	}
+	lineas[7] = "00:00 +7 -1: prueba 7 [E]"
+	lineas[8] = "  ● Console"
+	log := logDeFallo(strings.Join(lineas, "\n"))
+	if !strings.Contains(log, "prueba 7 [E]") {
+		t.Errorf("no nombra la prueba de dart que falló:\n%s", log)
+	}
+	if strings.Contains(log, "● Console") {
+		t.Errorf("«● Console» no es una falla:\n%s", log)
 	}
 }

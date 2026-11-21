@@ -1,0 +1,9 @@
+id: "FND-199"
+title: "El panel escondía tareas del objetivo en foco"
+description: "2026-11-11 (relay:REP-484, MEJ-065, Windows): un objetivo en foco con 7 tareas abiertas de vigilancia continua. El panel dibujaba solo las 4 pendientes más nuevas (MaxTareas) y ocultaba el resto («ocultos: 23»), aunque la persona marcó ese objetivo como foco justamente para tenerlas a la vista; la única forma de verlas era qdd estado ver."
+impact: "La persona pierde de vista tareas del objetivo que eligió seguir, y cree que no existen o que ya terminaron."
+action_taken: "DatosEnCurso deja siempre a la vista las pendientes del objetivo abierto en foco, como ya hacía con la tarea en curso; el tope de MaxTareas cuenta solo el resto, y ocultos cuenta solo lo que no se ve. Sin foco, todo sigue igual."
+test_result: "cli/pkg/estado/foco_visible_test.go: TestFND199_LasTareasDelFocoSiempreSeVen fallaba antes (con tope 1 se veía solo «limpiar») y pasa después; TestFND199_SinFocoSigueElTope confirma que sin foco el tope no cambia. Las pruebas de pkg/estado y pkg/consola siguen pasando."
+status: resolved
+detectado_por: persona
+date: "2026-11-11"

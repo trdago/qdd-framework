@@ -1,8 +1,16 @@
 // Dibuja en el webview lo que arma panel.js. Todo el texto entra con textContent: una etiqueta o un comando que dejó
-// una IA nunca se interpreta como HTML. Solo manda mensajes con ids; no ejecuta nada.
+// una IA nunca se interpreta como HTML. Solo manda mensajes con ids; no ejecuta nada. Fase B: lo que se ejecuta pasa
+// por «s  Sí / n  No» (media/pasos.js) y el resultado que devuelve la extensión se muestra arriba de «Para ti».
 (function () {
   const vscode = acquireVsCodeApi()
   const raiz = document.getElementById('raiz')
+  const pasos = window.qddPasos
+  const materializar = window.qddMaterializar
+  let previa = null
+  let animar = new Set() // claves que cambiaron con la última lectura; se animan una sola vez
+  let estado = pasos.inicial
+  let actual = null
+  let resultado = null
 
   function el(etiqueta, clase, texto) {
     const nodo = document.createElement(etiqueta)
@@ -28,6 +36,46 @@
     return con(el('header'), fila, proyecto, resumen.length ? con(el('div', 'resumen'), ...resumen) : null, aviso)
   }
 
+  // marcar: un nodo que cambió con la última lectura se materializa (fase D); un redibujo por un clic no lo repite.
+  function marcar(nodo, clave) {
+    if (animar.has(clave)) nodo.classList.add('materializa')
+    return nodo
+  }
+
+  // aplicarEfectos deja el acento y la duración de qdd como variables del CSS (por CSSOM: la CSP no deja estilos en línea).
+  function aplicarEfectos(v) {
+    const e = materializar.estilo(v.efectos)
+    const raizCSS = document.documentElement.style
+    raizCSS.setProperty('--materializar-ms', e.ms + 'ms')
+    if (e.acento) raizCSS.setProperty('--materializar-acento', e.acento)
+    return e
+  }
+
+  function boton(texto, clase, alTocar) {
+    const nodo = el('button', 'boton ' + clase, texto)
+    nodo.type = 'button'
+    nodo.addEventListener('click', alTocar)
+    return nodo
+  }
+
+  function aplicar(r) {
+    estado = r.estado
+    if (r.enviar) vscode.postMessage(r.enviar)
+    if (actual) dibujar(actual)
+  }
+
+  // acciones: el botón de ejecutar, o la pregunta de confirmación si es lo que se está confirmando.
+  function acciones(a, verbo) {
+    if (!a.ejecutar) return null
+    if (estado.confirmando !== a.id) return con(el('div', 'acciones'), boton(verbo, 'primario', () => aplicar(pasos.tocar(estado, actual, a.id))))
+    return con(
+      el('div', 'acciones confirmando'),
+      el('span', 'pregunta', '¿' + verbo + '?'),
+      boton('s  Sí', 'primario', () => aplicar(pasos.si(estado, actual))),
+      boton('n  No', 'secundario', () => aplicar(pasos.no())),
+    )
+  }
+
   function notas(lista) {
     return lista.map((n) => el('p', 'nota tono-' + n.tono, n.texto))
   }
@@ -39,13 +87,31 @@
     cabeza.title = p.etiqueta
     const comando = p.comando ? el('code', 'comando', '$ ' + p.comando) : null
     if (comando) comando.title = p.comando
-    return con(el('li', 'pedido tono-' + p.tono), cabeza, ...notas(p.notas), comando, p.meta ? el('p', 'meta', p.meta) : null)
+    const nodo = con(el('li', 'pedido tono-' + p.tono), cabeza, ...notas(p.notas), comando, p.meta ? el('p', 'meta', p.meta) : null, acciones(p, 'Ejecutar'))
+    return marcar(nodo, 'pedido:' + p.id)
+  }
+
+  function ficha(f) {
+    const detalle = f.detalle ? el('code', 'comando', '$ ' + f.detalle) : null
+    return marcar(con(el('li', 'ficha'), el('div', 'pedido-cabeza', f.etiqueta), detalle, acciones(f, 'Aprobar')), 'ficha:' + f.id)
+  }
+
+  function tonoDe(r) {
+    if (r.ejecutando) return 'tenue'
+    if (r.todaviaNo) return 'espera'
+    if (r.ok) return 'listo'
+    return 'falla'
+  }
+
+  function recuadro() {
+    if (!resultado) return null
+    const marca = { tenue: '⟳ ', espera: '◷ Todavía no · ', listo: '✓ ', falla: '✗ ' }[tonoDe(resultado)]
+    return con(el('div', 'resultado tono-' + tonoDe(resultado)), el('strong', '', marca + resultado.titulo), el('p', 'nota', resultado.texto))
   }
 
   function paraTi(v) {
-    if (v.pedidos.length === 0 && v.fichas.length === 0) return null
-    const fichas = v.fichas.map((f) => el('li', 'ficha', f.etiqueta))
-    return con(el('section', 'para-ti'), titulo('Para ti', '▶'), con(el('ul', 'lista'), ...v.pedidos.map(pedido), ...fichas))
+    if (v.pedidos.length === 0 && v.fichas.length === 0 && !resultado) return null
+    return con(el('section', 'para-ti'), titulo('Para ti', '▶'), recuadro(), con(el('ul', 'lista'), ...v.pedidos.map(pedido), ...v.fichas.map(ficha)))
   }
 
   function celdas(lista) {
@@ -57,12 +123,12 @@
     if (f.objetivo) {
       const nodo = con(el('div', 'fila-objetivo'), el('span', 'nombre', f.nombre), f.resumen ? el('span', 'meta', f.resumen) : null)
       nodo.title = f.nombre
-      return nodo
+      return marcar(nodo, 'fila:' + f.id)
     }
     const nombre = el('span', 'nombre tono-' + f.tono, f.nombre)
     const nodo = con(el('div', 'fila' + (f.running ? ' en-curso' : '')), f.running ? el('span', 'latido', '●') : null, nombre, celdas(f.simbolos))
     nodo.title = f.nombre
-    return nodo
+    return marcar(nodo, 'fila:' + f.id)
   }
 
   function tabla(v) {
@@ -83,7 +149,22 @@
   }
 
   window.addEventListener('message', (evento) => {
-    if (evento.data?.tipo === 'vista') dibujar(evento.data.vista)
+    const m = evento.data
+    if (m?.tipo === 'resultado') resultado = m
+    if (m?.tipo === 'vista') {
+      actual = m.vista
+      estado = pasos.alLlegar(estado, actual)
+      const e = aplicarEfectos(actual)
+      animar = e.animar ? materializar.cambiados(previa, actual) : new Set()
+      previa = actual
+    }
+    if (actual) dibujar(actual)
+    animar = new Set()
+  })
+  // Las mismas teclas que el panel de Claude Code mientras la vista tiene el foco: la del pedido pregunta, «s» confirma.
+  window.addEventListener('keydown', (e) => {
+    if (!actual || e.ctrlKey || e.metaKey || e.altKey) return
+    aplicar(pasos.tecla(estado, actual, e.key))
   })
   vscode.postMessage({ tipo: 'listo' })
 })()

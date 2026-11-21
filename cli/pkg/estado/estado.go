@@ -53,18 +53,25 @@ type Celda struct {
 	Falla              string `yaml:"falla,omitempty"`
 	RequiereAprobacion string `yaml:"requiere_aprobacion,omitempty"`
 	Aprobado           bool   `yaml:"aprobado,omitempty"`
+	// Verifica es la verificación tipada con que un ⏳ se responde solo (verificar.go); vacía si no.
+	Verifica string `yaml:"verifica,omitempty"`
 }
 
 // Frente es una fila de la tabla.
 type Frente struct {
-	ID           string           `yaml:"id"`
-	Nombre       string           `yaml:"nombre"`
-	Estado       string           `yaml:"estado"`
-	CerradoEl    string           `yaml:"cerrado_el,omitempty"`
-	MotivoCierre string           `yaml:"motivo_cierre,omitempty"`
-	Objetivo     string           `yaml:"objetivo,omitempty"`
-	DependeDe    []string         `yaml:"depende_de,omitempty"`
-	Celdas       map[string]Celda `yaml:"celdas"`
+	ID           string   `yaml:"id"`
+	Nombre       string   `yaml:"nombre"`
+	Estado       string   `yaml:"estado"`
+	CerradoEl    string   `yaml:"cerrado_el,omitempty"`
+	MotivoCierre string   `yaml:"motivo_cierre,omitempty"`
+	Objetivo     string   `yaml:"objetivo,omitempty"`
+	DependeDe    []string `yaml:"depende_de,omitempty"`
+	// Modulo es la ficha cuyas rutas toca la tarea, y TocadaEl la hora de su última celda (RFC 0017 §2): con los dos,
+	// qdd estado check avisa de commits nuevos y el contexto pide revisarla si la ficha cambió (tablero_atras.go).
+	// Opcionales y sin subir el formato: un qdd anterior los lee sin error y, si escribe, los pierde y deja de opinar.
+	Modulo   string           `yaml:"modulo,omitempty"`
+	TocadaEl string           `yaml:"tocada_el,omitempty"`
+	Celdas   map[string]Celda `yaml:"celdas"`
 }
 
 // Estado es el archivo completo.
@@ -108,13 +115,15 @@ func Parse(data []byte) (Estado, error) {
 	return e, nil
 }
 
-// Load lee el archivo de estado de la raíz del proyecto.
+// Load lee el archivo de estado de la raíz del proyecto. Mientras su contenido no cambie, no lo vuelve a parsear
+// (parseRecordado).
 func Load(root string) (Estado, error) {
-	data, err := os.ReadFile(filepath.Join(root, Ruta))
+	ruta := filepath.Join(root, Ruta)
+	data, err := os.ReadFile(ruta)
 	if err != nil {
 		return Estado{}, err
 	}
-	return Parse(data)
+	return parseRecordado(ruta, data)
 }
 
 // Save escribe el archivo de forma atómica (temporal + rename): nunca queda a medias.

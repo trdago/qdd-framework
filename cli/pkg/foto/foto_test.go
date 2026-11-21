@@ -3,6 +3,7 @@ package foto
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -214,5 +215,45 @@ func TestDiagnostico_DiceSiHayConQueLeerElPortapapeles(t *testing.T) {
 	}
 	if ok, _ := Diagnostico(entorno("windows", nil, "/h"), con("powershell.exe")); !ok {
 		t.Fatal("Windows trae PowerShell")
+	}
+}
+
+// Botón 📷 del panel (pedido de la persona, 2026-11-07): el panel pregunta seguido si hay una imagen copiada, así que la
+// consulta solo lista los tipos (≈1 ms con wl-paste) y no copia la imagen. Donde no hay una consulta barata, «no se sabe».
+func TestHayImagen_SoloListaLosTiposDelPortapapeles(t *testing.T) {
+	wayland := Entorno{GOOS: "linux", Env: func(k string) string { return map[string]string{"WAYLAND_DISPLAY": "wayland-0"}[k] }}
+	x11 := Entorno{GOOS: "linux", Env: func(k string) string { return map[string]string{"DISPLAY": ":0"}[k] }}
+	sinEscritorio := Entorno{GOOS: "linux", Env: func(string) string { return "" }}
+	var pedidos [][]string
+	responde := func(salida string, err error) func(context.Context, []string) (string, error) {
+		return func(_ context.Context, argv []string) (string, error) {
+			pedidos = append(pedidos, argv)
+			return salida, err
+		}
+	}
+	casos := []struct {
+		nombre string
+		e      Entorno
+		correr func(context.Context, []string) (string, error)
+		quiere string
+	}{
+		{"wayland con imagen", wayland, responde("text/plain\nimage/png\n", nil), HaySi},
+		{"wayland sin imagen", wayland, responde("text/plain;charset=utf-8\n", nil), HayNo},
+		{"portapapeles vacío: wl-paste sale con 1", wayland, responde("", errors.New("exit status 1")), HayNo},
+		{"x11 con imagen", x11, responde("TARGETS\nimage/png\n", nil), HaySi},
+		{"sin escritorio no hay a quién preguntar", sinEscritorio, responde("", nil), HayNoSe},
+		{"windows: PowerShell no es barato", Entorno{GOOS: "windows", Env: func(string) string { return "" }}, responde("", nil), HayNoSe},
+		{"macos: osascript tampoco", Entorno{GOOS: "darwin", Env: func(string) string { return "" }}, responde("", nil), HayNoSe},
+	}
+	for _, c := range casos {
+		pedidos = nil
+		if got := HayImagen(context.Background(), c.e, c.correr); got != c.quiere {
+			t.Fatalf("%s: %q, quiere %q", c.nombre, got, c.quiere)
+		}
+		for _, argv := range pedidos {
+			if !strings.Contains(strings.Join(argv, " "), "--list-types") && !strings.Contains(strings.Join(argv, " "), "TARGETS") {
+				t.Fatalf("%s: solo lista los tipos, no copia la imagen: %v", c.nombre, argv)
+			}
+		}
 	}
 }

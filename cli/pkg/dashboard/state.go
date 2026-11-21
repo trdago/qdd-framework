@@ -15,8 +15,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/qdd-framework/qdd/pkg/audit"
-	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
+	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/findings"
 	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/topology"
@@ -127,7 +127,7 @@ func Vigilar(ctx context.Context, cwd string, listo chan struct{}) {
 	defer watcher.Close()
 
 	observarArbol(watcher, filepath.Join(cwd, ".qdd"))
-	difundirEstado()
+	difundir()
 	if listo != nil {
 		close(listo)
 	}
@@ -160,7 +160,7 @@ func Vigilar(ctx context.Context, cwd string, listo chan struct{}) {
 			if pendiente != nil {
 				pendiente.Stop()
 			}
-			pendiente = time.AfterFunc(ventanaDeEventos, difundirEstado)
+			pendiente = time.AfterFunc(ventanaDeEventos, difundir)
 		}
 	}
 }
@@ -175,6 +175,10 @@ func observarArbol(watcher *fsnotify.Watcher, raiz string) {
 		return nil
 	})
 }
+
+// difundir es lo que hace Vigilar con cada ráfaga. Las pruebas del vigilante lo cambian por una difusión liviana:
+// armar el estado sincroniza knowledge.db (SQLite con fsync) y con el disco cargado tarda segundos (FND-215).
+var difundir = difundirEstado
 
 func difundirEstado() {
 	data, _ := json.Marshal(BuildState())
@@ -267,10 +271,10 @@ type HistoricalTrendPoint struct {
 }
 
 type GraphNode struct {
-	ID      string                 `json:"id"`
-	Type    string                 `json:"type"`
-	Name    string                 `json:"name"`
-	Content string                 `json:"content"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
 }
 
 type GraphEdge struct {
@@ -285,32 +289,32 @@ type DashboardGraphData struct {
 }
 
 type QDDState struct {
-	Score          int                       `json:"score"`
-	Grade          string                    `json:"grade"`
-	Version        string                    `json:"version"`
-	QualityStatus  string                    `json:"quality_status"`
-	Findings       []DashboardFinding        `json:"findings"`
-	Certifications []DashboardCertification  `json:"certifications"`
+	Score          int                      `json:"score"`
+	Grade          string                   `json:"grade"`
+	Version        string                   `json:"version"`
+	QualityStatus  string                   `json:"quality_status"`
+	Findings       []DashboardFinding       `json:"findings"`
+	Certifications []DashboardCertification `json:"certifications"`
 	// CertificacionesConteo sale de pkg/certificaciones: el catálogo cuenta
 	// como disponible, nunca como cumplido (FND-060).
-	CertificacionesConteo certificaciones.Conteo `json:"certificaciones_conteo"`
-	Sprints        []DashboardSprint         `json:"sprints"`
-	Knowledge      []DashboardKnowledgeDoc   `json:"knowledge"`
-	Understanding  *DashboardUnderstanding   `json:"understanding"`
-	Topology       *topology.ProjectTopology `json:"topology"`
-	Config         map[string]interface{}    `json:"config"`
-	Telemetry      DashboardTelemetry        `json:"telemetry"`
-	WorkingOn      string                    `json:"working_on"`
-	ProjectName    string                    `json:"project_name"`
-	ValueMetrics   ValueMetrics              `json:"value_metrics"`
-	Historical     []HistoricalTrendPoint    `json:"historical_trends"`
-	MCPLogs        []string                  `json:"mcp_logs"`
-	UsageTime      string                    `json:"usage_time"`
-	Policies       audit.QDDPolicies         `json:"policies"`
-	GraphData      DashboardGraphData        `json:"graph_data"`
-	LocalLLM       cognitive.LocalLLMInfo    `json:"local_llm"`
-	AutoUICert     bool                      `json:"auto_ui_certification"`
-	FindingsConteo findings.Conteo           `json:"findings_conteo"`
+	CertificacionesConteo certificaciones.Conteo    `json:"certificaciones_conteo"`
+	Sprints               []DashboardSprint         `json:"sprints"`
+	Knowledge             []DashboardKnowledgeDoc   `json:"knowledge"`
+	Understanding         *DashboardUnderstanding   `json:"understanding"`
+	Topology              *topology.ProjectTopology `json:"topology"`
+	Config                map[string]interface{}    `json:"config"`
+	Telemetry             DashboardTelemetry        `json:"telemetry"`
+	WorkingOn             string                    `json:"working_on"`
+	ProjectName           string                    `json:"project_name"`
+	ValueMetrics          ValueMetrics              `json:"value_metrics"`
+	Historical            []HistoricalTrendPoint    `json:"historical_trends"`
+	MCPLogs               []string                  `json:"mcp_logs"`
+	UsageTime             string                    `json:"usage_time"`
+	Policies              audit.QDDPolicies         `json:"policies"`
+	GraphData             DashboardGraphData        `json:"graph_data"`
+	LocalLLM              cognitive.LocalLLMInfo    `json:"local_llm"`
+	AutoUICert            bool                      `json:"auto_ui_certification"`
+	FindingsConteo        findings.Conteo           `json:"findings_conteo"`
 }
 
 func BuildState() QDDState {
@@ -445,8 +449,13 @@ func loadStateJson(response *QDDState, qddDir string) {
 	}
 }
 
+// loadWorkingOn lee el comando que corre: en working/comando, o en working como archivo si lo escribió una versión
+// anterior (FND-182).
 func loadWorkingOn(response *QDDState, qddDir string) {
-	workData, err := os.ReadFile(filepath.Join(qddDir, "working"))
+	workData, err := os.ReadFile(filepath.Join(qddDir, "working", "comando"))
+	if err != nil {
+		workData, err = os.ReadFile(filepath.Join(qddDir, "working"))
+	}
 	if err == nil {
 		response.WorkingOn = strings.TrimSpace(string(workData))
 	}

@@ -1,0 +1,9 @@
+id: "FND-142"
+title: "En Windows, npm no podía actualizar qdd con sesiones abiertas"
+description: "npm i -g fallaba con EBUSY al renombrar bin/qdd.exe mientras algo lo usaba. Algo siempre lo usa: un pedido del panel corre desde qdd.exe, y desde RFC 0016 el flujo del panel mantiene uno abierto por sesión. Por eso el botón de actualizar no podía funcionar en Windows (issue #107, MEJ-012)."
+impact: "Quien usa Windows tenía que cerrar todas sus sesiones de Claude Code y el servicio de qdd remoto para actualizar, y solo recibía un aviso en el panel en vez del botón."
+action_taken: "En Windows, install.js deja qdd.exe fuera del paquete, en %LOCALAPPDATA%/qdd/bin/<versión>/qdd.exe, y escribe bin/actual.txt al terminar. Lo que corre se queda con su versión y se cierra al ver el puntero nuevo; el envoltorio usa la carpeta de la versión del paquete; la tarea de qdd remoto sigue a la versión instalada y doctor lo revisa (REM-04). Linux y macOS no cambian. La primera actualización desde el esquema anterior todavía pide cerrar las sesiones: su qdd.exe sigue dentro del paquete."
+test_result: "npm/test/install.test.js y npm/test/qdd.test.js (FND-142), cli/pkg/consola/binario_version_test.go, cli/pkg/remoto/servicio_test.go y servicio_version_test.go, cli/cmd/remoto_doctor_fnd142_test.go. El trabajo panel-windows de .github/workflows/quality.yml actualiza con npm en Windows real con un flujo abierto."
+status: resolved
+detectado_por: humano
+date: "2026-11-05"

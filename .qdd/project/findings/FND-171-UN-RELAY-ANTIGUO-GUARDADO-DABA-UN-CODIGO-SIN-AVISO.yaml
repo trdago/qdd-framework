@@ -1,0 +1,9 @@
+id: "FND-171"
+title: "Un relay antiguo guardado daba un código de emparejar sin aviso y doctor no lo reparaba"
+description: "En un PC con Windows y rc.19 (DPAILAHUEQUENB), qdd login mostró el relay anterior y dio un código, mientras el directorio firmado decía otro. Su directorio.json dice: «el directorio del relay respondió 403»; el relay guardado no era propio. relayDeFlags ignoraba el error de la consulta. qdd remoto emparejar ni consultaba. REM-11 solo salía con el servicio corriendo y credenciales, daba verde a un relay propio o nunca confirmado, y qdd doctor --fix no lo reparaba. Con un solo sitio, una red que lo bloquea dejaba al PC sin enterarse de una mudanza y a uno nuevo sin relay."
+impact: "La persona escanea un código de un relay retirado, el teléfono no lo acepta y nada dice por qué. Medido por qdd-movile como FND-035 de ese proyecto."
+action_taken: "ConfirmarRelay: Propio protege solo a un PC emparejado. qdd login y qdd remoto emparejar avisan si no confirman y si reemplazan un relay propio. REM-11 sale con cualquier relay guardado, sin red; qdd doctor --fix lo compara, muestra el motivo si no puede, lo repara antes de arrancar el servicio y reinicia el que corre. Directorio.URLs: tres sitios en orden, gana la primera respuesta que valide, y si fallan todos se da el motivo de cada uno sin nombrar hosts. ComandosReiniciar: en Windows, /Run no reinicia una tarea que corre."
+test_result: "cli/pkg/remoto/directorio_test.go: TestConfirmarRelay_*_FND171 y TestConsultar_*_FND171. cli/pkg/remoto/servicio_test.go: TestComandosReiniciar_*_FND171. cli/cmd/login_test.go: TestLogin_*_FND171. cli/cmd/remoto_movil_doctor_test.go: TestDoctorMovil_*_FND171. Ninguna depende del sistema operativo ni usa la red. Falta medirlo en ese PC con la rc."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

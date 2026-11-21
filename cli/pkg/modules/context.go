@@ -19,9 +19,13 @@ var workingMethod = []string{
 	"Pruebas primero: escribe o ajusta la prueba que expresa el cambio, comprueba que falla y recién entonces implementa.",
 	"Cero 'else' y salida temprana (cláusulas de guarda) en todas las funciones, en cualquier lenguaje. No es una moda: " + PorQueCeroElse + ".",
 	"Todo bug se documenta como finding en .qdd/project/findings/ con su prueba de regresión.",
+	"Quien reporta valida: un reporte a otro proyecto o a QDD dice desde el inicio cómo lo vas a verificar (qdd reportar --verifico), y queda contigo un ⏳ para hacerlo. Cuando sale el arreglo lo repites y lo cierras con evidencia (qdd reportar --verifique REP-N --evidencia …, o --sigue-fallando para reabrir el mismo). Quien arregla lo deja arreglada, no hecho: se cierra solo con esa verificación.",
 	"No se commitea ni se despliega sin pasar el gate (qdd_audit): pruebas del proyecto + reglas QDD.",
 	"Si un módulo tiene un estándar de la organización (blueprint), se construye aplicándolo con qdd_blueprint_apply: sus preguntas las responde el humano (nunca tú) y sus invariantes no se discuten.",
 	"Lo temporal va en ./tmp (git lo ignora): scripts de un solo uso, pruebas manuales, descargas, logs y salidas. Nunca lo dejes en la raíz ni en las carpetas de código; si algo vale la pena conservar, muévelo a su lugar con su prueba.",
+	"Declara la tarea en la que trabajas con qdd_estado accion=activar: el tablero y el teléfono solo muestran como en curso la que se declara. Al terminarla o al quedar esperando a alguien, accion=terminar.",
+	"En desarrollo la app corre directo en el PC; Docker es solo para la base de datos. Si alguien igual lo quiere para la app, avísale antes que será más lento y por qué (docs/docker-en-desarrollo.md del repositorio de QDD), y hazlo solo si lo confirma.",
+	"Si lo que se explica tiene forma (un proceso, un pipeline, un camino de decisiones), dibújalo con qdd flujo crear (qdd flujo --help): el panel lo muestra en la pestaña Flujos y la persona ve lo mismo que tú.",
 }
 
 // MetodoDeTrabajo devuelve la forma de trabajo obligatoria, una regla por línea.
@@ -48,7 +52,19 @@ type ContextInput struct {
 	Estandares   []Estandar
 	Modo         string // modo de permisos de la IA principal en el último mensaje; vacío = sin medir
 	ModoVisto    string // a qué hora se vio (HH:MM)
+	// TareasPorRevisar: tareas del estado cuya ficha cambió después de su última celda, una línea cada una (RFC 0017 §3;
+	// las calcula el paquete estado, que depende de este).
+	TareasPorRevisar []string
+	// Completo trae las fichas enteras y el mapa aunque haya rutas. Por defecto las decisiones salen en una línea y el
+	// mapa solo sin rutas: con fichas grandes el contexto pasaba el tope de una herramienta (MEJ-073).
+	Completo bool
 }
+
+// largoDecision es lo que se muestra de cada decisión en el contexto liviano: su primera frase, hasta este largo.
+const largoDecision = 160
+
+// maxDecisiones es desde cuántas decisiones una ficha pide dividirse.
+const maxDecisiones = 25
 
 // lineaDelProyecto es lo que se hace sin pedir autorización cuando la IA puede actuar sola.
 const lineaDelProyecto = "Sigue sin pedir autorización todo lo que continúa la línea del proyecto: las tareas abiertas del estado, " +
@@ -78,8 +94,8 @@ func ReglaDeAutorizacion(modo string) []string {
 	return []string{"Modo sin medir (no hay un mensaje reciente con el panel de qdd): pide autorización como lo pida la consola.", loDefinido, loDelChat}
 }
 
-// BuildContext arma la abstracción del proyecto para una IA: propósito, forma
-// de trabajo, fichas relevantes (completas), mapa de módulos y zonas sin ficha.
+// BuildContext arma la abstracción del proyecto para una IA: propósito, forma de trabajo, la ficha de lo que va a tocar
+// (decisiones en una línea salvo Completo), el mapa de módulos (sin rutas o Completo) y las zonas sin ficha.
 func BuildContext(in ContextInput) string {
 	mods, loadErrs := Load(in.Root)
 	var b strings.Builder
@@ -95,17 +111,31 @@ func BuildContext(in ContextInput) string {
 	b.WriteString("\n## Cómo se prueba el proyecto\n")
 	writeList(&b, in.TestCommands, "No hay comandos de prueba detectables: decláralos en .qdd/config.yaml (test_commands) antes de cambiar código.")
 	writeEstandares(&b, in.Estandares)
+	writeTareasPorRevisar(&b, in.TareasPorRevisar)
 
 	for _, err := range loadErrs {
 		fmt.Fprintf(&b, "\n⚠️ Ficha ilegible: %v\n", err)
 	}
 
-	if len(in.Paths) > 0 {
-		writeRelevant(&b, in.Root, mods, in.Estandares, in.Paths)
+	if len(in.Paths) == 0 || in.Completo {
+		writeRelevant(&b, in, mods)
+		writeIndex(&b, in.Root, mods)
+		writeUncovered(&b, in.Root, mods)
+		return b.String()
 	}
-	writeIndex(&b, in.Root, mods)
+	writeRelevant(&b, in, mods)
+	fmt.Fprintf(&b, "\n## Mapa de módulos\n%d módulos con ficha: el mapa sale con qdd_project_context sin rutas.\n", len(mods))
 	writeUncovered(&b, in.Root, mods)
 	return b.String()
+}
+
+// writeTareasPorRevisar: QDD no reescribe nombres ni criterios; le dice a la IA cuáles revisar (RFC 0017 §3).
+func writeTareasPorRevisar(b *strings.Builder, lineas []string) {
+	if len(lineas) == 0 {
+		return
+	}
+	b.WriteString("\n## Tareas por revisar\n")
+	writeList(b, lineas, "")
 }
 
 func writeAutorizacion(b *strings.Builder, in ContextInput) {
@@ -172,8 +202,15 @@ func estandarPara(estandares []Estandar, rel string) (Estandar, bool) {
 	return Estandar{}, false
 }
 
-func writeRelevant(b *strings.Builder, root string, mods []Module, estandares []Estandar, paths []string) {
+func writeRelevant(b *strings.Builder, in ContextInput, mods []Module) {
+	if len(in.Paths) == 0 {
+		return
+	}
+	root, estandares, paths := in.Root, in.Estandares, in.Paths
 	b.WriteString("\n## Módulos que vas a tocar\n")
+	if !in.Completo {
+		b.WriteString("Decisiones en una línea: la ficha entera con qdd_project_context detalle=completo ('qdd modules context --completo <rutas>').\n")
+	}
 	seen := map[string]bool{}
 	for _, p := range paths {
 		rel := relativeTo(root, p)
@@ -191,7 +228,7 @@ func writeRelevant(b *strings.Builder, root string, mods []Module, estandares []
 				continue
 			}
 			seen[m.ID] = true
-			writeModule(b, root, m)
+			writeModule(b, root, m, in.Completo)
 		}
 	}
 }
@@ -207,7 +244,7 @@ func relativeTo(root, p string) string {
 	return filepath.ToSlash(rel)
 }
 
-func writeModule(b *strings.Builder, root string, m Module) {
+func writeModule(b *strings.Builder, root string, m Module, completo bool) {
 	fmt.Fprintf(b, "\n### %s (`%s`), %s\n", m.Nombre, m.ID, m.Estado)
 	if warning := statusWarning(root, m); warning != "" {
 		b.WriteString("⚠️ " + warning + "\n")
@@ -216,16 +253,48 @@ func writeModule(b *strings.Builder, root string, m Module) {
 	writeField(b, "Blueprint", m.Blueprint)
 	b.WriteString("- **Objetivo operativo**\n")
 	fmt.Fprintf(b, "  - Problema: %s\n", m.ObjetivoOperativo.Problema)
-	writeField(b, "Usuarios", m.ObjetivoOperativo.Usuarios)
+	if completo {
+		writeField(b, "Usuarios", m.ObjetivoOperativo.Usuarios)
+	}
 	fmt.Fprintf(b, "  - Criterio de éxito: %s\n", m.ObjetivoOperativo.CriterioDeExito)
-	writeField(b, "Caso real", m.ObjetivoOperativo.CasoReal)
+	if completo {
+		writeField(b, "Caso real", m.ObjetivoOperativo.CasoReal)
+	}
 	b.WriteString("- **Objetivo tecnológico**\n")
 	fmt.Fprintf(b, "  - Arquitectura: %s\n", m.ObjetivoTecnologico.Arquitectura)
-	writeItems(b, "Decisiones", m.ObjetivoTecnologico.Decisiones)
+	writeItems(b, "Decisiones", decisionesDe(m, completo))
+	if len(m.ObjetivoTecnologico.Decisiones) > maxDecisiones {
+		fmt.Fprintf(b, "  - ⚠️ %d decisiones: la ficha creció más de lo que una IA lee con cuidado; propón dividirla en módulos (MEJ-073).\n", len(m.ObjetivoTecnologico.Decisiones))
+	}
 	writeItems(b, "Invariantes (no romper)", m.ObjetivoTecnologico.Invariantes)
 	writeItems(b, "Cómo se prueba", append(append([]string{}, m.Pruebas.Comandos...), m.Pruebas.Goldensets...))
 	writeItems(b, "ADRs", m.ADRs)
 	writeItems(b, "Findings", m.Findings)
+}
+
+// decisionesDe: enteras con completo; si no, la primera frase de cada una, hasta largoDecision.
+func decisionesDe(m Module, completo bool) []string {
+	if completo {
+		return m.ObjetivoTecnologico.Decisiones
+	}
+	out := make([]string, 0, len(m.ObjetivoTecnologico.Decisiones))
+	for _, d := range m.ObjetivoTecnologico.Decisiones {
+		out = append(out, primeraFrase(d, largoDecision))
+	}
+	return out
+}
+
+// primeraFrase corta en el primer punto seguido de espacio, o en max runas con «…».
+func primeraFrase(s string, max int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if i := strings.Index(s, ". "); i >= 0 && len([]rune(s[:i+1])) <= max {
+		return s[:i+1] + " …"
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max-1]) + "…"
 }
 
 func statusWarning(root string, m Module) string {

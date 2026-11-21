@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -82,6 +83,40 @@ func (f *transporteFalso) esperar(t *testing.T, plazo time.Duration, evento stri
 			return enviado{}
 		}
 	}
+}
+
+// accionEnDelta busca en todo lo enviado la acción con esa solicitud dentro de un delta. esperar descarta lo que no busca,
+// así que un delta que salió mientras se esperaba otro evento ya no pasa por él (FND-158).
+func (f *transporteFalso) accionEnDelta(t *testing.T, plazo time.Duration, clave, solicitud string) consola.Accion {
+	t.Helper()
+	limite := time.Now().Add(plazo)
+	for time.Now().Before(limite) {
+		if a, ok := accionEnEnviados(f.Enviados(), clave, solicitud); ok {
+			return a
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("ningún delta trajo la solicitud %s", solicitud)
+	return consola.Accion{}
+}
+
+func accionEnEnviados(enviados []enviado, clave, solicitud string) (consola.Accion, bool) {
+	for _, e := range enviados {
+		if e.Evento != "delta" {
+			continue
+		}
+		var d Delta
+		json.Unmarshal(e.Payload, &d)
+		if d.Proyectos[clave] == nil {
+			continue
+		}
+		for _, a := range d.Proyectos[clave].Acciones {
+			if a.Solicitud == solicitud {
+				return a, true
+			}
+		}
+	}
+	return consola.Accion{}, false
 }
 
 // contar dice cuántos eventos de ese tipo se mandaron en total.
@@ -418,7 +453,7 @@ func TestEstado_SinLimitesElCampoNoViaja(t *testing.T) {
 
 func TestAvisos_ElModoGoalAvisaAlDetenerseYAlTerminar(t *testing.T) {
 	rl := nuevoRelayBucle()
-	b := &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]bool{}}
+	b := &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]string{}}
 	conGoal := func(estado, motivo string) Estado {
 		g := &consola.Goal{Activo: true, Estado: estado, Motivo: motivo, Elegidas: []consola.Elegida{}}
 		return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Goal: g}}}}
@@ -451,5 +486,268 @@ func TestAvisos_ElModoGoalAvisaAlDetenerseYAlTerminar(t *testing.T) {
 	b.avisarNuevos(context.Background(), conGoal(consola.GoalTerminado, ""))
 	if tipo := recibir(); tipo != AvisoGoalTerminado {
 		t.Fatal(tipo)
+	}
+}
+
+// FND-028 de qdd-movile: con qdd consola descartar, el push «un pedido espera tu aprobación» seguía en la bandeja.
+
+func bucleDeAvisos(rl *relayBucleFalso) *Bucle {
+	return &Bucle{R: rl, Cred: Credenciales{Topico: "t", Firma: "f"}, avisos: make(chan error, 8), goalVisto: map[string]string{}, vistos: map[string]map[string]string{}}
+}
+
+func conEsperas(pedidos, fichas []string) Estado {
+	acciones := []consola.Accion{}
+	for _, id := range pedidos {
+		acciones = append(acciones, consola.Accion{ID: id, Tipo: consola.TipoPedido, Estado: consola.EstadoPendiente})
+	}
+	for _, id := range fichas {
+		acciones = append(acciones, consola.Accion{ID: id, Tipo: consola.TipoAprobar})
+	}
+	return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Acciones: acciones}}}}
+}
+
+func esperarAviso(t *testing.T, rl *relayBucleFalso, tipo string) {
+	t.Helper()
+	select {
+	case a := <-rl.avisos:
+		if a.Tipo != tipo || a.Proyecto != "p" || a.Clave != "c" {
+			t.Fatalf("quería %s: %+v", tipo, a)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("sin push %s", tipo)
+	}
+}
+
+func sinAviso(t *testing.T, rl *relayBucleFalso, motivo string) {
+	t.Helper()
+	select {
+	case a := <-rl.avisos:
+		t.Fatalf("%s: %+v", motivo, a)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestAvisos_ResueltoCuandoYaNoQuedaNadaDeEseTipo(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisarNuevos(ctx, conEsperas([]string{"a", "b"}, []string{"f"}))
+	sinAviso(t, rl, "la primera vez es la base")
+	b.avisarNuevos(ctx, conEsperas([]string{"b"}, []string{"f"}))
+	sinAviso(t, rl, "el aviso agrupa los pedidos y todavía espera uno")
+	b.avisarNuevos(ctx, conEsperas(nil, []string{"f"}))
+	esperarAviso(t, rl, AvisoPedidoResuelto)
+	b.avisarNuevos(ctx, conEsperas(nil, nil))
+	esperarAviso(t, rl, AvisoFichaResuelta)
+	b.avisarNuevos(ctx, conEsperas(nil, nil))
+	sinAviso(t, rl, "se avisa una sola vez")
+}
+
+func TestAvisos_UnoQueReemplazaAOtroNoEsResuelto(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisarNuevos(ctx, conEsperas([]string{"a"}, nil))
+	b.avisarNuevos(ctx, conEsperas([]string{"b"}, nil))
+	esperarAviso(t, rl, AvisoPedido)
+	sinAviso(t, rl, "sigue esperando un pedido")
+}
+
+func TestAvisos_UnProyectoSinPanelNoResuelveNiRepite(t *testing.T) {
+	rl := nuevoRelayBucle()
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisarNuevos(ctx, conEsperas([]string{"a"}, nil))
+	b.avisarNuevos(ctx, Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Error: ErrCarpetaNoExiste}}})
+	sinAviso(t, rl, "sin panel no se sabe qué espera")
+	b.avisarNuevos(ctx, conEsperas([]string{"a"}, nil))
+	sinAviso(t, rl, "el mismo pedido no es nuevo al volver")
+}
+
+func TestAvisos_UnRelayViejoQueRechazaElResueltoNoEsUnaFalla(t *testing.T) {
+	rl := nuevoRelayBucle()
+	rl.errAviso = ErrRechazada{Texto: "el relay respondió 400"}
+	b := bucleDeAvisos(rl)
+	ctx := context.Background()
+	b.avisar(ctx, AvisoPedidoResuelto, "p", "c")
+	esperarAviso(t, rl, AvisoPedidoResuelto)
+	select {
+	case err := <-b.avisos:
+		t.Fatalf("no se reporta como falla: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	b.avisar(ctx, AvisoPedido, "p", "c")
+	esperarAviso(t, rl, AvisoPedido)
+	select {
+	case err := <-b.avisos:
+		var rechazada ErrRechazada
+		if !errors.As(err, &rechazada) {
+			t.Fatalf("un aviso normal rechazado sí es una falla: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("un aviso normal rechazado sí se reporta")
+	}
+}
+
+// FND-158: un delta que salió mientras se esperaba otro evento se sigue encontrando.
+func TestAccionEnDelta_EncuentraElDeltaQueEsperarDescarto_FND158(t *testing.T) {
+	tr := nuevoTransporte()
+	d := Delta{Proyectos: map[string]*consola.DatosConsola{"app": {Acciones: []consola.Accion{{ID: "x", Solicitud: "s1"}}}}}
+	ctx := context.Background()
+	if err := tr.Broadcast(ctx, "delta", d); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.Broadcast(ctx, "accion_estado", AccionEstado{}); err != nil {
+		t.Fatal(err)
+	}
+	tr.esperar(t, time.Second, "accion_estado")
+	if a := tr.accionEnDelta(t, time.Second, "app", "s1"); a.ID != "x" {
+		t.Fatalf("acción: %+v", a)
+	}
+}
+
+// Pedido de qdd-movile y de la persona (2026-11-05): en 3 min el panel de qdd cambió 14 de 18 muestras, casi siempre solo en
+// «hace» y en los reintentos de un pedido armado, y cada cambio mandaba el panel entero.
+func panelConVolatil(etiqueta, hace, pulso string, intentos int, proximo time.Time) Estado {
+	d := &estado.DatosPanel{Hace: hace, Frentes: []estado.FrentePanel{{ID: "t", Actividad: &estado.ActividadPanel{Running: true, Pulso: pulso, Fuente: estado.FuenteAgente}}}}
+	a := consola.Accion{ID: "p", Tipo: consola.TipoPedido, Etiqueta: etiqueta, Estado: consola.EstadoPendiente, Intentos: intentos, Proximo: &proximo, Inicio: &proximo, AvisoEn: &proximo}
+	return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Estado: d, Acciones: []consola.Accion{a}}}}}
+}
+
+func TestDelta_LoVolatilSoloNoGastaUnMensaje(t *testing.T) {
+	tr := nuevoTransporte()
+	ctx := context.Background()
+	t0 := time.Now()
+	primero := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	b := &Bucle{T: tr, enviados: paneles(primero), estructura: estructuraDe(primero)}
+	b.mandarCambios(ctx, panelConVolatil("Publicar", "hace 2 min", "pulso-2", 2, t0.Add(time.Minute)))
+	tr.nada(t, 50*time.Millisecond)
+
+	ultimo := t0.Add(2 * time.Minute)
+	real := panelConVolatil("Publicar otra cosa", "hace 3 min", "pulso-3", 3, ultimo)
+	b.mandarCambios(ctx, real)
+	e := tr.esperar(t, time.Second, "delta")
+	var d Delta
+	if err := json.Unmarshal(e.Payload, &d); err != nil {
+		t.Fatal(err)
+	}
+	p := d.Proyectos["c"]
+	if p == nil || p.Estado.Hace != "hace 3 min" || p.Estado.Frentes[0].Actividad.Pulso != "pulso-3" {
+		t.Fatalf("un cambio real lleva lo volátil al día: %s", e.Payload)
+	}
+	a := p.Acciones[0]
+	if a.Intentos != 3 || a.Proximo == nil || !a.Proximo.Equal(ultimo) || a.Inicio == nil || a.AvisoEn == nil {
+		t.Fatalf("un cambio real lleva los reintentos al día: %s", e.Payload)
+	}
+}
+
+func TestDelta_QueLaTareaDejeDeEstarEnCursoEsUnCambioReal(t *testing.T) {
+	tr := nuevoTransporte()
+	t0 := time.Now()
+	primero := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	b := &Bucle{T: tr, enviados: paneles(primero), estructura: estructuraDe(primero)}
+	sinActividad := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	sinActividad.Proyectos[0].Panel.Estado.Frentes[0].Actividad = nil
+	b.mandarCambios(context.Background(), sinActividad)
+	tr.esperar(t, time.Second, "delta")
+}
+
+func TestPaneles_NoTocaLoQueSePublica(t *testing.T) {
+	t0 := time.Now()
+	e := panelConVolatil("Publicar", "hace 1 min", "pulso-1", 1, t0)
+	paneles(e)
+	p := e.Proyectos[0].Panel
+	if p.Estado.Hace == "" || p.Estado.Frentes[0].Actividad.Pulso == "" || p.Acciones[0].Intentos != 1 || p.Acciones[0].Proximo == nil {
+		t.Fatalf("la huella trabaja sobre una copia: %+v", p)
+	}
+}
+
+// qdd doctor (REM-09) lee si el último envío salió; se anota solo cuando cambia, no un archivo por mensaje.
+func TestBucle_AvisaDelEnvioSoloCuandoCambia(t *testing.T) {
+	var vistos []bool
+	tr := nuevoTransporte()
+	b := &Bucle{T: tr, AlPublicar: func(ok bool) { vistos = append(vistos, ok) }}
+	b.broadcast(context.Background(), "x", nil)
+	b.broadcast(context.Background(), "x", nil)
+	tr.mu.Lock()
+	tr.falla = errors.New("caído")
+	tr.mu.Unlock()
+	b.broadcast(context.Background(), "x", nil)
+	b.broadcast(context.Background(), "x", nil)
+	tr.mu.Lock()
+	tr.falla = nil
+	tr.mu.Unlock()
+	b.broadcast(context.Background(), "x", nil)
+	if len(vistos) != 3 || !vistos[0] || vistos[1] || !vistos[2] {
+		t.Fatalf("salió, falló y volvió a salir: %v", vistos)
+	}
+}
+
+// FND-169: sin teléfonos el plan no cambia y plan.json se queda quieto, pero el relay sigue respondiendo.
+func TestAlLatido_PlanSinCambiosRenuevaElUltimoLatido_FND169(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	inicio := time.Date(2026, 11, 6, 18, 55, 20, 0, time.UTC)
+	ahora := inicio
+	b := &Bucle{Ahora: func() time.Time { return ahora }}
+	if err := b.alLatido(resultadoLatido{plan: PlanGratis()}); err != nil {
+		t.Fatal(err)
+	}
+	ahora = inicio.Add(9 * time.Minute)
+	if err := b.alLatido(resultadoLatido{plan: PlanGratis()}); err != nil {
+		t.Fatal(err)
+	}
+	ultimo, err := UltimoLatido()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ultimo.Equal(ahora) {
+		t.Fatalf("el relay respondió a las %s y se anotó %s", ahora, ultimo)
+	}
+	var g planGuardado
+	if err := leerPrivado("plan.json", &g); err != nil {
+		t.Fatal(err)
+	}
+	if !g.En.Equal(inicio) {
+		t.Fatalf("un plan igual no reescribe plan.json: %s", g.En)
+	}
+}
+
+func TestAlLatido_SinRespuestaNoRenuevaElUltimoLatido_FND169(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	inicio := time.Date(2026, 11, 6, 18, 55, 20, 0, time.UTC)
+	ahora := inicio
+	b := &Bucle{Ahora: func() time.Time { return ahora }}
+	if err := b.alLatido(resultadoLatido{plan: PlanGratis()}); err != nil {
+		t.Fatal(err)
+	}
+	ahora = inicio.Add(9 * time.Minute)
+	if err := b.alLatido(resultadoLatido{err: errors.New("sin red")}); err != nil {
+		t.Fatal(err)
+	}
+	ultimo, err := UltimoLatido()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ultimo.Equal(inicio) {
+		t.Fatalf("REM-07 debe seguir viendo la última respuesta real: %s", ultimo)
+	}
+}
+
+// Un servicio de una versión anterior solo escribe plan.json mientras qdd doctor ya es el nuevo.
+func TestUltimoLatido_SinArchivoPropioUsaElPlan_FND169(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	if _, err := UltimoLatido(); err == nil {
+		t.Fatal("sin latidos no hay hora que dar")
+	}
+	en := time.Date(2026, 11, 6, 18, 55, 20, 0, time.UTC)
+	if err := GuardarPlan(PlanGratis(), en); err != nil {
+		t.Fatal(err)
+	}
+	ultimo, err := UltimoLatido()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ultimo.Equal(en) {
+		t.Fatalf("usa la hora del plan: %s", ultimo)
 	}
 }

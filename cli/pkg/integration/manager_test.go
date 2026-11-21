@@ -22,7 +22,7 @@ func (m *MockAdapter) Sync(projectPath string) error {
 
 func TestSyncAll_NotQDD(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	manager := NewIntegrationManager()
 	err := manager.SyncAll(tempDir)
 	if err == nil {
@@ -33,7 +33,7 @@ func TestSyncAll_NotQDD(t *testing.T) {
 func TestSyncAll_SuccessAndFailures(t *testing.T) {
 	tempDir := t.TempDir()
 	os.MkdirAll(filepath.Join(tempDir, ".qdd"), 0755) // Make it a QDD project
-	
+
 	manager := &IntegrationManager{
 		adapters: []AIAdapter{
 			&MockAdapter{ShouldFail: false},
@@ -41,7 +41,7 @@ func TestSyncAll_SuccessAndFailures(t *testing.T) {
 			&MockAdapter{ShouldFail: false},
 		},
 	}
-	
+
 	err := manager.SyncAll(tempDir)
 	if err != nil {
 		t.Errorf("Unexpected error from SyncAll: %v", err)

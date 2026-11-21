@@ -6,10 +6,1062 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.107] - 2026-11-20
+
+### Fixed
+
+- **La consola del teléfono saltaba a una sesión vieja (FND-244, MEJ-091):** Claude Code agrega a sesiones viejas datos sin hora, y eso alcanzaba para que una de ellas le ganara a la que trabaja. El teléfono la mostraba y apagaba «Claude está trabajando». Ahora la consola sigue a la sesión con el turno más reciente.
+
+## [2.10.0-rc.106] - 2026-11-20
+
+### Added
+
+- **Hooks de git de las puertas (ficha puertas, etapa 2b):** las puertas llegan a cualquier IA, no solo a Claude Code.
+  - `qdd puertas instalar` agrega a `pre-commit` (puerta audit) y `commit-msg` (puerta finding) un bloque marcado tras el shebang, sin tocar lo que ya hay. Con husky va en `.husky/`.
+  - Solo un rechazo corta el commit: sin qdd, con un qdd viejo o si falla, el commit pasa. La persona puede saltarlas en su terminal con `--no-verify`.
+  - `qdd doctor` revisa las puertas y `--fix` las activa en un proyecto con `policies.yaml` e instala los hooks. `qdd init` crea los proyectos nuevos con las puertas activas.
+  - qdd versiona sus propios hooks en `.husky/`.
+
+### Fixed
+
+- **Guardar las políticas apagaba las puertas (FND-243):** el dashboard reescribía `policies.yaml` sin la clave `puertas`. Ahora se conserva.
+
+## [2.10.0-rc.105] - 2026-11-20
+
+### Added
+
+- **`qdd puertas informe` y `qdd puertas falso` (ficha puertas, etapa 2b):**
+  - El informe muestra, por puerta: decisiones, rechazos, % corregido al primer reintento, falsos positivos, ms promedio y máximo, tokens por rechazo y errores, con la meta de la ficha debajo. `--json` da lo mismo para máquinas.
+  - `qdd puertas falso [id] --motivo …` marca un rechazo injusto; sin id, marca el último de la sesión. Cada decisión nueva queda con su id.
+
+## [2.10.0-rc.104] - 2026-11-20
+
+### Added
+
+- **Puertas ficha y finding (ficha puertas, etapa 2a):**
+  - **Finding:** un commit `fix:` o `fix(...)` pasa solo si nombra un FND-NNN de `.qdd/project/findings` con `test_result`. Se lee el mensaje de `-m` (también el de un heredoc) o el archivo de `-F`.
+  - **Ficha:** antes de editar un archivo que cubre una ficha, el panel pregunta a `qdd puertas revisar --editar` con las rutas cuyo contexto ya pidió la sesión (`qdd_project_context` o `qdd modules context`). Si ninguna mostró esa ficha, la edición se rechaza con el comando exacto. Una zona sin ficha pasa. Cuesta ~20 ms por edición.
+
+## [2.10.0-rc.103] - 2026-11-20
+
+### Added
+
+- **Puertas de QDD, etapa 1 (ficha puertas):** con `puertas:` en `.qdd/policies.yaml`, el panel de Claude Code revisa cada comando de la IA que commitea o publica con `qdd puertas revisar`, sin modelo ni tokens.
+  - Un `git commit` pasa solo si el árbol es el que aprobó el último `qdd audit`. El audit toma la huella al empezar y la deja como marca si aprueba.
+  - Publicar (`gh pr merge`, `git push` de un tag, `npm publish`, `gh release create`) va como pedido de la persona; `puertas: {publicar: ia}` lo deja a la IA.
+  - `git commit --no-verify` se rechaza.
+  - Si qdd falla o tarda más de 2 s, el comando pasa. Cada decisión se anota en `<QDD_HOME>/puertas/<proyecto>.jsonl`.
+  - qdd activa sus propias puertas.
+
+## [2.10.0-rc.102] - 2026-11-20
+
+### Fixed
+
+- **Pedidos con el baúl (FND-242):** un pedido corre aparte, fuera de Claude Code, y su comando no sabía de qué sesión venía. Uno que usa un token del baúl (como `qdd ambiente levantar`) fallaba con «no hay a quién pedirle permiso». Ahora corre con la sesión que lo pidió y el baúl deja el 🔑 en su panel.
+
+## [2.10.0-rc.101] - 2026-11-20
+
+### Added
+
+- **La consola de QDD Móvil dice cuándo Claude está trabajando (FND-239, MEJ-089):** Claude Code escribe cada respuesta solo al terminarla, así que en una respuesta larga el teléfono no veía nada hasta 40 s. Ahora el evento `consola` trae `trabajando` (desde cuándo) y la app muestra «Claude está trabajando… N s» mientras tanto. Salió en rc.97, que se publicó desde su rama, pero faltaba en la línea principal: rc.98 a rc.100 no lo traían. QDD Móvil ya lee el campo desde su versión 137.
+
+## [2.10.0-rc.100] - 2026-11-20
+
+### Changed
+
+- **Panel, baúl:** agregar un acceso es un asistente de una pregunta por pantalla (sitio, correo, cuenta, descripción, ambiente y el token al final). Enter responde y pasa a la siguiente con el foco en ella; lo respondido queda arriba y un clic vuelve a esa pregunta. Ya no hay nombres de campo partidos en el panel angosto ni campos que se ven vacíos tras Enter. Nombre, dónde, vencimiento y variable se abren desde «Más opciones». Modificar abre en el resumen con todo respondido. El asistente (`hooks/asistente.js`) queda como pieza común para los demás formularios del panel.
+
+- **Panel, baúl:** la lista dice «1 acceso», los datos de cada acceso van en su propia línea a todo el ancho (el correo ya no se corta) y un ID de cuenta largo se muestra acortado. Lo que responde qdd va una línea debajo de otra. Al verificar, la línea dice solo lo que se sabe («la API lo acepta · token active»), sin «dueño -» ni «vence -». En Modificar, «← Atrás» devuelve al resumen.
+
+### Fixed
+
+- **Baúl, Cloudflare:** un token creado en la cuenta (Account API Token) se rechazaba con 401, porque qdd solo lo probaba en `/user/tokens/verify`. Con el ID de cuenta (32 caracteres) en Cuenta, ahora se prueba primero en `/accounts/<id>/tokens/verify`. Sin el ID, el aviso dice que lo escribas. El id del token ya no se anota como su dueño. En el panel, la pregunta de Cloudflare pide el ID de cuenta, y un ID largo ya no se usa para el nombre: va la parte del correo (`cloudflare-chilefplay`).
+
+## [2.10.0-rc.99] - 2026-11-20
+
+### Changed
+- **Agregar un acceso al baúl pregunta lo que sabes de él** (pedido de la persona: «qdd es muy engorroso … que me preguntara siempre el correo … sitio seleccionable y si es otro que me pida la url, usuario o id de cuenta, pass o token, descripción opcional»). Config pide Correo, Sitio (Cloudflare, GitHub, Supabase, Resend, AWS u «Otro sitio…» con su URL), Usuario o ID de cuenta, Descripción y Ambiente, y al final «📋 Pegar token y guardar». El nombre se arma solo (`cloudflare-trdago`); Nombre, Dónde, Vence el y la variable quedan en «Más opciones». La dirección de cinco partes ya no se pide.
+- Agregar nunca reemplaza otro acceso con el mismo nombre (`guardar --nuevo`).
+- Modificar tiene «Guardar cambios», que no pide el token, y «📋 Pegar token nuevo».
+
+### Added
+- `qdd baul editar <nombre>`: cambia correo, URL, cuenta, descripción, ambiente o vencimiento sin pedir el valor.
+- `--vence AAAA-MM-DD` en guardar y editar: el vencimiento que declara la persona cuando la API no lo informa (CXF `expiryDate`, OWASP, NIST SP 800-57). Doctor avisa dos semanas antes; la fecha de la API manda.
+- Verificar avisa si la API dice que el token es de otro correo que el escrito.
+
+## [2.10.0-rc.98] - 2026-11-20
+
+### Added
+- **Baúl en Config, más fácil y estándar** (pedido de la persona: «en config debería estar el vault … quitar, agregar, modificar los nombres»). El baúl va primero en Config, antes que las herramientas. Modificar ahora cambia el nombre de un token sin pedir ni mostrar su valor («✎ Solo cambiar el nombre», o renombra y guarda el valor nuevo con «📋 Pegar del portapapeles»). La dirección estándar se arma con campos: el ambiente de una lista (dev, qa, prod, global) y servidor, servicio, clase y cuenta.
+- `qdd baul renombrar <nombre> <nuevo>`: el valor no sale de su lugar (llavero o 1Password), los permisos y solicitudes lo siguen y queda en el registro con el nombre anterior.
+
+## [2.10.0-rc.97] - 2026-11-20
+
+### Agregado
+
+- **`qdd_project_context` liviano (MEJ-073, FND-240):** cada decisión de una ficha sale en una línea y, con rutas, el
+  mapa de módulos en una sola línea; invariantes, criterio de éxito, arquitectura y pruebas siguen enteros. En qdd,
+  una carpeta bajó de 50.537 a 20.940 caracteres. `detalle=completo` (o `qdd modules context --completo`) trae todo,
+  y una ficha con más de 25 decisiones pide dividirse. El ambiente limpio certifica en cada PR que `tools/list` y
+  `project_context` caben en su presupuesto.
+
+- **Certificar QDD desde cero (`e2e/limpio/certificar.sh`):** cada PR instala el paquete de su rama en un Debian 12
+  fijo por digest, aislado con bubblewrap, sin red ni nada de esta máquina, y lo usa como una persona nueva: init,
+  doctor, estado, pedido, learn, certify y audit. Tarda ~1 s por corrida (Docker tardaba 0,3-0,45 s solo en arrancar)
+  y no necesita daemon. `--version X` certifica la versión publicada en npm.
+
+## [2.10.0-rc.96] - 2026-11-16
+
+### Agregado
+
+- **Quien reporta valida (MEJ-087, REP-503):** un bug enviado con `qdd reportar` dice cómo lo verificará quien lo
+  reporta (`--verifico`), y al enviarlo le queda un ⏳ en su tablero. En la cola de QDD, un reporte arreglado queda
+  `arreglada` y se cierra solo cuando quien lo reportó manda `qdd reportar --verifique REP-N --evidencia …`; con
+  `--sigue-fallando` se reabre el mismo. `qdd mejoras arreglada` marca uno arreglado fuera del ciclo. La regla está en
+  la forma de trabajo de `qdd_project_context`.
+
+## [2.10.0-rc.95] - 2026-11-15
+
+### Agregado
+
+- **QDD Móvil corre en Windows sin ventana de consola (sprint 9, FND-238):** la tarea que lo arranca al iniciar sesión
+  lanza `qddw.exe`, que corre qdd sin abrir ninguna ventana; si termina, la tarea lo vuelve a lanzar como antes. Su
+  registro queda en `<QDD_HOME>/remoto/correr.log` (1 MB y una copia). Al actualizar qdd, la tarea pasa sola a
+  `qddw.exe`; `qdd doctor` lo revisa (REM-23) y `qdd doctor --fix` lo repara si falta.
+
+## [2.10.0-rc.94] - 2026-11-15
+
+### Cambiado
+
+- **«Para ti» muestra solo el proyecto de la consola (MEJ-086, FND-237):** lo que te espera en otros proyectos ya no
+  llena el tablero; una línea los cuenta y los nombra («+ 2 proyectos te esperan: … · ver en Proyectos (y)») y abre la
+  vista Proyectos.
+
+## [2.10.0-rc.93] - 2026-11-15
+
 ### Corregido
 
+- **El panel avisa si su consola sigue con una versión anterior (FND-236):** Claude Code lee el panel al abrir la
+  consola, así que una abierta antes de actualizar no ve las correcciones. Ahora la cabecera dice «⟳ Este panel es de
+  qdd X y está instalado Y: cierra esta consola y ábrela con claude --continue». Las consolas que ya estaban abiertas
+  antes de rc.93 no traen la versión y no avisan: reinícialas una vez.
+
+## [2.10.0-rc.92] - 2026-11-15
+
+### Corregido
+
+- **Un ⏳ ya no te pide la tecla de un pedido que se retiró (MEJ-085, FND-235):** si un pedido sale del panel porque su
+  tarea siguió cambiando, el ⏳ que lo nombraba deja de preguntarse en el teléfono. `qdd estado check` y el aviso del
+  retiro le piden a la IA pedirlo de nuevo o actualizar el ⏳.
+
+## [2.10.0-rc.91] - 2026-11-15
+
+### Corregido
+
+- **Un mensaje del teléfono ya no queda «ejecutando» en una sesión detenida en un permiso (MEJ-084, FND-234):** una
+  sesión de Claude Code que espera un diálogo en la terminal (por ejemplo, un trabajo en segundo plano detenido en un
+  permiso) ya no toma lo que mandas desde QDD Móvil; lo recibe otra sesión abierta, o esa misma cuando respondes el
+  diálogo. Mientras espera, el pedido del teléfono dice por qué.
+
+## [2.10.0-rc.90] - 2026-11-15
+
+### Corregido
+
+- **Con dos sesiones abiertas en un proyecto, lo que mandas desde el teléfono llega a la que ves en su consola
+  (MEJ-082, FND-233):** qdd remoto dirige la instrucción a la sesión cuya conversación muestra la consola, si sigue
+  abierta; si se cerró, la toma otra. El evento `consola` y el pedido del teléfono dicen de qué sesión se trata.
+
+## [2.10.0-rc.89] - 2026-11-15
+
+### Corregido
+
+- **Un nodo de flujo con su tarea cerrada ya no dice «sin estado en el tablero» en el teléfono (MEJ-083, FND-232):**
+  el evento `flujo` trae `tarea_estado` en cada nodo cuya tarea existe y no está en el tablero visible (cerrada,
+  descartada u oculta). Una tarea que sale del tablero reenvía el flujo; los avances de las visibles, no.
+
+## [2.10.0-rc.88] - 2026-11-15
+
+### Corregido
+
+- **«Para ti» ya no parece mezclar los proyectos en uno (FND-231):** en el panel de Claude Code, el nombre de cada
+  proyecto y su «? N preguntas» van en la misma línea y lo demás sangrado debajo; con otros proyectos, lo de este
+  proyecto lleva su nombre. Antes cada cuenta quedaba a la misma distancia de su proyecto y del siguiente.
+
+## [2.10.0-rc.87] - 2026-11-15
+
+### Corregido
+
+- **`qdd remoto` dice qué pasó con cada pedido de lo logrado (MEJ-080, FND-229):** el registro del servicio anota cada
+  `pedir_logrado` como respondido (con cuántas entradas) o ignorado y por qué, y cuántos eventos del relay se perdieron
+  si el bucle no daba abasto. Un teléfono cuya presence trae un campo opcional de otro tipo ya no desaparece del canal.
+- **Un solo `qdd remoto correr` por QDD_HOME (MEJ-079, FND-230):** un candado del sistema operativo, que suelta la
+  muerte del proceso, impide que dos publiquen a la vez en el mismo canal. El segundo dice qué pid lo tiene y sale sin
+  conectarse; el servicio toma el relevo cuando el otro termina. Otro QDD_HOME (el PC de muestra) sigue corriendo junto.
+
+## [2.10.0-rc.86] - 2026-11-15
+
+### Corregido
+
+- **El nombre de un proyecto ya no llega al teléfono como `Sistema%20de%20gesti%C3%B3n` (MEJ-077, FND-227):** una ruta
+  que llegó codificada como URL se registra decodificada (y reemplaza la entrada codificada que ya estaba), y el
+  teléfono y «Para ti» de otros proyectos muestran el nombre decodificado. Una carpeta real con `%` queda tal cual.
+- **La consola remota ya no abre casi vacía en sesiones con resultados grandes (MEJ-078, FND-228):** la cola inicial
+  lee el transcript hacia atrás hasta juntar las últimas 40 líneas visibles (como mucho 8 MB del final), en vez de solo
+  los últimos 512 KB, que con capturas o salidas largas eran 3 o 4 líneas.
+
+## [2.10.0-rc.85] - 2026-11-15
+
+### Agregado
+
+- **`qdd ambiente levantar` muestra el plan del DNS de un ambiente (RFC 0023, fase 3):** `.qdd/ambientes.yaml` declara
+  por ambiente la zona de Cloudflare y los registros que espera, sin secretos. Con el token del baúl, el comando lee la
+  zona y dice qué crearía, qué cambiaría y qué ya está. Solo plan: no cambia nada en Cloudflare.
+
+## [2.10.0-rc.84] - 2026-11-15
+
+### Agregado
+
+- **`qdd doctor` revisa los flujos compartidos (RFC 0025, FLC-01 a FLC-03):** un grupo nuevo, solo en proyectos que
+  compartieron un flujo, nombra las invitaciones vivas de un flujo que ya no existe (`--fix` las revoca), las
+  propuestas sin resolver de más de 7 días (solo avisa) y las fotos que el relay todavía no tiene (`--fix` las sube).
+  `--fix` nunca toca una propuesta.
+
+## [2.10.0-rc.83] - 2026-11-15
+
+### Agregado
+
+- **El panel de Antigravity y VS Code anima solo lo que cambió (RFC 0014, fase D):** como el panel de Claude Code, un
+  pedido, una ficha o una tarea nueva o distinta aparece con el acento de los efectos de qdd y se asienta;
+  `qdd consola efectos off` y «reducir movimiento» lo apagan.
+
+## [2.10.0-rc.82] - 2026-11-15
+
+### Agregado
+
+- **`qdd consola activar` instala el panel en Antigravity y VS Code (RFC 0014, fase C):** si encuentra su carpeta de
+  extensiones, deja la extensión «QDD» (tablero, pedidos con «s  Sí» y fichas por aprobar) en la versión de la CLI, sin
+  abrir el IDE ni tocar las demás extensiones. `qdd consola actualizar` y `qdd doctor --fix` la mantienen al día y
+  `qdd consola desactivar` la quita. En Windows usa la ruta del binario real, porque sin shell no encuentra `qdd.cmd`.
+- **El panel de Antigravity y VS Code ejecuta (RFC 0014, fase B):** la vista confirma pedidos con «s  Sí» y aprueba
+  fichas, con su resultado arriba de «Para ti». Trae también la vista de solo lectura (fase A, #146), que estaba solo
+  en `main`.
+
+## [2.10.0-rc.81] - 2026-11-15
+
+### Corregido
+
+- **`qdd version` da la versión:** mostraba el aviso del motor cognitivo deprecado; ahora dice lo mismo que
+  `qdd --version`, en cualquier carpeta (FND-226, #271).
+
+## [2.10.0-rc.80] - 2026-11-15
+
+### Cambiado
+
+- **qdd implementa estado-por-tareas 2.3.0:** la receta suma lo de RFC 0017 §2 y §3 (módulo de una tarea, aviso de commits
+  nuevos en `qdd estado check` y revisión al cambiar su ficha), certificada a ciegas 2/2. Un proyecto que la aplica
+  necesita este qdd.
+
+## [2.10.0-rc.79] - 2026-11-15
+
+### Agregado
+
+- **Un tablero que no se queda atrás (RFC 0017 §2 y §3, MEJ-010):** una tarea puede declarar su módulo (`qdd estado tarea <id> --modulo <ficha>`, o `modulo` en `qdd_estado`), y `qdd estado set` anota en ella la hora de su última celda (`tocada_el`). Con los dos, `qdd estado check` avisa sin bloquear de los commits en las rutas de la ficha desde esa celda, y `qdd_project_context` pide a la IA revisar el nombre de la tarea y el criterio de su objetivo cuando la ficha cambió sus decisiones u objetivo operativo después. Solo lo corren check y el contexto, nunca el panel ni la barra; si git tarda más de 200 ms, se limitan al objetivo en foco y lo dicen. Los campos son opcionales: un `estado.yaml` sin ellos no cambia, y un qdd anterior lo lee igual.
+- **`qdd audit` dice qué no pudo revisar (RFC 0005, fase 1):** junto al puntaje informa cuántos principios se evaluaron en
+  todo el proyecto, y qué quedó sin revisar, por qué y dónde. Un 100 ya no sugiere que se revisó todo. No cambia el puntaje
+  ni lo que bloquea. También aparece en `qdd certify` y en las tools MCP. Si las pruebas no corrieron porque una regla ya
+  bloquea, la cobertura lo dice en vez de darlas por revisadas (FND-225).
+
+### Corregido
+
+- **Un script temporal en `./tmp` ya no hace fallar el gate (FND-219):** la prueba del cero `else` revisaba también `./tmp`, donde el método manda los scripts de un solo uso y que git ignora. Ahora salta el `tmp` de la raíz; una carpeta `tmp` dentro del código se sigue revisando.
+
+## [2.10.0-rc.78] - 2026-11-15
+
+### Agregado
+
+- `qdd flujo proponer <flujo> '<operación>' [--minuto mm:ss]` (RFC 0025, fase 4): en una conversación con un cliente, la IA propone nodos, notas e historias como asistente sin editar el flujo. Cada propuesta llega a «Para ti» como pedido 🎙 de la persona y, aprobada, entra con origen `asistente` o `transcripcion@mm:ss`.
+
+### Corregido
+
+- **El mensaje del tope de reportes dice 50 por día, como el relay (FND-218; pedido de la persona: «dejalo en 50»):** `qdd reportar` decía 5 por día aunque el relay de QDD Móvil ya acepta 50. Ese arreglo y `qdd flujo proponer` estaban en una rama que nunca se integró.
+
+## [2.10.0-rc.77] - 2026-11-15
+
+### Corregido
+
+- **El modo goal deja de empujar a la IA con tareas que esperan a la persona o a otros, y te avisa una vez qué te toca (FND-216, MEJ-055):** antes recordaba «quedan 64 tareas abiertas», contando las que esperan tu respuesta, un uso real, un CI o un tercero; gastaba los 3 recordatorios y se detenía «sin avance» sin decirte nada útil. Ahora el recordatorio nombra solo lo que la IA puede mover (en qdd hoy, 43 de 66). Si no queda nada, el modo queda en pausa («todo espera a la persona» en el panel) y recibes un solo aviso con hasta 5 ⏳, qué y de quién; vuelve a avisar solo si eso cambia, y sigue solo cuando hay algo que la IA puede mover. Una Validación real sin empezar cuenta como uso real tuyo, y una tarea que depende de otra abierta espera a esa otra.
+- **`qdd doctor` dice cuándo un aviso de QDD Móvil no llegó a ningún teléfono y por qué (REM-22, FND-217, MEJ-027):** antes, un push que el relay aceptaba sin entregarlo pasaba por enviado. Ahora el servicio lo anota con la hora y doctor nombra la causa: ningún teléfono con avisos activados, falta FCM en el relay o FCM no entregó. Solo avisa; un aviso que sí llega lo borra.
+
+## [2.10.0-rc.76] - 2026-11-15
+
+### Corregido
+
+- **Cuando una prueba de jest, dart o flutter falla, el gate dice cuál fue, aunque quede lejos del final de la salida (FND-211, MEJ-030):** antes mostraba «FAIL ./a.test.js» y «1 failed» sin nombrar la prueba. Ahora también reconoce las marcas «✕» y «●» de jest y «[E]» de dart.
+- **Descartar un pedido ya no deja correr a los que lo esperaban (FND-213, MEJ-043):** un despliegue que esperaba un push descartado queda bloqueado, sin botón y diciendo por qué, en vez de poder correr desde el código viejo. Vuelve a esperar si la IA pide de nuevo lo descartado, o queda libre si la IA pide de nuevo el bloqueado.
+- **Un pedido con un argumento con espacios corre como se pidió (FND-212, MEJ-043):** `qdd consola pedir -- git -c credential.helper="!gh auth git-credential" push` ya no parte el argumento; el panel muestra el comando citado, exactamente como corre.
+- **Con QDD Móvil abierto, el PC ya no gasta CPU en el historial de logros que no manda (FND-214):** cuando todos los teléfonos lo piden aparte, el estado se arma sin leerlo ni pasarlo por el filtro de secretos. Además, la prueba que fallaba con la máquina cargada ya no falla.
+
+## [2.10.0-rc.75] - 2026-11-15
+
+### Agregado
+
+- **`qdd doctor` revisa toda la comunicación con QDD Móvil y repara lo que puede (REM-15 a REM-19):**
+  - Si el teléfono quitó este PC, doctor lo dice y pide emparejarlo de nuevo, en vez de arrancar un servicio que vuelve a salir.
+  - Ve `credenciales.json` o `relay.json` rotos, y `--fix` aparta el roto y pide el relay al directorio firmado.
+  - Ve un servicio que lanza un qdd que ya no existe (por ejemplo, tras cambiar de versión de node), y `--fix` lo reescribe con el qdd de ahora.
+  - Ve el canal en tiempo real caído aunque el latido siga respondiendo, y `--fix` reinicia el servicio. También lo reinicia cuando el latido lleva más de 3 minutos sin respuesta (REM-07).
+  - Avisa si el reloj de este PC se separa más de 2 minutos del relay, antes de que se pierda una acción del teléfono. La hora de cada acción la pone el relay, y cada acción vale 5 minutos. También dice cuántas acciones se descartaron por eso.
+  - Las cinco revisiones se acordaron con qdd-movile.
+  - Nombra `solicitudes.json` cuando el servicio lo apartó por ilegible.
+- **QDD Móvil se autodiagnostica (REM-20):** con el teléfono activado, el servicio prueba cada hora que lo que el PC publica va y vuelve por el relay y que el relay acepta los avisos; si falla, dice en qué tramo, se repara solo (directorio o reinicio, como mucho cada 6 h) y doctor lo muestra. `qdd remoto sonda` la corre en el momento.
+- **Lo logrado va al teléfono bajo pedido:** la app lo pide al abrir Logrado y el estado que viaja pesa menos; un teléfono con una app anterior lo sigue recibiendo como antes. Contrato acordado con qdd-movile.
+
+### Corregido
+
+- **El ciclo de mejoras ya no llama «descartada» a un issue cerrado como resuelto ni pide cerrar issues ya cerrados (FND-207, MEJ-066):**
+  - Si un issue de la cola se cerró en GitHub como resuelto, la mejora queda hecha.
+  - El panel solo pide cerrar un issue que el ciclo vio abierto.
+  - Si GitHub no responde, no se decide nada: el ciclo vuelve a intentarlo en la siguiente pasada.
+- **Las preguntas de la IA, los permisos y los pedidos que esperan ahora suenan en el teléfono (FND-208, FND-210):** cumplen el contrato de avisos de QDD Móvil (23 casos de borde).
+- **doctor avisa si el estado que va al teléfono se acerca al tope de Realtime (REM-21, FND-209):** pasado el tope, el teléfono deja de ver el PC sin aviso.
+
+## [2.10.0-rc.74] - 2026-11-15
+
+### Agregado
+
+- **Una pregunta de la terminal sin responder avisa al minuto (#262):** si Claude Code deja abierto un AskUserQuestion o un permiso y nadie lo responde en 1 minuto, llega una notificación del escritorio con el proyecto y la pregunta, una sola vez. Lo que respondes antes, en la terminal o en QDD Móvil, no avisa.
+
+## [2.10.0-rc.73] - 2026-11-15
+
+### Agregado
+
+- **«▶ Para ti» trae lo que te espera en todos los proyectos (#256):** el panel de cualquier sesión muestra también las preguntas, los pedidos, las fichas y los ⏳ de tus otros proyectos, bajo el nombre de cada uno, y los responde desde ahí. Lo que confirmas corre en ese proyecto. `qdd consola --dir <carpeta>` actúa en otro proyecto.
+
+## [2.10.0-rc.72] - 2026-11-15
+
+### Cambiado
+
+- **Las preguntas de la terminal van primero en «▶ Para ti», con un botón por opción (MEJ-057):** una pregunta de la IA (AskUserQuestion), un permiso o la pregunta de un comando qdd se ve arriba, con su texto, y se responde desde el panel. Ya no queda plegada en «? N»; los ⏳ sí siguen plegados. Varias preguntas juntas se responden en la terminal.
+
+## [2.10.0-rc.71] - 2026-11-15
+
+### Corregido
+
+- **Las preguntas de la terminal aparecen en «▶ Para ti» aunque no uses QDD Móvil (FND-205, MEJ-057):** una pregunta de la IA (AskUserQuestion) o un permiso de herramienta se ve en el panel con o sin teléfono. Si qdd no alcanza a registrarla, el panel igual la cuenta como «en la terminal» hasta que la respondes. El aviso «También se puede responder desde QDD Móvil» sale solo si tienes el teléfono activado.
+
+### Pruebas
+
+- **Sprint 8: toda pregunta a la persona aparece en «Para ti»:** una prueba por tipo (pregunta de la IA, permiso, comando qdd, ⏳, pedido y ficha) y un contrato que falla si aparece un tipo nuevo sin su prueba.
+
+## [2.10.0-rc.70] - 2026-11-14
+
+### Agregado
+
+- **Lo que te necesita llega siempre al panel y al teléfono (MEJ-026, #150):** si la IA termina un turno con una pregunta para ti o un comando para que lo corras, y no lo dejó como ⏳, pedido o pregunta, qdd le devuelve el turno una vez para que lo deje en el panel, escrito para que se entienda solo.
+- **Pedidos que siempre esperan tu «Sí» (MEJ-024, #148):** `qdd_consola_pedir de_persona` (`qdd consola pedir --de-persona`) deja un comando que espera tu confirmación aunque el modo goal esté activo.
+
+### Cambiado
+
+- **Las reglas de QDD para las IAs llegan una sola vez por sesión y pesan la mitad (MEJ-062):** el bloque nuevo (revisión 5) mide 4 KB en vez de 8 KB, con todas sus reglas. `qdd doctor` avisa de las copias en carpetas padre y `--fix` las saca, con respaldo.
+
+### Corregido
+
+- **`qdd audit` revisa el formato del código como el CI (FND-203, MEJ-061):** gofmt siempre; prettier, biome, ruff, black y dart format si el proyecto los usa. Sin el formateador instalado, avisa sin bloquear. Antes, un commit que pasaba el gate podía fallar en el CI por formato.
+- **Windows: qdd remoto vuelve a correr solo después de actualizar qdd (FND-204, MEJ-064):** al momento o en 5 minutos como mucho, en vez de esperar al próximo inicio de sesión. `qdd doctor` avisa y quita la tarea vieja «qdd-remoto» (REM-13, REM-14).
+
+## [2.10.0-rc.69] - 2026-11-13
+
+### Corregido
+
+- **Modificar un token en 1Password ya no lo duplica (FND-202):** guardar de nuevo un token que estaba en 1Password creaba un segundo ítem con el mismo título, y después no se podía usar. Ahora el ítem se reemplaza.
+
+## [2.10.0-rc.68] - 2026-11-13
+
+### Agregado
+
+- **Dirección estándar en el baúl:** cada acceso puede llevar `ambiente/servidor/servicio/clase/cuenta` (p. ej. `prod/db-01/notificador/postgres/app_user`), con ambiente dev, qa, prod o global. La misma dirección no se guarda dos veces con nombres distintos. Va con `qdd baul guardar --direccion` y con el campo Dirección en Config del panel.
+
+## [2.10.0-rc.67] - 2026-11-11
+
+### Corregido
+
+- **Una ficha nueva ya no se queda en el chat (FND-201, MEJ-059, #243):** al guardar una ficha, qdd le decía a la IA que te pidiera aprobarla, y la IA lo hacía solo en el chat. Ahora le dice que la ficha ya te llega en «▶ Para ti» y al teléfono.
+
+## [2.10.0-rc.66] - 2026-11-11
+
+### Corregido
+
+- **Un git push con commits nuevos ya no es «repetido» (FND-200, MEJ-053):** el mismo `git push` se rechazaba como «ya se hizo» por 24 h aunque hubiera commits nuevos. Ahora el seguro recuerda las ramas y tags del push y solo lo rechaza si no hay nada nuevo que subir.
+
+## [2.10.0-rc.65] - 2026-11-11
+
+### Corregido
+
+- **El panel muestra todas las tareas del objetivo en foco (FND-199, MEJ-065):** solo se veían las 4 pendientes más nuevas y las demás del foco quedaban ocultas. Ahora las del foco se ven siempre y el tope de 4 cuenta solo el resto.
+
+## [2.10.0-rc.64] - 2026-11-11
+
+### Corregido
+
+- **La IA sabe qué eligió el modo goal (FND-198, MEJ-025, #147):** una pregunta que respondía el modo goal le llegaba a la IA igual que una respuesta tuya, y la IA dejó en commits aprobaciones que nadie dio. Ahora cada respuesta del modo dice «la eligió el modo goal, no la persona».
+
+## [2.10.0-rc.63] - 2026-11-11
+
+### Corregido
+
+- **En Windows, `bash` en un pedido es el de Git, no WSL (FND-197, MEJ-058):** los pedidos corren en cmd.exe, donde `bash` abría WSL; con WSL detenido morían por timeout y su error se veía ilegible (UTF-16). Ahora el pedido usa el bash de Git que usa Claude Code y la salida se guarda legible. Además, `qdd doctor --fix` pone al día la tarea de qdd remoto antes de arrancarla.
+
+## [2.10.0-rc.62] - 2026-11-10
+
+### Corregido
+
+- **`--despues` acepta la tecla de un pedido que ya terminó (FND-196, MEJ-054):** en modo goal un pedido se confirma en segundos y su tecla queda libre, así que pedir otro con `--despues <esa tecla>` fallaba con «no hay un pedido…» o «no puede esperarse a sí mismo». Ahora esa dependencia cuenta como cumplida. Además, `qdd consola pedidos --salida <id o tecla>` muestra cómo terminó un pedido y su salida.
+
+## [2.10.0-rc.61] - 2026-11-10
+
+### Corregido
+
+- **En Windows sin administrador, la tarea de qdd remoto ya queda registrada (FND-195, MEJ-052, MEJ-060):** `qdd login` y `qdd remoto activar` escribían una tarea de inicio que valía para cualquier usuario del equipo, y Windows respondía «Acceso denegado» al registrarla, así que QDD Móvil dejaba de ver el PC en cuanto el servicio se cortaba. Ahora la tarea es solo de tu usuario. Una tarea de antes se corrige sola al actualizar qdd, y `qdd doctor` la marca (REM-12) y `--fix` la registra.
+
+## [2.10.0-rc.60] - 2026-11-10
+
+### Corregido
+
+- **«Actualizar qdd» espera a que npm entregue la versión (FND-194, MEJ-049):** el panel la ofrece en cuanto npm la nombra, pero npm install podía no verla todavía y fallaba con ETARGET. Ahora el pedido le pregunta a npm primero; si no la ve, dice «todavía no» y se reintenta solo.
+
+## [2.10.0-rc.59] - 2026-11-10
+
+### Corregido
+
+- **En Windows, un pedido ya no muere al cerrar Claude Code (FND-193, MEJ-048):** el pedido corría aparte, pero seguía dentro del Job Object de quien lo lanzó, y un job que mata a sus procesos al cerrarse se lo llevaba a medio camino («exit -1 · terminó sin anotar el resultado»). Ahora pide salir del job; si el job no lo permite, se lanza como antes.
+
+## [2.10.0-rc.58] - 2026-11-09
+
+### Corregido
+
+- **El aviso de un ⏳ ya no llega viejo ni repetido (FND-192, MEJ-046):** pulsar una etapa ⏳ mientras la IA trabajaba dejaba el aviso en la cola del chat, y llegaba después de que la IA cerró la etapa, una vez por pulsación. Ahora el panel guarda uno por etapa, dice «se envía cuando la IA termine» y al terminar el turno se lo vuelve a pedir a qdd: si la etapa ya no espera, no se envía.
+
+## [2.10.0-rc.57] - 2026-11-09
+
+### Added
+- El baúl de accesos se administra desde Config en el panel (pedido de la persona, 2026-11-09). Ahí ves cada token con su tipo, lugar, dueño, vencimiento y último uso, nunca su valor; los rechazados aparecen en rojo. «+ Agregar token» y «Modificar» guardan lo que copiaste: presionas «📋 Pegar del portapapeles» y qdd lo lee, vacía el portapapeles, lo prueba con su API y lo guarda (`qdd baul guardar … --portapapeles`). «Quitar» pregunta antes y borra el valor y sus permisos (`qdd baul quitar`). «Verificar» lo prueba de nuevo.
+
+## [2.10.0-rc.56] - 2026-11-09
+
+### Agregado
+
+- **`qdd doctor` revisa que la sesión late (FND-191):** desde una sesión de Claude Code, el grupo de la consola dice si el panel la anota como viva. Si no, explica para qué importa (el baúl y el teléfono) y qué hacer, y si la sesión late en una carpeta de arriba con `.qdd`, la nombra. `--fix` no reinicia la sesión ni el panel: lo dice.
+
+## [2.10.0-rc.55] - 2026-11-09
+
+### Corregido
+
+- **El baúl pide permiso sin QDD Móvil (FND-191, MEJ-056):** sin teléfono emparejado, la sesión no se anotaba como viva y `qdd baul usar` decía «la sesión no late en este proyecto» sin dejar el pedido 🔑 (visto en Windows). Ahora la sesión se anota siempre; entregar instrucciones sigue siendo solo con QDD Móvil.
+- **BP-08 nombra el `fuera` mal puesto (MEJ-022, #143):** si un módulo que aplica un blueprint lo declaró fuera en `implementa`, el gate dice que esa entrada no vale para lo aplicado y que el `fuera` va en la raíz de la ficha. Desde la rc.26 (FND-121), el registro de aplicación ya toma el `fuera` de la raíz.
+
+## [2.10.0-rc.54] - 2026-11-09
+
+### Fixed
+- El panel sin trabajo ya no gasta CPU (FND-190). Con 8 paneles abiertos se iba cerca de medio núcleo constante, que se notaba como caídas de FPS en un juego. El candado del latido de cada panel despertaba a todos los demás paneles de la máquina, y cada relectura parseaba `estado.yaml` unas cinco veces. Ahora un panel solo despierta por los archivos de su proyecto, y el estado se parsea una vez mientras no cambie: la relectura bajó de 31 ms a 3,5 ms.
+
+## [2.10.0-rc.53] - 2026-11-09
+
+### Added
+- Logrado para QDD Móvil (rediseño elegido por la persona, 2026-11-09): `qdd consola panel --con logrado` trae lo que salió bien en los últimos 14 días. Eso son los pedidos hechos con su salida, las tareas cerradas con su motivo, los objetivos cumplidos con su evidencia y lo que mandaste desde el teléfono con cómo terminó. El relay lo publica pasado por el ocultador. Los pedidos se empiezan a juntar desde esta versión, porque antes salían de la cola a los 30 minutos.
+
+## [2.10.0-rc.52] - 2026-11-08
+
+### Changed
+- Flujos: cada nodo se dibuja con solo su título, para leer el flujo de un vistazo (pedido de la persona, 2026-11-08). `qdd flujo ver --detalle`, o `h  ☰ Ver detalle` en el panel, pone la descripción debajo del título, separada por una línea; la tarjeta del nodo elegido la muestra siempre.
+- Flujos con peso visual (pedido de la persona, 2026-11-08: «le falta peso visual»). En el panel, el título de cada nodo va en negrita; los bordes y las flechas van en el gris de la marca; la descripción va en el gris claro; el estado de su tarea va en verde, ámbar o rojo; y el nodo elegido va entero en el azul de acento. Las columnas no cambian. qdd marca el rol de cada trozo del dibujo (`rol` en los segmentos de `qdd flujo ver --json`), y un qdd anterior dibuja como antes. En la página HTML, los títulos van en peso medio y el elegido en negrita.
+
+## [2.10.0-rc.51] - 2026-11-08
+
+### Added
+- Panel: la pestaña Flujos abre a pantalla completa cuando la terminal está en pantalla completa (pedido de la persona, 2026-11-08). ⤡ Al lado (z) / ⤢ Pantalla completa la alternan y ← Tareas (t) vuelve al tablero con el reparto de siempre.
+
+## [2.10.0-rc.50] - 2026-11-08
+
+### Fixed
+- El panel ya no queda en negro sin repositorio de blueprints (MEJ-045, MEJ-050, FND-189). Lo que qdd le entrega al panel nunca trae una lista null (`pkg/listas`), una prueba de contrato lo revisa en un proyecto vacío y en uno con datos, y cada vista se dibuja protegida: si una falla se ve «✗ La vista X falló», se puede volver al tablero y la falla queda en `qdd incidentes panel`.
+
+## [2.10.0-rc.49] - 2026-11-08
+
+### Added
+- Compartir un flujo con un enlace (RFC 0025, fase 3b; propuesta tuya): «↗ Compartir» (c) en la esquina de la pestaña Flujos, o `qdd flujo compartir <flujo> --enlace`. Con un token de Cloudflare en el baúl, qdd instala un Worker en tu cuenta, sube la página y copia el enlace; quien lo recibe solo lo abre y propone. La primera vez en cada consola, el baúl pide tu permiso en «Para ti». El token de la invitación va solo en el `#` del enlace, que el navegador no le manda a Cloudflare. Revocar la invitación o `--quitar-enlace` hace que el enlace deje de abrir. Sin Cloudflare en el baúl, queda el archivo de siempre.
+
+## [2.10.0-rc.48] - 2026-11-08
+
+### Fixed
+- FND-188: un pedido 📮 que confirmaste ya no falla porque un qdd anterior le borró la marca «de la persona». La cola conserva los campos que una versión no conoce, y el siguiente ciclo de mejoras le devuelve la marca a un pedido que la perdió.
+
+## [2.10.0-rc.47] - 2026-11-08
+
+### Added
+- Flujos versionados y con plantilla (RFC 0025, fase 1). Cada cambio sube una revisión con su autor en `<flujo>.historial.jsonl` (`qdd flujo historial`). `qdd flujo version` guarda una versión con nombre, `comparar` dice qué nodos cambiaron entre dos y `volver` deja el flujo como en una, en una revisión nueva. La plantilla (`proceso`, `web`, `datos`, `agentes`; `qdd flujo plantillas`) trae los tipos de nodo y el nombre de los niveles N1 · N2 · N3. Doctor avisa de un flujo editado a mano cuyo historial no llega a su revisión (FLU-02), y `--fix` lo anota.
+- Grupos con clase: `qdd flujo grupo <flujo> "<nombre>" --clase fase|cola|ambiente…` le da clase y descripción a un grupo de nodos («[fase] Ingreso»).
+- `qdd flujo compartir <flujo> [--para <nombre>]` escribe un HTML de un solo archivo para conversar el flujo con alguien sin QDD. Trae N1 · N2 · N3, grupos como marcos, la leyenda de la plantilla, un recorrido de la primera vez, el detalle al tocar un paso y enlaces `#n2/<nodo>`. Va limpio de rutas y secretos, sin nada de afuera y con CSP por hash. Sin `--rol` es de solo lectura.
+- El archivo de `qdd flujo compartir` lleva la marca de QDD y todo adentro: isotipo «▶_», paleta Gruvbox oscura, JetBrains Mono embebida, esquinas de 2 px sin sombras y un ícono SVG por tipo de nodo. Los íconos de las plantillas ya no usan emojis.
+- Invitados que proponen (RFC 0025, fase 3): `qdd flujo compartir <flujo> --rol cliente|experto [--dias N] [--tope N]` crea una invitación en el relay de QDD y el archivo propone. En el detalle de cada paso hay acciones directas (comentar, agregar después, renombrar, describir, conectar, mover, quitar y, para el experto, nota técnica). La lista «Propuestas» muestra el estado de cada una en vivo, y la foto nueva llega sola cuando apruebas algo. Sin conexión, lo propuesto espera en el navegador. Cada propuesta llega a tu panel como un pedido 📝 que solo tú confirmas (`qdd flujo propuestas aprobar PRO-n`); descartarlo la rechaza. Lo que no cumple el esquema o el rol se rechaza solo, con su motivo. Abierto en otro navegador, el archivo igual dice qué se propuso en cada una. También `qdd flujo propuestas`, `qdd flujo invitaciones` y `qdd flujo compartir --revocar <invitación>`.
+- Historias de usuario en el flujo (RFC 0025): `qdd flujo historia <flujo> --como … --quiero … --para … --criterio … --nodo …` las escribe con id `h1`, `h2`…, `qdd flujo historias` las lista y `qdd flujo historia tarea <flujo> <h>` crea la tarea del tablero que la implementa e imprime sus criterios. El cliente y el experto también las proponen desde el archivo («Historia de usuario»), y entran a su nombre cuando apruebas. Se ven en su nodo, en el panel y en el archivo.
+- Notas internas o compartidas: una nota es interna hasta que la compartes (`qdd flujo item compartir <flujo> <nodo> <item> [--interna]`, o el botón «interna / la ve el cliente» del nodo en el panel). El experto puede pedir compartirla al proponerla, y la ves así antes de aprobar. El archivo del cliente lleva solo las compartidas, nunca una interna ni el origen de una historia.
+
+### Changed
+- Panel, pestaña Flujos: cada nodo se toca en el dibujo mismo y su tarjeta (comentar, preguntar, editar, mover…) se abre justo debajo de él, sin bajar a la lista. En el panorama, tocar la caja de un grupo lo abre. La lista de nodos sigue debajo para el teclado y los que el nivel esconde. `qdd flujo ver --json` entrega cada línea partida por nodo (`segmentos`).
+
+## [2.10.0-rc.46] - 2026-11-08
+
+La rc.45 no llegó a npm: su tag salió sin subir la versión del paquete. Esta trae lo mismo.
+
+### Fixed
+- FND-187: un pedido que terminó bien ya no se le avisa a la IA como «se cortó». El panel envía el resultado que qdd tiene al reclamar el aviso, no el de su lectura anterior; si el resultado real llega después de un corte, se vuelve a avisar; y un pedido no se da por cortado en sus primeros 5 s.
+
+## [2.10.0-rc.44] - 2026-11-08
+
+### Added
+- Esperas que se responden solas: `qdd estado set … espera --verifica npm:<paquete>@<versión>|pr:<n>|tag:<tag>|pedido:<n>|archivo:<ruta>` (también `verifica` en `qdd_estado`). `qdd estado verificar` las revisa (el panel cada minuto con `--si-toca`, cada 10 min por espera), y cuando se cumple la celda pasa sola a ✅ con su evidencia. La espera muestra «⟳ se responde sola» y no se le pregunta a la persona. Doctor avisa de las que fallan (VRF-01) o no se entienden (VRF-02).
+
+## [2.10.0-rc.43] - 2026-11-08
+
+### Changed
+- Panel: en «▶ Para ti» van primero las acciones (pedidos y fichas); las preguntas (⏳ y lo abierto en la terminal) quedan plegadas en un botón «▸ ? N» que se despliega si quieres, cada una con su número de turno.
+
+## [2.10.0-rc.42] - 2026-11-08
+
+### Added
+- La cola de mejoras lee los reportes del relay (RFC 0024, fase 3): en el repositorio de QDD, `qdd mejoras ciclo` trae lo que llegó con `qdd reportar` y lo deja `por_admitir`. Como cualquiera puede enviar, no es tarea hasta que la persona lo admite con el pedido 📮 del panel (`qdd mejoras admitir MEJ-NNN`), igual que la etiqueta «mejora» de un issue.
+
+## [2.10.0-rc.41] - 2026-11-08
+
+### Added
+- `qdd reportar` (RFC 0024): un camino directo a QDD para quien no tiene GitHub. Limpia el texto (credenciales, valores del baúl, la ruta del proyecto, tu carpeta y tu nombre de usuario), lo muestra tal cual viaja y lo envía al relay de QDD solo con tu «sí»: en tu terminal pregunta; desde una IA deja un pedido 📮 que solo la persona confirma. Firma con la llave de la instalación (`qdd reportar llave`); `qdd reportar enviados` lista lo enviado.
+
+### Fixed
+- FND-186: la limpieza de un reporte reemplaza la ruta del proyecto antes que las cadenas largas, para que un tramo largo no deje pasar el resto de la ruta.
+
+## [2.10.0-rc.40] - 2026-11-08
+
+### Corregido
+
+- **Un lockfile de blueprints escrito en Windows ya no rompe `qdd audit` en Linux (FND-185, MEJ-038).** La huella de
+  cada blueprint dependía del fin de línea: con CRLF, el gate acusaba edición a mano sin que la hubiera. Ahora se
+  calcula con los archivos de texto en LF, como los guarda git. Las huellas ya escritas en Linux no cambian. Importar
+  desde una carpeta local avisa que esa ruta no existe en otro PC.
+
+## [2.10.0-rc.39] - 2026-11-08
+
+### Corregido
+
+- **Un comentario que qdd no puede guardar ya no se pierde (FND-184, MEJ-037).** Si qdd rechaza un comentario, una
+  pregunta, un ítem o el nombre de un nodo nuevo en la pestaña Flujos, el texto sigue en el campo junto al aviso, para
+  reintentar.
+
+## [2.10.0-rc.38] - 2026-11-08
+
+### Agregado
+
+- **Flujos grandes por niveles: panorama, camino y todo (#186, partes B y C).**
+  - **Nivel 1, panorama:** una caja por grupo, con sus hitos y cuántos pasos y desvíos esconde. En la pestaña Flujos,
+    un flujo de 15 nodos o más abre aquí, y cada grupo se abre o se pliega con un clic.
+  - **Nivel 2, camino:** el camino principal, con los desvíos contados.
+  - **Nivel 3, todo:** el flujo entero.
+  - Las teclas 1, 2 y 3 cambian el nivel.
+  - Con cuatro grupos, `analisis-oportunidades` ocupa 21 líneas en el panorama, frente a 95 completo.
+  - La tarjeta del nodo muestra su nivel (el calculado o el que pusiste) y su grupo, y Editar los cambia. En la CLI es
+    `qdd flujo modificar --grupo G --nivel N`, y `qdd flujo ver` acepta `--nivel` y `--abrir`.
+
+## [2.10.0-rc.37] - 2026-11-08
+
+### Agregado
+
+- **`qdd baul`: los tokens se guardan una vez y la IA los usa sin verlos (RFC 0023, fase 1).**
+  - `qdd baul guardar <nombre> --tipo cloudflare|github|supabase|resend|aws-sso|otro` pide el valor oculto, solo en tu
+    terminal. Lo guarda en el llavero del sistema, o en 1Password con `--en 1password`. De AWS guarda solo el perfil de
+    IAM Identity Center.
+  - Al guardar, y con `qdd baul verificar`, QDD prueba el token contra su API y anota dueño, alcance y vencimiento.
+  - `qdd baul usar <nombre> --para "<fin>" -- <comando>` corre el comando con el token solo en su entorno y tapa los
+    valores del baúl en la salida.
+  - El permiso es por sesión, proyecto, token y fin, y dura lo que la consola. Sin permiso, `usar` deja un pedido «🔑»
+    en el panel que solo confirma la persona (el modo goal no lo lanza) y sale con 75.
+  - Cada uso queda en un registro encadenado (`qdd baul registro`), y `qdd doctor` avisa si se rompe.
+  - Doctor avisa también de tokens vencidos o sin uso y de `.env` con secretos, mostrando solo los nombres de las
+    claves. No existe `qdd baul ver`.
+
+## [2.10.0-rc.36] - 2026-11-08
+
+### Corregido
+
+- **En Windows, la instalación ya no falla con EBUSY (#175, FND-183).** Un antivirus puede retener unos segundos el
+  `qdd.exe` recién descargado. Ahora la instalación espera hasta unos 30 s y, si sigue ocupado, lo copia. Lo temporal
+  que no se puede borrar ya no tapa el mensaje, y no queda una carpeta de versión vacía.
+
+## [2.10.0-rc.35] - 2026-11-08
+
+### Corregido
+
+- **Los flujos ya no fallan con «not a directory» (FND-182, MEJ-036, MEJ-037).** Cada comando dejaba su nombre en
+  `.qdd/working` como archivo, la misma ruta donde los flujos guardan su carpeta; si el comando se cortaba, el archivo
+  quedaba y `qdd flujo crear` o un comentario fallaban. El nombre va ahora en `.qdd/working/comando`, y qdd quita solo
+  el archivo viejo.
+
+## [2.10.0-rc.34] - 2026-11-07
+
+### Agregado
+
+- **`qdd rendimiento`: la misma medición en cada equipo, sin tokens (RFC 0022).** Corre qdd en una caja temporal, igual
+  en cada equipo y sin tocar tus proyectos, y mide la latencia de la barra, el panel, `qdd estado` y un flujo; la CPU,
+  la memoria y los procesos por hora de `qdd consola seguir`; los zombies y los procesos que quedan vivos al cerrarla
+  (los cierra), y lo que el MCP de qdd suma al contexto de cada sesión. Cada medida tiene un presupuesto por sistema
+  operativo. Sale con 1 si dejó procesos y con 2 si solo pasó un presupuesto. `qdd doctor` muestra lo último medido.
+  El CI la corre en Linux, Windows y macOS en cada PR. Con rc.31 marca la falla de los zombies (FND-179).
+
+## [2.10.0-rc.33] - 2026-11-07
+
+### Cambiado
+
+- **Todos los flujos en una sola pestaña, Flujos.** Con muchos flujos (20 de prueba en un proyecto), una pestaña por
+  flujo era inmanejable, y cerrarlas también. Ahora arriba va un mapa de todos: cada flujo en una fila con sus nodos,
+  sus pruebas (✓ pasan, ✗ fallan, ☐ faltan) y lo que tiene por enviar; las teclas 1…9 abren los primeros. Elegido uno,
+  se dibuja con **☰ Mapa** (`w`), **‹** (`p`), «2 de 20» y **›** (`n`). Con un solo flujo se dibuja directo. Las
+  pestañas de cada flujo que dejó la versión anterior se cierran solas.
+- **Un flujo grande se lee sin bajar cientos de líneas.** Cada rechazo, vuelta atrás o atajo partía el ancho, y el
+  camino principal nunca lo recuperaba: las cajas quedaban de 9 columnas, con las palabras cortadas. Ahora un desvío
+  cuelga al costado del nodo en una línea (`├─ ( REJECTED_REGION )`, `├─ ↷ salta a Cola`) y el camino principal conserva
+  todo el ancho. Un flujo de 23 nodos bajó de 315 a 94 líneas a 100 columnas (#186).
+
+### Corregido
+
+- **El dibujo dejaba fuera un nodo cuando las ramas se cruzaban (FND-180).** En 24 000 flujos al azar faltaba uno en 8;
+  ahora en ninguno.
+
+## [2.10.0-rc.32] - 2026-11-07
+
+### Corregido
+
+- **Procesos zombie de la consola (FND-179, MEJ-042):** cada consola abierta dejaba un proceso `qdd <defunct>` por
+  minuto, más o menos (744 en un PC con 7 consolas). Los pedidos, la revisión de PRs, el aviso de versión nueva y la
+  publicación de incidentes se lanzaban y se soltaban sin recogerlos. Ahora cada uno se recoge al terminar. Los que ya
+  existen se van al cerrar y volver a abrir cada consola con esta versión.
+
+## [2.10.0-rc.31] - 2026-11-07
+
+### Agregado
+
+- **Ítems en cada nodo de un flujo:** pruebas, notas, características y funciones. Al probar con qdd-human, las pruebas de
+  cada paso se ven en el nodo como ☐ pendiente, ✓ pasa o ✗ falla, con su evidencia, y desde el mismo nodo agregas algo
+  específico que probar. qdd-human las lee del flujo y las marca con la carpeta del run. En el panel: **Ítem** (`b`) en
+  cada nodo, ✓ ✗ para marcar y el resumen en la fila del nodo. El teléfono manda las mismas operaciones. Nuevo
+  `qdd flujo item agregar | marcar | quitar`.
+
+## [2.10.0-rc.30] - 2026-11-07
+
+### Agregado
+
+- **Preguntarle a un nodo o al flujo completo:** al mirar un flujo, cada nodo tiene **Preguntar** (`g`), y sobre los nodos
+  está **Preguntar sobre el flujo** (`i`). La IA recibe la pregunta en el acto, con el contexto del nodo (su descripción,
+  de dónde viene y qué sigue), y responde ahí mismo, orientada a ese nodo. Sirve para entender un sistema nuevo palabra
+  por palabra. El teléfono manda la misma operación (`preguntar`). Nuevos `qdd flujo preguntar` y `qdd flujo responder`.
+
+## [2.10.0-rc.29] - 2026-11-07
+
+### Agregado
+
+- **Botones en cada ⏳ tuyo: «Ya lo hice», «Todavía no» y «Ya no va»,** en el panel del PC (bajo cada pregunta de «Para
+  ti») y en QDD Móvil. La respuesta queda en el estado aunque no haya una sesión de Claude Code abierta: «Ya lo hice» pasa
+  el ⏳ a la IA para que lo verifique, «Ya no va» deja la etapa en — y «Todavía no» lo vuelve a preguntar al día. Si hay
+  una sesión, la IA se entera al tiro. En el PC, `qdd consola pregunta responder <id> <opción>`.
+
+### Cambiado
+
+- **QDD Móvil muestra los ⏳ aunque el proyecto no tenga una sesión abierta** (`sin_sesion: true`). Una respuesta escrita
+  con «Otra» también queda en el estado, para la IA.
+
+## [2.10.0-rc.28] - 2026-11-07
+
+### Agregado
+
+- **Botón 📷 Foto en el panel:** con una imagen copiada aparece 📷 (tecla `t`). Al pulsarlo trae la foto con `qdd foto` y deja
+  «mira <ruta>» en el chat, sin enviarlo, así la IA no gasta tokens en descubrir la herramienta. En Windows y macOS, donde
+  no hay una consulta barata del portapapeles, el botón está siempre. `qdd foto` suma `--json` y `--hay`.
+
+## [2.10.0-rc.27] - 2026-11-07
+
+### Agregado
+
+- **Sincronizar desde QDD Móvil:** el botón manda `sincronizar` y el PC relee de cero el estado y los flujos de todos sus
+  proyectos y los vuelve a publicar. Después responde `sincronizado` con lo que el tablero de cada proyecto con una consola
+  abierta ya no dice bien: ⏳ cuyo pedido ya terminó, tareas listas sin cerrar, cerradas o descartadas con ⏳ y flujos
+  inválidos. No corrige nada. En el PC, `qdd sincronizar [--json]` da lo mismo.
+- **El teléfono ve qué proyecto tiene las reglas de las IAs atrasadas:** cada proyecto publicado trae `reglas_atrasadas`.
+
+## [2.10.0-rc.26] - 2026-11-07
+
+### Agregado
+
+- **Reglas de las IAs al día en todos los proyectos:** `qdd doctor --todos` corre doctor (con `--fix` si lo pides) en cada
+  proyecto registrado en la máquina y resume una línea por proyecto. La vista Proyectos del panel marca con ⚑ el proyecto
+  cuyas reglas son de un qdd anterior (`reglas_atrasadas` en `qdd consola proyectos`). Nada se renueva solo: `--fix` deja
+  cambios en git en cada repositorio.
+
+## [2.10.0-rc.25] - 2026-11-07
+
+### Corregido
+
+- **El teléfono ya no vuelve a preguntar un ⏳ cuyo pedido terminó (FND-176):** «¿Confirmas [a]?» se ocultaba solo mientras
+  [a] estaba abierto. Ahora un ⏳ que nombra un pedido de su misma tarea que terminó bien en las últimas 24 h no se publica,
+  y `qdd estado check` le pide a la IA actualizar la fila.
+- **`qdd estado check` nombra también las tareas descartadas que conservan un ⏳ (FND-177).**
+- **El panel ya no retira un pedido que la persona confirmó (FND-178):** si volvía a pendiente (dejó de esperar o salió con
+  75), el siguiente cambio de su tarea lo sacaba de «Para ti».
+
+## [2.10.0-rc.24] - 2026-11-07
+
+### Corregido
+
+- **`qdd audit --verificar-rutas` ya no confunde lo instalado con rutas incompletas (FND-175):** la copia aislada no traía
+  `node_modules` y una suite que lo necesita fallaba con un falso «incompletas». Ahora la copia enlaza las carpetas que git
+  ignora. Los archivos ignorados, como un `.env`, no entran.
+
+## [2.10.0-rc.23] - 2026-11-07
+
+### Agregado
+
+- **Docker en desarrollo, solo para la base de datos.** La app corre directo en el PC. Si un compose o un `.devcontainer` la
+  pone en Docker, `qdd audit` avisa que será más lento y por qué (`DEV-01-APP-EN-DOCKER`), sin bloquear. La forma de trabajo
+  le pide a la IA avisarlo antes de proponerlo. La explicación, con sus fuentes, está en `docs/docker-en-desarrollo.md`.
+
+## [2.10.0-rc.22] - 2026-11-07
+
+### Agregado
+
+- **Una suite no se repite si no cambió nada de lo suyo (RFC 0020).** En `test_commands`, una suite puede declarar
+  `rutas: [carpetas]`: si ya pasó con esos mismos archivos en las últimas 24 h, `qdd audit` la salta y lo dice. Sirve para
+  cualquier lenguaje: un cambio de estilos no repite las pruebas de reglas de negocio. El CI, `qdd certify` y
+  `qdd audit --completo` corren siempre todo. Cada suite muestra además cuánto tardó.
+- **`qdd audit` no espera a las pruebas si una regla ya bloquea.** Las reglas van primero. En este repo, con una ficha rota y
+  un cambio en el panel, pasó de 37 s a 1,6 s. Sigue saliendo con 1 y dice que las pruebas quedaron pendientes
+  (`QA-04-PRUEBAS-PENDIENTES`). El CI, `--completo` y `qdd certify` corren siempre las pruebas.
+- **`qdd audit --verificar-rutas`:** corre cada suite que declara `rutas` en una copia con solo esos archivos y dice si le
+  falta algo. El CI lo hace en cada PR, para que unas `rutas` incompletas no dejen pasar un cambio sin probar.
+- **Actualizar una herramienta repite su suite:** la versión de cada programa de `requiere` entra en la huella. Si no se
+  puede saber la versión, la suite corre.
+
+### Corregido
+
+- **Las pruebas ya no lanzan un agente real (FND-172):** cuatro pruebas de Go corrían `claude -p` o `agentapi` en cada
+  `go test` con un agente instalado: gastaban tokens y sumaban 127 s. `go test ./...` sin caché pasó de 101 s a 33 s, sin
+  saltarse ninguna prueba.
+- **La caché de Go ya no aprueba pruebas con archivos rotos (FND-173):** Go solo vigila los archivos de `cli/`, así que las
+  pruebas que leen docs o workflows pasaban desde la caché aunque esos archivos cambiaran. El gate las corre sin caché.
+- **La suite del panel ya corre en el CI y al publicar (FND-174):** quedaba «sin medir» porque el CI no tenía `claude`, así
+  que sus 221 pruebas solo corrían en el PC de quien auditaba.
+
+## [2.10.0-rc.21] - 2026-11-06
+
+### Corregido
+
+- **Un relay antiguo guardado ya no da un código sin aviso (FND-171).** `qdd login` y `qdd remoto emparejar` avisan si no
+  pudieron confirmar el relay. `qdd doctor` lo revisa sin red, también sin emparejar y con el servicio apagado, y
+  `qdd doctor --fix` lo compara con el directorio: lo reemplaza si no coincide o muestra el motivo si no puede consultar.
+- **El directorio del relay se sirve desde varios sitios (FND-171).** En una red que bloquea uno, qdd pregunta al siguiente;
+  si fallan todos, dice el motivo de cada uno.
+
+### Cambiado
+
+- **Un relay propio protege solo a un PC emparejado (FND-171).** Sin emparejar, sin banderas, manda el directorio firmado y
+  se avisa; `qdd login --relay <url> --clave <publicable>` lo vuelve a dar.
+
+## [2.10.0-rc.20] - 2026-11-06
+
+### Agregado
+
+- **`qdd consola proyectos --json` (RFC 0018).** Entrega una fila por proyecto de este PC: puntaje, hace cuánto, findings
+  abiertos, ⏳ y ❌, con su historial. Lo que no tiene fuente sale como `null` («sin medir»). Solo lee archivos locales.
+- **Vista «Proyectos» en el panel (RFC 0018).** La tecla `y` compara los proyectos de este PC lado a lado, y cada fila abre
+  su historial de puntajes y findings con su número o un clic. Se lee al abrirla y con `l ↻`: cerrada no gasta procesos, y
+  nada le escribe a la IA.
+
+### Obsoleto
+
+- **`qdd dashboard` queda obsoleto (RFC 0018).** Avisa al arrancar y sigue funcionando igual, pero solo recibe arreglos.
+  El panel que sigue es `qdd-tareas`, con su vista Proyectos; se instala con `qdd consola activar`. Quitarlo es una decisión aparte.
+
+## [2.10.0-rc.19] - 2026-11-06
+
+### Corregido
+
+- **`qdd doctor` ya no avisa «sin respuesta del relay» cuando el PC late bien (FND-169).** La hora salía de `plan.json`,
+  que solo se escribe si el plan cambia: sin teléfonos conectados, REM-07 se ponía rojo a los 3 minutos. Cada latido
+  respondido anota ahora su hora en `latido.json`. Si el relay deja de responder, REM-07 sigue avisando.
+
+## [2.10.0-rc.18] - 2026-11-06
+
+### Cambiado
+
+- **El relay de QDD Móvil ya no está en el código: sale de un directorio firmado.** Si el relay cambia, cambia la URL y no qdd. El PC lo
+  consulta al arrancar, en `qdd login` y `qdd remoto activar`, y si la conexión sigue caída; mientras funciona, usa el que recuerda. Solo acepta una
+  respuesta firmada con la clave que trae qdd. Si la consulta falla sigue con el recordado y `qdd doctor` lo dice (REM-11). Un relay dado con
+  `--relay` y `--clave` es tuyo y no se consulta. Un PC que nunca consultó y no alcanza el directorio no puede emparejarse hasta que responda o
+  le des un relay a mano: qdd ya no trae uno de respaldo.
+
+## [2.10.0-rc.17] - 2026-11-06
+
+### Corregido
+
+- **Una instalación nueva se empareja en el relay nuevo de QDD Móvil (FND-168):** el valor por defecto seguía apuntando al relay anterior.
+  Un PC ya emparejado no cambia por esto: usa el que tiene guardado.
+- **El PC pide Presence de forma explícita al unirse al canal (FND-167):** es preventivo: un cliente de prueba que no lo pedía no recibió
+  quién entraba al canal, aunque un PC con rc.16 sí se vio en el relay nuevo.
+
+### Agregado
+
+- **Un turno único para lo que te espera (RFC 0019):** cada pregunta, ⏳, pedido y ficha recibe de qdd un número que no cambia. «Para ti»
+  es una sola lista en ese orden, con `▶` en lo que sigue y `espera a #N` en lo que depende de otra cosa. QDD Móvil recibe los mismos
+  números; la app todavía tiene que usarlos.
+
+## [2.10.0-rc.16] - 2026-11-06
+
+### Agregado
+
+- **Editar y comentar un flujo desde QDD Móvil (lado PC, solo Pro):** el teléfono puede mandar una edición de un flujo, con el
+  tipo `flujo` y un esquema cerrado. Se aplica como una edición de la persona en el panel; comentar y pedir detalle llaman a la IA.
+  Los comentarios salen del PC por el ocultador. Necesita el relay y la app nuevos.
+
+## [2.10.0-rc.15] - 2026-11-06
+
+### Agregado
+
+- **Editar y comentar un flujo en el panel:** en la pestaña de un flujo, un clic elige un nodo. Se puede comentar, pedir detalle, editar, agregar, mover, poner flechas y quitar. qdd valida cada cambio. La IA recibe un comentario o un detalle en el acto, y las ediciones al pulsar «Enviar a la IA» o con tu próximo mensaje. Responde bajo el mismo nodo con `qdd flujo comentar`. Lo que aún no recibe se puede deshacer. `Flujos` también deja crear uno nuevo desde el panel.
+- **`qdd doctor` revisa QDD Móvil:** dice si este PC está emparejado, si el servicio corre, si llega al relay, si el proyecto se
+  publica y si el último envío salió. `--fix` arranca el servicio y anota el proyecto; emparejar sigue siendo con `qdd login`. No
+  usa la red ni comprueba lo que dibuja la app.
+- **`qdd doctor` revisa también las colas del teléfono y los flujos:** nombra una cola apartada por ilegible y los flujos que no se
+  pueden usar. No los toca, porque corregirlos lo decide la persona.
+
+### Corregido
+
+- **Un campo del panel recién abierto no recibía lo que se escribía (FND-166):** se iba al chat, porque el campo necesitaba un segundo clic que nada avisaba. En los flujos el campo toma las teclas solo; si Claude Code no las suelta, el panel lo dice.
+- **Una pregunta abierta en la consola ya no se va del teléfono a los 30 min (FND-165):** seguía abierta en la terminal, con el aviso
+  de que se podía responder desde QDD Móvil, pero allí ya no estaba. Ahora sigue en el teléfono mientras la sesión la espere.
+
+### Cambiado
+
+- **Las preguntas ahora están en «▶ Para ti» (issue #149):** se quita la sección «⏳ Te esperan», que duplicaba esa lista y a la
+  persona no le dejaba contestar. Al tocar una pregunta, llega al chat y se responde ahí.
+
+## [2.10.0-rc.14] - 2026-11-06
+
+### Seguridad
+
+- **Trae el arreglo de `2.9.11` (FND-164):** `qdd dashboard` ya solo atiende a este PC.
+
+### Agregado
+
+- **Flujos para QDD Móvil:** el panel que se publica lleva el resumen de cada flujo, y los nodos viajan en un evento `flujo` aparte, después de cada estado completo y cuando cambia su huella. Un cambio de tarea no reenvía el flujo. Un flujo pesa como mucho 100 KB.
+
+### Cambiado
+
+- **Declarar la tarea en curso ya es una regla (MEJ-021):** el bloque de `AGENTS.md` (revisión 4) y la forma de trabajo piden `activar` al empezar y `terminar` al acabar o quedar esperando. `qdd_estado set` lo recuerda si un ✅ llega sin tarea declarada en la sesión, pero no la enciende. `qdd doctor --fix` renueva el bloque en cada proyecto.
+
+## [2.10.0-rc.13] - 2026-11-06
+
+### Corregido
+
+- **Con QDD Móvil, cada sesión ya no lanza un proceso cada 5 s (MEJ-020, #108):** el proceso `qdd consola seguir`, que ya
+  estaba abierto, hace el latido y entrega lo mandado desde el teléfono. Con una versión anterior de qdd, el panel sigue
+  latiendo como antes.
+- **Una salida en vivo larga ahora muestra lo último (FND-163):** Claude Code dibuja solo los primeros 100.000 caracteres de un
+  texto, así que una herramienta ruidosa o una barra de progreso mostraban lo viejo. El panel guarda lo último, hasta 64 KB, y
+  redibuja como mucho cada 100 ms.
+- **El panel ya no acumula lo que dejó de existir (MEJ-014, #114):** olvida las tareas y los pedidos que ya no están, no suma
+  lecturas si la anterior sigue en curso, y una respuesta vieja no pisa a una más nueva.
+
+## [2.10.0-rc.12] - 2026-11-06
+
+### Agregado
+
+- **El panel muestra qué te preguntan (#149):** la sección «⏳ Te esperan» trae el texto de los ⏳ que esperan a la
+  persona, recortado. Al tocar uno se ve entero y, si es una pregunta, se responde ahí mismo. La respuesta le llega a la
+  IA de esa sesión, y el teléfono ya no vuelve a preguntarla.
+
+### Cambiado
+
+- **Mensajes, sesiones y herramientas ya no esperan a qdd (MEJ-015, #113):** un mensaje y el inicio de sesión esperan a lo más
+  400 ms; si qdd tarda más, lo que tenía que decirle a la IA viaja con el mensaje siguiente en vez de perderse. El final de una
+  herramienta no espera nada, y una ráfaga de herramientas de qdd lanza una lectura en curso y una más, no una por cada una.
+
+### Corregido
+
+- **`qdd audit` nombra la prueba que falló aunque la suite sea larga:** guardaba solo las últimas 60 líneas, así que podía
+  decir «1 fail» sin decir cuál. Ahora también muestra las líneas anteriores que dicen «fail», hasta 40.
+- **`qdd remoto` ya no gasta CPU por cada latido de las sesiones (FND-161):** cada sesión reescribía cada 5 s su cola del
+  teléfono aunque siguiera vacía, y el servicio volvía a leer todos los proyectos. Con 7 proyectos y sin teléfono conectado
+  usaba del 13 al 21 % de un núcleo. Las colas ya no se escriben si no cambiaron.
+
+## [2.10.0-rc.11] - 2026-11-05
+
+### Agregado
+
+- **Flujos en el panel (RFC 0012, fase 1):** `qdd flujo crear` guarda un flujo de cajas y círculos en
+  `.qdd/project/flujos/`, versionado. El panel lo abre en su propia pestaña, hacia abajo y con scroll, y solo materializa lo
+  que cambió. Por ahora la persona lo ve; editarlo llega en la fase 2.
+
+### Cambiado
+
+- **Menos mensajes de Realtime:** `hace`, el pulso de una tarea en curso y los reintentos de un pedido ya no mandan el panel
+  entero al teléfono por sí solos. Viajan con el siguiente cambio real, así que en la app pueden estar atrasados hasta
+  entonces.
+- **«✓» y «Quitar» reemplazan a la ✕ en cada tarea del panel.** Sirven para las tareas atrapadas por algo que no se puede
+  validar en producción, o que ya no quieres ver. Los dos piden «s  Sí».
+  - **✓ (ya lo vi):** deja cada etapa en ⏳ en ✅ con la nota «la vio la persona el DD/MM, sin medición» y cierra la tarea si
+    no queda nada por hacer. Una etapa con falla o sin empezar, o una aprobación pendiente, sigue como está.
+  - **Quitar:** saca la tarea sin pedir motivo; queda en el historial con «la quitó la persona desde el panel».
+
+### Corregido
+
+- **El panel lanza menos procesos con el flujo abierto (MEJ-020):** las herramientas y si toca el ciclo de mejoras llegan por
+  `qdd consola seguir`, sin `herramienta listar` cada 10 s ni `mejoras ciclo` cada minuto. El latido del teléfono sigue
+  siendo un proceso.
+- **El CI también corre en los PRs hacia una rama `feat/**`.** Un PR apilado no tenía CI, y su merge desde el panel quedaba
+  esperando para siempre.
+
+## [2.10.0-rc.10] - 2026-11-05
+
+### Agregado
+
+- **El aviso del teléfono se quita cuando ya no hace falta (FND-028 de qdd-movile):** cuando un proyecto ya no tiene pedidos
+  o fichas esperando, `qdd remoto` pide `pedido_resuelto` o `ficha_resuelto`. Necesita la app con el receptor (qdd-movile
+  6551f3f).
+
+### Corregido
+
+- **Un proyecto que pierde su panel un momento ya no repite el push al volver:** lo que esperaba sigue contado como visto.
+- **Un ⏳ de «usuario» también es de la persona (FND-159):** `esperan_persona` daba 0 en un tablero con 4 de ellos. Ahora
+  cuentan, y si preguntan algo también llegan al teléfono como pregunta y al chat como espera.
+
+## [2.10.0-rc.9] - 2026-11-05
+
+### Seguridad
+
+- **El tablero y los pedidos ya no salen al teléfono sin pasar por el ocultador (FND-157):** solo se tapaban las preguntas,
+  lo mandado desde el teléfono y las elecciones del modo goal. El teléfono actúa por id, así que tapar un comando no cambia
+  lo que se ejecuta.
+
+### Corregido
+
+- **El teléfono muestra lo que sigue a la pregunta de un ⏳ (FND-155):** el texto va desde la primera pregunta hasta el final
+  del bloqueo. Lo anterior a la pregunta sigue sin publicarse.
+- **Un seguro contra lanzar dos veces lo mismo (FND-154):** lo que terminó bien en las últimas 24 h no se vuelve a pedir,
+  aunque cambie el texto (cerrar el mismo issue, mergear el mismo PR). Repetirlo de verdad se dice con `--de-nuevo`.
+
+### Agregado
+
+- **`esperan_persona` en el panel (FND-156):** cuenta los ⏳ de la persona de todas las tareas pendientes, incluidas las
+  ocultas, para que el teléfono no muestre menos de los que hay.
+- **La sesión se entera cuando se retira su pedido (RFC 0017 §1, MEJ-010):** antes el pedido solo cambiaba de estado en la
+  cola. Ahora `qdd consola ciclo --contexto --sesion` se lo dice una vez a la sesión que lo pidió, con el pedido y la tarea.
+  Un pedido sin sesión sigue visible en la cola y no avisa a nadie.
+
+## [2.10.0-rc.8] - 2026-11-05
+
+### Corregido
+
+- **Un pedido ya no se retira por el trabajo de otra sesión (FND-153, MEJ-010):** sin tarea explícita, solo hereda la tarea
+  en curso de su propia sesión.
+- **Una tarea cerrada ya no aparece en las esperas (FND-151, MEJ-010):** `esperas` y `fallas` solo traen tareas abiertas.
 - **`qdd remoto dispositivos` y `revocar` ya no piden la URL y la clave (issue #102):** en un PC sin relay mandan a
   `qdd login`. La ayuda de `qdd remoto` también dice que esas banderas son solo para quien opera su propio relay.
+
+### Agregado
+
+- **`qdd estado check` avisa de las tareas desfasadas (MEJ-010):** las abiertas con todo listo y las cerradas que conservan
+  un ⏳. No bloquea el gate.
+
+## [2.10.0-rc.7] - 2026-11-05
+
+Trae también lo de 2.9.10 (MEJ-002).
+
+### Corregido
+
+- **En un proyecto nuevo el panel da un comando que funciona (FND-147):** `qdd estado init` falla sin `--etapas`, así que
+  el aviso ahora lo incluye y explica que las etapas son las columnas del tablero.
+
+## [2.10.0-rc.6] - 2026-11-05
+
+### Corregido
+
+- **El panel ve los comandos qdd corridos por PowerShell o con una ruta entre comillas (FND-146, MEJ-016):** se relee tras
+  ellos, y la negativa a que una IA active el modo goal también los cubre.
+
+## [2.10.0-rc.5] - 2026-11-05
+
+Trae también lo de 2.9.9 (FND-143).
+
+### Corregido
+
+- **La barra de estado ya no queda viva si nadie cierra su stdin (FND-145, MEJ-018):** corta a los 3 s y sale sin imprimir
+  nada ni fallar.
+- **Los efectos del panel ya no dejan un hueco en blanco largo (FND-144, issue #111):** si los cuadros tardan más de 250 ms,
+  el proceso se corta y se dibuja el texto sin efecto. Antes, en una máquina lenta, el hueco podía durar hasta 3 s. Abrir el
+  panel ya pedía todos los cuadros en un solo proceso desde 2.10.0-rc.1.
+
+## [2.10.0-rc.4] - 2026-11-05
+
+Trae también lo de 2.9.8 (FND-143).
+
+### Cambiado
+
+- **La barra de estado ya no arranca Node cada 2 s:** llama al binario de qdd por su ruta y, si esa ruta ya no existe, a
+  `qdd` como antes. Cada llamada gasta unas 4 veces menos CPU (en Linux, de 50-65 ms a 12-16 ms); en Windows no está
+  medido. `settings.json` guarda la ruta, y `qdd consola activar` o `qdd doctor --fix` la renuevan al actualizar. Un
+  binario compilado a mano no la escribe, y una barra propia no se toca.
+
+### Corregido
+
+- **El botón «⬆ Actualizar qdd» ya no deja a qdd sin binario con npm 12 (FND-143):** instala con
+  `--allow-scripts=qdd-framework`, igual que el aviso de Windows.
+
+## [2.10.0-rc.3] - 2026-11-05
+
+### Corregido
+
+- **En Windows, npm ya puede actualizar qdd con sesiones abiertas (FND-142, issue #107):** `qdd.exe` vive fuera del paquete,
+  en `%LOCALAPPDATA%\qdd\bin\<versión>`, así que lo que corre no se interpone. Lo que corre se cierra solo al ver la
+  versión nueva, y el panel lo reabre. Windows tiene ahora el mismo botón «⬆ Actualizar qdd» que Linux y macOS. `qdd doctor`
+  revisa que la tarea de `qdd remoto` lance la versión instalada (REM-04). La primera actualización desde una versión
+  anterior todavía pide cerrar las sesiones.
+
+## [2.10.0-rc.2] - 2026-11-05
+
+Trae también lo de 2.9.7 (FND-141).
+
+### Agregado
+
+- **El panel avisa de una versión nueva de qdd y la instala con una tecla:** una vez por hora pregunta a npm, aparte y sin
+  demorar al panel, y deja el pedido opcional «⬆ Actualizar qdd a X» del canal instalado. Corre solo si confirmas con
+  «s  Sí»; el modo goal no lo lanza. Un binario que no vino de npm no pregunta nada. En Windows, el panel avisa con lo que
+  hay que hacer y no ofrece botón, porque npm no puede reemplazar `qdd.exe` mientras algo lo usa (issue #107).
+
+## [2.10.0-rc.1] - 2026-11-05
+
+### Cambiado
+
+- **El panel ya no lanza un proceso cada 2 s (RFC 0016, MEJ-020):** recibe los cambios de un solo proceso, `qdd consola
+  seguir`. En Linux, en reposo, su costo de CPU baja entre 71 % y 82 %, y un cambio llega a la pantalla en unos 500 ms. Sin
+  medir todavía en Windows. A cambio suma unos 25 MB de memoria por sesión.
+- **El panel llama directo al binario:** deja de pasar por el envoltorio de Node y, en Windows, por `cmd`.
+- **Las sesiones sin terminal (`claude -p`) ya no leen el panel cada 2 s.**
+- **Abrir el panel pide los cuadros de los efectos en un solo proceso (MEJ-017):** antes lanzaba uno por cada celda que
+  cambiaba. Un qdd anterior no entiende el lote y el panel se dibuja sin efecto.
+- **El panel se ve como QDD Móvil:** usa los colores de la marca en cualquier terminal, y el ámbar relleno marca «▶ N para
+  ti». Cada tarea ocupa una fila y el estado de cada objetivo queda a la derecha. La versión pasa a la cabecera y el pie se
+  acorta. En un tema claro de terminal, el ámbar y el verde pierden contraste.
+- **El botón Modo goal pasa a la tecla `z`.**
+
+### Corregido
+
+- **Los botones de la cabecera del panel ya no se pisan (FND-140):** van en su propia fila, sin emojis anchos.
+- **`k` ya no es a la vez Config y Modo goal (FND-139).**
 
 ## [2.9.11] - 2026-11-06
 
@@ -1223,8 +2275,6 @@ Medimos el recorrido de alguien nuevo (init, doctor, audit, evolution, report, m
 #### ⚡ Deterministic Architecture Discovery
 - **`qdd init` Nativo y Zero-LLM**: Refactorización del flujo de inicialización que elimina la latencia y la incerteza de los LLMs. Ahora escanea directamente `go.mod`, `package.json` y otros manifiestos clave (usando parsers puros en Go) para detectar si un proyecto es de Go, Node, React, o Serverless Functions, asegurando determinismo 100%.
 - **Zero-Else**: Continuación de la filosofía de guard clauses. Flujos simplificados que abortan ante errores antes de generar árboles de decisión ambiguos.
-
-
 
 ## [v1.8.0] - 2026-07-08
 

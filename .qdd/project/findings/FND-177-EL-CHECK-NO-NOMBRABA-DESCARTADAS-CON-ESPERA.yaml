@@ -1,0 +1,9 @@
+id: "FND-177"
+title: "qdd estado check no nombraba las tareas descartadas que conservan un ⏳"
+description: "Desfasadas solo miraba las tareas cerradas. Una descartada con un ⏳ tampoco espera a nadie, pero el check no la nombraba y la fila quedaba diciendo algo que ya no pasa. Lo reportó qdd-movile el 2026-11-07 al analizar por qué la persona veía ⏳ ya respondidos."
+impact: "La tabla seguía mostrando esperas de tareas descartadas sin que nada lo avisara."
+action_taken: "Desfasadas incluye las descartadas en cerradas_con_espera, y el aviso dice «Tareas cerradas o descartadas que conservan un ⏳»."
+test_result: "cli/pkg/estado/desfasadas_test.go: TestDesfasadas_DiceCadaTareaQueYaNoDiceLoQuePasa_MEJ010 (ahora espera la descartada)."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

@@ -46,7 +46,7 @@ type RepairStrategy struct {
 
 func (c *Client) FetchRepairStrategy(ctx context.Context, componentName string) (*RepairStrategy, error) {
 	cachePath := filepath.Join(c.cacheDir, fmt.Sprintf("repair_%s.yaml", componentName))
-	
+
 	if c.isCacheValid(cachePath) {
 		return c.loadLocalRepair(cachePath)
 	}
@@ -116,7 +116,7 @@ type RemoteRulesManifest struct {
 
 func (c *Client) FetchRulesManifest(ctx context.Context) (*RemoteRulesManifest, error) {
 	cachePath := filepath.Join(c.cacheDir, "manifest.json")
-	
+
 	if c.isCacheValid(cachePath) {
 		return c.loadLocalManifest(cachePath)
 	}

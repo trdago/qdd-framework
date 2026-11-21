@@ -149,6 +149,38 @@ test('el panel dice en qué está y lo último que eligió', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /¿Cuál\? → Sí \(Recommended\)/ })).toBeDefined()
 })
 
+// FND-216: si nada de lo abierto lo puede mover la IA, el modo queda en pausa y el panel lo dice en palabras.
+test('el panel dice que todo espera a la persona (FND-216)', async ($, on) => {
+  const r = nuevo({ tablero: true, goal: { ...ACTIVO, estado: 'pausado', motivo: 'todo_espera' } })
+  preparar(on, r)
+  await iniciar($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Modo goal · en pausa: todo espera a la persona/ })).toBeDefined()
+})
+
+// FND-146: PowerShell no pasaba por esta regla, y una ruta entre comillas o qdd.cmd la esquivaban también por Bash.
+// Queda la barrera de qdd (CLAUDECODE), pero esta debe verlos.
+test('una IA no lo activa por PowerShell ni con una ruta entre comillas (FND-146)', async ($, on) => {
+  const r = nuevo({ goal: APAGADO })
+  preparar(on, r)
+  await iniciar($)
+  const comandos = [
+    'qdd goal activar',
+    '.\\qdd.exe goal activar',
+    '& "C:\\x y\\qdd.exe" goal activar',
+    "& 'C:\\x y\\qdd.cmd' consola accion goal-activar --confirmado",
+    '"/opt/x y/qdd" goal activar',
+    'qdd-rc10 goal activar',
+    '$env:CLAUDECODE=""; qdd goal activar',
+  ]
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const command of comandos) {
+      const res = await $.tool.call({ tool, command, tool_use_id: 'u1' }).catch((err) => ({ deny: String(err) }))
+      expect([tool, command, JSON.stringify(res).includes('solo la persona')]).toEqual([tool, command, true])
+    }
+  }
+})
+
 test('una IA no lo activa por Bash', async ($, on) => {
   const r = nuevo({ goal: APAGADO })
   preparar(on, r)

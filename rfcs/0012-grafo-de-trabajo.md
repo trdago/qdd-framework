@@ -117,7 +117,7 @@ Cada cambio que la persona hace en el panel es una edición con nombre, como en 
 
 ## Ampliación propuesta: flujos (2026-11-05)
 
-Propuesta, sin implementar. Origen, pedido de la persona: «una forma de mostrar grafos en el panel de la derecha […] para
+Fases 1 a 3 implementadas (ver «Lo que se hizo» al final). Origen, pedido de la persona: «una forma de mostrar grafos en el panel de la derecha […] para
 entender flujos completos y explicarle al llm como lo queremos o algún ajuste que no está mirando». La persona eligió que
 esto sea parte de este RFC, no una vista aparte, y que los flujos se versionen en el proyecto.
 
@@ -196,3 +196,22 @@ La primera fase tiene que medirlo:
 2. **Editar:** agregar, mover, editar, quitar y deshacer, con las líneas que recibe la IA.
 3. **Detalle:** `?` sobre un nodo y su respuesta.
 4. **El plan en el mismo dibujo:** el tablero usa esta vista y las ediciones del resto de este RFC.
+
+### Lo que se hizo (2026-11-06)
+
+Pedido de la persona, sprint 6: «editar, mirar, modificar, agregar, comentar, con el fin de permitir interacción más
+detallada con el llm y es una interface de trabajo y aclaración entre llm qdd y el humano».
+
+- **Comentarios, que este RFC no traía.** Cada nodo tiene un hilo, en el YAML versionado. La IA responde con
+  `qdd flujo comentar` y la respuesta se ve bajo el nodo. Viajan al teléfono pasados por el ocultador, y desde allí también se comenta y se edita (RFC 0013).
+- **Cuándo se entera la IA.** Una edición espera a «Enviar a la IA» o al próximo mensaje del chat: un turno por cambio
+  gastaría de más. Un comentario y un detalle la llaman en el acto, porque piden una respuesta. Cada línea llega una vez.
+- **Deshacer** vale mientras la IA no la recibe y nadie cambió el flujo después. No pisa lo que hizo la IA.
+- **Registro local:** las ediciones sin enviar viven en `.qdd/working/flujos/<id>.jsonl`, sin versionar.
+- **Elegir y mover con clics, no con flechas.** El dibujo no sabe qué nodo hay en cada columna, así que bajo el dibujo hay una
+  lista de nodos. Mover es un clic en el nodo destino.
+- **`d`, no `?`:** una tecla del panel solo puede ser un dígito o una letra minúscula.
+- **Probado con clics en un panel real, en Linux.** Un campo no toma las teclas por sí solo (FND-166), y un clic en un botón
+  tampoco se las da. No se probó arrastrar ni elegir con flechas, porque no se usan. No se midió en Windows.
+
+Falta: la fase 4, y que `qdd doctor` revise este registro.

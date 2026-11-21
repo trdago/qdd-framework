@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,9 +20,20 @@ import (
 // preguntar lo mismo durante VidaEsperaRespondida) y le llega a la IA como una instrucción del teléfono.
 // MEJ-004 (qdd-movile, 2026-11-03): de 11 ⏳ publicados, casi todos eran notas de avance o esperaban un pedido ya armado
 // en el panel. Un ⏳ es pregunta solo si pregunta algo (¿…?) y no nombra con [tecla] un pedido abierto, que ya lo cubre;
-// el teléfono ve solo la pregunta, no el historial de la tarea.
+// el teléfono ve desde la pregunta, no el historial de la tarea.
+// FND-176 (qdd-movile, 2026-11-07): el pedido cubría su ⏳ solo mientras seguía abierto. Al terminar salía de la cola, y
+// «¿Confirmas [a]?» volvía al teléfono ya respondida. Un ⏳ que nombra un pedido hecho de su misma tarea (en las últimas
+// VidaHechos) ya no pregunta nada: 'qdd estado check' le pide a la IA actualizarlo (EsperasTrasPedido). Una tecla que
+// nunca tuvo pedido sigue siendo pregunta.
+// MEJ-085 (qdd-movile, 2026-11-15): lo mismo con un pedido retirado («la tarea siguió cambiando»): el ⏳ que lo nombra
+// por su tecla pedía una acción que ya no estaba en el panel. Uno retirado de su misma tarea (se recuerda VidaRetirado)
+// deja de preguntarse, y 'qdd estado check' le pide a la IA pedirlo de nuevo o actualizar el ⏳ (EsperasTrasRetiro).
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta la respuesta se perdía (la instrucción vence a los 30 min y la
-// pregunta seguía «respondida» 24 h): esa respuesta se rechaza, y qdd remoto no publica el ⏳ (sinEsperasSinSesion).
+// pregunta seguía «respondida» 24 h).
+// Botones (propuesta de qdd-movile aprobada por la persona, 2026-11-07): cada ⏳ trae «Ya lo hice», «Todavía no» y «Ya no
+// va», además de «Otra», y la respuesta se escribe en el estado: no se pierde aunque no haya una sesión (sin_sesion).
+// «Ya lo hice» y «Otra» pasan el ⏳ a la IA para que lo verifique; «Ya no va» deja la etapa en —; «Todavía no» no cambia
+// el estado y vuelve a preguntarse a las VidaEsperaRespondida. Con una sesión abierta, la IA además se entera al tiro.
 
 const (
 	// OrigenEstado es el origen de una pregunta que sale de un ⏳ de la persona en el estado.
@@ -32,17 +44,36 @@ const (
 
 	prefijoEspera = "espera-"
 
+	// Las opciones de un ⏳ (el valor que manda el teléfono o el panel).
+	EsperaHecho     = "hecho"
+	EsperaTodaviaNo = "todavia_no"
+	EsperaYaNoVa    = "ya_no_va"
+
+	// deQuienVerifica: un ⏳ respondido pasa a la IA, que lo verifica y lo refleja.
+	deQuienVerifica = "la IA"
+
 	maxLineaEspera = 160
 )
+
+var opcionesEspera = []OpcionPregunta{
+	{Valor: EsperaHecho, Etiqueta: "Ya lo hice", Descripcion: "La IA lo verifica"},
+	{Valor: EsperaTodaviaNo, Etiqueta: "Todavía no", Descripcion: "Vuelve a preguntarse mañana"},
+	{Valor: EsperaYaNoVa, Etiqueta: "Ya no va", Descripcion: "La etapa queda en —"},
+}
 
 var (
 	frasePregunta = regexp.MustCompile(`¿[^¿?]*\?`)
 	teclaNombrada = regexp.MustCompile(`\[([a-z0-9])\]`)
 )
 
-// preguntaDelBloqueo son las preguntas (¿…?) del bloqueo, juntas; vacío si no pregunta nada.
+// preguntaDelBloqueo es el bloqueo desde su primera pregunta (¿…?): lo que sigue suele decir qué hacer (FND-155), y lo
+// anterior es historial (MEJ-004). Vacío si no pregunta nada.
 func preguntaDelBloqueo(bloqueo string) string {
-	return strings.Join(frasePregunta.FindAllString(bloqueo, -1), " ")
+	inicio := frasePregunta.FindStringIndex(bloqueo)
+	if inicio == nil {
+		return ""
+	}
+	return bloqueo[inicio[0]:]
 }
 
 // cubiertaPorPedido: un ⏳ que nombra la tecla de un pedido abierto ([b]) ya lo cubre el panel.
@@ -55,6 +86,34 @@ func cubiertaPorPedido(bloqueo string, abiertas map[string]bool) bool {
 	return false
 }
 
+// respondidaPorPedido: el ⏳ nombra un pedido de su tarea que ya terminó bien, y ninguno abierto con esa tecla.
+func respondidaPorPedido(tarea, bloqueo string, abiertas map[string]bool, hechas map[string]map[string]bool) bool {
+	if cubiertaPorPedido(bloqueo, abiertas) {
+		return false
+	}
+	return cubiertaPorPedido(bloqueo, hechas[tarea])
+}
+
+// teclasRetiradas son, por tarea, las teclas de sus pedidos retirados que siguen en la cola (VidaRetirado).
+func teclasRetiradas(cola []Pedido) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, p := range cola {
+		if p.Estado != EstadoRetirado || p.Tarea == "" || p.Tecla == "" {
+			continue
+		}
+		if out[p.Tarea] == nil {
+			out[p.Tarea] = map[string]bool{}
+		}
+		out[p.Tarea][p.Tecla] = true
+	}
+	return out
+}
+
+// sinPedidoQueLaCubra: el ⏳ nombra un pedido de su tarea que ya terminó bien o se retiró (FND-176, MEJ-085).
+func sinPedidoQueLaCubra(tarea, bloqueo string, abiertas map[string]bool, hechas, retiradas map[string]map[string]bool) bool {
+	return respondidaPorPedido(tarea, bloqueo, abiertas, hechas) || respondidaPorPedido(tarea, bloqueo, abiertas, retiradas)
+}
+
 // esperasDeLaPersona son las preguntas pendientes de los ⏳ de la persona de las tareas abiertas.
 func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 	e, err := estado.Load(root)
@@ -62,7 +121,9 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 		return nil
 	}
 	var out []Pregunta
-	abiertas := teclasAbiertas(PedidosA(root, now))
+	cola := PedidosA(root, now)
+	abiertas, retiradas := teclasAbiertas(cola), teclasRetiradas(cola)
+	hechas := teclasHechas(root, now)
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
@@ -70,7 +131,11 @@ func esperasDeLaPersona(root string, now time.Time) []Pregunta {
 			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) == "" {
 				continue
 			}
-			if cubiertaPorPedido(bloqueo, abiertas) {
+			// Uno con verificación se responde solo (estado/verificar.go): no se le pregunta a la persona.
+			if c.Verifica != "" {
+				continue
+			}
+			if cubiertaPorPedido(bloqueo, abiertas) || sinPedidoQueLaCubra(f.ID, bloqueo, abiertas, hechas, retiradas) {
 				continue
 			}
 			out = append(out, preguntaDeEspera(f, etapa, bloqueo, now))
@@ -100,15 +165,51 @@ func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {
 		return nil
 	}
 	var out []EsperaSinPregunta
+	cola := PedidosA(root, now)
+	abiertas, retiradas := teclasAbiertas(cola), teclasRetiradas(cola)
+	hechas := teclasHechas(root, now)
+	for _, f := range e.Abiertos() {
+		for _, etapa := range e.EtapasDe(f) {
+			c := f.Celdas[etapa]
+			bloqueo := strings.TrimSpace(c.Bloqueo)
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" || c.Verifica != "" {
+				continue
+			}
+			if cubiertaPorPedido(bloqueo, abiertas) || sinPedidoQueLaCubra(f.ID, bloqueo, abiertas, hechas, retiradas) {
+				continue
+			}
+			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})
+		}
+	}
+	return out
+}
+
+// EsperasTrasPedido son los ⏳ de la persona que esperan un pedido que ya terminó bien (FND-176): el teléfono ya no los
+// pregunta, y 'qdd estado check' le pide a la IA reflejar en la tabla lo que pasó.
+func EsperasTrasPedido(root string, now time.Time) []EsperaSinPregunta {
+	return esperasQueNombran(root, now, teclasHechas(root, now))
+}
+
+// EsperasTrasRetiro son los ⏳ de la persona que nombran un pedido retirado de su tarea (MEJ-085): el teléfono ya no
+// los pregunta, y 'qdd estado check' le pide a la IA pedirlo de nuevo o actualizar el ⏳.
+func EsperasTrasRetiro(root string, now time.Time) []EsperaSinPregunta {
+	return esperasQueNombran(root, now, teclasRetiradas(PedidosA(root, now)))
+}
+
+// esperasQueNombran son los ⏳ de la persona que nombran, sin un pedido abierto con esa tecla, una de las teclas de su
+// tarea.
+func esperasQueNombran(root string, now time.Time, teclas map[string]map[string]bool) []EsperaSinPregunta {
+	e, err := estado.Load(root)
+	if err != nil {
+		return nil
+	}
+	var out []EsperaSinPregunta
 	abiertas := teclasAbiertas(PedidosA(root, now))
 	for _, f := range e.Abiertos() {
 		for _, etapa := range e.EtapasDe(f) {
 			c := f.Celdas[etapa]
 			bloqueo := strings.TrimSpace(c.Bloqueo)
-			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || preguntaDelBloqueo(bloqueo) != "" {
-				continue
-			}
-			if cubiertaPorPedido(bloqueo, abiertas) {
+			if estado.NormalizarEstado(c.Estado) != estado.Espera || !esDeLaPersona(c.DeQuien) || !respondidaPorPedido(f.ID, bloqueo, abiertas, teclas) {
 				continue
 			}
 			out = append(out, EsperaSinPregunta{Tarea: f.Nombre, Etapa: etapa, Bloqueo: bloqueo})
@@ -124,8 +225,12 @@ func preguntaDeEspera(f estado.Frente, etapa, bloqueo string, now time.Time) Pre
 	return Pregunta{
 		ID: prefijoEspera + hex.EncodeToString(suma[:6]), Origen: OrigenEstado, Estado: PreguntaPendiente,
 		Etiqueta:  recortar("⏳ "+donde+": "+pregunta, MaxMotivo),
-		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: pregunta, Otra: true}},
+		Preguntas: []ItemPregunta{{ID: "q1", Encabezado: donde, Texto: pregunta, Otra: true, Opciones: opcionesEspera}},
+		SinSesion: true,
 		Creada:    now.UTC(), Vista: now.UTC(),
+		// El turno no depende del texto: reescribir la pregunta no la manda al final (RFC 0019).
+		claveTurno: prefijoEspera + f.ID + ":" + etapa, tareaTurno: f.ID,
+		etapa: etapa, bloqueo: bloqueo,
 	}
 }
 
@@ -139,8 +244,9 @@ func esperaPorID(root, id string, now time.Time) (Pregunta, bool) {
 }
 
 // conEsperas suma a la cola las esperas vigentes: una respondida ya está en la cola; una que el estado ya no tiene,
-// sale. Las pendientes de la consola van primero, después las esperas, y al final las cerradas.
-func conEsperas(cola, esperas []Pregunta) []Pregunta {
+// sale, salvo la recién respondida (VidaCerrada), para que otro teléfono vea «ya respondida en …». Las pendientes de la
+// consola van primero, después las esperas, y al final las cerradas.
+func conEsperas(cola, esperas []Pregunta, now time.Time) []Pregunta {
 	vigentes := map[string]bool{}
 	for _, e := range esperas {
 		vigentes[e.ID] = true
@@ -148,7 +254,7 @@ func conEsperas(cola, esperas []Pregunta) []Pregunta {
 	enCola := map[string]bool{}
 	var pendientes, cerradas []Pregunta
 	for _, p := range cola {
-		if p.Origen == OrigenEstado && !vigentes[p.ID] {
+		if p.Origen == OrigenEstado && !vigentes[p.ID] && !recienCerrada(p, now) {
 			continue
 		}
 		enCola[p.ID] = true
@@ -167,9 +273,14 @@ func conEsperas(cola, esperas []Pregunta) []Pregunta {
 	return append(pendientes, cerradas...)
 }
 
-// responderEspera aplica la respuesta de un teléfono a un ⏳ de la persona y se la deja a la IA: la primera gana, y
-// una espera que el estado ya no tiene es desconocida.
-func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta, error) {
+func recienCerrada(p Pregunta, now time.Time) bool {
+	return p.Cerrada != nil && now.Sub(*p.Cerrada) <= VidaCerrada
+}
+
+// responderEspera aplica la respuesta a un ⏳ de la persona: la primera gana, y queda en el estado (aplicarAlEstado).
+// Desde un teléfono, si hay una sesión abierta, la IA además la recibe como instrucción; desde el PC, el panel se la
+// envía al chat.
+func responderEspera(root, id, respuesta, lugar, en string, now time.Time) (Pregunta, error) {
 	var out Pregunta
 	err := conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
 		if i := indicePregunta(cola, id); i >= 0 {
@@ -179,18 +290,18 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 		if !ok {
 			return nil, ErrPreguntaDesconocida
 		}
-		if !HaySesion(root, now) {
-			return nil, fmt.Errorf("%w: no hay una sesión de Claude Code abierta en el proyecto que la reciba", ErrPreguntaDesconocida)
-		}
 		r, err := validarRespuesta(p, respuesta)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrRespuestaInvalida, err)
 		}
 		cerrada := now.UTC()
-		p.Estado, p.RespondidaEn, p.Lugar, p.Respuesta, p.Cerrada = PreguntaRespondida, EnTelefono, strings.TrimSpace(lugar), r, &cerrada
-		p.Instruccion = fmt.Sprintf("%s-%d", p.ID, now.Unix())
-		instruccion := Ejecucion{Solicitud: p.Instruccion, Tipo: EjecutarIA, Texto: mensajeEspera(p), Nombre: p.Lugar}
-		if _, err := RegistrarEjecucion(root, instruccion, now); err != nil {
+		p.Estado, p.RespondidaEn, p.Lugar, p.Respuesta, p.Cerrada = PreguntaRespondida, en, strings.TrimSpace(lugar), r, &cerrada
+		aplicado, err := aplicarAlEstado(root, p, now)
+		if err != nil {
+			return nil, err
+		}
+		p.Aplicado = aplicado
+		if err := avisarALaIA(root, p, now); err != nil {
 			return nil, err
 		}
 		out = p
@@ -199,25 +310,127 @@ func responderEspera(root, id, respuesta, lugar string, now time.Time) (Pregunta
 	return out, err
 }
 
+// ResponderEsperaEnPC es un botón del panel del PC sobre un ⏳ («Para ti»): devuelve la pregunta y el mensaje que el
+// panel le envía a la IA (vacío si no hay nada que hacer).
+func ResponderEsperaEnPC(root, id, valor string, now time.Time) (Pregunta, string, error) {
+	id = IDPregunta(id)
+	if !strings.HasPrefix(id, prefijoEspera) {
+		return Pregunta{}, "", ErrPreguntaDesconocida
+	}
+	respuesta := `{"q1":{"opciones":[` + strconv.Quote(valor) + `]}}`
+	p, err := responderEspera(root, id, respuesta, "", EnPC, now)
+	if err != nil {
+		return Pregunta{}, "", err
+	}
+	return p, mensajeEspera(p), nil
+}
+
+// aplicarAlEstado escribe la respuesta en la celda del ⏳ y dice qué quedó, en palabras para el teléfono.
+func aplicarAlEstado(root string, p Pregunta, now time.Time) (string, error) {
+	r := p.Respuesta[p.Preguntas[0].ID]
+	cuando := now.Local().Format("2006-01-02 15:04") + ", " + desdeDonde(p)
+	c := estado.Cambio{Frente: p.tareaTurno, Etapa: p.etapa, Estado: estado.Espera, DeQuien: deQuienVerifica}
+	if r.Otra != nil {
+		c.Bloqueo = "La persona respondió (" + cuando + "): «" + *r.Otra + "». Era: " + p.bloqueo
+		return "el ⏳ pasa a la IA con tu respuesta", estado.Set(root, c, now)
+	}
+	valor := r.Opciones[0]
+	if valor == EsperaTodaviaNo {
+		return "vuelve a preguntarse en " + strconv.Itoa(int(VidaEsperaRespondida.Hours())) + " h", nil
+	}
+	if valor == EsperaYaNoVa {
+		c.Estado, c.DeQuien = estado.NoAplica, ""
+		c.Evidencia = "La persona dice que ya no va (" + cuando + "). Era: " + p.bloqueo
+		return "la etapa queda en — (ya no va)", estado.Set(root, c, now)
+	}
+	c.Bloqueo = "Verificar: la persona dice que ya lo hizo (" + cuando + "). Era: " + p.bloqueo
+	return "el ⏳ pasa a la IA para que lo verifique", estado.Set(root, c, now)
+}
+
+func desdeDonde(p Pregunta) string {
+	if p.RespondidaEn == EnPC {
+		return "desde el PC"
+	}
+	return "desde " + LugarDe(p)
+}
+
+// avisarALaIA deja el mensaje para la sesión abierta cuando responde un teléfono. La respuesta ya está en el estado, así
+// que la pregunta no sigue esta instrucción (FND-141): si no llega, no se pierde nada.
+func avisarALaIA(root string, p Pregunta, now time.Time) error {
+	mensaje := mensajeEspera(p)
+	if p.RespondidaEn != EnTelefono || mensaje == "" || !HaySesion(root, now) {
+		return nil
+	}
+	instruccion := Ejecucion{Solicitud: fmt.Sprintf("%s-%d", p.ID, now.Unix()), Tipo: EjecutarIA, Texto: mensaje, Nombre: p.Lugar}
+	_, err := RegistrarEjecucion(root, instruccion, now)
+	return err
+}
+
+// EsperaDelPanel es una pregunta de la persona como la dibuja «▶ Para ti» (issue #149). Atender es la acción que la
+// envía al chat, donde se responde.
+type EsperaDelPanel struct {
+	Pregunta string `json:"pregunta"` // el id de su acción, que da su lugar en la lista (RFC 0019)
+	Atender  string `json:"atender"`
+	Donde    string `json:"donde"`
+	Texto    string `json:"texto"`
+}
+
+// EsperasDelPanel son lo que el teléfono pregunta y todavía no se respondió, en el orden de la tabla. Una nota no
+// pregunta nada: sigue como ⏳ en la tabla.
+func EsperasDelPanel(root string, now time.Time) []EsperaDelPanel {
+	out := []EsperaDelPanel{}
+	e, err := estado.Load(root)
+	if err != nil {
+		return out
+	}
+	pendientes := map[string]bool{}
+	for _, p := range PreguntasA(root, now) {
+		pendientes[p.ID] = p.Origen == OrigenEstado && p.Estado == PreguntaPendiente
+	}
+	for _, f := range e.Abiertos() {
+		for i, etapa := range e.EtapasDe(f) {
+			p := preguntaDeEspera(f, etapa, strings.TrimSpace(f.Celdas[etapa].Bloqueo), now)
+			if !pendientes[p.ID] {
+				continue
+			}
+			q := p.Preguntas[0]
+			out = append(out, EsperaDelPanel{Pregunta: prefijoPregunta + p.ID, Atender: prefijoAtender + f.ID + ":" + strconv.Itoa(i), Donde: q.Encabezado, Texto: q.Texto})
+		}
+	}
+	return out
+}
+
 // ReabrirEspera vuelve a preguntar un ⏳ cuya respuesta no llegó a ninguna sesión (FND-141). Solo si la respuesta
 // guardada es la de esa instrucción: una más nueva no se toca.
 func ReabrirEspera(root, id, instruccion string, now time.Time) error {
 	return conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
 		i := indicePregunta(cola, id)
-		if i < 0 || cola[i].Instruccion != instruccion {
+		if instruccion == "" || i < 0 || cola[i].Instruccion != instruccion {
 			return cola, nil
 		}
 		return append(cola[:i], cola[i+1:]...), nil
 	})
 }
 
-// mensajeEspera es lo que lee la IA: a qué ⏳ responde, la respuesta tal cual y cómo reflejarla.
+// mensajeEspera es lo que lee la IA: a qué ⏳ responde, la respuesta tal cual y qué hacer. «Todavía no» no le pide nada.
 func mensajeEspera(p Pregunta) string {
 	q := p.Preguntas[0]
-	texto := ""
-	if r := p.Respuesta[q.ID]; r.Otra != nil {
-		texto = *r.Otra
+	r := p.Respuesta[q.ID]
+	if r.Otra != nil {
+		return mensajeDeRespuesta(q, *r.Otra)
 	}
+	valor := r.Opciones[0]
+	if valor == EsperaTodaviaNo {
+		return ""
+	}
+	que := "Quedó en el estado como un ⏳ tuyo: verifícalo y refléjalo (qdd_estado set)."
+	if valor == EsperaYaNoVa {
+		que = "La etapa quedó en — en el estado. Si algo dependía de eso, ajústalo."
+	}
+	return "Respondo a tu ⏳ «" + q.Encabezado + ": " + q.Texto + "»: " + etiquetaDe(q, valor) + ".\n\n" + que
+}
+
+func mensajeDeRespuesta(q ItemPregunta, texto string) string {
 	return "Respondo a tu ⏳ «" + q.Encabezado + ": " + q.Texto + "»:\n\n" + texto +
 		"\n\nCuando lo resuelvas, refléjalo en el estado (qdd_estado set)."
 }

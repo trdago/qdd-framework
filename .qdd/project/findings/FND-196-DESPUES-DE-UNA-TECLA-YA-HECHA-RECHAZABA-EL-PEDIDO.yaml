@@ -1,0 +1,9 @@
+id: "FND-196"
+title: "--despues con la tecla de un pedido ya hecho rechazaba el pedido o lo hacía esperarse a sí mismo"
+description: "2026-11-09, sesión de sfrc en modo goal (MEJ-054): un push pedido se confirmó en segundos; al pedir otro comando con --despues <tecla del push>, qdd respondió «no hay un pedido 'e' en la cola» o «el pedido 4 no puede esperarse a sí mismo». Al terminar, un pedido deja de ser abierto y su tecla queda libre; resolver solo reconoce la tecla de un pedido abierto, y el pedido nuevo puede recibir esa misma tecla, así que la referencia lo apuntaba a él."
+impact: "Con goal, cada cadena de pedidos (push → PR, merge → tag) fallaba si el primero ya había corrido, y la IA tenía que adivinar el id o pedir sin orden."
+action_taken: "PedirEnOrden, con la cola bloqueada y antes de dar la tecla al pedido nuevo, quita de --despues las teclas que no son de un pedido abierto pero sí de uno que terminó bien: en la cola como hecho o en lo hecho de las últimas 24 h (pedidos-hechos, que ya guardaba la tecla). Un id o la tecla de un pedido abierto siguen igual; una tecla que nadie tuvo sigue siendo un error. Además, 'qdd consola pedidos --salida <id o tecla>' muestra cómo terminó un pedido y su salida, también la de uno cuya tecla ya quedó libre (segunda parte del reporte)."
+test_result: "cli/pkg/consola/pedidos_orden_test.go: TestPedir_DespuesDeUnaTeclaYaHechaEsUnaDependenciaCumplida_FND196 falló antes del cambio con «el pedido 2 no puede esperarse a sí mismo» y pasa después; también fija que una tecla desconocida sigue rechazándose. cli/cmd/consola_pedidos_test.go: TestConsolaPedidos_SalidaDeUnPedidoPorSuTecla_MEJ054 muestra la salida de un pedido fallido por su tecla. Las pruebas de orden de FND-080 siguen pasando."
+status: resolved
+detectado_por: ia
+date: "2026-11-10"

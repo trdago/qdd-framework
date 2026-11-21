@@ -45,7 +45,8 @@ var estadoCmd = &cobra.Command{
   qdd estado [--json]                imprime la tabla (markdown o mensajería, según la ficha; --json para un panel)
   qdd estado init                    crea el archivo con las etapas de la ficha
   qdd estado nueva "<nombre>" [--objetivo …] [--depende-de …]  crea una tarea; qdd le da el id y lo imprime
-  qdd estado set <tarea> <etapa> <ok|espera|falla|na|sin-empezar> [--evidencia …] [--bloqueo … --de-quien …] [--falla …]
+  qdd estado set <tarea> <etapa> <ok|espera|falla|na|sin-empezar> [--evidencia …] [--bloqueo … --de-quien …] [--verifica tipo:arg] [--falla …]
+  qdd estado verificar [--si-toca]   revisa los ⏳ que se responden solos y pasa a ✅ los cumplidos
   qdd estado cerrar <tarea> --motivo "…" [--descartado]
   qdd estado activa <tarea> [--fin]  la tarea en curso: el panel la muestra «● running» (blueprint estado-por-tareas)
   qdd estado pulso [<tarea>] [--fuente agente|subagente|comando]  una señal de vida (sin tarea, la última activada)
@@ -223,20 +224,26 @@ func runEstadoInit(cmd *cobra.Command, args []string) {
 	root := estadoRaiz()
 	etapas := estado.EtapasDe(estadoOpciones(root)["etapas"])
 	if estadoEtapas != "" {
-		etapas = nil
-		for _, s := range strings.Split(estadoEtapas, ",") {
-			if t := strings.TrimSpace(s); t != "" {
-				etapas = append(etapas, t)
-			}
-		}
+		etapas = etapasDeLaOpcion(estadoEtapas)
 	}
 	if len(etapas) == 0 {
-		salirCon("la ficha del estado (%s) no define etapas conocidas: pásalas con --etapas \"A,B,C\"", strings.Join(estado.Blueprints, " o "))
+		salirCon("faltan las etapas, las columnas del tablero: ninguna ficha (%s) las define. Elige las tuyas: %s", strings.Join(estado.Blueprints, " o "), estado.ComandoInit)
 	}
 	if err := estado.Init(root, etapas, time.Now()); err != nil {
 		salirCon("%v", err)
 	}
 	fmt.Printf("[+] %s creado con las etapas: %s\n", estado.Ruta, strings.Join(etapas, " · "))
+}
+
+// etapasDeLaOpcion lee --etapas "A, B,C": sin espacios alrededor y sin etapas vacías.
+func etapasDeLaOpcion(opcion string) []string {
+	var etapas []string
+	for _, s := range strings.Split(opcion, ",") {
+		if t := strings.TrimSpace(s); t != "" {
+			etapas = append(etapas, t)
+		}
+	}
+	return etapas
 }
 
 func runEstadoSet(cmd *cobra.Command, args []string) {
@@ -296,12 +303,16 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		vs = append(vs, estado.CheckRespuesta(e, string(data), time.Now())...)
 	}
 	sinPregunta := consola.EsperasSinPregunta(root, time.Now())
+	trasPedido := consola.EsperasTrasPedido(root, time.Now())
+	trasRetiro := consola.EsperasTrasRetiro(root, time.Now())
+	desfasadas := estado.Desfasadas(e)
+	commits := estado.CommitsDesdeSuCelda(root, e)
 	if estadoJSON {
 		revision := []string{}
 		if estadoResp == "" {
 			revision = []string{"EPF-C08"}
 		}
-		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...)}, "", "  ")
+		out, _ := json.MarshalIndent(map[string]any{"violaciones": vs, "revision_humana": revision, "esperas_sin_pregunta": append([]consola.EsperaSinPregunta{}, sinPregunta...), "esperas_tras_pedido": append([]consola.EsperaSinPregunta{}, trasPedido...), "esperas_tras_retiro": append([]consola.EsperaSinPregunta{}, trasRetiro...), "tareas_desfasadas": desfasadas, "commits_desde_su_celda": commits}, "", "  ")
 		fmt.Println(string(out))
 		salirSiHay(vs)
 		return
@@ -319,7 +330,38 @@ func runEstadoCheck(cmd *cobra.Command, args []string) {
 		fmt.Println(". EPF-C08 (texto y tabla no se contradicen) se revisa con --respuesta <reporte>.")
 	}
 	avisarEsperasSinPregunta(os.Stdout, sinPregunta)
+	avisarEsperasTrasPedido(os.Stdout, trasPedido)
+	avisarEsperasTrasRetiro(os.Stdout, trasRetiro)
+	avisarDesfasadas(os.Stdout, desfasadas)
+	avisarCommitsEnTareas(os.Stdout, commits)
 	salirSiHay(vs)
+}
+
+// avisarCommitsEnTareas avisa, sin bloquear, de las tareas con commits en las rutas de su ficha desde su última celda
+// (RFC 0017 §2): un commit que no cambia lo que falta también cuenta, por eso no bloquea.
+func avisarCommitsEnTareas(salida io.Writer, c estado.CommitsEnTareas) {
+	if len(c.Tareas) == 0 && !c.SoloFoco {
+		return
+	}
+	if len(c.Tareas) > 0 {
+		fmt.Fprintf(salida, "[i] Tareas con commits nuevos en su módulo: %d. Si cambian lo que falta, actualiza sus celdas con qdd estado set:\n", len(c.Tareas))
+	}
+	for _, t := range c.Tareas {
+		fmt.Fprintf(salida, "    %s\n", t.Linea())
+	}
+	if c.SoloFoco {
+		fmt.Fprintln(salida, "[i] Commits por tarea: se revisaron solo las del objetivo en foco (git log tardó más de lo previsto).")
+	}
+}
+
+// avisarDesfasadas avisa, sin bloquear, de las tareas cuya tabla ya no dice lo que pasa (MEJ-010).
+func avisarDesfasadas(salida io.Writer, d estado.TareasDesfasadas) {
+	if len(d.Listas) > 0 {
+		fmt.Fprintf(salida, "[i] Tareas con todo listo que siguen abiertas: %d. Si no falta nada, ciérralas con qdd estado cerrar <id>; si falta algo, agrégalo a la tabla: %s\n", len(d.Listas), strings.Join(d.Listas, ", "))
+	}
+	if len(d.CerradasConEspera) > 0 {
+		fmt.Fprintf(salida, "[i] Tareas cerradas o descartadas que conservan un ⏳: %d. Ya no cuenta como espera; si aún falta algo, ábrelo con qdd estado nueva: %s\n", len(d.CerradasConEspera), strings.Join(d.CerradasConEspera, ", "))
+	}
 }
 
 // avisarEsperasSinPregunta avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta.
@@ -328,6 +370,28 @@ func avisarEsperasSinPregunta(salida io.Writer, esperas []consola.EsperaSinPregu
 		return
 	}
 	fmt.Fprintf(salida, "[i] ⏳ de la persona que no le llegan como pregunta: %d. Si le pides algo, escríbelo como ¿…? o nombra su pedido con [tecla]; si es una nota de avance, déjala:\n", len(esperas))
+	for _, e := range esperas {
+		fmt.Fprintf(salida, "    %s\n", e.Linea())
+	}
+}
+
+// avisarEsperasTrasPedido avisa, sin bloquear, de los ⏳ de la persona que esperan un pedido que ya terminó (FND-176).
+func avisarEsperasTrasPedido(salida io.Writer, esperas []consola.EsperaSinPregunta) {
+	if len(esperas) == 0 {
+		return
+	}
+	fmt.Fprintf(salida, "[i] ⏳ de la persona cuyo pedido ya terminó: %d. El teléfono ya no los pregunta; refleja lo que pasó con qdd_estado set:\n", len(esperas))
+	for _, e := range esperas {
+		fmt.Fprintf(salida, "    %s\n", e.Linea())
+	}
+}
+
+// avisarEsperasTrasRetiro avisa, sin bloquear, de los ⏳ de la persona que nombran un pedido retirado (MEJ-085).
+func avisarEsperasTrasRetiro(salida io.Writer, esperas []consola.EsperaSinPregunta) {
+	if len(esperas) == 0 {
+		return
+	}
+	fmt.Fprintf(salida, "[i] ⏳ de la persona cuyo pedido se retiró (su tarea siguió cambiando): %d. El teléfono ya no los pregunta; si todavía va, pídelo de nuevo; si no, actualiza el ⏳ con qdd_estado set:\n", len(esperas))
 	for _, e := range esperas {
 		fmt.Fprintf(salida, "    %s\n", e.Linea())
 	}

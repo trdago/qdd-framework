@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/qdd-framework/qdd/pkg/contexto"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 )
 
@@ -18,6 +19,11 @@ type Violation struct {
 	Line        int
 	// Recomendacion indica que se informa sin bloquear el gate (adopción gradual).
 	Recomendacion bool
+	// Principio, PorQue y Categoria dicen qué protege la regla y por qué
+	// (RFC 0005 §3.1). Los completa el motor desde principios.yaml.
+	Principio string
+	PorQue    string
+	Categoria string
 }
 
 // Format muestra la violación de forma legible.
@@ -33,11 +39,22 @@ func (v Violation) Format() string {
 
 // EngineCoordinator orquesta todas las certificaciones
 type EngineCoordinator struct {
-	cwd string
+	cwd             string
+	pararAlBloquear bool
 }
+
+// ReglaPruebasPendientes dice que las pruebas no se corrieron porque una regla ya bloqueaba.
+const ReglaPruebasPendientes = "QA-04-PRUEBAS-PENDIENTES"
 
 func NewEngine(cwd string) *EngineCoordinator {
 	return &EngineCoordinator{cwd: cwd}
+}
+
+// ParandoAlBloquear no corre las pruebas si una regla ya bloquea el gate (RFC 0020): quien itera arregla primero lo barato. Lo
+// usan qdd audit y qdd_audit. El CI y --completo corren todo, y lo que mide (report, score) nunca se detiene.
+func (e *EngineCoordinator) ParandoAlBloquear() *EngineCoordinator {
+	e.pararAlBloquear = true
+	return e
 }
 
 // RunAll ejecuta todas las certificaciones universales y devuelve la lista de violaciones.
@@ -55,12 +72,54 @@ func (e *EngineCoordinator) RunAll() []Violation {
 
 	e.runCoreChecks(p, &allViolations)
 	e.runAdvancedChecks(p, &allViolations)
+	allViolations = append(allViolations, e.pruebasOPendientes(p, allViolations)...)
 
 	// Filtro de supresión Enterprise (Grandfathering)
 	allViolations = FilterIgnoredViolations(allViolations)
 	marcarRecomendaciones(p, allViolations)
+	conPrincipio(allViolations)
 
 	return allViolations
+}
+
+// pruebasOPendientes corre las pruebas, que van al final porque son lo caro, salvo que ya se sepa que el gate no aprueba.
+func (e *EngineCoordinator) pruebasOPendientes(p QDDPolicies, reglas []Violation) []Violation {
+	bloquean := bloqueantesDeReglas(p, reglas)
+	if !e.pararAlBloquear || bloquean == 0 || os.Getenv("CI") != "" || os.Getenv(envPruebasCompletas) != "" {
+		return RunCoverageCheck(e.cwd)
+	}
+	fmt.Fprintf(os.Stderr, "[QA] PRUEBAS PENDIENTES: %d regla(s) ya bloquean el gate; corrígelas primero o usa qdd audit --completo\n", bloquean)
+	return []Violation{{
+		Category:      "COVERAGE",
+		RuleID:        ReglaPruebasPendientes,
+		Description:   "No se corrieron las pruebas porque una regla ya bloquea el gate. Corrígela primero, o usa qdd audit --completo para verlo todo de una vez.",
+		Recomendacion: true,
+	}}
+}
+
+// bloqueantesDeReglas cuenta sobre una copia: lo mismo que hará RunAll al final, sin tocar la lista.
+func bloqueantesDeReglas(p QDDPolicies, reglas []Violation) int {
+	copia := FilterIgnoredViolations(append([]Violation{}, reglas...))
+	marcarRecomendaciones(p, copia)
+	return len(Bloqueantes(copia))
+}
+
+// Evaluar ejecuta la auditoría y dice además qué se pudo revisar en cada
+// unidad del proyecto (RFC 0005 §3.4).
+func (e *EngineCoordinator) Evaluar() Resultado {
+	return e.conCobertura(e.RunAll())
+}
+
+// EvaluarCompleto es Evaluar sin suites recordadas, para un certificado.
+func (e *EngineCoordinator) EvaluarCompleto() Resultado {
+	return e.conCobertura(e.RunAllCompleto())
+}
+
+func (e *EngineCoordinator) conCobertura(violations []Violation) Resultado {
+	return Resultado{
+		Violaciones: violations,
+		Cobertura:   CalcularCobertura(e.cwd, LoadPolicies(e.cwd), contexto.Leer(e.cwd), violations),
+	}
 }
 
 func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation) {
@@ -73,7 +132,6 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	}
 
 	*violations = append(*violations, RunTwelveFactorCheck(e.cwd)...)
-	*violations = append(*violations, RunCoverageCheck(e.cwd)...)
 	if p.DeployGateEnabled() {
 		*violations = append(*violations, RunDeployGateCheck(e.cwd)...)
 	}
@@ -84,6 +142,8 @@ func (e *EngineCoordinator) runCoreChecks(p QDDPolicies, violations *[]Violation
 	*violations = append(*violations, RunModuleHeartCheck(e.cwd, p.ModuleHeart)...)
 	*violations = append(*violations, RunBlueprintCheck(e.cwd)...)
 	*violations = append(*violations, RunHerramientasCheck(e.cwd)...)
+	*violations = append(*violations, RunFormatoCheck(e.cwd)...)
+	*violations = append(*violations, RunDockerDesarrolloCheck(e.cwd)...)
 	*violations = append(*violations, RunEstadoCheck(e.cwd)...)
 	*violations = append(*violations, RunFindingsCheck(e.cwd)...)
 	*violations = append(*violations, CheckDatabasePerformance(e.cwd)...)

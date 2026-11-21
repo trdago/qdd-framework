@@ -15,7 +15,7 @@ func TestCursorAdapter_Sync_DeepMerge(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	mcpPath := setupCursorTestWorkspace(t, tmpDir)
-	
+
 	adapter := &CursorAdapter{}
 	err = adapter.Sync(tmpDir)
 	if err != nil {
@@ -45,7 +45,7 @@ func setupCursorTestWorkspace(t *testing.T, tmpDir string) string {
 
 	initialBytes, _ := json.Marshal(initialState)
 	os.WriteFile(mcpPath, initialBytes, 0644)
-	
+
 	return mcpPath
 }
 

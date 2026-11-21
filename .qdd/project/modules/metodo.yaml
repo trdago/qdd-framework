@@ -15,17 +15,22 @@ objetivo_operativo:
 objetivo_tecnologico:
     arquitectura: modules.PorQueCeroElse es la razón, escrita una vez; la usan workingMethod (context.go) y la violación CLEAN-01-NO-ELSE (clean_code.go). El bloque de instrucciones (integration.QDDCommandProtocol) la dice en inglés, y los principios y certificaciones del núcleo (core_assets/core, que init instala en .qdd/core) con las mismas palabras.
     decisiones:
+        - En desarrollo la app corre directo en el PC y Docker es solo para la base de datos (decisión de la persona, 2026-11-07). Si alguien igual lo quiere para la app, la IA avisa antes que será más lento y por qué, y lo hace solo si confirma.
         - 'La razón del cero else (pedido del usuario, 2026-10-31): cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo; con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto. Vale en cualquier lenguaje.'
+        - 'El contexto es liviano por defecto (MEJ-073, FND-240; opción recomendada que eligió el modo goal, 2026-11-20): cada decisión en su primera frase (hasta 160 caracteres), invariantes, criterio de éxito, arquitectura y pruebas enteros, y con rutas el mapa como una línea. Lo entero va a un parámetro (detalle=completo, --completo). Con más de 25 decisiones, la ficha pide dividirse. El ambiente limpio certifica el presupuesto en cada PR.'
         - 'La regla de autorización suma la sincronía con el panel: lo que el panel espera y la persona resuelve en el chat se refleja en el acto (2026-11-01).'
+        - 'El bloque de instrucciones y la forma de trabajo piden declarar la tarea en curso (MEJ-021): ninguna regla lo decía y el tablero y el teléfono casi nunca la mostraban.'
+        - 'El contexto trae «Tareas por revisar» (RFC 0017 §3) solo si hay alguna: las líneas las calcula el paquete estado (que depende de modules) y llegan por ContextInput.TareasPorRevisar. QDD no reescribe nombres ni criterios; le pide a la IA revisarlos.'
     invariantes:
         - Toda superficie donde una IA lee el cero 'else' dice también su razón (pruebas TestMetodoDeTrabajo_CeroElseDiceElPorQue, TestProtocol_CeroElseConSuRazon, TestCleanCode_ElseDiceComoYPorQue y TestCore_CeroElseConSuRazon).
         - La razón se escribe una vez en Go (modules.PorQueCeroElse); el núcleo la repite con las mismas palabras.
 pruebas:
     comandos:
-        - cd cli && go test ./pkg/modules/ ./pkg/integration/ ./pkg/audit/ ./cmd/ -run 'CeroElse|ElseDiceComoYPorQue'
+        - cd cli && go test ./pkg/modules/ ./pkg/integration/ ./pkg/audit/ ./cmd/ -run 'CeroElse|ElseDiceComoYPorQue|MEJ021'
+        - cd cli && go test ./pkg/modules/ -run PideRevisar
 fuentes:
     - cli/pkg/modules/context.go
     - cli/pkg/integration/types.go
     - cli/pkg/audit/clean_code.go
-ultima_revision: "2026-11-01"
-revisado_en_commit: 47c9cf394f6b
+ultima_revision: "2026-11-20"
+revisado_en_commit: 67c96cb31c2e

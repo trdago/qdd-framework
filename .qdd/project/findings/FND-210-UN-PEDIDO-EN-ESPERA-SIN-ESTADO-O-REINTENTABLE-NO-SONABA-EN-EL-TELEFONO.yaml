@@ -1,0 +1,9 @@
+id: "FND-210"
+title: "Un pedido en espera, sin estado o que falló y se puede reintentar no sonaba en el teléfono"
+description: "2026-11-15, al probar los avisos contra el contrato de qdd-movile (test/fixtures/esperas.json, 23 casos): el PC pedía el push «pedido» solo para un pedido en estado pendiente. La app cuenta en «Te espera» también el pedido sin estado (colas de qdd 2.6.0), el que espera a otro y el que falló y se puede reintentar (no uno lanzado desde el teléfono), así que esos esperaban a la persona sin sonar. El mismo contrato mostró que un ⏳ sin «¿…?» (nota de la tarea) y un ⏳ sin consola que necesita una IA pedían push con la lógica nueva de FND-208, y que una pregunta sin estado no lo pedía; eso se corrigió en FND-208, antes de publicarse."
+impact: "Un pedido que la persona tenía que confirmar o reintentar no avisaba al teléfono: lo veía solo si abría la app."
+action_taken: "esperan (pkg/remoto/bucle.go) sigue el contrato con avisoDe y pedidoEspera, y una prueba lee la copia del contrato en cli/pkg/remoto/testdata/esperas.json (origen anotado en su README): si qdd-movile lo cambia, se vuelve a copiar."
+test_result: "cli/pkg/remoto/esperas_contrato_test.go: TestEsperan_CumpleElContratoDeQDDMovil_FND208. Fallaba antes con 6 casos distintos (3 de pedidos de este finding, 3 de preguntas de FND-208) y pasa después con los 23. Sin probar con el push real en el teléfono."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

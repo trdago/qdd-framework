@@ -168,6 +168,13 @@ func TestRelay_RPCConLaClavePublicableYErroresDelRelay(t *testing.T) {
 	if err := r.Avisar(context.Background(), "t", "f", AvisoPedido, "p", "p-1"); !errors.Is(err, ErrNoDisponible) {
 		t.Fatalf("404 es «no disponible»: %v", err)
 	}
+	f.Responder("/functions/v1/avisar", func(map[string]any) (int, any) {
+		return 400, map[string]string{"error": "tipo inválido: x"}
+	})
+	var rechazada ErrRechazada
+	if err := r.Avisar(context.Background(), "t", "f", AvisoPedido, "p", "p-1"); !errors.As(err, &rechazada) || !strings.Contains(rechazada.Error(), "tipo inválido") {
+		t.Fatalf("400 es un rechazo con su motivo: %v", err)
+	}
 	sinLimite := PlanGratis()
 	sinLimite.Proyectos = nil
 	if sinLimite.LimiteProyectos() != 0 {
@@ -287,15 +294,3 @@ func TestCredenciales_PrivadasYSeBorran(t *testing.T) {
 // Issue #102: qdd trae el relay de QDD Móvil por defecto. Hoy va vacío a propósito: publicarlo espera a que se cierren
 // las tablas expuestas del proyecto. Si se llena, va completo y con una clave publicable.
 // FND-133: sin relay de fábrica, qdd login fallaba en todo PC nuevo. Va completo y solo con la clave publicable.
-func TestRelayPorDefecto_VaCompletoYPublicable_FND133(t *testing.T) {
-	c := RelayPorDefecto
-	if err := ValidarURL(c.URL); err != nil {
-		t.Fatal(err)
-	}
-	if err := ValidarClave(c.Clave); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(c.Clave, "sb_publishable_") {
-		t.Fatal("qdd se publica en npm: su relay de fábrica lleva solo la clave publicable")
-	}
-}

@@ -42,6 +42,10 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      # La suite del panel (requiere: claude) quedaba «sin medir» y nunca corría en el CI (FND-174). No usa credenciales.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.319
+
       - name: Build Framework
         run: make build
 
@@ -105,6 +109,11 @@ jobs:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
         run: |
+          # Sprint 9 (FND-238): en Windows, qdd.exe lleva dentro qddw.exe, el lanzador sin ventana de QDD Móvil. Las
+          # banderas son las de cli/qddw (banderasRelease), que una prueba revisa.
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            go build -ldflags "-H=windowsgui -s -w" -o pkg/remoto/lanzador/qddw.exe ./qddw
+          fi
           go build -o qdd${{ matrix.os == 'windows' && '.exe' || '' }} .
           if [ "${{ matrix.ext }}" = "zip" ]; then
             zip qdd_${{ matrix.os }}_${{ matrix.arch }}.zip qdd.exe

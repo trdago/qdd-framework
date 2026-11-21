@@ -13,7 +13,7 @@ func RunTraceabilityCheck(cwd string) []Violation {
 	cmd := exec.Command("git", "log", "-1", "--pretty=%B")
 	cmd.Dir = cwd
 	out, err := cmd.Output()
-	
+
 	if err == nil {
 		message := strings.TrimSpace(string(out))
 		// Validación simple de Conventional Commits

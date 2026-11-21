@@ -14,8 +14,8 @@ var loginCmd = &cobra.Command{
 	Short: "Empareja este PC con QDD Móvil: muestra el QR y deja el servicio que lo publica",
 	Long: `Empareja este PC con QDD Móvil: muestra un QR, lo escaneas con la app y el PC queda publicando.
 
-Sin banderas usa el relay guardado o, la primera vez, el que trae qdd si esta versión trae uno. --relay y --clave son
-para quien opera su propio relay. Es lo mismo que qdd remoto activar.`,
+Sin banderas consulta el directorio firmado del relay; si no responde, sigue con el guardado. --relay y --clave son
+para quien opera su propio relay, y ese relay no se consulta. Es lo mismo que qdd remoto activar.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {},
 	Run: func(cmd *cobra.Command, args []string) {

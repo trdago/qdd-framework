@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
@@ -27,6 +29,8 @@ import (
 // proyecto; una instrucción queda en la cola del teléfono (pkg/consola) para la sesión de Claude Code del proyecto.
 // Responde accion_estado {solicitud, accion_id: ejecutar, estado, resultado}: recibida → ejecutando → hecha | fallo,
 // o rechazada (o vencida, una instrucción que nadie tomó) con el motivo.
+// Una edición de un flujo (tipo flujo, decisión de la persona, 2026-11-06) no es un comando: su texto es una operación
+// JSON (flujo.LeerOperacion) que se aplica aquí mismo, como una edición de la persona en el panel.
 
 const (
 	// AccionEjecutar es el accion_id con que el PC responde una ejecución (no es una acción del panel).
@@ -104,14 +108,19 @@ func (e EjecucionFirmada) Verificar(firmaMaquina string, now time.Time) error {
 }
 
 // ValidarTexto vuelve a hacer en el PC lo que exige el relay: un comando qdd de la lista permitida (ArgsPermitidos);
-// una instrucción de 1 a MaxTextoIA caracteres, sin más controles que saltos de línea y tabulaciones.
+// una operación de un flujo que cumpla su esquema; una instrucción de 1 a MaxTextoIA caracteres, sin más controles que
+// saltos de línea y tabulaciones.
 func ValidarTexto(tipo, texto string) error {
 	if tipo == consola.EjecutarQDD {
 		_, err := ArgsPermitidos(texto)
 		return err
 	}
+	if tipo == consola.EjecutarFlujo {
+		_, err := flujo.LeerOperacion(texto)
+		return err
+	}
 	if tipo != consola.EjecutarIA {
-		return fmt.Errorf("tipo «%s» desconocido: solo qdd o ia", tipo)
+		return fmt.Errorf("tipo «%s» desconocido: solo qdd, ia o flujo", tipo)
 	}
 	if !utf8.ValidString(texto) || strings.TrimSpace(texto) == "" {
 		return errors.New("la instrucción está vacía o no es texto")
@@ -279,13 +288,97 @@ func LeerPlan() (Plan, error) {
 	return g.Plan, nil
 }
 
+// latidoGuardado es <QDD_HOME>/remoto/latido.json: cuándo respondió el relay por última vez. Va aparte del plan porque
+// plan.json solo se escribe si el plan cambia, y sin teléfonos conectados puede pasar horas igual con el PC latiendo bien.
+type latidoGuardado struct {
+	Formato int       `json:"formato"`
+	En      time.Time `json:"en"`
+	// DesfaseSeg es cuánto va adelantado este PC frente al relay (negativo: atrasado), si el relay dio su hora (REM-19).
+	DesfaseSeg *float64 `json:"desfase_relay_seg,omitempty"`
+}
+
+// GuardarLatido anota que el relay acaba de responder (0600).
+func GuardarLatido(now time.Time) error {
+	return GuardarLatidoConHora(now, 0, false)
+}
+
+// GuardarLatidoConHora anota el latido con el desfase frente al relay, si se conoce.
+func GuardarLatidoConHora(now time.Time, desfase time.Duration, conHora bool) error {
+	l := latidoGuardado{Formato: 1, En: now.UTC()}
+	if conHora {
+		s := desfase.Seconds()
+		l.DesfaseSeg = &s
+	}
+	return guardarPrivado("latido.json", l)
+}
+
+// DesfaseRelay es el desfase que dejó el último latido; false si el relay no dio hora o el servicio es anterior.
+func DesfaseRelay() (time.Duration, bool) {
+	var l latidoGuardado
+	if err := leerPrivado("latido.json", &l); err != nil || l.DesfaseSeg == nil {
+		return 0, false
+	}
+	return time.Duration(*l.DesfaseSeg * float64(time.Second)), true
+}
+
+// UltimoLatido es cuándo el relay respondió por última vez a este PC. Mira también plan.json porque un servicio de una
+// versión anterior solo escribe ese.
+func UltimoLatido() (time.Time, error) {
+	var l latidoGuardado
+	errLatido := leerPrivado("latido.json", &l)
+	var g planGuardado
+	errPlan := leerPrivado("plan.json", &g)
+	if errLatido != nil && errPlan != nil {
+		return time.Time{}, errPlan
+	}
+	if l.En.After(g.En) {
+		return l.En, nil
+	}
+	return g.En, nil
+}
+
+type publicacionGuardada struct {
+	Formato int       `json:"formato"`
+	OK      bool      `json:"ok"`
+	En      time.Time `json:"en"`
+}
+
+// GuardarPublicacion deja si el último envío al teléfono salió, sin el texto del error: lo lee qdd doctor y un error
+// del transporte no tiene por qué llegar a su reporte.
+func GuardarPublicacion(ok bool, now time.Time) error {
+	return guardarPrivado("publicacion.json", publicacionGuardada{Formato: 1, OK: ok, En: now.UTC()})
+}
+
+// LeerPublicacion es lo que dejó GuardarPublicacion.
+func LeerPublicacion() (bool, time.Time, error) {
+	var g publicacionGuardada
+	if err := leerPrivado("publicacion.json", &g); err != nil {
+		return false, time.Time{}, err
+	}
+	return g.OK, g.En, nil
+}
+
+// Corriendo dice si el proceso de qdd remoto de esta máquina sigue vivo.
+func Corriendo() bool {
+	ruta, err := rutaRemoto("correr.pid")
+	if err != nil {
+		return false
+	}
+	b, err := os.ReadFile(ruta)
+	if err != nil {
+		return false
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	return err == nil && pid > 0 && consola.ProcesoVivo(pid)
+}
+
 // OpcionesEjecutar es el ejecutar del panel de un proyecto: nada sin Pro; con Pro, comandos qdd de la lista y, si hay
 // una sesión de Claude Code abierta en el proyecto, instrucciones para la IA.
 func OpcionesEjecutar(root string, plan Plan, now time.Time) *consola.OpcionesEjecutar {
 	if !plan.Pro() {
 		return nil
 	}
-	return &consola.OpcionesEjecutar{QDD: true, IA: consola.HaySesion(root, now), Sugeridos: append([]string{}, Sugeridos...)}
+	return &consola.OpcionesEjecutar{QDD: true, IA: consola.HaySesion(root, now), Flujos: true, Sugeridos: append([]string{}, Sugeridos...)}
 }
 
 // ConEjecutar pone el ejecutar de cada panel del estado según el plan (sin Pro, ninguno).
@@ -348,11 +441,15 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		b.cerrar(ctx, s, EstadoRechazada, err.Error())
 		return
 	}
+	if e.Tipo == consola.EjecutarFlujo {
+		b.aplicarFlujo(ctx, s, e.Texto)
+		return
+	}
 	if e.Tipo == consola.EjecutarQDD && b.correEnElProyecto(s.Ruta) {
 		b.cerrar(ctx, s, EstadoRechazada, "ya corre otro comando mandado desde el teléfono en este proyecto: espera a que termine")
 		return
 	}
-	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: e.Tipo, Texto: e.Texto, Dispositivo: s.Dispositivo, Nombre: s.Nombre}
+	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: e.Tipo, Texto: e.Texto, Dispositivo: s.Dispositivo, Nombre: s.Nombre, Para: paraSesion(e.Tipo, s.Ruta, b.ahora())}
 	if _, err := consola.RegistrarEjecucion(s.Ruta, x, b.ahora()); err != nil {
 		b.cerrar(ctx, s, EstadoFallo, err.Error())
 		return
@@ -363,6 +460,58 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		return
 	}
 	b.correrComando(ctx, s, e.Texto)
+}
+
+// aplicarFlujo aplica una edición validada. Va bajo el candado del flujo y tarda milisegundos, así que no espera a un
+// comando que corra: una audit no detiene un comentario.
+func (b *Bucle) aplicarFlujo(ctx context.Context, s Solicitud, texto string) {
+	op, err := flujo.LeerOperacion(texto)
+	if err != nil {
+		b.cerrar(ctx, s, EstadoRechazada, err.Error())
+		return
+	}
+	if op.Op == flujo.OpEnviar {
+		b.enviarFlujo(ctx, s, op.Flujo, "no había nada por enviar")
+		return
+	}
+	linea, err := op.Aplicar(s.Ruta, b.ahora())
+	if err != nil {
+		b.cerrar(ctx, s, EstadoRechazada, err.Error())
+		return
+	}
+	if op.LlamaALaIA() {
+		b.enviarFlujo(ctx, s, op.Flujo, linea)
+		return
+	}
+	b.cerrar(ctx, s, EstadoHecha, linea)
+	b.marcar()
+}
+
+// enviarFlujo reclama lo pendiente del flujo y lo deja como instrucción para la sesión. Si no llega, cerrarSinEntregar
+// lo devuelve: no se pierde lo que la persona escribió. Sin nada que reclamar, responde sinNada.
+func (b *Bucle) enviarFlujo(ctx context.Context, s Solicitud, id, sinNada string) {
+	mensaje, n := flujo.Enviar(s.Ruta, id)
+	if n == 0 {
+		b.cerrar(ctx, s, EstadoHecha, sinNada)
+		b.marcar()
+		return
+	}
+	s.Ejecutar, s.Flujo, s.Lineas = consola.EjecutarIA, id, n
+	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: consola.EjecutarIA, Texto: mensaje, Dispositivo: s.Dispositivo, Nombre: s.Nombre, Para: sesionDeLaConsola(s.Ruta, b.ahora())}
+	if _, err := consola.RegistrarEjecucion(s.Ruta, x, b.ahora()); err != nil {
+		b.cerrarSinEntregar(ctx, s, EstadoFallo, err.Error())
+		return
+	}
+	b.marcar()
+	b.encolarInstruccion(ctx, s)
+}
+
+// paraSesion: una instrucción para la IA va a la sesión que el teléfono ve en la consola (MEJ-082); un comando qdd no.
+func paraSesion(tipo, ruta string, now time.Time) string {
+	if tipo != consola.EjecutarIA {
+		return ""
+	}
+	return sesionDeLaConsola(ruta, now)
 }
 
 // correEnElProyecto dice si un comando qdd del teléfono corre ahora en esa carpeta: uno por proyecto a la vez (dos
@@ -477,6 +626,12 @@ func (b *Bucle) seguirInstruccion(ctx context.Context, s Solicitud) {
 // cerrarSinEntregar cierra una instrucción que no llegó a ninguna sesión; si era la respuesta a un ⏳, este vuelve a
 // preguntarse para que la persona pueda responder de nuevo (FND-141).
 func (b *Bucle) cerrarSinEntregar(ctx context.Context, s Solicitud, estado, resultado string) {
+	if s.Flujo != "" {
+		if err := flujo.Devolver(s.Ruta, s.Flujo, s.Lineas); err != nil {
+			b.logf("no se pudo devolver lo pendiente del flujo %s: %v", s.Flujo, err)
+		}
+		b.marcar()
+	}
 	if s.Instruccion != "" {
 		if err := consola.ReabrirEspera(s.Ruta, s.Pregunta, s.Instruccion, b.ahora()); err != nil {
 			b.logf("no se pudo volver a preguntar %s: %v", s.Pregunta, err)

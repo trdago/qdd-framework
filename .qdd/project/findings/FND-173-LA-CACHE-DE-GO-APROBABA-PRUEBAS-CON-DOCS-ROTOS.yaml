@@ -1,0 +1,9 @@
+id: "FND-173"
+title: "La caché de Go aprobaba pruebas que leen fuera de cli/ con esos archivos rotos"
+description: "Go guarda el resultado de una prueba y solo vigila los archivos de su módulo, que es cli/. Las pruebas que leen docs, README, workflows o plantillas siguen pasando desde la caché aunque esos archivos cambien. Reproducido: se agregó a docs/getting-started.md una línea que TestDocs_DicenQueDashboardEstaObsoleto rechaza; go test dio (cached), y con -count=1 falló."
+impact: "Con caché llena, qdd audit y el hook de push podían aprobar un cambio que rompía una prueba de documentación o de workflow. El CI podía atraparlo solo si su caché no estaba llena."
+action_taken: "El gate corre sin caché los dos paquetes que leen fuera del módulo (cmd y pkg/blueprints), unos 5 s en total. Una prueba guardiana revisa todos los paquetes y falla si aparece otro que no esté en esa línea."
+test_result: "cli/cmd/gate_sin_cache_test.go: TestGate_LasPruebasQueLeenFueraDelModuloCorrenSinCache_FND173 y TestNivelesQueSube_SoloCuentaLoQueEmpiezaSubiendo_FND173."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

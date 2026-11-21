@@ -1,6 +1,7 @@
 package consola
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/qdd-framework/qdd/pkg/materializar"
@@ -24,46 +25,61 @@ const (
 	TipoAprobar   = "aprobar"
 	TipoComando   = "comando"
 	TipoDescartar = "descartar"
+	TipoYaLoVi    = "ya-lo-vi"
 
 	// MaxTareas es cuántas tareas pendientes muestra el panel: las más nuevas (§3.9).
 	MaxTareas = 4
 
-	// MotivoDescarte es el motivo_cierre de una tarea descartada con la ✕ del panel: nunca desaparece en silencio.
-	MotivoDescarte = "descartada desde el panel de Claude Code (✕)"
+	// MotivoDescarte es el motivo_cierre de una tarea quitada desde el panel: nunca desaparece en silencio, y no dice
+	// que se hizo ni que se rechazó.
+	MotivoDescarte = "la quitó la persona desde el panel"
 
 	// MaxFichas es el tope de fichas en borrador que se ofrecen: una tecla 1…9 por ficha.
 	MaxFichas = 9
 
 	prefijoAprobar   = "aprobar:"
 	prefijoDescartar = "descartar:"
+	prefijoYaLoVi    = "ya-lo-vi:"
 )
 
 // Accion es un botón del panel. Args son los argumentos de qdd para un comando; no salen en el JSON. En un pedido,
 // Detalle es el comando exacto y Carpeta dónde corre.
 type Accion struct {
-	ID        string     `json:"id"`
-	Tipo      string     `json:"tipo"`
-	Etiqueta  string     `json:"etiqueta"`
-	Detalle   string     `json:"detalle"`
-	Carpeta   string     `json:"carpeta,omitempty"`
-	Tecla     string     `json:"tecla,omitempty"`
-	Estado    string     `json:"estado,omitempty"`    // solo pedidos: pendiente, espera, ejecutando, hecho o fallo
-	Resultado string     `json:"resultado,omitempty"` // solo pedidos: últimas líneas de la salida
-	Espera    []string   `json:"espera,omitempty"`    // solo pedidos en espera: las teclas de lo que espera
-	Aviso     string     `json:"aviso,omitempty"`     // solo pedidos: «todavía no», lo que dijo la última vez (FND-082)
-	AvisoEn   *time.Time `json:"aviso_en,omitempty"`
-	Proximo   *time.Time `json:"proximo,omitempty"`  // solo pedidos armados: cuándo vuelve a intentarlo
-	Intentos  int        `json:"intentos,omitempty"` // solo pedidos armados: cuántas veces corrió
-	Sesion    string     `json:"sesion,omitempty"`   // solo pedidos: la sesión de Claude Code que lo confirmó
-	Avisar    bool       `json:"avisar,omitempty"`   // solo pedidos: terminó y esa sesión todavía no recibió el aviso
-	Mensaje   string     `json:"mensaje,omitempty"`  // solo con avisar: lo que lee la IA de esa sesión (aviso.go)
-	PR        int        `json:"pr,omitempty"`       // solo pedidos opcionales de un PR abierto (prs.go)
-	DeTarea   string     `json:"tarea,omitempty"`    // solo pedidos: la tarea que extiende, para que el teléfono no la ofrezca otra vez
+	ID       string `json:"id"`
+	Tipo     string `json:"tipo"`
+	Etiqueta string `json:"etiqueta"`
+	Detalle  string `json:"detalle"`
+	Carpeta  string `json:"carpeta,omitempty"`
+	Tecla    string `json:"tecla,omitempty"`
+	// Turno es su número en lo que espera a la persona (RFC 0019): no cambia ni se reutiliza. TurnoDesde es cuándo entró,
+	// EsperaTurno qué turnos espera, y Siguiente marca lo primero que la persona puede contestar.
+	Turno       int        `json:"turno,omitempty"`
+	TurnoDesde  *time.Time `json:"turno_desde,omitempty"`
+	EsperaTurno []int      `json:"espera_turno,omitempty"`
+	Siguiente   bool       `json:"siguiente,omitempty"`
+	Estado      string     `json:"estado,omitempty"`    // solo pedidos: pendiente, espera, ejecutando, hecho o fallo
+	Resultado   string     `json:"resultado,omitempty"` // solo pedidos: últimas líneas de la salida
+	Espera      []string   `json:"espera,omitempty"`    // solo pedidos en espera: las teclas de lo que espera
+	Bloqueo     string     `json:"bloqueo,omitempty"`   // un pedido que esperaba a uno descartado: por qué no se confirma (FND-213)
+	Aviso       string     `json:"aviso,omitempty"`     // solo pedidos: «todavía no», lo que dijo la última vez (FND-082)
+	AvisoEn     *time.Time `json:"aviso_en,omitempty"`
+	Proximo     *time.Time `json:"proximo,omitempty"`  // solo pedidos armados: cuándo vuelve a intentarlo
+	Intentos    int        `json:"intentos,omitempty"` // solo pedidos armados: cuántas veces corrió
+	Sesion      string     `json:"sesion,omitempty"`   // solo pedidos: la sesión de Claude Code que lo confirmó
+	Avisar      bool       `json:"avisar,omitempty"`   // solo pedidos: terminó y esa sesión todavía no recibió el aviso
+	Mensaje     string     `json:"mensaje,omitempty"`  // solo con avisar: lo que lee la IA de esa sesión (aviso.go)
+	PR          int        `json:"pr,omitempty"`       // solo pedidos opcionales de un PR abierto (prs.go)
+	// VersionNueva: solo el pedido opcional de actualizar qdd (version_nueva.go).
+	VersionNueva string `json:"version_nueva,omitempty"`
+	// DePersona: solo la persona lo confirma; el modo goal no lo lanza (RFC 0023).
+	DePersona bool   `json:"de_persona,omitempty"`
+	DeTarea   string `json:"tarea,omitempty"` // solo pedidos: la tarea que extiende, para que el teléfono no la ofrezca otra vez
 	// Solo preguntas (preguntas.go): de dónde viene (ia, permiso o qdd), dónde se respondió (pc o telefono), sus
 	// preguntas con opciones y, en un permiso, la herramienta y el comando exacto.
 	Origen       string           `json:"origen,omitempty"`
 	RespondidaEn string           `json:"respondida_en,omitempty"`
 	Preguntas    []ItemPregunta   `json:"preguntas,omitempty"`
+	SinSesion    bool             `json:"sin_sesion,omitempty"` // un ⏳: se responde aunque no haya una sesión abierta
 	Permiso      *PermisoPregunta `json:"permiso,omitempty"`
 	// Solo pedidos de origen telefono (telefono.go): el nombre del teléfono que lo mandó y la solicitud con que llegó.
 	Dispositivo string     `json:"dispositivo,omitempty"`
@@ -74,8 +90,12 @@ type Accion struct {
 	Args        []string   `json:"-"`
 	ficha       string
 	pedido      string
-	tarea       string // id del frente que descarta la ✕ (§3.9)
-	programa    string // abridor de «Abrir carpeta» (§3.9)
+	pidio       string   // la sesión de la IA que lo pidió: el comando corre con ella (FND-242)
+	claveTurno  string   // lo que identifica su turno, si no es el id (RFC 0019)
+	tareaTurno  string   // la tarea a la que pertenece, para sus dependencias
+	despues     []string // los pedidos que espera
+	tarea       string   // id del frente que descarta la ✕ (§3.9)
+	programa    string   // abridor de «Abrir carpeta» (§3.9)
 }
 
 // DatosConsola es lo que 'qdd consola panel --json' entrega al panel en una sola lectura.
@@ -92,6 +112,28 @@ type DatosConsola struct {
 	Ejecutar *OpcionesEjecutar `json:"ejecutar,omitempty"`
 	// Goal es el modo goal del proyecto (goal.go): con Activo false, este qdd lo ofrece y está apagado.
 	Goal *Goal `json:"goal,omitempty"`
+	// AvisoVersion: hay una versión nueva de qdd y aquí no se puede actualizar con un botón (version_nueva.go).
+	AvisoVersion string `json:"aviso_version,omitempty"`
+	// Herramientas (con «herramientas») es la lista de «herramienta listar»; vacía sale como []: así el panel sabe que
+	// este qdd la trae y no lanza un proceso para leerla (MEJ-020).
+	Herramientas json.RawMessage `json:"herramientas,omitempty"`
+	// Flujos (con «flujos») es la lista de «flujo lista»; vacía sale como []: así el panel sabe que este qdd los trae.
+	Flujos json.RawMessage `json:"flujos,omitempty"`
+	// EsperasPersona son los ⏳ de la persona con su texto, si el panel los pide (issue #149).
+	EsperasPersona []EsperaDelPanel `json:"esperas_persona,omitempty"`
+	// TelefonoEnFlujo: el flujo late y entrega lo del teléfono; el panel no necesita un proceso por latido (MEJ-020).
+	TelefonoEnFlujo bool `json:"telefono_en_flujo,omitempty"`
+	// MejorasToca (con «mejoras»): si pasaron los 10 min del ciclo de mejoras. Sin el campo, el panel lo pide cada minuto.
+	MejorasToca *bool `json:"mejoras_toca,omitempty"`
+	// Logrado (con «logrado») es lo que salió bien en los últimos 14 días (logrado.go); sin nada, sale como []: así QDD
+	// Móvil sabe que este qdd lo trae.
+	Logrado *[]Logro `json:"logrado,omitempty"`
+	// LogradoBajoPedido: solo en el panel que publica qdd remoto, que lo entrega a pedido del teléfono
+	// (pkg/remoto/logrado_pedido.go).
+	LogradoBajoPedido bool `json:"logrado_bajo_pedido,omitempty"`
+	// Otros (con «otros») es lo que espera a la persona en los demás proyectos de la máquina (para_ti_otros.go); sin
+	// nada, sale como []: así el panel sabe que este qdd lo trae.
+	Otros *[]ProyectoEsperando `json:"otros,omitempty"`
 }
 
 // OpcionesEjecutar es lo que el PC acepta desde el teléfono: comandos qdd (Sugeridos son los que permite, sin el
@@ -99,12 +141,13 @@ type DatosConsola struct {
 type OpcionesEjecutar struct {
 	QDD       bool     `json:"qdd"`
 	IA        bool     `json:"ia"`
+	Flujos    bool     `json:"flujos"`
 	Sugeridos []string `json:"sugeridos"`
 }
 
 // opcionales son los tipos de acción que un panel recibe solo si dice que los dibuja (FND-092): un mod anterior no los
 // conoce y los mostraría como botones sin tecla.
-// Una pregunta (preguntas.go) se responde en el terminal o desde el teléfono: solo la pide qdd remoto. Lo mandado desde
+// Una pregunta (preguntas.go) se responde en el terminal o desde el teléfono: el panel la pide solo para mostrar su turno. Lo mandado desde
 // el teléfono (telefono.go) es un pedido de origen telefono y sale solo con --con telefono: el panel del PC lo
 // mostraría como un pedido suyo.
 var opcionales = map[string]bool{TipoAtender: true, TipoPregunta: true}
@@ -127,6 +170,14 @@ func Panel(root string, now time.Time, con ...string) DatosConsola {
 		acciones = append(acciones, a)
 	}
 	d.Acciones = acciones
+	if pide[ConLogrado] {
+		logrado := Logrado(root, now)
+		d.Logrado = &logrado
+	}
+	if pide[ConOtros] {
+		otros := OtrosProyectos(root, now)
+		d.Otros = &otros
+	}
 	return d
 }
 
@@ -140,22 +191,22 @@ func panel(root string, now time.Time) DatosConsola {
 	e, err := estado.Load(root)
 	if errors.Is(err, os.ErrNotExist) {
 		d.Motivo = estado.ErrSinArchivo.Error()
-		d.Acciones = append(preguntas, Acciones(root, false)...)
+		d.Acciones = conTurnos(root, append(preguntas, Acciones(root, false)...), nil, now)
 		return d
 	}
 	if err != nil {
 		d.Motivo = err.Error()
-		d.Acciones = append(preguntas, Acciones(root, false)...)
+		d.Acciones = conTurnos(root, append(preguntas, Acciones(root, false)...), nil, now)
 		return d
 	}
 	datos := estado.DatosEnCurso(e, estado.LeerActividad(root), now, MaxTareas)
 	d.Estado = &datos
-	d.Acciones = append(preguntas, Acciones(root, true)...)
+	d.Acciones = conTurnos(root, append(preguntas, Acciones(root, true)...), dependenciasDeTareas(e), now)
 	return d
 }
 
 // Acciones lista lo que el panel puede pedir: los comandos que la IA dejó para la persona (§3.9), aprobar cada ficha
-// en borrador (hasta MaxFichas, por id), descartar cada tarea con su ✕ (§3.10), revisar el estado si hay estado.yaml,
+// en borrador (hasta MaxFichas, por id), «✓ Ya lo vi» y «Quitar» en cada tarea (§3.10), revisar el estado si hay estado.yaml,
 // y auditar y abrir la carpeta (§3.10, si el sistema tiene abridor) si la carpeta es un proyecto QDD (tiene .qdd/).
 func Acciones(root string, hayEstado bool) []Accion {
 	acciones := append([]Accion{}, accionesDePedidos(root)...)
@@ -195,17 +246,27 @@ func Acciones(root string, hayEstado bool) []Accion {
 	return append(acciones, a)
 }
 
-// descartes ofrece la ✕ de cada tarea que el panel muestra (§3.9): pasa a «descartado» con MotivoDescarte.
+// descartes ofrece en cada tarea que el panel muestra (§3.9) «Quitar», que la pasa a «descartado» con MotivoDescarte, y
+// «✓ Ya lo vi» si tiene etapas por ver. El id y el tipo «descartar» siguen iguales: una sesión con el mod anterior lo entiende.
 func descartes(root string) []Accion {
 	e, err := estado.Load(root)
 	if err != nil {
 		return nil
 	}
 	var out []Accion
-	for _, f := range estado.DatosPendientes(e, time.Now(), MaxTareas).Frentes {
+	now := time.Now()
+	for _, f := range estado.DatosPendientes(e, now, MaxTareas).Frentes {
 		out = append(out, Accion{
-			ID: prefijoDescartar + f.ID, Tipo: TipoDescartar, Etiqueta: "Descartar «" + f.Nombre + "»",
+			ID: prefijoDescartar + f.ID, Tipo: TipoDescartar, Etiqueta: "Quitar «" + f.Nombre + "»",
 			Detalle: "qdd estado cerrar " + f.ID + " --descartado --motivo \"" + MotivoDescarte + "\"", Confirmar: true, tarea: f.ID,
+		})
+		etapas := e.PorVer(f.ID)
+		if len(etapas) == 0 {
+			continue
+		}
+		out = append(out, Accion{
+			ID: prefijoYaLoVi + f.ID, Tipo: TipoYaLoVi, Etiqueta: "Ya viste «" + f.Nombre + "»",
+			Detalle: "marcar ✅ " + strings.Join(etapas, ", ") + " («" + estado.NotaVista(now) + "»)", Confirmar: true, tarea: f.ID,
 		})
 	}
 	return out
@@ -265,6 +326,9 @@ func (a Accion) Ejecutar(root, bin string, salida io.Writer) int {
 	if a.Tipo == TipoDescartar {
 		return descartar(root, a, salida)
 	}
+	if a.Tipo == TipoYaLoVi {
+		return yaLoVi(root, a, salida)
+	}
 	if a.Tipo == TipoAtender {
 		return atender(a, salida)
 	}
@@ -290,6 +354,21 @@ func descartar(root string, a Accion, salida io.Writer) int {
 		fmt.Fprintf(salida, "[!] No se pudo descartar '%s': %v\n", a.tarea, err)
 		return 1
 	}
-	fmt.Fprintf(salida, "[+] Tarea '%s' descartada: sale del panel y queda en el archivo con su motivo.\n", a.tarea)
+	fmt.Fprintf(salida, "[+] Tarea '%s' quitada: sale del panel y queda en el archivo.\n", a.tarea)
+	return 0
+}
+
+func yaLoVi(root string, a Accion, salida io.Writer) int {
+	v, err := estado.YaLoVio(root, a.tarea, time.Now())
+	if err != nil {
+		fmt.Fprintf(salida, "[!] No se pudo marcar '%s': %v\n", a.tarea, err)
+		return 1
+	}
+	etapas := strings.Join(v.Etapas, ", ")
+	if !v.Cerrada {
+		fmt.Fprintf(salida, "[+] '%s': ✅ %s, la vio la persona. La tarea sigue abierta: le falta trabajo.\n", a.tarea, etapas)
+		return 0
+	}
+	fmt.Fprintf(salida, "[+] '%s': ✅ %s, la vio la persona. Tarea cerrada: sale del panel.\n", a.tarea, etapas)
 	return 0
 }

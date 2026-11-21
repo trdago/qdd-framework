@@ -17,7 +17,7 @@ func RunOwaspCheck(cwd string) []Violation {
 		if isIgnoredOwaspPath(path, d, err) {
 			return nil
 		}
-		
+
 		node, err := parser.ParseFile(fset, path, nil, 0)
 		if err != nil {
 			return nil
@@ -26,7 +26,7 @@ func RunOwaspCheck(cwd string) []Violation {
 		checkOwaspNode(path, node, fset, &violations)
 		return nil
 	})
-	
+
 	return violations
 }
 
@@ -57,7 +57,7 @@ func checkSqlInjection(path string, n ast.Node, fset *token.FileSet, violations 
 	if !ok {
 		return
 	}
-	
+
 	if !isTargetSqlFunc(call) {
 		return
 	}
@@ -72,7 +72,7 @@ func isTargetSqlFunc(call *ast.CallExpr) bool {
 	if !ok {
 		return false
 	}
-	
+
 	funcName := sel.Sel.Name
 	return funcName == "Query" || funcName == "Exec" || funcName == "QueryRow"
 }
@@ -139,7 +139,7 @@ func checkSecretAssignment(path string, n ast.Node, assign *ast.AssignStmt, i in
 	if i >= len(assign.Rhs) {
 		return
 	}
-	
+
 	if !isPlaintextStringLit(assign.Rhs[i]) {
 		return
 	}

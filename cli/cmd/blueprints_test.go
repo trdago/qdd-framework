@@ -16,6 +16,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
@@ -44,12 +45,20 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
+	// La acción del panel que activa el modo goal relanza este binario como «qdd goal» (FND-146).
+	if len(os.Args) > 1 && os.Args[1] == "goal" {
+		Execute()
+		os.Exit(0)
+	}
 	home, err := os.MkdirTemp("", "qdd-home-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
 		os.Exit(1)
 	}
 	os.Setenv(blueprints.HomeEnv, home)
+	// Los AGENTS.md de las carpetas padre de la persona no son de las pruebas (MEJ-062): doctor --fix no mira más
+	// arriba que esta carpeta, y ninguna prueba vive dentro de ella.
+	integration.TopePadres = func() string { return home }
 	// El servicio de qdd remoto de esta máquina no es de las pruebas.
 	remotoUsuario = func() (string, error) { return home, nil }
 	remotoEjecutor = func(string, ...string) error { return nil }

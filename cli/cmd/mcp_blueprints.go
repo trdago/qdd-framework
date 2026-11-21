@@ -172,7 +172,7 @@ func handleBlueprintAddTool(ctx context.Context, request mcp.CallToolRequest) (*
 	if res.Guardado {
 		fmt.Fprintf(&s, "Repositorio de la organización registrado en .qdd/config.yaml y en el registro central de QDD: %s\n", res.Registro.Origen)
 	}
-	for _, p := range problems {
+	for _, p := range append(problems, blueprints.AvisosDeOrigen(res.Entries)...) {
 		fmt.Fprintf(&s, "⚠️ %s\n", p)
 	}
 	fmt.Fprintf(&s, "Siguiente paso: aplica cada uno con qdd_blueprint_apply (%s) y hazle al humano las preguntas que devuelva; no las respondas tú.", strings.Join(ids, ", "))

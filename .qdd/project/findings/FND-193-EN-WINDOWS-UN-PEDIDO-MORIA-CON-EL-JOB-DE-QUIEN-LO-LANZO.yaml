@@ -1,0 +1,9 @@
+id: "FND-193"
+title: "En Windows, un pedido moría con el job del proceso que lo lanzó"
+description: "2026-11-08, Windows, qdd 2.10.0-rc.44 (MEJ-048, reporte REP-217 por el relay): «Actualizar qdd a 2.10.0-rc.39» (npm install -g) terminó con «exit -1 · el proceso que lo ejecutaba terminó sin anotar el resultado (¿se recargó el panel?)», y no instaló nada. El reporte supone que los pedidos corren dentro del panel, pero desde FND-089 corren aparte (qdd consola correr). En Windows, separar los lanzaba con CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW, que no los saca del Job Object de quien los lanza. Si ese job mata a sus procesos al cerrarse, al cerrar o reiniciar Claude Code el pedido muere a medio camino."
+impact: "Un pedido largo (actualizar qdd, un release) se corta a medias sin dejar su resultado. La persona no sabe qué alcanzó a hacer, y uno que no se puede repetir (un tag, un merge) queda en un estado que hay que revisar a mano."
+action_taken: "separar (Windows) agrega CREATE_BREAKAWAY_FROM_JOB. Si el job no deja salir a sus procesos, Windows responde ERROR_ACCESS_DENIED y arrancar lo vuelve a lanzar sin esa bandera, como antes. Lo usan el pedido (Lanzar), la revisión de versión nueva y la de PRs."
+test_result: "cli/pkg/consola/separar_job_windows_test.go, en el job «Flujo del panel en Windows» del CI (filtro FND193). TestPedidoSigueVivoAlCerrarElJobDelPanel_FND193 mete al lanzador en un job con KILL_ON_JOB_CLOSE, lanza como el panel y cierra el job. Falló antes del arreglo («al cerrar el job de quien lo lanzó, el pedido murió con él», run 42809838320) y pasa después. TestPedidoSeLanzaAunqueElJobNoDejeSalir_FND193 cubre un job sin BREAKAWAY_OK. No se sabe qué job usa Claude Code en Windows: el arreglo cubre el caso que mata al cerrarse y deja salir. Sin probar en el Windows de la persona."
+status: resolved
+detectado_por: persona
+date: "2026-11-10"

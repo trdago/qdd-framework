@@ -129,6 +129,8 @@ type Solicitud struct {
 	Pedido      string    `json:"pedido,omitempty"`
 	Pregunta    string    `json:"pregunta,omitempty"`    // una respuesta a una pregunta de la consola (preguntas.go)
 	Ejecutar    string    `json:"ejecutar,omitempty"`    // lo mandado a ejecutar desde el teléfono: qdd o ia (ejecutar.go)
+	Flujo       string    `json:"flujo,omitempty"`       // lo pendiente de este flujo viaja en la instrucción: si no llega, vuelve a quedar pendiente
+	Lineas      int       `json:"lineas,omitempty"`      // cuántas líneas de ese flujo lleva
 	Instruccion string    `json:"instruccion,omitempty"` // la respuesta a un ⏳ viaja en esta instrucción de la consola (FND-141)
 	Recibida    time.Time `json:"recibida"`
 }

@@ -26,7 +26,7 @@ func doClean() {
 	dirtyElseIfCode := "package main\nfunc doDirtyElseIf() {\n\tif true {\n\t\t// ok\n\t} el" + "se if false {\n\t\t// bad\n\t}\n}"
 	dirtyEarlyReturnCode := "package main\nfunc doBadReturn() {\n\tvar err error\n\tif err == nil {\n\t\t// bad\n\t}\n}"
 	mockCode := "package main\nimport \"testing\"\n\ntype MyMock struct{}\n"
-	
+
 	os.WriteFile(filepath.Join(tempDir, "clean.go"), []byte(cleanCode), 0644)
 	os.WriteFile(filepath.Join(tempDir, "dirty.go"), []byte(dirtyCode), 0644)
 	os.WriteFile(filepath.Join(tempDir, "dirty_elseif.go"), []byte(dirtyElseIfCode), 0644)
@@ -34,11 +34,11 @@ func doClean() {
 	os.WriteFile(filepath.Join(tempDir, "mock.go"), []byte(mockCode), 0644)
 
 	violations := RunCleanCodeCheck(tempDir)
-	
+
 	if len(violations) != 4 {
 		t.Fatalf("Expected 4 violations, got %d", len(violations))
 	}
-	
+
 	verifyCleanCodeViolations(t, violations)
 }
 

@@ -1,0 +1,9 @@
+id: "FND-215"
+title: "Una prueba del dashboard falla a veces en el gate: una ráfaga de cambios no se difunde a tiempo"
+description: "2026-11-15: TestVigilar_ReaccionaSoloAEventosReales (pkg/dashboard) falló dos veces en el gate con «una ráfaga de cambios reales produjo 0 difusiones; want 1», ambas con la máquina cargada (load ~24, varias sesiones corriendo go test). Esperaba la difusión en una ventana fija de 2,5 s, con 1 s de agrupación más armar el estado. No se reprodujo: 0 fallas en 18 corridas con la CPU saturada (32 procesos en 16 núcleos), ni en 16 corridas del paquete completo en paralelo, con la versión vieja ni con la nueva. Causa sin confirmar: lentitud al armar el estado o un evento de fsnotify perdido bajo carga de disco. Tercera falla (gate de rc.78) ya con espera de 15 s, y con el conjunto de pruebas corriendo dos veces en paralelo una corrida tardó 13,9 s en vez de 5,2 s con 0 muestras de CPU: la espera es de disco. Causa: cada difusión arma el estado, que sincroniza knowledge.db (SQLite con fsync); con el disco cargado eso tarda segundos."
+impact: "El gate puede fallar sin que el cambio tenga que ver (90/100) y obliga a repetirlo. qdd dashboard está obsoleto (RFC 0018), así que no afecta a la persona."
+action_taken: "Vigilar difunde con la variable difundir; las pruebas del vigilante que miden cuándo reacciona (ráfaga y carpetas nuevas) la cambian por una difusión liviana. La prueba del proyecto quieto (FND-058) sigue usando el estado real, porque mide que armarlo no dispare otro evento."
+test_result: "Con go test ./... corriendo dos veces en paralelo: antes una corrida de 13,9 s (casi al tope de 15 s); después 6 de 6 corridas de TestVigilar_* en 5,2 s, sin variación."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

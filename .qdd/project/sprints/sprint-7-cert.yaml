@@ -1,0 +1,34 @@
+qdd_certificate:
+  version: "1.1"
+  sprint_id: "7"
+  status: "FAILING"
+  goal: "Todo lo que espera a la persona tiene un turno único, dado por qdd una sola vez, con el mismo orden y las dependencias marcadas en el panel y en el teléfono (RFC 0019)."
+  
+  scenarios:
+    happy_path:
+      - "Dado un ⏳, un pedido y una ficha abiertos, cuando el panel lee, entonces cada uno lleva un número que no cambia"
+      - "Dado un pedido que espera a otro, cuando se dibuja, entonces va después y dice «espera a #N»"
+      - "Dado lo abierto, cuando se dibuja, entonces solo lo primero que se puede contestar lleva ▶"
+      - "Dado el panel y QDD Móvil, cuando leen el mismo proyecto, entonces ven los mismos números."
+    error_paths:
+      - "Un registro ilegible se aparta, qdd doctor lo nombra y la numeración vuelve a empezar"
+      - "Con el candado ocupado, el panel sale sin números y la lectura siguiente los trae"
+      - "Un qdd anterior sin turnos deja el panel como estaba"
+      - "Un ciclo en las dependencias no pierde ningún ítem."
+    edge_cases:
+      - "Reescribir el texto de un ⏳ no le cambia el número"
+      - "Un pedido confirmado conserva su número y deja de ser siguiente"
+      - "Un número que salió no se reutiliza"
+      - "Una lectura sin cambios no escribe ni toma el candado."
+
+  technical_constraints:
+    - "El orden lo calcula solo qdd"
+    - "panel y teléfono lo dibujan sin recalcularlo"
+    - "Registro por proyecto en RutaLocal, sin versionar"
+    - "Sin bloquear: contestar fuera de orden sigue permitido, salvo la regla de los pedidos"
+    - "La app la cambia qdd-movile."
+
+  executable_tests:
+    - "cd cli && go test ./pkg/consola ./pkg/remoto/... ./cmd"
+    - "cd cli/pkg/consola/mod/qdd-tareas && claude plugin test ."
+    - "qdd audit"

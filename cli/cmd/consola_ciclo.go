@@ -22,7 +22,7 @@ var (
 var consolaCicloCmd = &cobra.Command{
 	Use:   "ciclo",
 	Short: "Marca un ciclo (un mensaje de la persona) con el modo de permisos de la IA; nunca falla; con --contexto imprime qué espera el panel de la persona, solo si cambió",
-	Run: func(cmd *cobra.Command, args []string) { correrCiclo(estadoRaiz(), os.Stdout) },
+	Run:   func(cmd *cobra.Command, args []string) { correrCiclo(estadoRaiz(), os.Stdout) },
 }
 
 // correrCiclo marca el ciclo y, con --contexto, escribe lo que el panel espera de la persona.
@@ -30,13 +30,14 @@ func correrCiclo(root string, out io.Writer) {
 	registrarUso(root)
 	_ = consola.MarcarCiclo(root, consolaModo, time.Now())
 	if consolaContexto {
-		fmt.Fprint(out, consola.ContextoCiclo(root, time.Now()))
+		fmt.Fprint(out, consola.ContextoCiclo(root, consolaSesion, time.Now()))
 	}
 }
 
 func init() {
 	consolaCicloCmd.Flags().BoolVar(&consolaContexto, "contexto", false, "imprime para la IA lo que el panel espera de la persona (pedidos, fichas, ⏳ suyos), solo si cambió desde el último mensaje")
 	consolaCicloCmd.Flags().StringVar(&consolaModo, "modo", "", "permission_mode de Claude Code (default, acceptEdits, plan, auto, dontAsk, bypassPermissions)")
+	consolaCicloCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión de Claude Code que recibe el contexto: se le avisa si se retiró un pedido suyo")
 	consolaCmd.AddCommand(consolaCicloCmd)
 }
 

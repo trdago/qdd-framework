@@ -17,8 +17,8 @@ type fakeBackend struct {
 	err       error
 }
 
-func (f *fakeBackend) Name() string           { return f.name }
-func (f *fakeBackend) Available() bool        { return f.available }
+func (f *fakeBackend) Name() string    { return f.name }
+func (f *fakeBackend) Available() bool { return f.available }
 func (f *fakeBackend) Ask(context.Context, string) (string, error) {
 	return f.response, f.err
 }
