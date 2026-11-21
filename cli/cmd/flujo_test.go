@@ -251,6 +251,7 @@ func TestFlujo_PreguntarAUnNodoYAlFlujoYLaIARespondeAhi(t *testing.T) {
 }
 
 // Ítems de un nodo (pedido de la persona, 2026-11-07): pruebas que qdd-human marca, notas, características y funciones.
+// contrato: flujo#44ad1ed8
 func TestFlujo_ItemsDeUnNodo(t *testing.T) {
 	proyectoConFlujo(t)
 	correrFlujo(t, flujoItemAgregarCmd, map[string]string{"de": "persona"}, "pago", "a", "prueba", "publica con el tag correcto")
