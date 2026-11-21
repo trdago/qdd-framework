@@ -91,8 +91,12 @@ func anotarRevision(root, id string, r Revision) error {
 	return a.Close()
 }
 
-// Historial son las revisiones anotadas, de la más vieja a la más nueva. Una línea rota se salta.
+// Historial son las revisiones anotadas, de la más vieja a la más nueva. Una línea rota se salta. Un id con ruta no
+// lee nada: no sale de la carpeta de flujos (FND-265).
 func Historial(root, id string) []Revision {
+	if !idValido.MatchString(id) {
+		return nil
+	}
 	a, err := os.Open(rutaHistorial(root, id))
 	if err != nil {
 		return nil
