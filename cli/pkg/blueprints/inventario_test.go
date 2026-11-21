@@ -90,6 +90,7 @@ func TestInventario_UnaRecetaQueCambiaPideLaIAParaAdaptarElModulo(t *testing.T) 
 	}
 }
 
+// contrato: blueprints#e5ce6de0
 func TestInventario_SinEspejoDiceComoTraerlo(t *testing.T) {
 	root, _ := proyectoConAuth(t)
 	freshHome(t)
@@ -106,6 +107,7 @@ func TestInventario_SinEspejoDiceComoTraerlo(t *testing.T) {
 }
 
 // Instalado por https y la organización registrada por ssh (así está qdd mismo): es el mismo repositorio.
+// contrato: blueprints#e5ce6de0
 func TestInventario_SSHYHTTPSSonElMismoRepositorio(t *testing.T) {
 	lock := Lock{Blueprints: []LockEntry{{ID: "estado-por-tareas", Origen: "https://github.com/org/bp.git", Version: "2.0.0"}}}
 	if l := instaladoDe(lock, "git@github.com:org/bp.git", "estado-por-tareas"); l == nil || l.Version != "2.0.0" {

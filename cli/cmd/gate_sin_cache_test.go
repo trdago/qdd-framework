@@ -93,6 +93,7 @@ func TestGate_LasPruebasQueLeenFueraDelModuloCorrenSinCache_FND173(t *testing.T)
 }
 
 // RFC 0020: un certificado no puede salir de suites recordadas.
+// contrato: gate-pruebas#c9a0b6be
 func TestCertificar_SiempreEsUnaCorridaCompleta_RFC0020(t *testing.T) {
 	for archivo, desde := range map[string]string{"certify.go": "func runCertify", "mcp_tools.go": "func registerCertifyTool"} {
 		fuente, err := os.ReadFile(archivo)
@@ -121,6 +122,7 @@ func TestAudit_TieneLaBanderaCompleto_RFC0020(t *testing.T) {
 }
 
 // FND-174: el gate del CI y el de publicar corrían sin claude, así que la suite del panel quedaba «sin medir» en los dos.
+// contrato: puertas#5e25885a
 func TestCI_InstalaLasHerramientasDeLasSuitesDelGate_FND174(t *testing.T) {
 	for _, flujo := range []string{"quality.yml", "publish.yml"} {
 		contenido, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", flujo))

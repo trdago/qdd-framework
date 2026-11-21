@@ -250,6 +250,7 @@ func TestFlujos_ElMasGrandeQueSePuedeGuardarCabeEnUnMensaje(t *testing.T) {
 }
 
 // Los comentarios del flujo son del panel: no viajan al teléfono, que todavía no los muestra.
+// contrato: flujo#fdad17ea
 func TestMensajeFlujo_LosComentariosSalenSinSecretos(t *testing.T) {
 	root := t.TempDir()
 	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{

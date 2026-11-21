@@ -37,6 +37,8 @@ func proyectoGoal(t *testing.T) string {
 
 // FND-146: esta es la barrera que queda si la regla del panel no ve el comando (el issue #112 no la había comprobado): la
 // acción del panel relanza qdd con el entorno de quien la llamó, así que una IA tampoco lo activa por aquí.
+// contrato: goal#63945bca
+// contrato: goal#777735ad
 func TestGoal_UnaIANoLoActivaNiPorLaAccionDelPanel_FND146(t *testing.T) {
 	root := proyectoGoal(t)
 	var salida, errores bytes.Buffer
@@ -56,6 +58,7 @@ func TestGoal_UnaIANoLoActivaNiPorLaAccionDelPanel_FND146(t *testing.T) {
 	}
 }
 
+// contrato: goal#63945bca
 func TestGoal_UnaIANoLoActivaYLaPersonaSi(t *testing.T) {
 	root := proyectoGoal(t)
 	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
@@ -92,6 +95,7 @@ func TestGoal_EstadoEnJSONSigueElContrato(t *testing.T) {
 	}
 }
 
+// contrato: goal#b842add7
 func TestGoal_DoctorVeElArchivoIlegibleYLoAparta(t *testing.T) {
 	root := proyectoGoal(t)
 	if g := buildGoalChecks(root); len(g.Items) != 0 {

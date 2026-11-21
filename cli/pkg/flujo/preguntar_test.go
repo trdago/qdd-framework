@@ -14,6 +14,7 @@ func conDescripcion(n Nodo, d string) Nodo {
 	return n
 }
 
+// contrato: flujo#fdad17ea
 func TestPreguntar_UnNodoLlevaSuContextoALaIA(t *testing.T) {
 	root := flujoGuardado(t, paso("a", "Llega", "b"), conDescripcion(paso("b", "Valida la firma", "c", "d"), "con HMAC"), resultado("c", "Cobrado"), resultado("d", "Rechazado"))
 	f, _ := editar(t, root, DePersona, Preguntar("b", "¿Qué es HMAC?", ahoraDePrueba))
@@ -44,6 +45,7 @@ func TestPreguntar_AlFlujoCompleto(t *testing.T) {
 	}
 }
 
+// contrato: flujo#fdad17ea
 func TestResponder_LaIARespondeBajoElNodoOElFlujoSinLlamarseASiMisma(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Preguntar("b", "¿Qué valida?", ahoraDePrueba))
@@ -75,6 +77,7 @@ func TestPreguntar_VaciaONodoQueNoEstaNoEscribe(t *testing.T) {
 	}
 }
 
+// contrato: flujo#99842b86
 func TestReemplazar_ConservaLasPreguntasDelFlujo(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Preguntar("", "¿Para qué sirve?", ahoraDePrueba))
@@ -95,6 +98,7 @@ func TestValidar_UnComentarioRaroDelFlujoSeNombra(t *testing.T) {
 	}
 }
 
+// contrato: flujo#fdad17ea
 func TestOperacion_PreguntarDesdeElTelefono(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	aplicar(t, root, `{"op":"preguntar","flujo":"pago","nodo":"b","texto":"¿Qué valida?"}`)

@@ -102,6 +102,7 @@ func TestSet_AnotaCuandoSeTocoLaTarea(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#e21a4121
 func TestTarea_DeclaraSuModuloSoloSiLaFichaExiste_EPT_R03(t *testing.T) {
 	root := proyectoConModulo(t)
 	if err := GuardarTarea(root, CambioTarea{ID: "otra", CambiaModulo: true, Modulo: "pagos"}, tocada); err != nil {

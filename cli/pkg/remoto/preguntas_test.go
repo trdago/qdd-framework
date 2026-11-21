@@ -66,6 +66,7 @@ func proyectoConPregunta(t *testing.T) (string, string, consola.Pregunta) {
 	return root, clave, p
 }
 
+// contrato: remoto#c814f23f
 func TestResponder_LaRespuestaLlegaUnaSolaVezYElOtroTelefonoVeDonde(t *testing.T) {
 	homeTemporal(t)
 	root, clave, p := proyectoConPregunta(t)
@@ -173,6 +174,7 @@ func TestResponder_InvalidaVencidaRevocadaOSinFirma(t *testing.T) {
 	}
 }
 
+// contrato: remoto#c814f23f
 func TestResponder_SiGanoElTerminalElTelefonoTerminaViendoPC(t *testing.T) {
 	// El teléfono alcanzó a responder, pero el terminal respondió antes de que el mod lo entregara: el mod la cierra en
 	// el PC y el PC le corrige al teléfono el estado de su solicitud (ya_aprobado, lugar PC).

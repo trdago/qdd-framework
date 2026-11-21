@@ -194,6 +194,7 @@ func TestLogin_SiNoPuedeConfirmarElRelayLoAvisaAntesDelCodigo_FND171(t *testing.
 	}
 }
 
+// contrato: remoto#0379f52b
 func TestLogin_ConElPCEmparejadoUnRelayPropioNiSeConsulta_FND171(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://nuevo.supabase.co", Clave: "sb_publishable_n", Serie: 2})
 	emparejarPrueba(t)
@@ -211,6 +212,7 @@ func TestLogin_ConElPCEmparejadoUnRelayPropioNiSeConsulta_FND171(t *testing.T) {
 	}
 }
 
+// contrato: remoto#5e30cfe9
 func TestLogin_UnRelayPorDefectoSecretoNoSeGuarda(t *testing.T) {
 	prepararLogin(t, remoto.ConfigRelay{URL: "https://x.supabase.co", Clave: "sb_secret_nunca"})
 	if _, err := relayDeFlags(io.Discard); err == nil {

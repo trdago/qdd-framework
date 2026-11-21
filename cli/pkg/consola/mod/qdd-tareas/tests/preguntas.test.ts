@@ -63,6 +63,8 @@ test('una pregunta de la IA que responde el teléfono llega a Claude Code con su
   expect(r.esperados).toBe(2)
 })
 
+// contrato: remoto#c814f23f
+
 test('un permiso desde el teléfono se permite una vez, sin reglas, o se niega diciendo dónde', async ($, on) => {
   const r = nuevo({ esperas: [{ id: 'p1', estado: 'respondida', respondida_en: 'telefono', lugar: 'Pixel', decision: 'permitir' }] })
   preparar(on, r)

@@ -155,6 +155,7 @@ func (g *ghEnMemoria) Crear(string, string) (string, error) {
 }
 func (g *ghEnMemoria) Comentar(string, string) error { return nil }
 
+// contrato: incidentes#0d196077
 func TestDoctor_ElRegistroDeIncidentesIlegibleSeApartaYLosPendientesSeVen(t *testing.T) {
 	_, dir := conProyectoPrivado(t)
 	if g := buildIncidentesChecks(); len(g.Items) != 0 {
@@ -173,6 +174,7 @@ func TestDoctor_ElRegistroDeIncidentesIlegibleSeApartaYLosPendientesSeVen(t *tes
 	}
 }
 
+// contrato: uso#01e146f5
 func TestDoctor_ApartarUnRegistroDeUsoEsUnaAutorreparacionQueSeInforma(t *testing.T) {
 	_, dir := conProyectoPrivado(t)
 	root := t.TempDir()

@@ -185,6 +185,8 @@ test('una sesión sin terminal (claude -p) no abre el flujo ni lee cada 2 s (MEJ
   expect(lecturas(r)).toBe(antes)
 })
 
+// contrato: estado#167a876a
+
 test('una lectura lenta no pisa lo más nuevo que trajo el flujo', async ($, on) => {
   const r: any = { llamadas: [] as string[][] }
   const clock = preparar(on, r)

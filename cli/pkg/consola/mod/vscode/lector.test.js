@@ -179,6 +179,8 @@ test('detener mata el proceso y no deja nada programado', () => {
   assert.equal(m.tiempos.length, 0)
 })
 
+// contrato: estado#167a876a
+
 test('detener cancela la próxima lectura y una respuesta atrasada no dibuja', () => {
   const m = mesa(() => [null, JSON.stringify({ n: 1 }), ''])
   m.lector.iniciar()

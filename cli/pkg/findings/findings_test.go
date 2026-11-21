@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// contrato: findings#6c6425b0
 func TestNormalizar(t *testing.T) {
 	cases := map[string]Estado{
 		"open": Abierto, "OPEN": Abierto, " in-progress ": Abierto, "pendiente": Abierto,
@@ -31,6 +32,7 @@ func escribir(t *testing.T, dir, nombre, contenido string) {
 
 // FND-056: cada lector interpretaba el estado a su manera. Un finding sin
 // status no es abierto ni resuelto: se informa aparte para que alguien lo decida.
+// contrato: findings#6c6425b0
 func TestContarEn(t *testing.T) {
 	dir := t.TempDir()
 	escribir(t, dir, "FND-001.yaml", "title: a\nstatus: open\n")
@@ -96,6 +98,7 @@ func TestNoCanonicos(t *testing.T) {
 
 // doctor --fix escribe la forma canónica de un estado reconocido y no toca el
 // resto del archivo ni los findings cuyo estado tiene que decidir una persona.
+// contrato: findings#6c6425b0
 func TestEscribirCanonicos(t *testing.T) {
 	dir := t.TempDir()
 	escribir(t, dir, "FND-001.yaml", "title: a\nstatus: \"RESOLVED\"\naction_taken: |\n    status: closed dentro del texto\n")

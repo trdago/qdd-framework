@@ -8,6 +8,7 @@ import (
 
 // Una suite que necesita un programa que esta máquina no tiene (p. ej. la CLI de Claude en el CI) no se corre ni se
 // da por aprobada: queda sin medir, sin bloquear. La que sí puede correr, corre y bloquea si falla.
+// contrato: gate-pruebas#9bdb6c50
 func TestRunCoverageCheck_UnaSuiteSinSuHerramientaQuedaSinMedir(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, ".qdd", "config.yaml"), `test_commands:

@@ -37,6 +37,8 @@ func TestConsolaBlueprints_EntregaElInventarioYSusAcciones(t *testing.T) {
 	}
 }
 
+// contrato: estado#bc172f02
+// contrato: estado#47f9023c
 func TestConsolaAccion_UnaDeBlueprintsSeBuscaEnElInventario(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()

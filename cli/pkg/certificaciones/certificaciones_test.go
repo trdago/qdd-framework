@@ -31,6 +31,7 @@ func escribir(t *testing.T, dir, carpeta, nombre, contenido string) {
 
 // FND-060: el dashboard mezclaba el catálogo con lo que el proyecto adoptó y
 // daba por cumplida toda certificación que no decía su estado.
+// contrato: certificaciones#56ed4ee1
 func TestLeer_DistingueCatalogoYProyecto(t *testing.T) {
 	dir := t.TempDir()
 	escribir(t, dir, "core", "CERT-A.yaml", "id: CERT-A\ntitle: Estándar del catálogo\nstatus: certified\n")
@@ -61,6 +62,7 @@ func TestLeer_DistingueCatalogoYProyecto(t *testing.T) {
 	}
 }
 
+// contrato: certificaciones#56ed4ee1
 func TestContar(t *testing.T) {
 	cs := []Certificacion{
 		{Origen: Proyecto, Estado: Cumple},

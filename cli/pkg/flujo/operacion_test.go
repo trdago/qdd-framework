@@ -127,6 +127,7 @@ func TestOperacion_PedirDetalleNoTocaElFlujo(t *testing.T) {
 	}
 }
 
+// contrato: flujo#cf48c06c
 func TestOperacion_LoQueNoSePuedeHacerNoEscribeNada(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	malas := []string{
@@ -179,6 +180,7 @@ func TestEnviar_ElMensajeNoDiceDeDondeVino(t *testing.T) {
 	}
 }
 
+// contrato: flujo#fdad17ea
 func TestOperacion_SoloLoQuePideRespuestaLlamaALaIA(t *testing.T) {
 	for texto, llama := range map[string]bool{
 		`{"op":"comentar","flujo":"pago","nodo":"a","texto":"hola"}`: true,

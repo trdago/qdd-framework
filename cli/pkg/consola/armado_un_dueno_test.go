@@ -31,6 +31,7 @@ func pedidoConDueno(t *testing.T, estadoPedido string, pid int) (string, string)
 	return root, p.ID
 }
 
+// contrato: estado#cb034853
 func TestTurno_ConElPedidoEjecutandoEnOtroProcesoNoLoCorre_FND125(t *testing.T) {
 	otro := os.Getppid()
 	root, id := pedidoConDueno(t, EstadoEjecutando, otro)
@@ -43,6 +44,7 @@ func TestTurno_ConElPedidoEjecutandoEnOtroProcesoNoLoCorre_FND125(t *testing.T) 
 	}
 }
 
+// contrato: estado#cb034853
 func TestTurno_ConElPedidoArmadoPorOtroProcesoVivoNoLoCorre_FND125(t *testing.T) {
 	otro := os.Getppid()
 	root, id := pedidoConDueno(t, EstadoArmado, otro)
@@ -55,6 +57,7 @@ func TestTurno_ConElPedidoArmadoPorOtroProcesoVivoNoLoCorre_FND125(t *testing.T)
 	}
 }
 
+// contrato: estado#cb034853
 func TestTurno_SuDuenoLoCorreUnaSolaVezAunqueOtroDespierteJunto_FND125(t *testing.T) {
 	root, id := pedidoConDueno(t, EstadoArmado, os.Getpid())
 	turno, _, err := tomarTurno(root, id, enCola, false)
@@ -73,6 +76,7 @@ func TestTurno_SuDuenoLoCorreUnaSolaVezAunqueOtroDespierteJunto_FND125(t *testin
 	}
 }
 
+// contrato: estado#cb034853
 func TestTurno_UnArmadoDeUnProcesoMuertoVuelveAPendienteSinCorrer_FND125(t *testing.T) {
 	root, id := pedidoConDueno(t, EstadoArmado, 1<<30)
 	if turno, _, err := tomarTurno(root, id, enCola, false); err != nil || turno != turnoFin {

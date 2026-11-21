@@ -216,6 +216,7 @@ func sinTelefonos() Evento {
 	return Evento{Tipo: TipoPresencia, Presencias: map[string][]json.RawMessage{"pc": {pc}}}
 }
 
+// contrato: remoto#b9dc9a33
 func TestBucle_SinTelefonosSoloPresence(t *testing.T) {
 	homeTemporal(t)
 	root := proyecto(t, "p", true)

@@ -64,6 +64,8 @@ test('el turno siguiente empieza sin las herramientas del anterior', async ($, o
   expect(r.turnos[1].herramientas).toEqual([])
 })
 
+// contrato: estado#2709b6f6
+
 test('nada que dejar, ya devuelto, un subagente o sin terminal: termina como siempre', async ($, on) => {
   const r = nuevo()
   preparar(on, r)
@@ -75,6 +77,8 @@ test('nada que dejar, ya devuelto, un subagente o sin terminal: termina como sie
   expect((await $.classic.Stop({ stop_hook_active: false, last_assistant_message: '¿Parto?', agent_id: 'sub-1' })).block).toBeUndefined()
   expect(r.turnos).toHaveLength(1)
 })
+
+// contrato: estado#2709b6f6
 
 test('sin terminal (claude -p) no hay persona mirando: no se pregunta a qdd', async ($, on) => {
   const r = nuevo()

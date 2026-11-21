@@ -154,6 +154,8 @@ test('un comentario queda en el flujo y la IA lo recibe en el acto, aunque empie
   expect(r.enviados).toEqual(['✎ La persona trabajó'])
 })
 
+// contrato: flujo#4d26e572
+
 test('si la IA no pudo recibirlo, queda pendiente y se dice', async ($, on) => {
   const r = nuevo()
   r.rechazo = 'la sesión está ocupada'
@@ -310,6 +312,7 @@ test('si Claude Code no suelta las teclas (hay texto en el chat), se le dice a l
 })
 
 // Pedido de la persona (2026-11-07): preguntarle a un nodo, o al flujo completo, y ver la respuesta ahí mismo.
+// contrato: flujo#fdad17ea
 test('preguntar a un nodo llega a la IA en el acto', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, r)

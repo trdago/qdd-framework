@@ -12,6 +12,7 @@ import (
 
 func f(v float64) *float64 { return &v }
 
+// contrato: estado#756194c0
 func TestLineaRecursos_Completa_CCC_C14(t *testing.T) {
 	m := Medidas{Disco: f(69.6), GPUs: []*float64{f(7), nil}, RAM: f(38.2), CPU: f(12.4)}
 	if got := LineaRecursos(m); got != "D 70% · G0 7% · G1 — · R 38% · C 12%" {
@@ -81,6 +82,7 @@ func TestMedirGPUs_CacheCadaCincoSegundos_CCC_C16(t *testing.T) {
 	}
 }
 
+// contrato: estado#756194c0
 func TestMedirGPUs_SinNvidiaSmiSeOmite_CCC_C15(t *testing.T) {
 	s := sensores{nvidia: func() (string, error) { return "", errors.New("no existe") }, otras: func() []*float64 { return nil }}
 	m := s.medir(t.TempDir(), filepath.Join(t.TempDir(), "r.json"), time.Now())

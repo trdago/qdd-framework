@@ -124,6 +124,7 @@ func lineasLog(t *testing.T) []EntradaLog {
 	return out
 }
 
+// contrato: remoto#76b499d6
 func TestAccion_AprobarUnaFichaUnaSolaVezYQuedaEnElLog(t *testing.T) {
 	homeTemporal(t)
 	root, clave := proyectoConFicha(t, "pagos")
@@ -159,6 +160,8 @@ func TestAccion_AprobarUnaFichaUnaSolaVezYQuedaEnElLog(t *testing.T) {
 	}
 }
 
+// contrato: remoto#6e30dfb4
+// contrato: remoto#76b499d6
 func TestAccion_LoQueNoSeOfreceOLoQueNoVieneDelRelaySeRechaza(t *testing.T) {
 	homeTemporal(t)
 	_, clave := proyectoConFicha(t, "pagos")
@@ -290,6 +293,7 @@ func terminoYSoltoLaCola(root, id string) bool {
 	return false
 }
 
+// contrato: remoto#76b499d6
 func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -314,6 +318,7 @@ func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 	}
 }
 
+// contrato: remoto#6e30dfb4
 func TestAccion_RechazarUnPedidoLoQuitaDeLaColaSinEjecutarlo(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")

@@ -23,6 +23,7 @@ func TestRevision_CadaEdicionSubeYQuedaEnElHistorialConSuAutor(t *testing.T) {
 	}
 }
 
+// contrato: flujo#cf48c06c
 func TestRevision_UnaEdicionRechazadaNoSube(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	if _, _, err := Editar(root, "pago", DePersona, ahoraDePrueba, Quitar("zzz")); err == nil {

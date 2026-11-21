@@ -44,6 +44,7 @@ func TestCiclo_LoAbiertoNoSaleYUnFalloTampoco(t *testing.T) {
 	}
 }
 
+// contrato: estado#060bbd9c
 func TestCiclo_AnotaElModoDeLaIA(t *testing.T) {
 	root := proyectoConCola(t)
 	ahora := time.Date(2026, 10, 30, 18, 0, 0, 0, time.UTC)

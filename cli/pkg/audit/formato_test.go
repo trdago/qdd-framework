@@ -41,6 +41,7 @@ func programaFalso(t *testing.T, ruta, salida string, codigo int) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_GoSinFormatoBloqueaYNombraElArchivo(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"go.mod": "module x\n", "a.go": goConFormato, "pkg/b.go": goSinFormato})
 	vs := violacionesDe(RunFormatoCheck(dir), ReglaFormato)
@@ -103,6 +104,7 @@ func TestFormato_GoIgnoraTestdataVendorYLoQueGitIgnora(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#2bc0058e
 func TestFormato_SinGofmtLoDiceYNoBloquea(t *testing.T) {
 	antes := binGofmt
 	binGofmt = "gofmt-que-no-existe"
@@ -117,6 +119,7 @@ func TestFormato_SinGofmtLoDiceYNoBloquea(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#2bc0058e
 func TestFormato_SinGoNiFormateadoresNoDiceNada(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"README.md": "# x\n", "package.json": `{"scripts":{"test":"vitest"}}`})
 	if vs := RunFormatoCheck(dir); len(vs) != 0 {
@@ -124,6 +127,7 @@ func TestFormato_SinGoNiFormateadoresNoDiceNada(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_PrettierConfiguradoBloquea(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"package.json": `{"devDependencies":{"prettier":"^3"}}`, "src/a.ts": "x"})
 	programaFalso(t, filepath.Join(dir, "node_modules/.bin/prettier"), "Checking formatting...\n[warn] src/a.ts\n[warn] Code style issues found in the above file. Run Prettier with --write to fix.", 1)
@@ -150,6 +154,7 @@ func TestFormato_PrettierAlDiaNoDiceNada(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#2bc0058e
 func TestFormato_PrettierSinInstalarQuedaSinMedir(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"package.json": "{}", ".prettierrc.json": "{}"})
 	vs := RunFormatoCheck(dir)
@@ -166,6 +171,7 @@ func TestFormato_PrettierInstaladoSinConfiguracionNoCorre(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#2bc0058e
 func TestFormato_PrettierQueFallaPorOtraCosaNoInventaArchivos(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"package.json": "{}", ".prettierrc": "{"})
 	programaFalso(t, filepath.Join(dir, "node_modules/.bin/prettier"), "[error] Invalid configuration file .prettierrc", 2)
@@ -175,6 +181,7 @@ func TestFormato_PrettierQueFallaPorOtraCosaNoInventaArchivos(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_BiomeConfiguradoBloquea(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"package.json": "{}", "biome.json": "{}"})
 	programaFalso(t, filepath.Join(dir, "node_modules/.bin/biome"), "./src/a.ts format ━━━━━━━━━━\n  × Formatter would have printed the following content:\nChecked 4 files in 3ms. No fixes applied.\nFound 1 error.", 1)
@@ -184,6 +191,7 @@ func TestFormato_BiomeConfiguradoBloquea(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_RuffFormatDeclaradoBloquea(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"pyproject.toml": "[project]\nname='x'\n[tool.ruff.format]\nquote-style='double'\n", "app/main.py": "x"})
 	programaFalso(t, filepath.Join(dir, ".venv/bin/ruff"), "Would reformat: app/main.py\n1 file would be reformatted", 1)
@@ -209,6 +217,7 @@ func TestFormato_RuffFormatEnElCI(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_BlackDeclaradoBloquea(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"pyproject.toml": "[tool.black]\nline-length = 100\n"})
 	programaFalso(t, filepath.Join(dir, "venv/bin/black"), "would reformat /tmp/x/svc.py\nOh no! 1 file would be reformatted.", 1)
@@ -218,6 +227,7 @@ func TestFormato_BlackDeclaradoBloquea(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_DartFormatEnElCI(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"pubspec.yaml": "name: app\n", ".github/workflows/flutter.yml": "steps:\n  - run: dart format --output=none --set-exit-if-changed .\n"})
 	antes := binDart
@@ -241,6 +251,7 @@ func TestFormato_DartSinFormatoEnElCINoSeMide(t *testing.T) {
 	}
 }
 
+// contrato: gate-formato#c07bf40e
 func TestFormato_EsReglaDelMotor(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"go.mod": "module x\n", "a.go": goSinFormato, ".qdd/policies.yaml": "adopcion: gradual\n"})
 	vs := violacionesDe(NewEngine(dir).ParandoAlBloquear().RunAll(), ReglaFormato)

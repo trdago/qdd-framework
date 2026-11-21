@@ -30,6 +30,7 @@ func otro(nombre string) Entrada {
 	return Entrada{Nombre: nombre, Tipo: "otro", Donde: EnLlavero, Variable: "MI_TOKEN"}
 }
 
+// contrato: baul#6058d327
 func TestPortapapeles_GuardaElTokenYLoVacia(t *testing.T) {
 	entorno(t)
 	p := &portapapelesFalso{valor: "  " + secreto + "\n"}
@@ -45,6 +46,7 @@ func TestPortapapeles_GuardaElTokenYLoVacia(t *testing.T) {
 	}
 }
 
+// contrato: baul#6058d327
 func TestPortapapeles_LoQueNoEsUnTokenNoSeGuardaPeroSeVacia(t *testing.T) {
 	entorno(t)
 	for _, copiado := range []string{"", "   ", "una frase con espacios", "dos\nlíneas", strings.Repeat("x", 5000)} {

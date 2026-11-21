@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// contrato: estado#756194c0
 func TestGpusDRM_NvidiaLaMideNvidiaSmiIntegradaSinLecturaYOrdenPorNumero(t *testing.T) {
 	raiz := t.TempDir()
 	tarjeta := func(nombre, vendor, ocupada string) {

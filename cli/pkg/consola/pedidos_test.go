@@ -214,6 +214,7 @@ func TestPedidos_LosHechosSeVanDespuesDeMediaHora(t *testing.T) {
 }
 
 // FND-071: las teclas se recorrían cuando un pedido salía de la cola; la tecla que la persona veía cambiaba.
+// contrato: estado#37978628
 func TestPedidos_CadaPedidoConservaSuTecla_FND071(t *testing.T) {
 	root := proyectoConCola(t)
 	a := mustPedir(t, root, "exit 0", "primero", "")

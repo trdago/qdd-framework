@@ -250,6 +250,7 @@ func TestDoctorMovil_ProyectoSinAnotarSeAnota(t *testing.T) {
 	}
 }
 
+// contrato: doctor#9fdd2a35
 func TestDoctorMovil_ProyectoFueraDelPlanLoDiceYNoLoRepara(t *testing.T) {
 	m := movilPrueba(t)
 	now := time.Now()
@@ -391,6 +392,7 @@ func TestDoctorMovil_UnRelayNuncaConfirmadoSeVe_FND171(t *testing.T) {
 	}
 }
 
+// contrato: remoto#1d02cab2
 func TestDoctorMovil_ElDirectorioSeRevisaConElServicioApagado_FND171(t *testing.T) {
 	m := movilPrueba(t)
 	emparejarPrueba(t)
@@ -453,6 +455,7 @@ func TestDoctorMovil_FixSiNoPuedeConsultarDejaTodoYSigueEnRojo_FND171(t *testing
 	}
 }
 
+// contrato: remoto#1d02cab2
 func TestDoctorMovil_FixConElServicioCorriendoLoReiniciaSiCambiaElRelay_FND171(t *testing.T) {
 	m := movilPrueba(t)
 	now := time.Now()
@@ -488,6 +491,7 @@ func TestDoctorMovil_FixConQddRemotoAManoDiceQueHayQueReiniciarlo_FND171(t *test
 }
 
 // El servicio solo lee el relay al arrancar: si --fix lo arranca primero, queda en el relay anterior.
+// contrato: remoto#1d02cab2
 func TestDoctorMovil_FixCambiaElRelayAntesDeArrancarElServicio_FND171(t *testing.T) {
 	m := movilPrueba(t)
 	emparejarPrueba(t)
@@ -529,6 +533,7 @@ func TestDoctorMovil_FixDiceLoQueHizo_FND171(t *testing.T) {
 	}
 }
 
+// contrato: remoto#1d02cab2
 func TestDoctorMovil_FixConElRelayIgualNoReiniciaElServicio_FND171(t *testing.T) {
 	m := movilPrueba(t)
 	now := time.Now()

@@ -51,6 +51,7 @@ func mensajesEn(ch chan []byte, ventana time.Duration, hasta ...int) int {
 
 // FND-058: el dashboard escribía dentro de lo que observaba y se reconstruía
 // cada 500 ms aunque nadie cambiara nada.
+// contrato: dashboard#6002ac96
 func TestVigilar_ProyectoQuietoNoReconstruye(t *testing.T) {
 	dir := proyectoMedido(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -129,6 +130,7 @@ func TestVigilar_ObservaCarpetasNuevas(t *testing.T) {
 
 // FND-058: BuildState solo lee. Antes escribía cognitive_history.json, que el
 // watcher observa, en cada reconstrucción.
+// contrato: dashboard#6002ac96
 func TestBuildState_NoEscribeHistoriales(t *testing.T) {
 	dir := proyectoMedido(t)
 	BuildState()

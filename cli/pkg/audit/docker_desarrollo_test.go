@@ -25,6 +25,7 @@ func proyectoCon(t *testing.T, archivos map[string]string) string {
 	return dir
 }
 
+// contrato: docker-desarrollo#6aaa8c4b
 func TestDockerDesarrollo_SoloBaseDeDatosNoAvisa(t *testing.T) {
 	casos := map[string]string{
 		"imagen":             "services:\n  db:\n    image: postgres:17-alpine\n",
@@ -45,6 +46,7 @@ func TestDockerDesarrollo_SoloBaseDeDatosNoAvisa(t *testing.T) {
 	}
 }
 
+// contrato: docker-desarrollo#8aef9d18
 func TestDockerDesarrollo_LaAppEnDockerAvisaSinBloquear(t *testing.T) {
 	casos := map[string]struct{ archivo, compose, servicio string }{
 		"construida":        {"docker-compose.yml", "services:\n  db:\n    image: postgres:17\n  api:\n    build: ./backend\n", "api"},
@@ -74,6 +76,7 @@ func TestDockerDesarrollo_LaAppEnDockerAvisaSinBloquear(t *testing.T) {
 }
 
 // Un proyecto real traía cinco composes: un aviso por archivo le restaba 10 puntos por una sola decisión.
+// contrato: docker-desarrollo#6aaa8c4b
 func TestDockerDesarrollo_UnSoloAvisoPorProyectoConTodosSusServicios(t *testing.T) {
 	v := RunDockerDesarrolloCheck(proyectoCon(t, map[string]string{
 		"docker-compose.yml":       "services:\n  front:\n    build: ./frontend\n  api:\n    build: ./backend\n  db:\n    image: postgres:17\n",
@@ -141,6 +144,7 @@ func TestDockerDesarrollo_LoQueNoEsDesarrolloNoAvisa(t *testing.T) {
 	}
 }
 
+// contrato: docker-desarrollo#c775ef29
 func TestDockerDesarrollo_UnComposeIlegibleNoSeInventa(t *testing.T) {
 	for nombre, compose := range map[string]string{
 		"roto":          "services: [sin cerrar\n",
@@ -156,6 +160,7 @@ func TestDockerDesarrollo_UnComposeIlegibleNoSeInventa(t *testing.T) {
 	}
 }
 
+// contrato: docker-desarrollo#8aef9d18
 func TestDockerDesarrollo_ElGateLoInformaYNoBloquea(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"docker-compose.yml": "services:\n  api:\n    build: ./backend\n"})
 	var violaciones []Violation

@@ -25,6 +25,7 @@ func lineasCert021(t *testing.T, cuerpo string) int {
 	return n
 }
 
+// contrato: reglas-go#4e117da0
 func TestCert021_LeerLaQueryStringNoEsUnaConsulta_FND134(t *testing.T) {
 	for _, cuerpo := range []string{
 		`consulta := r.URL.Query()`,

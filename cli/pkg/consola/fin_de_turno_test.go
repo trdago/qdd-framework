@@ -83,6 +83,7 @@ func TestFinDeTurno_SiQuedoEnElPanelNoVuelve(t *testing.T) {
 	}
 }
 
+// contrato: estado#2709b6f6
 func TestFinDeTurno_VuelveUnaSolaVez(t *testing.T) {
 	if falta := QueFaltaAlTerminar(TurnoTerminado{Mensaje: "¿Parto con esa?", YaDevuelto: true}); falta != "" {
 		t.Fatalf("el turno que ya volvió una vez termina, sin bucle: %q", falta)

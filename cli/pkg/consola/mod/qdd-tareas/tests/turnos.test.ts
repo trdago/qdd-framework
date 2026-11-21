@@ -100,6 +100,8 @@ test('un panel pide las preguntas para numerar la lista completa', async ($, on)
   expect(panel[panel.indexOf('--con') + 1].split(',')).toContain('pregunta')
 })
 
+// contrato: estado#5c7a5006
+
 test('el resumen de arriba cuenta lo mismo que la lista', async ($, on) => {
   const estado = { formato: 1, resumen: '', etapas: ['Código'], abreviaturas: ['Có'], frentes: [], esperas: [], fallas: [] }
   const { ui } = await montado($, on, [PEDIDO, FICHA, ESPERA, DIALOGO], [EN_LA_TABLA], estado)

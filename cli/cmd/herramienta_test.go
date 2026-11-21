@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// contrato: herramientas#9ba74bf7
 func TestHerramienta_CampoIgualValorLlegaEntero(t *testing.T) {
 	v, err := valoresDeArgs([]string{"mensaje=hola = chao; rm -rf /", "chat=ventas", "vacio="})
 	if err != nil || v["mensaje"] != "hola = chao; rm -rf /" || v["chat"] != "ventas" || v["vacio"] != "" || len(v) != 3 {

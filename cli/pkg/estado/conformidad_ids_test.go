@@ -19,6 +19,9 @@ func contenidoDelArchivo(t *testing.T, root string) string {
 	return string(b)
 }
 
+// contrato: estado#3f848983
+// contrato: estado-por-tareas#0a77121e
+// contrato: estado-por-tareas#e21a4121
 func TestConformidad_NombrarNoCrea_EPT_I01(t *testing.T) {
 	root := proyectoNotificador(t)
 	antes := contenidoDelArchivo(t, root)

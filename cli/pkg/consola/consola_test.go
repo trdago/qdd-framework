@@ -263,6 +263,7 @@ func TestActivar_ConCLINuevaActualizaElPanelYDoctorLoDetecta_CCC_C09(t *testing.
 
 // FND-107: rc.11 se instaló sin hooks/materializar.js y doctor decía ✓ porque solo miraba la versión. Ahora compara lo
 // que trae el binario con la copia que Claude Code instaló, y --fix la reinstala aunque la versión sea la misma.
+// contrato: estado#30c43f76
 func TestDiagnosticar_UnPanelInstaladoAlQueLeFaltaUnArchivoNoEstaSano_FND107(t *testing.T) {
 	f := &claudeFalso{cache: filepath.Join(t.TempDir(), "cache", "qdd-tareas", "2.2.0")}
 	c := nuevaConsola(t, "2.2.0", f)
@@ -287,12 +288,14 @@ func TestDiagnosticar_UnPanelInstaladoAlQueLeFaltaUnArchivoNoEstaSano_FND107(t *
 	}
 }
 
+// contrato: estado#3e08e7da
 func TestDiagnosticar_SinActivarNoRevisaNada(t *testing.T) {
 	if d := nuevaConsola(t, "2.2.0", &claudeFalso{}).Diagnosticar(); d != nil {
 		t.Fatalf("sin activar no hay controles: %+v", d)
 	}
 }
 
+// contrato: estado#6df16cc6
 func TestActivar_BarraSoloReemplazaLaReferenciaYDesactivarLaRestaura(t *testing.T) {
 	f := &claudeFalso{}
 	c := nuevaConsola(t, "2.2.0", f)
@@ -329,6 +332,7 @@ func TestActivar_BarraSoloReemplazaLaReferenciaYDesactivarLaRestaura(t *testing.
 	}
 }
 
+// contrato: estado#6df16cc6
 func TestActivar_UnaBarraPropiaNoSeToca_CCC_C08(t *testing.T) {
 	c := nuevaConsola(t, "2.2.0", &claudeFalso{})
 	propia := `{"statusLine":{"type":"command","command":"mi-barra --linda"}}`

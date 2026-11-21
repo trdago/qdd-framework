@@ -100,6 +100,10 @@ test('fuera de Windows usa tar del PATH', () => {
   assert.deepStrictEqual(c.args, ['-xzf', '/t/qdd.tar.gz', '-C', '/t']);
 });
 
+// contrato: envoltorio-npm#34bf1a67
+
+// contrato: ambiente-limpio#423b46d8
+
 test('sin binario la instalación falla, salvo que se tolere a propósito', () => {
   assert.strictEqual(codigoDeFalla({}), 1);
   assert.strictEqual(codigoDeFalla({ QDD_INSTALL_TOLERANTE: '1' }), 0);
@@ -136,6 +140,8 @@ test('un paquete sin binario falla y no toca el binario anterior', { skip: os.pl
   assert.strictEqual(fs.readFileSync(d.destino, 'utf8'), 'anterior');
 });
 
+// contrato: envoltorio-npm#34bf1a67
+
 test('un binario que no responde falla y no reemplaza al anterior', { skip: os.platform() === 'win32' }, (t) => {
   const d = carpetaDescarga(t, { qdd: '#!/bin/sh\nexit 3\n' });
   fs.writeFileSync(d.destino, 'anterior');
@@ -160,6 +166,8 @@ test('en Windows el binario va a una carpeta por versión, fuera del paquete', (
   assert.strictEqual(destinoDelBinario({ carpeta, version: '2.10.0', binDir: 'paquete', binaryName: 'qdd.exe' }), path.join('L', 'qdd', 'bin', '2.10.0', 'qdd.exe'));
 });
 
+// contrato: envoltorio-npm#110c284b
+
 test('en Linux, en macOS y en Windows sin LOCALAPPDATA sigue dentro del paquete', () => {
   assert.strictEqual(carpetaDeVersiones({ os: 'linux', env: { LOCALAPPDATA: 'L' } }), '');
   assert.strictEqual(carpetaDeVersiones({ os: 'darwin', env: {} }), '');
@@ -174,6 +182,8 @@ test('el binario de la descarga llega a su carpeta de versión, que se crea', { 
   assert.ok(fs.existsSync(destino));
   assert.ok(!fs.existsSync(d.destino), 'dentro del paquete no queda nada que npm no pueda reemplazar');
 });
+
+// contrato: envoltorio-npm#34bf1a67
 
 test('respondeBinario: solo un binario que corre', { skip: os.platform() === 'win32' }, (t) => {
   const raiz = crearRaiz(t);
@@ -239,6 +249,10 @@ test('moverBinario copia si el binario nuevo sigue ocupado (#175)', (t) => {
   assert.strictEqual(fs.readFileSync(destino, 'utf8'), 'binario');
   assert.ok(!fs.existsSync(destino + '.nuevo'));
 });
+
+// contrato: envoltorio-npm#34bf1a67
+
+// contrato: ambiente-limpio#423b46d8
 
 test('instalarCopia deja el binario indicado solo si responde', { skip: os.platform() === 'win32' }, (t) => {
   const raiz = crearRaiz(t);

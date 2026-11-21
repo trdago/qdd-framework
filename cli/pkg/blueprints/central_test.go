@@ -73,6 +73,7 @@ func isUnder(path, dir string) bool {
 	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
+// contrato: blueprints#496ebf9e
 func TestAdd_KeepsOnlyTheLockfileInTheProject(t *testing.T) {
 	root := importedProject(t)
 	if _, err := os.Stat(filepath.Join(root, Dir)); !os.IsNotExist(err) {
@@ -138,6 +139,7 @@ func TestAdd_GitRepositoryIsClonedOnceAndFetchedAfter(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#088d59f5
 func TestFind_RebuildsFromTheLockfileOnAnotherMachine(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := t.TempDir()
@@ -163,6 +165,7 @@ func TestFind_RebuildsFromTheLockfileOnAnotherMachine(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#088d59f5
 func TestFind_RepairsATamperedCentralCopy(t *testing.T) {
 	root := importedProject(t)
 	b, _ := Find(root, "auth")
@@ -179,6 +182,7 @@ func TestFind_RepairsATamperedCentralCopy(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#088d59f5
 func TestCheck_LockfileThatDoesNotMatchTheOrigin(t *testing.T) {
 	root := importedProject(t)
 	lock, _ := LoadLock(root)
@@ -209,6 +213,7 @@ func legacyProject(t *testing.T) (string, string) {
 	return root, src
 }
 
+// contrato: blueprints#496ebf9e
 func TestMigrar_MovesIntactLegacyCopiesOnlyOnce(t *testing.T) {
 	root, _ := legacyProject(t)
 	m, err := Migrar(root)
@@ -244,6 +249,8 @@ func TestMigrar_WorksEvenIfTheOriginIsGone(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#496ebf9e
+// contrato: doctor#9fdd2a35
 func TestMigrar_NeverDiscardsEditedOrUnlockedCopies(t *testing.T) {
 	root, _ := legacyProject(t)
 	edited := filepath.Join(root, Dir, "auth", ManifestName)
@@ -326,6 +333,7 @@ func TestSincronizar_ReportsNewerVersions(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#496ebf9e
 func TestAportar_PreparesABranchInTheCentralWorkspace(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := t.TempDir()
@@ -404,6 +412,7 @@ func TestAportar_DosAportesEnParaleloNoSeMezclan_FND113(t *testing.T) {
 }
 
 // FND-117: un qdd que corre dentro de un hook de git (GIT_DIR exportado) trabaja en su clon, no en el repo del hook.
+// contrato: gitenv#f720bab8
 func TestGitRaw_DentroDeUnHookTrabajaEnElClonYNoEnElRepoDelHook(t *testing.T) {
 	hook := t.TempDir()
 	if _, err := gitRaw(hook, "init", "-q"); err != nil {

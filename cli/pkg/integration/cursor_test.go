@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// contrato: integracion#62030339
 func TestCursorAdapter_Sync_DeepMerge(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "qdd_cursor_test")
 	if err != nil {

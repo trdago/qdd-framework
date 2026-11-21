@@ -76,6 +76,7 @@ func TestSeguir_UnaLecturaFallidaNoEmiteNiCorta(t *testing.T) {
 }
 
 // Si quien lee se fue (la sesión terminó), el flujo termina: nunca queda un proceso huérfano escribiendo.
+// contrato: estado#37a91f31
 func TestSeguir_TerminaSiNoSePuedeEmitir(t *testing.T) {
 	roto := errors.New("tubería cerrada")
 	err := Seguir(context.Background(), func() ([]byte, error) { return []byte("a"), nil }, make(chan struct{}),
@@ -86,6 +87,7 @@ func TestSeguir_TerminaSiNoSePuedeEmitir(t *testing.T) {
 }
 
 // Nada cambia durante horas y la sesión murió: el latido es lo que permite enterarse, también en Windows.
+// contrato: estado#37a91f31
 func TestSeguir_SinCambiosLateYTerminaSiElLatidoFalla(t *testing.T) {
 	roto := errors.New("tubería cerrada")
 	senal := make(chan struct{}, 1)
@@ -124,6 +126,7 @@ func TestSeguirAyudante(t *testing.T) {
 }
 
 // Con procesos de verdad, para que el CI lo pruebe también en Windows: cerrar la salida equivale a que muera la sesión.
+// contrato: estado#37a91f31
 func TestSeguir_UnProcesoRealTerminaAlCerrarseSuSalida(t *testing.T) {
 	c := exec.Command(os.Args[0], "-test.run=^TestSeguirAyudante$")
 	c.Env = append(os.Environ(), "QDD_SEGUIR_AYUDANTE=1")

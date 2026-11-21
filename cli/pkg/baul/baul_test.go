@@ -89,6 +89,7 @@ func opcionesUsar(root string, salida *bytes.Buffer, args ...string) OpcionesUsa
 	return OpcionesUsar{Root: root, Nombre: "cf", Fin: "crear la zona de ejemplo.cl", Sesion: "s1", Comando: args, Salida: salida, Ahora: ahora}
 }
 
+// contrato: baul#cea25c61
 func TestUsar_SinPermisoDejaElPedidoDeLaPersonaYNoCorre(t *testing.T) {
 	root := entorno(t)
 	guardarCloudflare(t)
@@ -124,6 +125,7 @@ func permitirTodo(t *testing.T, root string) {
 	}
 }
 
+// contrato: baul#cea25c61
 func TestPermitir_SinElSiDeLaPersonaNoPermite(t *testing.T) {
 	root := entorno(t)
 	guardarCloudflare(t)
@@ -169,6 +171,7 @@ func TestUsar_ConPermisoCorreConElTokenYLoTapa(t *testing.T) {
 	}
 }
 
+// contrato: baul#cea25c61
 func TestUsar_ElPermisoMuereAlCerrarLaSesion(t *testing.T) {
 	root := entorno(t)
 	guardarCloudflare(t)

@@ -85,6 +85,8 @@ test('dibuja el panel liviano: título con versión, resumen en una línea, tabl
   expect(await ui.find({ key: 'b-auditar' })).toMatchObject({ props: { hotkey: 'u' } })
 })
 
+// contrato: estado#79252811
+
 test('aprobar una ficha pide «s  Sí» y solo entonces llama a qdd con --confirmado (CCC-C10)', async ($, on) => {
   const llamadas: string[][] = []
   preparar(on, ok(PANEL), llamadas, { exitCode: 0, stdout: "[+] Ficha 'pagos' aprobada (revisada en abc123).", stderr: '' })
@@ -649,6 +651,8 @@ test('un pedido que dijo «todavía no» se ve pendiente con su aviso destacado,
   expect(await ui.find({ key: 'b-pedido:1' })).toMatchObject({ props: { hotkey: 'a' } })
 })
 
+// contrato: estado#bbfc77dc
+
 test('si al ejecutarlo sale «todavía no» (código 75), el panel no lo marca como falla (FND-082)', async ($, on) => {
   preparar(on, ok({ ...PANEL, acciones: [PEDIDO] }), [], { exitCode: 75, stdout: 'Falta el tag v2.7.0', stderr: '' })
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
@@ -952,6 +956,8 @@ test('abrir el panel pide todos los cuadros en un solo proceso (MEJ-017)', async
   expect(mats.procesos).toBe(1)
 })
 
+// contrato: estado#e43242f2
+
 test('si qdd no entrega el lote, el panel dibuja lo de siempre (materializar)', async ($, on) => {
   const clock = mock.clock(on)
   mock.env(on, {})
@@ -972,6 +978,7 @@ test('si qdd no entrega el lote, el panel dibuja lo de siempre (materializar)', 
 
 // MEJ-017: el hueco en blanco duraba lo que tardara el proceso, hasta 3 s. Los efectos solo decoran: si no llegan a
 // tiempo, se corta el proceso y se dibuja lo de siempre.
+// contrato: estado#e43242f2
 test('si los cuadros no llegan a tiempo, se corta y se dibuja lo de siempre, sin hueco (MEJ-017)', async ($, on) => {
   mock.clock(on)
   mock.env(on, {})

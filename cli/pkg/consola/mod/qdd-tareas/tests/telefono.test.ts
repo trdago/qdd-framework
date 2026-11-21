@@ -42,6 +42,8 @@ function preparar(on, r) {
 const nuevo = (extra = {}) => ({ llamadas: [] as string[][], enviados: [] as string[], notificaciones: [] as any[], latidos: [] as any[], activo: true, ...extra })
 const latidos = (r) => r.llamadas.filter((a) => a[2] === 'telefono' && a[3] === 'latir')
 
+// contrato: remoto#b613d6de
+
 test('la instrucción del teléfono llega a la IA como mensaje de la persona, una vez, y se notifica', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] }] })
   const clock = preparar(on, r)

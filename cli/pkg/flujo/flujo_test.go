@@ -25,6 +25,8 @@ func deNodos(nodos ...Nodo) Flujo {
 
 func sinEstado(string) string { return "" }
 
+// contrato: flujo#1c1ceb88
+// contrato: flujo#501e2f64
 func TestValidar_DiceCadaProblema(t *testing.T) {
 	casos := map[string]struct {
 		f    Flujo
@@ -53,6 +55,7 @@ func TestValidar_DiceCadaProblema(t *testing.T) {
 	}
 }
 
+// contrato: flujo#1c1ceb88
 func TestGuardar_NoEscribeUnFlujoInvalidoYSeLeeIgual(t *testing.T) {
 	root := t.TempDir()
 	if err := Guardar(root, deNodos(paso("x", "X", "no"))); err == nil {
@@ -81,6 +84,7 @@ func TestGuardar_NoEscribeUnFlujoInvalidoYSeLeeIgual(t *testing.T) {
 	}
 }
 
+// contrato: flujo#5a1ea2b6
 func TestListar_ResumeCadaFlujoYCambiaLaHuella(t *testing.T) {
 	root := t.TempDir()
 	if l := Listar(root, sinEstado); len(l) != 0 {
@@ -224,6 +228,7 @@ func TestDibujar_UnTextoLargoSeParteDentroDeLaCaja(t *testing.T) {
 }
 
 // Con cualquier forma: cada nodo aparece, y ninguna línea pasa del ancho salvo en lo más angosto.
+// contrato: flujo#501e2f64
 func TestDibujar_CualquierFormaMuestraCadaNodo(t *testing.T) {
 	azar := rand.New(rand.NewSource(1))
 	for ronda := 0; ronda < 400; ronda++ {
@@ -303,6 +308,8 @@ func TestDibujar_CincuentaNodosEsRapido(t *testing.T) {
 }
 
 // Un flujo viaja entero en un mensaje al teléfono, y Supabase descarta en silencio lo que pasa de 256 KB en el plan Free.
+// contrato: flujo#1c1ceb88
+// contrato: flujo#5a1ea2b6
 func TestFlujo_ElQuePesaDeMasNoSeGuardaYSeVeConSuProblema(t *testing.T) {
 	root := t.TempDir()
 	pesado := Flujo{Formato: 1, ID: "pesado", Nombre: "Pesado", Nodos: []Nodo{

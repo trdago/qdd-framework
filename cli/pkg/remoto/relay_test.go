@@ -86,6 +86,7 @@ func jwtDePrueba(claims string) string {
 	return "eyJhbGciOiJIUzI1NiJ9." + base64.RawURLEncoding.EncodeToString([]byte(claims)) + ".firma"
 }
 
+// contrato: remoto#5e30cfe9
 func TestValidarClave_SoloLaPublicable(t *testing.T) {
 	casos := []struct {
 		clave string
@@ -107,6 +108,7 @@ func TestValidarClave_SoloLaPublicable(t *testing.T) {
 	}
 }
 
+// contrato: remoto#5e30cfe9
 func TestGuardarRelay_NuncaGuardaUnaClaveSecretaYQuedaEn0600(t *testing.T) {
 	home := homeTemporal(t)
 	if err := GuardarRelay(ConfigRelay{URL: "https://x.supabase.co", Clave: "sb_secret_zzz"}); err == nil {
@@ -182,6 +184,7 @@ func TestRelay_RPCConLaClavePublicableYErroresDelRelay(t *testing.T) {
 	}
 }
 
+// contrato: remoto#c4f9cc27
 func TestAvisar_SoloTipoYProyecto(t *testing.T) {
 	f := nuevoRelayFalso(t)
 	f.Responder("/functions/v1/avisar", func(map[string]any) (int, any) { return 200, map[string]int{"enviados": 1} })
@@ -268,6 +271,7 @@ func TestEmparejar_EsperaAQueElTelefonoAcepte(t *testing.T) {
 	}
 }
 
+// contrato: remoto#5e30cfe9
 func TestCredenciales_PrivadasYSeBorran(t *testing.T) {
 	home := homeTemporal(t)
 	if _, err := LeerCredenciales(); err == nil || !strings.Contains(err.Error(), "activar") {

@@ -99,6 +99,7 @@ func TestCandidatos_LosEjecutablesDelProyecto_HER_C01(t *testing.T) {
 	}
 }
 
+// contrato: herramientas#3dcdd332
 func TestGuardar_SinDefinicionValidaNoHayPestaña_HER_C02(t *testing.T) {
 	conShell(t)
 	root := t.TempDir()
@@ -131,6 +132,7 @@ func TestGuardar_SinDefinicionValidaNoHayPestaña_HER_C02(t *testing.T) {
 	}
 }
 
+// contrato: herramientas#9ba74bf7
 func TestCorrer_UnCampoEsUnArgumento_HER_C03(t *testing.T) {
 	conShell(t)
 	root := t.TempDir()
@@ -218,6 +220,7 @@ func TestAyuda_LeeLaAyudaSinEntrada(t *testing.T) {
 	}
 }
 
+// contrato: doctor#9fdd2a35
 func TestDiagnosticar_CadaHerramientaDiceQueLeFaltaYComoSeArregla(t *testing.T) {
 	conShell(t)
 	root := t.TempDir()

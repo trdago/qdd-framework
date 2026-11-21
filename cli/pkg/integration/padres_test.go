@@ -76,6 +76,7 @@ func TestBloquesEnPadres_NombraLasCopiasDeArriba_MEJ062(t *testing.T) {
 	}
 }
 
+// contrato: integracion#8d0b5927
 func TestQuitarBloquesDePadres_DejaRespaldoYConservaLoDemas_MEJ062(t *testing.T) {
 	tope := arbolDePadres(t)
 	app := filepath.Join(tope, "proyectos", "app")

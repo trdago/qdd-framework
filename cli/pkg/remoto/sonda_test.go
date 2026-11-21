@@ -17,6 +17,7 @@ func relayDe(s *servidorFalso) ConfigRelay { return ConfigRelay{URL: s.URL(), Cl
 
 func credPrueba() Credenciales { return Credenciales{Topico: topicoPrueba, Firma: "f"} }
 
+// contrato: remoto#b9dc9a33
 func TestSonda_SinTelefonoSoloEntraAlCanalYNoPublica(t *testing.T) {
 	s := nuevoServidorFalso(t, "publicable", topicoPrueba)
 	r := Sondear(context.Background(), relayDe(s), credPrueba(), 3*time.Second)

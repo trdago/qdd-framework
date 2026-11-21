@@ -117,6 +117,7 @@ func TestRemotoActivar_GuardaEmparejaYDejaElServicio(t *testing.T) {
 	}
 }
 
+// contrato: remoto#5e30cfe9
 func TestRemotoActivar_RechazaUnaClaveSecreta(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("QDD_HOME", home)

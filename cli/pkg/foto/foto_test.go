@@ -159,6 +159,7 @@ func TestTraer_DelPortapapelesQuedaEnTmpFotos(t *testing.T) {
 	}
 }
 
+// contrato: foto#ed7e346b
 func TestTraer_SinImagenEnElPortapapelesUsaLaUltimaCaptura(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("lector de prueba en sh")
@@ -182,6 +183,7 @@ func TestTraer_SinImagenEnElPortapapelesUsaLaUltimaCaptura(t *testing.T) {
 	}
 }
 
+// contrato: foto#ed7e346b
 func TestTraer_SinLectorNiCapturasDiceQueInstalar(t *testing.T) {
 	_, err := Traer(context.Background(), t.TempDir(), DeAuto, entorno("linux", map[string]string{}, t.TempDir()), ahora)
 	if err == nil || !strings.Contains(err.Error(), "wl-clipboard") {

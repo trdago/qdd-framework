@@ -80,6 +80,7 @@ func TestDoctor_REM01QuitaLasRutasQueYaNoExisten(t *testing.T) {
 	}
 }
 
+// contrato: remoto#9ec20688
 func TestDoctor_REM02ApartaUnRegistroIlegible(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("QDD_HOME", home)

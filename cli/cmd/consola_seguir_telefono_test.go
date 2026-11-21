@@ -114,6 +114,7 @@ func TestLecturaPanel_DiceSiElFlujoLate(t *testing.T) {
 	}
 }
 
+// contrato: estado#37a91f31
 func TestLatirElFlujo_LateAlAbrirYTerminaConElFlujo(t *testing.T) {
 	emparejado(t)
 	root := t.TempDir()

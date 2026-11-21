@@ -91,6 +91,8 @@ test('cada herramienta guardada es su propio panel, con su nombre como pestaña 
   expect(await ui.find({ key: 'h-accion-logs' })).toMatchObject({ props: { label: '2  Tras bambalinas' } })
 })
 
+// contrato: herramientas#9ba74bf7
+
 test('una acción una-vez corre con sus campos, cada uno un argumento, y muestra su salida al terminar (HER-C05, HER-C03)', async ($, on) => {
   const r = nuevo()
   preparar(on, { herramientas: [SIM], respuestas: { correr: ok('enviado al chat soporte\n') } }, r)

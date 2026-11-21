@@ -87,6 +87,7 @@ func TestFirmaEjecucion_LaMismaQueElRelay(t *testing.T) {
 	}
 }
 
+// contrato: remoto#e825732f
 func TestArgsPermitidos_SoloLaListaYSinShell(t *testing.T) {
 	bien := map[string][]string{
 		"audit":                         {"audit"},
@@ -211,6 +212,7 @@ func bucleConQDDFalso(t *testing.T, ajustes ...func(*Bucle)) (string, string, st
 	return root, clave, falso, tr
 }
 
+// contrato: remoto#e825732f
 func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 	root, clave, falso, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("0c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", `estado check --json`, "d1", ahoraEn())
@@ -258,6 +260,7 @@ func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 	}
 }
 
+// contrato: remoto#76b499d6
 func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("1c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", "doctor", "d1", ahoraEn())
@@ -280,6 +283,8 @@ func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	}
 }
 
+// contrato: remoto#2e9da439
+// contrato: remoto#e825732f
 func TestEjecutar_LoQueNoSePermiteSeRechazaYNoCorre(t *testing.T) {
 	_, clave, falso, tr := bucleConQDDFalso(t)
 	casos := []struct{ tipo, texto, dice string }{
@@ -382,6 +387,8 @@ func TestAccion_AuditarDesdeElTelefonoDevuelveElFinalDeLaSalida(t *testing.T) {
 	}
 }
 
+// contrato: remoto#6e30dfb4
+// contrato: remoto#e825732f
 func TestEjecutar_SinProSeRechaza(t *testing.T) {
 	_, clave, falso, tr := bucleConQDDFalso(t, func(b *Bucle) {
 		b.R = &relayBucleFalso{plan: PlanGratis(), avisos: make(chan aviso, 32)}
@@ -396,6 +403,7 @@ func TestEjecutar_SinProSeRechaza(t *testing.T) {
 	}
 }
 
+// contrato: remoto#b613d6de
 func TestEjecutar_LaInstruccionEsperaUnaSesionYSeEntregaUnaVez(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("9c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", "Revisa el build\ny arréglalo", "d1", ahoraEn())
@@ -503,6 +511,7 @@ func TestPlanLocal_SoloConQDDMovilActivado(t *testing.T) {
 	}
 }
 
+// contrato: goal#63945bca
 func TestEjecutar_ElModoGoalSeEnciendeYApagaDesdeElTelefono(t *testing.T) {
 	args, err := ArgsPermitidos("goal activar")
 	if err != nil || strings.Join(args, " ") != "goal activar --desde telefono" {
@@ -523,6 +532,7 @@ func TestEjecutar_ElModoGoalSeEnciendeYApagaDesdeElTelefono(t *testing.T) {
 	}
 }
 
+// contrato: goal#63945bca
 func TestEjecutar_UnComandoDelTelefonoNoCorreComoIA(t *testing.T) {
 	t.Setenv("CLAUDECODE", "1")
 	codigo, salida := CorrerQDD(context.Background(), "sh", t.TempDir(), []string{"-c", `printf "[%s]" "$CLAUDECODE"`}, 5*time.Second)
@@ -544,6 +554,7 @@ func flujoDelTelefono(t *testing.T, root string) {
 	}
 }
 
+// contrato: remoto#2e9da439
 func TestValidarTexto_FlujoSoloConElEsquema(t *testing.T) {
 	if err := ValidarTexto(consola.EjecutarFlujo, `{"op":"deshacer","flujo":"pago"}`); err != nil {
 		t.Fatal(err)
@@ -556,6 +567,7 @@ func TestValidarTexto_FlujoSoloConElEsquema(t *testing.T) {
 	}
 }
 
+// contrato: remoto#2e9da439
 func TestEjecutar_UnComentarioDelTelefonoEsDeLaPersonaLlamaALaIAYSeAplicaUnaVez(t *testing.T) {
 	root, clave, falso, tr := bucleConQDDFalso(t)
 	flujoDelTelefono(t, root)
@@ -618,6 +630,7 @@ func TestEjecutar_UnaEdicionEsperaElEnvioYSuResultadoSaleSinSecretos(t *testing.
 	}
 }
 
+// contrato: remoto#2e9da439
 func TestEjecutar_UnaEdicionQueNoSePuedeSeRechazaSinEscribir(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	flujoDelTelefono(t, root)
@@ -638,6 +651,7 @@ func TestEjecutar_UnaEdicionQueNoSePuedeSeRechazaSinEscribir(t *testing.T) {
 	}
 }
 
+// contrato: remoto#2e9da439
 func TestEjecutar_FlujoSinProSeRechaza(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t, func(b *Bucle) {
 		b.R = &relayBucleFalso{plan: PlanGratis(), avisos: make(chan aviso, 32)}
@@ -676,6 +690,7 @@ func TestEjecutar_UnaEdicionNoEsperaAUnComandoQueCorre(t *testing.T) {
 	}
 }
 
+// contrato: remoto#b613d6de
 func TestEjecutar_EnviarLeEntregaLoPendienteALaSesion(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	flujoDelTelefono(t, root)

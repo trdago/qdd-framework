@@ -50,6 +50,7 @@ func TestConsolaPedir_DejaElComandoEnElPanel_CCC_C17(t *testing.T) {
 	}
 }
 
+// contrato: estado#fc9c5b05
 func TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
@@ -243,6 +244,7 @@ func TestConsolaPedirTool_ResueltoEnElChat(t *testing.T) {
 }
 
 // Aviso al chat (pedido del usuario, 2026-11-02): el panel dice su sesión al confirmar y reclama el aviso una vez.
+// contrato: estado#0034d69c
 func TestConsolaAvisado_LaSesionQueConfirmoLoReclamaUnaSolaVez(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
