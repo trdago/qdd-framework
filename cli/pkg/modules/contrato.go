@@ -17,8 +17,8 @@ import (
 // Contrato de una ficha: cada invariante es una promesa de QDD sobre el módulo, y la demuestran las pruebas que la citan
 // con «contrato: <ficha>#<id>» en un comentario (Go, TypeScript, JS, shell: cualquier archivo de pruebas). El id sale
 // del texto del invariante: si la promesa cambia, la cita vieja deja de contar y alguien tiene que revisar que la prueba
-// todavía la demuestre. Medido 2026-11-21: de 301 promesas de las 34 fichas de qdd, 134 tenían una prueba que fallaría
-// si se rompían.
+// todavía la demuestre. Medido 2026-11-21: de 262 promesas de las 34 fichas de qdd (228 invariantes y 34 criterios de
+// éxito), 118 tenían una prueba que fallaría si se rompían.
 
 var reCita = regexp.MustCompile(`contrato: ([a-z0-9][a-z0-9_-]{0,63})#([0-9a-f]{8})\b`)
 
