@@ -160,7 +160,7 @@ objetivo_tecnologico:
         - 'Un pedido aceptado no se ejecuta dos veces: solo uno pendiente o con falla corre, y el cambio a ejecutando se hace con la cola bloqueada (FND-070).'
         - Ningún pedido queda «ejecutando» sin un proceso vivo que lo corra (FND-089), y mientras corre el panel sigue respondiendo.
         - La tecla de un pedido no cambia mientras está abierto (FND-071).
-        - Un pedido que espera a otro no hecho no se ejecuta ni tiene botón (FND-080); un orden con ciclo, con una referencia que no está o que va antes de algo ya ejecutado se rechaza sin cambiar la cola.
+        - 'Un pedido que espera a otro no hecho no se ejecuta: su tecla solo lo arma y corre cuando el otro termine (FND-080); un orden con ciclo, con una referencia que no está o que va antes de algo ya ejecutado se rechaza sin cambiar la cola.'
         - Todas las sesiones de un mismo repositorio (checkout principal y worktrees) ven la misma cola de pedidos (FND-081).
         - Un pedido que sale con 75 nunca queda como falla ni pierde su tecla (FND-082).
         - 'La línea de recursos nunca inventa un valor: una GPU sin contador va con «—» y lo que el sistema no expone se omite.'
@@ -200,5 +200,5 @@ fuentes:
     - cli/pkg/estado/actividad.go
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
-ultima_revision: "2026-11-20"
-revisado_en_commit: f2eb512ac730
+ultima_revision: "2026-11-21"
+revisado_en_commit: 42a06e10cd55

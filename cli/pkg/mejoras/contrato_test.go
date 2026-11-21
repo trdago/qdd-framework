@@ -79,6 +79,7 @@ func TestCiclo_CadaReporteEIssueEntraUnaVezYUnCicloSinCambiosNoEscribeNada(t *te
 
 // Una fuente que falla (GitHub sin red, el relay caído) se salta y lo dice; el reporte local entra igual y lo que ya
 // estaba en la cola desde GitHub no se descarta por no haber podido leerlo.
+// contrato: mejoras#b214e579
 func TestCiclo_UnaFuenteQueFallaSeSaltaLoDiceYNoSePierdeNada(t *testing.T) {
 	root := proyecto(t)
 	ciclo(t, root, conIssues(

@@ -257,6 +257,7 @@ func TestCiclo_UnaMejoraDeGitHubTerminadaDejaElCierreDelIssueComoPedido(t *testi
 	}
 }
 
+// contrato: mejoras#b214e579
 func TestCiclo_SiGitHubFallaSigueConLoDemasYLoDice(t *testing.T) {
 	root := proyecto(t)
 	reportar(t, root, "Primera mejora", t0)

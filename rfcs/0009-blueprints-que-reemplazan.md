@@ -12,7 +12,7 @@ Un blueprint puede declarar que **reemplaza** a otros: `reemplaza: [estado-por-f
 
 El estándar de avance nació como `estado-por-frente` (la tabla) y después se le sumó `estado-por-tareas` (la tarea en curso y sus pulsos), que dependía del primero. Eran dos blueprints, dos palabras («frente» y «tarea») y un panel que ya decía «Tareas». La persona decidió que fueran **uno solo, `estado-por-tareas`** (2026-10-30).
 
-Sin este RFC, cambiar el id de un blueprint publicado deja huérfanos a los proyectos que lo usan, como `llmlocal` y `notificador_de_ofertas`:
+Sin este RFC, cambiar el id de un blueprint publicado deja huérfanos a los proyectos que lo usan, como `proyecto-c` y `proyecto-b`:
 
 - su lockfile sigue en `estado-por-frente@1.0.0` y ninguna regla dice que existe un sucesor;
 - `qdd blueprint add estado-por-tareas` lo importa **al lado** del viejo, y quedan dos estándares para el mismo módulo;

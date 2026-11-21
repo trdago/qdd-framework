@@ -28,7 +28,7 @@ objetivo_tecnologico:
     invariantes:
         - Nunca hay más de 2 tareas abiertas de la cola en el objetivo mejora-continua.
         - Un reporte o issue entra a la cola una sola vez, y correr el ciclo dos veces seguidas sin cambios no cambia nada.
-        - Si una fuente falla (no hay gh, no hay red, el remote no es de GitHub), esa fuente se salta y se dice por qué. El resto del ciclo sigue y nada se pierde.
+        - 'Si una fuente falla (no hay gh, no hay red), esa fuente se salta y se dice por qué; un remote que no es de GitHub no es una falla: la fuente no aplica y no se avisa. El resto del ciclo sigue y nada se pierde.'
         - El ciclo no llama a ningún modelo y no publica nada en GitHub.
 pruebas:
     comandos:
@@ -37,5 +37,5 @@ fuentes:
     - cli/pkg/estado/objetivos.go
     - cli/pkg/consola/preguntas.go
     - cli/pkg/remoto/registro/registro.go
-ultima_revision: "2026-11-16"
-revisado_en_commit: 879eefab93c7
+ultima_revision: "2026-11-21"
+revisado_en_commit: 42a06e10cd55

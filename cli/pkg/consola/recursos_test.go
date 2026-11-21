@@ -175,10 +175,11 @@ func TestActivar_RecursosSeRecuerdaYReparaLosConserva(t *testing.T) {
 func TestBarraConRecursos_UnaMedicionLentaNoDemoraLaBarra(t *testing.T) {
 	dir := t.TempDir()
 	in := `{"workspace":{"project_dir":"` + filepath.ToSlash(dir) + `"},"model":{"display_name":"Opus 5.5"}}`
-	soltar := make(chan struct{})
-	defer close(soltar)
+	// La medición lenta no se suelta nunca: si terminara al salir de la prueba, escribiría su caché en dir mientras
+	// TempDir lo borra («directory not empty»).
+	nunca := make(chan struct{})
 	lento := sensores{ram: func() (float64, bool) {
-		<-soltar
+		<-nunca
 		return 38, true
 	}}
 	inicio := time.Now()

@@ -83,9 +83,9 @@ Otras comprobaciones reales:
 
 - **Actualizar la herramienta:** con un `claude` que dice otra versión, la suite se repitió una vez (15,8 s) y a la siguiente corrida quedó recordada.
 - **`--verificar-rutas`:** 16 s en este repo, «completas» en la suite del panel. En el CI suma 28 s por PR (#197), porque esa suite corre dos veces: en la auditoría y en la copia aislada. Se podría comprobar solo cuando cambian sus `rutas` o su declaración; aún no se hizo.
-- **Detección:** la suite del panel no sirve para probarla, porque `claude plugin test` solo deja importar archivos del propio plugin. Se probó en sfrc.
+- **Detección:** la suite del panel no sirve para probarla, porque `claude plugin test` solo deja importar archivos del propio plugin. Se probó en proyecto-a.
 
-### Medición en sfrc
+### Medición en proyecto-a
 
 Un proyecto ajeno, con Go, migraciones y 5 suites que ya no usan Docker (pedido de la persona, 2026-11-07). Se midió un clon de su commit 09fa78f, sin `.env`. Mediana de 3 corridas, con la carga en torno a 4 a 7 en 16 hilos.
 
@@ -104,7 +104,7 @@ Lo que enseñó:
 
 - **`--verificar-rutas` encontró un error real, el mío.** Declaré `rutas: [backend]` para las pruebas de Go, y estas leen `.github/workflows`, `scripts` y `e2e/simulador`. Con esas rutas, un workflow sin sus pasos habría pasado el gate.
 - **También encontró su propio bug (FND-175):** cuatro suites dijeron «incompletas» porque la copia no traía `node_modules`. La copia ahora enlaza las carpetas que git ignora.
-- **El ahorro es proporcional, no siempre grande:** son unos 12 s por corrida en un gate de 14 s. Pesa porque una IA audita muchas veces, pero el CI de sfrc (95 a 249 s) no cambia, porque ahí corre todo.
+- **El ahorro es proporcional, no siempre grande:** son unos 12 s por corrida en un gate de 14 s. Pesa porque una IA audita muchas veces, pero el CI de proyecto-a (95 a 249 s) no cambia, porque ahí corre todo.
 - **Sin `rutas` no se ahorra nada,** y cada proyecto tiene que declararlas: `qdd init` todavía no las sugiere.
 
 ## Límites
