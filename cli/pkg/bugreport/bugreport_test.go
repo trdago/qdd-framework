@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// contrato: bugreport#45193dd3
 func TestFile_CreatesOpenFindingAndEvidence(t *testing.T) {
 	cwd := t.TempDir()
 
@@ -111,6 +112,7 @@ func assertFileContains(t *testing.T, path, substr string) {
 
 // FND-061: qdd bug escribía RESOLVED en mayúscula, una forma que el resto de
 // QDD tenía que adivinar.
+// contrato: bugreport#45193dd3
 func TestMarkResolved_EscribeEstadoCanonico(t *testing.T) {
 	cwd := t.TempDir()
 	filed, err := File(cwd, Report{Command: "myapp", ExitCode: 2, Output: "panic"})
@@ -121,4 +123,51 @@ func TestMarkResolved_EscribeEstadoCanonico(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertFileContains(t, filed.FindingPath, "status: resolved")
+}
+
+// Registrar uno nuevo no cambia el estado de los anteriores: el resuelto sigue
+// resuelto y el nuevo nace abierto.
+// contrato: bugreport#45193dd3
+func TestFile_NuevoAbiertoSinTocarLosAnteriores(t *testing.T) {
+	cwd := t.TempDir()
+	primero, err := File(cwd, Report{Command: "svc", ExitCode: 1, Output: "boom"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MarkResolved(primero.FindingPath, "arreglado", true); err != nil {
+		t.Fatal(err)
+	}
+	segundo, err := File(cwd, Report{Command: "svc", ExitCode: 1, Output: "boom otra vez"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFileContains(t, primero.FindingPath, "status: resolved")
+	assertFileContains(t, segundo.FindingPath, "status: open")
+}
+
+// MarkResolved agrega el resumen y el estado; el archivo de evidencia queda
+// igual y el finding sigue apuntando a él.
+// contrato: bugreport#63466c6d
+func TestMarkResolved_NoBorraLaEvidencia(t *testing.T) {
+	cwd := t.TempDir()
+	filed, err := File(cwd, Report{Command: "svc", Args: []string{"--x"}, ExitCode: 7, Output: "panic: nil map"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	antes, err := os.ReadFile(filed.EvidencePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MarkResolved(filed.FindingPath, "se corrigió", true); err != nil {
+		t.Fatal(err)
+	}
+	despues, err := os.ReadFile(filed.EvidencePath)
+	if err != nil {
+		t.Fatalf("la evidencia desapareció al marcar resuelto: %v", err)
+	}
+	if string(antes) != string(despues) {
+		t.Errorf("la evidencia cambió al marcar resuelto:\nantes %q\ndespués %q", antes, despues)
+	}
+	assertFileContains(t, filed.FindingPath, "evidence_path: "+filed.EvidencePath)
+	assertFileContains(t, filed.FindingPath, "exit_code: 7")
 }
