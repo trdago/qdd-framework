@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -184,5 +186,40 @@ func TestEstadoTool_SetRecuerdaDeclararLaTareaSinEncenderla_MEJ021(t *testing.T)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "otra")
 	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "3/3 pruebas"}); !strings.Contains(texto, "accion=activar") {
 		t.Errorf("la tarea declarada por otra sesión no cuenta como la de esta (FND-153): %q", texto)
+	}
+}
+
+// contrato: estado-por-tareas#c53e6daf
+// Por la tool que usa la IA: una etapa que requiere aprobación lo dice en la celda de la tabla, y un ✅ sin la
+// aprobación dada se rechaza sin tocar el archivo (EPF-C06), aunque traiga evidencia.
+func TestEstadoTool_LoQueRequiereAprobacionLoDiceYNoAvanzaSinElla(t *testing.T) {
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código", "Producción"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	res, _ := handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{
+		"accion": "set", "frente": "deploy", "nombre": "Deploy", "etapa": "Producción", "estado": "espera",
+		"bloqueo": "aprobar el despliegue", "de_quien": "usuario", "requiere_aprobacion": "usuario",
+	}))
+	if res.IsError {
+		t.Fatalf("la espera con su aprobación pendiente se escribe: %q", resultText(t, res))
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "ver"}))
+	if !strings.Contains(resultText(t, res), "requiere aprobación de usuario") {
+		t.Fatalf("la celda dice de quién espera la aprobación: %q", resultText(t, res))
+	}
+	antes, err := os.ReadFile(filepath.Join(root, estado.Ruta))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{
+		"accion": "set", "frente": "deploy", "etapa": "Producción", "estado": "ok", "evidencia": "v1.0.0",
+	}))
+	if !res.IsError || !strings.Contains(resultText(t, res), "EPF-C06") {
+		t.Fatalf("un ✅ sin la aprobación no se escribe: %q", resultText(t, res))
+	}
+	despues, _ := os.ReadFile(filepath.Join(root, estado.Ruta))
+	if string(despues) != string(antes) {
+		t.Fatalf("el archivo no cambia:\n%s", despues)
 	}
 }

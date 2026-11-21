@@ -50,6 +50,11 @@ func TestMain(m *testing.M) {
 		Execute()
 		os.Exit(0)
 	}
+	// Las pruebas de caja negra de qdd flujo (flujo_propuestas_test.go) corren este binario como el qdd de verdad.
+	if len(os.Args) > 1 && os.Args[1] == "flujo" {
+		Execute()
+		os.Exit(0)
+	}
 	home, err := os.MkdirTemp("", "qdd-home-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
