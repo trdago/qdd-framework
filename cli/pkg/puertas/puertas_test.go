@@ -147,6 +147,7 @@ func TestPoliticaDe(t *testing.T) {
 	}
 }
 
+// contrato: puertas#4ad3e5ef
 func TestAnotar_FueraDelProyectoYSinRutas(t *testing.T) {
 	home := t.TempDir()
 	r := Registro{Puerta: PuertaAudit, Resultado: Rechaza, MS: 12, Sesion: "s-1", Largo: 90}

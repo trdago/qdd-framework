@@ -266,7 +266,7 @@ func writeModule(b *strings.Builder, root string, m Module, completo bool) {
 	if len(m.ObjetivoTecnologico.Decisiones) > maxDecisiones {
 		fmt.Fprintf(b, "  - ⚠️ %d decisiones: la ficha creció más de lo que una IA lee con cuidado; propón dividirla en módulos (MEJ-073).\n", len(m.ObjetivoTecnologico.Decisiones))
 	}
-	writeItems(b, "Invariantes (no romper)", m.ObjetivoTecnologico.Invariantes)
+	writeItems(b, "Invariantes (no romper; cada uno con su id y las pruebas que lo citan)", invariantesDe(root, m))
 	writeItems(b, "Cómo se prueba", append(append([]string{}, m.Pruebas.Comandos...), m.Pruebas.Goldensets...))
 	writeItems(b, "ADRs", m.ADRs)
 	writeItems(b, "Findings", m.Findings)
@@ -371,4 +371,14 @@ func oneLine(s string) string {
 		return string(runes[:117]) + "..."
 	}
 	return s
+}
+
+// invariantesDe son los invariantes con su id de contrato y sus pruebas (contrato.go).
+func invariantesDe(root string, m Module) []string {
+	citas := CitasDePruebas(root)
+	var out []string
+	for _, cl := range Contrato(m, citas) {
+		out = append(out, lineaDeClausula(cl))
+	}
+	return out
 }

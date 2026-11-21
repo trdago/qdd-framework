@@ -155,6 +155,7 @@ func TestCobertura_LaPoliticaDeVersionesDecideSiSeRevisa_FND150(t *testing.T) {
 
 // FND-225: con una regla que ya bloquea, qdd audit no corre las pruebas (QA-04-PRUEBAS-PENDIENTES, RFC 0020). La
 // cobertura no puede decir entonces que las pruebas de cada unidad se revisaron.
+// contrato: gate-pruebas#9bdb6c50
 func TestCobertura_PruebasPendientesNoSonEvaluadas_FND225(t *testing.T) {
 	dir := proyecto(t, map[string]string{
 		"go.mod":           "module x\n",

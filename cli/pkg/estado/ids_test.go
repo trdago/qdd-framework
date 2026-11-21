@@ -47,6 +47,7 @@ func cantidadDeTareas(t *testing.T, root string) int {
 	return len(e.Frentes)
 }
 
+// contrato: estado#3f848983
 func TestIDs_UnIDDesconocidoNoCreaLaTareaYSugiereLaQueEra_FND109(t *testing.T) {
 	root := proyectoNotificador(t)
 	casos := []struct{ escrito, era string }{
@@ -107,6 +108,7 @@ func TestIDs_SinNadaParecidoListaLasAbiertas_FND109(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#aa05dd23
 func TestIDs_CerrarActivarYDependerTambienSugieren_FND109(t *testing.T) {
 	root := proyectoNotificador(t)
 	if err := Cerrar(root, "qdd-estado", "listo", false, ahora); err == nil || !strings.Contains(err.Error(), "estado-por-frente") {
@@ -168,6 +170,8 @@ func TestIDs_SetConNombreSigueCreandoConUnIDValido_FND109(t *testing.T) {
 	}
 }
 
+// contrato: estado#3f848983
+// contrato: estado-por-tareas#0a77121e
 func TestIDs_ObjetivoDesconocidoNoSeCreaSinNombreYSugiere_FND109(t *testing.T) {
 	root := proyectoNotificador(t)
 	if err := GuardarObjetivo(root, CambioObjetivo{ID: "gemni", Foco: true}, ahora); err == nil || !strings.Contains(err.Error(), "¿quisiste decir gemini") {

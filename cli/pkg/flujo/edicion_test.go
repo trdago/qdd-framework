@@ -132,6 +132,7 @@ func TestEditar_QuitarElPrimeroDejaAlSiguienteDeInicio(t *testing.T) {
 	}
 }
 
+// contrato: flujo#cf48c06c
 func TestEditar_QuitarLoQueDejaOtroNodoSinLlegarSeRechazaYNoEscribe(t *testing.T) {
 	root := flujoGuardado(t, paso("a", "A", "b", "c"), resultado("b", "B"), resultado("c", "C"))
 	antes, _ := os.ReadFile(ruta(root, "pago"))
@@ -151,6 +152,7 @@ func TestEditar_QuitarLoQueDejaOtroNodoSinLlegarSeRechazaYNoEscribe(t *testing.T
 	}
 }
 
+// contrato: flujo#99842b86
 func TestEditar_QuitarNoPierdeLosComentariosDelNodo(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Comentar("b", "ojo con esto", DePersona, ahoraDePrueba))
@@ -251,6 +253,7 @@ func TestValidar_UnComentarioRaroSeNombra(t *testing.T) {
 	}
 }
 
+// contrato: flujo#4d26e572
 func TestEnviar_LaIARecibeCadaEdicionUnaVezEnUnaLinea(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Agregar("b", "Cobra", TipoPaso, "", false))
@@ -297,6 +300,7 @@ func TestEnviar_LaIANoSeLlamaASiMisma(t *testing.T) {
 	}
 }
 
+// contrato: flujo#4d26e572
 func TestDevolver_LoQueNoSeEntregoVuelveAQuedarPorEnviar(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Quitar("a"))
@@ -357,6 +361,7 @@ func TestDeshacer_VuelveAtrasDeUnaEnUna(t *testing.T) {
 	}
 }
 
+// contrato: flujo#e33f3b19
 func TestDeshacer_LoEnviadoYaNoSeDeshace(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Quitar("a"))
@@ -366,6 +371,7 @@ func TestDeshacer_LoEnviadoYaNoSeDeshace(t *testing.T) {
 	}
 }
 
+// contrato: flujo#e33f3b19
 func TestDeshacer_NoPisaLoQueLaIACambioDespues(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Quitar("a"))
@@ -379,6 +385,7 @@ func TestDeshacer_NoPisaLoQueLaIACambioDespues(t *testing.T) {
 	}
 }
 
+// contrato: flujo#ce15b2bf
 func TestEditar_DosEscriturasALaVezNoPierdenNinguna(t *testing.T) {
 	root := flujoGuardado(t, paso("a", "A"))
 	var g sync.WaitGroup
@@ -440,6 +447,7 @@ func TestEditar_ElQuePasariaElTopeNoSeGuarda(t *testing.T) {
 	}
 }
 
+// contrato: flujo#99842b86
 func TestReemplazar_ConservaLosComentariosDeLaPersona(t *testing.T) {
 	root := flujoGuardado(t, cadena()...)
 	editar(t, root, DePersona, Comentar("b", "de un nodo que sigue", DePersona, ahoraDePrueba))

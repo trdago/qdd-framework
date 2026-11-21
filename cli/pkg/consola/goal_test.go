@@ -336,6 +336,7 @@ func TestGoal_NoLeRecuerdaALaTerminalQueMiraMientrasOtraTrabaja(t *testing.T) {
 	}
 }
 
+// contrato: goal#ee46f816
 func TestGoal_TresRecordatoriosSinAvanceLoDetienen(t *testing.T) {
 	root := conGoal(t)
 	for i := 0; i < MaxRecordatoriosGoal; i++ {
@@ -475,6 +476,7 @@ func TestGoal_ElLimiteAgotadoLoPausaYAlReiniciarseSigue(t *testing.T) {
 	}
 }
 
+// contrato: goal#ee46f816
 func TestGoal_ReactivarEmpiezaDeCeroYDesactivarLoApaga(t *testing.T) {
 	root := conGoal(t)
 	cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(3*time.Minute))
@@ -525,6 +527,7 @@ func TestGoal_ElPanelSiempreDiceSiSeOfrece(t *testing.T) {
 	}
 }
 
+// contrato: goal#b842add7
 func TestGoal_UnArchivoIlegibleLoVeDoctorYSeAparta(t *testing.T) {
 	root := conGoal(t)
 	ruta, err := rutaGoal(root)

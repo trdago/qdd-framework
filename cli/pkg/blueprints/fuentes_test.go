@@ -80,6 +80,7 @@ func sincronizacionDe(t *testing.T, res []Sincronizacion, repo string) Sincroniz
 
 // FND-064: un blueprint con el mismo id desde otra fuente reemplazaba al
 // importado sin avisar.
+// contrato: blueprints#210c6e98
 func TestAdd_SameIDFromAnotherSourceIsNotSilentlyReplaced(t *testing.T) {
 	org, personal := gitOrgRepo(t), personalRepo(t)
 	root := t.TempDir()
@@ -162,6 +163,7 @@ func TestSincronizar_EverySourceOfTheProject(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#7ffc664d
 func TestSincronizar_AnUnreachableSourceDoesNotHideTheOthers(t *testing.T) {
 	org, personal := gitOrgRepo(t), personalRepo(t)
 	root := t.TempDir()
@@ -223,6 +225,7 @@ func TestAportar_NewBlueprintGoesToTheChosenSource(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#210c6e98
 func TestAportar_AnImportedBlueprintKeepsItsSource(t *testing.T) {
 	org, personal := gitOrgRepo(t), personalRepo(t)
 	root := t.TempDir()
@@ -238,6 +241,7 @@ func TestAportar_AnImportedBlueprintKeepsItsSource(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#7ffc664d
 func TestAddManaged_AFailingSourceLeavesTheLockfileAsItWas(t *testing.T) {
 	org, personal := gitOrgRepo(t), personalRepo(t)
 	root := t.TempDir()

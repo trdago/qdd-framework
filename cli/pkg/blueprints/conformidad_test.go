@@ -97,6 +97,7 @@ func fichaQueImplementa(t *testing.T, root, id, blueprint string) {
 	}
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_UnEscenarioSinPruebaNoPasaElGate_BP08(t *testing.T) {
 	root := t.TempDir()
 	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
@@ -118,6 +119,7 @@ func TestCheckConformidad_UnEscenarioSinPruebaNoPasaElGate_BP08(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_SinElBlueprintEnLaMaquinaNoSeMideNiUsaLaRed_BP08(t *testing.T) {
 	home := freshHome(t)
 	repo := gitOrgRepo(t)
@@ -169,6 +171,7 @@ func proyectoQueAplicaAuth(t *testing.T) string {
 	return root
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_UnBlueprintQueImplementaQDDNoPidePruebasAlProyecto_FND102(t *testing.T) {
 	root := proyectoQueAplicaAuth(t)
 	conImplementados(t, map[string]string{})
@@ -187,6 +190,7 @@ func TestCheckConformidad_UnBlueprintQueImplementaQDDNoPidePruebasAlProyecto_FND
 	}
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_UnQDDQueNoCubreLaVersionAplicadaBloquea_FND102(t *testing.T) {
 	root := proyectoQueAplicaAuth(t)
 	for implementa, pista := range map[string]string{"0.9.0": "actualiza qdd", "2.0.0": "qdd blueprint add auth"} {

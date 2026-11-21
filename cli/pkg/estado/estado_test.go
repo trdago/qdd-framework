@@ -111,6 +111,7 @@ func TestCheck_EPFC03_EsperaSinBloqueoODeQuien(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#3a638040
 func TestCheck_EPFC09_FallaSinNombrar(t *testing.T) {
 	s := strings.Replace(valido, `falla: "la URL con el ticket se imprime"`, `falla: ""`, 1)
 	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C09") {
@@ -180,6 +181,7 @@ func TestCheck_EPFC07_SinSecretosNiDatosPersonales(t *testing.T) {
 	}
 }
 
+// contrato: estado#35c3dab3
 func TestStatusline(t *testing.T) {
 	got := Statusline(mustParse(t, valido), ahora)
 	if got != "◧ 2 tareas · ⏳1 ❌1" {
@@ -191,6 +193,7 @@ func TestStatusline(t *testing.T) {
 	}
 }
 
+// contrato: estado#35c3dab3
 func TestStatuslineDir_SinArchivoODanadoNoMuestraNada(t *testing.T) {
 	dir := t.TempDir()
 	if got := StatuslineDir(dir, ahora); got != "" {
@@ -220,6 +223,7 @@ func TestMarkdown_AlcanceAbiertosYRecienCerrados(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ac2d62de
 func TestCheckRespuesta_EPFA01(t *testing.T) {
 	e := mustParse(t, valido)
 	md := Markdown(e, ahora, AlcanceAbiertos)
@@ -235,6 +239,7 @@ func TestCheckRespuesta_EPFA01(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#e21a4121
 func TestSet_ValidaAntesDeEscribirYEsAtomico(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, ".qdd", "project"), 0o755)
@@ -264,6 +269,7 @@ func TestSet_ValidaAntesDeEscribirYEsAtomico(t *testing.T) {
 	}
 }
 
+// contrato: estado#9bb4c65e
 func TestSet_FrenteNuevoYCerrar(t *testing.T) {
 	dir := t.TempDir()
 	err := Set(dir, Cambio{Frente: "nuevo", Nombre: "Frente nuevo", Etapa: "Código", Estado: "espera", Bloqueo: "revisión", DeQuien: "usuario"}, ahora)
@@ -354,6 +360,7 @@ func TestPanel_ColumnaFrenteMideLoQueElNombreMasLargo(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#3a638040
 func TestDatos_LoQueDibujaElPanelDeLaConsola(t *testing.T) {
 	e := mustParse(t, valido)
 	d := Datos(e, ahora)
@@ -420,6 +427,7 @@ func TestDatosPendientes_TopeDeLasMasNuevas(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ac2d62de
 func TestCheckRespuesta_ElTextoYLaTablaCoinciden_EPF_C08(t *testing.T) {
 	e := mustParse(t, valido)
 	md := Markdown(e, ahora, AlcanceAbiertos)

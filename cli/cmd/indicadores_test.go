@@ -92,6 +92,7 @@ func TestIndicadores_ReportNoInventaPuntaje(t *testing.T) {
 // FND-060: report buscaba el texto 'status: certified' y qdd_score comparaba
 // con "certified" exacto, así que 'status: "PASSED"' no contaba como cumplida;
 // el dashboard además contaba el catálogo. Ahora todos usan pkg/certificaciones.
+// contrato: certificaciones#56ed4ee1
 func TestIndicadores_MismoConteoDeCertificacionesEnTodosLosLectores(t *testing.T) {
 	dir := proyectoConFindings(t)
 	archivos := map[string]string{

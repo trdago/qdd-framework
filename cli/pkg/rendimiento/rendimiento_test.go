@@ -100,6 +100,7 @@ func TestMedir_UnQddLimpioPasaYDiceDondeCorrio(t *testing.T) {
 	}
 }
 
+// contrato: rendimiento#0e1fa88d
 func TestMedir_DetectaElHuerfanoYLoLimpia(t *testing.T) {
 	inf, err := Medir(opcionesDePrueba(t, "sucio"))
 	if err != nil {

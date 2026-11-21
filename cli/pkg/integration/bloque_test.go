@@ -22,6 +22,8 @@ func TestBloque_CambiarSuTextoObligaASubirLaRevision_FND126(t *testing.T) {
 	}
 }
 
+// contrato: integracion#62030339
+// contrato: integracion#f84063f0
 func TestBloquesViejos_NombraSoloLosDeUnaRevisionAnterior_FND126(t *testing.T) {
 	root := t.TempDir()
 	if viejos := BloquesViejos(root); len(viejos) != 0 {

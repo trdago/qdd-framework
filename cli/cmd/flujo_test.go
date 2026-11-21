@@ -139,6 +139,7 @@ func verFlujo(t *testing.T, id string, banderas map[string]string) flujoDibujado
 	return d
 }
 
+// contrato: flujo#4d26e572
 func TestFlujo_LaPersonaEditaYLaIARecibeUnaVez(t *testing.T) {
 	proyectoConFlujo(t)
 	correrFlujo(t, flujoAgregarCmd, map[string]string{"nombre": "Cobra", "de": "persona"}, "pago", "a")
@@ -193,6 +194,7 @@ func TestFlujo_LaIARespondeEnElMismoNodoSinLlamarseASiMisma(t *testing.T) {
 	}
 }
 
+// contrato: flujo#99842b86
 func TestFlujo_CrearNoPierdeLosComentariosYLoDice(t *testing.T) {
 	root := proyectoConFlujo(t)
 	correrFlujo(t, flujoComentarCmd, map[string]string{"de": "persona"}, "pago", "b", "este fin no me convence")

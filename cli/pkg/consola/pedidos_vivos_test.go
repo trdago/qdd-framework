@@ -47,6 +47,7 @@ func colaConUnoEjecutando(t *testing.T, root string, pids ...int) {
 	}
 }
 
+// contrato: estado#4ac78fb9
 func TestPedidos_SiMurioQuienLoEjecutabaQuedaParaReintentar_FND089(t *testing.T) {
 	root := proyectoConCola(t)
 	colaConUnoEjecutando(t, root, procesoMuerto(t), procesoMuerto(t))
@@ -59,6 +60,7 @@ func TestPedidos_SiMurioQuienLoEjecutabaQuedaParaReintentar_FND089(t *testing.T)
 	}
 }
 
+// contrato: estado#4ac78fb9
 func TestPedidos_MientrasSigueVivoSigueEjecutando_FND089(t *testing.T) {
 	root := proyectoConCola(t)
 	colaConUnoEjecutando(t, root, procesoMuerto(t), os.Getpid())

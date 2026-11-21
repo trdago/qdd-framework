@@ -36,6 +36,7 @@ func entornoReporte(t *testing.T) (string, reportes.Reporte) {
 	return root, r
 }
 
+// contrato: reportes#f33c94d3
 func TestReportar_SinTerminalDejaPedidoDeLaPersona(t *testing.T) {
 	root, r := entornoReporte(t)
 	enviado := false
@@ -65,6 +66,7 @@ func TestReportar_SinTerminalNiProyectoSeNiega(t *testing.T) {
 	}
 }
 
+// contrato: reportes#f33c94d3
 func TestReportar_EnLaTerminalPreguntaYRespetaElNo(t *testing.T) {
 	root, r := entornoReporte(t)
 	var visto reportes.Reporte
@@ -94,6 +96,7 @@ func TestReportar_SiFallaElEnvioQuedaPendiente(t *testing.T) {
 	}
 }
 
+// contrato: reportes#f33c94d3
 func TestReportarEnviar_SoloDesdeElPedidoConfirmado(t *testing.T) {
 	nunca := func(string, string) bool { return false }
 	if err := autorizarEnvio("abcd1234", "", nil, nunca); err == nil {

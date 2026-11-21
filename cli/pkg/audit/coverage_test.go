@@ -74,6 +74,7 @@ func TestResolveTestCommands_DeclaredCommandsWin(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#69c2c96e
 func TestRunCoverageCheck_FailingDeclaredCommandIsAViolation(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, ".qdd", "config.yaml"), "test_commands:\n  - \"true\"\n  - \"exit 3\"\n")

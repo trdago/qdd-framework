@@ -68,6 +68,7 @@ func (r repoDeSuites) auditar(t *testing.T) []Violation {
 	return bloquean
 }
 
+// contrato: gate-pruebas#c9a0b6be
 func TestSuite_ConLosMismosArchivosNoSeRepite(t *testing.T) {
 	r := repoConSuite(t, "true")
 	r.auditar(t)
@@ -117,6 +118,7 @@ func TestSuite_UnCambioEnSusRutasLaRepite(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#9173d853
 func TestSuite_UnaQueFallaNuncaSeRecuerda(t *testing.T) {
 	r := repoConSuite(t, "exit 3")
 	if v := r.auditar(t); len(v) != 1 {
@@ -130,6 +132,7 @@ func TestSuite_UnaQueFallaNuncaSeRecuerda(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#c9a0b6be
 func TestSuite_EnElCIyConCompletoSiempreCorre(t *testing.T) {
 	for _, variable := range []string{"CI", envPruebasCompletas} {
 		t.Run(variable, func(t *testing.T) {
@@ -144,6 +147,7 @@ func TestSuite_EnElCIyConCompletoSiempreCorre(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#c9a0b6be
 func TestSuite_SinRutasSiempreCorre(t *testing.T) {
 	r := repoConSuite(t, "true")
 	writeFile(t, filepath.Join(r.raiz, ".qdd", "config.yaml"), `test_commands:
@@ -157,6 +161,7 @@ func TestSuite_SinRutasSiempreCorre(t *testing.T) {
 }
 
 // Una ruta mal escrita haría que la suite no corriera nunca más sin que nadie lo note.
+// contrato: gate-pruebas#c9a0b6be
 func TestSuite_UnaRutaSinArchivosSiempreCorre(t *testing.T) {
 	r := repoConSuite(t, "true")
 	writeFile(t, filepath.Join(r.raiz, ".qdd", "config.yaml"), `test_commands:
@@ -214,6 +219,7 @@ func TestSuite_LoRecordadoIlegibleVuelveACorrer(t *testing.T) {
 }
 
 // Un programa puede cambiar sin que cambie ningún archivo: lo recordado vence.
+// contrato: gate-pruebas#c9a0b6be
 func TestSuite_LoRecordadoVenceALas24Horas(t *testing.T) {
 	r := repoConSuite(t, "true")
 	r.auditar(t)
@@ -252,6 +258,7 @@ func TestSuite_OtroWorktreeConLosMismosArchivosNoLaRepite(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#9bdb6c50
 func TestSuite_SinSuHerramientaSigueSinMedirAunqueTengaRutas(t *testing.T) {
 	r := repoConSuite(t, "true")
 	writeFile(t, filepath.Join(r.raiz, ".qdd", "config.yaml"), `test_commands:
@@ -269,6 +276,7 @@ func TestSuite_SinSuHerramientaSigueSinMedirAunqueTengaRutas(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#c9a0b6be
 func TestRunAllCompleto_RepiteLaSuiteYDejaElEntornoComoEstaba(t *testing.T) {
 	r := repoConSuite(t, "true")
 	r.auditar(t)
@@ -287,6 +295,7 @@ func TestRunAllCompleto_RepiteLaSuiteYDejaElEntornoComoEstaba(t *testing.T) {
 }
 
 // RFC 0005 + RFC 0020: el certificado que además informa la cobertura sigue siendo una corrida completa.
+// contrato: gate-pruebas#c9a0b6be
 func TestEvaluarCompleto_RepiteLaSuite(t *testing.T) {
 	r := repoConSuite(t, "true")
 	r.auditar(t)

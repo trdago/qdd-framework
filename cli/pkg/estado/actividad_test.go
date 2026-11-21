@@ -91,6 +91,7 @@ func TestActividad_UnComandoExternoEnciendeYLateSuTarea_EPT_C04(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#bd1ba9d7
 func TestActividad_SeApagaSolaSinPulsos_EPT_C05(t *testing.T) {
 	root := proyectoConTareas(t, "a")
 	_ = Activar(root, "a", "", ahora)
@@ -136,6 +137,8 @@ func TestActividad_ArchivoIlegibleEsSinTareasEnCurso(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#bd1ba9d7
+// contrato: estado-por-tareas#b0d8b5c1
 func TestDatosEnCurso_LaTareaEnCursoSiempreSeVe_EPT_C07(t *testing.T) {
 	yaml := "formato: 1\netapas: [Código]\nfrentes:\n"
 	for _, id := range []string{"t1", "t2", "t3", "t4", "t5", "t6"} {

@@ -10,6 +10,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/puertas"
 )
 
+// contrato: puertas#4ad3e5ef
 func TestPuertasHook_PreCommitYCommitMsg(t *testing.T) {
 	home, repo := proyectoConPuertas(t, "puertas: {}\n")
 	t.Setenv("CLAUDECODE", "")

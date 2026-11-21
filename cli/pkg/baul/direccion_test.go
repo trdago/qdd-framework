@@ -28,6 +28,7 @@ func TestDireccion_SeNormaliza(t *testing.T) {
 	}
 }
 
+// contrato: baul#cf8fd0a0
 func TestDireccion_LaMismaNoSeGuardaDosVeces(t *testing.T) {
 	entorno(t)
 	latir(t)
@@ -55,6 +56,7 @@ func TestDireccion_LaMismaNoSeGuardaDosVeces(t *testing.T) {
 	}
 }
 
+// contrato: baul#cf8fd0a0
 func TestDireccion_OtraCuentaUOtroAmbienteEsOtraEntrada(t *testing.T) {
 	entorno(t)
 	latir(t)
@@ -70,6 +72,7 @@ func TestDireccion_OtraCuentaUOtroAmbienteEsOtraEntrada(t *testing.T) {
 	}
 }
 
+// contrato: baul#cf8fd0a0
 func TestDireccion_ModificarSinDireccionLaConserva(t *testing.T) {
 	entorno(t)
 	latir(t)

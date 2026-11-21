@@ -112,6 +112,8 @@ test('↻ Actualizar catálogo corre sin confirmar, relee y dice cuántas versio
   expect(r.enviados).toEqual([])
 })
 
+// contrato: estado#bc172f02
+
 test('⬆ Actualizar e ＋ Instalar escriben el lockfile: piden «s  Sí» y no le escriben a la IA', async ($, on) => {
   const r = nuevo()
   const estado = { blueprints: inventario() as unknown, acciones: { 'blueprint:actualizar:estado': ok('[+] estado-por-tareas 2.0.1\n') } }
@@ -132,6 +134,8 @@ test('⬆ Actualizar e ＋ Instalar escriben el lockfile: piden «s  Sí» y no 
   expect(corrio(r, INSTALAR.id)).toEqual([['qdd', 'consola', 'accion', INSTALAR.id, '--confirmado']])
   expect(r.enviados).toEqual([])
 })
+
+// contrato: estado#bc172f02
 
 test('✦ Aplicar con la IA es lo único que le escribe a la IA, con el mensaje que da qdd', async ($, on) => {
   const r = nuevo()

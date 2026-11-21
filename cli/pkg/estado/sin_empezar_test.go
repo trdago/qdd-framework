@@ -11,6 +11,7 @@ import (
 
 // FND-085: una tarea nueva con solo «Código ✅» llenaba las otras etapas con «—» (no aplica), quedaba «terminada» y
 // salía del panel en el acto, aunque no tuviera pruebas ni producción.
+// contrato: estado#9bb4c65e
 func TestSet_TareaNuevaQuedaSinEmpezarYSigueEnElPanel_FND085(t *testing.T) {
 	dir := t.TempDir()
 	if err := Init(dir, []string{"Código", "Pruebas", "Producción"}, ahora); err != nil {
@@ -86,6 +87,7 @@ func TestDeLaPersona_UsuarioTambienEsLaPersona_FND159(t *testing.T) {
 
 // FND-086: la barra contaba tareas con algún ⏳ (◧ 1 tarea · ⏳1) y el panel contaba cada ⏳ de las tareas visibles
 // (⏳ 2 esperan): la persona veía dos números distintos para lo mismo.
+// contrato: estado#5c7a5006
 func TestResumen_LaBarraYElPanelCuentanLoMismo_FND086(t *testing.T) {
 	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n" +
 		"  - {id: a, nombre: A, estado: abierto, celdas: {Código: {estado: ⏳, bloqueo: revisión, de_quien: usuario}, Pruebas: {estado: ⏳, bloqueo: CI, de_quien: CI}}}\n" +

@@ -13,6 +13,7 @@ import (
 // RFC 0023: el permiso de usar un token del baúl lo da la persona con su «Sí». Ese pedido no lo lanza el modo goal, y
 // el comando sabe qué pedido lo corre para comprobar que la persona lo confirmó.
 
+// contrato: reportes#f33c94d3
 func TestPedidoDePersona_ElModoGoalNoLoLanza(t *testing.T) {
 	root := conGoal(t)
 	if _, err := PedirEnOrden(root, "echo permiso", "🔑 Permitir cloudflare", root, Orden{DePersona: true}, enCola); err != nil {

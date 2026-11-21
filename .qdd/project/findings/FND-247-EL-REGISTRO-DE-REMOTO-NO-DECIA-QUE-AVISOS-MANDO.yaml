@@ -1,0 +1,9 @@
+id: "FND-247"
+title: "El registro de qdd remoto no decía qué push pidió el PC"
+description: "qdd-movile, 2026-11-21 (rc.107, app 139): un push de pregunta llegó con la app cerrada pero no se quitó al responderla. El journal de qdd-remoto no tenía ninguna línea de avisos: no se podía saber si el PC mandó el pregunta_resuelto, si el relay lo rechazó (un resuelto rechazado se descarta en silencio por FND-208) o si la app no lo aplicó."
+impact: "Un push que no se quita no se puede diagnosticar desde el PC ni con qdd doctor; hubo que pedir los logs del relay con permiso del baúl."
+action_taken: "Bucle.avisar anota «push <tipo> de <proyecto>» en el registro cada vez que pide un push (solo tipo y nombre del proyecto, como lo que va al relay). Un resuelto rechazado sigue sin contar como falla (FND-208), pero su pedido queda en el registro."
+test_result: "cli/pkg/remoto/avisos_registro_test.go TestAvisos_CadaPushQuedaEnElRegistro_FND247 (pregunta nueva y su resuelto, con el relay rechazando el resuelto): falló sin la línea («falta \"push pregunta de p\"») y pasa con ella; TestAvisos_*_FND208 siguen pasando."
+status: resolved
+detectado_por: otro_proyecto
+date: "2026-11-21"

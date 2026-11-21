@@ -110,6 +110,7 @@ func TestBarra_SinBinarioNoTocaUnaDirectaYaPuesta(t *testing.T) {
 	}
 }
 
+// contrato: estado#6df16cc6
 func TestBarra_UnaPropiaParecidaNoSeToca(t *testing.T) {
 	for _, propia := range []string{
 		`echo hola; "/x/qdd" consola statusline || qdd consola statusline`,

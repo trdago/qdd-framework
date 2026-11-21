@@ -90,6 +90,7 @@ func TestDiagnosticar_WithoutAccessExplainsTheCredential(t *testing.T) {
 	}
 }
 
+// contrato: doctor#9fdd2a35
 func TestReparar_SyncsButNeverUpdatesOnItsOwn(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := t.TempDir()
@@ -164,6 +165,7 @@ func TestReparar_ReappliesOutdatedModules(t *testing.T) {
 	}
 }
 
+// contrato: doctor#9fdd2a35
 func TestReparar_NewQuestionsAreTheHumansDecision(t *testing.T) {
 	root, repo := moduloAplicado(t)
 	nueva := strings.Replace(authBlueprint, "ficha:\n", "  - id: mfa\n    pregunta: ¿Se exige un segundo factor?\n    opciones: [{valor: si}, {valor: no}]\nficha:\n", 1)

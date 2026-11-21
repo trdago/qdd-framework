@@ -46,6 +46,7 @@ func dosRepos(t *testing.T) (sesion, otro, worktree string) {
 
 // FND-081: un pedido sobre qdd que dejó otra sesión (con su carpeta en un worktree de qdd) quedaba en la cola del
 // proyecto de esa sesión, en otro panel: la persona no veía qué iba primero.
+// contrato: estado#ede917fd
 func TestPedir_VaALaColaDelRepositorioDondeCorre_FND081(t *testing.T) {
 	sesion, otro, wt := dosRepos(t)
 	p, err := PedirEnOrden(sesion, "exit 0", "Mergear #33", wt, Orden{}, enCola)
@@ -71,6 +72,8 @@ func TestPedir_VaALaColaDelRepositorioDondeCorre_FND081(t *testing.T) {
 
 // FND-082: un comando cuya condición todavía no se cumple (falta un tag, un merge) salía con error y el panel lo
 // mostraba en rojo, igual que una falla de verdad.
+// contrato: estado#37978628
+// contrato: estado#bbfc77dc
 func TestEjecutar_TodaviaNoVuelveAPendienteConSuAviso_FND082(t *testing.T) {
 	root := proyectoConCola(t)
 	comando := "echo Falta el tag v2.7.0; exit 75"
@@ -93,6 +96,7 @@ func TestEjecutar_TodaviaNoVuelveAPendienteConSuAviso_FND082(t *testing.T) {
 	}
 }
 
+// contrato: estado#ede917fd
 func TestDiagnosticarCola_JuntaLaColaSueltaDeUnWorktreeYLosPedidosDeOtroRepositorio_FND081(t *testing.T) {
 	sesion, otro, wt := dosRepos(t)
 	mustPedir(t, otro, "exit 0 # ya estaba", "m", "")

@@ -123,6 +123,8 @@ test('un cambio en el flujo se ve sin un proceso de más', async ($, on) => {
   expect(dibujos(r).length).toBe(2)
 })
 
+// contrato: flujo#5a1ea2b6
+
 test('un archivo roto dice su problema y no pide el dibujo', async ($, on) => {
   const r = nuevo([{ id: 'roto', nombre: 'roto', nodos: 0, huella: 'x', problema: 'el flujo no tiene nombre' }])
   await empezar($, on, r)

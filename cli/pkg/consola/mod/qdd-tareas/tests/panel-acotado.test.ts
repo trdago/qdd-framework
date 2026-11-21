@@ -69,6 +69,8 @@ test('sin flujo, el reloj no lanza otra lectura mientras la anterior sigue en cu
   lento.abrir()
 })
 
+// contrato: estado#167a876a
+
 test('una respuesta vieja no pisa a una lectura más nueva', async ($, on) => {
   const r = nuevo()
   preparar(on, r)

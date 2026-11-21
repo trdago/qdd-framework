@@ -31,6 +31,7 @@ func aceptadoPor(t *testing.T, root, comando, motivo, sesion string) Pedido {
 	return p
 }
 
+// contrato: estado#0034d69c
 func TestAviso_HechoLoRecibeSoloLaSesionQueLoConfirmoYUnaVez(t *testing.T) {
 	root := proyectoConCola(t)
 	p := aceptadoPor(t, root, "echo publicado", "Publicar rc.16", "sesion-1")

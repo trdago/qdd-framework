@@ -127,6 +127,8 @@ test('con un qdd sin «goal» deja de intentarlo', async ($, on) => {
   expect(ciclos(r).length).toBe(1)
 })
 
+// contrato: goal#63945bca
+
 test('el botón del panel pide confirmación y solo entonces lo activa, sin CLAUDECODE', async ($, on) => {
   const r = nuevo({ tablero: true, goal: APAGADO })
   preparar(on, r)
@@ -160,6 +162,7 @@ test('el panel dice que todo espera a la persona (FND-216)', async ($, on) => {
 
 // FND-146: PowerShell no pasaba por esta regla, y una ruta entre comillas o qdd.cmd la esquivaban también por Bash.
 // Queda la barrera de qdd (CLAUDECODE), pero esta debe verlos.
+// contrato: goal#777735ad
 test('una IA no lo activa por PowerShell ni con una ruta entre comillas (FND-146)', async ($, on) => {
   const r = nuevo({ goal: APAGADO })
   preparar(on, r)
@@ -180,6 +183,8 @@ test('una IA no lo activa por PowerShell ni con una ruta entre comillas (FND-146
     }
   }
 })
+
+// contrato: goal#777735ad
 
 test('una IA no lo activa por Bash', async ($, on) => {
   const r = nuevo({ goal: APAGADO })

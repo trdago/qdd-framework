@@ -110,6 +110,8 @@ func TestAcciones_TopeDeNueveFichas(t *testing.T) {
 	}
 }
 
+// contrato: estado#47f9023c
+// contrato: estado#79252811
 func TestAutorizar_RechazaIdNoOfrecidoYEscrituraSinConfirmar_CCC_C11(t *testing.T) {
 	root := proyectoConFichas(t, []string{"auth"}, []string{"pagos"})
 	acciones := Acciones(root, true)

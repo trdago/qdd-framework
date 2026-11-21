@@ -2,6 +2,8 @@ id: gitenv
 nombre: Entorno de git aislado
 estado: aprobado
 rutas:
+    - cli/pkg/aislar
+    - e2e/hermeticas
     - cli/pkg/gitenv
 objetivo_operativo:
     problema: 'Un hook de git (pre-push desde un worktree, pre-commit) exporta GIT_DIR y GIT_INDEX_FILE. Un git que corre en otra carpeta los hereda y trabaja sobre el repositorio del hook: las pruebas escriben sus fixtures en el repositorio real y qdd opera el repositorio equivocado.'
@@ -13,14 +15,16 @@ objetivo_tecnologico:
     decisiones:
         - 'Se limpia en las pruebas y en el git que corre fuera del proyecto (gitRaw de blueprints), no en el git que opera el propio proyecto: dentro de un hook ese apunta al mismo repositorio y su GIT_INDEX_FILE es el índice que el hook está commiteando.'
         - 'Una prueba de arquitectura exige el init en todo paquete nuevo cuyas pruebas corran git: no depende de acordarse.'
+        - 'Pruebas herméticas (FND-246, 2026-11-21): aislar.Correr(m) en el TestMain de un paquete le da un QDD_HOME temporal (lo usan consola y estado); e2e/hermeticas/correr.sh corre todas las pruebas de Go con HOME falso y espías en lugar de claude, gh, npm, systemctl y otros, y falla si alguna escribe en las carpetas de la persona o lanza uno de ellos. Corre en CI: un paquete nuevo que se olvida no pasa.'
     invariantes:
         - Las pruebas nunca escriben en un repositorio fuera de sus carpetas temporales, corran desde donde corran.
         - Un git sobre un clon de blueprints trabaja en ese clon aunque qdd corra dentro de un hook.
+        - Las pruebas no escriben en el QDD_HOME, ~/.claude, ~/.config/qdd ni las unidades de systemd de la persona, ni lanzan claude, gh, npm, systemctl u otros programas reales.
 pruebas:
     comandos:
         - cd cli && go test ./pkg/gitenv/ ./pkg/blueprints/ -run 'Limpi|GitRaw|Arquitectura_LasPruebas'
 fuentes:
     - cli/pkg/gitenv/gitenv.go
     - .qdd/project/findings/FND-117-LAS-PRUEBAS-CORRIDAS-POR-UN-HOOK-ESCRIBIAN-EN-EL-REPO-REAL.yaml
-ultima_revision: "2026-11-03"
-revisado_en_commit: 6c980f512880
+ultima_revision: "2026-11-21"
+revisado_en_commit: eac6895cadcf

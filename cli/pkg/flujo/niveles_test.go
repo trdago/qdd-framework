@@ -120,6 +120,7 @@ func nodoDeFlujo(f Flujo, id string) Nodo {
 	return Nodo{}
 }
 
+// contrato: flujo#501e2f64
 func TestPlegar_AlAzarSiempreEsUnFlujoValidoQueSeDibujaEntero(t *testing.T) {
 	azar := rand.New(rand.NewSource(7))
 	grupos := []string{"", "Uno", "Dos", "Tres"}

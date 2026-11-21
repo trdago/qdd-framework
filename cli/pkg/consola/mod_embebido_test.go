@@ -11,6 +11,7 @@ import (
 // FND-107: rc.11 instaló el mod sin hooks/materializar.js (el go:embed nombraba solo register.js) y Claude Code no
 // cargó el panel: «hooks module did not load: …/materializar.js: no such file». Todo lo que el mod trae fuera de sus
 // pruebas tiene que ir en el binario.
+// contrato: estado#30c43f76
 func TestModEmbebido_LlevaTodosLosArchivosDelMod_FND107(t *testing.T) {
 	err := fs.WalkDir(os.DirFS("mod/qdd-tareas"), ".", func(ruta string, d fs.DirEntry, err error) error {
 		if err != nil {

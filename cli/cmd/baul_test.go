@@ -15,6 +15,7 @@ import (
 // Rule: Prohibido usar 'else'
 // RFC 0023: guardar pide el valor en la terminal de la persona; sin terminal (la herramienta Bash de una IA, un pedido,
 // el teléfono) se niega y dice dónde correrlo.
+// contrato: baul#6058d327
 func TestBaulGuardar_SinTerminalSeNiega(t *testing.T) {
 	f, err := os.CreateTemp(t.TempDir(), "entrada")
 	if err != nil {

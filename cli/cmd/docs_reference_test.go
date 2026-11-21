@@ -48,6 +48,7 @@ func TestDocs_ReferenciaIncluyeTodosLosComandos(t *testing.T) {
 	}
 }
 
+// contrato: mcp#ed4c5e74
 func TestDocs_ReferenciaYServidorMCPCoinciden(t *testing.T) {
 	s := server.NewMCPServer("test-docs", "1.0.0")
 	registerMCPTools(s)

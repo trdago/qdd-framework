@@ -139,6 +139,7 @@ func TestCiclo_EsIdempotenteYNoDuplicaUnReporteRepetido(t *testing.T) {
 	}
 }
 
+// contrato: mejoras#663852a9
 func TestCiclo_NuncaMasDeDosTareasYAlCerrarUnaEntraLaSiguiente(t *testing.T) {
 	root := proyecto(t)
 	for i, titulo := range []string{"Primera mejora", "Segunda mejora", "Tercera mejora"} {
@@ -206,6 +207,7 @@ func TestCiclo_DeGitHubSoloEntraLoDeQuienTieneAccesoOLaEtiquetaMejora(t *testing
 	}
 }
 
+// contrato: mejoras#663852a9
 func TestCiclo_SeguridadYBugsVanPrimeroYUnIssueCerradoEnLaColaSeDescarta(t *testing.T) {
 	root := proyecto(t)
 	viejo := Issue{Numero: 1, Titulo: "Una mejora vieja", Asociacion: "OWNER", Creado: t0}

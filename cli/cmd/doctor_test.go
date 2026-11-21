@@ -107,6 +107,7 @@ func itemsFallidos(g *CheckGroup) map[string]string {
 // FND-061: doctor no señalaba los findings sin estado. Ahora los informa, y con
 // --fix escribe la forma canónica de los que sí tienen un estado reconocido.
 // El estado que falta lo decide una persona: doctor no lo inventa.
+// contrato: doctor#9fdd2a35
 func TestDoctor_RegistrosDelProyecto(t *testing.T) {
 	dir := t.TempDir()
 	escribirRegistro(t, dir, "project/findings/FND-001.yaml", "title: a\nstatus: RESOLVED\n")
@@ -196,6 +197,7 @@ func TestDoctor_ReglasViejasSeDetectanYFixLasRenueva_FND126(t *testing.T) {
 }
 
 // MEJ-062: las copias del bloque en los AGENTS.md de carpetas padre llegan a la IA junto con la del proyecto.
+// contrato: integracion#8d0b5927
 func TestDoctor_BloquesEnCarpetasPadreSeDetectanYFixLosQuita_MEJ062(t *testing.T) {
 	tope := t.TempDir()
 	viejo := integration.TopePadres

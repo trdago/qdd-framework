@@ -115,6 +115,8 @@ test('a la IA le llega el resultado que qdd da al reclamarlo, no el de la lectur
   expect(r.notificaciones[0]).toMatchObject({ text: expect.stringContaining('terminó') })
 })
 
+// contrato: estado#0034d69c
+
 test('si qdd dice que ya se avisó (otra sesión, un reload), no se envía de nuevo', async ($, on) => {
   const r = nuevo({ ...PUBLICAR, tecla: undefined, estado: 'fallo', sesion: 'sesion-1', avisar: true, mensaje: '✗ falló' })
   r.reclamos = 1

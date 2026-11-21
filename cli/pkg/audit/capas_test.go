@@ -33,6 +33,7 @@ func TestVerificarRutas_ConTodoDeclaradoPasa(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#96b002b2
 func TestVerificarRutas_UnArchivoSinDeclararSeDetecta(t *testing.T) {
 	r := repoConSuite(t, "true")
 	r.config(t, "  - comando: 'cat reglas/negocio.go'\n    rutas: [ui]\n")
@@ -49,6 +50,7 @@ func TestVerificarRutas_UnaSuiteQueFallaEnElArbolNoDiceNadaDeSusRutas(t *testing
 	}
 }
 
+// contrato: gate-pruebas#96b002b2
 func TestVerificarRutas_UnaDependenciaInstaladaNoSePuedeComprobar(t *testing.T) {
 	r := repoConSuite(t, "true")
 	r.config(t, `  - comando: '[ -f reglas/negocio.go ] || { echo "Error: Cannot find module \"vitest\""; exit 1; }'`+"\n    rutas: [ui]\n")
@@ -134,6 +136,7 @@ func TestVerificarRutas_ConservaPermisosYEnlaces(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#96b002b2
 func TestInformeDeRutas_DiceCadaCasoYSoloFallaLoQueHayQueArreglar(t *testing.T) {
 	var salida bytes.Buffer
 	falla := InformeDeRutas(&salida, []ResultadoRutas{
@@ -229,6 +232,7 @@ func TestParandoAlBloquear_UnaReglaRotaNoEsperaALasPruebas(t *testing.T) {
 }
 
 // El peor error posible aquí: que el gate apruebe sin correr las pruebas.
+// contrato: gate-pruebas#69c2c96e
 func TestParandoAlBloquear_SinReglasQueBloqueenLasPruebasCorren(t *testing.T) {
 	r := repoConSuite(t, "exit 3")
 	motor := NewEngine(r.raiz).ParandoAlBloquear()

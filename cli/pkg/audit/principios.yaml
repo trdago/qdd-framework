@@ -96,7 +96,7 @@
   nombre: Cada módulo tiene su ficha vigente
   categoria: auditabilidad
   alcance: repositorio
-  reglas: [HEART-01-INVALID-RECORD, HEART-02-STALE-RECORD, HEART-03-ZONE-WITHOUT-RECORD]
+  reglas: [HEART-01-INVALID-RECORD, HEART-02-STALE-RECORD, HEART-03-ZONE-WITHOUT-RECORD, HEART-04-INVARIANTE-SIN-PRUEBA]
   por_que: >-
     La ficha dice para qué existe el módulo y qué no se puede romper. Sin ella,
     quien lo cambia, una persona o una IA, solo ve el código.
@@ -275,3 +275,23 @@
   por_que: >-
     Quien actualiza decide por el número de versión. Si el número no dice cuánto
     cambió, o la versión sale sin uso medido, el riesgo lo asume esa persona.
+
+- id: P-CI-FORMAT
+  nombre: El código tiene el formato que exige su CI
+  categoria: madurez
+  alcance: repositorio
+  reglas: [FMT-01-FORMATO, FMT-02-FORMATO-SIN-MEDIR]
+  por_que: >-
+    Un CI que rechaza código sin formato hace caer un commit que el gate ya
+    aprobó: revisarlo antes con el mismo formateador evita ese viaje de ida y
+    vuelta.
+
+- id: P-FAST-DEV-LOOP
+  nombre: Desarrollar no espera a levantar la app en contenedores
+  categoria: madurez
+  alcance: repositorio
+  reglas: [DEV-01-APP-EN-DOCKER]
+  por_que: >-
+    Levantar la app en Docker para desarrollar hace más lento cada cambio; en
+    desarrollo Docker queda para la base de datos. Solo avisa: quien lo quiera
+    igual puede usarlo (docs/docker-en-desarrollo.md).

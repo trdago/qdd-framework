@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// contrato: integracion#62030339
 func TestSafeInjectIdempotent(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "qdd-inject-test-*")
 	if err != nil {

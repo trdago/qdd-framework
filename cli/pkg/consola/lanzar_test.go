@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/aislar"
 )
 
 // Rule: Prohibido usar 'else'
@@ -20,7 +22,7 @@ func TestMain(m *testing.M) {
 	if root, id, ok := EsCorrer(os.Args[1:]); ok {
 		os.Exit(CorrerLanzado(root, id, os.Stdout))
 	}
-	os.Exit(m.Run())
+	os.Exit(aislar.Correr(m))
 }
 
 func esperarEstado(t *testing.T, root, id, estado string) Pedido {
@@ -38,6 +40,7 @@ func esperarEstado(t *testing.T, root, id, estado string) Pedido {
 	return Pedido{}
 }
 
+// contrato: estado#4ac78fb9
 func TestLanzar_VuelveEnElActoYElPedidoTerminaSolo_FND089(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")

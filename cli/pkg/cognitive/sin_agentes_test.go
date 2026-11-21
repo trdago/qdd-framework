@@ -37,6 +37,7 @@ func sinLanzar(t *testing.T, marca string) {
 	}
 }
 
+// contrato: cognitive#b826c54b
 func TestEnUnaPruebaNoHayMotorAunqueElAgenteEsteInstalado_FND172(t *testing.T) {
 	marca := agentesDeMentira(t)
 	if info := DetectLocalLLM(); info.Detected || info.Status != "OFFLINE" {
@@ -54,6 +55,7 @@ func TestExecuteLocalIntent_EnUnaPruebaNoLanzaNingunAgente_FND172(t *testing.T) 
 	sinLanzar(t, marca)
 }
 
+// contrato: cognitive#b826c54b
 func TestAsk_EnUnaPruebaNoLanzaNingunAgente_FND172(t *testing.T) {
 	marca := agentesDeMentira(t)
 	if _, _, err := Ask(context.Background(), "hola"); err == nil {

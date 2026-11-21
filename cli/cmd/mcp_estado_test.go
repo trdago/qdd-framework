@@ -119,6 +119,8 @@ func TestEstadoTool_ObjetivoYTarea_EPT_O01_EPT_D02(t *testing.T) {
 }
 
 // FND-109: la IA crea con «nueva» (qdd da el id) y un id que no existe se rechaza con sugerencia, sin crear nada.
+// contrato: estado#3f848983
+// contrato: estado-por-tareas#0a77121e
 func TestEstadoTool_NuevaDaElIDYUnIDDesconocidoSugiere_FND109(t *testing.T) {
 	root := chdirToTempRepo(t)
 	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {

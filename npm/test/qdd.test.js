@@ -27,6 +27,8 @@ test('sin binario sale con 75 y dice que qdd se está actualizando', (t) => {
   assert.match(r.stderr, /npm install -g qdd-framework --allow-scripts=qdd-framework/);
 });
 
+// contrato: envoltorio-npm#053cd2aa
+
 test('con binario entrega su salida tal cual', { skip: os.platform() === 'win32' }, (t) => {
   const dir = carpetaConEnvoltorio(t);
   const binario = path.join(dir, nombreBinario);
@@ -34,6 +36,8 @@ test('con binario entrega su salida tal cual', { skip: os.platform() === 'win32'
   const r = spawnSync(process.execPath, [path.join(dir, 'qdd.js')], { encoding: 'utf8' });
   assert.strictEqual(r.status, 7);
 });
+
+// contrato: envoltorio-npm#317567e2
 
 test('un binario que no se puede ejecutar sigue siendo un fallo', { skip: os.platform() === 'win32' }, (t) => {
   const dir = carpetaConEnvoltorio(t);
@@ -58,6 +62,8 @@ test('en Windows sin esa carpeta usa el del paquete: una instalación anterior s
   assert.strictEqual(rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '', existe: () => true }), dentro);
 });
 
+// contrato: envoltorio-npm#110c284b
+
 test('fuera de Windows nada cambia', () => {
   const ruta = rutaDelBinario({ platform: 'linux', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => true });
   assert.strictEqual(ruta, path.join('paquete', 'qdd'));
@@ -74,6 +80,10 @@ function paqueteConInstalador(t, instalador) {
 }
 
 const correr = (dir, ...args) => spawnSync(process.execPath, [path.join(dir, 'bin', 'qdd.js'), ...args], { encoding: 'utf8' });
+
+// contrato: envoltorio-npm#d33d9e83
+
+// contrato: envoltorio-npm#053cd2aa
 
 test('sin binario lo baja con el instalador y corre lo pedido', { skip: os.platform() === 'win32' }, (t) => {
   const dir = paqueteConInstalador(t, `

@@ -9,6 +9,7 @@ import (
 // FND-040: un proyecto nuevo y sano fallaba su primera auditoría por reglas de
 // madurez (E2E, ADR, Conventional Commits). En adopción gradual son
 // recomendaciones: se informan, bajan poco el puntaje y no bloquean.
+// contrato: gate-pruebas#69c2c96e
 func TestMarcarRecomendaciones_Gradual(t *testing.T) {
 	v := []Violation{
 		{RuleID: "QA-02-E2E-TESTS"},
@@ -98,6 +99,7 @@ func TestGrado(t *testing.T) {
 // FND-101: en adopción gradual, marcarRecomendaciones pisaba la marca que la
 // regla misma ya había puesto, y una recomendación como QA-03-SIN-MEDIR (falta
 // el programa para medir una suite) pasaba a bloquear el gate.
+// contrato: gate-pruebas#9bdb6c50
 func TestMarcarRecomendaciones_GradualNoVuelveBloqueanteLoQueYaEraRecomendacion(t *testing.T) {
 	v := []Violation{{RuleID: "QA-03-SIN-MEDIR", Recomendacion: true}}
 	marcarRecomendaciones(QDDPolicies{Adopcion: AdopcionGradual}, v)

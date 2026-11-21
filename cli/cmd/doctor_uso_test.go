@@ -12,6 +12,7 @@ import (
 // Rule: Prohibido usar 'else'
 // Uso medido (2026-10-30): doctor muestra lo medido de la versión que corre y aparta un registro ilegible, que si no
 // dejaría de sumar sin que nadie lo note.
+// contrato: uso#01e146f5
 func TestDoctor_UnRegistroDeUsoIlegibleSeAparta(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()

@@ -23,6 +23,7 @@ func conPreguntas(pendientes map[string]string, cerradas ...string) Estado {
 	return Estado{Proyectos: []ProyectoEstado{{Clave: "c", Nombre: "p", Panel: &consola.DatosConsola{Acciones: acciones}}}}
 }
 
+// contrato: remoto#c4f9cc27
 func TestAvisos_UnaPreguntaNuevaPideSuPush_FND208(t *testing.T) {
 	rl := nuevoRelayBucle()
 	b := bucleDeAvisos(rl)

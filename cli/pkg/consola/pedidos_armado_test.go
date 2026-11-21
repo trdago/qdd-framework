@@ -30,6 +30,8 @@ func correrAparte(root, id string) chan int {
 	return fin
 }
 
+// contrato: estado#fc9c5b05
+// contrato: estado#bbfc77dc
 func TestArmado_TodaviaNoSeReintentaSoloHastaQueSaleBien(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -62,6 +64,7 @@ func TestArmado_TodaviaNoSeReintentaSoloHastaQueSaleBien(t *testing.T) {
 	}
 }
 
+// contrato: estado#fc9c5b05
 func TestArmado_UnaFallaDeVerdadNoSeReintenta(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -168,6 +171,7 @@ func TestArmado_SiMuereElProcesoQueEsperabaVuelveAPendiente(t *testing.T) {
 	}
 }
 
+// contrato: estado#fc9c5b05
 func TestArmado_YaArmadoNoSeAceptaDosVeces(t *testing.T) {
 	root := proyectoConCola(t)
 	mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})

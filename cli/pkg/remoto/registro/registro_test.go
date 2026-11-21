@@ -181,6 +181,7 @@ func TestMuertas_SenalaYQuitaLasRutasQueYaNoExisten(t *testing.T) {
 	}
 }
 
+// contrato: remoto#9ec20688
 func TestAnotar_UnRegistroIlegibleNoSePisaYSeAparta(t *testing.T) {
 	home := homeTemporal(t)
 	ruta := filepath.Join(home, "proyectos.json")

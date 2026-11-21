@@ -68,6 +68,7 @@ func TestCheck_ConObjetivosYDependenciasValidos(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#aa05dd23
 func TestEPT_D01_UnaDependenciaExisteYNoHaceCiclo(t *testing.T) {
 	e := conObjetivos()
 	e.Frentes[0].DependeDe = []string{"no-existe"}
@@ -154,6 +155,7 @@ func TestEPT_O01_ObjetivoConCriterio(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#4294ea44
 func TestEPT_O02_UnaTareaSirveAUnObjetivoQueExiste(t *testing.T) {
 	e := conObjetivos()
 	e.Frentes[0].Objetivo = "no-existe"
@@ -169,6 +171,7 @@ func TestEPT_O02_UnaTareaSirveAUnObjetivoQueExiste(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#a7604f7e
 func TestEPT_O03_UnSoloFoco(t *testing.T) {
 	root := t.TempDir()
 	if err := Save(root, conObjetivos()); err != nil {
@@ -187,6 +190,7 @@ func TestEPT_O03_UnSoloFoco(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#87f707d1
 func TestEPT_O04_CumplidoConEvidencia(t *testing.T) {
 	e := conObjetivos()
 	e.Frentes[1].Celdas, e.Frentes[2].Celdas = hecha(), hecha()

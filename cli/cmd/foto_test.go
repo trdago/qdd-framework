@@ -68,6 +68,7 @@ func TestFotoMCP_DevuelveLaImagenParaQueLaIALaVea(t *testing.T) {
 	}
 }
 
+// contrato: foto#ed7e346b
 func TestFotoMCP_SinImagenEsUnErrorQueLoDice(t *testing.T) {
 	t.Setenv("WAYLAND_DISPLAY", "")
 	t.Setenv("DISPLAY", "")

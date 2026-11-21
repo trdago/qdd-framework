@@ -102,6 +102,7 @@ func TestDibujar_DosRamasQueSeAlcanzanEntreSiSeDibujan(t *testing.T) {
 }
 
 // FND-180: el dibujo anterior dejaba fuera un nodo cuando una rama llegaba al encuentro por otra (azar, semilla 9).
+// contrato: flujo#501e2f64
 func TestDibujar_CadaNodoApareceAunqueLasRamasSeCrucen_FND180(t *testing.T) {
 	f := deNodos(paso("n0", "N00", "n1", "n3"), paso("n1", "N01", "n2", "n3", "n4"), paso("n2", "N02", "n4"), paso("n3", "N03", "n2"), paso("n4", "N04"))
 	s := texto(f, 70)

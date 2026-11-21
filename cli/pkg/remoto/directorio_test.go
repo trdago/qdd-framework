@@ -44,6 +44,7 @@ func TestLeerDirectorio_AceptaLaFirmaDeLaClavePublica(t *testing.T) {
 	}
 }
 
+// contrato: remoto#0379f52b
 func TestLeerDirectorio_RechazaLoQueNoEstaFirmadoNiCumple(t *testing.T) {
 	publica, privada := clavesDirectorio(t)
 	_, otra := clavesDirectorio(t)
@@ -75,6 +76,7 @@ func TestLeerDirectorio_RechazaLoQueNoEstaFirmadoNiCumple(t *testing.T) {
 	}
 }
 
+// contrato: remoto#1d02cab2
 func TestDirectorioDeFabrica_TraeUnaClavePublicaValida(t *testing.T) {
 	d := DirectorioDeFabrica()
 	if len(d.Publica) != ed25519.PublicKeySize {
@@ -143,6 +145,7 @@ func TestActualizarRelay_ElMismoRelayNoEsUnCambio(t *testing.T) {
 	}
 }
 
+// contrato: remoto#0379f52b
 func TestActualizarRelay_ConUnaRespuestaMalaSigueConElRecordado(t *testing.T) {
 	publica, privada := clavesDirectorio(t)
 	_, otra := clavesDirectorio(t)
@@ -190,6 +193,7 @@ func TestActualizarRelay_UnRelayPropioNoConsultaNunca(t *testing.T) {
 
 // FND-171: Propio protege a un PC emparejado. Sin emparejar no hay nada que perder, y un código de un relay retirado gasta
 // los intentos de la persona.
+// contrato: remoto#0379f52b
 func TestConfirmarRelay_ConElPCEmparejadoNoConsultaUnRelayPropio_FND171(t *testing.T) {
 	homeTemporal(t)
 	publica, privada := clavesDirectorio(t)
@@ -203,6 +207,7 @@ func TestConfirmarRelay_ConElPCEmparejadoNoConsultaUnRelayPropio_FND171(t *testi
 	}
 }
 
+// contrato: remoto#0379f52b
 func TestConfirmarRelay_SinEmparejarElDirectorioReemplazaUnPropio_FND171(t *testing.T) {
 	homeTemporal(t)
 	publica, privada := clavesDirectorio(t)
@@ -347,6 +352,7 @@ func sitioDePrueba(t *testing.T, codigo int, cuerpo []byte) (string, *int) {
 	return s.URL, &veces
 }
 
+// contrato: remoto#1d02cab2
 func TestConsultar_SeQuedaConElPrimerSitioQueValidaYNoPreguntaMas_FND171(t *testing.T) {
 	publica, privada := clavesDirectorio(t)
 	primero, _ := sitioDePrueba(t, 200, directorioFirmado(privada, relayPrueba, "sb_publishable_1", 2))
@@ -357,6 +363,7 @@ func TestConsultar_SeQuedaConElPrimerSitioQueValidaYNoPreguntaMas_FND171(t *test
 	}
 }
 
+// contrato: remoto#1d02cab2
 func TestConsultar_CualquierFalloDeUnSitioPasaAlSiguiente_FND171(t *testing.T) {
 	publica, privada := clavesDirectorio(t)
 	_, otraPrivada := clavesDirectorio(t)

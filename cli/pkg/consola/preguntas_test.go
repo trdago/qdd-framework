@@ -336,6 +336,7 @@ func TestPregunta_UnaColaIlegibleSeAparta(t *testing.T) {
 
 // FND-198 (MEJ-025, issue #147): la IA recibía la elección del modo goal igual que una respuesta de la persona, y dejó
 // escrito en commits que la persona había aprobado lo que eligió el modo. La respuesta lo dice.
+// contrato: goal#980fb4d1
 func TestPregunta_LaQueEligioElModoGoalLoDiceEnLaRespuesta_FND198(t *testing.T) {
 	root := proyectoConCola(t)
 	p := registrarAsk(t, root)
