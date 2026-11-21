@@ -81,27 +81,30 @@ type Bucle struct {
 	telefonos []Telefono
 	// sinLogrado: el último estado armado no llevó lo logrado porque todos los teléfonos lo piden (logrado_pedido.go);
 	// logrados guarda la última respuesta por proyecto, para no recalcularla dentro de EntreLogrados.
-	sinLogrado  bool
-	logrados    map[string]respuestaGuardada
-	seq         uint64
-	base        bool              // los teléfonos de ahora ya tienen un estado completo
-	enviados    map[string]string // clave → JSON del panel que tienen los teléfonos
-	estructura  map[string]string
-	limites     string                       // huella de los límites de Claude que tienen los teléfonos
-	flujos      map[string]string            // huella de cada flujo que tienen los teléfonos, por proyecto e id
-	vistos      map[string]map[string]string // clave → pedidos y fichas que esperan, con su tipo (para el push)
-	goalVisto   map[string]string            // clave → en qué estaba el modo goal (para el push)
-	mensajes    int
-	consolaSeg  float64
-	sinPush     bool
-	errRegistro string
-	vigia       *vigia
-	agrupando   *time.Timer
-	latidos     chan resultadoLatido
-	avisos      chan error
-	extras      extrasBucle
-	huellaBin   huella
-	conHuella   bool
+	sinLogrado     bool
+	logrados       map[string]respuestaGuardada
+	seq            uint64
+	base           bool              // los teléfonos de ahora ya tienen un estado completo
+	enviados       map[string]string // clave → JSON del panel que tienen los teléfonos
+	estructura     map[string]string
+	limites        string                       // huella de los límites de Claude que tienen los teléfonos
+	flujos         map[string]string            // huella de cada flujo que tienen los teléfonos, por proyecto e id
+	vistos         map[string]map[string]string // clave → pedidos y fichas que esperan, con su tipo (para el push)
+	goalVisto      map[string]string            // clave → en qué estaba el modo goal (para el push)
+	avisados       map[string]map[string]string // clave → lo que pidió un push y todavía espera, con su tipo (FND-289)
+	guardaAvisados bool                         // solo el servicio (iniciar) guarda avisados en QDD_HOME
+	avisadosCambio bool                         // hay algo nuevo que guardar
+	mensajes       int
+	consolaSeg     float64
+	sinPush        bool
+	errRegistro    string
+	vigia          *vigia
+	agrupando      *time.Timer
+	latidos        chan resultadoLatido
+	avisos         chan error
+	extras         extrasBucle
+	huellaBin      huella
+	conHuella      bool
 
 	// Sondear prueba el canal con el teléfono (sonda.go): al arrancar, tras PrimeraSonda, y luego cada CadaSonda. Sin
 	// ella no hay sonda. AlSondear recibe cada resultado, con la reparación que se aplicó; ReinicioSonda es el último
@@ -171,6 +174,7 @@ func (b *Bucle) iniciar() {
 	b.desde = b.ahora().UTC()
 	b.plan = PlanGratis()
 	b.enviados, b.vistos, b.goalVisto = map[string]string{}, map[string]map[string]string{}, map[string]string{}
+	b.cargarAvisados()
 	b.latidos, b.avisos = make(chan resultadoLatido, 1), make(chan error, 8)
 	b.consultas = make(chan resultadoConsulta, 1)
 	b.sondas = make(chan ResultadoSonda, 1)
@@ -702,7 +706,10 @@ func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 		ahora := esperan(p)
 		antes, conocido := b.vistos[p.Clave]
 		b.vistos[p.Clave] = ahora
+		resueltos := b.avisadosResueltos(p.Clave, ahora)
 		if !conocido {
+			// Base: lo que ya esperaba no se avisa, pero lo avisado antes de un reinicio y ya respondido sí se resuelve.
+			b.avisarResueltos(ctx, p, resueltos)
 			continue
 		}
 		nuevos, hay, habia := map[string]bool{}, map[string]bool{}, map[string]bool{}
@@ -710,6 +717,7 @@ func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 			hay[tipo] = true
 			if _, ya := antes[id]; !ya {
 				nuevos[tipo] = true
+				b.anotarAvisado(p.Clave, id, tipo)
 			}
 		}
 		for _, tipo := range antes {
@@ -719,11 +727,74 @@ func (b *Bucle) avisarNuevos(ctx context.Context, e Estado) {
 			if nuevos[tipo] {
 				b.avisar(ctx, tipo, p.Nombre, p.Clave)
 			}
-			if habia[tipo] && !hay[tipo] {
+			if (habia[tipo] && !hay[tipo]) || resueltos[tipo] {
 				b.avisar(ctx, resueltoDe[tipo], p.Nombre, p.Clave)
 			}
 		}
 	}
+	b.guardarAvisados()
+}
+
+func (b *Bucle) avisarResueltos(ctx context.Context, p ProyectoEstado, resueltos map[string]bool) {
+	for _, tipo := range tiposQueEsperan {
+		if resueltos[tipo] {
+			b.avisar(ctx, resueltoDe[tipo], p.Nombre, p.Clave)
+		}
+	}
+}
+
+// archivoAvisados guarda lo avisado entre reinicios: si qdd remoto se actualiza entre el aviso y la respuesta, el
+// resuelto igual sale (FND-289, caso que señaló qdd-movile).
+const archivoAvisados = "avisados.json"
+
+// cargarAvisados lee lo avisado antes de arrancar y deja guardar los cambios. Ilegible o sin archivo, empieza vacío.
+func (b *Bucle) cargarAvisados() {
+	b.guardaAvisados = true
+	b.avisados = map[string]map[string]string{}
+	if err := leerPrivado(archivoAvisados, &b.avisados); err != nil || b.avisados == nil {
+		b.avisados = map[string]map[string]string{}
+	}
+}
+
+func (b *Bucle) guardarAvisados() {
+	if !b.guardaAvisados || !b.avisadosCambio {
+		return
+	}
+	b.avisadosCambio = false
+	if err := guardarPrivado(archivoAvisados, b.avisados); err != nil {
+		b.logf("no se pudo guardar %s: %v", archivoAvisados, err)
+	}
+}
+
+func (b *Bucle) anotarAvisado(clave, id, tipo string) {
+	if b.avisados == nil {
+		b.avisados = map[string]map[string]string{}
+	}
+	if b.avisados[clave] == nil {
+		b.avisados[clave] = map[string]string{}
+	}
+	b.avisados[clave][id] = tipo
+	b.avisadosCambio = true
+}
+
+// avisadosResueltos: los tipos cuyo push ya no tiene nada que lo sostenga, aunque sigan otras del mismo tipo que
+// esperaban desde antes y nunca se avisaron (FND-289: los ⏳ del tablero con «¿…?» casi nunca faltan, y el aviso de
+// una pregunta respondida no se quitaba del teléfono). Los respondidos salen de la lista.
+func (b *Bucle) avisadosResueltos(clave string, ahora map[string]string) map[string]bool {
+	resueltos, siguen := map[string]bool{}, map[string]bool{}
+	for id, tipo := range b.avisados[clave] {
+		if ahora[id] == tipo {
+			siguen[tipo] = true
+			continue
+		}
+		resueltos[tipo] = true
+		delete(b.avisados[clave], id)
+		b.avisadosCambio = true
+	}
+	for tipo := range siguen {
+		delete(resueltos, tipo)
+	}
+	return resueltos
 }
 
 // avisarGoal pide un push cuando el modo goal de un proyecto se detiene o termina. La primera vez es la base.
