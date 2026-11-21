@@ -6,6 +6,20 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.106] - 2026-11-20
+
+### Added
+
+- **Hooks de git de las puertas (ficha puertas, etapa 2b):** las puertas llegan a cualquier IA, no solo a Claude Code.
+  - `qdd puertas instalar` agrega a `pre-commit` (puerta audit) y `commit-msg` (puerta finding) un bloque marcado tras el shebang, sin tocar lo que ya hay. Con husky va en `.husky/`.
+  - Solo un rechazo corta el commit: sin qdd, con un qdd viejo o si falla, el commit pasa. La persona puede saltarlas en su terminal con `--no-verify`.
+  - `qdd doctor` revisa las puertas y `--fix` las activa en un proyecto con `policies.yaml` e instala los hooks. `qdd init` crea los proyectos nuevos con las puertas activas.
+  - qdd versiona sus propios hooks en `.husky/`.
+
+### Fixed
+
+- **Guardar las políticas apagaba las puertas (FND-243):** el dashboard reescribía `policies.yaml` sin la clave `puertas`. Ahora se conserva.
+
 ## [2.10.0-rc.105] - 2026-11-20
 
 ### Added
