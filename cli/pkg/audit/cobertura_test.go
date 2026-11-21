@@ -179,3 +179,40 @@ func TestCobertura_PruebasPendientesNoSonEvaluadas_FND225(t *testing.T) {
 		t.Errorf("sin pruebas pendientes P-TESTS-PER-UNIT = %s; want evaluado", cp.Estado)
 	}
 }
+
+// contrato: cobertura-auditoria#619be7c1
+// Propiedad sobre todos los principios: en un proyecto Rust sin git, ninguno que no pueda leer Rust, ni ninguno cuyo
+// detector diga que no puede revisar este repositorio, aparece como evaluado; y el resumen no los cuenta como evaluados.
+func TestCobertura_NingunPrincipioSinRevisarApareceAprobado(t *testing.T) {
+	dir := proyecto(t, map[string]string{"Cargo.toml": "[package]\nname = \"x\"\n"})
+	c := CalcularCobertura(dir, DefaultPolicies(), contexto.Leer(dir), nil)
+	evaluados := 0
+	for _, cp := range c.Principios {
+		id, d := cp.Principio.ID, detectores[cp.Principio.ID]
+		if cp.Estado == Evaluado {
+			evaluados++
+		}
+		if cp.Estado == Desactivado {
+			continue
+		}
+		leeRust := false
+		for _, s := range d.stacks {
+			leeRust = leeRust || s == contexto.Rust
+		}
+		if cp.Principio.Alcance == AlcanceUnidad && !leeRust && (cp.Estado == Evaluado || len(cp.NoEvaluadas) == 0) {
+			t.Errorf("%s no lee Rust y aparece %s, sin unidades no evaluadas: %+v", id, cp.Estado, cp.NoEvaluadas)
+		}
+		if d.evaluable == nil {
+			continue
+		}
+		if puede, _ := d.evaluable(dir); !puede && (cp.Estado == Evaluado || len(cp.NoEvaluadas) == 0) {
+			t.Errorf("%s no puede revisar este repositorio y aparece %s: %+v", id, cp.Estado, cp.NoEvaluadas)
+		}
+	}
+	if cp := coberturaDe(t, c, "P-TRACEABLE-COMMITS"); cp.Estado != NoEvaluado {
+		t.Errorf("sin git, P-TRACEABLE-COMMITS = %s; want no_evaluado", cp.Estado)
+	}
+	if c.Evaluados != evaluados || c.Evaluados+c.Parciales+c.NoEvaluados != c.Aplicables {
+		t.Errorf("el resumen cuenta solo lo evaluado: %+v (evaluados de verdad: %d)", c, evaluados)
+	}
+}
