@@ -24,6 +24,7 @@ objetivo_tecnologico:
         - 'Las reglas van antes que las pruebas. qdd audit y qdd_audit piden ParandoAlBloquear: si una regla ya bloquea, las pruebas quedan en QA-04-PRUEBAS-PENDIENTES.'
         - La copia de --verificar-rutas enlaza las carpetas que git ignora, como node_modules, y deja fuera los archivos ignorados, como un .env (FND-175).
         - 'El TEST FAILURE LOG de una suite que falla trae las últimas 60 líneas y, antes, hasta 40 líneas anteriores que marcan una falla (FND-162, FND-211, MEJ-030): «fail» (go, bun, pytest, vitest), «✕» y «●» de jest y «[E]» de dart y flutter. «● Console» de jest es salida, no falla. Así el gate nombra la prueba aunque quede lejos del final.'
+        - 'Con puertas en la política (ficha puertas), qdd audit toma la huella del árbol antes de auditar y, si aprueba, la deja como marca en la carpeta de git del worktree: lo que el propio audit genere no queda aprobado.'
     invariantes:
         - 'Una suite solo se salta si pasó con la misma huella en las últimas 24 h. Lo que no se puede asegurar corre: sin rutas, una ruta sin archivos, fuera de git, en el CI, con qdd audit --completo y al certificar.'
         - Una suite que falla nunca se recuerda.
@@ -35,5 +36,5 @@ objetivo_tecnologico:
 pruebas:
     comandos:
         - cd cli && go test ./pkg/audit/ -run 'Coverage|TestCommand|SinMedir|MarcarRecomendaciones|Suite|VerificarRutas|InformeDeRutas|ParandoAlBloquear|RunAll|LogDeFallo'
-ultima_revision: "2026-11-15"
-revisado_en_commit: 6b0d21ca1eb7
+ultima_revision: "2026-11-20"
+revisado_en_commit: 03f97432c0cb

@@ -1,6 +1,6 @@
 id: puertas
 nombre: Puertas de QDD (encaminar por acciones, medido)
-estado: borrador
+estado: aprobado
 rutas:
     - cli/pkg/puertas
     - cli/cmd/puertas.go
@@ -20,7 +20,9 @@ objetivo_tecnologico:
         - Un rechazo dice qué falta y el comando exacto para resolverlo, en ≤280 caracteres. Si la acción pasa, la IA no recibe nada (0 tokens).
         - 'Corregido al primer reintento: el siguiente intento de la misma puerta en la misma sesión pasa. Tokens por rechazo: caracteres del mensaje / 4.'
         - 'Los hooks conviven con lo que ya hay: se agrega un bloque marcado (# >>> qdd puertas … # <<<) al hook existente o se crea; con husky (core.hooksPath=.husky/_) va en .husky/<hook>. Nunca se reemplaza un hook ajeno.'
-        - 'Las puertas se activan por proyecto con puertas en .qdd/policies.yaml (init las deja activas en proyectos nuevos; en uno existente las activa doctor --fix y lo dice).'
+        - Las puertas se activan por proyecto con puertas en .qdd/policies.yaml (init las deja activas en proyectos nuevos; en uno existente las activa doctor --fix y lo dice).
+        - 'Etapa 1 (2026-11-20): puertas audit y publicar, y el rechazo de --no-verify, desde el mod de Claude Code (tool.call → qdd puertas revisar --dir --sesion -- <comando>, rechazo con salida 2). Etapa 2: puertas ficha y finding, hooks de git (qdd puertas instalar), doctor, init e informe. La carpeta es la del evento o la de la sesión; un cd del comando se sigue, uno de un comando anterior no.'
+        - 'Leer un comando: se parte como la shell (&&, ;, |, salto de línea) y lo que va entre comillas o en un heredoc es texto: un mensaje de commit que nombra gh pr merge no es un merge. Un git push publica solo con --tags, --follow-tags, --mirror o si lo que empuja es un tag del repositorio.'
     invariantes:
         - Una puerta que no puede decidir (qdd ausente, error, más de 2 s) deja pasar la acción y anota el error; nunca bloquea por una falla propia.
         - Decidir no gasta tokens ni llama a un modelo; la misma acción con los mismos hechos da siempre la misma decisión.
@@ -34,4 +36,7 @@ pruebas:
         - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
 fuentes:
     - cli/pkg/uso/uso.go
+    - cli/cmd/audit.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
+ultima_revision: "2026-11-20"
+revisado_en_commit: 03f97432c0cb
