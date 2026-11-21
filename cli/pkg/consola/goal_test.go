@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -549,4 +550,51 @@ func TestGoal_UnArchivoIlegibleLoVeDoctorYSeAparta(t *testing.T) {
 	if activo, err := RevisarGoal(root); err != nil || activo {
 		t.Fatalf("apartado queda apagado y legible: %v %v", activo, err)
 	}
+}
+
+// contrato: estado#0240fe2c
+// Un pedido de la IA corre solo con el «s  Sí» de la persona; la única excepción es el modo goal activo en ESTE
+// proyecto. Apagado, o encendido en otro proyecto de la misma máquina, una vuelta del vigilante no lo lanza.
+func TestGoal_ApagadoOActivoEnOtroProyectoNoLanzaUnPedido(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("comando de prueba en sh")
+	}
+	root := proyectoConTareas(t)
+	escribirArchivo(t, filepath.Join(root, estado.Ruta), estadoGoal)
+	conSesionAbierta(t, root)
+	marca := filepath.Join(t.TempDir(), "corrio")
+	pd := mustPedir(t, root, "touch "+marca, "Desplegar", "")
+	bin := os.Args[0]
+	sigueEsperando := func(paso string) {
+		t.Helper()
+		r, err := CicloGoal(root, bin, silencio(time.Hour), enCola)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(r.Elegidas) != 0 {
+			t.Fatalf("%s: el modo no elige nada aquí: %+v", paso, r.Elegidas)
+		}
+		if p := pedidoDe(t, root, pd.ID, enCola); p.Estado != EstadoPendiente || p.Confirmado != nil {
+			t.Fatalf("%s: el pedido sigue esperando a la persona: %+v", paso, p)
+		}
+		time.Sleep(100 * time.Millisecond)
+		if _, err := os.Stat(marca); err == nil {
+			t.Fatalf("%s: el comando corrió sin la persona", paso)
+		}
+	}
+	sigueEsperando("con el modo apagado")
+
+	otro := t.TempDir()
+	escribirArchivo(t, filepath.Join(otro, estado.Ruta), estadoGoal)
+	conSesionAbierta(t, otro)
+	if err := ActivarGoal(otro, "panel", enCola); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CicloGoal(otro, bin, silencio(time.Hour), enCola); err != nil {
+		t.Fatal(err)
+	}
+	if g := VistaGoal(root, enCola); g.Activo {
+		t.Fatalf("activarlo en otro proyecto no lo enciende aquí: %+v", g)
+	}
+	sigueEsperando("con el modo activo en otro proyecto")
 }
