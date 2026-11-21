@@ -52,6 +52,7 @@ func mensajesEn(ch chan []byte, ventana time.Duration, hasta ...int) int {
 // FND-058: el dashboard escribía dentro de lo que observaba y se reconstruía
 // cada 500 ms aunque nadie cambiara nada.
 // contrato: dashboard#6002ac96
+// contrato: dashboard#3d6c6819
 func TestVigilar_ProyectoQuietoNoReconstruye(t *testing.T) {
 	dir := proyectoMedido(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -181,6 +182,7 @@ func TestBroker_UltimoEstado(t *testing.T) {
 
 // FND-055: el dashboard inventaba un historial para cada certificación, horas
 // ahorradas con constantes y la misma descripción para todo finding.
+// contrato: dashboard#f88cd0d7
 func TestBuildState_SinDatosSimulados(t *testing.T) {
 	dir := proyectoMedido(t)
 	os.WriteFile(filepath.Join(dir, ".qdd", "project", "findings", "FND-001.yaml"),
