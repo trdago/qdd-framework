@@ -233,3 +233,21 @@ func TestDoctor_ApartarUnRegistroDeUsoEsUnaAutorreparacionQueSeInforma(t *testin
 		t.Fatalf("incidente = %+v", i)
 	}
 }
+
+// Si el registro no se puede escribir (QDD_HOME es un archivo), registrar no falla ni lanza un pánico: la falla
+// original sigue su curso.
+// contrato: incidentes#e2a4dba8
+func TestIncidentes_RegistrarSinRegistroEscribibleNoHaceFallar(t *testing.T) {
+	archivo := filepath.Join(t.TempDir(), "no-es-carpeta")
+	if err := os.WriteFile(archivo, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("QDD_HOME", archivo)
+	t.Chdir(t.TempDir())
+	inicio := time.Now()
+	registrarPanico("qdd x", "qdd x", "boom")
+	registrarAutorreparacion("doctor", "registro ilegible", []string{"apartado"})
+	if d := time.Since(inicio); d > time.Second {
+		t.Errorf("registrar demoró %v a quien falló", d)
+	}
+}

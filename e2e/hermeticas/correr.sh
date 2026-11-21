@@ -5,6 +5,7 @@
 # Corren además como desde un hook de git: con GIT_DIR y GIT_INDEX_FILE exportados hacia un repositorio que tiene que
 # quedar igual, sin commits, tags, remotes ni ramas nuevas (FND-117, FND-263).
 # contrato: gitenv#83f46fc1
+# contrato: reportes#8036988e
 set -eu
 raiz=$(cd "$(dirname "$0")/../.." && pwd)
 caja=$(mktemp -d)

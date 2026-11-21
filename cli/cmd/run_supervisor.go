@@ -142,7 +142,8 @@ func executeRepairAgent(ctx context.Context, sandboxDir, prompt string) (repairV
 func applySandboxFix(sandboxDir, cwd string, originalArgs []string, verdict repairVerdict, filed *bugreport.Filed) {
 	if sandboxDir != cwd {
 		fmt.Println("[QDD SUPERVISOR] Aplicando solución exitosa del Sandbox al código principal...")
-		exec.Command("rsync", "-a", "--delete", "--exclude=.git", "--exclude=node_modules", sandboxDir+"/", cwd+"/").Run()
+		// La evidencia original nunca se borra, aunque el agente la haya quitado del sandbox (FND-286).
+		exec.Command("rsync", "-a", "--delete", "--exclude=.git", "--exclude=node_modules", "--exclude=/.qdd/project/evidence/", sandboxDir+"/", cwd+"/").Run()
 	}
 
 	if err := bugreport.MarkResolved(filed.FindingPath, verdict.Summary, verdict.TestAdded); err != nil {

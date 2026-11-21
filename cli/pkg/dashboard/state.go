@@ -383,7 +383,6 @@ func initDefaultState(cwd string) QDDState {
 	return QDDState{
 		Score:          0,
 		Grade:          gradoSinMedir,
-		Version:        "v0.1.1",
 		QualityStatus:  "PASS",
 		ProjectName:    filepath.Base(cwd),
 		Findings:       []DashboardFinding{},
@@ -401,7 +400,6 @@ func loadMCPLogs(response *QDDState, qddDir string) {
 	if logData, err := os.ReadFile(filepath.Join(qddDir, "mcp.log")); err == nil {
 		processMCPLogLines(response, string(logData))
 	}
-	ensureDefaultMCPLogs(response)
 }
 
 func processMCPLogLines(response *QDDState, logData string) {
@@ -414,15 +412,6 @@ func processMCPLogLines(response *QDDState, logData string) {
 		line := strings.TrimSpace(lines[i])
 		if line != "" {
 			response.MCPLogs = append(response.MCPLogs, line)
-		}
-	}
-}
-
-func ensureDefaultMCPLogs(response *QDDState) {
-	if len(response.MCPLogs) == 0 {
-		response.MCPLogs = []string{
-			"[MCP] Servidor QDD inicializado.",
-			"[MCP] Escuchando intenciones en stdio/SSE...",
 		}
 	}
 }

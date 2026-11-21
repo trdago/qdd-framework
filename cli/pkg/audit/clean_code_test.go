@@ -83,6 +83,8 @@ func assertViolationsFound(t *testing.T, foundNoElse int, foundTestImport, found
 }
 
 // El gate, al encontrar un 'else', dice cómo corregirlo y por qué: la IA lo lee justo cuando lo necesita.
+// contrato: metodo#1995b1da
+// contrato: metodo#fdb6cdd1
 func TestCleanCode_ElseDiceComoYPorQue(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n\nfunc f(x bool) int {\n\tif x {\n\t\treturn 1\n\t} else {\n\t\treturn 2\n\t}\n}\n"), 0o644); err != nil {

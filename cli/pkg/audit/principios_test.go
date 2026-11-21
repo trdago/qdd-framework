@@ -45,6 +45,7 @@ func TestPrincipios_TienenRazonYCategoria(t *testing.T) {
 
 // Toda regla que el motor emite pertenece a un principio. Si una regla nueva
 // no tiene principio, su violación saldría sin por_que ni categoría.
+// contrato: cobertura-auditoria#c2e8ad24
 func TestPrincipios_CadaReglaDelMotorTienePrincipio(t *testing.T) {
 	ids := map[string]bool{}
 	categorias := map[string]bool{}
