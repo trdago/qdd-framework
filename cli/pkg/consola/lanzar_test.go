@@ -31,6 +31,7 @@ func esperarEstado(t *testing.T, root, id, estado string) Pedido {
 	for time.Now().Before(tope) {
 		for _, p := range Pedidos(root) {
 			if p.ID == id && p.Estado == estado {
+				esperarQueSalga(p)
 				return p
 			}
 		}
@@ -38,6 +39,19 @@ func esperarEstado(t *testing.T, root, id, estado string) Pedido {
 	}
 	t.Fatalf("el pedido %s no llegó a %s: %+v", id, estado, Pedidos(root))
 	return Pedido{}
+}
+
+// esperarQueSalga: un pedido terminado sigue un momento en su proceso (avisos, la cola). Si la prueba sale antes, ese
+// proceso vuelve a crear su carpeta en QDD_HOME después de que la prueba la borró y la deja en el TMPDIR de la máquina
+// (1916 carpetas de TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR en un PC, 2026-11-21).
+func esperarQueSalga(p Pedido) {
+	if p.Estado != EstadoHecho && p.Estado != EstadoFallo {
+		return
+	}
+	tope := time.Now().Add(5 * time.Second)
+	for procesoVivo(p.PID) && time.Now().Before(tope) {
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 // contrato: estado#4ac78fb9
