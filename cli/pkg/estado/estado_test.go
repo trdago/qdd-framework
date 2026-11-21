@@ -172,11 +172,27 @@ func TestCheck_EPFC06_AprobacionPendienteNoPasaAHecho(t *testing.T) {
 	}
 }
 
+// La lista mínima de la decisión: correos, teléfonos, RUT, tokens con prefijo conocido (sk-, ghp_, AKIA, xox, npm_),
+// claves privadas, «clave=», «token=», «password=» y «Bearer …»; ni en la tabla ni en el texto del reporte.
+// contrato: estado-por-tareas#01243347
 func TestCheck_EPFC07_SinSecretosNiDatosPersonales(t *testing.T) {
-	for _, malo := range []string{"sk-abcdefghijklmnopqrstuvwx", "ghp_abcdefghijklmnopqrstuv", "AKIAABCDEFGHIJKLMNOP", "password=hunter2", "juan@empresa.cl", "RUT 12.345.678-5"} {
+	malos := []string{"sk-abcdefghijklmnopqrstuvwx", "ghp_abcdefghijklmnopqrstuv", "AKIAABCDEFGHIJKLMNOP", "password=hunter2", "juan@empresa.cl", "RUT 12.345.678-5",
+		"xoxb-1234567890-abcdefghij", "npm_abcdefghijklmnopqrstuvwxyz0123456789", "Bearer eyJhbGciOiJIUzI1NiJ9.x", "-----BEGIN OPENSSH PRIVATE KEY-----",
+		"+56 9 8765 4321", "clave=hunter2", "token=abc123", "RUT 12345678-5"}
+	for _, malo := range malos {
 		s := strings.Replace(valido, `bloqueo: "ver un análisis con imagen"`, `bloqueo: "`+malo+`"`, 1)
 		if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C07") {
-			t.Fatalf("%q debe ser EPF-C07: %s", malo, ids(vs))
+			t.Errorf("%q debe ser EPF-C07: %s", malo, ids(vs))
+		}
+	}
+	e := mustParse(t, valido)
+	md := Markdown(e, ahora, AlcanceAbiertos)
+	if vs := CheckRespuesta(e, md+"\nAvance del día, sin datos de nadie: análisis 1234-5-LP26, v2.10.0-rc.41.\n", ahora); tieneViolacion(vs, "EPF-C07") {
+		t.Fatalf("un reporte sin credenciales ni datos personales no es EPF-C07: %v", vs)
+	}
+	for _, malo := range malos {
+		if vs := CheckRespuesta(e, md+"\nContacto: "+malo+"\n", ahora); !tieneViolacion(vs, "EPF-C07") {
+			t.Errorf("%q en el texto del reporte debe ser EPF-C07: %s", malo, ids(vs))
 		}
 	}
 }

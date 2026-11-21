@@ -154,6 +154,13 @@ func (b *Bucle) seguirPreguntas(ctx context.Context) {
 func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 	o := OcultadorDe(root)
 	ocultarTablero(o, panel.Estado)
+	// El motivo puede ser el error de un estado.yaml ilegible, que cita su contenido (FND-250).
+	panel.Motivo, panel.AvisoVersion = o.Ocultar(panel.Motivo), o.Ocultar(panel.AvisoVersion)
+	panel.EsperasPersona = ocultarEsperas(o, panel.EsperasPersona)
+	ocultarOtros(o, panel.Otros)
+	if panel.Goal != nil {
+		panel.Goal.Motivo = o.Ocultar(panel.Goal.Motivo)
+	}
 	if panel.Goal != nil && len(panel.Goal.Elegidas) > 0 {
 		elegidas := make([]consola.Elegida, len(panel.Goal.Elegidas))
 		for i, e := range panel.Goal.Elegidas {
@@ -169,6 +176,36 @@ func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 		logrado := ocultarLogrado(o, *panel.Logrado, salidaParaTelefono)
 		panel.Logrado = &logrado
 	}
+}
+
+// ocultarEsperas tapa el texto de cada ⏳ de la persona, en una copia.
+func ocultarEsperas(o *Ocultador, lista []consola.EsperaDelPanel) []consola.EsperaDelPanel {
+	if len(lista) == 0 {
+		return lista
+	}
+	esperas := make([]consola.EsperaDelPanel, len(lista))
+	for i, e := range lista {
+		e.Texto = o.Ocultar(e.Texto)
+		esperas[i] = e
+	}
+	return esperas
+}
+
+// ocultarOtros tapa lo que espera a la persona en los demás proyectos, como en el panel propio.
+func ocultarOtros(o *Ocultador, otros *[]consola.ProyectoEsperando) {
+	if otros == nil {
+		return
+	}
+	lista := make([]consola.ProyectoEsperando, len(*otros))
+	for i, p := range *otros {
+		acciones := make([]consola.Accion, len(p.Acciones))
+		for j, a := range p.Acciones {
+			acciones[j] = ocultarAccion(o, a)
+		}
+		p.Acciones, p.Esperas = acciones, ocultarEsperas(o, p.Esperas)
+		lista[i] = p
+	}
+	*otros = lista
 }
 
 // ocultarLogrado pasa cada texto de lo logrado por el ocultador (inv. 16), en una copia: la lista de quien la armó no
@@ -203,7 +240,7 @@ func ocultarTablero(o *Ocultador, d *estado.DatosPanel) {
 		d.Esperas[i] = p
 	}
 	for i, p := range d.Fallas {
-		p.Frente, p.Texto = o.Ocultar(p.Frente), o.Ocultar(p.Texto)
+		p.Frente, p.Texto, p.DeQuien = o.Ocultar(p.Frente), o.Ocultar(p.Texto), o.Ocultar(p.DeQuien)
 		d.Fallas[i] = p
 	}
 	for i, ob := range d.Objetivos {
@@ -222,6 +259,7 @@ func ocultarAccion(o *Ocultador, a consola.Accion) consola.Accion {
 		a.Espera = espera
 	}
 	a.Etiqueta, a.Detalle, a.Resultado, a.Aviso = o.Ocultar(a.Etiqueta), o.Ocultar(a.Detalle), o.Ocultar(a.Resultado), o.Ocultar(a.Aviso)
+	a.Bloqueo = o.Ocultar(a.Bloqueo)
 	if a.Permiso != nil {
 		permiso := *a.Permiso
 		permiso.Detalle = o.Ocultar(permiso.Detalle)

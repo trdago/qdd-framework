@@ -240,9 +240,20 @@ func PruebaDeHumo(root string, h Herramienta) error {
 		return fmt.Errorf("su prueba de humo (%s) no terminó en %s: ¿espera entrada? Una herramienta interactiva no se puede usar desde el panel", strings.Join(argv, " "), topePrueba)
 	}
 	if err != nil || code != 0 {
-		return fmt.Errorf("su prueba de humo (%s) salió con %d: %s", strings.Join(argv, " "), code, ultimasLineas(out.String(), 5))
+		return fmt.Errorf("su prueba de humo (%s) salió con %d: %s", strings.Join(argv, " "), code, ultimasLineas(sinValoresDelEntorno(out.String(), h), 5))
 	}
 	return nil
+}
+
+// sinValoresDelEntorno tapa en la salida de la herramienta el valor de cada variable de su entorno: el mensaje que
+// la cita lo lee la IA.
+func sinValoresDelEntorno(salida string, h Herramienta) string {
+	for _, v := range h.Entorno {
+		if valor := os.Getenv(v); len(valor) >= 4 {
+			salida = strings.ReplaceAll(salida, valor, "•••")
+		}
+	}
+	return salida
 }
 
 // Ayuda corre <comando> --help (y si no, -h y help) con un tiempo límite y sin entrada, para que la IA lea qué pide.
