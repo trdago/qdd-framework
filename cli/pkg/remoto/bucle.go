@@ -753,8 +753,10 @@ func momentoGoal(p ProyectoEstado) (string, string) {
 	return momento, ""
 }
 
-// avisar pide el push sin bloquear el bucle: es de mejor esfuerzo (inv. 17: solo tipo y proyecto).
+// avisar pide el push sin bloquear el bucle: es de mejor esfuerzo (inv. 17: solo tipo y proyecto). Cada pedido queda
+// en el registro: sin él no se sabía si el PC mandó un pregunta_resuelto que la app no recibió (FND-247).
 func (b *Bucle) avisar(ctx context.Context, tipo, nombre, clave string) {
+	b.logf("push %s de %s", tipo, nombre)
 	go func() {
 		c, cancelar := context.WithTimeout(ctx, 15*time.Second)
 		defer cancelar()
