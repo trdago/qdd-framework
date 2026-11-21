@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
 // Rule: Prohibido usar 'else'
@@ -20,6 +22,7 @@ const varAyudante = "QDD_RENDIMIENTO_AYUDANTE"
 
 // TestMain: con varAyudante, este binario de prueba hace de qdd. «sucio» deja un zombie y un huérfano.
 func TestMain(m *testing.M) {
+	gitenv.LimpiarProceso()
 	modo := os.Getenv(varAyudante)
 	if modo == "" {
 		os.Exit(m.Run())
@@ -137,6 +140,33 @@ func TestMedir_DetectaElZombie(t *testing.T) {
 	if z := medida(t, inf, MedidaZombies); z.Valor == nil || *z.Valor < 1 || z.Estado != EstadoFalla {
 		t.Fatalf("el hijo que nadie recogió es una falla: %+v", z)
 	}
+}
+
+// contrato: gitenv#11ed527d
+// FND-263: Medir hacía git init y git remote add en la caja con el entorno de quien lo corría: con GIT_DIR exportado (un
+// hook de git), el remote origin de prueba quedaba en ese repositorio.
+func TestMedir_ConGitDirExportadoNoTocaEseRepositorio_FND263(t *testing.T) {
+	real := t.TempDir()
+	gitLimpio(t, real, "init", "-q")
+	t.Setenv("GIT_DIR", filepath.Join(real, ".git"))
+	t.Setenv("GIT_INDEX_FILE", filepath.Join(real, ".git", "index"))
+	if _, err := Medir(opcionesDePrueba(t, "limpio")); err != nil {
+		t.Fatal(err)
+	}
+	if remotes := gitLimpio(t, real, "remote"); remotes != "" {
+		t.Fatalf("el repositorio del hook quedó intacto, sin remotes: %q", remotes)
+	}
+}
+
+func gitLimpio(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	c := exec.Command("git", args...)
+	c.Dir, c.Env = dir, gitenv.Limpio(os.Environ())
+	out, err := c.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v %s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func TestMedir_NoTocaElQddHomeDeLaMaquina(t *testing.T) {
