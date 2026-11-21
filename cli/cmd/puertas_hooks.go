@@ -80,7 +80,8 @@ func hookPuertas(dir, hook, archivo string) (int, string) {
 	return codigo, mensaje
 }
 
-// grupoPuertas revisa las puertas del proyecto (ficha puertas): activas en la política y con sus hooks al día.
+// grupoPuertas revisa las puertas del proyecto (ficha puertas): activas en la política y, si el proyecto es la raíz del
+// repositorio, con sus hooks al día (los hooks son de la raíz: desde una subcarpeta no se pueden instalar).
 const grupoPuertas = "Puertas de QDD (qdd puertas)"
 
 const itemPuertasActivas = "Puertas activas en .qdd/policies.yaml"
@@ -96,6 +97,9 @@ func buildPuertasChecks(projectPath string) *CheckGroup {
 		return g
 	}
 	g.Items = append(g.Items, &CheckItem{Name: itemPuertasActivas, Success: true})
+	if !puertas.EsRaiz(projectPath) {
+		return g
+	}
 	for _, e := range puertas.EstadoHooks(projectPath) {
 		g.Items = append(g.Items, itemDeHook(e))
 	}

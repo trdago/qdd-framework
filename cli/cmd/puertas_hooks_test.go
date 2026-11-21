@@ -92,3 +92,17 @@ func TestInit_EnUnaSubcarpetaNoTocaLosHooks(t *testing.T) {
 		t.Fatal("un proyecto en una subcarpeta no instala los hooks de todo el repositorio")
 	}
 }
+
+// En el CI (sin husky) TestPipelineExecution corre init y doctor en cli/cmd: los hooks son de la raíz y desde ahí no se
+// pueden instalar, así que doctor no los revisa en una subcarpeta (si no, quedaba en rojo para siempre).
+func TestDoctorPuertas_EnUnaSubcarpetaNoRevisaLosHooks(t *testing.T) {
+	_, repo := proyectoConPuertas(t, "puertas: {}\n")
+	sub := filepath.Join(repo, "sub")
+	escribirEnRepo(t, sub, ".qdd/policies.yaml", "puertas: {}\n")
+	if g := buildPuertasChecks(sub); groupHasFailures(g) || len(g.Items) != 1 {
+		t.Fatalf("en una subcarpeta solo revisa la política: %+v", g.Items)
+	}
+	if g := buildPuertasChecks(repo); !groupHasFailures(g) {
+		t.Fatal("en la raíz sí revisa los hooks (aquí faltan)")
+	}
+}

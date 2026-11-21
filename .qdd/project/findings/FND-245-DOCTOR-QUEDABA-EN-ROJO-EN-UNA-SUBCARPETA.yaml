@@ -1,0 +1,9 @@
+id: "FND-245"
+title: "doctor quedaba en rojo en un proyecto en subcarpeta: pedía hooks que no podía instalar"
+description: "CI del PR #305 (2026-11-20): TestPipelineExecution corre qdd run init en cli/cmd (un proyecto en una subcarpeta del repositorio). init deja las puertas activas y doctor revisaba los hooks de la raíz; sin husky (en el CI) faltaban, y --fix no los instala desde una subcarpeta, así que doctor salía con 1 y la prueba fallaba. Aquí pasaba porque el worktree ya tenía los hooks en .husky/."
+impact: "Cualquier proyecto QDD en una subcarpeta de un repositorio (monorepo) con puertas tenía doctor en rojo para siempre, y qdd init fallaba en él."
+action_taken: "buildPuertasChecks revisa los hooks solo si el proyecto es la raíz de su repositorio (puertas.EsRaiz); en una subcarpeta revisa solo la política. Los hooks los revisa y repara el doctor de la raíz."
+test_result: "cli/cmd/puertas_hooks_test.go TestDoctorPuertas_EnUnaSubcarpetaNoRevisaLosHooks, y TestPipelineExecution sin core.hooksPath (GIT_CONFIG_VALUE_0= como en el CI): falló con exit status 1 antes del cambio y pasa después."
+status: resolved
+detectado_por: ia
+date: "2026-11-20"
