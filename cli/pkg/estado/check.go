@@ -104,8 +104,8 @@ func checkCelda(frente, etapa string, c Celda) []Violacion {
 	vs := checkTexto(frente, etapa, c.Evidencia, c.Bloqueo, c.DeQuien, c.Falla, c.RequiereAprobacion)
 	switch NormalizarEstado(c.Estado) {
 	case Hecho:
-		if strings.TrimSpace(c.Evidencia) == "" {
-			vs = append(vs, Violacion{ID: "EPF-C02", Frente: frente, Etapa: etapa, Mensaje: "✅ sin evidencia (commit, versión, n/n pruebas o id de corrida)"})
+		if evidenciaSuelta(c.Evidencia) {
+			vs = append(vs, Violacion{ID: "EPF-C02", Frente: frente, Etapa: etapa, Mensaje: "✅ sin evidencia que diga cómo se sabe (commit, versión, n/n pruebas, id de corrida o lo que confirmó la persona)"})
 		}
 		if c.RequiereAprobacion != "" && !c.Aprobado {
 			vs = append(vs, Violacion{ID: "EPF-C06", Frente: frente, Etapa: etapa, Mensaje: "requiere aprobación de " + c.RequiereAprobacion + " y todavía no la tiene: no puede estar en ✅"})
@@ -163,4 +163,15 @@ func checkTexto(frente, etapa string, textos ...string) []Violacion {
 		}
 	}
 	return nil
+}
+
+// palabrasSueltas no dicen cómo se sabe que algo está hecho.
+var palabrasSueltas = map[string]bool{"listo": true, "lista": true, "ok": true, "okay": true, "hecho": true, "hecha": true, "done": true,
+	"terminado": true, "terminada": true, "completo": true, "completado": true, "sí": true, "si": true, "yes": true, "✅": true,
+	"funciona": true, "bien": true, "arreglado": true, "fixed": true}
+
+// evidenciaSuelta: vacía o una palabra que no dice cómo se sabe (EPF-C02).
+func evidenciaSuelta(evidencia string) bool {
+	t := strings.ToLower(strings.TrimRight(strings.TrimSpace(evidencia), ".!"))
+	return t == "" || palabrasSueltas[t]
 }

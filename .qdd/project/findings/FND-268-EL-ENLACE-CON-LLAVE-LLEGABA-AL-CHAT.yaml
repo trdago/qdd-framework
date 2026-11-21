@@ -1,0 +1,9 @@
+id: "FND-268"
+title: "Una IA que corría qdd flujo compartir --enlace --rol recibía el enlace con la llave de la invitación"
+description: "Medido 2026-11-21 al probar flujo#51f50f31 («el panel muestra el enlace solo en el panel, nunca en el chat»): el comando imprime el enlace con su token en el fragmento (#t=…) a quien lo corra. Desde una IA (Bash de Claude Code) esa salida llega al chat y a su transcripción."
+impact: "La llave de una invitación, que qdd no guarda en ninguna parte a propósito, quedaba en el chat y en el transcript de la sesión."
+action_taken: "Con CLAUDECODE en el entorno, un rol y Cloudflare (token o entrada del baúl), compartir se rechaza antes de crear la invitación ni subir nada y dice que la persona lo comparte desde el panel (↗ Compartir, que corre sin CLAUDECODE). El enlace de solo lectura (sin llave) y el archivo sin Cloudflare siguen disponibles. Decidido en modo goal con la opción recomendada (2026-11-21); en vez de imprimir el enlace sin la llave (que dejaría una invitación sin enlace usable, porque qdd no guarda la llave) se rechaza antes de crearla."
+test_result: "cli/cmd/flujo_enlace_test.go TestCompartirEnlace_UnaIANoRecibeLaLlaveDeUnaInvitacion falló sin el arreglo (no existía el rechazo) y pasa con él; TestCompartirEnlace_ConRolElTokenNoQuedaEnElPCNiSubeACloudflare sigue pasando sin CLAUDECODE, como corre el panel."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

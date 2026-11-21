@@ -35,7 +35,7 @@ func registerEstadoTool(s *server.MCPServer) {
 		mcp.WithString("verifica"),
 		mcp.WithString("falla"),
 		mcp.WithString("requiere_aprobacion", mcp.Description("Quién aprueba el ✅.")),
-		mcp.WithBoolean("aprobado", mcp.Description("Dada por quien debía; nunca tú.")),
+		mcp.WithBoolean("aprobado", mcp.Description("La pide a la persona; nunca tú.")),
 		mcp.WithString("motivo", mcp.Description("Del cierre.")),
 		mcp.WithBoolean("descartado", mcp.Description("En vez de cerrar.")),
 		mcp.WithString("respuesta"),
@@ -61,7 +61,7 @@ func handleEstadoTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return resultadoEscritura(err, "tarea creada: "+id)
 	}
 	if accion == "set" {
-		return resultadoSet(root, cambioDesde(request), now)
+		return resultadoSet(root, cambioDesde(request), boolArg(request, "aprobado"), now)
 	}
 	if accion == "cerrar" {
 		err := estado.Cerrar(root, stringArg(request, "frente"), stringArg(request, "motivo"), boolArg(request, "descartado"), now)
@@ -127,7 +127,6 @@ func cambioDesde(request mcp.CallToolRequest) estado.Cambio {
 		Verifica:           stringArg(request, "verifica"),
 		Falla:              stringArg(request, "falla"),
 		RequiereAprobacion: stringArg(request, "requiere_aprobacion"),
-		Aprobado:           boolArg(request, "aprobado"),
 		AunqueExista:       boolArg(request, "aunque_exista"),
 	}
 }
@@ -159,11 +158,17 @@ func resultadoEscritura(err error, ok string) (*mcp.CallToolResult, error) {
 
 // resultadoSet recuerda declarar la tarea en el momento en que se la ve avanzar sin declarar (MEJ-021). No la enciende:
 // un ✅ también puede ser el último de una tarea ya terminada, y el teléfono diría «Trabajando» sin nadie trabajando.
-func resultadoSet(root string, c estado.Cambio, now time.Time) (*mcp.CallToolResult, error) {
+func resultadoSet(root string, c estado.Cambio, aprobado bool, now time.Time) (*mcp.CallToolResult, error) {
 	if err := estado.Set(root, c, now); err != nil {
 		return resultadoEscritura(err, "")
 	}
 	hecho := "celda actualizada en " + estado.Ruta + "."
+	if aprobado {
+		if err := pedirAprobacion(root, c.Frente, c.Etapa, now); err != nil {
+			return resultadoEscritura(err, "")
+		}
+		hecho += " La aprobación no la das tú: quedó en el panel el pedido 🔑 de la persona «" + comandoAprobar(c.Frente, c.Etapa) + "»."
+	}
 	if estado.NormalizarEstado(c.Estado) != estado.Hecho {
 		return mcp.NewToolResultText(hecho), nil
 	}

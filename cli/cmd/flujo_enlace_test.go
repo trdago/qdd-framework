@@ -157,6 +157,7 @@ func TestCompartirEnlace_LaPaginaDeUnaInvitacionNoLlevaElToken(t *testing.T) {
 // sube a Cloudflare no lo lleva, y ningún archivo de este PC (invitaciones, publicados, QDD_HOME) lo guarda.
 // contrato: flujo#51f50f31
 func TestCompartirEnlace_ConRolElTokenNoQuedaEnElPCNiSubeACloudflare(t *testing.T) {
+	t.Setenv("CLAUDECODE", "")
 	qddHome := t.TempDir()
 	t.Setenv("QDD_HOME", qddHome)
 	root := proyectoConFlujo(t)
@@ -193,5 +194,29 @@ func TestCompartirEnlace_ConRolElTokenNoQuedaEnElPCNiSubeACloudflare(t *testing.
 			}
 			return nil
 		})
+	}
+}
+
+// Una IA (CLAUDECODE) que pide un enlace con rol recibiría la llave de la invitación en su salida, y de ahí al chat: se
+// rechaza antes de crear la invitación ni subir nada, y le dice que la persona lo comparte desde el panel (que limpia
+// CLAUDECODE). El de solo lectura no lleva llave y sigue disponible.
+// contrato: flujo#51f50f31
+func TestCompartirEnlace_UnaIANoRecibeLaLlaveDeUnaInvitacion(t *testing.T) {
+	for _, c := range []struct {
+		rol, claudecode     string
+		cloudflare, rechaza bool
+	}{
+		{"cliente", "1", true, true},
+		{"cliente", "", true, false},
+		{"", "1", true, false},
+		{"cliente", "1", false, false},
+	} {
+		err := enlaceConLlaveParaIA(c.rol, c.claudecode, c.cloudflare)
+		if (err != nil) != c.rechaza {
+			t.Fatalf("%+v: %v", c, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), "panel") {
+			t.Fatalf("dice que la persona lo comparte desde el panel: %v", err)
+		}
 	}
 }

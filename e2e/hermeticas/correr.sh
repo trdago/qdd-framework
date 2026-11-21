@@ -1,6 +1,6 @@
 #!/bin/sh
 # Pruebas herméticas (FND-246): corre las pruebas de Go con un HOME falso y con espías en lugar de los programas que
-# tocan la máquina o la red (claude, gh, npm, systemctl…). Falla si alguna prueba escribió en las carpetas de la
+# tocan la máquina o la red (claude, gh, npm, systemctl…), y sin red si hay bwrap. Falla si alguna prueba escribió en las carpetas de la
 # persona (QDD_HOME, ~/.claude, unidades de systemd) o lanzó uno de esos programas. Uso: e2e/hermeticas/correr.sh
 # Corren además como desde un hook de git: con GIT_DIR y GIT_INDEX_FILE exportados hacia un repositorio que tiene que
 # quedar igual, sin commits, tags, remotes ni ramas nuevas (FND-117, FND-263).
@@ -24,11 +24,19 @@ antes=$(huella)
 cache=$(go env GOCACHE)
 modcache=$(go env GOMODCACHE)
 cd "$raiz/cli"
+# Sin red (bwrap --unshare-net deja solo localhost, que usan los servidores de prueba): una prueba que llama a internet
+# falla en vez de salir. Un borrador de prueba del baúl llegó a llamar a la API de Cloudflare con un token falso.
+sinred=""
+if command -v bwrap >/dev/null 2>&1 && bwrap --dev-bind / / --unshare-net true 2>/dev/null; then
+	go mod download
+	sinred="bwrap --dev-bind / / --unshare-net --die-with-parent --"
+fi
+[ -n "$sinred" ] || echo "[!] Sin bwrap las pruebas corren con red: una llamada real a internet no se detecta."
 env -u QDD_HOME -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR \
 	HOME="$caja/home" XDG_CONFIG_HOME="$caja/home/.config" XDG_RUNTIME_DIR="$caja/run" \
 	GOCACHE="$cache" GOMODCACHE="$modcache" GOFLAGS=-buildvcs=false PATH="$caja/bin:$PATH" \
-	GIT_DIR="$hook/.git" GIT_INDEX_FILE="$hook/.git/index" \
-	go test -count=1 ./... > "$caja/go-test.log" 2>&1 || { tail -40 "$caja/go-test.log"; echo "las pruebas fallaron dentro de la caja"; exit 1; }
+	GIT_DIR="$hook/.git" GIT_INDEX_FILE="$hook/.git/index" GOPROXY=off \
+	$sinred go test -count=1 ./... > "$caja/go-test.log" 2>&1 || { tail -40 "$caja/go-test.log"; echo "las pruebas fallaron dentro de la caja"; exit 1; }
 falla=0
 for d in .local/share/qdd .claude .config/systemd .config/qdd; do
 	[ -e "$caja/home/$d" ] || continue

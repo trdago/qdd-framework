@@ -64,6 +64,12 @@ jobs:
         with:
           go-version-file: cli/go.mod
 
+      # Ubuntu 24.04 restringe los espacios de nombres sin privilegios, que bubblewrap necesita para correr sin red.
+      - name: Install bubblewrap
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Preparar lo que embebe el binario
         run: |
           make core-assets
