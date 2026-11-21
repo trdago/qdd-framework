@@ -3,11 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/puertas"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +48,7 @@ func runAudit(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	marcar := marcaDelAudit(cwd)
 	engine := audit.NewEngine(cwd).ParandoAlBloquear()
 	fmt.Println("[+] Ejecutando motor de auditoría...")
 	resultado := engine.Evaluar()
@@ -53,6 +56,25 @@ func runAudit(cmd *cobra.Command, args []string) {
 	fmt.Print(formatAuditResult(resultado))
 	if len(audit.Bloqueantes(resultado.Violaciones)) > 0 {
 		os.Exit(1)
+	}
+	marcar()
+}
+
+// marcaDelAudit toma la huella del árbol antes de auditar (lo que el audit genere no queda aprobado) y devuelve qué
+// hacer si aprueba: dejarla como marca para la puerta audit. Sin puertas en la política no hace nada.
+func marcaDelAudit(cwd string) func() {
+	politica, _ := os.ReadFile(filepath.Join(cwd, ".qdd", "policies.yaml"))
+	if !puertas.PoliticaDe(politica).Activa {
+		return func() {}
+	}
+	huella, err := puertas.Huella(cwd)
+	if err != nil {
+		return func() {}
+	}
+	return func() {
+		if err := puertas.GuardarMarca(cwd, huella); err != nil {
+			fmt.Printf("[i] No quedó la marca para las puertas: %v\n", err)
+		}
 	}
 }
 

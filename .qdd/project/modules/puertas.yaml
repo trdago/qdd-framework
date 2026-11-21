@@ -1,0 +1,42 @@
+id: puertas
+nombre: Puertas de QDD (encaminar por acciones, medido)
+estado: aprobado
+rutas:
+    - cli/pkg/puertas
+    - cli/cmd/puertas.go
+objetivo_operativo:
+    problema: Las reglas del método (leer la ficha antes de editar, no commitear sin qdd audit, todo arreglo con su finding, publicar solo con la persona) dependen de que la IA se acuerde. Medido sin puertas (tmp/linea_base.py, 30 días), en notificador_de_ofertas solo el 7 % de los commits pasó por qdd audit y el 20 % de los fix nombró su finding; en qdd, el 67 % de las ediciones de código leyó antes la ficha. Adivinar la intención del mensaje cuesta tokens en cada turno y falla con el idioma; una acción (editar, commitear, publicar) se ve sin ambigüedad con cualquier IA.
+    usuarios: Las IAs que trabajan en un proyecto QDD (Claude Code por su mod; cualquier otra por los hooks de git), la persona que confirma pedidos en el panel y quien mide si las puertas sirven (qdd puertas informe).
+    criterio_de_exito: Tras una semana de uso real en qdd, notificador_de_ofertas y llmlocal, qdd puertas informe muestra por puerta decisiones, rechazos, % corregido al primer reintento, falsos positivos marcados, ms y tokens por rechazo; ≥80 % corregido al primer reintento, ≤5 % falsos positivos, ≤50 ms por decisión y 0 tokens cuando la acción pasa.
+    caso_real: '2026-11-02: la línea base mostró que, sin puertas, 93 % de los commits de notificador_de_ofertas se hacían sin el gate y 4 de cada 5 arreglos quedaban sin finding: justo el aprendizaje que QDD dice garantizar.'
+objetivo_tecnologico:
+    arquitectura: pkg/puertas decide (una función pura por puerta sobre hechos ya leídos) y anota cada decisión; los adaptadores solo traen los hechos y aplican la respuesta. 'qdd puertas revisar <accion>' es la única entrada; la llaman el mod de Claude Code (antes de cada herramienta del agente) y los hooks de git pre-commit y commit-msg que instala 'qdd puertas instalar' (lo corren init y doctor --fix). 'qdd audit' aprobado deja una marca con la huella del árbol de trabajo que revisó; el pre-commit solo la compara. Cada decisión va a <QDD_HOME>/puertas/<proyecto>.jsonl; 'qdd puertas informe' lo resume y 'qdd puertas falso <id>' marca un falso positivo.
+    decisiones:
+        - 'Puerta ficha: la IA edita un archivo de código sin haber pedido en la sesión el contexto (qdd_project_context o qdd modules context) de una ruta que lo cubra → se rechaza con el comando exacto. Una zona sin ficha no bloquea: el contexto ya le dice a la IA que proponga una.'
+        - 'Puerta audit: un commit cuyo árbol de trabajo no coincide con la huella del último qdd audit aprobado → se rechaza. Al día significa que nada cambió desde ese audit (archivos seguidos y nuevos no ignorados), así que commitear una parte de lo auditado pasa.'
+        - 'Puerta finding: un commit fix(...) o fix: debe nombrar un FND-NNN que exista en .qdd/project/findings con test_result; si no, se rechaza diciendo cómo registrarlo.'
+        - 'Puerta publicar: la IA corre gh pr merge, git push de un tag, npm publish o gh release create → se rechaza y se le dice que lo deje como pedido (qdd consola pedir). La política puertas.publicar en .qdd/policies.yaml (pedido por defecto, ia para permitirlo) la decide el proyecto. Un pedido confirmado en el panel no pasa por esta puerta.'
+        - 'La IA no puede saltarse una puerta con git commit --no-verify ni con variables de entorno: el mod rechaza esos comandos. La persona sí puede (--no-verify en su terminal) y eso no se mide.'
+        - Un rechazo dice qué falta y el comando exacto para resolverlo, en ≤280 caracteres. Si la acción pasa, la IA no recibe nada (0 tokens).
+        - 'Corregido al primer reintento: el siguiente intento de la misma puerta en la misma sesión pasa. Tokens por rechazo: caracteres del mensaje / 4.'
+        - 'Los hooks conviven con lo que ya hay: se agrega un bloque marcado (# >>> qdd puertas … # <<<) al hook existente o se crea; con husky (core.hooksPath=.husky/_) va en .husky/<hook>. Nunca se reemplaza un hook ajeno.'
+        - Las puertas se activan por proyecto con puertas en .qdd/policies.yaml (init las deja activas en proyectos nuevos; en uno existente las activa doctor --fix y lo dice).
+        - 'Etapa 1 (2026-11-20): puertas audit y publicar, y el rechazo de --no-verify, desde el mod de Claude Code (tool.call → qdd puertas revisar --dir --sesion -- <comando>, rechazo con salida 2). Etapa 2: puertas ficha y finding, hooks de git (qdd puertas instalar), doctor, init e informe. La carpeta es la del evento o la de la sesión; un cd del comando se sigue, uno de un comando anterior no.'
+        - 'Leer un comando: se parte como la shell (&&, ;, |, salto de línea) y lo que va entre comillas o en un heredoc es texto: un mensaje de commit que nombra gh pr merge no es un merge. Un git push publica solo con --tags, --follow-tags, --mirror o si lo que empuja es un tag del repositorio.'
+    invariantes:
+        - Una puerta que no puede decidir (qdd ausente, error, más de 2 s) deja pasar la acción y anota el error; nunca bloquea por una falla propia.
+        - Decidir no gasta tokens ni llama a un modelo; la misma acción con los mismos hechos da siempre la misma decisión.
+        - Cada decisión queda anotada (puerta, resultado, ms, sesión, largo del mensaje), fuera del proyecto y sin contenido de archivos ni rutas absolutas.
+        - doctor diagnostica las puertas (política, hooks instalados y vigentes, mod) y doctor --fix las repara sin tocar hooks ajenos.
+        - Las puertas no reemplazan al gate de CI; el CI sigue corriendo qdd audit.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/puertas/...
+        - cd cli && go test ./cmd/ -run 'Puertas|Doctor'
+        - cd cli/pkg/consola/mod/qdd-tareas && claude plugin test
+fuentes:
+    - cli/pkg/uso/uso.go
+    - cli/cmd/audit.go
+    - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
+ultima_revision: "2026-11-20"
+revisado_en_commit: 03f97432c0cb

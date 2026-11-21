@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.103] - 2026-11-20
+
+### Added
+
+- **Puertas de QDD, etapa 1 (ficha puertas):** con `puertas:` en `.qdd/policies.yaml`, el panel de Claude Code revisa cada comando de la IA que commitea o publica con `qdd puertas revisar`, sin modelo ni tokens.
+  - Un `git commit` pasa solo si el árbol es el que aprobó el último `qdd audit`. El audit toma la huella al empezar y la deja como marca si aprueba.
+  - Publicar (`gh pr merge`, `git push` de un tag, `npm publish`, `gh release create`) va como pedido de la persona; `puertas: {publicar: ia}` lo deja a la IA.
+  - `git commit --no-verify` se rechaza.
+  - Si qdd falla o tarda más de 2 s, el comando pasa. Cada decisión se anota en `<QDD_HOME>/puertas/<proyecto>.jsonl`.
+  - qdd activa sus propias puertas.
+
 ## [2.10.0-rc.102] - 2026-11-20
 
 ### Fixed

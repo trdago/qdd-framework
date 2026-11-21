@@ -4096,6 +4096,23 @@ async function cicloPropuestas($) {
 // lo intenta por una herramienta de shell recibe una negativa aquí y, si lo esquiva, un rechazo de qdd (FND-146).
 const GOAL_MS = 5000
 const ACCION_GOAL = 'goal-activar'
+// Puertas (ficha puertas, etapa 1): un comando de la IA que nombra un commit o una publicación pasa antes por 'qdd
+// puertas revisar', que decide sin modelo. Solo su 2 lo rechaza, con el mensaje de qdd; si falla o tarda más de 2 s, el
+// comando pasa (una puerta nunca bloquea por una falla propia). Lo demás no gasta un proceso.
+const NOMBRA_PUERTA = /\bgit\b[^\n]*\b(commit|push)\b|\bgh\s+(pr\s+merge|release\s+create)\b|\bpublish\b/
+const TOPE_PUERTAS_MS = 2000
+let carpetaDeSesion = ''
+
+async function rechazoDePuertas($, e) {
+  const comando = String(e.command || '')
+  if (!HERRAMIENTAS_SHELL.has(e.tool) || !NOMBRA_PUERTA.test(comando)) return ''
+  const args = [await binario($), 'puertas', 'revisar', '--dir', String(e.cwd || carpetaDeSesion || '.'), '--sesion', await sesionPropia($), '--', comando]
+  const revision = $.process.run(args, { timeoutMs: TOPE_PUERTAS_MS }).catch(() => null)
+  const r = await Promise.race([revision, $.clock.sleep(TOPE_PUERTAS_MS).then(() => null)])
+  if (r?.exitCode !== 2) return ''
+  return String(r.stdout || '').trim()
+}
+
 const ACTIVA_GOAL = /\bqdd(?:[-.][\w.-]*)?["']?\s+(goal\s+activar|consola\s+accion\s+goal-activar)\b/
 const MOTIVOS_GOAL = {
   sin_consola: 'sin una sesión abierta',
@@ -4228,6 +4245,7 @@ export function register(on) {
   on('session.start', async ($, e, next) => {
     interactiva = e.isInteractive === true
     proyectoDeSesion = String(e.cwd || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop() || ''
+    carpetaDeSesion = String(e.cwd || '')
     if (interactiva) {
       $.clock.every(TELEFONO_MS, async () => {
         await latirTelefono($)
@@ -4286,6 +4304,8 @@ export function register(on) {
     hubo()
     anotarHerramienta(e)
     if (HERRAMIENTAS_SHELL.has(e.tool) && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
+    const rechazo = await rechazoDePuertas($, e)
+    if (rechazo) return { deny: rechazo }
     const seguir = !e.agentId && e.tool_use_id
     if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
     try {
