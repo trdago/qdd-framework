@@ -6,6 +6,23 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.108] - 2026-11-21
+
+### Added
+
+- **Cada promesa de una ficha con la prueba que la demuestra:** cada invariante de una ficha tiene un id corto, sacado de su texto, y una prueba lo cita con `contrato: <ficha>#<id>` en un comentario, en cualquier lenguaje.
+  - `qdd modules context` muestra cada invariante con su id y sus pruebas, o un aviso de que no tiene.
+  - `qdd audit` recomienda citar los que nadie cita (HEART-04). Es una sola recomendación por proyecto y no bloquea.
+  - Si cambia el texto de una promesa, la cita vieja deja de contar hasta que alguien revise su prueba.
+  - En qdd: 111 de 230 invariantes ya citados.
+- **Pruebas herméticas en CI (FND-246):** `e2e/hermeticas/correr.sh` corre todas las pruebas de Go con un HOME falso y con espías en lugar de `claude`, `gh`, `npm`, `systemctl` y otros. Falla si una prueba escribe en las carpetas de la persona o lanza un programa real.
+
+### Fixed
+
+- **Las pruebas escribían en tu QDD_HOME (FND-246):** las de consola dejaban un archivo de turnos por corrida en `~/.local/share/qdd` (525 en un PC), y las de estado creaban carpetas. Ahora usan un QDD_HOME temporal.
+- **qdd remoto anota cada push que pide (FND-247):** antes no se podía saber si un «pregunta_resuelto» salió del PC.
+- **Tres reglas del audit sin principio:** DEV-01, FMT-01 y FMT-02 salían sin principio, sin razón y sin categoría. Ahora pertenecen a P-FAST-DEV-LOOP y P-CI-FORMAT.
+
 ## [2.10.0-rc.107] - 2026-11-20
 
 ### Fixed
