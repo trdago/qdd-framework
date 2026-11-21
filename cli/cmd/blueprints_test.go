@@ -46,6 +46,14 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
+	// TestDashboard_ElServidorDeVerdadSoloAtiendeAEstePC lanza este binario como «qdd dashboard» (dashboard#7ceb11f1);
+	// lo demás que el dashboard relanza de sí mismo (certify) no corre nada.
+	if os.Getenv(envDashboardDePrueba) != "" && len(os.Args) > 1 {
+		if os.Args[1] == "dashboard" {
+			Execute()
+		}
+		os.Exit(0)
+	}
 	// La acción del panel que activa el modo goal relanza este binario como «qdd goal» (FND-146).
 	if len(os.Args) > 1 && os.Args[1] == "goal" {
 		Execute()
