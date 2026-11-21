@@ -1,0 +1,9 @@
+id: "FND-276"
+title: "La actividad guardaba un correo o un nombre de persona en «quién»"
+description: "Medido 2026-11-21 al probar el invariante «La actividad no guarda credenciales ni datos personales: «quién» es una herramienta, no una persona» (estado-por-tareas#96a91e48): estado.Activar guardaba --quien tal cual. qdd estado activa a --quien juan@empresa.cl dejó \"quien\": \"juan@empresa.cl\" en <QDD_HOME>/claude/actividad/<proyecto>.json; lo mismo con «Juan Pérez», un teléfono, un RUT, «token=…» o un token ghp_."
+impact: "La actividad, que se lee en el panel y el teléfono, podía guardar el correo, el nombre, el teléfono o una credencial de alguien, contra la regla del blueprint de que «quién» es una herramienta."
+action_taken: "Activar rechaza, sin escribir nada, un --quien que no parece el nombre de una herramienta (minúsculas, números, punto, guion y guion bajo, hasta 40) o que la lista mínima de secretos y datos personales del blueprint (EPF-C07) reconoce; el mensaje no repite lo rechazado. claude-code, mcp, gemini-cli, opencode y vacío siguen valiendo."
+test_result: "cli/pkg/estado/actividad_contrato_test.go TestActividad_QuienEsUnaHerramientaNoUnaPersona_FND276 falló sin el arreglo («juan@empresa.cl» quedó en la actividad) y pasa con él."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
