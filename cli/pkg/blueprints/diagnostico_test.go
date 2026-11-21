@@ -108,6 +108,50 @@ func TestReparar_SyncsButNeverUpdatesOnItsOwn(t *testing.T) {
 	}
 }
 
+// contrato: doctor#db30fa20
+// doctor --fix pasa por Reparar: la copia legada editada a mano sigue igual y la acción dice que quedó pendiente.
+func TestReparar_NeverDeletesAHandEditedLegacyCopy(t *testing.T) {
+	root, _ := legacyProject(t)
+	edited := filepath.Join(root, Dir, "auth", ManifestName)
+	editado := strings.Replace(authBlueprint, "nunca por nombre de rol", "o por rol", 1)
+	writeFile(t, edited, editado)
+	acciones := strings.Join(Reparar(root), "\n")
+	if b, err := os.ReadFile(edited); err != nil || string(b) != editado {
+		t.Fatalf("doctor --fix no borra ni pisa la copia editada: %q, %v", b, err)
+	}
+	if !strings.Contains(acciones, "pendiente auth") {
+		t.Fatalf("la reparación dice que auth quedó pendiente: %s", acciones)
+	}
+	if lock, _ := LoadLock(root); len(lock.Blueprints) != 1 || lock.Blueprints[0].Version != "1.0.0" {
+		t.Fatalf("y no cambia la versión del lockfile: %+v", lock)
+	}
+}
+
+// Una copia de la carpeta central alterada a mano no vale (la huella es la del lockfile): doctor --fix la rehace desde
+// el commit fijado, y lo dice.
+func TestReparar_RebuildsAnAlteredCentralCopyAndSaysSo(t *testing.T) {
+	repo := gitOrgRepo(t)
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: repo, Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	lock, _ := LoadLock(root)
+	dest, err := storePath(lock.Blueprints[0].SHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifiesto := filepath.Join(dest, ManifestName)
+	os.Chmod(manifiesto, 0644)
+	writeFile(t, manifiesto, "editado a mano\n")
+	acciones := strings.Join(Reparar(root), "\n")
+	if !strings.Contains(acciones, "reconstruido auth@1.0.0") {
+		t.Fatalf("la reparación dice que rehízo la copia central: %s", acciones)
+	}
+	if !intacto(dest, lock.Blueprints[0].SHA256) {
+		t.Fatal("la copia central vuelve a coincidir con el lockfile")
+	}
+}
+
 // moduloAplicado importa auth del repositorio y lo aplica al módulo crm, con
 // rutas propias del proyecto.
 func moduloAplicado(t *testing.T) (string, string) {
