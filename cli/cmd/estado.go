@@ -286,7 +286,8 @@ func runEstadoActiva(cmd *cobra.Command, args []string) {
 	fmt.Printf("[+] %s en curso: el panel la muestra «● running»; se apaga sola a los %d s sin pulsos\n", args[0], int(estado.VidaActividad.Seconds()))
 }
 
-// runEstadoPulso no imprime nada si no hay tarea en curso: lo llaman el mod en cada herramienta y los scripts.
+// runEstadoPulso no imprime nada si no hay tarea en curso: lo llaman el mod en cada herramienta y los scripts. Un pulso
+// que no se puede anotar lo dice y sale con 0: un script con set -e no se corta por su señal de vida (FND-275).
 func runEstadoPulso(cmd *cobra.Command, args []string) {
 	id := ""
 	if len(args) == 1 {
@@ -296,7 +297,7 @@ func runEstadoPulso(cmd *cobra.Command, args []string) {
 	// Un pulso es el agente trabajando: es uso real de qdd aunque no haya tarea en curso.
 	registrarUso(root)
 	if _, err := estado.Pulsar(root, id, estadoFuente, time.Now()); err != nil {
-		salirCon("%v", err)
+		fmt.Fprintf(os.Stderr, "[!] pulso no anotado: %v\n", err)
 	}
 }
 

@@ -1,0 +1,9 @@
+id: "FND-275"
+title: "Un pulso que no se podía anotar cortaba el script que lo producía"
+description: "Medido 2026-11-21 al probar el invariante «Un pulso nunca demora ni bloquea la herramienta, el subagente o el comando que lo produjo» (estado-por-tareas#24b379fd): qdd estado pulso salía con 1 cuando no podía anotar el pulso. En un proyecto con la tarea «a» cerrada, bash -ec 'qdd estado pulso a --fuente comando; echo siguio' terminó con 1 sin llegar al echo; igual con una tarea que no existe, una fuente mal escrita o una carpeta sin tablero."
+impact: "Los scripts largos del proyecto (tests, deploys, workers), que la ficha pide que laten con 'qdd estado pulso <tarea> --fuente comando', se cortaban con set -e apenas la tarea se cerraba o se renombraba: la señal de vida rompía el trabajo que debía acompañar."
+action_taken: "runEstadoPulso ya no sale con 1: si el pulso no se puede anotar lo dice en stderr («[!] pulso no anotado: …») y sale con 0. estado.Pulsar sigue devolviendo el error (la regla de solo tareas abiertas no cambia); solo el comando deja de cortar a quien lo llama."
+test_result: "cli/cmd/estado_contrato_test.go TestEstadoPulso_NuncaCortaElComandoQueLoProduce_FND275 (qdd de verdad en otro proceso) falló sin el arreglo (salió con 1 en los 4 casos: tarea cerrada, tarea que no existe, fuente inválida y sin tablero) y pasa con él; un pulso que se anota sigue sin imprimir nada."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
