@@ -1,0 +1,9 @@
+id: "FND-260"
+title: "En Windows, qdd remoto desactivar borraba la tarea programada aunque fuera de otro QDD_HOME"
+description: "Servicio.esDeEsteHome devolvía siempre true en Windows: la tarea «QDD remoto» es una sola por usuario y no lleva variables de entorno, así que desactivar desde un QDD_HOME aislado que tuviera su qdd-remoto.xml corría schtasks /End y /Delete sobre la tarea real. La prueba FND-136 solo cubría linux y darwin, y la de cmd hacía t.Skip en Windows."
+impact: "Una prueba o un QDD_HOME aislado podían apagar y borrar el servicio de QDD Móvil de la persona en Windows (ficha remoto: «desactivar nunca apaga ni borra un servicio que publica otro QDD_HOME»)."
+action_taken: "La tarea de Windows dice en su descripción el QDD_HOME con que se activó («(QDD_HOME=…)», solo si se fijó); esDeEsteHome lee el XML en UTF-16 y compara esa marca como en systemd y launchd. Una tarea sin marca es del QDD_HOME de siempre: desde otro, Quitar devuelve ErrServicioDeOtroHome sin correr schtasks."
+test_result: "cli/pkg/remoto/servicio_test.go TestServicio_QuitarNoTocaElServicioDeOtroQDDHome_FND136 con «windows» en el bucle falló («windows con \"/h/real\": dice que es de otro QDD_HOME: <nil>») y pasa con el arreglo; TestServicio_QuitarSiBorraElDeSuMismoQDDHome_FND136 sigue pasando en los tres sistemas."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
