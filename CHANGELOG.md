@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.104] - 2026-11-20
+
+### Added
+
+- **Puertas ficha y finding (ficha puertas, etapa 2a):**
+  - **Finding:** un commit `fix:` o `fix(...)` pasa solo si nombra un FND-NNN de `.qdd/project/findings` con `test_result`. Se lee el mensaje de `-m` (también el de un heredoc) o el archivo de `-F`.
+  - **Ficha:** antes de editar un archivo que cubre una ficha, el panel pregunta a `qdd puertas revisar --editar` con las rutas cuyo contexto ya pidió la sesión (`qdd_project_context` o `qdd modules context`). Si ninguna mostró esa ficha, la edición se rechaza con el comando exacto. Una zona sin ficha pasa. Cuesta ~20 ms por edición.
+
 ## [2.10.0-rc.103] - 2026-11-20
 
 ### Added
