@@ -1,0 +1,9 @@
+id: "FND-252"
+title: "EPF-C07 no revisaba el texto del reporte ni toda la lista mínima de credenciales y datos personales"
+description: "La decisión del blueprint estado-por-tareas fija como mínimo correos, teléfonos, RUT, tokens sk-, ghp_, AKIA, xox y npm_, claves privadas, «clave=», «token=», «password=» y «Bearer …». La regex de pkg/estado/check.go no detectaba npm_, claves privadas, «Bearer …», teléfonos, «clave=» ni el RUT sin puntos, y CheckRespuesta (qdd estado check --respuesta y qdd_estado) nunca corría EPF-C07 sobre el texto del reporte."
+impact: "Rompía estado-por-tareas#01243347 («ni en la tabla ni en el texto»): un reporte con un token npm_, una llave privada, un teléfono o un correo en la prosa pasaba el lector automático."
+action_taken: "La regex cubre la lista mínima completa (npm_, BEGIN … PRIVATE KEY, Bearer, clave=, teléfonos con código de país, RUT con o sin puntos) y CheckRespuesta revisa la respuesta entera con EPF-C07."
+test_result: "cli/pkg/estado/estado_test.go TestCheck_EPFC07_SinSecretosNiDatosPersonales fallaba antes (6 formas no detectadas en la tabla y 14 en el texto) y pasa después; qdd estado check sobre el estado.yaml del repositorio sigue limpio."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

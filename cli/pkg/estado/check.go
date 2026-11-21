@@ -29,8 +29,10 @@ func (v Violacion) String() string {
 	return fmt.Sprintf("[%s] %s: %s", v.ID, lugar, v.Mensaje)
 }
 
-// secretoODatoPersonal: forma de credencial, correo o RUT chileno (EPF-C07).
-var secretoODatoPersonal = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{16,}|ghp_[a-z0-9]{16,}|github_pat_[a-z0-9_]{16,}|AKIA[0-9A-Z]{16}|xox[baprs]-[a-z0-9-]{10,}|(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b)`)
+// secretoODatoPersonal: la lista mínima de la decisión del blueprint (EPF-C07): tokens con prefijo conocido (sk-, ghp_,
+// github_pat_, AKIA, xox, npm_), claves privadas, «Bearer …», «clave=», «token=», «password=», correos, teléfonos con
+// código de país y RUT (con o sin puntos).
+var secretoODatoPersonal = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{16,}|ghp_[a-z0-9]{16,}|github_pat_[a-z0-9_]{16,}|AKIA[0-9A-Z]{16}|xox[baprs]-[a-z0-9-]{10,}|\bnpm_[a-z0-9]{20,}|-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\bbearer\s+[a-z0-9._~+/=-]{8,}|(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+|\bclave\s*=\s*\S+|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|\+\d{1,3}(?:[\s.-]?\d){8,12}\b|\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b|\b\d{7,8}-[\dkK]\b)`)
 
 // Check revisa el archivo. prev es la versión anterior (p. ej. la de git HEAD) para EPF-C05; nil si no hay.
 func Check(e Estado, prev *Estado) []Violacion {
