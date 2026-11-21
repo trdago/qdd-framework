@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.111] - 2026-11-21
+
+### Fixed
+
+- **Las pruebas dejaban carpetas en el disco temporal (FND-288):** en un PC se juntaron más de 2000 y llenaron el disco temporal. Ahora la prueba espera a que termine el proceso de cada pedido, la carpeta aislada se borra aunque un proceso rezagado la vuelva a crear, y los procesos ayudantes reutilizan la carpeta aislada de su padre.
+
 ## [2.10.0-rc.110] - 2026-11-21
 
 ### Added

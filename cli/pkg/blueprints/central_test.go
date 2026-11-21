@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/qdd-framework/qdd/pkg/aislar"
 )
 
 // TestMain aísla la carpeta central: ninguna prueba toca ~/.local/share/qdd.
 func TestMain(m *testing.M) {
-	home, err := os.MkdirTemp("", "qdd-home-")
+	home, propia, err := aislar.Carpeta("qdd-home-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
 		os.Exit(1)
@@ -22,7 +24,9 @@ func TestMain(m *testing.M) {
 		os.Setenv(k, v)
 	}
 	code := m.Run()
-	os.RemoveAll(home)
+	if propia {
+		aislar.Borrar(home)
+	}
 	os.Exit(code)
 }
 

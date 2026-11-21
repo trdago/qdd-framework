@@ -19,6 +19,8 @@ import (
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 	"github.com/zalando/go-keyring"
+
+	"github.com/qdd-framework/qdd/pkg/aislar"
 )
 
 const cmdTestBlueprint = `id: auth
@@ -69,7 +71,7 @@ func TestMain(m *testing.M) {
 		Execute()
 		os.Exit(0)
 	}
-	home, err := os.MkdirTemp("", "qdd-home-")
+	home, propia, err := carpetaCentralDePrueba()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
 		os.Exit(1)
@@ -89,7 +91,9 @@ func TestMain(m *testing.M) {
 		os.Setenv(k, v)
 	}
 	code := m.Run()
-	os.RemoveAll(home)
+	if propia {
+		aislar.Borrar(home)
+	}
 	os.Exit(code)
 }
 
@@ -468,4 +472,13 @@ func TestTextoDeEntrevista_SoloCuandoHayAlgoQuePreguntar(t *testing.T) {
 	if e := textoDeEntrevista(c); !strings.Contains(e, "no lo respondas tú") || !strings.Contains(e, "incluye") {
 		t.Fatalf("la entrevista es de la persona: %q", e)
 	}
+}
+
+// carpetaCentralDePrueba: el ayudante de audit (correrAudit) trae la carpeta central de su prueba, que borra el padre;
+// si creara otra, al salir con os.Exit quedaba en el TMPDIR de la máquina (FND-288).
+func carpetaCentralDePrueba() (string, bool, error) {
+	if h := os.Getenv(blueprints.HomeEnv); h != "" && os.Getenv("QDD_AUDIT_AYUDANTE") != "" {
+		return h, false, nil
+	}
+	return aislar.Carpeta("qdd-home-")
 }
