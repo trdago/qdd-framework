@@ -49,6 +49,29 @@ jobs:
       - name: Check Suite Paths
         run: qdd audit --verificar-rutas
 
+  hermeticas:
+    # FND-246: ninguna prueba escribe en las carpetas de la persona (QDD_HOME, ~/.claude, systemd) ni lanza claude, gh,
+    # npm o systemctl reales. Corre todas las pruebas de Go con HOME falso y espías (e2e/hermeticas/correr.sh).
+    name: Pruebas herméticas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - name: Preparar lo que embebe el binario
+        run: |
+          make core-assets
+          mkdir -p cli/ui/dist && [ -f cli/ui/dist/index.html ] || echo '' > cli/ui/dist/index.html
+
+      - name: Pruebas sin tocar la máquina
+        run: e2e/hermeticas/correr.sh
+
   panel-windows:
     # El flujo del panel (RFC 0016) depende de cómo el sistema avisa escrituras y cierra tuberías: se prueba en Windows.
     name: Flujo del panel en Windows
