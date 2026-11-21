@@ -13,14 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type Finding struct {
-	ID       string `yaml:"id"`
-	Type     string `yaml:"type"`
-	Title    string `yaml:"title"`
-	Status   string `yaml:"status"`
-	Severity string `yaml:"severity"`
-}
-
 var mcpCmd = &cobra.Command{
 	Use:   "mcp-server",
 	Short: "Inicia el servidor MCP nativo de QDD (JSON-RPC sobre Stdio)",

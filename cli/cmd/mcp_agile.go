@@ -13,7 +13,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/integration"
-	"gopkg.in/yaml.v3"
 )
 
 func registerFindingsTool(s *server.MCPServer) {
@@ -21,68 +20,39 @@ func registerFindingsTool(s *server.MCPServer) {
 		mcp.WithDescription("Findings del proyecto (bugs, vulnerabilidades)."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		qddDir := filepath.Join(".", ".qdd", "project", "findings")
-		if _, err := os.Stat(qddDir); os.IsNotExist(err) {
+		if _, err := os.Stat(findings.Dir(".")); os.IsNotExist(err) {
 			return mcp.NewToolResultText("No se encontró el directorio de findings (.qdd/project/findings)."), nil
 		}
-
-		files, err := os.ReadDir(qddDir)
+		fs, err := findings.Leer(".")
 		if err != nil {
 			return mcp.NewToolResultText(fmt.Sprintf("Error leyendo directorio de findings: %v", err)), nil
 		}
-
-		out, total := processFindingsFiles(qddDir, files)
-
-		if total == 0 {
+		if len(fs) == 0 {
 			return mcp.NewToolResultText("No hay hallazgos registrados en el proyecto."), nil
 		}
-
-		return mcp.NewToolResultText(out), nil
+		return mcp.NewToolResultText(reporteFindings(fs)), nil
 	})
 }
 
-func processFindingsFiles(qddDir string, files []os.DirEntry) (string, int) {
+// iconoFinding: cada estado de pkg/findings con el suyo; un sin estado no es abierto ni resuelto (FND-261).
+var iconoFinding = map[findings.Estado]string{
+	findings.Abierto: "🔴", findings.Resuelto: "🟢", findings.Descartado: "⚪", findings.SinEstado: "❔",
+}
+
+// reporteFindings cuenta con pkg/findings, como los demás lectores (FND-261).
+func reporteFindings(fs []findings.Finding) string {
 	out := "--- QDD FINDINGS REPORT ---\n\n"
-	total := 0
-	resolved := 0
-	pending := 0
-
-	for _, file := range files {
-		if shouldProcessFinding(file) {
-			processSingleFinding(filepath.Join(qddDir, file.Name()), &out, &total, &resolved, &pending)
+	for _, f := range fs {
+		estado := strings.ToUpper(f.EstadoOriginal)
+		if f.Estado == findings.SinEstado {
+			estado = "SIN ESTADO"
 		}
+		out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", iconoFinding[f.Estado], f.ID, strings.ToUpper(f.Severidad), estado, f.Titulo)
 	}
-
+	c := findings.Contar(fs)
 	out += "\n-------------------------------\n"
-	out += fmt.Sprintf("Total: %d | Resueltos: %d | Pendientes: %d\n", total, resolved, pending)
-	return out, total
-}
-
-func shouldProcessFinding(file os.DirEntry) bool {
-	return !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml")
-}
-
-func processSingleFinding(path string, out *string, total, resolved, pending *int) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-
-	var f Finding
-	if err := yaml.Unmarshal(content, &f); err != nil {
-		return
-	}
-
-	*total++
-	icon := "🔴"
-	if findings.Normalizar(f.Status) == findings.Resuelto {
-		icon = "🟢"
-		*resolved++
-		*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
-		return
-	}
-	*pending++
-	*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
+	out += fmt.Sprintf("Total: %d | Resueltos: %d | Pendientes: %d | Descartados: %d | Sin estado: %d\n", len(fs), c.Resueltos, c.Abiertos, c.Descartados, c.SinEstado)
+	return out
 }
 
 func registerSprintTool(s *server.MCPServer) {
