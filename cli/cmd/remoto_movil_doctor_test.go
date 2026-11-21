@@ -118,6 +118,7 @@ func TestDoctorMovil_TodoSanoEnVerde(t *testing.T) {
 	}
 }
 
+// contrato: remoto#f6eb38fa
 func TestDoctorMovil_ServicioInstaladoSinEmparejarPideLoginYNoLoIntenta(t *testing.T) {
 	m := movilPrueba(t)
 	s, _ := remotoServicio()

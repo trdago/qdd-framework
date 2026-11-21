@@ -237,6 +237,7 @@ func TestBucle_SinTelefonosSoloPresence(t *testing.T) {
 	}
 }
 
+// contrato: remoto#a79ebe5c
 func TestBucle_ConTelefonoEstadoSyncYDeltasAgrupados(t *testing.T) {
 	homeTemporal(t)
 	a, b := proyecto(t, "a", true), proyecto(t, "b", true)

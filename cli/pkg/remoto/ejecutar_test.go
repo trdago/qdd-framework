@@ -292,6 +292,7 @@ func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 
 // contrato: remoto#2e9da439
 // contrato: remoto#e825732f
+// contrato: remoto#179be606
 func TestEjecutar_LoQueNoSePermiteSeRechazaYNoCorre(t *testing.T) {
 	_, clave, falso, tr := bucleConQDDFalso(t)
 	casos := []struct{ tipo, texto, dice string }{
@@ -396,6 +397,7 @@ func TestAccion_AuditarDesdeElTelefonoDevuelveElFinalDeLaSalida(t *testing.T) {
 
 // contrato: remoto#6e30dfb4
 // contrato: remoto#e825732f
+// contrato: remoto#179be606
 func TestEjecutar_SinProSeRechaza(t *testing.T) {
 	_, clave, falso, tr := bucleConQDDFalso(t, func(b *Bucle) {
 		b.R = &relayBucleFalso{plan: PlanGratis(), avisos: make(chan aviso, 32)}
@@ -659,6 +661,7 @@ func TestEjecutar_UnaEdicionQueNoSePuedeSeRechazaSinEscribir(t *testing.T) {
 }
 
 // contrato: remoto#2e9da439
+// contrato: remoto#179be606
 func TestEjecutar_FlujoSinProSeRechaza(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t, func(b *Bucle) {
 		b.R = &relayBucleFalso{plan: PlanGratis(), avisos: make(chan aviso, 32)}
