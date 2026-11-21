@@ -127,3 +127,59 @@ func TestMarcaDelAudit_SinPuertasNoMarca(t *testing.T) {
 		t.Fatalf("sin puertas el audit no deja marca: %q", m)
 	}
 }
+
+func TestPuertasRevisar_UnFixNombraSuFinding(t *testing.T) {
+	_, repo := proyectoConPuertas(t, "puertas: {}\n")
+	escribirEnRepo(t, repo, ".qdd/project/findings/FND-001-ALGO.yaml", "id: FND-001\ntitle: algo\nstatus: resolved\ntest_result: TestAlgo pasa\n")
+	escribirEnRepo(t, repo, "tmp/msg.txt", "fix: sin finding\n")
+	marcarAuditado(t, repo)
+	casos := map[string]int{
+		"git commit -m 'fix(x): algo (FND-001)'": 0,
+		"git commit -m 'feat: algo'":             0,
+		"git commit -m 'fix: algo'":              codigoRechazo,
+		"git commit -m 'fix: algo (FND-002)'":    codigoRechazo,
+		"git commit -F tmp/msg.txt":              codigoRechazo,
+	}
+	for comando, want := range casos {
+		if codigo, msg := revisarPuertas(repo, "", comando); codigo != want {
+			t.Errorf("%q: %d %q, want %d", comando, codigo, msg, want)
+		}
+	}
+}
+
+func TestPuertasRevisar_LeerLaFichaAntesDeEditar(t *testing.T) {
+	home, repo := proyectoConPuertas(t, "puertas: {}\n")
+	escribirEnRepo(t, repo, ".qdd/project/modules/baul.yaml", "id: baul\nnombre: Baúl\nestado: aprobado\nrutas:\n    - cli/pkg/baul\n    - cli/cmd/baul.go\n")
+	escribirEnRepo(t, repo, "cli/pkg/baul/verificar.go", "package baul\n")
+	archivo := filepath.Join(repo, "cli/pkg/baul/verificar.go")
+	codigo, msg := revisarEdicion(repo, "s-1", archivo, nil)
+	if codigo != codigoRechazo || !strings.Contains(msg, "qdd modules context cli/pkg/baul/verificar.go") {
+		t.Fatalf("sin leer la ficha se rechaza: %d %q", codigo, msg)
+	}
+	for _, leidas := range [][]string{{"cli/pkg/baul"}, {"cli/cmd/baul.go"}, {filepath.Join(repo, "cli/pkg/baul/verificar.go")}, {"otra", "cli/pkg/baul/verificar.go"}} {
+		if codigo, msg := revisarEdicion(repo, "s-1", archivo, leidas); codigo != 0 {
+			t.Errorf("leída por %v pasa: %d %q", leidas, codigo, msg)
+		}
+	}
+	if codigo, _ := revisarEdicion(repo, "s-1", filepath.Join(repo, "docs/nuevo.md"), nil); codigo != 0 {
+		t.Error("una zona sin ficha no bloquea")
+	}
+	if codigo, _ := revisarEdicion(repo, "s-1", filepath.Join(repo, "cli/pkg/estado/x.go"), []string{"cli/pkg/baul"}); codigo != 0 {
+		t.Error("la ficha de otra zona no cuenta, pero sin ficha propia pasa")
+	}
+	datos, _ := os.ReadFile(filepath.Join(home, "puertas", filepath.Base(repo)+".jsonl"))
+	if !strings.Contains(string(datos), `"puerta":"ficha"`) || strings.Contains(string(datos), "no-aplica") {
+		t.Fatalf("se anota lo que la puerta decidió, no lo que no le tocaba: %s", datos)
+	}
+}
+
+func marcarAuditado(t *testing.T, repo string) {
+	t.Helper()
+	huella, err := puertas.Huella(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := puertas.GuardarMarca(repo, huella); err != nil {
+		t.Fatal(err)
+	}
+}
