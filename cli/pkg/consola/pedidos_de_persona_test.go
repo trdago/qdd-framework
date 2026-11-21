@@ -53,3 +53,56 @@ func TestPedidos_UnCampoQueEsteQddNoConoceSobreviveAReescribirLaCola_FND188(t *t
 		t.Fatalf("la cola se lee igual: %+v", cola)
 	}
 }
+
+// contrato: estado#fb185bd9
+// La marca de la persona solo se agrega: pedir de nuevo el mismo comando como IA, aceptarlo, que falle, que diga
+// «todavía no» y quede armado, dejar de esperarlo y reparar la cola nunca se la quitan. Sin ella, el modo goal lo
+// lanzaría como uno de la IA.
+func TestPedidos_NingunaEscrituraLeQuitaLaMarcaDeLaPersona_FND188(t *testing.T) {
+	root := proyectoConCola(t)
+	comando := "qdd mejoras admitir MEJ-047"
+	p, err := PedirEnOrden(root, comando, "📮 Admitir MEJ-047", "", Orden{DePersona: true}, enCola)
+	if err != nil || !p.DePersona {
+		t.Fatalf("pedido como de la persona: %+v %v", p, err)
+	}
+	sigueDeLaPersona := func(paso string) {
+		t.Helper()
+		cola := leerCola(root)
+		if len(cola) != 1 || !cola[0].DePersona {
+			t.Fatalf("%s le quitó la marca de la persona: %+v", paso, cola)
+		}
+	}
+	q, err := Pedir(root, comando, "📮 Admitir MEJ-047", "", enCola)
+	if err != nil || q.ID != p.ID || !q.DePersona {
+		t.Fatalf("pedirlo de nuevo como IA devuelve el mismo, todavía de la persona: %+v %v", q, err)
+	}
+	sigueDeLaPersona("pedirlo de nuevo como IA")
+	if _, err := aceptar(root, p.ID, "sesion-1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	sigueDeLaPersona("aceptarlo")
+	terminar(root, p.ID, 1, "falló", false)
+	if cola := leerCola(root); cola[0].Estado != EstadoFallo {
+		t.Fatalf("quedó con falla: %+v", cola)
+	}
+	sigueDeLaPersona("una falla")
+	if _, err := aceptar(root, p.ID, "sesion-1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	terminar(root, p.ID, CodigoTodaviaNo, "todavía no", true)
+	if cola := leerCola(root); cola[0].Estado != EstadoArmado {
+		t.Fatalf("quedó armado: %+v", cola)
+	}
+	sigueDeLaPersona("armarlo")
+	if err := Desarmar(root, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	sigueDeLaPersona("dejar de esperarlo")
+	if _, err := Pedir(root, comando, "otra vez", "", enCola); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RepararCola(root); err != nil {
+		t.Fatal(err)
+	}
+	sigueDeLaPersona("reparar la cola")
+}

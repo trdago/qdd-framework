@@ -2,10 +2,13 @@ package consola
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -291,5 +294,94 @@ func TestPedir_ElMotivoEsUnResumenCorto(t *testing.T) {
 	}
 	if _, err := Pedir(root, "git push origin v1", "Publicar v1 → npm preview", "", enCola); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// contrato: estado#aaea41e2
+// FND-070/FND-125 de verdad: dos «s  Sí» que llegan a la vez (el panel lanza y otra terminal ejecuta) corren el pedido
+// una sola vez. El paso a ejecutando se hace con la cola bloqueada: solo uno lo ve pendiente.
+func TestEjecutar_OchoAceptacionesALaVezCorrenElPedidoUnaVez_FND070(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("comando de prueba en sh")
+	}
+	antes := probarScope
+	t.Cleanup(func() { probarScope = antes })
+	probarScope = func() bool { return false }
+	root := proyectoConCola(t)
+	marca := filepath.Join(root, "veces.txt")
+	p := mustPedir(t, root, "echo x >> "+marca, "Una sola vez", "")
+	a, err := BuscarAccion(Acciones(root, false), "pedido:"+p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const n = 8
+	codigos := make([]int, n)
+	var listos, salida sync.WaitGroup
+	partida := make(chan struct{})
+	for i := 0; i < n; i++ {
+		listos.Add(1)
+		salida.Add(1)
+		go func(i int) {
+			defer salida.Done()
+			listos.Done()
+			<-partida
+			if i%2 == 0 {
+				codigos[i] = a.Lanzar(root, os.Args[0], "sesion-1", io.Discard)
+				return
+			}
+			codigos[i] = a.Ejecutar(root, "qdd", io.Discard)
+		}(i)
+	}
+	listos.Wait()
+	close(partida)
+	salida.Wait()
+	ganadores := 0
+	for _, c := range codigos {
+		if c == 0 {
+			ganadores++
+		}
+	}
+	if ganadores != 1 {
+		t.Fatalf("exactamente una aceptación gana; las demás se rechazan: %v", codigos)
+	}
+	esperarEstado(t, root, p.ID, EstadoHecho)
+	if b, _ := os.ReadFile(marca); strings.Count(string(b), "x") != 1 {
+		t.Fatalf("el comando corrió una sola vez: %q", b)
+	}
+}
+
+// contrato: estado#bcb808b7
+// Leer, cambiar y escribir la cola de pedidos es uno a la vez: nueve IAs que piden a la vez dejan nueve pedidos, cada
+// uno con su id y su tecla; ninguno pisa a otro.
+func TestPedir_NuevePedidosALaVezNoSePisan(t *testing.T) {
+	root := proyectoConCola(t)
+	errores := make([]error, MaxPedidos)
+	var listos, fin sync.WaitGroup
+	partida := make(chan struct{})
+	for i := 0; i < MaxPedidos; i++ {
+		listos.Add(1)
+		fin.Add(1)
+		go func(i int) {
+			defer fin.Done()
+			listos.Done()
+			<-partida
+			_, errores[i] = Pedir(root, "echo "+strconv.Itoa(i), "Pedido "+strconv.Itoa(i), "", enCola)
+		}(i)
+	}
+	listos.Wait()
+	close(partida)
+	fin.Wait()
+	for _, err := range errores {
+		if err != nil {
+			t.Fatalf("ningún pedido choca con otro: %v", err)
+		}
+	}
+	cola := Pedidos(root)
+	ids, teclas, comandos := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, p := range cola {
+		ids[p.ID], teclas[p.Tecla], comandos[p.Comando] = true, true, true
+	}
+	if len(cola) != MaxPedidos || len(ids) != MaxPedidos || len(teclas) != MaxPedidos || len(comandos) != MaxPedidos {
+		t.Fatalf("%d pedidos, cada uno con su id y su tecla: %+v", MaxPedidos, cola)
 	}
 }
