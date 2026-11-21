@@ -674,9 +674,14 @@ func repairHistory(projectPath, qddDir string) {
 	repairDashboardContracts(projectPath)
 }
 
+// repairDashboardContracts deja un historial vacío. Uno ilegible se aparta antes como .ilegible: --fix no descarta
+// información (FND-262).
 func repairDashboardContracts(projectPath string) {
 	historyPath := filepath.Join(projectPath, ".qdd", "project", "metrics", "cognitive_history.json")
 	_ = os.MkdirAll(filepath.Dir(historyPath), 0755)
+	if fileExists(historyPath) && os.Rename(historyPath, historyPath+".ilegible") != nil {
+		return
+	}
 	_ = os.WriteFile(historyPath, []byte("[]"), 0644)
 }
 
