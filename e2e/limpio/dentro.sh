@@ -37,6 +37,35 @@ contiene() {
   grep -qF -- "$texto" <<<"$salida" || { echo "falta «$texto»"; return 1; }
 }
 
+# aislamiento: nada de la máquina entra salvo /mnt (paquete, binario y dentro.sh) y la raíz, todo en solo lectura;
+# HOME vacío y sin credenciales; el entorno trae solo lo que fija certificar.sh (contrato ambiente-limpio#378ef7ec).
+aislamiento() {
+  local nombre fallas=0
+  while IFS='=' read -r nombre _; do
+    case "$nombre" in
+      HOME | USER | LANG | TERM | PATH | QDD_LIMPIO_VERSION | PWD | OLDPWD | SHLVL | _ | NPM_CONFIG_*) ;;
+      *) echo "el entorno trae $nombre: certificar.sh corre con --clearenv"; fallas=1 ;;
+    esac
+  done < <(env)
+  [ "$HOME" = /home/persona ] || { echo "HOME es $HOME, no /home/persona"; fallas=1; }
+  [ -z "$(ls -A "$HOME")" ] || { echo "HOME no está vacío: $(ls -A "$HOME" | tr '\n' ' ')"; fallas=1; }
+  [ "$(ls -A /home)" = persona ] || { echo "/home trae más que persona: $(ls -A /home | tr '\n' ' ')"; fallas=1; }
+  for archivo in $(ls -A /mnt); do
+    case "$archivo" in
+      dentro.sh | qdd | qdd-framework.tgz) ;;
+      *) echo "/mnt trae $archivo: solo entran el paquete, el binario y dentro.sh"; fallas=1 ;;
+    esac
+  done
+  for dir in / /mnt /usr /etc /root; do
+    if touch "$dir/.qdd-escritura" 2>/dev/null; then
+      echo "se puede escribir en $dir: la raíz y /mnt van en solo lectura"
+      rm -f "$dir/.qdd-escritura"
+      fallas=1
+    fi
+  done
+  return "$fallas"
+}
+
 instalar() {
   if [ -n "${QDD_LIMPIO_VERSION:-}" ]; then
     npm install -g "qdd-framework@$QDD_LIMPIO_VERSION" --allow-scripts=qdd-framework
@@ -94,6 +123,7 @@ tools_list() {
 esperado="${QDD_LIMPIO_VERSION:-$(tar -xzOf /mnt/qdd-framework.tgz package/package.json | node -pe 'JSON.parse(require("fs").readFileSync(0)).version')}"
 
 echo "Ambiente limpio: $(. /etc/os-release && echo "$PRETTY_NAME"), node $(node --version), git $(git --version | cut -d' ' -f3)"
+paso "aislado: sin HOME, credenciales ni escritura afuera" aislamiento || exit 1
 paso "instala qdd con npm" instalar || exit 1
 paso "qdd version es $esperado" contiene "v$esperado" qdd version || exit 1
 paso "proyecto nuevo con git y una prueba" proyecto_nuevo || exit 1

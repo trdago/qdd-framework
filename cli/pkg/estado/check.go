@@ -123,23 +123,35 @@ func checkCelda(frente, etapa string, c Celda) []Violacion {
 	return vs
 }
 
-// checkDesplegadoNoEsValidado (EPF-C04): con etapas «software», Validación real en ✅ necesita su propia evidencia
-// (no la del despliegue); con etapas «modelos», Producción en ✅ necesita la Puerta en ✅.
+// checkDesplegadoNoEsValidado (EPF-C04): con etapas «software», Validación real en ✅ necesita la evidencia de un uso
+// real: ni la del despliegue ni solo una versión o un commit (FND-266); con etapas «modelos», Producción en ✅ necesita
+// la Puerta en ✅.
 func checkDesplegadoNoEsValidado(f Frente) []Violacion {
 	var vs []Violacion
 	prod, hayProd := f.Celdas["Producción"]
-	if !hayProd || NormalizarEstado(prod.Estado) != Hecho {
-		return nil
-	}
 	val, hayVal := f.Celdas["Validación real"]
-	if hayVal && NormalizarEstado(val.Estado) == Hecho && strings.TrimSpace(val.Evidencia) == strings.TrimSpace(prod.Evidencia) {
+	if hayVal && NormalizarEstado(val.Estado) == Hecho && evidenciaDeDespliegue(val.Evidencia, prod) {
 		vs = append(vs, Violacion{ID: "EPF-C04", Frente: f.ID, Etapa: "Validación real", Mensaje: "desplegado no es validado: la Validación real necesita evidencia de un uso real, no la del despliegue"})
+	}
+	if !hayProd || NormalizarEstado(prod.Estado) != Hecho {
+		return vs
 	}
 	puerta, hayPuerta := f.Celdas["Puerta"]
 	if hayPuerta && NormalizarEstado(puerta.Estado) != Hecho {
 		vs = append(vs, Violacion{ID: "EPF-C04", Frente: f.ID, Etapa: "Producción", Mensaje: "Producción en ✅ sin la Puerta en ✅ con su evidencia"})
 	}
 	return vs
+}
+
+// soloDespliegue es una evidencia que nombra solo una versión o un commit: dice qué se desplegó, no que se usó.
+var soloDespliegue = regexp.MustCompile(`(?i)^(?:(?:tag|versi[oó]n|release|commit)\s+)?(?:v?\d+\.\d+(?:\.\d+)?(?:-[0-9a-z.]+)?|[0-9a-f]{7,40})$`)
+
+func evidenciaDeDespliegue(evidencia string, prod Celda) bool {
+	ev := strings.TrimSpace(evidencia)
+	if NormalizarEstado(prod.Estado) == Hecho && ev == strings.TrimSpace(prod.Evidencia) {
+		return true
+	}
+	return soloDespliegue.MatchString(ev)
 }
 
 func checkTexto(frente, etapa string, textos ...string) []Violacion {

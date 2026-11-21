@@ -28,6 +28,7 @@ type servidorFalso struct {
 	conns      []*websocket.Conn
 	joins      []map[string]any
 	latidos    int
+	cerradas   int // conexiones que se cerraron: Supabase saca su presence y el teléfono ve el PC apagado
 	sinLatido  bool
 	recibidos  chan Mensaje
 	presencias map[string][]map[string]any
@@ -108,6 +109,9 @@ func (s *servidorFalso) atender(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, datos, err := conn.Read(ctx)
 		if err != nil {
+			s.mu.Lock()
+			s.cerradas++
+			s.mu.Unlock()
 			return
 		}
 		m, err := DecodificarMensaje(datos)
@@ -267,6 +271,13 @@ func (s *servidorFalso) Joins() []map[string]any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]map[string]any{}, s.joins...)
+}
+
+// Cerradas dice cuántas conexiones de clientes se cerraron.
+func (s *servidorFalso) Cerradas() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cerradas
 }
 
 func (s *servidorFalso) Latidos() int {
