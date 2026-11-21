@@ -92,7 +92,6 @@ test('cada herramienta guardada es su propio panel, con su nombre como pestaña 
 })
 
 // contrato: herramientas#9ba74bf7
-
 test('una acción una-vez corre con sus campos, cada uno un argumento, y muestra su salida al terminar (HER-C05, HER-C03)', async ($, on) => {
   const r = nuevo()
   preparar(on, { herramientas: [SIM], respuestas: { correr: ok('enviado al chat soporte\n') } }, r)
@@ -178,6 +177,7 @@ test('una acción en-vivo muestra su salida mientras corre y ■ la detiene (HER
   expect(await ui.find({ key: 'h-detener' })).toBeUndefined()
 })
 
+// contrato: herramientas#24e60e63
 test('lo que pide confirmar no corre sin el «¿seguro?» de la persona (HER-C06)', async ($, on) => {
   const r = nuevo()
   preparar(on, { herramientas: [SIM], respuestas: { correr: ok('listo\n') } }, r)
@@ -194,6 +194,31 @@ test('lo que pide confirmar no corre sin el «¿seguro?» de la persona (HER-C06
   expect(r.llamadas).toContainEqual(['qdd', 'herramienta', 'correr', 'sim', 'reiniciar', '--si'])
 })
 
+// contrato: herramientas#24e60e63
+test('una herramienta solo corre con el clic de la persona en ▶ Correr: ni al abrir, ni con el tiempo, ni al elegir la acción', { timeoutMs: 30000 }, async ($, on) => {
+  const r = nuevo()
+  const clock = preparar(on, { herramientas: [SIM, LOGS], respuestas: { correr: ok('ok\n') } }, r)
+  const lanzados: string[][] = []
+  on('process.spawn', async function* ($, e) {
+    if (e.argv.includes('seguir')) return { value: { code: 1, signal: null } }
+    lanzados.push([...e.argv])
+    return { code: 0, signal: null }
+  })
+  const corridas = () => [...r.llamadas, ...lanzados].filter((a) => a[1] === 'herramienta' && a[2] === 'correr')
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/bot' })
+  const sim = await $.ui.mount({ ...pestaña('sim', 'Simulador WS'), surface: 'terminal' })
+  const logs = await $.ui.mount({ ...pestaña('logs', 'Visor de logs'), surface: 'terminal' })
+  await clock.advance(61 * 1000)
+  await sim.press({ key: 'h-accion-enviar' })
+  await sim.input({ key: 'h-campo-mensaje', text: 'hola' })
+  await logs.press({ key: 'h-accion-ver' })
+  await clock.advance(5 * 1000)
+  expect(corridas()).toEqual([])
+  await sim.press({ key: 'h-correr' })
+  expect(corridas()).toEqual([['qdd', 'herramienta', 'correr', 'sim', 'enviar', 'mensaje=hola']])
+})
+
+// contrato: herramientas#24e60e63
 test('abrir una herramienta y correr una acción no le pide nada a la IA (HER-C09)', async ($, on) => {
   const r = nuevo()
   preparar(on, { herramientas: [SIM], respuestas: { correr: ok('ok\n') } }, r)
