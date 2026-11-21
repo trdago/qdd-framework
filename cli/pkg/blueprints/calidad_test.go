@@ -138,6 +138,7 @@ func TestCalidad_EncuentraCadaDefectoDeLaReceta(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#16089f78
 func TestCalidad_LaRecetaCorregidaNoPierdeNadaYApruebaCompleta(t *testing.T) {
 	antes, despues := mustParse(t, recetaConDefectos), mustParse(t, recetaLimpia)
 	c := CalidadDe(despues)
@@ -248,6 +249,7 @@ func TestMedir_SinImportadosMideLoPublicadoEnLaFuente(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#16089f78
 func TestDefectosNuevos_SoloLosQueAgregaElCambio(t *testing.T) {
 	antes := CalidadDe(mustParse(t, authBlueprint))
 	if len(DefectosNuevos(antes, antes)) != 0 {
@@ -260,6 +262,7 @@ func TestDefectosNuevos_SoloLosQueAgregaElCambio(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#16089f78
 func TestProponer_NoPublicaUnaRecetaPeor(t *testing.T) {
 	pedidos := sinGH(t)
 	repo := gitOrgRepo(t)
@@ -285,6 +288,7 @@ func TestProponer_NoPublicaUnaRecetaPeor(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#16089f78
 func TestProponer_UnBlueprintNuevoNaceSinDefectos(t *testing.T) {
 	sinGH(t)
 	repo := gitOrgRepo(t)

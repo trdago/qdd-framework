@@ -70,6 +70,7 @@ func construir(t *testing.T, v Variante, comando string, escenarios ...string) {
 	writeFile(t, filepath.Join(v.Carpeta, "pruebas", "pruebas.sh"), "# "+strings.Join(escenarios, " ")+"\n")
 }
 
+// contrato: blueprints#9eda5071
 func TestCertificar_LoTecnicoSeReplicaYLoDeNegocioSeAdapta(t *testing.T) {
 	b := recetaEnCarpeta(t, recetaConLimites)
 	k, _ := PrepararCertificacion(b)
@@ -105,6 +106,7 @@ func TestCertificar_LoTecnicoSeReplicaYLoDeNegocioSeAdapta(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#9eda5071
 func TestProponer_UnaRecetaConPasosSeCertificaAntes(t *testing.T) {
 	sinGH(t)
 	repo := gitOrgRepo(t)
