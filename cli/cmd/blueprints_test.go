@@ -18,6 +18,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
+	"github.com/zalando/go-keyring"
 )
 
 const cmdTestBlueprint = `id: auth
@@ -56,6 +57,10 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	os.Setenv(blueprints.HomeEnv, home)
+	// El llavero y el Secret Service de la persona no son de las pruebas (baul#df85a0cf): llavero de prueba, y sin él
+	// el bus de sesión apunta a un socket que no existe, así que guardar falla en vez de escribir en el real.
+	keyring.MockInit()
+	os.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+filepath.Join(home, "sin-dbus"))
 	// Los AGENTS.md de las carpetas padre de la persona no son de las pruebas (MEJ-062): doctor --fix no mira más
 	// arriba que esta carpeta, y ninguna prueba vive dentro de ella.
 	integration.TopePadres = func() string { return home }
