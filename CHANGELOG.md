@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.105] - 2026-11-20
+
+### Added
+
+- **`qdd puertas informe` y `qdd puertas falso` (ficha puertas, etapa 2b):**
+  - El informe muestra, por puerta: decisiones, rechazos, % corregido al primer reintento, falsos positivos, ms promedio y máximo, tokens por rechazo y errores, con la meta de la ficha debajo. `--json` da lo mismo para máquinas.
+  - `qdd puertas falso [id] --motivo …` marca un rechazo injusto; sin id, marca el último de la sesión. Cada decisión nueva queda con su id.
+
 ## [2.10.0-rc.104] - 2026-11-20
 
 ### Added

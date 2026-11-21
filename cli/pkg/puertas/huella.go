@@ -113,6 +113,7 @@ func gitSalida(dir string, env []string, args ...string) (string, error) {
 
 // Registro es una decisión anotada: sin contenido de archivos ni rutas. Largo son los caracteres que leyó la IA.
 type Registro struct {
+	ID        string    `json:"id,omitempty"`
 	Fecha     time.Time `json:"fecha"`
 	Puerta    string    `json:"puerta"`
 	Resultado string    `json:"resultado"`
@@ -121,17 +122,24 @@ type Registro struct {
 	Largo     int       `json:"largo"`
 }
 
-// Anotar agrega la decisión a <home>/puertas/<proyecto>.jsonl, fuera del proyecto.
+// Anotar agrega la decisión a <home>/puertas/<proyecto>.jsonl, fuera del proyecto, con su id.
 func Anotar(home, proyecto string, r Registro) error {
-	dir := filepath.Join(home, "puertas")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
+	if r.ID == "" {
+		r.ID = idDe(r)
 	}
 	linea, err := json.Marshal(r)
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(dir, filepath.Base(proyecto)+".jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	return agregarLinea(home, proyecto, linea)
+}
+
+func agregarLinea(home, proyecto string, linea []byte) error {
+	dir := filepath.Join(home, "puertas")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(rutaRegistro(home, proyecto), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

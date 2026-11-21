@@ -183,3 +183,36 @@ func marcarAuditado(t *testing.T, repo string) {
 		t.Fatal(err)
 	}
 }
+
+func TestPuertasInforme_YFalso(t *testing.T) {
+	home, repo := proyectoConPuertas(t, "puertas: {}\n")
+	revisarPuertas(repo, "s-1", "gh pr merge 3")
+	revisarPuertas(repo, "s-1", "git commit -m x")
+	var b strings.Builder
+	if err := informePuertas(&b, repo, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"publicar", "audit", "Meta:", "sin reintento"} {
+		if !strings.Contains(b.String(), want) {
+			t.Errorf("el informe dice %q:\n%s", want, b.String())
+		}
+	}
+	id, err := marcarFalsoPuertas(repo, "s-1", "", "lo pedía la persona")
+	if err != nil || id == "" {
+		t.Fatalf("sin id marca el último rechazo de la sesión: %q %v", id, err)
+	}
+	regs, falsos, _ := puertas.LeerRegistro(home, filepath.Base(repo))
+	if falsos[id] != "lo pedía la persona" || regs[len(regs)-1].ID != id {
+		t.Fatalf("marcó el último: %v %+v", falsos, regs)
+	}
+	if _, err := marcarFalsoPuertas(repo, "otra", "", ""); err == nil {
+		t.Fatal("una sesión sin rechazos no marca nada")
+	}
+	if _, err := marcarFalsoPuertas(repo, "", "no-existe", ""); err == nil {
+		t.Fatal("un id que no está no se marca")
+	}
+	var j strings.Builder
+	if err := informePuertas(&j, repo, true); err != nil || !strings.Contains(j.String(), `"falsos": 1`) {
+		t.Fatalf("en JSON cuenta el falso: %v\n%s", err, j.String())
+	}
+}

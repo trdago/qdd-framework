@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
@@ -57,7 +61,49 @@ puerta lo rechaza, imprime qué falta y el comando para resolverlo, y sale con 2
 	},
 }
 
+var puertasInformeCmd = &cobra.Command{
+	Use:   "informe",
+	Short: "Resume las decisiones de las puertas de este proyecto contra la meta de la ficha",
+	Long: `Por puerta: decisiones, rechazos, % corregido al primer reintento (el siguiente intento de la misma puerta en la
+misma sesión pasa), falsos positivos marcados, ms y tokens por rechazo (caracteres / 4). Lee
+<QDD_HOME>/puertas/<proyecto>.jsonl; no cambia nada.`,
+	Args: cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		dir, _ := cmd.Flags().GetString("dir")
+		comoJSON, _ := cmd.Flags().GetBool("json")
+		if err := informePuertas(cmd.OutOrStdout(), dir, comoJSON); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[!] %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+var puertasFalsoCmd = &cobra.Command{
+	Use:   "falso [id]",
+	Short: "Marca un rechazo de una puerta como falso positivo (sin id: el último de esta sesión)",
+	Args:  cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		dir, _ := cmd.Flags().GetString("dir")
+		motivo, _ := cmd.Flags().GetString("motivo")
+		id := ""
+		if len(args) == 1 {
+			id = args[0]
+		}
+		marcado, err := marcarFalsoPuertas(dir, estado.SesionActual(), id, motivo)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[!] %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "[+] Rechazo %s marcado como falso positivo: cuenta en qdd puertas informe.\n", marcado)
+	},
+}
+
 func init() {
+	puertasInformeCmd.Flags().String("dir", ".", "Carpeta del proyecto")
+	puertasInformeCmd.Flags().Bool("json", false, "Salida en JSON")
+	puertasFalsoCmd.Flags().String("dir", ".", "Carpeta del proyecto")
+	puertasFalsoCmd.Flags().String("motivo", "", "Por qué el rechazo no correspondía")
+	puertasCmd.AddCommand(puertasInformeCmd, puertasFalsoCmd)
 	puertasRevisarCmd.Flags().String("dir", ".", "Carpeta donde corre el comando")
 	puertasRevisarCmd.Flags().String("sesion", "", "Sesión de Claude Code que lo corre (por defecto CLAUDE_CODE_SESSION_ID)")
 	puertasRevisarCmd.Flags().String("editar", "", "Archivo que la IA va a editar (puerta ficha)")
@@ -240,4 +286,87 @@ func anotarPuerta(proyecto string, r puertas.Registro) {
 		return
 	}
 	puertas.Anotar(home, proyecto, r)
+}
+
+// informePuertas escribe el informe del proyecto de dir: una tabla con la meta debajo, o JSON.
+func informePuertas(w io.Writer, dir string, comoJSON bool) error {
+	home, err := blueprints.Home()
+	if err != nil {
+		return err
+	}
+	proyecto := puertas.Proyecto(dir)
+	regs, falsos, err := puertas.LeerRegistro(home, proyecto)
+	if err != nil {
+		return err
+	}
+	filas := puertas.Resumir(regs, falsos)
+	if comoJSON {
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{"proyecto": proyecto, "puertas": filas})
+	}
+	if len(filas) == 0 {
+		fmt.Fprintf(w, "Puertas de %s: sin decisiones todavía (se activan con 'puertas:' en .qdd/policies.yaml).\n", proyecto)
+		return nil
+	}
+	fmt.Fprintf(w, "Puertas de %s · %d decisiones desde %s\n\n", proyecto, len(regs), regs[0].Fecha.Format("2006-01-02"))
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "puerta\tdecisiones\trechazos\tcorregido al 1.er reintento\tfalsos\tms prom / máx\ttokens por rechazo\terrores")
+	for _, f := range filas {
+		fmt.Fprintf(tw, "%s\t%d\t%d\t%s\t%s\t%.0f / %d\t%.0f\t%d\n", f.Puerta, f.Decisiones, f.Rechazos, corregidos(f), falsosDe(f), f.MSPromedio, f.MSMax, f.TokensPorRechazo, f.Errores)
+	}
+	tw.Flush()
+	fmt.Fprintln(w, "\nMeta: ≥80 % corregido al primer reintento, ≤5 % falsos positivos, ≤50 ms por decisión, 0 tokens cuando pasa.")
+	return nil
+}
+
+func corregidos(f puertas.Fila) string {
+	sin := f.Rechazos - f.ConReintento
+	if f.ConReintento == 0 {
+		return fmt.Sprintf("— (%d sin reintento)", sin)
+	}
+	return fmt.Sprintf("%d %% de %d (%d sin reintento)", f.Corregidos*100/f.ConReintento, f.ConReintento, sin)
+}
+
+func falsosDe(f puertas.Fila) string {
+	if f.Rechazos == 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%d (%d %%)", f.Falsos, f.Falsos*100/f.Rechazos)
+}
+
+// marcarFalsoPuertas marca el rechazo id, o sin id el último de la sesión, y devuelve el que marcó.
+func marcarFalsoPuertas(dir, sesion, id, motivo string) (string, error) {
+	home, err := blueprints.Home()
+	if err != nil {
+		return "", err
+	}
+	proyecto := puertas.Proyecto(dir)
+	regs, _, err := puertas.LeerRegistro(home, proyecto)
+	if err != nil {
+		return "", err
+	}
+	r, ok := rechazoAMarcar(regs, sesion, id)
+	if !ok {
+		return "", fmt.Errorf("no hay un rechazo %s en las puertas de %s: míralos con qdd puertas informe", cualRechazo(id), proyecto)
+	}
+	return r.ID, puertas.MarcarFalso(home, proyecto, r.ID, motivo)
+}
+
+func rechazoAMarcar(regs []puertas.Registro, sesion, id string) (puertas.Registro, bool) {
+	if id == "" {
+		return puertas.UltimoRechazo(regs, sesion)
+	}
+	i := slices.IndexFunc(regs, func(r puertas.Registro) bool { return r.ID == id && r.Resultado == puertas.Rechaza })
+	if i < 0 {
+		return puertas.Registro{}, false
+	}
+	return regs[i], true
+}
+
+func cualRechazo(id string) string {
+	if id == "" {
+		return "de esta sesión"
+	}
+	return "con id " + id
 }
