@@ -4,6 +4,7 @@ estado: aprobado
 rutas:
     - cli/pkg/puertas
     - cli/cmd/puertas.go
+    - cli/cmd/puertas_hooks.go
 objetivo_operativo:
     problema: Las reglas del método (leer la ficha antes de editar, no commitear sin qdd audit, todo arreglo con su finding, publicar solo con la persona) dependen de que la IA se acuerde. Medido sin puertas (tmp/linea_base.py, 30 días), en notificador_de_ofertas solo el 7 % de los commits pasó por qdd audit y el 20 % de los fix nombró su finding; en qdd, el 67 % de las ediciones de código leyó antes la ficha. Adivinar la intención del mensaje cuesta tokens en cada turno y falla con el idioma; una acción (editar, commitear, publicar) se ve sin ambigüedad con cualquier IA.
     usuarios: Las IAs que trabajan en un proyecto QDD (Claude Code por su mod; cualquier otra por los hooks de git), la persona que confirma pedidos en el panel y quien mide si las puertas sirven (qdd puertas informe).
@@ -25,6 +26,7 @@ objetivo_tecnologico:
         - 'Leer un comando: se parte como la shell (&&, ;, |, salto de línea) y lo que va entre comillas o en un heredoc es texto: un mensaje de commit que nombra gh pr merge no es un merge. Un git push publica solo con --tags, --follow-tags, --mirror o si lo que empuja es un tag del repositorio.'
         - 'Etapa 2a (2026-11-20): puertas ficha y finding desde el mod. Finding: el mensaje de -m (también el de un heredoc dentro de -m) o el archivo de -F; basta un FND-NNN nombrado que exista con test_result. Ficha: el mod recuerda las rutas de qdd_project_context y de qdd modules context mientras vive y las pasa con --leida; una ruta leída cuenta si es el archivo o si la ficha que lo cubre también la cubre (relativa a la raíz o a la carpeta de la sesión). Lo que una puerta no revisa (un commit que no es fix, una zona sin ficha) no se anota. Siguen en la etapa 2b: hooks de git, doctor, init e informe.'
         - 'Informe (2026-11-20): cada decisión lleva un id corto (fnv de fecha, puerta, sesión y resultado); qdd puertas falso [id] agrega al mismo registro una marca {falso, motivo} que no es una decisión (sin id, el último rechazo de la sesión). El % corregido cuenta solo los rechazos con un intento siguiente de la misma puerta en la misma sesión; los sin reintento se muestran aparte.'
+        - 'Hooks (2026-11-20): pre-commit corre qdd puertas hook pre-commit (puerta audit) y commit-msg la finding (sin las líneas # del editor). Solo el 2 de qdd corta el commit (|| [ $? -ne 2 ] || exit 1, que sirve con sh -e de husky): sin qdd, con uno viejo o si falla, pasa. Dentro de Claude Code (CLAUDECODE) el hook decide pero no anota: el panel ya anotó ese commit. Con husky (core.hooksPath que termina en .husky/_, también absoluto) van en el .husky/ versionado del worktree; husky corre el del checkout principal, así que rigen cuando la rama llega a él. doctor --fix activa puertas: {} solo si ya hay policies.yaml (uno nuevo con solo puertas apagaría lo demás) e instala los hooks; init las deja activas en un proyecto nuevo. Los hooks son de todo el repositorio: se resuelven en su raíz y init y doctor --fix los instalan solo si el proyecto es esa raíz (un proyecto en una subcarpeta, o una prueba como TestPipelineExecution que corre init en cli/cmd, no los toca).'
     invariantes:
         - Una puerta que no puede decidir (qdd ausente, error, más de 2 s) deja pasar la acción y anota el error; nunca bloquea por una falla propia.
         - Decidir no gasta tokens ni llama a un modelo; la misma acción con los mismos hechos da siempre la misma decisión.
@@ -41,4 +43,4 @@ fuentes:
     - cli/cmd/audit.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
 ultima_revision: "2026-11-20"
-revisado_en_commit: a42a96c21050
+revisado_en_commit: ca48a6d02192
