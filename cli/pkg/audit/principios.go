@@ -125,6 +125,8 @@ var detectores = map[string]detector{
 	"P-TASK-STATE-VALID":      {},
 	"P-TOOLS-DEFINED":         {limite: "no corre las herramientas ni exige su ejecutable"},
 	"P-SEMVER-RELEASES":       {},
+	"P-CI-FORMAT":             {limite: "Go siempre con gofmt; los demás formateadores, solo si el proyecto los declara"},
+	"P-FAST-DEV-LOOP":         {limite: "lee los docker-compose del proyecto"},
 }
 
 // esRepositorioGit: sin git, el chequeo de commits no tiene qué revisar.
