@@ -16,6 +16,7 @@ objetivo_tecnologico:
     decisiones:
         - Fase 1 de RFC 0005 solo informa, no cambia el puntaje ni lo que bloquea.
         - Lo no revisado se dice una vez por motivo, porque una IA lee cada auditoría en cada commit.
+        - 'DEV-01 y FMT-01/02 (2026-11-21) tienen su principio (P-FAST-DEV-LOOP y P-CI-FORMAT): salían sin principio, sin razón y sin categoría, y la prueba de que toda regla tiene principio no las veía porque buscaba una lista fija de prefijos.'
     invariantes:
         - Un principio que no se pudo revisar nunca aparece como aprobado.
         - Toda regla del motor pertenece a un principio.
@@ -27,5 +28,5 @@ pruebas:
 fuentes:
     - rfcs/0005-reglas-como-principios.md
     - cli/pkg/audit/cobertura.go
-ultima_revision: "2026-11-15"
-revisado_en_commit: c9c0466887ed
+ultima_revision: "2026-11-21"
+revisado_en_commit: eac6895cadcf
