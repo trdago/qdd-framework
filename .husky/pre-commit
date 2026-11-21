@@ -1,0 +1,3 @@
+# >>> qdd puertas >>> (lo instala qdd puertas instalar; qdd doctor --fix lo repara)
+if command -v qdd >/dev/null 2>&1; then qdd puertas hook pre-commit || [ $? -ne 2 ] || exit 1; fi
+# <<< qdd puertas <<<

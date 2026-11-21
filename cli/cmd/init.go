@@ -11,6 +11,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/integration"
+	"github.com/qdd-framework/qdd/pkg/puertas"
 	"github.com/qdd-framework/qdd/pkg/qcl/auth"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -58,7 +59,8 @@ func runInit(cmd *cobra.Command, args []string) {
 }
 
 // ensureAdopcion deja a los proyectos nuevos en adopción gradual (FND-040): las
-// reglas de madurez se informan sin bloquear. Un proyecto que ya existía, o que
+// reglas de madurez se informan sin bloquear. También nacen con las puertas
+// activas y sus hooks (ficha puertas). Un proyecto que ya existía, o que
 // ya declaró sus políticas, queda como estaba.
 func ensureAdopcion(cwd string, nuevo bool) {
 	if !nuevo || fileExists(filepath.Join(cwd, ".qdd", "policies.yaml")) {
@@ -66,7 +68,14 @@ func ensureAdopcion(cwd string, nuevo bool) {
 	}
 	p := audit.DefaultPolicies()
 	p.Adopcion = audit.AdopcionGradual
+	p.Puertas = &audit.PoliticaPuertas{}
 	_ = audit.SavePolicies(cwd, p)
+	if !puertas.EsRaiz(cwd) {
+		return
+	}
+	if _, err := puertas.InstalarHooks(cwd); err != nil {
+		fmt.Printf("[!] No quedaron los hooks de las puertas (qdd doctor --fix los reintenta): %v\n", err)
+	}
 }
 
 func executeInitLoop(cwd string) {
