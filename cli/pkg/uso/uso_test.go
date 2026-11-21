@@ -14,6 +14,7 @@ import (
 
 var t0 = time.Date(2026, 10, 30, 18, 0, 0, 0, time.UTC)
 
+// contrato: uso#b1ea0968
 func TestRegistrar_CuentaSoloElTiempoEntreEventosSeguidos(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	for _, m := range []int{0, 2, 4, 30, 31} {
@@ -39,6 +40,7 @@ func TestRegistrar_CuentaSoloElTiempoEntreEventosSeguidos(t *testing.T) {
 	}
 }
 
+// contrato: uso#b1ea0968
 func TestRegistrar_NoInventaTiempo(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	Registrar("2.8.0", "qdd", t0)

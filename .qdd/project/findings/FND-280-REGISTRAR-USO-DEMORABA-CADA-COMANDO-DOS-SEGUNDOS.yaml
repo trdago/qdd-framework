@@ -1,0 +1,9 @@
+id: "FND-280"
+title: "Registrar el uso demoraba hasta 2 s cada comando cuando otro proceso tenía tomado su registro"
+description: "Medido 2026-11-21 al probar el invariante «Registrar uso nunca falla ni demora el comando, la herramienta o el pulso que lo produce» (uso#444f9bea): registrarUso corre antes de cada comando de qdd (PersistentPreRunE), de cada herramienta MCP, de cada pulso y de cada ciclo del panel, y uso.Registrar esperaba el bloqueo de <QDD_HOME>/uso/<versión>.json.lock hasta 2 s. Con el bloqueo tomado por otro proceso (o dejado por uno que murió, que pkg/candado recién descarta a los 10 s), registrarUsoEn tardó 2,001 s."
+impact: "Mientras un proceso tenía el registro de uso (o lo dejó bloqueado al morir), cada comando de qdd, cada herramienta MCP y cada pulso del agente esperaba 2 s antes de empezar, durante hasta 10 s, sin que nada lo dijera."
+action_taken: "uso.Registrar espera el bloqueo como mucho EsperaBloqueo (250 ms): alcanza para muchos eventos juntos (cada uno lo tiene un par de milisegundos) y, si no, ese evento no se anota. Un evento de menos nunca inventa tiempo, que es lo que el uso medido cuida."
+test_result: "cli/cmd/uso_contrato_test.go TestRegistrarUso_NuncaFallaNiDemoraElComando falló sin el arreglo («con el registro tomado por otro, el comando esperó 2.001072546s») y pasa con él; TestRegistrar_VeinteEventosALaVezNoPierdenNinguno sigue pasando (30 corridas, y 10 con -race y -cpu 1,2,8)."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
