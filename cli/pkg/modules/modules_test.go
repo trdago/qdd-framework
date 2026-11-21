@@ -57,6 +57,7 @@ func validador() Module {
 	}
 }
 
+// contrato: fichas#aefe38af
 func TestSave_ValidatesAndAlwaysWritesDraft(t *testing.T) {
 	root := gitRepo(t)
 	put(t, root, "internal/validador/v.go", "package validador\n")

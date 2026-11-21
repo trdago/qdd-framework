@@ -48,6 +48,7 @@ func TestNivelesQueSube_SoloCuentaLoQueEmpiezaSubiendo_FND173(t *testing.T) {
 	}
 }
 
+// contrato: gate-pruebas#09b781e9
 func TestGate_LasPruebasQueLeenFueraDelModuloCorrenSinCache_FND173(t *testing.T) {
 	config, err := os.ReadFile(filepath.Join("..", "..", ".qdd", "config.yaml"))
 	if err != nil {

@@ -87,6 +87,7 @@ func TestEPT_D01_UnaDependenciaExisteYNoHaceCiclo(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ab7e8b2a
 func TestEPT_D02_SinSuDependenciaNoTermina(t *testing.T) {
 	e := conObjetivos()
 	e.Frentes[2].Celdas = hecha() // herramientas termina y panel, su dependencia, no
@@ -116,6 +117,7 @@ func TestEPT_D02_UnaDependenciaCerradaLibera(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ab7e8b2a
 func TestSet_NoTerminaUnaTareaBloqueada_EPT_D02(t *testing.T) {
 	root := t.TempDir()
 	if err := Save(root, conObjetivos()); err != nil {
@@ -127,6 +129,9 @@ func TestSet_NoTerminaUnaTareaBloqueada_EPT_D02(t *testing.T) {
 	err := Set(root, Cambio{Frente: "herramientas", Etapa: "Publicación", Estado: "ok", Evidencia: "v1.0.0"}, ahora)
 	if err == nil || !strings.Contains(err.Error(), "espera a panel") {
 		t.Fatalf("la última etapa no pasa a ✅ mientras panel no termina, y lo dice: %v", err)
+	}
+	if err := Cerrar(root, "herramientas", "lista", false, ahora); err == nil || !strings.Contains(err.Error(), "espera a panel") {
+		t.Fatalf("tampoco se cierra mientras panel no termina: %v", err)
 	}
 	for _, etapa := range etapasSoftware {
 		if err := Set(root, Cambio{Frente: "panel", Etapa: etapa, Estado: "ok", Evidencia: "abc1234"}, ahora); err != nil {
@@ -219,6 +224,7 @@ func TestEPT_O04_CumplidoConEvidencia(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#10ddc63e
 func TestEPT_O05_ElObjetivoNoDesaparece(t *testing.T) {
 	prev := conObjetivos()
 	e := conObjetivos()

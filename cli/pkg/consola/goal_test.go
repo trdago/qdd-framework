@@ -87,6 +87,7 @@ func TestGoal_ActivarExigeTareasAbiertas(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestGoal_EligeLaOpcionRecomendadaYLoRegistra(t *testing.T) {
 	root := conGoal(t)
 	id := preguntaDe(t, root, "Otra cosa", "Mejor (Recommended)")
@@ -171,6 +172,7 @@ func TestGoal_LasEsperasDelEstadoNoSeResponden(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 	root := conGoal(t)
 	marca := filepath.Join(t.TempDir(), "corrio")
@@ -189,6 +191,9 @@ func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 	if len(r.Elegidas) != 1 || r.Elegidas[0].Tipo != "pedido" || r.Elegidas[0].Etiqueta != "Desplegar" {
 		t.Fatalf("el pedido de la IA, registrado sin el comando: %+v", r.Elegidas)
 	}
+	if g := VistaGoal(root, enCola); len(g.Elegidas) != 1 || g.Elegidas[0].Tipo != "pedido" || g.Elegidas[0].Eleccion != "ejecutar" {
+		t.Fatalf("y queda guardado a la vista: %+v", g.Elegidas)
+	}
 	for _, p := range PedidosA(root, enCola) {
 		if p.ID == pd.ID && p.Estado == EstadoPendiente {
 			t.Fatalf("quedó aceptado: %+v", p)
@@ -204,6 +209,7 @@ func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestGoal_ApruebaLasFichasEnBorrador(t *testing.T) {
 	root := conGoal(t)
 	m := modules.Module{
@@ -218,6 +224,9 @@ func TestGoal_ApruebaLasFichasEnBorrador(t *testing.T) {
 	r := cicloGoal(t, root, silencio(0), enCola)
 	if len(r.Elegidas) != 1 || r.Elegidas[0].Tipo != "ficha" {
 		t.Fatalf("la aprueba y lo registra: %+v", r.Elegidas)
+	}
+	if g := VistaGoal(root, enCola); len(g.Elegidas) != 1 || g.Elegidas[0].Tipo != "ficha" || g.Elegidas[0].Etiqueta != "Nueva" {
+		t.Fatalf("y queda guardado a la vista: %+v", g.Elegidas)
 	}
 	if len(borradores(root)) != 0 {
 		t.Fatal("no queda en borrador")

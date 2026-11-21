@@ -3,6 +3,7 @@ package audit
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -257,5 +258,88 @@ func TestFormato_EsReglaDelMotor(t *testing.T) {
 	vs := violacionesDe(NewEngine(dir).ParandoAlBloquear().RunAll(), ReglaFormato)
 	if len(Bloqueantes(vs)) != 1 {
 		t.Fatalf("el gate bloquea por formato aunque la adopción sea gradual: %+v", vs)
+	}
+}
+
+// formateadorQueReescribe es un formateador falso que se porta como el real: reescribe el archivo si lo llaman como
+// para escribir y si no, lo marca y termina con 1. Con conEscribe, escribe solo con esas banderas (prettier, biome);
+// sin ella, escribe salvo que venga una bandera de revisión (ruff, black y dart escriben por defecto).
+func formateadorQueReescribe(t *testing.T, ruta, banderas string, conEscribe bool, archivo, marca string) {
+	t.Helper()
+	escribe := "0"
+	if !conEscribe {
+		escribe = "1"
+	}
+	cambio := "escribe=1"
+	if !conEscribe {
+		cambio = "escribe=0"
+	}
+	script := "#!/bin/sh\nescribe=" + escribe + "\nfor a in \"$@\"; do\n  case \"$a\" in " + banderas + ") " + cambio + " ;; esac\ndone\n" +
+		"if [ $escribe = 1 ]; then echo reescrito > " + archivo + "; exit 0; fi\necho '" + marca + "'\nexit 1\n"
+	programaFalso(t, ruta, "", 0)
+	if err := os.WriteFile(ruta, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// fotoDelProyecto es el contenido de cada archivo del proyecto, para ver que la revisión no reescribió nada.
+func fotoDelProyecto(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	foto := map[string]string{}
+	err := filepath.WalkDir(dir, func(ruta string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(ruta)
+		foto[ruta] = string(b)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return foto
+}
+
+// La revisión de formato solo lee: con gofmt de verdad y cada formateador de la tabla (falsos que reescriben como el
+// real si no se los llama en modo revisión), el proyecto queda igual y el arreglo queda escrito para quien lo lee.
+// contrato: gate-formato#67a01817
+func TestFormato_LaRevisionSoloLeeNuncaReescribe(t *testing.T) {
+	if _, err := exec.LookPath("gofmt"); err != nil {
+		t.Skip("sin gofmt")
+	}
+	dir := proyectoCon(t, map[string]string{
+		"go.mod": "module x\n", "a.go": goSinFormato,
+		"package.json": `{"devDependencies":{"prettier":"^3"}}`, "biome.json": "{}", "src/a.ts": "const  a=1",
+		"pyproject.toml": "[project]\nname='x'\n[tool.ruff.format]\n[tool.black]\n", "app/main.py": "x  =1",
+		"pubspec.yaml": "name: x\n", ".github/workflows/ci.yml": "run: dart format --set-exit-if-changed .\n", "lib/main.dart": "void  main(){}",
+	})
+	formateadorQueReescribe(t, filepath.Join(dir, "node_modules/.bin/prettier"), "--write|-w", true, "src/a.ts", "[warn] src/a.ts")
+	formateadorQueReescribe(t, filepath.Join(dir, "node_modules/.bin/biome"), "--write|--apply|--fix", true, "src/a.ts", "./src/a.ts format")
+	formateadorQueReescribe(t, filepath.Join(dir, ".venv/bin/ruff"), "--check|--diff", false, "app/main.py", "Would reformat: app/main.py")
+	formateadorQueReescribe(t, filepath.Join(dir, ".venv/bin/black"), "--check|--diff", false, "app/main.py", "would reformat app/main.py")
+	dart := filepath.Join(t.TempDir(), "dart")
+	formateadorQueReescribe(t, dart, "--output=none|--output=show|--output=json", false, "lib/main.dart", "Changed lib/main.dart")
+	antes := binDart
+	binDart = dart
+	t.Cleanup(func() { binDart = antes })
+
+	foto := fotoDelProyecto(t, dir)
+	vs := violacionesDe(RunFormatoCheck(dir), ReglaFormato)
+	for ruta, contenido := range fotoDelProyecto(t, dir) {
+		if foto[ruta] != contenido {
+			t.Errorf("la revisión reescribió %s", ruta)
+		}
+	}
+	marcados := map[string]bool{}
+	for _, v := range vs {
+		for _, archivo := range []string{"a.go", "src/a.ts", "app/main.py", "lib/main.dart"} {
+			marcados[archivo] = marcados[archivo] || strings.Contains(v.Description, archivo)
+		}
+		if !strings.Contains(v.Description, "gofmt -w") && !strings.Contains(v.Description, "--write") && !strings.Contains(v.Description, "format .") && !strings.Contains(v.Description, "black .") {
+			t.Errorf("el arreglo queda escrito para quien lo lee: %s", v.Description)
+		}
+	}
+	if len(marcados) != 4 || !marcados["a.go"] || !marcados["src/a.ts"] || !marcados["app/main.py"] || !marcados["lib/main.dart"] {
+		t.Fatalf("cada formateador corrió en modo revisión y marcó su archivo: %v\n%+v", marcados, vs)
 	}
 }
