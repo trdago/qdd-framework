@@ -65,6 +65,7 @@ func TestPedidos_SeMuestranEnElOrdenDeSusDependencias_FND080(t *testing.T) {
 }
 
 // Desde el armado (pedido del usuario, 2026-11-01) el que espera tiene su tecla: confirmarlo lo arma (armado.go).
+// contrato: estado#5876cf02
 func TestAcciones_UnPedidoQueEsperaDiceQueEsperaYSeArmaConSuTecla_FND080(t *testing.T) {
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})

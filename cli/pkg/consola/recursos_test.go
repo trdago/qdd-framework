@@ -169,3 +169,31 @@ func TestActivar_RecursosSeRecuerdaYReparaLosConserva(t *testing.T) {
 		t.Fatal("--sin-recursos la quita")
 	}
 }
+
+// contrato: estado#c9b4412c
+// Un sensor que se cuelga no demora la barra: pasados 400 ms sale sin la línea de recursos.
+func TestBarraConRecursos_UnaMedicionLentaNoDemoraLaBarra(t *testing.T) {
+	dir := t.TempDir()
+	in := `{"workspace":{"project_dir":"` + filepath.ToSlash(dir) + `"},"model":{"display_name":"Opus 5.5"}}`
+	soltar := make(chan struct{})
+	defer close(soltar)
+	lento := sensores{ram: func() (float64, bool) {
+		<-soltar
+		return 38, true
+	}}
+	inicio := time.Now()
+	got := barraCon([]byte(in), time.Now(), "", 40, &lento, filepath.Join(dir, "r.json"))
+	if d := time.Since(inicio); d < 350*time.Millisecond || d > 1500*time.Millisecond {
+		t.Fatalf("la barra espera la medición hasta 400 ms y no más: %v", d)
+	}
+	if strings.Contains(got, "R ") || strings.Count(got, "\n") != 1 {
+		t.Fatalf("sale sin la línea de recursos: %q", got)
+	}
+	rapido := sensores{ram: func() (float64, bool) {
+		time.Sleep(100 * time.Millisecond)
+		return 38, true
+	}}
+	if got := barraCon([]byte(in), time.Now(), "", 40, &rapido, filepath.Join(dir, "r.json")); !strings.Contains(got, "R 38%") {
+		t.Fatalf("dentro del tope sale con ella: %q", got)
+	}
+}

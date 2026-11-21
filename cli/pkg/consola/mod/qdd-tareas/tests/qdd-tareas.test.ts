@@ -999,6 +999,7 @@ test('si los cuadros no llegan a tiempo, se corta y se dibuja lo de siempre, sin
   expect(topes[0]).toBeLessThanOrEqual(250)
 })
 
+// contrato: estado#9376e8fe
 test('con los efectos apagados el panel no pide cuadros (materializar)', async ($, on) => {
   const mats: { lineas: { texto: string }[][]; abrir: boolean }[] = []
   prepararMat(on, () => ({ ...PANEL, efectos: { ...EFECTOS, activo: false } }), mats)
