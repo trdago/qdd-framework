@@ -38,6 +38,7 @@ func TestCert021_LeerLaQueryStringNoEsUnaConsulta_FND134(t *testing.T) {
 	}
 }
 
+// contrato: reglas-go#af099fdf
 func TestCert021_SiguenMarcadasLasConsultasSinContexto_FND134(t *testing.T) {
 	for _, cuerpo := range []string{
 		`filas, err := db.Query("select 1")`,
@@ -48,6 +49,21 @@ func TestCert021_SiguenMarcadasLasConsultasSinContexto_FND134(t *testing.T) {
 	} {
 		if n := lineasCert021(t, cuerpo); n != 1 {
 			t.Errorf("%q es una consulta sin contexto y se marcó %d veces", cuerpo, n)
+		}
+	}
+}
+
+// La variante con Context de cada consulta no se marca: es la que la regla pide.
+// contrato: reglas-go#af099fdf
+func TestCert021_LaVarianteConContextNoSeMarca(t *testing.T) {
+	for _, cuerpo := range []string{
+		`filas, err := db.QueryContext(ctx, "select 1")`,
+		`fila := db.QueryRowContext(ctx, "select 1")`,
+		`_, err := tx.ExecContext(ctx, "delete from t")`,
+		`filas, err := stmt.QueryContext(ctx, 1)`,
+	} {
+		if n := lineasCert021(t, cuerpo); n != 0 {
+			t.Errorf("%q usa su variante con Context y se marcó %d veces", cuerpo, n)
 		}
 	}
 }

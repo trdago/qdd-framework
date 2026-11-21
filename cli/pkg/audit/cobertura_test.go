@@ -3,6 +3,7 @@ package audit
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -127,6 +128,7 @@ func TestCobertura_Resumen(t *testing.T) {
 }
 
 // La cobertura solo informa: no cambia el puntaje ni lo que bloquea (2.2.0).
+// contrato: cobertura-auditoria#b3ca6f36
 func TestEvaluar_LaCoberturaNoCambiaElPuntaje(t *testing.T) {
 	dir := proyecto(t, map[string]string{
 		"package.json":     `{"name":"web"}`,
@@ -214,5 +216,36 @@ func TestCobertura_NingunPrincipioSinRevisarApareceAprobado(t *testing.T) {
 	}
 	if c.Evaluados != evaluados || c.Evaluados+c.Parciales+c.NoEvaluados != c.Aplicables {
 		t.Errorf("el resumen cuenta solo lo evaluado: %+v (evaluados de verdad: %d)", c, evaluados)
+	}
+}
+
+// Calcular la cobertura sobre una auditoría con violaciones deja la lista
+// igual, campo por campo, y Evaluar devuelve las mismas que RunAll.
+// contrato: cobertura-auditoria#b3ca6f36
+func TestCobertura_NoCambiaLasViolacionesNiElPuntaje(t *testing.T) {
+	dir := proyecto(t, map[string]string{
+		"go.mod":           "module x\n",
+		"main.go":          "package main\n\nfunc f(a bool) int {\n\tif a {\n\t\treturn 1\n\t} else {\n\t\treturn 2\n\t}\n}\n",
+		".qdd/config.yaml": "test_commands:\n  - \"true\"\n",
+	})
+	e := NewEngine(dir)
+	vs := e.RunAll()
+	if len(vs) == 0 {
+		t.Fatal("la prueba necesita violaciones")
+	}
+	copia := append([]Violation{}, vs...)
+	puntaje := Score(vs)
+
+	CalcularCobertura(dir, LoadPolicies(dir), contexto.Leer(dir), vs)
+
+	if !reflect.DeepEqual(vs, copia) {
+		t.Errorf("CalcularCobertura cambió las violaciones:\nantes %+v\ndespués %+v", copia, vs)
+	}
+	if Score(vs) != puntaje {
+		t.Errorf("CalcularCobertura cambió el puntaje: %d -> %d", puntaje, Score(vs))
+	}
+	r := e.Evaluar()
+	if !reflect.DeepEqual(r.Violaciones, copia) {
+		t.Errorf("Evaluar devolvió otras violaciones que RunAll:\nRunAll %+v\nEvaluar %+v", copia, r.Violaciones)
 	}
 }
