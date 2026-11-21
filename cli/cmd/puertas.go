@@ -120,21 +120,28 @@ func revisarPuertas(base, sesion, comando string) (int, string) {
 		if !ok {
 			continue
 		}
-		if codigo, mensaje, corta := aplicarPuerta(h, proyecto, sesion, inicio); corta {
+		if codigo, mensaje, corta := aplicarPuerta(h, proyecto, sesion, inicio, true); corta {
 			return codigo, mensaje
 		}
 	}
 	return 0, ""
 }
 
-// aplicarPuerta decide y anota lo que la puerta decidió (lo que no le tocaba no); corta si rechaza.
-func aplicarPuerta(h puertas.Hechos, proyecto, sesion string, inicio time.Time) (int, string, bool) {
+// aplicarPuerta decide y, si anotar, anota lo que la puerta decidió (lo que no le tocaba no); corta si rechaza.
+func aplicarPuerta(h puertas.Hechos, proyecto, sesion string, inicio time.Time, anotar bool) (int, string, bool) {
 	d := puertas.Decidir(h)
 	if d.Resultado == puertas.Inactiva || d.Resultado == puertas.NoAplica {
 		return 0, "", false
 	}
+	if !anotar {
+		return codigoDe(d)
+	}
 	anotarPuerta(proyecto, puertas.Registro{Fecha: inicio, Puerta: d.Puerta, Resultado: d.Resultado,
 		MS: time.Since(inicio).Milliseconds(), Sesion: sesion, Largo: len([]rune(d.Mensaje))})
+	return codigoDe(d)
+}
+
+func codigoDe(d puertas.Decision) (int, string, bool) {
 	if d.Resultado != puertas.Rechaza {
 		return 0, "", false
 	}
@@ -157,7 +164,7 @@ func revisarEdicion(base, sesion, archivo string, leidas []string) (int, string)
 	}
 	mods, _ := modules.Load(raiz)
 	h.Ficha, h.Leida = fichaLeida(raiz, base, h.Accion.Archivo, mods, leidas)
-	codigo, mensaje, _ := aplicarPuerta(h, puertas.Proyecto(raiz), sesion, inicio)
+	codigo, mensaje, _ := aplicarPuerta(h, puertas.Proyecto(raiz), sesion, inicio, true)
 	return codigo, mensaje
 }
 
@@ -250,7 +257,7 @@ func mensajeDe(dir string, a puertas.Accion) string {
 	if err != nil {
 		return a.Mensaje
 	}
-	return string(datos)
+	return puertas.MensajeSinComentarios(string(datos))
 }
 
 // findingsConPrueba: id → si tiene test_result.

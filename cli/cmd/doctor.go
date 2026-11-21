@@ -138,6 +138,9 @@ func runDeterministicChecks(projectPath string) *Checklist {
 	if g := buildFlujosCompartidosChecks(projectPath, time.Now()); len(g.Items) > 0 {
 		list.Groups = append(list.Groups, g)
 	}
+	if g := buildPuertasChecks(projectPath); len(g.Items) > 0 {
+		list.Groups = append(list.Groups, g)
+	}
 	return list
 }
 
@@ -593,6 +596,10 @@ func runSelectiveFixes(projectPath string, checklist *Checklist) {
 		}
 		if g.Name == grupoGoal {
 			repairGoal(projectPath, g)
+			continue
+		}
+		if g.Name == grupoPuertas {
+			repairPuertas(projectPath, g)
 			continue
 		}
 		if g.Name == grupoBaul {
