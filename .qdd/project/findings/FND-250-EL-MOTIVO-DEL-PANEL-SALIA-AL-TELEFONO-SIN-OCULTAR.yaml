@@ -1,0 +1,9 @@
+id: "FND-250"
+title: "El motivo del panel y otros textos salían al teléfono sin pasar por el ocultador"
+description: "ocultarDelPanel (pkg/remoto/preguntas.go) tapaba los textos del panel campo por campo y dejaba fuera el motivo (el error de un estado.yaml ilegible, que cita el valor: entero si tiene hasta 10 caracteres), el aviso de versión, el motivo del modo goal, el bloqueo de un pedido, el «de quién» de una falla, los ⏳ de la persona y lo que espera en los demás proyectos. Con DB_CLAVE=Xk9vQ2mZpL en el .env y «etapas: Xk9vQ2mZpL» en el tablero, el estado que va al relay llevaba la clave."
+impact: "Rompía el invariante remoto#1958cd48 (inv. 16 de RFC 0013): un valor de un .env del proyecto, o un texto escrito por la IA en un campo no cubierto, salía del PC hacia el relay y el teléfono."
+action_taken: "ocultarDelPanel también tapa Motivo, AvisoVersion, Goal.Motivo, Accion.Bloqueo, Fallas.DeQuien, EsperasPersona y Otros (con ocultarAccion). Una prueba por reflexión llena todo campo de texto de consola.DatosConsola con un token y falla si alguno sale sin ocultar y no está declarado estructural: un campo nuevo ya no puede salir sin que alguien lo decida."
+test_result: "cli/pkg/remoto/ocultar_panel_contrato_test.go: TestArmar_ElMotivoDeUnTableroIlegibleSaleSinSecretos_FND250 y TestPanel_TodoCampoDeTextoSaleSinSecretos fallaban antes del cambio (19 campos sin ocultar) y pasan después; go test ./pkg/remoto/... pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
