@@ -236,6 +236,7 @@ func TestUsar_EnLaTerminalDeLaPersonaPreguntaAhi(t *testing.T) {
 	}
 }
 
+// contrato: baul#0bf182a7
 func TestRegistro_BorrarUnaLineaSeDetecta(t *testing.T) {
 	entorno(t)
 	for _, fin := range []string{"uno", "dos", "tres"} {
