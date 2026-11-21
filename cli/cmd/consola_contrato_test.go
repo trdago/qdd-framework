@@ -19,6 +19,7 @@ import (
 // --json' entregó "entradas": null y el panel quedó en negro. Contrato: lo que el panel lee de qdd, en un proyecto
 // vacío y en uno con datos, nunca trae una lista ni un mapa null.
 
+// contrato: estado#42082cb4
 func TestContrato_ElPanelNuncaRecibeUnaListaNull_FND189(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())

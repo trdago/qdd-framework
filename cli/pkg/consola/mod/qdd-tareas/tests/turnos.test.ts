@@ -54,6 +54,7 @@ async function textoDe(ui) {
   return nodos.join('\n')
 }
 
+// contrato: estado#5876cf02
 test('las acciones en el orden de qdd y después las preguntas, todo con su número', async ($, on) => {
   const { ui } = await montado($, on, [PEDIDO, FICHA, ESPERA, ATADO, DIALOGO, CERRADA])
   const texto = await textoDe(ui)

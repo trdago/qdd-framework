@@ -42,6 +42,7 @@ func conTurno(acciones []Accion) []Accion {
 	return out
 }
 
+// contrato: estado#5876cf02
 func TestTurnos_SeDanUnaVezYNoCambianEntreLecturas(t *testing.T) {
 	root := proyectoConCola(t)
 	a := mustPedir(t, root, "uno", "Uno", "")
@@ -59,6 +60,7 @@ func TestTurnos_SeDanUnaVezYNoCambianEntreLecturas(t *testing.T) {
 	}
 }
 
+// contrato: estado#5876cf02
 func TestTurnos_UnNumeroNoSeReutiliza(t *testing.T) {
 	root := proyectoConCola(t)
 	a := mustPedir(t, root, "uno", "Uno", "")
@@ -192,6 +194,7 @@ func TestTurnos_UnPanelQueNoPidePreguntasVeLosMismosNumeros(t *testing.T) {
 	}
 }
 
+// contrato: estado#5876cf02
 func TestTurnos_UnRegistroIlegibleSeApartaYSeSigue(t *testing.T) {
 	root := proyectoConCola(t)
 	ruta, err := RutaLocal(root, "turnos")

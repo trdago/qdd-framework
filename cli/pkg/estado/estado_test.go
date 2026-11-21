@@ -152,6 +152,7 @@ frentes:
 }
 
 // contrato: estado-por-tareas#3f96d503
+// contrato: estado#06cad8a1
 func TestCheck_EPFC05_FrenteQueDesapareceSinCierre(t *testing.T) {
 	prev := mustParse(t, valido)
 	cur := mustParse(t, valido)
@@ -293,6 +294,7 @@ func TestSet_ValidaAntesDeEscribirYEsAtomico(t *testing.T) {
 }
 
 // contrato: estado#9bb4c65e
+// contrato: estado#06cad8a1
 func TestSet_FrenteNuevoYCerrar(t *testing.T) {
 	dir := t.TempDir()
 	err := Set(dir, Cambio{Frente: "nuevo", Nombre: "Frente nuevo", Etapa: "Código", Estado: "espera", Bloqueo: "revisión", DeQuien: "usuario"}, ahora)

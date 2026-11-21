@@ -114,6 +114,7 @@ test('el manifiesto declara la vista que la extensión registra', () => {
   assert.ok(s.proveedores['qdd.panel'])
 })
 
+// contrato: estado#7188db80
 test('el HTML tiene CSP estricta: nada remoto, nada en línea, sin eval', () => {
   const s = cargar([])
   const v = vistaSimulada()
@@ -308,5 +309,50 @@ test('«todavía no» (exit 75) y un rechazo de qdd vuelven como resultado, sin 
     const r = resultados(v).at(-1)
     assert.deepEqual([r.ok, r.todaviaNo, r.texto], [ok, todaviaNo, 'lanzado pedido:1'], 'exit ' + codigo)
     v.emit('dispose')
+  }
+})
+
+// qddConPid: como qddFalso, en una carpeta cuyo nombre rompería un shell, y anota su PID (exec lo conserva en sleep).
+function qddConPid() {
+  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'qdd-bin-')), 'con espacio; $(echo roto) & "comillas"')
+  fs.mkdirSync(dir)
+  const log = path.join(path.dirname(dir), 'log')
+  const pid = path.join(path.dirname(dir), 'pid')
+  const bin = path.join(dir, 'qdd')
+  const linea = JSON.stringify({ version: 'v9', carpeta: 'x', estado: null, motivo: 'sin estado', acciones: [] })
+  fs.writeFileSync(bin, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${log}'\necho $$ > '${pid}'\nprintf '%s\\n' '${linea}'\nexec sleep 30\n`, { mode: 0o755 })
+  return { bin, log, pid }
+}
+
+const vivo = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// contrato: estado#7188db80
+test('oculta no deja ningún proceso de qdd; el binario corre sin shell y con argumentos fijos', async () => {
+  const qdd = qddConPid()
+  process.env.QDD_BIN = qdd.bin
+  const s = cargar([proyecto()])
+  const v = vistaSimulada()
+  s.proveedores['qdd.panel'].resolveWebviewView(v)
+  let pid = 0
+  try {
+    await hasta(() => fs.existsSync(qdd.pid) && fs.readFileSync(qdd.pid, 'utf8').trim() !== '')
+    pid = Number(fs.readFileSync(qdd.pid, 'utf8'))
+    assert.equal(fs.readFileSync(qdd.log, 'utf8'), 'consola seguir\n', 'con una ruta que un shell partiría, corre igual y con sus argumentos')
+    assert.ok(vivo(pid))
+    v.visible = false
+    v.emit('visible')
+    await hasta(() => !vivo(pid))
+    await new Promise((r) => setTimeout(r, 50))
+    assert.equal(fs.readFileSync(qdd.log, 'utf8'), 'consola seguir\n', 'oculta no lanza otro')
+  } finally {
+    v.emit('dispose')
+    if (pid && vivo(pid)) process.kill(pid)
   }
 })

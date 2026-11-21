@@ -1,0 +1,9 @@
+id: "FND-272"
+title: "En una superficie sin Client el panel pedía cuadros y dejaba la fila en blanco"
+description: "Medido 2026-11-21 al probar el invariante «Sin efectos encendidos, o sin Client en la superficie, el panel no pide cuadros y dibuja lo de siempre» (estado#9376e8fe): el engine completa la tabla de elementos de cada superficie con todos los nombres y uno que la superficie no tiene dibuja un fragmento. En vscode y mobile $.ui.resolve(e) igual trae Client, así que el panel (Client = cliente || null) creía tenerlo: con los efectos encendidos lanzaba qdd consola materializar, dibujaba la fila en blanco y después un Client que no se ve; «Gemini retirado» no aparecía."
+impact: "Con los efectos encendidos, abrir el panel en una superficie sin Client (el teléfono, el IDE) dejaba filas, tarjetas y preguntas invisibles, y gastaba un proceso de materializar por cambio."
+action_taken: "El panel usa Client solo en las superficies que lo dibujan (CON_CLIENT: terminal y desktop); en las demás dibuja lo de siempre sin pedir cuadros."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/sin-demora-sin-client.test.ts «con los efectos encendidos pero sin Client (vscode|mobile)…» falló sin el arreglo (materializar pedido: true, y sin la fila «Gemini retirado») y pasa con él; claude plugin test 352/352."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

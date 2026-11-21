@@ -34,6 +34,7 @@ type inventario struct {
 	oculto    []string
 }
 
+// contrato: estado#42082cb4
 func TestMarshal_NingunaListaNiMapaSaleNull_FND189(t *testing.T) {
 	v := inventario{
 		Sub:    &inventario{},
@@ -61,6 +62,7 @@ func TestMarshal_NingunaListaNiMapaSaleNull_FND189(t *testing.T) {
 	}
 }
 
+// contrato: estado#42082cb4
 func TestMarshal_ValoresSueltos(t *testing.T) {
 	for _, caso := range []struct {
 		v    any
