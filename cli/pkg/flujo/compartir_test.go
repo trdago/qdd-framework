@@ -148,3 +148,20 @@ func TestPagina_DelEnlaceNoLlevaElToken(t *testing.T) {
 		t.Fatal("sin invitación de verdad no se arma")
 	}
 }
+
+// contrato: flujo#55d83602
+func TestFoto_NoLlevaPruebasNiEvidenciasNiComentariosDelFlujo(t *testing.T) {
+	f := flujoConGrupos()
+	// Una prueba marcada compartida sigue siendo una prueba: ni su texto ni su evidencia salen del PC.
+	f.Nodos[2].Items = []Item{{ID: "i1", Tipo: ItemPrueba, Texto: "prueba-secreta", Estado: "pasa", Evidencia: "ev-secreta",
+		Visible: VisibleCompartida}}
+	f.Comentarios = []Comentario{{De: DePersona, Texto: "coment-flujo", Cuando: "x", Pregunta: true}}
+	f.Nodos[3].Comentarios = []Comentario{{De: DeIA, Texto: "coment-nodo", Cuando: "x"}}
+	datos, _ := json.Marshal(ArmarFoto(f, limpiezaDePrueba, ahoraDePrueba))
+	texto := string(datos)
+	for _, prohibido := range []string{"prueba-secreta", "ev-secreta", "coment-flujo", "coment-nodo"} {
+		if strings.Contains(texto, prohibido) {
+			t.Errorf("la foto lleva %q: %s", prohibido, texto)
+		}
+	}
+}
