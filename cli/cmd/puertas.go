@@ -23,6 +23,10 @@ import (
 // que deja pasar la acción.
 const codigoRechazo = 2
 
+// topePuertas es lo que una puerta espera sus hechos (git) antes de dejar pasar la acción y anotar el error: menos que
+// los 2 s del panel, para que la anote qdd; el hook de git no tiene otro tope (FND-277).
+var topePuertas = 1500 * time.Millisecond
+
 var puertasCmd = &cobra.Command{
 	Use:   "puertas",
 	Short: "Puertas de QDD: ficha antes de editar, commit con qdd audit al día, fix con finding y publicar con la persona",
@@ -112,11 +116,17 @@ func init() {
 	rootCmd.AddCommand(puertasCmd)
 }
 
-// revisarPuertas decide cada acción del comando y anota la decisión; la primera que rechaza corta.
+// revisarPuertas decide cada acción del comando y anota la decisión; la primera que rechaza corta. Sin los hechos antes
+// del tope, deja pasar y anota el error.
 func revisarPuertas(base, sesion, comando string) (int, string) {
+	limite := time.Now().Add(topePuertas)
 	for _, a := range puertas.Acciones(comando) {
 		inicio := time.Now()
-		h, proyecto, ok := hechosDe(base, a)
+		h, proyecto, ok, aTiempo := hechosConTope(base, a, limite)
+		if !aTiempo {
+			anotarTarde(base, a, sesion, inicio)
+			return 0, ""
+		}
 		if !ok {
 			continue
 		}
@@ -220,6 +230,33 @@ func carpetaExistente(dir string) string {
 		}
 		dir = filepath.Dir(dir)
 	}
+}
+
+// hechosConTope trae los hechos de la acción o se rinde al llegar al límite: aTiempo es falso si no llegaron. Lo que
+// quedó corriendo termina solo y no se usa.
+func hechosConTope(base string, a puertas.Accion, limite time.Time) (puertas.Hechos, string, bool, bool) {
+	type hechos struct {
+		h        puertas.Hechos
+		proyecto string
+		ok       bool
+	}
+	listos := make(chan hechos, 1)
+	go func() {
+		h, proyecto, ok := hechosDe(base, a)
+		listos <- hechos{h, proyecto, ok}
+	}()
+	select {
+	case x := <-listos:
+		return x.h, x.proyecto, x.ok, true
+	case <-time.After(time.Until(limite)):
+		return puertas.Hechos{}, "", false, false
+	}
+}
+
+// anotarTarde anota que la puerta no pudo decidir a tiempo: la acción pasó (ficha puertas).
+func anotarTarde(base string, a puertas.Accion, sesion string, inicio time.Time) {
+	anotarPuerta(puertas.Proyecto(base), puertas.Registro{Fecha: inicio, Puerta: a.Puerta, Resultado: puertas.Error,
+		MS: time.Since(inicio).Milliseconds(), Sesion: sesion})
 }
 
 // hechosDe trae lo que la puerta necesita. ok es falso cuando la acción no es para una puerta: un git push que no

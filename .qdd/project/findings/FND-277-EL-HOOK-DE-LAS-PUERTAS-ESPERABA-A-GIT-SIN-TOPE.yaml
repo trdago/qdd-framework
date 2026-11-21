@@ -1,0 +1,9 @@
+id: "FND-277"
+title: "Una puerta que tardaba más de 2 s no dejaba pasar ni anotaba el error"
+description: "Medido 2026-11-21 al probar el invariante «Una puerta que no puede decidir (qdd ausente, error, más de 2 s) deja pasar la acción y anota el error» (puertas#91d6f84a): con un git que tardaba 1 s en armar la huella, qdd puertas revisar y el hook pre-commit esperaron lo que tardó git (1,01 s con un tope de prueba de 0,2 s), rechazaron el commit y anotaron «rechaza». El panel corta a los 2 s y deja pasar, pero qdd anotaba otra cosa; el hook de git no tenía ningún tope: el commit esperaba lo que tardara git."
+impact: "En un repositorio grande o con git trabado, la puerta audit bloqueaba el commit hecho fuera de Claude Code mientras git respondiera, y el informe de las puertas contaba como rechazo una acción que en el panel había pasado."
+action_taken: "Los hechos de la puerta (git) se traen con un tope, topePuertas = 1,5 s (menos que los 2 s del panel, para que la anote qdd): sin ellos a tiempo, qdd puertas revisar y qdd puertas hook dejan pasar y anotan el resultado «error». Lo que quedó corriendo termina solo. Medido aparte: en este repositorio la huella tarda ~20 ms, así que el tope no cambia nada en el uso normal."
+test_result: "cli/cmd/puertas_contrato_test.go TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277 (git lento en el PATH, tope de 200 ms) falló sin el arreglo (panel y hook tardaron 1,01 s, salieron con 2 y anotaron «rechaza») y pasa con él (pasan antes de 0,8 s y anotan «error»)."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"
