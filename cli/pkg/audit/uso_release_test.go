@@ -55,3 +55,24 @@ func TestUsoRelease_UnFixYUnaPreviewNoEsperan(t *testing.T) {
 		t.Fatalf("una preview sale para medir su uso: %v", v)
 	}
 }
+
+// contrato: uso#f5ef68e6
+// El motor conecta VER-05 al gate: con uso_minimo_horas en .qdd/policies.yaml, una minor sin evidencia trae la regla y
+// bloquea; con las horas medidas, no está.
+func TestUsoRelease_ElGateDelProyectoLoExigeConSuPolitica(t *testing.T) {
+	root := releaseMinor(t)
+	writeFile(t, filepath.Join(root, ".qdd", "policies.yaml"), "uso_minimo_horas: 5\n")
+	p := LoadPolicies(root)
+	var v []Violation
+	NewEngine(root).runCoreChecks(p, &v)
+	marcarRecomendaciones(p, v)
+	if !hasRule(Bloqueantes(v), "VER-05-UNPROVEN-RELEASE") {
+		t.Fatalf("una minor sin horas medidas no pasa el gate: %v", v)
+	}
+	evidenciaDeUso(t, root, "2.8.0", "5.2")
+	v = nil
+	NewEngine(root).runCoreChecks(p, &v)
+	if hasRule(v, "VER-05-UNPROVEN-RELEASE") {
+		t.Fatalf("con 5.2 h medidas pasa: %v", v)
+	}
+}

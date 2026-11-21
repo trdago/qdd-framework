@@ -177,8 +177,10 @@ func TestServicio_RenovarEnLaunchdAgregaLaMarca_FND128(t *testing.T) {
 }
 
 // FND-136: el servicio es uno por usuario, pero QDD_HOME no: desactivar desde otro QDD_HOME borraba el servicio real.
+// contrato: remoto#baf4dc8d
+// FND-260: en Windows también; la tarea lleva el QDD_HOME con que se activó.
 func TestServicio_QuitarNoTocaElServicioDeOtroQDDHome_FND136(t *testing.T) {
-	for _, so := range []string{"linux", "darwin"} {
+	for _, so := range []string{"linux", "darwin", "windows"} {
 		for _, instalado := range []string{"/h/real", ""} {
 			usuario := t.TempDir()
 			real := Servicio{SO: so, Bin: "/b/qdd", Usuario: usuario, QDDHome: instalado, DirQDD: t.TempDir()}

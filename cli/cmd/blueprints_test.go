@@ -45,6 +45,11 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
+	// Las pruebas de caja negra corren este binario como qdd: main solo llama a Execute (audit_salida_test.go).
+	if os.Getenv(envComoQDD) == "1" {
+		Execute()
+		os.Exit(0)
+	}
 	// La acción del panel que activa el modo goal relanza este binario como «qdd goal» (FND-146).
 	if len(os.Args) > 1 && os.Args[1] == "goal" {
 		Execute()

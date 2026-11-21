@@ -59,12 +59,15 @@ func TestLimpio_QuitaLasVariablesQueApuntanARepositorio(t *testing.T) {
 }
 
 // Toda carpeta de pruebas que corre git limpia el entorno antes (un paquete nuevo no puede olvidarlo).
+// Cuenta también el código del paquete: sus pruebas lo llaman, y git corre igual aunque el exec no esté en un _test.go
+// (pkg/rendimiento se escapaba así, FND-263).
+// contrato: gitenv#11ed527d
 func TestArquitectura_LasPruebasQueCorrenGitLimpianElEntorno(t *testing.T) {
 	corre := regexp.MustCompile(`exec\.Command(Context)?\((ctx, )?"git"`)
 	paquetes := map[string]bool{}
 	limpian := map[string]bool{}
 	filepath.Walk("../..", func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(p, "_test.go") {
+		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") {
 			return nil
 		}
 		b, _ := os.ReadFile(p)
@@ -72,14 +75,15 @@ func TestArquitectura_LasPruebasQueCorrenGitLimpianElEntorno(t *testing.T) {
 		if corre.Match(b) {
 			paquetes[dir] = true
 		}
-		if strings.Contains(string(b), "gitenv.LimpiarProceso()") || strings.Contains(string(b), "\tLimpiarProceso()") {
+		prueba := strings.HasSuffix(p, "_test.go")
+		if prueba && (strings.Contains(string(b), "gitenv.LimpiarProceso()") || strings.Contains(string(b), "\tLimpiarProceso()")) {
 			limpian[dir] = true
 		}
 		return nil
 	})
 	for dir := range paquetes {
 		if !limpian[dir] {
-			t.Errorf("%s corre git en sus pruebas sin gitenv.LimpiarProceso() (FND-117)", dir)
+			t.Errorf("%s corre git (en sus pruebas o en el código que prueban) sin gitenv.LimpiarProceso() en sus pruebas (FND-117, FND-263)", dir)
 		}
 	}
 }

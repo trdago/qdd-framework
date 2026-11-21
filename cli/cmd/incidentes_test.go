@@ -146,14 +146,60 @@ func TestIncidentes_DoctorRegistraLaAutorreparacionDeUnRegistroIlegible(t *testi
 	}
 }
 
-type ghEnMemoria struct{ creados int }
+// contrato: incidentes#99476385
+// Lo que recibe GitHub es, carácter por carácter, lo que mostró qdd incidentes ver; y el comentario de una ocurrencia
+// nueva tampoco lleva nada del proyecto.
+func TestIncidentes_ElIssuePublicadoEsExactamenteLoQueMuestraVer(t *testing.T) {
+	raiz, dir := conProyectoPrivado(t)
+	home, _ := os.UserHomeDir()
+	falla := "open " + raiz + "/src/cobros/tarjeta.go: boom"
+	registrarPanico("qdd estado ver", "qdd estado ver", falla)
+	i := soloIncidente(t, dir)
+	var ver bytes.Buffer
+	if verIncidente(i.Firma, &ver) != 0 {
+		t.Fatalf("ver: %s", ver.String())
+	}
+	gh := &ghEnMemoria{}
+	var out bytes.Buffer
+	if publicarIncidentes(gh, time.Now(), &out) != 0 || gh.creados != 1 {
+		t.Fatalf("publicar: %s", out.String())
+	}
+	if publicado := gh.titulo + "\n\n" + gh.cuerpo; publicado != ver.String() {
+		t.Fatalf("el issue es exactamente lo que muestra ver.\nver:\n%s\npublicado:\n%s", ver.String(), publicado)
+	}
+	registrarPanico("qdd estado ver", "qdd estado ver", falla)
+	if publicarIncidentes(gh, time.Now(), &out) != 0 || len(gh.comentarios) != 1 {
+		t.Fatalf("una ocurrencia nueva se comenta: %s %v", out.String(), gh.comentarios)
+	}
+	prohibidos := []string{raiz, "acme", "cobros", "tarjeta"}
+	if len(home) > 1 {
+		prohibidos = append(prohibidos, home)
+	}
+	for _, enviado := range append([]string{gh.titulo, gh.cuerpo}, gh.comentarios...) {
+		for _, prohibido := range prohibidos {
+			if strings.Contains(enviado, prohibido) {
+				t.Errorf("lo que sale a GitHub lleva %q:\n%s", prohibido, enviado)
+			}
+		}
+	}
+}
+
+type ghEnMemoria struct {
+	creados        int
+	titulo, cuerpo string
+	comentarios    []string
+}
 
 func (g *ghEnMemoria) Buscar(string) (string, error) { return "", nil }
-func (g *ghEnMemoria) Crear(string, string) (string, error) {
+func (g *ghEnMemoria) Crear(titulo, cuerpo string) (string, error) {
 	g.creados++
+	g.titulo, g.cuerpo = titulo, cuerpo
 	return "https://github.com/qdd/issues/1", nil
 }
-func (g *ghEnMemoria) Comentar(string, string) error { return nil }
+func (g *ghEnMemoria) Comentar(_ string, cuerpo string) error {
+	g.comentarios = append(g.comentarios, cuerpo)
+	return nil
+}
 
 // contrato: incidentes#0d196077
 func TestDoctor_ElRegistroDeIncidentesIlegibleSeApartaYLosPendientesSeVen(t *testing.T) {
