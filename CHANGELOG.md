@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.113] - 2026-11-21
+
+### Fixed
+
+- **Una pregunta de la IA siempre llega al panel y al teléfono (FND-291, MEJ-094):** qdd registraba la pregunta solo desde un hook que Claude Code no siempre llama. Cuando faltaba, la pregunta no salía en ninguna parte y la sesión quedaba esperándote sin aviso. Ahora, si el hook no llega en 5 segundos, la pregunta sale igual en «▶ Para ti» y en QDD Móvil, con su aviso, marcada para responderla en el PC.
+- **El teléfono ya no dice «trabajando» mientras la sesión espera tu respuesta (FND-291):** una sesión detenida en una pregunta mostraba «trabajando» hasta que respondías. Al responder, el contador sigue desde el inicio del turno.
+
 ## [2.10.0-rc.112] - 2026-11-21
 
 ### Fixed

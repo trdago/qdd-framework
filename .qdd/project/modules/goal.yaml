@@ -22,6 +22,7 @@ objetivo_tecnologico:
         - 'Solo la persona lo activa: qdd goal activar se rechaza con CLAUDECODE en el entorno, y solo el panel tras la confirmación y el teléfono firmado lo limpian.'
         - El panel niega activarlo a una IA por cualquier herramienta de shell (Bash, PowerShell), con ruta, comillas o sufijo; quien decide sigue siendo qdd, también por la acción del panel (FND-146).
         - Nunca se responde solo un permiso de Claude Code, una pregunta de diseño de un blueprint ni una pregunta sin opción recomendada.
+        - 'Una pregunta con responder_en «pc» (MEJ-094) tampoco se responde sola: el modo no puede llevarle la respuesta a Claude Code, así que cuenta como algo que espera a la persona.'
         - Cada elección queda registrada, y lo publicado al teléfono pasa por el ocultador (inv. 16 de remoto).
         - 'Nunca abre una sesión: sin una abierta se pausa, y vuelve cuando la sesión vuelve.'
         - Tras 3 recordatorios sin avance real se detiene y queda detenido hasta que la persona lo active de nuevo.
@@ -36,5 +37,5 @@ pruebas:
 fuentes:
     - rfcs/0015-modo-goal.md
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-11"
-revisado_en_commit: 50c882a4d18a
+ultima_revision: "2026-11-21"
+revisado_en_commit: fa667408608a

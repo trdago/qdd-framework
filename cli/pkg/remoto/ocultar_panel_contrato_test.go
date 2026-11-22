@@ -41,7 +41,7 @@ var estructurales = map[string]bool{
 }
 
 // estructuralesDeAccion son los de una acción, en el panel y en los demás proyectos.
-var estructuralesDeAccion = []string{"ID", "Tipo", "Carpeta", "Tecla", "Estado", "Sesion", "VersionNueva", "DeTarea", "Origen",
+var estructuralesDeAccion = []string{"ID", "Tipo", "Carpeta", "Tecla", "Estado", "Sesion", "VersionNueva", "DeTarea", "Origen", "ResponderEn",
 	"RespondidaEn", "Preguntas[].ID", "Preguntas[].Opciones[].Valor", "Permiso.Herramienta", "Dispositivo", "Solicitud"}
 
 func init() {

@@ -2194,7 +2194,8 @@ function preguntaArriba(Box, Text, Button, $, a) {
   const clave = a.id
   const titulo = Text({ key: 'terminal-' + clave, color: COLOR.espera, weight: 'bold', wrap: 'wrap', children: [v.etiqueta] })
   const q = a.preguntas?.length === 1 && !a.preguntas[0].multiple ? a.preguntas[0] : null
-  if (!q || !q.opciones?.length) {
+  // responder_en «pc» (MEJ-094): sin el hook PermissionRequest, un botón no le llega a Claude Code.
+  if (!q || !q.opciones?.length || a.responder_en === 'pc') {
     const donde = Text({ key: 'terminal-donde-' + clave, dimColor: true, size: 'caption', children: ['   respóndela en la terminal'] })
     return Box({ key: 'arriba-' + clave, flexDirection: 'column', children: [titulo, donde] })
   }
@@ -3759,9 +3760,10 @@ function llamadaDe(tool, entrada) {
 
 // registrarPregunta devuelve su id en qdd ('' si no quedó, con el motivo) y si QDD Móvil también la responde (un qdd
 // anterior a «telefono» registraba solo con QDD Móvil).
-async function registrarPregunta($, bin, mia, e) {
+async function registrarPregunta($, bin, mia, e, responderEn = '') {
   try {
-    const r = await $.process.run([bin, 'consola', 'pregunta', 'registrar'], { stdin: JSON.stringify({ sesion: mia, herramienta: e.tool_name, entrada: e.tool_input }), timeoutMs: TOPE_MS })
+    const nueva = { sesion: mia, herramienta: e.tool_name, entrada: e.tool_input, ...(responderEn ? { responder_en: responderEn } : {}) }
+    const r = await $.process.run([bin, 'consola', 'pregunta', 'registrar'], { stdin: JSON.stringify(nueva), timeoutMs: TOPE_MS })
     if (r.exitCode !== 0) return { id: '', motivo: ((r.stdout || '') + (r.stderr || '')).trim() }
     const d = JSON.parse(r.stdout)
     return { id: String(d.id || ''), motivo: String(d.motivo || ''), telefono: d.telefono !== false }
@@ -3856,7 +3858,57 @@ function decisionDe(e, p) {
   return { behavior: 'deny', message: 'La persona lo negó desde ' + donde + app + '.' }
 }
 
+// MEJ-094 (REP-510): Claude Code no garantiza el hook PermissionRequest para AskUserQuestion (anthropics/claude-code
+// #15400, #59908; en Windows los hooks corren con otras reglas). Sin él la pregunta no salía en ninguna parte y la
+// sesión estuvo 3 horas esperando. Si a los SIN_PERMISO_MS de la llamada no llegó, la registra igual con responder_en
+// «pc» (acordado con qdd-movile): sale en «Para ti» y en el teléfono, suena el push, y solo se responde en la terminal.
+// Si qdd no la registra, «Para ti» la cuenta igual (como MEJ-057). El escritorio avisa al minuto.
+const SIN_PERMISO_MS = 5000
+const permisosPedidos = new Set() // tool + entrada de lo que pasó por PermissionRequest
+
+function clavePermiso(tool, entrada) {
+  return tool + ' ' + estable(entrada)
+}
+
+async function respaldoSinPermiso($, e, idLlamada) {
+  if (!interactiva || e.tool !== PREGUNTAR) return
+  const entrada = entradaDe(e)
+  await $.clock.sleep(SIN_PERMISO_MS)
+  const clave = clavePermiso(e.tool, entrada)
+  if (!llamadas.has(idLlamada) || permisosPedidos.has(clave)) return
+  const pregunta = { tool_name: e.tool, tool_input: entrada }
+  const { id, motivo } = await registrarPregunta($, await binario($), await sesionPropia($), pregunta, 'pc')
+  if (!llamadas.has(idLlamada) || permisosPedidos.has(clave)) return cerrarRespaldo($, id)
+  if (!id) {
+    const local = anotarSinRegistrar($, pregunta, 'Claude Code no pidió el permiso de la pregunta (sin PermissionRequest); qdd tampoco la registró: ' + motivo)
+    sinRegistrar.get(local).respaldo = clave
+    vigilarDialogo($, pregunta, () => sinRegistrar.has(local))
+    return
+  }
+  huboPreguntas = true
+  const viva = { llamada: idLlamada, candidatas: new Set(), cerrada: false, aplicada: false, respaldo: clave }
+  preguntasVivas.set(id, viva)
+  vigilarDialogo($, pregunta, () => !viva.cerrada)
+  releerSinEsperar($)
+}
+
+// cerrarRespaldo: lo que el respaldo registró ya no va (la herramienta terminó o llegó el permiso): queda «en el PC».
+async function cerrarRespaldo($, id) {
+  if (!id) return
+  await $.process.run([await binario($), 'consola', 'pregunta', 'cerrar', id], { timeoutMs: TOPE_MS }).catch((err) => $.ui.log('qdd: no se cerró la pregunta: ' + String(err?.message ?? err), { to: 'debug' }))
+}
+
 async function preguntarAlTelefono($, e, next) {
+  const clave = clavePermiso(e.tool_name, e.tool_input)
+  permisosPedidos.add(clave)
+  // Llegó tarde: lo que el respaldo anotó o registró lo reemplaza esta, que sí puede llevar la respuesta del teléfono.
+  for (const [id, q] of sinRegistrar) if (q.respaldo === clave) sinRegistrar.delete(id)
+  for (const [id, v] of preguntasVivas) {
+    if (v.respaldo !== clave) continue
+    preguntasVivas.delete(id)
+    v.cerrada = true
+    await cerrarRespaldo($, id)
+  }
   const r = await next(e)
   if (r?.decision || !interactiva || e.agent_id) return r
   const bin = await binario($)
@@ -4340,6 +4392,7 @@ export function register(on) {
     if (rechazo) return { deny: rechazo }
     const seguir = !e.agentId && e.tool_use_id
     if (seguir) llamadas.set(e.tool_use_id, { tool: e.tool, entrada: entradaDe(e) })
+    if (seguir) respaldoSinPermiso($, e, e.tool_use_id).catch((err) => $.ui.log('no se vigiló la pregunta: ' + String(err?.message ?? err)))
     try {
       if (!cambiaElPanel(e)) return await next(e)
       const r = await next(e)
@@ -4348,6 +4401,7 @@ export function register(on) {
     } finally {
       if (seguir) {
         llamadas.delete(e.tool_use_id)
+        permisosPedidos.delete(clavePermiso(e.tool, entradaDe(e)))
         cerrarPreguntasDe($, e.tool_use_id).catch((err) => $.ui.log('no se cerró la pregunta: ' + String(err?.message ?? err)))
       }
     }
