@@ -1,6 +1,10 @@
 package estado
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 // Rule: Prohibido usar 'else'
 // FND-296 (qdd-movile, 2026-11-22): el tablero muestra las 4 pendientes más nuevas; 4 tareas nuevas de verificación
@@ -33,5 +37,18 @@ func TestDatos_SinOcultasTuyasLaListaVaVacia_FND296(t *testing.T) {
 	d := DatosPendientes(mustParse(t, yaml), ahora, 4)
 	if d.OcultasTuyas == nil || len(d.OcultasTuyas) != 0 {
 		t.Fatalf("una lista vacía, no null: %+v", d.OcultasTuyas)
+	}
+}
+
+// qdd estado ver --json (Datos, sin tope) entregaba ocultas_tuyas null: el contrato es una lista, vacía si no hay.
+func TestDatos_SinTopeOcultasTuyasEsUnaListaVacia_FND296(t *testing.T) {
+	yaml := "formato: 1\netapas: [Código]\nfrentes:\n" +
+		"  - {id: a, nombre: A, estado: abierto, celdas: {Código: {estado: ⏳, bloqueo: decidir, de_quien: persona}}}\n"
+	b, err := json.Marshal(Datos(mustParse(t, yaml), ahora))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"ocultas_tuyas":[]`) {
+		t.Fatalf("una lista vacía, no null: %s", b)
 	}
 }

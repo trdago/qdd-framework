@@ -249,7 +249,7 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 	d := DatosPanel{
 		Formato: e.Formato, Actualizado: e.Actualizado, Resumen: Statusline(e, now), Etapas: e.Etapas,
 		Tareas: t.Tareas, Esperan: t.Esperan, EsperanPersona: t.EsperanPersona, Fallan: t.Fallan,
-		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
+		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, OcultasTuyas: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
 	}
 	if cuando, err := time.Parse(time.RFC3339, e.Actualizado); err == nil && !now.Before(cuando) {
 		d.Hace = Hace(now.Sub(cuando))
