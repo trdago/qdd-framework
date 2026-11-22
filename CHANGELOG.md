@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.112] - 2026-11-21
+
+### Fixed
+
+- **El aviso de una pregunta respondida ya se quita del teléfono (FND-289):** cuando la respondías tú o el modo goal, el aviso «pregunta» quedaba en la bandeja para siempre. El PC solo lo quitaba si el proyecto no tenía ninguna otra pregunta, y en qdd casi siempre queda un ⏳ del tablero que pregunta algo. Ahora se quita cuando ya está respondido todo lo que hizo sonar el aviso. El PC guarda qué hizo sonar cada aviso, así que funciona aunque qdd se reinicie o se actualice entre el aviso y la respuesta.
+
 ## [2.10.0-rc.111] - 2026-11-21
 
 ### Fixed

@@ -3,6 +3,7 @@ package remoto
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/qdd-framework/qdd/pkg/aislar"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,7 +30,11 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
-	os.Exit(m.Run())
+	// El ayudante del candado (MEJ-079) usa el QDD_HOME que le da su prueba: es el que tiene que compartir con ella.
+	if os.Getenv("QDD_AYUDANTE_CANDADO") != "" {
+		os.Exit(m.Run())
+	}
+	os.Exit(aislar.Correr(m))
 }
 
 const firmaPrueba = "abababababababababababababababababababababababababababababababab"

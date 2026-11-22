@@ -77,6 +77,7 @@ objetivo_tecnologico:
         - 'Peso del estado (FND-209): el servicio anota los bytes de cada estado completo que sale (<QDD_HOME>/remoto/peso.json) y doctor los compara con el tope de broadcast de Realtime del plan Free (256 KB), desde el 80 % (REM-21). La salida de cada logro va al teléfono recortada a 500 caracteres, el final con «…» delante (pedido de qdd-movile; el archivo local guarda 2000). Qué se recorta para quedar bajo el tope lo decide la persona con qdd-movile.'
         - 'La consola sigue al transcript con el turno más reciente (FND-244, MEJ-091): la hora de su última línea con timestamp, no la del archivo, que Claude Code mueve al agregar metadatos sin hora a sesiones viejas; con la misma hora, la del archivo. Con dos sesiones vivas trabajando en la misma carpeta, sigue a la última que escribió un turno.'
         - 'Cada push que el PC pide queda en el registro de qdd remoto como «push <tipo> de <proyecto>» (FND-247): sin eso no se podía saber si un pregunta_resuelto salió del PC.'
+        - 'El resuelto de un tipo también sale cuando ya no espera nada de lo que pidió un push de ese tipo, aunque sigan otras que esperaban desde antes y nunca se avisaron (FND-289): en qdd casi siempre queda un ⏳ del tablero con «¿…?», y el aviso de una pregunta respondida no se quitaba del teléfono. El PC recuerda qué pidió cada push en <QDD_HOME>/remoto/avisados.json, así que un reinicio entre el aviso y la respuesta no lo deja pegado; con dos avisadas, espera a la última. Acordado con qdd-movile (2026-11-21): en la app, un *_resuelto solo cancela la notificación de ese tipo.'
     invariantes:
         - qdd remoto desactivar nunca apaga ni borra un servicio que publica otro QDD_HOME (FND-136).
         - qdd doctor diagnostica la comunicación con QDD Móvil sin usar la red; solo --fix consulta, y solo el directorio firmado. Lo que necesita el teléfono o a la persona (emparejar, el reloj, una cola apartada) se dice y no se intenta.
@@ -110,4 +111,4 @@ pruebas:
 fuentes:
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-21"
-revisado_en_commit: eac6895cadcf
+revisado_en_commit: 8787fc4ddc38
