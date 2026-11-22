@@ -529,14 +529,21 @@ func sinLoVolatil(panel *consola.DatosConsola) *consola.DatosConsola {
 	}
 	d := *panel.Estado
 	d.Hace = ""
-	d.Frentes = slices.Clone(panel.Estado.Frentes)
-	for i, f := range d.Frentes {
-		if f.Actividad != nil {
-			d.Frentes[i].Actividad = &estado.ActividadPanel{Running: f.Actividad.Running}
-		}
-	}
+	d.Frentes = sinPulso(panel.Estado.Frentes)
+	d.OcultasTuyas = sinPulso(panel.Estado.OcultasTuyas)
 	p.Estado = &d
 	return &p
+}
+
+// sinPulso copia las filas dejando de su actividad solo si corre: el pulso cambia a cada rato y no es un cambio.
+func sinPulso(filas []estado.FrentePanel) []estado.FrentePanel {
+	out := slices.Clone(filas)
+	for i, f := range out {
+		if f.Actividad != nil {
+			out[i].Actividad = &estado.ActividadPanel{Running: f.Actividad.Running}
+		}
+	}
+	return out
 }
 
 // estructuraDe es lo que un delta no puede decir de cada proyecto (nombre, ruta y error) y cuántos quedaron fuera

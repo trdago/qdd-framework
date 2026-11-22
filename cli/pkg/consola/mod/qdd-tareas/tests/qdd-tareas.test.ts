@@ -1106,3 +1106,19 @@ test('un pedido que se va se materializa al revés (materializar)', async ($, on
   expect(mats[0].abrir).toBe(false)
   expect(textoDe(mats[0])).toContain('a  Publicar v1')
 })
+
+// FND-296 (qdd-movile, 2026-11-22): 4 tareas nuevas tapaban 9 ⏳ de la persona entre las «más antiguas».
+test('las ocultas que esperan a la persona salen en «⏳ N esperan por ti» y se despliegan (FND-296)', async ($, on) => {
+  const tuya = { id: 'publicar', nombre: 'Publicar la app', estado: 'abierto', simbolos: ['⏳', '·', '·', '·'] }
+  preparar(on, ok({ ...PANEL, estado: { ...ESTADO, ocultos: 5, ocultas_tuyas: [tuya] } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ key: 'ver-tuyas' })).toMatchObject({ props: { label: '⏳ 1 esperan por ti' } })
+  expect(await ui.find({ type: 'Text', text: '+4 más antiguas · qdd estado ver' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Publicar la app/ })).toBeUndefined()
+
+  await ui.press({ key: 'ver-tuyas' })
+  expect(await ui.find({ type: 'Text', text: /Publicar la app/ })).toBeDefined()
+  expect(await ui.find({ key: 'ver-tuyas' })).toBeUndefined()
+})

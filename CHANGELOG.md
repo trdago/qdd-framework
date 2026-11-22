@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.115] - 2026-11-22
+
+### Fixed
+
+- **Lo tuyo no queda tapado (FND-296):** el panel muestra las 4 tareas más nuevas, y un ⏳ de la persona en una tarea más antigua quedaba escondido en «+N más antiguas». Ahora una línea «⏳ N esperan por ti» las cuenta y las despliega; qdd estado ver --json las entrega en ocultas_tuyas.
+- **Tope del pedido armado (FND-297):** un pedido armado que seguía diciendo «todavía no» se reintentaba para siempre, cada 30 s: el de qdd-movile llevaba 6 días. Ahora deja de esperar a las 2 h desde que se armó y vuelve a pendiente con el motivo.
+
 ## [2.10.0-rc.114] - 2026-11-22
 
 ### Fixed

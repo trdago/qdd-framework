@@ -1690,7 +1690,12 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   }
   const nombrar = (etapas, abrev) => etapas.map((etapa, i) => abrev[i] + ' ' + etapa).join(' · ')
   const leyendas = [nombrar(e.etapas, e.abreviaturas), ...ciclos.map((c) => c.nombre + ': ' + nombrar(c.etapas, c.abreviaturas))]
-  const antiguas = e.ocultos > 0 ? [Text({ key: 'ocultas', dimColor: true, size: 'caption', children: ['+' + e.ocultos + ' más antiguas · qdd estado ver'] })] : []
+  // Las ocultas que esperan a la persona no se pierden entre las más antiguas: una línea las cuenta y las despliega (FND-296).
+  const tuyas = e.ocultas_tuyas || []
+  const verTuyas = tuyas.length && !tuyasVisibles ? [Button({ key: 'ver-tuyas', label: '⏳ ' + tuyas.length + ' esperan por ti', plain: true, onPress: () => verLasTuyas($) })] : []
+  const filasTuyas = tuyas.length && tuyasVisibles ? tuyas.map(filaTarea) : []
+  const resto = e.ocultos - tuyas.length
+  const antiguas = resto > 0 ? [Text({ key: 'ocultas', dimColor: true, size: 'caption', children: ['+' + resto + ' más antiguas · qdd estado ver'] })] : []
   return Box({
     key: 'tabla',
     flexDirection: 'column',
@@ -1699,6 +1704,8 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
       fila('cab', 'Tarea', [Text({ dimColor: true, size: 'caption', children: [e.abreviaturas.join(' ')] })], { dimColor: true, size: 'caption' }, []),
       ...filasGoal(Text),
       ...filas,
+      ...verTuyas,
+      ...filasTuyas,
       ...antiguas,
       ...leyendas.map((l, i) => Text({ key: 'leyenda-' + i, dimColor: true, size: 'caption', wrap: 'wrap', children: [l] })),
       ...enZona(Box, Text, Button, $, 'tabla'),
@@ -2276,6 +2283,13 @@ async function responderEspera($, q, valor) {
     if (r.mensaje) $.prompt.submit({ text: r.mensaje }).catch((err) => $.ui.log('no se envió a la IA: ' + String(err?.message ?? err)))
   }
   ocupado = false
+  $.ui.invalidate('ui.render')
+}
+
+// tuyasVisibles: la persona desplegó las tareas ocultas que la esperan (FND-296).
+let tuyasVisibles = false
+function verLasTuyas($) {
+  tuyasVisibles = true
   $.ui.invalidate('ui.render')
 }
 

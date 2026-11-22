@@ -713,14 +713,16 @@ func terminar(root, id string, codigo int, texto string, armar bool) {
 			if cola[i].ID != id {
 				continue
 			}
-			pid := cola[i].PID
+			pid, armadoEn := cola[i].PID, cola[i].ArmadoEn
 			// Si una lectura lo dio por cortado (y quizás ya se avisó), el resultado real lo reemplaza y se avisa (FND-187).
 			if cola[i].Estado != EstadoEjecutando && cola[i].Estado != EstadoArmado {
 				cola[i].Avisado = false
 			}
 			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida, cola[i].Aviso, cola[i].AvisoEn = EstadoHecho, &fin, codigo, texto, "", nil
 			cola[i].PID, cola[i].Hijo, cola[i].Proximo, cola[i].ArmadoEn = 0, 0, nil, nil
+			// El tope del armado cuenta desde la primera vez que se armó, no desde el último «todavía no» (FND-297).
 			if codigo == CodigoTodaviaNo && armar {
+				cola[i].ArmadoEn = armadoEn
 				cola[i] = armadoTras(cola[i], pid, texto, fin)
 				continue
 			}

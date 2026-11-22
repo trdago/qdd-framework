@@ -27,8 +27,6 @@ const tokenDePrueba = "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
 var estructurales = map[string]bool{
 	".Version": true, ".Carpeta": true,
 	".Estado.Actualizado": true, ".Estado.Etapas[]": true, ".Estado.Abreviaturas[]": true, ".Estado.Actual": true, ".Estado.Hace": true,
-	".Estado.Frentes[].ID": true, ".Estado.Frentes[].Estado": true, ".Estado.Frentes[].Simbolos[]": true, ".Estado.Frentes[].Objetivo": true,
-	".Estado.Frentes[].Prefijo": true, ".Estado.Frentes[].Actividad.Pulso": true, ".Estado.Frentes[].Actividad.Fuente": true,
 	".Estado.Esperas[].Etapa": true, ".Estado.Fallas[].Etapa": true,
 	".Estado.Objetivos[].ID": true, ".Estado.Objetivos[].Simbolo": true, ".Estado.Objetivos[].Ciclo": true,
 	".Estado.Ciclos[].Nombre": true, ".Estado.Ciclos[].Etapas[]": true, ".Estado.Ciclos[].Abreviaturas[]": true,
@@ -44,7 +42,14 @@ var estructurales = map[string]bool{
 var estructuralesDeAccion = []string{"ID", "Tipo", "Carpeta", "Tecla", "Estado", "Sesion", "VersionNueva", "DeTarea", "Origen", "ResponderEn",
 	"RespondidaEn", "Preguntas[].ID", "Preguntas[].Opciones[].Valor", "Permiso.Herramienta", "Dispositivo", "Solicitud"}
 
+// estructuralesDeFila son los de una fila del tablero: las visibles y las ocultas que esperan a la persona (FND-296).
+var estructuralesDeFila = []string{"ID", "Estado", "Simbolos[]", "Objetivo", "Prefijo", "Actividad.Pulso", "Actividad.Fuente"}
+
 func init() {
+	for _, c := range estructuralesDeFila {
+		estructurales[".Estado.Frentes[]."+c] = true
+		estructurales[".Estado.OcultasTuyas[]."+c] = true
+	}
 	for _, c := range estructuralesDeAccion {
 		estructurales[".Acciones[]."+c] = true
 		estructurales[".Otros[].Acciones[]."+c] = true
