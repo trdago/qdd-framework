@@ -3,7 +3,7 @@ title: "El tope del panel tapaba los ⏳ de la persona entre las «más antiguas
 description: "Reportado 2026-11-22 por qdd-movile: el panel muestra las 4 tareas pendientes más nuevas; 4 tareas nuevas de verificación dejaron 9 ⏳ de la persona dentro de «+N más antiguas» y ella vio el tablero sin nada para ella. El número esperan_persona las contaba, pero no se podían ver ni abrir desde el panel."
 impact: "Lo que espera a la persona quedaba escondido detrás de trabajo más nuevo de la IA."
 action_taken: "qdd estado ver --json entrega ocultas_tuyas (las ocultas con un ⏳ de la persona) y el panel dibuja «⏳ N esperan por ti», que las despliega; «+N más antiguas» cuenta solo el resto. Opción elegida por el modo goal (la recomendada)."
-test_result: "TestDatos_LasOcultasQueEsperanALaPersonaSalenAparte_FND296, TestDatos_SinOcultasTuyasLaListaVaVacia_FND296 y la prueba del mod «las ocultas que esperan a la persona…» pasan."
+test_result: "TestDatos_LasOcultasQueEsperanALaPersonaSalenAparte_FND296, TestDatos_SinOcultasTuyasLaListaVaVacia_FND296, TestDatos_SinTopeOcultasTuyasEsUnaListaVacia_FND296 y la prueba del mod «las ocultas que esperan a la persona…» pasan."
 status: resolved
 detectado_por: ia
 date: "2026-11-22"
