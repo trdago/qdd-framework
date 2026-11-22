@@ -220,21 +220,32 @@ func ocultarLogrado(o *Ocultador, lista []consola.Logro, salida func(string) str
 	return logrado
 }
 
-// ocultarTablero tapa los textos que escribe la IA en el tablero: nombres, criterios, lo que espera y lo que falla.
-func ocultarTablero(o *Ocultador, d *estado.DatosPanel) {
-	if d == nil {
-		return
+// ocultarFilas tapa el nombre, la pregunta y las notas de cada fila del tablero, en una copia.
+func ocultarFilas(o *Ocultador, filas []estado.FrentePanel) []estado.FrentePanel {
+	if filas == nil {
+		return nil
 	}
-	d.Resumen = o.Ocultar(d.Resumen)
-	for i, f := range d.Frentes {
+	out := make([]estado.FrentePanel, len(filas))
+	for i, f := range filas {
 		f.Nombre, f.Pregunta = o.Ocultar(f.Nombre), o.Ocultar(f.Pregunta)
 		notas := make([]string, len(f.Notas))
 		for j, n := range f.Notas {
 			notas[j] = o.Ocultar(n)
 		}
 		f.Notas = notas
-		d.Frentes[i] = f
+		out[i] = f
 	}
+	return out
+}
+
+// ocultarTablero tapa los textos que escribe la IA en el tablero: nombres, criterios, lo que espera y lo que falla.
+func ocultarTablero(o *Ocultador, d *estado.DatosPanel) {
+	if d == nil {
+		return
+	}
+	d.Resumen = o.Ocultar(d.Resumen)
+	d.Frentes = ocultarFilas(o, d.Frentes)
+	d.OcultasTuyas = ocultarFilas(o, d.OcultasTuyas)
 	for i, p := range d.Esperas {
 		p.Frente, p.Texto, p.DeQuien = o.Ocultar(p.Frente), o.Ocultar(p.Texto), o.Ocultar(p.DeQuien)
 		d.Esperas[i] = p

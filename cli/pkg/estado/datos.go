@@ -16,6 +16,9 @@ type DatosPanel struct {
 	Abreviaturas []string      `json:"abreviaturas"`
 	Frentes      []FrentePanel `json:"frentes"`
 	Ocultos      int           `json:"ocultos"` // pendientes que no entran en el tope de DatosPendientes (los más antiguos)
+	// OcultasTuyas son las de Ocultos con un ⏳ de la persona: el panel y el teléfono dicen «⏳ N esperan por ti» y las
+	// despliegan, para que algo de la persona nunca quede tapado por las más nuevas (FND-296).
+	OcultasTuyas []FrentePanel `json:"ocultas_tuyas"`
 	// Totales de las tareas pendientes, entren o no en el panel: los mismos que la barra (FND-086).
 	Tareas  int `json:"tareas"`
 	Esperan int `json:"esperan"`
@@ -153,6 +156,11 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 	}
 	d := datos(e, now, func(f Frente) bool { return f.Estado == EstadoAbierto && visibles[f.ID] })
 	d.Ocultos = ocultos
+	tuyas := map[string]bool{}
+	for _, id := range pendientes[:ocultos] {
+		tuyas[id] = e.esperaALaPersona(id)
+	}
+	d.OcultasTuyas = datos(e, now, func(f Frente) bool { return f.Estado == EstadoAbierto && tuyas[f.ID] }).Frentes
 	for i, f := range d.Frentes {
 		a, ok := enCurso[f.ID]
 		if !ok {
@@ -180,6 +188,21 @@ func (e Estado) focoAbierto() string {
 // usan esta misma cuenta (FND-086).
 type Totales struct {
 	Tareas, Esperan, EsperanPersona, Fallan int
+}
+
+// esperaALaPersona dice si la tarea id tiene algún ⏳ que le toca a la persona.
+func (e Estado) esperaALaPersona(id string) bool {
+	i := e.buscar(id)
+	if i < 0 {
+		return false
+	}
+	f := e.Frentes[i]
+	for _, etapa := range e.EtapasDe(f) {
+		if NormalizarEstado(f.Celdas[etapa].Estado) == Espera && DeLaPersona(f.Celdas[etapa].DeQuien) {
+			return true
+		}
+	}
+	return false
 }
 
 // DeLaPersona dice si un ⏳ le toca a la persona, según su de_quien.
