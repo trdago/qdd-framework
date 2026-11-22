@@ -1,0 +1,9 @@
+id: "FND-293"
+title: "Una puerta cortada por el tope podía dejar .git/qdd-huella-* para siempre"
+description: "Observado 2026-11-21 por el frente 2 de la oleada 2: hechosConTope devuelve al llegar a topePuertas (FND-277) y qdd sale mientras la gorutina sigue dentro de puertas.Huella: su defer os.Remove no corre y el git abandonado sigue escribiendo el índice aparte (y su .lock). En el repositorio de qdd no había restos al revisarlo (2026-11-22)."
+impact: "Con un git lento, cada commit cortado podía dejar un índice completo en .git que nadie borraba."
+action_taken: "Cada Huella borra antes los .git/qdd-huella-* de más de RestoHuella (1 min); uno reciente puede ser de otra huella en curso y no se toca. Decisión en la ficha puertas."
+test_result: "cli/pkg/puertas/huella_restos_test.go TestHuella_LimpiaLosRestosViejosYNoLosRecientes_FND293 falló sin el arreglo y pasa con él."
+status: resolved
+detectado_por: ia
+date: "2026-11-22"

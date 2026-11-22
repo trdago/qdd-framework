@@ -1,0 +1,9 @@
+id: "FND-294"
+title: "Sin QDD Móvil, el modo goal decía «pausado · sin consola» con la sesión trabajando"
+description: "Observado 2026-11-21 por el frente 2 de la oleada 2: sin QDD Móvil ni consola seguir, el mod late la sesión cada 60 s (TELEFONO_PAUSA × 5 s) y VidaSesion es 30 s, así que la mitad del tiempo HaySesion era falso y VistaGoal decía pausado sin consola, en el panel y en el teléfono. Además, un ciclo sin ninguna sesión abierta seguía recordando y contando recordatorios, y podía detenerse por sin_avance."
+impact: "La persona veía el modo goal en pausa (o detenido) cuando seguía trabajando, o lo veía detenerse sin que nadie pudiera avanzar."
+action_taken: "qdd goal ciclo --sesion late esa sesión (la pide ella cada 5 s). Un ciclo sin ninguna sesión abierta no recuerda ni cuenta. Dos pruebas de goal miraban la vista a una hora anterior a su propio ciclo; ahora la miran a la hora del ciclo. Decisión en la ficha goal."
+test_result: "cli/pkg/consola/goal_latido_test.go: TestGoal_ElCicloDeUnaSesionLaLateYLaVistaNoParpadea_FND294 y TestGoal_SinSesionAbiertaElCicloNoCuentaRecordatorios_FND294 fallaron sin el arreglo y pasan; TestGoal_UnCicloSinSesionNoLaInventa_FND294 pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-22"

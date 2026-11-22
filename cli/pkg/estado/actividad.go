@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/candado"
@@ -105,9 +106,17 @@ func tareaAbierta(root, id string) error {
 	}
 	i := e.buscar(id)
 	if e.Frentes[i].Estado != EstadoAbierto {
-		return fmt.Errorf("la tarea %q está %s", id, e.Frentes[i].Estado)
+		return fmt.Errorf("la tarea %q está %s", id, enFemenino(e.Frentes[i].Estado))
 	}
 	return nil
+}
+
+// enFemenino: el estado de un frente («cerrado», «descartado») dicho de una tarea (FND-292).
+func enFemenino(estado string) string {
+	if base, ok := strings.CutSuffix(estado, "o"); ok {
+		return base + "a"
+	}
+	return estado
 }
 
 // quienHerramienta: «quién» nombra la herramienta que trabaja (claude-code, mcp), nunca a una persona: sin espacios,

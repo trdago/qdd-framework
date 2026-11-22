@@ -17,6 +17,7 @@ objetivo_tecnologico:
         - 'Los PRs que qdd ofrece solo no se corren: también son de otras sesiones.'
         - 'Sin tool MCP: la IA no tiene nada que hacer con el modo y tools/list está al borde del presupuesto.'
         - Si otra terminal del proyecto trabajó en los últimos 2 min, no se le recuerda a la que mira.
+        - 'Sesión del ciclo (FND-294, 2026-11-22): qdd goal ciclo --sesion late esa sesión, porque la pide ella cada 5 s; sin QDD Móvil el mod late cada 60 s y VidaSesion es 30 s, y la vista decía «pausado · sin consola» con la sesión trabajando. Un ciclo sin ninguna sesión abierta no recuerda ni cuenta recordatorios: nadie puede avanzar.'
     invariantes:
         - 'Lo que elige el modo llega a la IA marcado (FND-198): cada respuesta de una pregunta respondida por el modo goal termina con «[la eligió el modo goal (su opción recomendada), no la persona]», así la IA nunca la atribuye a la persona.'
         - 'Solo la persona lo activa: qdd goal activar se rechaza con CLAUDECODE en el entorno, y solo el panel tras la confirmación y el teléfono firmado lo limpian.'
@@ -37,5 +38,5 @@ pruebas:
 fuentes:
     - rfcs/0015-modo-goal.md
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-21"
-revisado_en_commit: fa667408608a
+ultima_revision: "2026-11-22"
+revisado_en_commit: 7d98c219fd53
