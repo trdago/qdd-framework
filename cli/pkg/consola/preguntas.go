@@ -136,9 +136,10 @@ type Pregunta struct {
 	Lugar        string                   `json:"lugar,omitempty"`  // el teléfono que la respondió
 	Motivo       string                   `json:"motivo,omitempty"` // por qué venció
 	Respuesta    map[string]RespuestaItem `json:"respuesta,omitempty"`
-	Instruccion  string                   `json:"instruccion,omitempty"` // la instrucción que lleva la respuesta a un ⏳ (FND-141)
-	SinSesion    bool                     `json:"sin_sesion,omitempty"`  // un ⏳: se responde aunque no haya una sesión abierta
-	Aplicado     string                   `json:"aplicado,omitempty"`    // qué quedó en el estado al responder un ⏳
+	Instruccion  string                   `json:"instruccion,omitempty"`  // la instrucción que lleva la respuesta a un ⏳ (FND-141)
+	SinSesion    bool                     `json:"sin_sesion,omitempty"`   // un ⏳: se responde aunque no haya una sesión abierta
+	ResponderEn  string                   `json:"responder_en,omitempty"` // ResponderEnPC: solo la terminal la responde (MEJ-094)
+	Aplicado     string                   `json:"aplicado,omitempty"`     // qué quedó en el estado al responder un ⏳
 	Creada       time.Time                `json:"creada"`
 	Vista        time.Time                `json:"vista"` // la última vez que su sesión la esperó
 	claveTurno   string                   // lo que identifica su turno (RFC 0019), solo de un ⏳ vivo
@@ -152,6 +153,7 @@ type Pregunta struct {
 // entrada (AskUserQuestion o un permiso), o un comando qdd con sus preguntas (origen qdd).
 type NuevaPregunta struct {
 	Origen      string          `json:"origen,omitempty"`
+	ResponderEn string          `json:"responder_en,omitempty"` // ResponderEnPC, o vacío
 	Sesion      string          `json:"sesion,omitempty"`
 	Herramienta string          `json:"herramienta,omitempty"`
 	Entrada     json.RawMessage `json:"entrada,omitempty"`
@@ -224,6 +226,9 @@ func RegistrarPregunta(root string, n NuevaPregunta, now time.Time) (Pregunta, e
 		return Pregunta{}, err
 	}
 	p.ID, p.Estado, p.Sesion, p.Creada, p.Vista = nuevoIDPregunta(), PreguntaPendiente, strings.TrimSpace(n.Sesion), now.UTC(), now.UTC()
+	if n.ResponderEn == ResponderEnPC {
+		p.ResponderEn = ResponderEnPC
+	}
 	err = conPreguntas(root, now, func(cola []Pregunta) ([]Pregunta, error) {
 		return append([]Pregunta{p}, cola...), nil
 	})
@@ -385,6 +390,13 @@ func IDPregunta(id string) string {
 	return strings.TrimPrefix(strings.TrimSpace(id), prefijoPregunta)
 }
 
+// ResponderEnPC marca una pregunta que solo la terminal puede responder: el mod la registró sin el hook
+// PermissionRequest de Claude Code, el único que le lleva otra respuesta (MEJ-094). El teléfono la muestra sin botones.
+const ResponderEnPC = "pc"
+
+// ErrSoloEnPC: la pregunta solo se responde en la terminal del PC.
+var ErrSoloEnPC = errors.New("esta pregunta solo se responde en la terminal del PC: Claude Code no deja llevarle otra respuesta")
+
 // LugarPanel es el lugar de una pregunta de la terminal respondida con un botón de «▶ Para ti» (MEJ-057).
 const LugarPanel = "el panel"
 
@@ -443,6 +455,9 @@ func ResponderPregunta(root, id, respuesta, lugar string, now time.Time) (Pregun
 		}
 		if cola[i].Estado != PreguntaPendiente {
 			return nil, &PreguntaCerrada{Pregunta: cola[i]}
+		}
+		if cola[i].ResponderEn == ResponderEnPC {
+			return nil, ErrSoloEnPC
 		}
 		r, err := validarRespuesta(cola[i], respuesta)
 		if err != nil {
@@ -742,7 +757,7 @@ func accionesDePreguntas(root string, now time.Time) []Accion {
 		a := Accion{
 			ID: prefijoPregunta + p.ID, Tipo: TipoPregunta, Etiqueta: p.Etiqueta, Detalle: p.Preguntas[0].Texto,
 			Estado: p.Estado, Sesion: p.Sesion, Origen: p.Origen, RespondidaEn: p.RespondidaEn,
-			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo, SinSesion: p.SinSesion,
+			Preguntas: p.Preguntas, Permiso: p.Permiso, Confirmar: true, Resultado: p.Motivo, SinSesion: p.SinSesion, ResponderEn: p.ResponderEn,
 			claveTurno: p.claveTurno, tareaTurno: p.tareaTurno,
 		}
 		if p.Permiso != nil {

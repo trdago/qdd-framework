@@ -401,7 +401,7 @@ func elegirPreguntas(root string, now time.Time) ([]Elegida, int) {
 			continue
 		}
 		respuesta, eleccion, ok := respuestaRecomendada(p, diseno)
-		if !ok {
+		if !ok || p.ResponderEn == ResponderEnPC {
 			esperan++
 			continue
 		}

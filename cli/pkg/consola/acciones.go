@@ -79,7 +79,8 @@ type Accion struct {
 	Origen       string           `json:"origen,omitempty"`
 	RespondidaEn string           `json:"respondida_en,omitempty"`
 	Preguntas    []ItemPregunta   `json:"preguntas,omitempty"`
-	SinSesion    bool             `json:"sin_sesion,omitempty"` // un ⏳: se responde aunque no haya una sesión abierta
+	SinSesion    bool             `json:"sin_sesion,omitempty"`   // un ⏳: se responde aunque no haya una sesión abierta
+	ResponderEn  string           `json:"responder_en,omitempty"` // "pc": una pregunta que solo la terminal responde (MEJ-094)
 	Permiso      *PermisoPregunta `json:"permiso,omitempty"`
 	// Solo pedidos de origen telefono (telefono.go): el nombre del teléfono que lo mandó y la solicitud con que llegó.
 	Dispositivo string     `json:"dispositivo,omitempty"`

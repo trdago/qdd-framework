@@ -584,6 +584,41 @@
    "sin_consola": true,
    "espera": true,
    "aviso": "pregunta"
+  },
+  {
+   "caso": "pregunta de la IA que solo se responde en el PC (MEJ-094)",
+   "accion": {
+    "id": "pregunta:7",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Qué base de datos uso?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "responder_en": "pc",
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Base",
+      "texto": "¿Qué base de datos uso?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "postgres",
+        "etiqueta": "Postgres (Recomendada)"
+       },
+       {
+        "valor": "sqlite",
+        "etiqueta": "SQLite"
+       }
+      ]
+     }
+    ],
+    "sesion": "s-7"
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
   }
  ]
 }

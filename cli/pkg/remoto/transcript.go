@@ -3,6 +3,7 @@ package remoto
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"io"
 	"os"
@@ -246,7 +247,13 @@ type lector struct {
 	// trabajando es desde cuándo Claude está trabajando en el turno en curso (hora del transcript); vacío si no
 	// (FND-239).
 	trabajando string
+	// enPregunta es desde cuándo trabajaba el turno que quedó detenido en una pregunta a la persona (MEJ-094): al
+	// responderla el turno sigue, y el contador del teléfono no vuelve a cero.
+	enPregunta string
 }
+
+// trabajo es lo que trabajoTras sigue: desde cuándo trabaja el turno y, si espera una pregunta, desde cuándo trabajaba.
+type trabajo struct{ desde, enPregunta string }
 
 // marca es lo que una línea del transcript dice del trabajo de Claude.
 type marca struct {
@@ -265,38 +272,66 @@ type marca struct {
 // cada respuesta en el transcript solo al terminarla, así que sin esto el teléfono no ve nada mientras tanto. La
 // primera api-request del hilo principal empieza el trabajo; el fin del turno (turn_duration), una compactación, una
 // interrupción o un mensaje nuevo de la persona lo terminan.
-func trabajoTras(desde string, datos []byte) string {
+func trabajoTras(t trabajo, datos []byte) trabajo {
 	for _, linea := range bytes.Split(datos, []byte("\n")) {
-		desde = trabajoDeLinea(desde, linea)
+		t = trabajoDeLinea(t, linea)
 	}
-	return desde
+	return t
 }
 
-func trabajoDeLinea(desde string, linea []byte) string {
-	if !bytes.Contains(linea, []byte(`"api-request"`)) && !bytes.Contains(linea, []byte(`"system"`)) && !bytes.Contains(linea, []byte(`"user"`)) {
-		return desde
+func trabajoDeLinea(t trabajo, linea []byte) trabajo {
+	if !bytes.Contains(linea, []byte(`"api-request"`)) && !bytes.Contains(linea, []byte(`"system"`)) && !bytes.Contains(linea, []byte(`"user"`)) && !bytes.Contains(linea, []byte(`"`+herramientaPreguntar+`"`)) {
+		return t
 	}
 	var m marca
 	if json.Unmarshal(linea, &m) != nil {
-		return desde
+		return t
 	}
-	if m.Type == "api-request" && (m.QuerySource == "" || m.QuerySource == "repl_main_thread") && desde == "" {
-		return m.Timestamp
+	if preguntaALaPersona(m) {
+		return trabajo{enPregunta: cmp.Or(t.desde, t.enPregunta)}
+	}
+	if m.Type == "api-request" && (m.QuerySource == "" || m.QuerySource == "repl_main_thread") && t.desde == "" {
+		return trabajo{desde: cmp.Or(t.enPregunta, m.Timestamp)}
 	}
 	if m.Type == "system" && (m.Subtype == "turn_duration" || m.Subtype == "compact_boundary") {
-		return ""
+		return trabajo{}
 	}
 	if m.IsMeta || m.IsSidechain {
-		return desde
+		return t
 	}
 	var texto string
 	if m.Type == "user" && json.Unmarshal(m.Message.Content, &texto) == nil && !strings.HasPrefix(strings.TrimSpace(texto), "<") {
-		return ""
+		return trabajo{}
 	}
 	if m.Type == "user" && bytes.Contains(m.Message.Content, []byte("[Request interrupted by user")) {
-		return ""
+		return trabajo{}
 	}
-	return desde
+	return t
+}
+
+// herramientaPreguntar es la herramienta con la que la IA pregunta a la persona.
+const herramientaPreguntar = "AskUserQuestion"
+
+// preguntaALaPersona: la IA de la conversación principal llamó a AskUserQuestion. Claude Code lo escribe antes de
+// mostrar el diálogo, y el turno no termina hasta que alguien responde: la sesión espera a la persona, no trabaja
+// (MEJ-094: 3 horas en «trabajando»). Respondida, la api-request siguiente retoma el turno desde su inicio.
+func preguntaALaPersona(m marca) bool {
+	if m.Type != "assistant" || m.IsSidechain {
+		return false
+	}
+	var bloques []struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+	if json.Unmarshal(m.Message.Content, &bloques) != nil {
+		return false
+	}
+	for _, b := range bloques {
+		if b.Type == "tool_use" && b.Name == herramientaPreguntar {
+			return true
+		}
+	}
+	return false
 }
 
 // abrirLector empieza al final del transcript y devuelve las últimas colaInicial líneas visibles.
@@ -316,7 +351,8 @@ func abrirLector(archivo string) (*lector, []LineaConsola) {
 	}
 	l.pos = info.Size()
 	lineas, resto, leido := colaDe(f, info.Size())
-	l.resto, l.trabajando = resto, trabajoTras("", leido)
+	t := trabajoTras(trabajo{}, leido)
+	l.resto, l.trabajando, l.enPregunta = resto, t.desde, t.enPregunta
 	return l, lineas
 }
 
@@ -402,6 +438,7 @@ func (l *lector) partir(datos []byte) []LineaConsola {
 		return nil
 	}
 	l.resto = append([]byte{}, datos[i+1:]...)
-	l.trabajando = trabajoTras(l.trabajando, datos[:i])
+	t := trabajoTras(trabajo{desde: l.trabajando, enPregunta: l.enPregunta}, datos[:i])
+	l.trabajando, l.enPregunta = t.desde, t.enPregunta
 	return visibles(datos[:i])
 }
