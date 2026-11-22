@@ -236,6 +236,10 @@ func CicloGoal(root, bin string, in EntradaGoal, now time.Time) (ResultadoGoal, 
 	if err != nil || !g.Activo {
 		return r, err
 	}
+	// La sesión que pide el ciclo está abierta: sin esto, con latidos cada 60 s la vista decía «pausado» (FND-294).
+	if in.Sesion != "" {
+		_ = LatirSesion(root, in.Sesion, now)
+	}
 	err = conGoalGuardado(root, func(g *goalGuardado) error {
 		r = vueltaGoal(root, bin, g, in, now)
 		return nil
@@ -246,6 +250,10 @@ func CicloGoal(root, bin string, in EntradaGoal, now time.Time) (ResultadoGoal, 
 func vueltaGoal(root, bin string, g *goalGuardado, in EntradaGoal, now time.Time) ResultadoGoal {
 	var r ResultadoGoal
 	if !g.Activo || g.Estado == GoalTerminado || (g.Estado == GoalPausado && g.Motivo == MotivoSinAvance) {
+		return r
+	}
+	// Sin una sesión abierta nadie avanza (VistaGoal dice «sin consola»): ni recuerda ni cuenta (FND-294).
+	if !HaySesion(root, now) {
 		return r
 	}
 	if in.Ocupada {

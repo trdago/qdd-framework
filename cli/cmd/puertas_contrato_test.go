@@ -66,7 +66,8 @@ func TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277(t *testing.
 		t.Fatal(err)
 	}
 	lento := t.TempDir()
-	script := "#!/bin/sh\ncase \" $* \" in *\" add -A \"*) sleep 1 ;; esac\nexec " + gitReal + " \"$@\"\n"
+	// Cada «add -A» abandonado deja una marca al terminar: la limpieza la espera en vez de adivinar cuánto tarda.
+	script := "#!/bin/sh\ncase \" $* \" in *\" add -A \"*) sleep 1; " + gitReal + " \"$@\"; r=$?; touch " + lento + "/listo.$$; exit $r ;; esac\nexec " + gitReal + " \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(lento, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +75,15 @@ func TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277(t *testing.
 	viejo := topePuertas
 	topePuertas = 200 * time.Millisecond
 	t.Cleanup(func() { topePuertas = viejo })
-	// La huella que se abandonó sigue en segundo plano: se la espera antes de borrar el repositorio.
-	t.Cleanup(func() { time.Sleep(1500 * time.Millisecond) })
+	// Las dos huellas abandonadas (panel y hook) siguen en segundo plano: se esperan antes de borrar el repositorio
+	// (con tope, por si una no llegó a git).
+	t.Cleanup(func() {
+		for limite := time.Now().Add(15 * time.Second); time.Now().Before(limite); time.Sleep(20 * time.Millisecond) {
+			if listos, _ := filepath.Glob(filepath.Join(lento, "listo.*")); len(listos) >= 2 {
+				return
+			}
+		}
+	})
 
 	for nombre, revisar := range map[string]func() (int, string){
 		"panel": func() (int, string) { return revisarPuertas(repo, "s-1", "git commit -m x") },

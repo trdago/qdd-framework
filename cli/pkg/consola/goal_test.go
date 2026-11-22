@@ -322,7 +322,7 @@ func TestGoal_CuandoAlgoSeMueveVuelveATrabajar_FND216(t *testing.T) {
 	if r.Aviso != "" || !strings.Contains(r.Mensaje, "(Otra)") || strings.Contains(r.Mensaje, "Barra") {
 		t.Fatalf("hay algo que la IA mueve: se lo recuerda: %+v", r)
 	}
-	if g := VistaGoal(root, enCola); g.Estado != GoalTrabajando {
+	if g := VistaGoal(root, enCola.Add(3*time.Minute)); g.Estado != GoalTrabajando {
 		t.Fatalf("vuelve a trabajar: %+v", g)
 	}
 	if err := estado.Set(root, estado.Cambio{Frente: "otra", Etapa: "Código", Estado: "⏳", Bloqueo: "b", DeQuien: "c"}, enCola); err != nil {
@@ -493,7 +493,7 @@ func TestGoal_ReactivarEmpiezaDeCeroYDesactivarLoApaga(t *testing.T) {
 	if err := ActivarGoal(root, "panel", enCola.Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	if g := VistaGoal(root, enCola); g.Recordatorios != 0 || g.Estado != GoalTrabajando {
+	if g := VistaGoal(root, enCola.Add(3*time.Minute)); g.Recordatorios != 0 || g.Estado != GoalTrabajando {
 		t.Fatalf("reactivarlo reinicia la cuenta: %+v", g)
 	}
 	if err := DesactivarGoal(root, enCola); err != nil {

@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.114] - 2026-11-22
+
+### Fixed
+
+- **El modo goal ya no dice «pausado» mientras la sesión trabaja (FND-294):** sin QDD Móvil, el panel y el teléfono a ratos mostraban «pausado · sin consola» con la sesión trabajando. Ahora cada vuelta del modo cuenta como señal de que la sesión sigue abierta. Sin ninguna sesión abierta, el modo ya no cuenta recordatorios ni se detiene por falta de avance.
+- **Las puertas no dejan archivos sueltos en `.git` (FND-293):** si git tardaba demasiado en un commit, podía quedar un archivo `qdd-huella-*` que nadie borraba. Ahora se limpia solo.
+- **Mensaje corregido (FND-292):** activar una tarea cerrada decía «la tarea está cerrado»; ahora dice «está cerrada».
+
 ## [2.10.0-rc.113] - 2026-11-21
 
 ### Fixed

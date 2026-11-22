@@ -1,0 +1,9 @@
+id: "FND-295"
+title: "La prueba de FND-277 esperaba a git abandonado con un tiempo fijo"
+description: "Observado 2026-11-21 por el frente 2 de la oleada 2: TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277 usa un git falso que tarda 1 s y esperaba 1,5 s fijos en su Cleanup antes de borrar el repositorio; con la máquina cargada, el git abandonado podía seguir escribiendo y el borrado de la carpeta temporal fallar."
+impact: "Una prueba que podía fallar sin defecto en el producto, y bloquear un merge (como FND-290)."
+action_taken: "El git falso deja una marca al terminar cada add -A abandonado, y la limpieza espera las dos marcas (panel y hook), con tope de 15 s."
+test_result: "go test -count=5 -run FND277 ./cmd pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-22"

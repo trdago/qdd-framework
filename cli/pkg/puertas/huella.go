@@ -22,6 +22,7 @@ func Huella(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	limpiarRestos(filepath.Dir(indice), time.Now())
 	tmp, err := os.CreateTemp(filepath.Dir(indice), "qdd-huella-*")
 	if err != nil {
 		return "", err
@@ -35,6 +36,23 @@ func Huella(dir string) (string, error) {
 		return "", err
 	}
 	return gitSalida(dir, env, "write-tree")
+}
+
+// RestoHuella: un índice aparte más viejo que esto es de una huella que quedó a medias, no de una que corre: la más
+// lenta se corta a los 1,5 s (topePuertas).
+const RestoHuella = time.Minute
+
+// limpiarRestos borra los índices aparte (y sus .lock) que dejó una huella cortada por tiempo: su qdd salió sin su
+// defer y el git abandonado siguió escribiendo (FND-293). Es de mejor esfuerzo.
+func limpiarRestos(dir string, ahora time.Time) {
+	restos, _ := filepath.Glob(filepath.Join(dir, "qdd-huella-*"))
+	for _, r := range restos {
+		info, err := os.Stat(r)
+		if err != nil || ahora.Sub(info.ModTime()) < RestoHuella {
+			continue
+		}
+		_ = os.Remove(r)
+	}
 }
 
 // copiarIndice parte del índice real para que git solo vuelva a leer lo que cambió; un repositorio nuevo no tiene.
