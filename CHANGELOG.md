@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.117] - 2026-11-22
+
+### Fixed
+
+- **Puerta audit y tablero (FND-299):** mover el tablero después de `qdd audit` ya no deja viejo el audit: .qdd/project/estado.yaml queda fuera de la huella. Antes, un proyecto con el tablero vivo no podía commitear.
+
 ## [2.10.0-rc.116] - 2026-11-22
 
 ### Fixed
@@ -15,7 +21,6 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Estado más liviano para el teléfono (FND-209):** las filas del tablero viajan sin la pregunta que el panel envía a la IA, unos 15 KB menos. Lo acordamos con QDD Móvil.
 - **ocultas_tuyas (FND-296):** `qdd estado ver --json` la entrega como lista vacía, no como null.
 - FND-229 queda cerrado: el registro de qdd remoto mostró la causa real.
-- **Puerta audit y tablero (FND-299):** mover el tablero después de `qdd audit` ya no deja viejo el audit: .qdd/project/estado.yaml queda fuera de la huella. Antes, un proyecto con el tablero vivo no podía commitear.
 - **Prueba inestable (FND-298):** la prueba de FND-277 tenía muy poco margen y fallaba con la máquina cargada; ahora lo tiene amplio.
 
 ## [2.10.0-rc.115] - 2026-11-22
