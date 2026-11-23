@@ -1,0 +1,9 @@
+id: "FND-301"
+title: "Un pedido corregido dejaba la cadena esperando al que falló"
+description: "MEJ-072 (qdd-movile, 2026-11-10, REP-489): [d] esperaba a [a]. [a] falló y la IA lo pidió de nuevo con el comando corregido: salió con otra tecla y [d] siguió esperando al que falló, para siempre. Reencadenarlo con antes=d se rechazaba («el pedido 4 ya está armado») porque la persona ya había confirmado [d]. La única salida era descartar los dos y pedirlos de nuevo, y la persona confirmaba todo otra vez: 4 veces en una hora. Con el mismo comando ya se reusaba el pedido; el caso era el comando corregido."
+impact: "Cada corrección de un pedido encadenado le costaba a la persona volver a confirmar toda la cadena."
+action_taken: "qdd consola pedir --reemplaza <tecla> (reemplaza en qdd_consola_pedir): el nuevo toma la tecla del que falló o seguía pendiente y lo que ese esperaba; lo que esperaba al viejo pasa a esperar al nuevo, y lo armado sigue armado. Uno armado o en curso no se reemplaza (tiene el «s  Sí» de la persona). Además, antes=<tecla> acepta un pedido armado: queda armado y espera también al nuevo (su bucle mira lo que espera cada CadaEspera). El orden sigue declarado por quien pide, no adivinado. Ficha estado actualizada."
+test_result: "cli/pkg/consola/pedido_reemplaza_mej072_test.go (reemplazar conserva tecla, cadena y confirmación; hereda lo que esperaba el viejo; no reemplaza un armado ni algo que no está; antes de un armado lo deja armado y esperando) no compilaba ni pasaba antes del cambio y pasa; go test ./... en verde y el presupuesto del MCP sigue bajo 16000 caracteres."
+status: resolved
+detectado_por: relay
+date: "2026-11-23"

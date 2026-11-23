@@ -426,6 +426,10 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if ya := hechoReciente(ColaDe(root, dir), efecto, huellaPush(comando, dir), now); ya != nil && !orden.DeNuevo {
 			return nil, ya
 		}
+		cola, viejo, err := sinReemplazado(cola, orden.Reemplaza)
+		if err != nil {
+			return nil, err
+		}
 		cola = sinAutomaticosQueNombra(cola, motivo, comando)
 		usadas = teclasAbiertas(cola)
 		if len(usadas) >= MaxPedidos {
@@ -441,8 +445,11 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if preferida != "" && !usadas[preferida] {
 			tecla = preferida
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual()), DePersona: orden.DePersona}
-		return conOrden(reenganchar(append(cola, p), p), p.ID, orden, &nuevo)
+		if viejo.Tecla != "" && !usadas[viejo.Tecla] {
+			tecla = viejo.Tecla
+		}
+		p := Pedido{ID: siguienteID(append(cola, viejo)), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual()), DePersona: orden.DePersona, Despues: viejo.Despues}
+		return conOrden(heredarEsperas(reenganchar(append(cola, p), p), viejo.ID, p.ID), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
 }

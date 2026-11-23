@@ -26,6 +26,8 @@ type Orden struct {
 	DeNuevo bool
 	// DePersona: solo la persona lo puede confirmar; el modo goal no lo lanza (el permiso de un token, RFC 0023).
 	DePersona bool
+	// Reemplaza: id o tecla de un pedido que falló o sigue pendiente; el nuevo toma su lugar en la cadena (MEJ-072).
+	Reemplaza string
 }
 
 func (o Orden) vacio() bool {
@@ -173,7 +175,9 @@ func ordenar(cola []Pedido, i int, orden Orden) error {
 		if j == i {
 			return fmt.Errorf("el pedido %s no puede ir antes de sí mismo", cola[i].ID)
 		}
-		if !cola[j].Ejecutable() {
+		// Uno armado sigue armado: su bucle mira cada CadaEspera lo que espera, y esperar uno más no cambia lo que la
+		// persona confirmó (MEJ-072).
+		if !cola[j].Ejecutable() && cola[j].Estado != EstadoArmado {
 			return fmt.Errorf("no puede ir antes del pedido %s: %v", cola[j].ID, errNoEjecutable(cola[j].ID, cola[j].Estado))
 		}
 		cola[j].Despues = agregarUno(cola[j].Despues, cola[i].ID)
@@ -282,6 +286,36 @@ func sinBloqueo(cola []Pedido, id string) []Pedido {
 	for i := range cola {
 		if cola[i].ID == id {
 			cola[i].Descartados = nil
+		}
+	}
+	return cola
+}
+
+// sinReemplazado saca de la cola el pedido que el nuevo reemplaza (MEJ-072) y lo devuelve, para que el nuevo herede
+// su tecla y lo que esperaba. Solo uno que falló o sigue pendiente: uno armado o en curso ya tiene el «s  Sí» de la
+// persona.
+func sinReemplazado(cola []Pedido, ref string) ([]Pedido, Pedido, error) {
+	if strings.TrimSpace(ref) == "" {
+		return cola, Pedido{}, nil
+	}
+	i, err := resolver(cola, ref)
+	if err != nil {
+		return nil, Pedido{}, err
+	}
+	viejo := cola[i]
+	if !viejo.Ejecutable() {
+		return nil, Pedido{}, fmt.Errorf("no se puede reemplazar: %v", errNoEjecutable(viejo.ID, viejo.Estado))
+	}
+	return append(append([]Pedido{}, cola[:i]...), cola[i+1:]...), viejo, nil
+}
+
+// heredarEsperas: lo que esperaba al pedido viejo pasa a esperar al nuevo.
+func heredarEsperas(cola []Pedido, viejo, nuevo string) []Pedido {
+	for i := range cola {
+		for j, d := range cola[i].Despues {
+			if d == viejo {
+				cola[i].Despues[j] = nuevo
+			}
 		}
 	}
 	return cola
