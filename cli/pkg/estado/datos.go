@@ -89,11 +89,11 @@ type FrentePanel struct {
 	Estado   string   `json:"estado"`
 	Simbolos []string `json:"simbolos"`
 	// Objetivo, Prefijo («│  └─ ») y Notas («espera a X») dibujan el árbol tal cual (EPT-A02); Pregunta es lo que el
-	// panel le envía al agente al pinchar la tarea (EPT-A03).
+	// panel le envía al agente al pinchar la tarea (EPT-A03). Al teléfono no viaja (FND-209): ninguna pantalla la muestra.
 	Objetivo string   `json:"objetivo,omitempty"`
 	Prefijo  string   `json:"prefijo,omitempty"`
 	Notas    []string `json:"notas,omitempty"`
-	Pregunta string   `json:"pregunta"`
+	Pregunta string   `json:"pregunta,omitempty"`
 	// Actividad solo va en una tarea en curso (§3.13): el panel muestra «● running» y destella cuando cambia Pulso.
 	Actividad *ActividadPanel `json:"actividad,omitempty"`
 }
