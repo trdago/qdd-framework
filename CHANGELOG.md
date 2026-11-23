@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.117] - 2026-11-22
+
+### Fixed
+
+- **Puerta audit y tablero (FND-299):** mover el tablero después de `qdd audit` ya no deja viejo el audit: .qdd/project/estado.yaml queda fuera de la huella. Antes, un proyecto con el tablero vivo no podía commitear.
+
 ## [2.10.0-rc.116] - 2026-11-22
 
 ### Fixed
