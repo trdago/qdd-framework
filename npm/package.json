@@ -1,6 +1,6 @@
 {
   "name": "qdd-framework",
-  "version": "2.10.0-rc.118",
+  "version": "2.10.0-rc.119",
   "description": "Quality-Driven Development Framework",
   "bin": {
     "qdd": "bin/qdd.js"

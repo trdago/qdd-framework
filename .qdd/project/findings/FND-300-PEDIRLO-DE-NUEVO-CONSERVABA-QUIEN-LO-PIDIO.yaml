@@ -1,0 +1,9 @@
+id: "FND-300"
+title: "Un pedido abierto pedido de nuevo conservaba la sesión que lo dejó primero, y el baúl la buscaba cerrada"
+description: "Reportado 2026-11-22 por qdd-movile con rc.117: el pedido 8 (Desplegar avisar) tenía pidio b88803e4…, la sesión que lo dejó el 15/11, ya cerrada. Otra sesión viva lo pidió de nuevo (de_nuevo); la cola reusó el pedido abierto y conservó pidio. El comando corrió con esa sesión y el baúl respondió «la sesión b88803e4… no late en este proyecto» aunque quien lo pedía estaba viva."
+impact: "Un pedido que usa el baúl y se vuelve a pedir desde otra sesión no podía pedir el permiso: había que descartarlo y pedirlo como nuevo."
+action_taken: "Al reusar un pedido abierto (mismo comando, o mismo efecto sin de_nuevo), Pidio pasa a ser la sesión que lo pide ahora: a ella le llegan el 🔑 del baúl y el aviso si se retira. Pedido sin sesión (desde la terminal), se queda la que había."
+test_result: "TestPedido_PedirloDeNuevoLoDejaALaSesionQueLoPideAhora_FND300 falla sin el cambio (pidio seguía siendo b88803e4…) y pasa con él; TestPedido_PedirloSinSesionNoLeBorraQuienLoPidio_FND300 pasa. go test ./pkg/consola ./pkg/baul en verde."
+status: resolved
+detectado_por: qdd-movile
+date: "2026-11-22"

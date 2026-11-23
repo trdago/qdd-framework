@@ -130,6 +130,7 @@ objetivo_tecnologico:
         - 'Puerta ficha (ficha puertas, etapa 2a): antes de cada Edit, Write, MultiEdit o NotebookEdit el mod pregunta a qdd puertas revisar --editar con las rutas cuyo contexto pidió la sesión (hasta 200, en memoria del mod).'
         - 'Tuyas ocultas (FND-296; el modo goal eligió la opción recomendada, 2026-11-22): qdd estado ver --json entrega ocultas_tuyas, las tareas que no entran en el tope del panel y tienen un ⏳ de la persona; el panel dibuja «⏳ N esperan por ti», que las despliega, y «+N más antiguas» cuenta solo el resto.'
         - 'Tope del armado (FND-297): un pedido armado que sigue diciendo «todavía no» deja de reintentarse a las TopeArmado (2 h) desde que se armó la primera vez y vuelve a pendiente con el motivo; terminar conserva ArmadoEn al rearmarlo.'
+        - "Quien lo pide de nuevo (FND-300): pedir otra vez un pedido abierto, ya sea el mismo comando o el mismo efecto, deja como Pidio a la sesión que lo pide ahora. A ella le llegan el \U0001F511 del baúl y el aviso si se retira. Si se pide sin sesión, se queda la que había."
     invariantes:
         - 'Lo que qdd le entrega al panel nunca trae una lista ni un mapa null (FND-189, MEJ-045, MEJ-050): las salidas JSON que lee el panel pasan por listas.Marshal, y una prueba de contrato (listas.Nulas) las revisa en un proyecto vacío y en uno con datos. Un elemento null dentro de una lista sí se conserva, porque dice «esta fila no tiene» (los segmentos de una línea del dibujo).'
         - 'Ninguna vista deja el panel en negro (FND-189): cada una se dibuja protegida; si lanza, se ve «✗ La vista X falló» bajo la cabecera, se puede volver al tablero o reintentar, y la falla queda una vez en qdd incidentes panel.'
@@ -204,4 +205,4 @@ fuentes:
     - rfcs/0013-consola-remota.md
     - rfcs/0016-panel-en-go-evaluacion.md
 ultima_revision: "2026-11-22"
-revisado_en_commit: 915c9a677b7f
+revisado_en_commit: e8b9e3c22d43
