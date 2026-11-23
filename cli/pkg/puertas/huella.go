@@ -15,8 +15,8 @@ import (
 // archivoMarca vive en la carpeta de git de cada worktree (fuera del árbol): la huella del último qdd audit aprobado.
 const archivoMarca = "qdd-audit-marca"
 
-// Huella es el árbol de git del árbol de trabajo tal como está: lo seguido y lo nuevo que git no ignora, salvo el
-// tablero (Tablero). Se arma en un índice aparte, así que no toca el índice real; da lo mismo lo que esté en stage.
+// Huella es el árbol de git del árbol de trabajo tal como está: lo seguido y lo nuevo que git no ignora, salvo lo que
+// qdd escribe solo (FueraDeHuella). Se arma en un índice aparte, así que no toca el índice real; da lo mismo lo que esté en stage.
 func Huella(dir string) (string, error) {
 	indice, err := gitSalida(dir, nil, "rev-parse", "--path-format=absolute", "--git-path", "index")
 	if err != nil {
@@ -35,7 +35,7 @@ func Huella(dir string) (string, error) {
 	if _, err := gitSalida(dir, env, "add", "-A"); err != nil {
 		return "", err
 	}
-	if _, err := gitSalida(dir, env, "rm", "--cached", "-q", "--ignore-unmatch", "--", Tablero); err != nil {
+	if _, err := gitSalida(dir, env, append([]string{"rm", "--cached", "-q", "--ignore-unmatch", "--"}, FueraDeHuella...)...); err != nil {
 		return "", err
 	}
 	return gitSalida(dir, env, "write-tree")
@@ -44,6 +44,11 @@ func Huella(dir string) (string, error) {
 // Tablero queda fuera de la huella (FND-299): la IA lo mueve mientras trabaja, cada escritura se valida antes de
 // guardarse y qdd audit lo revisa. Si contara, un tablero al día dejaría viejo el audit de cada commit.
 const Tablero = ".qdd/project/estado.yaml"
+
+// FueraDeHuella son los archivos que qdd escribe solo mientras la IA trabaja: el tablero (FND-299) y los registros de
+// las herramientas del MCP, el de ahora y el que escribe un MCP anterior a FND-059 (FND-303, elegido por la persona).
+// No son código; si contaran, usar una herramienta de qdd dejaría viejo el audit.
+var FueraDeHuella = []string{Tablero, ".qdd/project/metrics/mcp_eventos.json", ".qdd/project/metrics/cognitive_history.json"}
 
 // RestoHuella: un índice aparte más viejo que esto es de una huella que quedó a medias, no de una que corre: la más
 // lenta se corta a los 1,5 s (topePuertas).

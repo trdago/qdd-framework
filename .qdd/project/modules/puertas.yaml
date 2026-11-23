@@ -14,7 +14,7 @@ objetivo_tecnologico:
     arquitectura: pkg/puertas decide (una función pura por puerta sobre hechos ya leídos) y anota cada decisión; los adaptadores solo traen los hechos y aplican la respuesta. 'qdd puertas revisar <accion>' es la única entrada; la llaman el mod de Claude Code (antes de cada herramienta del agente) y los hooks de git pre-commit y commit-msg que instala 'qdd puertas instalar' (lo corren init y doctor --fix). 'qdd audit' aprobado deja una marca con la huella del árbol de trabajo que revisó; el pre-commit solo la compara. Cada decisión va a <QDD_HOME>/puertas/<proyecto>.jsonl; 'qdd puertas informe' lo resume y 'qdd puertas falso <id>' marca un falso positivo.
     decisiones:
         - 'Puerta ficha: la IA edita un archivo de código sin haber pedido en la sesión el contexto (qdd_project_context o qdd modules context) de una ruta que lo cubra → se rechaza con el comando exacto. Una zona sin ficha no bloquea: el contexto ya le dice a la IA que proponga una.'
-        - 'Puerta audit: un commit cuyo árbol de trabajo no coincide con la huella del último qdd audit aprobado → se rechaza. Al día significa que nada cambió desde ese audit (archivos seguidos y nuevos no ignorados), así que commitear una parte de lo auditado pasa. El tablero (.qdd/project/estado.yaml) queda fuera de la huella (FND-299; el modo goal eligió la opción recomendada, 2026-11-22): la IA lo mueve mientras trabaja y cada escritura se valida antes de guardarse.'
+        - 'Puerta audit: un commit cuyo árbol de trabajo no coincide con la huella del último qdd audit aprobado → se rechaza. Al día significa que nada cambió desde ese audit (archivos seguidos y nuevos no ignorados), así que commitear una parte de lo auditado pasa. El tablero (.qdd/project/estado.yaml) queda fuera de la huella (FND-299; el modo goal eligió la opción recomendada, 2026-11-22): la IA lo mueve mientras trabaja y cada escritura se valida antes de guardarse. También quedan fuera los registros de las herramientas del MCP, .qdd/project/metrics/mcp_eventos.json y cognitive_history.json (FND-303; la persona eligió la opción recomendada, 2026-11-23): qdd los escribe solo al usar sus herramientas y no son código.'
         - 'Puerta finding: un commit fix(...) o fix: debe nombrar un FND-NNN que exista en .qdd/project/findings con test_result; si no, se rechaza diciendo cómo registrarlo.'
         - 'Puerta publicar: la IA corre gh pr merge, git push de un tag, npm publish o gh release create → se rechaza y se le dice que lo deje como pedido (qdd consola pedir). La política puertas.publicar en .qdd/policies.yaml (pedido por defecto, ia para permitirlo) la decide el proyecto. Un pedido confirmado en el panel no pasa por esta puerta.'
         - 'La IA no puede saltarse una puerta con git commit --no-verify ni con variables de entorno: el mod rechaza esos comandos. La persona sí puede (--no-verify en su terminal) y eso no se mide.'
@@ -44,5 +44,5 @@ fuentes:
     - cli/pkg/uso/uso.go
     - cli/cmd/audit.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
-ultima_revision: "2026-11-22"
-revisado_en_commit: 2bc18cb77839
+ultima_revision: "2026-11-23"
+revisado_en_commit: a21486cf6155
