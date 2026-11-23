@@ -31,6 +31,7 @@ objetivo_tecnologico:
         - 'Grupo de flujos: aparece solo si el proyecto tiene flujos y nombra los que no se pueden usar con su problema. No los repara: corregirlos lo decide quien los escribió.'
         - 'El grupo de QDD Móvil suma REM-20 y REM-21 (2026-11-15). REM-20: cómo salió la última prueba del canal con el teléfono que corrió el servicio (sonda.json), sin usar la red; una de hace más de 3 h falla porque el servicio no la está corriendo, y sin ninguna todavía no opina. Con --fix no sondea (doctor no usa la red salvo el directorio firmado): aplica la reparación de esa prueba, con el canal rechazado compara el relay con su directorio y si Realtime no responde o el eco no vuelve reinicia el servicio; con una prueba vieja también lo reinicia, y el servicio la repite al minuto de arrancar (qdd remoto sonda la corre en el momento). Una sola política de reinicio por el canal: en una pasada de --fix el servicio se reinicia como mucho una vez entre REM-06, REM-07, REM-17, REM-18 y REM-20, y cada reinicio de doctor por el canal queda en sonda.json, así el servicio no se reinicia otra vez por el eco dentro de las 6 h. El tramo avisar (la función de los push ausente o atrasada) se muestra y no se repara: lo despliega quien lleva el relay. REM-21: el último estado completo que salió frente al tope de broadcast de Realtime (FND-209); avisa desde el 80 % y --fix no lo toca, porque reducirlo es una decisión. REM-22 (2026-11-15, MEJ-027): el último aviso que el relay aceptó y no llegó a ningún teléfono (push.json, que deja el servicio y borra el próximo aviso entregado), con la hora y la causa según el motivo del relay (sin_destinos, sin_fcm, fcm_rechazo); sin red, solo avisa y --fix no hace nada.'
         - 'Grupo Puertas de QDD (ficha puertas): en un repositorio git revisa que puertas esté activa en .qdd/policies.yaml y que los hooks pre-commit y commit-msg tengan su bloque al día; --fix las activa (solo si ya hay policies.yaml) e instala los hooks sin tocar lo ajeno.'
+        - 'Contrato de Historial (FND-059): cognitive_history.json es un array de certificados del benchmark; uno con eventos del MCP mezclados falla, y --fix los pasa a mcp_eventos.json sin perder ninguno (los certificados se quedan).'
     invariantes:
         - Cada grupo de doctor tiene una prueba que lo hace fallar con un caso roto y que muestra que --fix lo repara o dice qué decidir.
         - 'Lo que necesita una decisión humana (preguntas de diseño, actualizar de versión, publicar en el repositorio de la organización) doctor no lo decide: dice exactamente qué decidir y con qué comando.'
@@ -47,5 +48,5 @@ fuentes:
     - rfcs/0004-blueprints-centrales.md
     - rfcs/0005-reglas-como-principios.md
     - rfcs/0006-estado-por-frente-en-consola.md
-ultima_revision: "2026-11-21"
-revisado_en_commit: 42a06e10cd55
+ultima_revision: "2026-11-22"
+revisado_en_commit: 300ea267f4c3

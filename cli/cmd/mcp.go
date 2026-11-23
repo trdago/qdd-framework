@@ -2,15 +2,15 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
+
+	"github.com/qdd-framework/qdd/pkg/qcl/benchmark"
 )
 
 var mcpCmd = &cobra.Command{
@@ -112,32 +112,14 @@ func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(
 	})
 }
 
+// recordMCPActivity anota cada llamada a una herramienta en el registro del MCP del proyecto (mcp_eventos.json; antes
+// en cognitive_history.json, donde borraba los certificados del benchmark: FND-059).
 func recordMCPActivity(status, toolName string, details interface{}) {
 	cwd, _ := os.Getwd()
-	metricsDir := filepath.Join(cwd, ".qdd", "project", "metrics")
-	_ = os.MkdirAll(metricsDir, 0755)
-
-	event := map[string]interface{}{
+	_ = benchmark.AnotarEventoMCP(cwd, map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
 		"tool":      toolName,
 		"status":    status,
 		"details":   details,
-	}
-
-	historyPath := filepath.Join(metricsDir, "cognitive_history.json")
-	var history []interface{}
-
-	if data, err := os.ReadFile(historyPath); err == nil {
-		_ = json.Unmarshal(data, &history)
-	}
-
-	history = append(history, event)
-
-	if len(history) > 100 {
-		history = history[len(history)-100:]
-	}
-
-	if out, err := json.MarshalIndent(history, "", "  "); err == nil {
-		_ = os.WriteFile(historyPath, out, 0644)
-	}
+	})
 }

@@ -38,9 +38,13 @@ func GenerateCognitiveCertificate(cwd string, scores CognitiveScores) (*Cognitiv
 		Tendency:  audit.TendencyStable,
 	}
 
-	historyPath := filepath.Join(cwd, ".qdd", "project", "metrics", "cognitive_history.json")
+	historyPath := RutaHistorial(cwd)
 	if err := os.MkdirAll(filepath.Dir(historyPath), 0755); err != nil {
 		return nil, fmt.Errorf("error creando directorio de metricas: %v", err)
+	}
+	// Un historial de antes de FND-059 puede traer eventos del MCP: pasan a su archivo antes de calcular.
+	if err := SepararEventosMCP(cwd); err != nil {
+		return nil, err
 	}
 
 	history, err := loadCognitiveHistory(historyPath)

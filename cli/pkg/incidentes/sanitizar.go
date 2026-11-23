@@ -44,7 +44,7 @@ var (
 // archivosDeQDD son los nombres que QDD escribe y que sirven para reproducir: se dejan.
 var archivosDeQDD = map[string]bool{
 	"estado.yaml": true, "config.yaml": true, "blueprints.lock.yaml": true, "state.json": true,
-	"cognitive_history.json": true, "blueprint.yaml": true, "certificacion.yaml": true, "construccion.yaml": true,
+	"cognitive_history.json": true, "mcp_eventos.json": true, "blueprint.yaml": true, "certificacion.yaml": true, "construccion.yaml": true,
 }
 
 // Sanitizar reemplaza en un mensaje todo lo que puede ser del proyecto o de la persona: credenciales, correos, URLs,
