@@ -42,7 +42,7 @@ func GuardarDelPortapapeles(e Entrada, p Portapapeles, ahora time.Time) (string,
 	}
 	valor := strings.TrimSpace(copiado)
 	if err := pareceToken(valor); err != nil {
-		return aviso, err
+		return aviso, rechazoVaciado(err, valor, aviso)
 	}
 	if e.Tipo != "otro" && e.Tipo != "aws-sso" {
 		if _, err := VerificarValor(e, valor); errors.Is(err, ErrRechazado) {
@@ -52,13 +52,22 @@ func GuardarDelPortapapeles(e Entrada, p Portapapeles, ahora time.Time) (string,
 	return aviso, Guardar(e, valor, ahora)
 }
 
+// rechazoVaciado dice, si lo copiado se vació, que hay que copiar de nuevo: el reintento encontraría el portapapeles
+// vacío sin saber por qué (MEJ-070).
+func rechazoVaciado(err error, valor, aviso string) error {
+	if valor == "" || aviso != "" {
+		return err
+	}
+	return fmt.Errorf("%w; lo vacié por seguridad: cópialo de nuevo, solo el token", err)
+}
+
 // pareceToken rechaza lo que se copió por error. El mensaje nunca repite lo copiado.
 func pareceToken(valor string) error {
 	if valor == "" {
 		return errors.New("el portapapeles está vacío: copia el token y vuelve a intentarlo")
 	}
 	if len(valor) > topeToken || strings.IndexFunc(valor, unicode.IsSpace) >= 0 {
-		return errors.New("lo copiado no parece un token (tiene espacios, saltos de línea o es muy largo): copia solo el token")
+		return errors.New("lo copiado no parece un token (tiene espacios, saltos de línea o es muy largo)")
 	}
 	return nil
 }
