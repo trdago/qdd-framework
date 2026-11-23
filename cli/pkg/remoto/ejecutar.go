@@ -90,12 +90,18 @@ type EjecucionFirmada struct {
 	Dispositivo string `json:"dispositivo"`
 	Nombre      string `json:"nombre"`
 	En          string `json:"en"`
-	Firma       string `json:"firma"`
+	// Fotos son los ids de las fotos que la instrucción adjunta (fotos.go): ya llegaron por el evento foto.
+	Fotos []string `json:"fotos,omitempty"`
+	Firma string   `json:"firma"`
 }
 
-// FirmaEjecucion es la firma que pone el relay a una ejecución (la misma clave que FirmaAccion).
-func FirmaEjecucion(firmaMaquina, solicitud, proyecto, tipo, texto, dispositivo, en string) string {
-	return firmar(firmaMaquina, solicitud, proyecto, tipo, texto, dispositivo, en)
+// FirmaEjecucion es la firma que pone el relay a una ejecución (la misma clave que FirmaAccion). Con fotos se firman
+// también sus ids, unidos por coma; sin fotos, la firma es la de siempre.
+func FirmaEjecucion(firmaMaquina, solicitud, proyecto, tipo, texto, dispositivo, en string, fotos ...string) string {
+	if len(fotos) == 0 {
+		return firmar(firmaMaquina, solicitud, proyecto, tipo, texto, dispositivo, en)
+	}
+	return firmar(firmaMaquina, solicitud, proyecto, tipo, texto, dispositivo, en, strings.Join(fotos, ","))
 }
 
 // Verificar exige la firma de la máquina y que la ejecución sea de los últimos VigenciaAccion.
@@ -103,7 +109,7 @@ func (e EjecucionFirmada) Verificar(firmaMaquina string, now time.Time) error {
 	if e.Solicitud == "" || e.Proyecto == "" || e.Tipo == "" || e.Texto == "" || e.Dispositivo == "" || e.En == "" {
 		return errors.New("ejecución incompleta")
 	}
-	esperada := FirmaEjecucion(firmaMaquina, e.Solicitud, e.Proyecto, e.Tipo, e.Texto, e.Dispositivo, e.En)
+	esperada := FirmaEjecucion(firmaMaquina, e.Solicitud, e.Proyecto, e.Tipo, e.Texto, e.Dispositivo, e.En, e.Fotos...)
 	return verificarFirmada(esperada, e.Firma, e.En, now)
 }
 
@@ -441,6 +447,15 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		b.cerrar(ctx, s, EstadoRechazada, err.Error())
 		return
 	}
+	if err := ValidarFotos(e.Tipo, e.Fotos); err != nil {
+		b.cerrar(ctx, s, EstadoRechazada, err.Error())
+		return
+	}
+	fotos, err := b.fotos.rutasDe(s.Dispositivo, s.Proyecto, e.Fotos)
+	if err != nil {
+		b.cerrar(ctx, s, EstadoFallo, err.Error())
+		return
+	}
 	if e.Tipo == consola.EjecutarFlujo {
 		b.aplicarFlujo(ctx, s, e.Texto)
 		return
@@ -449,7 +464,7 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		b.cerrar(ctx, s, EstadoRechazada, "ya corre otro comando mandado desde el teléfono en este proyecto: espera a que termine")
 		return
 	}
-	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: e.Tipo, Texto: e.Texto, Dispositivo: s.Dispositivo, Nombre: s.Nombre, Para: paraSesion(e.Tipo, s.Ruta, b.ahora())}
+	x := consola.Ejecucion{Solicitud: s.Solicitud, Tipo: e.Tipo, Texto: e.Texto, Dispositivo: s.Dispositivo, Nombre: s.Nombre, Para: paraSesion(e.Tipo, s.Ruta, b.ahora()), Fotos: fotos}
 	if _, err := consola.RegistrarEjecucion(s.Ruta, x, b.ahora()); err != nil {
 		b.cerrar(ctx, s, EstadoFallo, err.Error())
 		return

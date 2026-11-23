@@ -71,7 +71,9 @@ type Ejecucion struct {
 	Motivo      string `json:"motivo,omitempty"`
 	Sesion      string `json:"sesion,omitempty"` // la sesión de Claude Code que recibió la instrucción
 	// Para es la sesión a la que va (MEJ-082): la que el teléfono ve en su consola. Mientras late, solo ella la toma.
-	Para   string     `json:"para,omitempty"`
+	Para string `json:"para,omitempty"`
+	// Fotos son las rutas absolutas de las fotos que adjuntó la persona (qdd remoto las guarda en tmp/fotos).
+	Fotos  []string   `json:"fotos,omitempty"`
 	Creada time.Time  `json:"creada"`
 	Inicio *time.Time `json:"inicio,omitempty"`
 	Fin    *time.Time `json:"fin,omitempty"`
@@ -271,7 +273,11 @@ func MensajeInstruccion(e Ejecucion) string {
 	if nombre == "" {
 		nombre = "su teléfono"
 	}
-	return "📱 La persona te escribe desde «" + nombre + "» (QDD Móvil). Atiéndelo como un mensaje suyo:\n\n" + e.Texto
+	mensaje := "📱 La persona te escribe desde «" + nombre + "» (QDD Móvil). Atiéndelo como un mensaje suyo:\n\n" + e.Texto
+	if len(e.Fotos) == 0 {
+		return mensaje
+	}
+	return mensaje + "\n\nFotos adjuntas:\n" + strings.Join(e.Fotos, "\n")
 }
 
 func indiceEjecucion(cola []Ejecucion, solicitud string) int {
