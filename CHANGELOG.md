@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.123] - 2026-11-23
+
+### Fixed
+
+- **Usar una herramienta MCP de qdd ya no deja viejo el audit (FND-303):** la huella de la puerta audit deja fuera los registros que el MCP escribe en cada llamada, `.qdd/project/metrics/mcp_eventos.json` y `cognitive_history.json`, igual que el tablero desde FND-299. Antes, un `qdd_estado set` entre `qdd audit` y el commit hacía rechazar el commit.
+
 ## [2.10.0-rc.122] - 2026-11-23
 
 ### Fixed

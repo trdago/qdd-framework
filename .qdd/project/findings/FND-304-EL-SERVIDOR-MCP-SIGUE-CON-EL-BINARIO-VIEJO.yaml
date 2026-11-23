@@ -1,0 +1,9 @@
+id: "FND-304"
+title: "El servidor MCP de cada consola sigue con el binario viejo después de actualizar"
+description: "2026-11-23, al revisar FND-303: los procesos qdd mcp de las consolas abiertas corrían binarios ya borrados («qdd (deleted)»), algunos desde el 6-11 (qdd-movile) y el 7-11 (notificador_de_ofertas), varias versiones atrás. El de notificador seguía escribiendo cognitive_history.json, que FND-059 dejó de usar en rc.116. Claude Code lanza el servidor al abrir la consola y no lo reinicia al actualizar qdd; qdd consola seguir sí se corta y se reabre (MEJ-067), el MCP no."
+impact: "Las herramientas MCP de una consola abierta responden con el comportamiento de una versión anterior: una corrección publicada no llega a la IA hasta que la persona cierra y abre la consola, y nadie lo avisa."
+action_taken: ""
+test_result: ""
+status: open
+detectado_por: sesion
+date: "2026-11-23"
