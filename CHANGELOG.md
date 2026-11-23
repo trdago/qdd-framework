@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.119] - 2026-11-22
+
+### Fixed
+
+- **Pedido pedido de nuevo (FND-300):** si se vuelve a pedir un pedido abierto, queda a nombre de la sesión que lo pide ahora. Antes conservaba la sesión que lo dejó primero, aunque ya estuviera cerrada, y el baúl rechazaba el permiso («no late en este proyecto») aunque quien lo pedía estuviera viva.
+
 ## [2.10.0-rc.118] - 2026-11-22
 
 ### Fixed

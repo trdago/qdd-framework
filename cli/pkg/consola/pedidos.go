@@ -414,10 +414,10 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
-				return conOrden(sinBloqueo(conMarcaDePersona(cola, p.ID, orden.DePersona), p.ID), p.ID, orden, &nuevo)
+				return conOrden(sinBloqueo(conMarcaDePersona(conQuienPide(cola, p.ID), p.ID, orden.DePersona), p.ID), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
-				return conOrden(sinBloqueo(cola, p.ID), p.ID, orden, &nuevo)
+				return conOrden(sinBloqueo(conQuienPide(cola, p.ID), p.ID), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
@@ -445,6 +445,17 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		return conOrden(reenganchar(append(cola, p), p), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
+}
+
+// conQuienPide deja como Pidio del pedido abierto id a la sesión que lo pide ahora: a ella le llegan el 🔑 del baúl y el
+// aviso si se retira, no a la que lo dejó primero y quizás ya cerró (FND-300). Pedido sin sesión (desde la terminal),
+// se queda la que había.
+func conQuienPide(cola []Pedido, id string) []Pedido {
+	sesion := sesionValida(estado.SesionActual())
+	if i := indiceID(cola, id); i >= 0 && sesion != "" {
+		cola[i].Pidio = sesion
+	}
+	return cola
 }
 
 // sinRetirados quita los pedidos retirados de la tarea (el nuevo los reemplaza: es la misma tarea que se extiende) y
