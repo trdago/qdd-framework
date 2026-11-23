@@ -306,13 +306,16 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 		b.base = false
 		return
 	}
+	// Un evento de presencia lo reparte el relay al PC y a cada teléfono que queda (MEJ-028).
 	if e.Tipo == TipoPresencia {
 		b.alPresencia(ctx, e.Presencias)
+		b.mensajes += b.suscritos()
 		return
 	}
 	if e.Tipo != TipoBroadcast {
 		return
 	}
+	b.mensajes += b.suscritos()
 	if e.Evento == "sync" {
 		b.mandarEstado(ctx, b.armar())
 		b.reenviarSolicitudes(ctx)
@@ -444,9 +447,16 @@ func (b *Bucle) broadcast(ctx context.Context, evento string, payload any) bool 
 		b.anotarPublicacion(false)
 		return false
 	}
-	b.mensajes++
+	b.mensajes += b.suscritos()
 	b.anotarPublicacion(true)
 	return true
+}
+
+// suscritos es lo que Supabase factura por un mensaje que reparte el canal (MEJ-028): 1 envío más 1 por cada suscriptor
+// que lo recibe. Lo mande el PC (lo reciben los teléfonos) o un teléfono (lo reciben el PC y los demás), son 1 + los
+// teléfonos presentes; un teléfono apagado no está suscrito y no suma.
+func (b *Bucle) suscritos() int {
+	return 1 + len(b.telefonos)
 }
 
 // anotarPublicacion avisa solo cuando cambia: no escribe un archivo por mensaje.

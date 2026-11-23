@@ -81,6 +81,7 @@ objetivo_tecnologico:
         - 'El resuelto de un tipo también sale cuando ya no espera nada de lo que pidió un push de ese tipo, aunque sigan otras que esperaban desde antes y nunca se avisaron (FND-289): en qdd casi siempre queda un ⏳ del tablero con «¿…?», y el aviso de una pregunta respondida no se quitaba del teléfono. El PC recuerda qué pidió cada push en <QDD_HOME>/remoto/avisados.json, así que un reinicio entre el aviso y la respuesta no lo deja pegado; con dos avisadas, espera a la última. Acordado con qdd-movile (2026-11-21): en la app, un *_resuelto solo cancela la notificación de ese tipo.'
         - 'Filas sin pregunta (FND-209, acordado con qdd-movile, 2026-11-22): las filas del tablero (frentes y ocultas_tuyas) viajan al teléfono sin su pregunta, que es lo que el panel del PC envía a la IA y ninguna pantalla del teléfono muestra. Con 93 filas se ahorran unos 15 KB del estado completo.'
         - 'Estado en partes (FND-209, acordado con qdd-movile, 2026-11-22): si todos los teléfonos del canal declaran estado_por_partes, un estado completo que pasa TopeParte (128 KB, la mitad del tope de Realtime) sale en partes. Cada parte lleva la cabecera completa, el mismo seq, parte y de, y solo sus proyectos en orden. Un proyecto más grande que el tope va solo y no se recorta. Si un teléfono no declara la capacidad, el estado sale entero. peso.json anota el mensaje más grande. El ejemplo compartido está en testdata/estado_partes.json.'
+        - 'Mensajes como los factura Supabase (FND-302, MEJ-028; acordado con qdd-movile el 2026-11-23): el latido informa en mensajes lo que se factura de todo lo que pasa por el canal. Cada broadcast que el PC manda o recibe y cada evento de presencia que recibe suman 1 + los teléfonos presentes; el track del PC suma 1. Mismo campo y mismo RPC; la app no informa nada.'
     invariantes:
         - qdd remoto desactivar nunca apaga ni borra un servicio que publica otro QDD_HOME (FND-136).
         - qdd doctor diagnostica la comunicación con QDD Móvil sin usar la red; solo --fix consulta, y solo el directorio firmado. Lo que necesita el teléfono o a la persona (emparejar, el reloj, una cola apartada) se dice y no se intenta.
@@ -113,5 +114,5 @@ pruebas:
         - cd cli && go test ./pkg/remoto/ -run 'Ejecutar|ArgsPermitidos|ValidarInstruccion|FirmaEjecucion|PlanLocal|GuardaElPlan|AuditarDesdeElTelefono' -race
 fuentes:
     - rfcs/0013-consola-remota.md
-ultima_revision: "2026-11-22"
-revisado_en_commit: 2bc18cb77839
+ultima_revision: "2026-11-23"
+revisado_en_commit: 828d81a85586

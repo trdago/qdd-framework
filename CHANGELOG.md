@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.122] - 2026-11-23
+
+### Fixed
+
+- **qdd remoto informa los mensajes como los factura Supabase (FND-302, MEJ-028):** cada broadcast cuenta 1 envío más 1 por cada teléfono que lo recibe, y se cuentan también los mensajes de los teléfonos y los eventos de presencia. Antes informaba más o menos la mitad de lo facturado, y la cuota del plan no protegía lo que se paga.
+
 ## [2.10.0-rc.121] - 2026-11-23
 
 ### Fixed

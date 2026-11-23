@@ -1,0 +1,9 @@
+id: "FND-302"
+title: "qdd remoto informaba la mitad de los mensajes que factura Supabase"
+description: "MEJ-028 (qdd-movile, 2026-11-06): el latido informa en mensajes lo consumido, y el relay lo usa para la cuota del plan. El PC sumaba 1 por cada broadcast y cada track que mandaba. Supabase factura cada broadcast como 1 envío más 1 por cada suscriptor que lo recibe, y lo mismo cada evento de presencia que reparte (docs: Realtime Pricing y Manage Realtime Messages usage, verificado el 2026-11-23). Con un teléfono, lo informado era más o menos la mitad de lo facturado; lo que mandaban los teléfonos no lo contaba nadie."
+impact: "La cuota del plan no protegía lo que se paga: con teléfonos conectados se podía pasar de lo facturable sin que el relay lo viera."
+action_taken: "Acordado con qdd-movile el 2026-11-23: una sola regla en el PC, que ve todo lo que pasa por el canal. Cada broadcast que manda o recibe y cada evento de presencia que recibe suma 1 + los teléfonos presentes (suscritos); el track del PC suma 1, porque su reparto llega como evento de presencia y se cuenta ahí. Va en el mismo campo mensajes (p_mensajes): no cambia el RPC, y un qdd anterior sigue contando como antes. La app no informa nada. Ficha remoto actualizada."
+test_result: "cli/pkg/remoto/mensajes_facturados_mej028_test.go (broadcast del PC con 2 teléfonos = 3; lo que manda un teléfono con 2 = 3; el track = 1; presencia que reparte solo al PC = 1) fallaba antes del cambio (contaba 1, 0 y 0) y pasa; go test ./pkg/remoto en verde."
+status: resolved
+detectado_por: sesion
+date: "2026-11-23"
