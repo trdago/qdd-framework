@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.120] - 2026-11-23
+
+### Fixed
+
+- **Baúl desde el portapapeles (MEJ-070):** cuando lo copiado no parece un token, el error ahora dice que el portapapeles se vació por seguridad y que hay que copiar de nuevo solo el token. Antes, el reintento lo encontraba vacío sin explicación.
+
 ## [2.10.0-rc.119] - 2026-11-22
 
 ### Fixed
