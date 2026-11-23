@@ -15,8 +15,8 @@ import (
 // archivoMarca vive en la carpeta de git de cada worktree (fuera del árbol): la huella del último qdd audit aprobado.
 const archivoMarca = "qdd-audit-marca"
 
-// Huella es el árbol de git del árbol de trabajo tal como está: lo seguido y lo nuevo que git no ignora. Se arma en un
-// índice aparte, así que no toca el índice real; da lo mismo lo que esté en stage.
+// Huella es el árbol de git del árbol de trabajo tal como está: lo seguido y lo nuevo que git no ignora, salvo el
+// tablero (Tablero). Se arma en un índice aparte, así que no toca el índice real; da lo mismo lo que esté en stage.
 func Huella(dir string) (string, error) {
 	indice, err := gitSalida(dir, nil, "rev-parse", "--path-format=absolute", "--git-path", "index")
 	if err != nil {
@@ -35,8 +35,15 @@ func Huella(dir string) (string, error) {
 	if _, err := gitSalida(dir, env, "add", "-A"); err != nil {
 		return "", err
 	}
+	if _, err := gitSalida(dir, env, "rm", "--cached", "-q", "--ignore-unmatch", "--", Tablero); err != nil {
+		return "", err
+	}
 	return gitSalida(dir, env, "write-tree")
 }
+
+// Tablero queda fuera de la huella (FND-299): la IA lo mueve mientras trabaja, cada escritura se valida antes de
+// guardarse y qdd audit lo revisa. Si contara, un tablero al día dejaría viejo el audit de cada commit.
+const Tablero = ".qdd/project/estado.yaml"
 
 // RestoHuella: un índice aparte más viejo que esto es de una huella que quedó a medias, no de una que corre: la más
 // lenta se corta a los 1,5 s (topePuertas).
