@@ -220,14 +220,15 @@ func ocultarLogrado(o *Ocultador, lista []consola.Logro, salida func(string) str
 	return logrado
 }
 
-// ocultarFilas tapa el nombre, la pregunta y las notas de cada fila del tablero, en una copia.
+// ocultarFilas tapa el nombre y las notas de cada fila del tablero, en una copia. La pregunta no viaja: es lo que el
+// panel del PC le envía a la IA y el teléfono no la muestra (FND-209, acordado con qdd-movile).
 func ocultarFilas(o *Ocultador, filas []estado.FrentePanel) []estado.FrentePanel {
 	if filas == nil {
 		return nil
 	}
 	out := make([]estado.FrentePanel, len(filas))
 	for i, f := range filas {
-		f.Nombre, f.Pregunta = o.Ocultar(f.Nombre), o.Ocultar(f.Pregunta)
+		f.Nombre, f.Pregunta = o.Ocultar(f.Nombre), ""
 		notas := make([]string, len(f.Notas))
 		for j, n := range f.Notas {
 			notas[j] = o.Ocultar(n)

@@ -20,6 +20,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/foto"
 	"github.com/qdd-framework/qdd/pkg/herramientas"
 	"github.com/qdd-framework/qdd/pkg/integration"
+	"github.com/qdd-framework/qdd/pkg/qcl/benchmark"
 	"github.com/qdd-framework/qdd/pkg/qcl/wisdom"
 	"github.com/qdd-framework/qdd/pkg/uso"
 	"github.com/qdd-framework/qdd/ui"
@@ -433,6 +434,11 @@ func buildHistoryCheck(projectPath string) *CheckItem {
 				historyCheck.Success = true
 				historyCheck.Error = "Esquema JSON válido"
 			}
+			// Eventos del MCP de antes de FND-059 entre los certificados: --fix los pasa a mcp_eventos.json.
+			if mezclado, _ := benchmark.Mezclado(projectPath); historyCheck.Success && mezclado {
+				historyCheck.Success = false
+				historyCheck.Error = "Trae eventos del MCP entre los certificados (FND-059): qdd doctor --fix los pasa a mcp_eventos.json"
+			}
 		}
 	}
 	return historyCheck
@@ -670,6 +676,11 @@ func repairAssets(projectPath, qddDir string) {
 }
 
 func repairHistory(projectPath, qddDir string) {
+	if mezclado, err := benchmark.Mezclado(projectPath); err == nil && mezclado {
+		fmt.Println("  [~] Pasando los eventos del MCP a mcp_eventos.json (FND-059)...")
+		_ = benchmark.SepararEventosMCP(projectPath)
+		return
+	}
 	fmt.Println("  [~] Reparando contratos JSON del Dashboard...")
 	repairDashboardContracts(projectPath)
 }

@@ -6,6 +6,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.116] - 2026-11-22
+
+### Fixed
+
+- **Historial del benchmark (FND-059):** el MCP escribía sus eventos en cognitive_history.json y lo recortaba a 100 entradas, con lo que borraba los certificados del benchmark; el benchmark, a su vez, leía esos eventos como certificados en 0. Ahora el MCP anota en mcp_eventos.json. Un historial que ya venía mezclado se separa sin perder nada: lo hace el benchmark, y también `qdd doctor --fix`.
+- **Flujos muy ramificados (FND-181):** cuando una rama no cabe en su columna, la bifurcación entera se dibuja con sangría. Antes, 2 de cada 24 000 dibujos al azar se pasaban del ancho.
+- **Estado más liviano para el teléfono (FND-209):** las filas del tablero viajan sin la pregunta que el panel envía a la IA, unos 15 KB menos. Lo acordamos con QDD Móvil.
+- **ocultas_tuyas (FND-296):** `qdd estado ver --json` la entrega como lista vacía, no como null.
+- FND-229 queda cerrado: el registro de qdd remoto mostró la causa real.
+- **Prueba inestable (FND-298):** la prueba de FND-277 tenía muy poco margen y fallaba con la máquina cargada; ahora lo tiene amplio.
+
 ## [2.10.0-rc.115] - 2026-11-22
 
 ### Fixed

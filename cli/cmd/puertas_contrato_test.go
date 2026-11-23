@@ -67,7 +67,7 @@ func TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277(t *testing.
 	}
 	lento := t.TempDir()
 	// Cada «add -A» abandonado deja una marca al terminar: la limpieza la espera en vez de adivinar cuánto tarda.
-	script := "#!/bin/sh\ncase \" $* \" in *\" add -A \"*) sleep 1; " + gitReal + " \"$@\"; r=$?; touch " + lento + "/listo.$$; exit $r ;; esac\nexec " + gitReal + " \"$@\"\n"
+	script := "#!/bin/sh\ncase \" $* \" in *\" add -A \"*) sleep 3; " + gitReal + " \"$@\"; r=$?; touch " + lento + "/listo.$$; exit $r ;; esac\nexec " + gitReal + " \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(lento, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,9 @@ func TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277(t *testing.
 	} {
 		inicio := time.Now()
 		codigo, msg := revisar()
-		if d := time.Since(inicio); d > 800*time.Millisecond {
+		// Git tarda 3 s y el tope es de 200 ms: 2 s de margen para una máquina cargada (FND-298) siguen probando que no
+		// lo espera.
+		if d := time.Since(inicio); d > 2*time.Second {
 			t.Errorf("%s: no espera a git más que su tope: %s", nombre, d)
 		}
 		if codigo != 0 || msg != "" {

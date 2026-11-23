@@ -1,0 +1,9 @@
+id: "FND-298"
+title: "La prueba de FND-277 fallaba con la máquina cargada: 600 ms de margen entre el tope y git"
+description: "Observado 2026-11-22 al preparar rc.116: TestPuertas_UnaPuertaQueNoDecideATiempoDejaPasarYLoAnota_FND277 falló una vez en go test ./... (1,23 s), con /mnt/fast lleno por otras sesiones. Sola pasó 3 de 3, y la suite completa pasó 2 de 2. La prueba usa un git falso que tarda 1 s, un tope de 200 ms y exige volver antes de 800 ms. Con carga, el arranque de git y el registro se comen ese margen sin que haya un defecto en el producto (como FND-290 y FND-295)."
+impact: "Una prueba que podía fallar sin defecto y frenar un push o un merge."
+action_taken: "El git falso tarda 3 s y la prueba exige volver antes de 2 s. Si la puerta esperara a git, tardaría 3 s y la prueba fallaría: sigue probando lo mismo, con margen para una máquina cargada."
+test_result: "go test -count=1 -run FND277 ./cmd pasa (3,2 s). go test ./... completo pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-22"

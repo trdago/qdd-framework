@@ -1,8 +1,9 @@
+id: "FND-059"
 title: "cognitive_history.json lo escriben tres partes con tres formatos distintos"
 description: "El MCP registra cada llamada a una herramienta ({timestamp, tool, status, details}, cmd/mcp.go:113), el benchmark guarda certificados cognitivos ({timestamp, scores, total, tendency}, pkg/qcl/benchmark/certificate.go:41) y, hasta FND-058, el dashboard escribía su tendencia ({date, score}). doctor e init validan y reparan un 'Contrato de Historial' para ese archivo que ninguno de los tres cumple por completo."
 impact: "Quien lee el archivo no sabe qué contiene. El dashboard mostraba eventos del MCP como puntos en 0. El MCP recorta el archivo a sus últimas 100 entradas y puede borrar los certificados del benchmark."
-action_taken: "Pendiente (RFC 0005 §3.9). Un archivo por fuente con su propio esquema: eventos del MCP, certificados cognitivos. La tendencia del puntaje ya sale de certificate_history.json (FND-058). doctor valida cada esquema."
-test_result: "Pendiente: cada escritor y su lector usan el mismo esquema, y escribir eventos del MCP no borra certificados del benchmark."
-status: open
+action_taken: "Un archivo por fuente (RFC 0005 §3.9). El MCP anota sus eventos en mcp_eventos.json (los últimos 100), y cognitive_history.json queda solo con los certificados del benchmark. Un historial de antes, con eventos mezclados, se separa sin perder nada: lo hace el benchmark antes de calcular la tendencia y qdd doctor --fix, porque doctor lo marca como falla. La tendencia del puntaje sigue saliendo de certificate_history.json (FND-058)."
+test_result: "TestMCP_SusEventosNoBorranLosCertificados_FND059: 150 eventos del MCP no tocan el historial y quedan los últimos 100 en su archivo. TestHistorial_MezcladoApartaLosEventosYCalculaSoloConCertificados_FND059 y TestHistorial_SepararDiceSiHabiaMezclaYNoTocaUnoLimpio_FND059 (pkg/qcl/benchmark). TestDoctor_HistorialConEventosDelMCPFallaYFixLosSepara_FND059. Todas fallaban o no compilaban antes del cambio. TestRecordMCPActivity se retiró: comprobaba el formato viejo y escribía en cli/cmd/.qdd."
+status: resolved
 detectado_por: ia
 date: "2026-10-29"
