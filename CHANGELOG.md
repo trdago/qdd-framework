@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.118] - 2026-11-22
+
+### Fixed
+
+- **Estado para el teléfono en partes (FND-209):** si todos los teléfonos del canal declaran `estado_por_partes`, un estado completo de más de 128 KB les llega en partes, cada una con la cabecera completa y el mismo seq. Antes, uno que pasara los 256 KB de Realtime se perdía sin aviso. Un teléfono sin la capacidad sigue recibiendo el estado entero. La app ya sabe armarlo (qdd-movile 3843c5c y e45d703).
+
 ## [2.10.0-rc.117] - 2026-11-22
 
 ### Fixed
