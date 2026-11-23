@@ -45,11 +45,14 @@ type ProyectoEstado struct {
 
 // Estado es lo que publica el PC: qdd remoto estado --json y el evento estado (con Seq).
 type Estado struct {
-	Version      int              `json:"version"`
-	QDD          string           `json:"qdd"`
-	Maquina      Maquina          `json:"maquina"`
-	En           time.Time        `json:"en"`
-	Seq          uint64           `json:"seq,omitempty"`
+	Version int       `json:"version"`
+	QDD     string    `json:"qdd"`
+	Maquina Maquina   `json:"maquina"`
+	En      time.Time `json:"en"`
+	Seq     uint64    `json:"seq,omitempty"`
+	// Parte y De: este mensaje es la parte Parte (desde 1) de De de un estado completo (estado_partes.go, FND-209).
+	Parte        int              `json:"parte,omitempty"`
+	De           int              `json:"de,omitempty"`
 	FueraDelPlan int              `json:"fuera_del_plan,omitempty"`
 	Limites      *consola.Limites `json:"limites,omitempty"`
 	// Diagnostico: la última prueba del canal con el teléfono, solo si falló o reparó algo en el último día (sonda.go).

@@ -1,0 +1,81 @@
+[
+  {
+    "version": 1,
+    "qdd": "v",
+    "maquina": {
+      "nombre": "pc",
+      "so": "linux"
+    },
+    "en": "1970-01-01T00:00:00Z",
+    "seq": 7,
+    "parte": 1,
+    "de": 3,
+    "fuera_del_plan": 2,
+    "limites": {
+      "actualizado": "0001-01-01T00:00:00Z"
+    },
+    "proyectos": [
+      {
+        "clave": "a",
+        "nombre": "Proyecto a",
+        "ruta": "/home/persona/proyectos/a"
+      },
+      {
+        "clave": "b",
+        "nombre": "Proyecto b",
+        "ruta": "/home/persona/proyectos/b"
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "qdd": "v",
+    "maquina": {
+      "nombre": "pc",
+      "so": "linux"
+    },
+    "en": "1970-01-01T00:00:00Z",
+    "seq": 7,
+    "parte": 2,
+    "de": 3,
+    "fuera_del_plan": 2,
+    "limites": {
+      "actualizado": "0001-01-01T00:00:00Z"
+    },
+    "proyectos": [
+      {
+        "clave": "c",
+        "nombre": "Proyecto c",
+        "ruta": "/home/persona/proyectos/c"
+      },
+      {
+        "clave": "d",
+        "nombre": "Proyecto d",
+        "ruta": "/home/persona/proyectos/d"
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "qdd": "v",
+    "maquina": {
+      "nombre": "pc",
+      "so": "linux"
+    },
+    "en": "1970-01-01T00:00:00Z",
+    "seq": 7,
+    "parte": 3,
+    "de": 3,
+    "fuera_del_plan": 2,
+    "limites": {
+      "actualizado": "0001-01-01T00:00:00Z"
+    },
+    "proyectos": [
+      {
+        "clave": "e",
+        "nombre": "Proyecto e",
+        "ruta": "/home/persona/proyectos/e"
+      }
+    ]
+  }
+]
