@@ -103,6 +103,7 @@ type Bucle struct {
 	latidos        chan resultadoLatido
 	avisos         chan error
 	extras         extrasBucle
+	fotos          armador
 	huellaBin      huella
 	conHuella      bool
 
@@ -242,6 +243,7 @@ func (b *Bucle) Correr(ctx context.Context) error {
 				return ErrActualizado
 			}
 			b.quizasConsultar(ctx)
+			b.descartarVencidas(ctx)
 			b.marcar()
 		case r := <-b.consultas:
 			if r.err != nil {
@@ -338,6 +340,9 @@ func (b *Bucle) alEvento(ctx context.Context, e Evento) {
 	if e.Evento == "ejecutar" {
 		b.alEjecutar(ctx, e.Payload)
 	}
+	if e.Evento == EventoFoto {
+		b.alFoto(ctx, e.Payload)
+	}
 }
 
 // Telefonos son los teléfonos de una presence (rol movil).
@@ -417,7 +422,7 @@ func (b *Bucle) armar() Estado {
 			b.logf("registro de proyectos: %v", err)
 		}
 		b.errRegistro = err.Error()
-		return Estado{Version: VersionProtocolo, QDD: b.QDD, Maquina: EstaMaquina(), En: b.ahora().UTC(), Proyectos: []ProyectoEstado{}}
+		return Estado{Version: VersionProtocolo, QDD: b.QDD, Maquina: EstaMaquina(), En: b.ahora().UTC(), Capacidades: CapacidadesPC, Proyectos: []ProyectoEstado{}}
 	}
 	b.errRegistro = ""
 	b.vigia.vigilar(carpetasDe(reg))

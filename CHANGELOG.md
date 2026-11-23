@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.124] - 2026-11-23
+
+### Added
+
+- **Fotos en los mensajes a la IA desde QDD Móvil (ADR-0003 de qdd-movile):** una instrucción para la IA puede adjuntar hasta 4 fotos, como capturas, boletas o documentos. El teléfono las manda por el canal en partes de 48 KB firmadas, y el PC las arma, verifica su tamaño, su huella SHA-256 y que sean imágenes. Las guarda 0600 en `tmp/fotos/movil-<id>.<ext>` y responde `foto_ack`. La sesión recibe el texto y, debajo, «Fotos adjuntas:» con una ruta absoluta por línea. Si falta una foto, la instrucción termina en fallo y dice cuál. Las fotos del teléfono se borran del PC a los 7 días. El estado declara `capacidades: ["fotos"]`, y la app solo ofrece adjuntar a un PC que lo declare.
+
 ## [2.10.0-rc.123] - 2026-11-23
 
 ### Fixed

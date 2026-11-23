@@ -55,6 +55,8 @@ type Estado struct {
 	De           int              `json:"de,omitempty"`
 	FueraDelPlan int              `json:"fuera_del_plan,omitempty"`
 	Limites      *consola.Limites `json:"limites,omitempty"`
+	// Capacidades es lo que este PC sabe recibir del teléfono (CapacidadesPC): la app no ofrece lo que no ve aquí.
+	Capacidades []string `json:"capacidades,omitempty"`
 	// Diagnostico: la última prueba del canal con el teléfono, solo si falló o reparó algo en el último día (sonda.go).
 	Diagnostico *DiagnosticoCanal `json:"diagnostico,omitempty"`
 	Proyectos   []ProyectoEstado  `json:"proyectos"`
@@ -78,7 +80,7 @@ func Armar(qdd string, reg registro.Registro, now time.Time, limite int) Estado 
 // ArmarCon es Armar diciendo si los paneles traen lo logrado. Sin él no se lee ni pasa por el ocultador: cuando todos
 // los teléfonos lo piden aparte, ese trabajo se descartaba en cada estado (FND-214).
 func ArmarCon(qdd string, reg registro.Registro, now time.Time, limite int, conLogrado bool) Estado {
-	e := Estado{Version: VersionProtocolo, QDD: qdd, Maquina: EstaMaquina(), En: now.UTC(), Limites: consola.LeerLimites(), Proyectos: []ProyectoEstado{}}
+	e := Estado{Version: VersionProtocolo, QDD: qdd, Maquina: EstaMaquina(), En: now.UTC(), Limites: consola.LeerLimites(), Capacidades: CapacidadesPC, Proyectos: []ProyectoEstado{}}
 	for _, p := range Publicables(reg, limite) {
 		e.Proyectos = append(e.Proyectos, panelDe(qdd, p, now, conLogrado))
 	}
