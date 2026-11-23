@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.121] - 2026-11-23
+
+### Fixed
+
+- **Un pedido corregido conserva su lugar en la cadena (FND-301, MEJ-072):** `qdd consola pedir --reemplaza <tecla>` (`reemplaza` en `qdd_consola_pedir`) pone el pedido nuevo en el lugar del que falló: se queda con su tecla, y lo que esperaba al viejo pasa a esperar al nuevo sin perder la confirmación de la persona. Además, `antes` acepta un pedido armado: sigue armado y espera también al nuevo.
+
 ## [2.10.0-rc.120] - 2026-11-23
 
 ### Fixed

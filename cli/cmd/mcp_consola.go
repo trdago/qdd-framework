@@ -17,15 +17,16 @@ import (
 
 func registerConsolaTools(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_consola_pedir",
-		mcp.WithDescription("Deja en el panel un comando que la persona ejecuta con un clic (sin permiso, bloqueado o que publica) en vez de pedirle '!'. Corre solo si confirma; nunca lo ejecutes tú. Falta algo (CI, tag) → exit 75. Si la tarea sigue cambiando sale del panel: pídelo de nuevo."),
+		mcp.WithDescription("Deja en el panel un comando que la persona ejecuta con un clic (sin permiso, bloqueado o que publica). Corre solo si confirma; nunca lo ejecutes tú. Falta algo (CI, tag) → exit 75. Si la tarea sigue cambiando sale del panel: pídelo de nuevo."),
 		mcp.WithString("comando", mcp.Description("Exacto, como en su shell (&& y | valen).")),
 		mcp.WithString("motivo", mcp.Description("≤ 60 car.: qué logra y para qué (p. ej. «Publicar v2.8.0-rc.6 → npm preview»).")),
 		mcp.WithString("carpeta", mcp.Description("Dónde corre (raíz por defecto).")),
 		mcp.WithString("tarea", mcp.Description("Tarea que extiende (por defecto, la en curso).")),
-		mcp.WithString("despues", mcp.Description("Ids o teclas que deben quedar hechos antes (coma), p. ej. merge → tag.")),
+		mcp.WithString("despues", mcp.Description("Ids o teclas que deben quedar hechos antes (coma).")),
 		mcp.WithBoolean("de_nuevo"),
 		mcp.WithBoolean("de_persona", mcp.Description("Espera su Sí aun en modo goal.")),
-		mcp.WithString("antes", mcp.Description("Ids o teclas que esperan a este (coma); repetirlo lo reordena sin duplicar.")),
+		mcp.WithString("antes", mcp.Description("Ids o teclas que esperan a este (coma).")),
+		mcp.WithString("reemplaza", mcp.Description("El que falló: este toma su lugar.")),
 		mcp.WithString("resuelto", mcp.Description("Tecla o id resuelto por la persona en el chat: se quita; hecho=true si lo hizo ella.")),
 		mcp.WithBoolean("hecho"),
 	)
@@ -54,7 +55,7 @@ func handleConsolaPedirTool(ctx context.Context, request mcp.CallToolRequest) (*
 	if strings.TrimSpace(stringArg(request, "comando")) == "" || strings.TrimSpace(stringArg(request, "motivo")) == "" {
 		return mcp.NewToolResultError("faltan comando y motivo (o resuelto, para quitar uno que la persona resolvió en el chat)"), nil
 	}
-	orden := consola.Orden{Despues: listaDeComas(stringArg(request, "despues")), Antes: listaDeComas(stringArg(request, "antes")), Tarea: strings.TrimSpace(stringArg(request, "tarea")), DeNuevo: request.GetBool("de_nuevo", false), DePersona: request.GetBool("de_persona", false)}
+	orden := consola.Orden{Despues: listaDeComas(stringArg(request, "despues")), Antes: listaDeComas(stringArg(request, "antes")), Tarea: strings.TrimSpace(stringArg(request, "tarea")), DeNuevo: request.GetBool("de_nuevo", false), DePersona: request.GetBool("de_persona", false), Reemplaza: strings.TrimSpace(stringArg(request, "reemplaza"))}
 	p, err := consola.PedirEnOrden(root, stringArg(request, "comando"), stringArg(request, "motivo"), strings.TrimSpace(stringArg(request, "carpeta")), orden, time.Now())
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil

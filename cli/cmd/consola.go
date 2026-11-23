@@ -360,6 +360,7 @@ var consolaRaiz string
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
 var consolaDeNuevo, consolaDePersona bool
+var consolaReemplaza string
 var consolaTarea string
 
 // consolaCon son los tipos opcionales que pide el panel (qdd consola panel --con atender).
@@ -400,7 +401,7 @@ con 'exit 75' y la persona lo vuelve a apretar.
   qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo, DePersona: consolaDePersona}
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo, DePersona: consolaDePersona, Reemplaza: consolaReemplaza}
 		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
@@ -538,6 +539,7 @@ func init() {
 	consolaPedidosCmd.Flags().StringVar(&consolaSalidaDe, "salida", "", "muestra cómo terminó un pedido y su salida (id o tecla, también de uno ya hecho)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
+	consolaPedirCmd.Flags().StringVar(&consolaReemplaza, "reemplaza", "", "pedido que falló o sigue pendiente (id o tecla): este toma su tecla y su lugar en la cadena")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")
 	consolaDescartarCmd.Flags().BoolVar(&consolaHecho, "hecho", false, "la persona ya lo hizo fuera del panel: queda hecho (no descartado) y libera a los que lo esperan")
 	consolaDescartarCmd.Flags().StringVar(&consolaNota, "nota", "", "con --hecho: lo que dijo la persona («lo mergeé en GitHub»)")
