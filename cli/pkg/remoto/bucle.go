@@ -478,27 +478,34 @@ func (b *Bucle) mandarEstado(ctx context.Context, e Estado) {
 	}
 	b.seq++
 	e.Seq = b.seq
-	if !b.broadcast(ctx, "estado", e) {
-		b.base = false
-		return
+	partes := []Estado{e}
+	if b.todosArmanPartes() {
+		partes = partirEstado(e, TopeParte)
+	}
+	for _, p := range partes {
+		if !b.broadcast(ctx, "estado", p) {
+			b.base = false
+			return
+		}
 	}
 	b.base = true
 	b.enviados, b.estructura, b.limites = paneles(e), estructuraDe(e), e.Limites.Huella()
 	b.flujos = nil
-	b.pesar(e)
+	b.pesar(partes)
 	b.mandarFlujos(ctx, e)
 }
 
-// pesar mide el estado completo que salió: Realtime descarta sin aviso uno que pasa su tope (FND-209).
-func (b *Bucle) pesar(e Estado) {
+// pesar mide el mensaje más grande del estado completo que salió: Realtime descarta sin aviso uno que pasa su tope
+// (FND-209). En partes, cada una es un mensaje.
+func (b *Bucle) pesar(partes []Estado) {
 	if b.AlPesar == nil {
 		return
 	}
-	datos, err := json.Marshal(e)
-	if err != nil {
-		return
+	mayor := 0
+	for _, p := range partes {
+		mayor = max(mayor, pesoJSON(p))
 	}
-	b.AlPesar(len(datos))
+	b.AlPesar(mayor)
 }
 
 // paneles es el JSON de cada panel, para saber cuál cambió.
