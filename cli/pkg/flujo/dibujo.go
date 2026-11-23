@@ -1,6 +1,7 @@
 package flujo
 
 import (
+	"maps"
 	"slices"
 	"strings"
 
@@ -348,9 +349,16 @@ func (d *dibujante) bifurcacion(ramas, paradas []string, encuentro string, ancho
 	if porRama < minAnchoRama {
 		return d.conSangria(ramas, topes, ancho)
 	}
+	// Una rama que no cabe en su columna (sangrías anidadas adentro, FND-181) pasa toda la bifurcación a sangría, que
+	// le deja el ancho entero: lo dibujado de prueba se deshace.
+	antes := maps.Clone(d.hechos)
 	bloques := make([]bloque, len(ramas))
 	for i, r := range ramas {
 		bloques[i] = d.secuencia(r, topes, porRama)
+		if anchoMayor(bloques[i].lineas) > porRama {
+			d.hechos = antes
+			return d.conSangria(ramas, topes, ancho)
+		}
 	}
 	return ladoALado(bloques)
 }
