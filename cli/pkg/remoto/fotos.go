@@ -17,6 +17,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/foto"
+	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
 // Rule: Prohibido usar 'else'
@@ -40,6 +41,8 @@ const (
 	MaxFotosEjecucion     = 4
 	// VidaArmado es cuánto espera el PC las partes que faltan de una foto.
 	VidaArmado = 60 * time.Second
+	// CadaPoda es cada cuánto borra qdd remoto las fotos del teléfono de más de foto.VidaTelefono (FND-307).
+	CadaPoda = time.Hour
 )
 
 // Motivos de un foto_ack con ok false.
@@ -323,4 +326,21 @@ func (b *Bucle) ackFoto(ctx context.Context, proyecto, id, motivo string) {
 		return
 	}
 	b.broadcast(ctx, EventoFotoAck, FotoAck{Version: VersionProtocolo, Proyecto: proyecto, ID: id, OK: motivo == "", Motivo: motivo})
+}
+
+// podarFotos borra, al arrancar y cada CadaPoda, las fotos del teléfono que ya cumplieron foto.VidaTelefono en todos los
+// proyectos del registro (FND-307): sin esperar a que llegue otra foto ni a que haya un teléfono.
+func (b *Bucle) podarFotos() {
+	now := b.ahora()
+	if !b.podadoEn.IsZero() && now.Sub(b.podadoEn) < CadaPoda {
+		return
+	}
+	b.podadoEn = now
+	reg, err := registro.Leer()
+	if err != nil {
+		return
+	}
+	for _, p := range reg.Proyectos {
+		foto.PodarDelTelefono(p.Ruta, now)
+	}
 }

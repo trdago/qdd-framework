@@ -1,0 +1,9 @@
+id: "FND-307"
+title: "Las fotos del teléfono no se borraban solas a los 7 días"
+description: "La persona eligió (2026-11-23) que las fotos que llegan de QDD Móvil se borren del PC a los 7 días. rc.124 solo las borraba al guardar otra foto en el mismo proyecto: si no llegaba ninguna más, se quedaban para siempre. Lo vio la propia sesión que lo hizo, al revisar lo que había informado a la persona como «se borran a los 7 días»."
+impact: "Capturas, boletas y documentos de la persona podían quedar en tmp/fotos sin plazo, al revés de lo que eligió y de lo que se le dijo. No llegó a pasar: la primera foto real todavía no se había mandado."
+action_taken: "qdd remoto llama foto.PodarDelTelefono al arrancar y cada hora (CadaPoda, en el sondeo) para todos los proyectos del registro, sin teléfono conectado ni foto nueva. Solo borra movil-* de más de 7 días; las de qdd foto no se tocan. Fichas foto y remoto corregidas. Límite: con qdd remoto apagado no corre; borra al volver a arrancar."
+test_result: "cli/pkg/remoto/fotos_retencion_fnd307_test.go (se borra sin foto nueva ni teléfono; como mucho una vez por hora) fallaba antes del cambio y pasa; go test ./pkg/remoto ./pkg/foto en verde."
+status: resolved
+detectado_por: sesion
+date: "2026-11-24"
