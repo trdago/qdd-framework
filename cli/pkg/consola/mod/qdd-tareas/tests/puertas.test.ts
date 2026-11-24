@@ -39,6 +39,18 @@ test('un commit que la puerta rechaza no corre y la IA lee qué falta', async ($
   expect(r.revisiones).toEqual([['qdd', 'puertas', 'revisar', '--dir', '/work/qdd', '--sesion', 'sesion-1', '--', "git add -A && git commit -m 'feat: x'"]])
 })
 
+// FND-318: Claude Code quita del comando el «cd <carpeta actual> &&» inicial y la sesión pudo arrancar en otro checkout:
+// la puerta mira la carpeta en que el comando va a correr, no la de arranque.
+// contrato: puertas#91d6f84a
+test('la puerta pregunta por la carpeta actual de la sesión, no por la de arranque', async ($, on) => {
+  const r = nuevo({ exitCode: 2, stdout: RECHAZO, stderr: '' })
+  preparar(on, r)
+  on('session.cwd', () => ({ value: '/work/qdd/.claude/worktrees/otra' }))
+  await iniciar($)
+  expect(JSON.stringify(await correr($, "git commit -m 'feat: x'"))).not.toContain('corrió')
+  expect(r.revisiones[0].slice(1, 5)).toEqual(['puertas', 'revisar', '--dir', '/work/qdd/.claude/worktrees/otra'])
+})
+
 test('lo que la puerta deja pasar corre igual', async ($, on) => {
   const r = nuevo({ exitCode: 0, stdout: '', stderr: '' })
   preparar(on, r)

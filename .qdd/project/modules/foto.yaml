@@ -34,4 +34,4 @@ fuentes:
     - cli/pkg/foto/foto.go
     - docs/command-reference.md
 ultima_revision: "2026-11-24"
-revisado_en_commit: 3e138683fb12
+revisado_en_commit: 83cea2948cf6

@@ -16,9 +16,10 @@ const (
 
 // Estado de un hook.
 const (
-	HookAlDia = "al día"
-	HookFalta = "falta"
-	HookViejo = "viejo"
+	HookAlDia  = "al día"
+	HookFalta  = "falta"
+	HookViejo  = "viejo"
+	HookDeOtro = "sin puertas en el checkout que git ejecuta"
 )
 
 // Hooks que instalan las puertas, con lo que corre cada uno. Solo el 2 de qdd (rechazo) corta el commit: sin qdd, con
@@ -92,9 +93,26 @@ func EstadoHooks(raiz string) []EstadoHook {
 		if err == nil && errLeer == nil {
 			e.Estado = estadoDe(string(datos), hook)
 		}
-		out = append(out, e)
+		out = append(out, delQueGitEjecuta(raiz, e))
 	}
 	return out
+}
+
+// delQueGitEjecuta corrige el estado cuando core.hooksPath apunta al .husky/_ de otro checkout: git corre los hooks de ese,
+// aunque los de este worktree estén al día (FND-318).
+func delQueGitEjecuta(raiz string, e EstadoHook) EstadoHook {
+	propia, _ := gitSalida(raiz, nil, "config", "core.hooksPath")
+	limpia := filepath.ToSlash(strings.TrimSuffix(propia, "/"))
+	if e.Estado != HookAlDia || !filepath.IsAbs(propia) || !strings.HasSuffix(limpia, "/.husky/_") {
+		return e
+	}
+	ruta := filepath.Join(filepath.Dir(filepath.FromSlash(limpia)), e.Hook)
+	datos, err := os.ReadFile(ruta)
+	if err == nil && estadoDe(string(datos), e.Hook) == HookAlDia {
+		return e
+	}
+	e.Ruta, e.Estado = ruta, HookDeOtro
+	return e
 }
 
 func estadoDe(texto, hook string) string {
