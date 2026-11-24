@@ -28,6 +28,9 @@ type Orden struct {
 	DePersona bool
 	// Reemplaza: id o tecla de un pedido que falló o sigue pendiente; el nuevo toma su lugar en la cadena (MEJ-072).
 	Reemplaza string
+	// Reactiva: lo pide alguien a propósito (CLI o tool), así que el mismo que falló vuelve a pendiente (FND-317). Un
+	// ciclo automático no la usa: con el modo goal repetiría un fallo sin fin.
+	Reactiva bool
 }
 
 func (o Orden) vacio() bool {
@@ -338,5 +341,18 @@ func reenganchar(cola []Pedido, nuevo Pedido) []Pedido {
 			cola[i].Descartados = nil
 		}
 	}
+	return cola
+}
+
+// reactivado: pedido de nuevo, el que falló vuelve a pendiente sin su resultado ni su «s  Sí» (FND-317).
+func reactivado(cola []Pedido, id string, reactiva bool) []Pedido {
+	i := indiceID(cola, id)
+	if !reactiva || i < 0 || cola[i].Estado != EstadoFallo {
+		return cola
+	}
+	p := &cola[i]
+	p.Estado, p.Codigo, p.Salida, p.Inicio, p.Fin = EstadoPendiente, 0, "", nil, nil
+	p.Confirmado, p.Sesion, p.Avisado, p.Huella = nil, "", false, ""
+	p.ArmadoEn, p.Proximo, p.Intentos, p.Aviso, p.AvisoEn = nil, nil, 0, "", nil
 	return cola
 }

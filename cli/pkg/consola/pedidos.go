@@ -414,7 +414,8 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
-				return conOrden(sinBloqueo(conMarcaDePersona(conQuienPide(cola, p.ID), p.ID, orden.DePersona), p.ID), p.ID, orden, &nuevo)
+				cola = reactivado(conMarcaDePersona(conQuienPide(cola, p.ID), p.ID, orden.DePersona), p.ID, orden.Reactiva)
+				return conOrden(sinBloqueo(cola, p.ID), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
 				return conOrden(sinBloqueo(conQuienPide(cola, p.ID), p.ID), p.ID, orden, &nuevo)
@@ -483,7 +484,6 @@ func sinRetirados(cola []Pedido, tarea string) ([]Pedido, string) {
 	return queda, preferida
 }
 
-// conOrden aplica el orden al pedido id y deja en elegido cómo quedó.
 // conMarcaDePersona le devuelve la marca a un pedido que la perdió: el mismo comando pedido de nuevo por qdd como de la
 // persona (un qdd anterior que reescribió la cola la borró, FND-188). Nunca se la quita.
 func conMarcaDePersona(cola []Pedido, id string, dePersona bool) []Pedido {
@@ -498,6 +498,7 @@ func conMarcaDePersona(cola []Pedido, id string, dePersona bool) []Pedido {
 	return cola
 }
 
+// conOrden aplica el orden al pedido id y deja en elegido cómo quedó.
 func conOrden(cola []Pedido, id string, orden Orden, elegido *Pedido) ([]Pedido, error) {
 	i, _ := resolver(cola, id)
 	if !orden.vacio() {
