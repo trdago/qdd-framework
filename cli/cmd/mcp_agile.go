@@ -15,6 +15,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 	"github.com/qdd-framework/qdd/pkg/integration"
 )
 
@@ -247,18 +248,26 @@ func publicarRelease(cwd, version string, gate func(string) []audit.Violation, c
 }
 
 func compilarRelease(cwd string) error {
+	comando := comandoDeCompilar(cwd)
+	if len(comando) == 0 {
+		return nil
+	}
+	return correrEn(cwd, comando[0], comando[1:]...)
+}
+
+func comandoDeCompilar(cwd string) []string {
 	if fileExists(filepath.Join(cwd, "package.json")) {
-		return correrEn(cwd, "npm", "run", "build", "--if-present")
+		return []string{"npm", "run", "build", "--if-present"}
 	}
 	if fileExists(filepath.Join(cwd, "Makefile")) {
-		return correrEn(cwd, "make", "build")
+		return []string{"make", "build"}
 	}
 	return nil
 }
 
 func correrEn(cwd, nombre string, args ...string) error {
 	cmd := exec.Command(nombre, args...)
-	cmd.Dir = cwd
+	cmd.Dir, cmd.Env = cwd, gitenv.Limpio(os.Environ())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s %s: %w\n%s", nombre, strings.Join(args, " "), err, strings.TrimSpace(string(out)))

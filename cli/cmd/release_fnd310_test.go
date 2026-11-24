@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
 // Rule: Prohibido usar 'else'
@@ -51,15 +53,33 @@ func TestRelease_UnTagQueYaExisteSeDice_FND310(t *testing.T) {
 	}
 }
 
-func TestRelease_SinScriptDeBuildNoCompila_FND310(t *testing.T) {
-	dir := t.TempDir()
-	mustWrite(t, filepath.Join(dir, "package.json"), `{"name":"x"}`)
-	if err := compilarRelease(dir); err != nil {
-		t.Errorf("sin script build no hay qué compilar: %v", err)
+func TestRelease_CadaProyectoCompilaConLoSuyo_FND310(t *testing.T) {
+	nada, makefile, node := t.TempDir(), t.TempDir(), t.TempDir()
+	mustWrite(t, filepath.Join(makefile, "Makefile"), "build:\n")
+	mustWrite(t, filepath.Join(node, "Makefile"), "build:\n")
+	mustWrite(t, filepath.Join(node, "package.json"), "{}")
+	for dir, quiere := range map[string]string{nada: "", makefile: "make build", node: "npm run build --if-present"} {
+		if got := strings.Join(comandoDeCompilar(dir), " "); got != quiere {
+			t.Errorf("compila con %q, se esperaba %q", got, quiere)
+		}
 	}
-	mustWrite(t, filepath.Join(dir, "package.json"), `{"scripts":{"build":"exit 3"}}`)
-	if err := compilarRelease(dir); err == nil {
-		t.Error("npm run build falla y no se dijo")
+	if err := compilarRelease(nada); err != nil {
+		t.Errorf("sin qué compilar no es un error: %v", err)
+	}
+}
+
+// Desde un hook, git exporta GIT_DIR: la release etiqueta el repositorio del proyecto, no el del hook.
+func TestRelease_NoEtiquetaElRepositorioDelHook_FND310(t *testing.T) {
+	dir, hook := repoDeRelease(t), repoDeRelease(t)
+	t.Setenv("GIT_DIR", filepath.Join(hook, ".git"))
+	if err := publicarRelease(dir, "v1.0.0", sinViolaciones, sinCompilar); err != nil {
+		t.Fatal(err)
+	}
+	if tags := tagsDe(t, hook); tags != "" {
+		t.Errorf("etiquetó el repositorio del hook: %s", tags)
+	}
+	if tags := tagsDe(t, dir); tags != "v1.0.0" {
+		t.Errorf("el proyecto quedó con los tags %q", tags)
 	}
 }
 
@@ -74,7 +94,7 @@ func repoDeRelease(t *testing.T) string {
 	mustWrite(t, filepath.Join(dir, ".qdd", "state.json"), `{"version":"v0.9.0"}`)
 	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.email=a@b.c", "-c", "user.name=n", "commit", "-qm", "feat: x"}} {
 		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
+		cmd.Dir, cmd.Env = dir, gitenv.Limpio(os.Environ())
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
@@ -85,7 +105,7 @@ func repoDeRelease(t *testing.T) string {
 func tagsDe(t *testing.T, dir string) string {
 	t.Helper()
 	cmd := exec.Command("git", "tag")
-	cmd.Dir = dir
+	cmd.Dir, cmd.Env = dir, gitenv.Limpio(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatal(err)
