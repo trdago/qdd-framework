@@ -2,8 +2,8 @@ id: "FND-312"
 title: "Tools MCP que escriben aunque se declaran de solo lectura, y otras que no hacen lo que dicen"
 description: "2026-11-24, al comparar la documentación pública con el código (sprint 10). Por lectura de código: qdd_query_graph pasa cualquier SQL a una base abierta para escritura; qdd_map lleva readOnlyHint y escribe topology.json; qdd_resolve_diagnose deja un finding con status diagnosed, que FND-01 bloquea; qdd_resolve_certify no verifica el golden set ni firma; qdd_postgres_tuner devuelve siempre el mismo texto y qdd_graph_query es un aviso de «fase 2»."
 impact: "La IA y la persona creen que se verificó algo que no se verificó."
-action_taken: "La referencia dice lo que cada una hace de verdad."
-test_result: ""
-status: open
+action_taken: "Reproducido antes de arreglar: DROP TABLE borraba el grafo, ATTACH creaba archivos y un resolution_id con ../ escribía fuera de su carpeta. La consulta al grafo abre la base para leer y admite una sola sentencia de lectura; qdd_graph_query hace lo mismo que qdd_query_graph; qdd_map deja de decir que solo lee; el diagnóstico queda abierto y con id; el acta exige un golden set que exista en el proyecto, valida el id y dice que no se ejecutó; qdd_postgres_tuner dice que son consejos generales."
+test_result: "cli/cmd/mcp_grafo_fnd312_test.go y mcp_resolver_test.go (la anterior escribía su propio archivo y no llamaba a la tool). Fallaban antes del cambio y pasan."
+status: resolved
 detectado_por: sesion
 date: "2026-11-24"

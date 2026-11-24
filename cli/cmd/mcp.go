@@ -76,7 +76,7 @@ func registerMCPTools(s *server.MCPServer) {
 // mismo que las que mcp-go pone por defecto (pueden escribir), sin gastar tokens en cada sesión.
 var soloLeen = map[string]bool{
 	"qdd_project_context": true, "qdd_blueprint_list": true, "qdd_findings": true, "qdd_score": true, "qdd_status": true,
-	"qdd_evolution": true, "qdd_map": true, "qdd_local_llm_status": true, "qdd_foto": true,
+	"qdd_evolution": true, "qdd_query_graph": true, "qdd_graph_query": true, "qdd_local_llm_status": true, "qdd_foto": true,
 }
 
 func anotaciones(nombre string) mcp.ToolAnnotation {

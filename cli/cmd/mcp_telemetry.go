@@ -18,7 +18,6 @@ import (
 	"github.com/qdd-framework/qdd/pkg/cognitive"
 	"github.com/qdd-framework/qdd/pkg/evolution"
 	"github.com/qdd-framework/qdd/pkg/integration"
-	"github.com/qdd-framework/qdd/pkg/qcl/graph"
 	"github.com/qdd-framework/qdd/pkg/qcl/harness"
 	"github.com/qdd-framework/qdd/pkg/topology"
 	"gopkg.in/yaml.v3"
@@ -331,27 +330,10 @@ func isUIComponentFile(d os.DirEntry, uiExtensions map[string]bool) bool {
 
 func registerGraphQueryTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_graph_query",
-		mcp.WithDescription("Consulta SQL (SQLite) al grafo de conocimiento."),
+		mcp.WithDescription("Igual que qdd_query_graph."),
 		mcp.WithString("query", mcp.Required(), mcp.Description("SQL sobre 'nodes' y 'edges'.")),
 	)
-	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		args, ok := request.Params.Arguments.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("invalid arguments format")
-		}
-		query, ok := args["query"].(string)
-		if !ok {
-			return nil, fmt.Errorf("argument 'query' is missing or not a string")
-		}
-
-		db, err := graph.InitDB()
-		if err != nil {
-			return mcp.NewToolResultText(fmt.Sprintf("Error inicializando la base de datos de grafos: %v", err)), nil
-		}
-		defer db.Close()
-
-		return mcp.NewToolResultText(fmt.Sprintf("Recibida consulta para el grafo: %s\n(Funcionalidad en desarrollo para la fase 2)", query)), nil
-	})
+	RegisterToolWithTelemetry(s, tool, consultarGrafo)
 }
 
 func registerHarnessTool(s *server.MCPServer) {
