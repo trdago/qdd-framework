@@ -3,8 +3,9 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/qdd-framework/qdd/pkg/findings"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,9 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 	"github.com/qdd-framework/qdd/pkg/integration"
 )
 
@@ -197,7 +201,7 @@ func registerSyncTool(s *server.MCPServer) {
 
 func registerReleaseTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_release",
-		mcp.WithDescription("Empaqueta una nueva versión del framework"),
+		mcp.WithDescription("Corre el gate, compila y crea un tag local."),
 		mcp.WithString("version", mcp.Required(), mcp.Description("Versión a liberar (ej: v1.0.0)")),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -215,38 +219,79 @@ func registerReleaseTool(s *server.MCPServer) {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		runReleaseBuilds(cwd)
-		updateReleaseVersion(version)
-		tagRelease(version)
+		cwd = integration.FindProjectRoot(cwd)
+		if err := publicarRelease(cwd, version, violacionesDelGate, compilarRelease); err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 
-		return mcp.NewToolResultText(fmt.Sprintf("Release %s finalizado.", version)), nil
+		return mcp.NewToolResultText(fmt.Sprintf("Release %s: gate aprobado y tag local creado. Commitea .qdd/state.json; publicar es de la persona.", version)), nil
 	})
 }
 
-func runReleaseBuilds(cwd string) {
+func violacionesDelGate(cwd string) []audit.Violation {
+	return audit.NewEngine(cwd).ParandoAlBloquear().Evaluar().Violaciones
+}
+
+// publicarRelease etiqueta solo lo que el gate aprueba y compila (FND-310). El tag va antes que state.json: si ya existe,
+// la versión anotada no cambia.
+func publicarRelease(cwd, version string, gate func(string) []audit.Violation, compilar func(string) error) error {
+	if bloqueantes := audit.Bloqueantes(gate(cwd)); len(bloqueantes) > 0 {
+		return fmt.Errorf("el gate bloquea la release %s, no se creó el tag:\n%s", version, listarViolaciones(bloqueantes))
+	}
+	if err := compilar(cwd); err != nil {
+		return fmt.Errorf("no se creó el tag %s: %w", version, err)
+	}
+	if err := correrEn(cwd, "git", "tag", "--", version); err != nil {
+		return fmt.Errorf("no se creó el tag %s: %w", version, err)
+	}
+	return updateReleaseVersion(cwd, version)
+}
+
+func compilarRelease(cwd string) error {
+	comando := comandoDeCompilar(cwd)
+	if len(comando) == 0 {
+		return nil
+	}
+	return correrEn(cwd, comando[0], comando[1:]...)
+}
+
+func comandoDeCompilar(cwd string) []string {
 	if fileExists(filepath.Join(cwd, "package.json")) {
-		exec.Command("npm", "run", "build").Run()
+		return []string{"npm", "run", "build", "--if-present"}
 	}
-
-	if !fileExists(filepath.Join(cwd, "package.json")) && fileExists(filepath.Join(cwd, "Makefile")) {
-		exec.Command("make", "build").Run()
+	if fileExists(filepath.Join(cwd, "Makefile")) {
+		return []string{"make", "build"}
 	}
+	return nil
 }
 
-func updateReleaseVersion(version string) {
-	qddDir := filepath.Join(".", ".qdd")
-	statePath := filepath.Join(qddDir, "state.json")
+func correrEn(cwd, nombre string, args ...string) error {
+	cmd := exec.Command(nombre, args...)
+	cmd.Dir, cmd.Env = cwd, gitenv.Limpio(os.Environ())
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %s: %w\n%s", nombre, strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func updateReleaseVersion(cwd, version string) error {
+	statePath := filepath.Join(cwd, ".qdd", "state.json")
 	stateData, err := os.ReadFile(statePath)
-	if err == nil {
-		var state map[string]interface{}
-		json.Unmarshal(stateData, &state)
-		state["version"] = version
-		newData, _ := json.MarshalIndent(state, "", "  ")
-		os.WriteFile(statePath, newData, 0644)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
 	}
-}
-
-func tagRelease(version string) {
-	execCmd := exec.Command("git", "tag", version)
-	execCmd.Run()
+	if err != nil {
+		return err
+	}
+	state := map[string]interface{}{}
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		return fmt.Errorf("el tag %s se creó, pero .qdd/state.json no se pudo leer: %w", version, err)
+	}
+	state["version"] = version
+	newData, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(statePath, newData, 0644)
 }

@@ -87,10 +87,7 @@ func GenerateComprehensiveReport(cwd string) ComprehensiveReport {
 	doctorHealthy, doctorDetails := runDoctorQuickCheck(cwd)
 	localLLM := cognitive.DetectLocalLLM()
 
-	aiStatus := "CERTIFIED"
-	if len(filterAIViolations(violations)) > 0 {
-		aiStatus = "VIOLATIONS_DETECTED"
-	}
+	aiStatus := estadoGobernanzaIA(cwd, audit.LoadPolicies(cwd), violations)
 
 	evoPriority := "LOW"
 	evoAdvice := "Proyecto estable y sin deuda técnica detectada."
@@ -131,6 +128,20 @@ func getScoreMetadata(evoReport *evolution.Report, violations []audit.Violation)
 	}
 	score := audit.Score(violations)
 	return score, audit.Grado(score), audit.GradoSinMedir
+}
+
+// estadoGobernanzaIA dice solo lo que se evaluó: sin hallazgos no es una certificación (FND-311).
+func estadoGobernanzaIA(cwd string, p audit.QDDPolicies, violations []audit.Violation) string {
+	if !p.AIGovernance {
+		return "SIN_EVALUAR"
+	}
+	if len(filterAIViolations(violations)) > 0 {
+		return "VIOLATIONS_DETECTED"
+	}
+	if !audit.UsaIA(cwd) {
+		return "NO_APLICA"
+	}
+	return "SIN_HALLAZGOS"
 }
 
 func filterAIViolations(violations []audit.Violation) []audit.Violation {
@@ -204,7 +215,7 @@ func formatTextReport(r ComprehensiveReport) string {
 	out += fmt.Sprintf("Auditoría:      %d violaciones activas\n", r.ViolationsCount)
 	out += fmt.Sprintf("Certificaciones: %d adoptadas (%d certificadas, %d pendientes)\n", r.TotalCertifications, r.CertifiedCount, r.PendingCount)
 	out += fmt.Sprintf("Findings:       %d abiertos / %d resueltos\n", r.OpenFindingsCount, r.ResolvedFindings)
-	out += fmt.Sprintf("Gobernanza IA:  %s (ISO 42001, ISO 29119-11, SOC 2, ISO 23894)\n", r.AIGovernanceStatus)
+	out += fmt.Sprintf("Gobernanza IA:  %s (comprobaciones heurísticas: no acredita ninguna norma)\n", r.AIGovernanceStatus)
 	out += fmt.Sprintf("Doctor:         %s\n", formatDoctorBool(r.DoctorHealthy))
 	out += fmt.Sprintf("Motor LLM Local: [%s] %s (%s)\n", r.LocalLLM.Status, r.LocalLLM.Provider, r.LocalLLM.Endpoint)
 	out += "--------------------------------------------------------------------------------\n"
@@ -227,7 +238,7 @@ func formatMarkdownReport(r ComprehensiveReport) string {
 	out += fmt.Sprintf("| **Auditoría Técnica** | `%d violaciones` | 9 Pilares de Calidad QDD |\n", r.ViolationsCount)
 	out += fmt.Sprintf("| **Certificaciones de Proyecto** | `%d / %d certificadas` | %d pendientes |\n", r.CertifiedCount, r.TotalCertifications, r.PendingCount)
 	out += fmt.Sprintf("| **Hallazgos (Findings)** | `%d abiertos / %d resueltos` | Ciclo de Aprendizaje Perpetuo |\n", r.OpenFindingsCount, r.ResolvedFindings)
-	out += fmt.Sprintf("| **Gobernanza de IA** | `%s` | ISO 42001, ISO 29119-11, SOC 2, ISO 23894 |\n", r.AIGovernanceStatus)
+	out += fmt.Sprintf("| **Gobernanza de IA** | `%s` | Comprobaciones heurísticas: no acredita ninguna norma |\n", r.AIGovernanceStatus)
 	out += fmt.Sprintf("| **Salud del Framework (Doctor)** | `%s` | Auto-reparación y estructura |\n", formatDoctorBool(r.DoctorHealthy))
 	out += fmt.Sprintf("| **Poder Cognitivo Local (LLM)** | `[%s] %s` | Endpoint: `%s` |\n\n", r.LocalLLM.Status, r.LocalLLM.Provider, r.LocalLLM.Endpoint)
 

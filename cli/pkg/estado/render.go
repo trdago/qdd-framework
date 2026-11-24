@@ -294,7 +294,8 @@ func Statusline(e Estado, now time.Time) string {
 	return fmt.Sprintf("◧ %d %s · %s%d %s%d", t.Tareas, palabra, Espera, t.Esperan, Falla, t.Fallan)
 }
 
-// BuscarRaiz sube desde dir hasta encontrar el archivo de estado; "" si no hay.
+// BuscarRaiz sube desde dir hasta encontrar el archivo de estado; "" si no hay. Se detiene en un repositorio propio con QDD:
+// sin tablero todavía, no usa el del proyecto que lo contiene (FND-314).
 func BuscarRaiz(dir string) string {
 	d, err := filepath.Abs(dir)
 	if err != nil {
@@ -305,11 +306,21 @@ func BuscarRaiz(dir string) string {
 			return d
 		}
 		padre := filepath.Dir(d)
-		if padre == d {
+		if padre == d || esRepositorioConQDD(d) {
 			return ""
 		}
 		d = padre
 	}
+}
+
+// esRepositorioConQDD: en un worktree .git es un archivo, y ese usa el tablero de su checkout principal.
+func esRepositorioConQDD(dir string) bool {
+	return esCarpeta(filepath.Join(dir, ".git")) && esCarpeta(filepath.Join(dir, ".qdd"))
+}
+
+func esCarpeta(ruta string) bool {
+	info, err := os.Stat(ruta)
+	return err == nil && info.IsDir()
 }
 
 // StatuslineDir es Statusline para la barra de la consola: nunca falla; sin archivo o con uno dañado, "".

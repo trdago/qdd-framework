@@ -16,6 +16,7 @@ objetivo_tecnologico:
         - 'npm 12 bloquea el postinstall por defecto, y sin él no hay binario: toda instrucción de instalación de qdd lleva --allow-scripts=qdd-framework y el mensaje de binario ausente lo dice (FND-143). npm 10 y 11 toleran la bandera.'
         - 'Binario ausente: primero lo baja con install.js --primer-uso (FND-143; opción recomendada que eligió el modo goal, 2026-11-05, falta que la persona la confirme: quien instala sin la bandera no queda sin qdd); un turno evita que varios qdd bajen cada uno el suyo y lo del instalador va a stderr.'
         - 'Binario que sigue ausente (ENOENT) sale con 75, el «todavía no» de los pedidos (FND-135): no se distingue una reinstalación de una instalación rota, así que el mensaje cubre las dos. Cualquier otro error de lanzarlo sale con 1.'
+        - Windows se publica solo en amd64; en arm64 el instalador pide ese mismo binario, que Windows 11 corre emulado (FND-313).
     invariantes:
         - Linux y macOS mantienen el binario dentro del paquete.
         - Solo un binario que responde a --version queda instalado.
@@ -25,5 +26,5 @@ objetivo_tecnologico:
 pruebas:
     comandos:
         - cd npm && node --test
-ultima_revision: "2026-11-05"
-revisado_en_commit: bbbc1dbfd20c
+ultima_revision: "2026-11-24"
+revisado_en_commit: 5dc04c71f564
