@@ -211,6 +211,29 @@ func TestPRs_UnPedidoQueNombraElPRReemplazaAlAutomatico_FND132(t *testing.T) {
 	}
 }
 
+// FND-319: un pedido que mergea otro PR y solo espera a este no lo cubre; si lo quitara, la cadena espera un merge que
+// nadie ofrece.
+func TestPRs_ElPedidoQueMergeaOtroYEsperaAEsteNoLoTapa_FND319(t *testing.T) {
+	for _, comando := range []string{
+		`[ "$(gh pr view 331 --json state --jq .state)" = MERGED ] || exit 75; gh pr merge 332 --merge`,
+		"gh pr view 331 --json state && qdd consola mergear-pr 332",
+	} {
+		root := proyectoConCola(t)
+		abiertos := []PR{{Numero: 331, Titulo: "a"}, {Numero: 332, Titulo: "b"}}
+		if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+			t.Fatal(err)
+		}
+		mustPedir(t, root, comando, "Integrar #332", "")
+		if err := OfrecerPRs(root, abiertos, enCola); err != nil {
+			t.Fatal(err)
+		}
+		prs := pedidosDePR(t, root)
+		if _, ok := prs[331]; !ok || len(prs) != 1 {
+			t.Fatalf("%s: el #331 se sigue ofreciendo y el #332 ya tiene pedido: %v", comando, prs)
+		}
+	}
+}
+
 func TestPRs_ReemplazarNoTocaOtroPR_FND132(t *testing.T) {
 	root := proyectoConCola(t)
 	if err := OfrecerPRs(root, []PR{{Numero: 6, Titulo: "a"}, {Numero: 69, Titulo: "b"}}, enCola); err != nil {
