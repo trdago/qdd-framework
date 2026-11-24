@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -127,11 +128,19 @@ func loNombraOtroPedido(cola []Pedido, n int) bool {
 	return false
 }
 
-// nombraPR: el motivo o el comando hablan del PR n («#69», «gh pr merge 69», «gh pr view 69», «mergear-pr 69»).
+var reMergeaEnComando = regexp.MustCompile(`\b(?:pr merge|mergear-pr) #?(\d+)\b`)
+
+// nombraPR: el motivo o el comando hablan del PR n («#69», «gh pr merge 69», «gh pr view 69», «mergear-pr 69»). Si el
+// comando mergea otros PR, consultar el n es solo esperarlo: no lo cubre (FND-319).
 func nombraPR(n int, motivo, comando string) bool {
 	num := strconv.Itoa(n)
-	nombra := regexp.MustCompile(`#` + num + `\b|\b(pr merge|pr view|mergear-pr) ` + num + `\b`)
-	return nombra.MatchString(motivo) || nombra.MatchString(comando)
+	if regexp.MustCompile(`#` + num + `\b`).MatchString(motivo) {
+		return true
+	}
+	if mergea := reMergeaEnComando.FindAllStringSubmatch(comando, -1); len(mergea) > 0 {
+		return slices.ContainsFunc(mergea, func(m []string) bool { return m[1] == num })
+	}
+	return regexp.MustCompile(`#` + num + `\b|\bpr view ` + num + `\b`).MatchString(comando)
 }
 
 // sinAutomaticosQueNombra quita los pedidos automáticos pendientes de los PRs que nombra un pedido nuevo de la IA

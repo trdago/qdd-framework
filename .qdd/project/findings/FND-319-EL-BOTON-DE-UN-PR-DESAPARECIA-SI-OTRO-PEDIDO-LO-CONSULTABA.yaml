@@ -1,0 +1,9 @@
+id: "FND-319"
+title: "El botón de mergear un PR desaparecía si otro pedido solo lo consultaba"
+description: "2026-11-24: con el pedido automático «Mergear #331» en el panel, se dejó un pedido que mergea el #332 y antes comprueba con gh pr view 331 que el #331 ya está. QDD lo tomó como un pedido del #331 (FND-132) y quitó el automático sin avisar: la cadena quedó esperando un merge que nadie ofrecía."
+impact: "Una cadena de pedidos se queda parada y la persona no ve qué falta confirmar."
+action_taken: "Si el comando de un pedido mergea otros PR, consultar uno no cuenta como cubrirlo. Lo demás de FND-132 sigue igual: el motivo con #N, un merge del N, o consultarlo sin mergear otro."
+test_result: "TestPRs_ElPedidoQueMergeaOtroYEsperaAEsteNoLoTapa_FND319 fallaba antes del cambio y pasa; las de FND-132 siguen pasando."
+status: resolved
+detectado_por: ia
+date: "2026-11-24"
