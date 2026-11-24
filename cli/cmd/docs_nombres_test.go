@@ -20,7 +20,7 @@ const VarHuellasPrivadas = "QDD_HUELLAS_PRIVADAS"
 
 var palabraDeDoc = regexp.MustCompile(`[a-z0-9][a-z0-9_-]*`)
 
-// Ningún ejemplo de docs/ ni de rfcs/ nombra una organización, un cliente o un proyecto real. Sin el archivo de huellas
+// Ningún ejemplo de la documentación pública nombra una organización, un cliente o un proyecto real. Sin el archivo de huellas
 // (en CI) no hay con qué comparar y se salta; en el PC de la persona lo pasa «make test».
 // contrato: documentacion#d7c8baeb
 func TestDocs_NoNombranProyectosReales(t *testing.T) {
@@ -29,7 +29,7 @@ func TestDocs_NoNombranProyectosReales(t *testing.T) {
 		t.Skip(VarHuellasPrivadas + " vacía: sin las huellas de los nombres reales no hay con qué comparar")
 	}
 	huellas := leerHuellas(t, ruta)
-	for _, carpeta := range []string{"../../docs", "../../rfcs"} {
+	for _, carpeta := range []string{"../../docs", "../../rfcs", "../../README.md", "../../npm/README.md", "../../CONTRIBUTING.md", "../../SECURITY.md", "../../specification"} {
 		filepath.WalkDir(carpeta, func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") {
 				return nil
