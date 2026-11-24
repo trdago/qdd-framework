@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Fixed
+
+- **El botón de un PR no desaparece por otro pedido que solo lo consulta (FND-319):** un pedido que mergea otro PR y espera a
+  este ya no lo quita del panel.
+
 ## [2.10.0-rc.130] - 2026-11-24
 
 ### Fixed
