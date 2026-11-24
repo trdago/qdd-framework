@@ -547,6 +547,7 @@ func init() {
 }
 
 func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []string, salida, errores io.Writer) int {
+	orden.Reactiva = true
 	p, err := consola.PedirEnOrden(root, consola.ComandoDeArgs(args, runtime.GOOS), motivo, carpeta, orden, time.Now())
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)

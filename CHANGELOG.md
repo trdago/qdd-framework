@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.128] - 2026-11-24
+
+### Fixed
+
+- **Pedir de nuevo un comando que falló lo vuelve a dejar listo (FND-317):** antes quedaba en «falló» aunque qdd respondía que
+  quedó en el panel, y lo que dependía de él se detenía sin aviso. Pide un «Sí» nuevo y conserva su lugar en la cadena.
+
 ## [2.10.0-rc.127] - 2026-11-24
 
 ### Fixed
