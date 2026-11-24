@@ -182,6 +182,6 @@ qdd report --format md --output reporte.md
 
 `certify` informa y siempre sale con 0; lo que frena es `qdd audit`.
 
-Para etiquetar una versión, la IA puede usar la *tool* `qdd_release`: corre `npm run build` o `make build` si existen,
-actualiza `state.json` y crea un tag local. **No corre el gate ni avisa si la compilación falla**
-([FND-310](../.qdd/project/findings/FND-310-QDD-RELEASE-NO-PASA-EL-GATE.yaml)): corre `qdd audit` antes y commitea `state.json`.
+Para etiquetar una versión, la IA puede usar la *tool* `qdd_release`: corre el gate y `npm run build` o `make build` si
+existen. Si algo falla lo dice y no crea el tag. Si todo pasa, crea un tag local y anota la versión en `state.json`, que hay
+que commitear. Publicarlo es tu decisión.

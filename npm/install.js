@@ -57,14 +57,27 @@ function resolverBinarioLocal(pkgDir, nombreBinario, log = console.log) {
   return null;
 }
 
-function main() {
-  const os = platformMap[process.platform];
-  const arch = archMap[process.arch];
+// plataformaDeBinario: Windows se publica solo en amd64, que Windows 11 en arm64 corre emulado (FND-313).
+function plataformaDeBinario(platform, arch) {
+  const os = platformMap[platform];
+  const publicado = archMap[arch];
+  if (!os || !publicado) {
+    return null;
+  }
+  if (os === 'windows') {
+    return { os, arch: 'amd64' };
+  }
+  return { os, arch: publicado };
+}
 
-  if (!os || !arch) {
+function main() {
+  const plataforma = plataformaDeBinario(process.platform, process.arch);
+
+  if (!plataforma) {
     console.error(`[QDD] Plataforma no soportada: ${process.platform} ${process.arch}`);
     process.exit(1);
   }
+  const { os, arch } = plataforma;
 
   const ext = os === 'windows' ? 'zip' : 'tar.gz';
   const binaryExt = os === 'windows' ? '.exe' : '';
@@ -380,7 +393,7 @@ function actualizarConsola(bin) {
   }
 }
 
-module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, comandoExtraer, instalarDescarga, codigoDeFalla, carpetaDeVersiones, destinoDelBinario, respondeBinario, moverBinario, instalarCopia, registrarVersion, tomarTurno };
+module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, plataformaDeBinario, comandoExtraer, instalarDescarga, codigoDeFalla, carpetaDeVersiones, destinoDelBinario, respondeBinario, moverBinario, instalarCopia, registrarVersion, tomarTurno };
 
 if (require.main === module) {
   main();

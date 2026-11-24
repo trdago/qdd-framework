@@ -2,8 +2,8 @@ id: "FND-313"
 title: "npm pide un binario de Windows arm64 que no se publica"
 description: "2026-11-24, al comparar la documentación pública con el código (sprint 10). npm/install.js acepta win32 arm64 y arma la URL de qdd_windows_arm64.zip, pero publish.yml publica Windows solo en amd64. Comprobado por lectura."
 impact: "En Windows arm64 la instalación falla con un archivo que no existe."
-action_taken: "El README dice qué binarios hay."
-test_result: ""
-status: open
+action_taken: "El instalador pide el binario amd64 en cualquier Windows: Windows 11 en arm64 lo corre emulado. No se probó en un equipo arm64 real."
+test_result: "npm/test/install.test.js, «cada plataforma pide un binario que existe en el release». Fallaba antes del cambio y pasa."
+status: resolved
 detectado_por: sesion
 date: "2026-11-24"

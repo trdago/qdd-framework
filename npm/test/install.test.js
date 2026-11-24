@@ -324,3 +324,18 @@ test('tomarTurno no esconde otro error', (t) => {
   const turno = path.join(crearRaiz(t), 'no-existe', '.bajando');
   assert.throws(() => tomarTurno(turno), /ENOENT/);
 });
+
+// FND-313: no se publica un binario de Windows arm64. Windows 11 en arm64 corre el de amd64.
+test('cada plataforma pide un binario que existe en el release', () => {
+  const { plataformaDeBinario } = require('../install.js');
+  const publicados = ['linux_amd64', 'linux_arm64', 'darwin_amd64', 'darwin_arm64', 'windows_amd64'];
+  for (const platform of ['linux', 'darwin', 'win32']) {
+    for (const arch of ['x64', 'arm64']) {
+      const p = plataformaDeBinario(platform, arch);
+      assert.ok(publicados.includes(`${p.os}_${p.arch}`), `${platform} ${arch} pide ${p.os}_${p.arch}`);
+    }
+  }
+  assert.deepEqual(plataformaDeBinario('win32', 'arm64'), { os: 'windows', arch: 'amd64' });
+  assert.equal(plataformaDeBinario('sunos', 'x64'), null);
+  assert.equal(plataformaDeBinario('linux', 'ia32'), null);
+});

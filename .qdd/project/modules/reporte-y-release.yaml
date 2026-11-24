@@ -1,0 +1,29 @@
+id: reporte-y-release
+nombre: Reporte consolidado y tools de sprint y release
+estado: aprobado
+rutas:
+    - cli/cmd/report.go
+    - cli/cmd/mcp_agile.go
+objetivo_operativo:
+    problema: Quien decide si una versión sale necesita un reporte que diga solo lo medido, y una IA no debe poder etiquetar algo que el gate bloquea.
+    usuarios: Las personas que leen el reporte y las IAs que preparan sprints y versiones.
+    criterio_de_exito: El reporte no afirma nada sin evaluar y qdd_release nunca crea un tag con el gate en rojo o sin compilar.
+    caso_real: 'FND-310 y FND-311 (2026-11-24): un tag creado con una prueba en rojo y un «CERTIFIED» que nadie evaluó.'
+objetivo_tecnologico:
+    arquitectura: report.go arma el reporte desde la auditoría, evolution y doctor. mcp_agile.go registra las tools de findings, sprint, sync y release; la release recibe el gate y la compilación como funciones para probarlas sin red ni suites reales.
+    decisiones:
+        - El tag se crea antes de anotar la versión, así un tag repetido no la cambia
+        - La release no commitea ni publica; eso es de la persona
+    invariantes:
+        - qdd_release no crea un tag si el gate bloquea o la compilación falla
+        - El estado de gobernanza de IA distingue lo no evaluado, lo que no aplica y lo que no tiene hallazgos
+pruebas:
+    comandos:
+        - cd cli && go test ./cmd/ -run 'FND310|FND311|TestReportGeneration'
+findings:
+    - FND-310
+    - FND-311
+fuentes:
+    - docs/command-reference.md
+ultima_revision: "2026-11-24"
+revisado_en_commit: 5dc04c71f564

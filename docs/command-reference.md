@@ -344,7 +344,7 @@ detiene a la IA por sí misma; lo que frena es `qdd audit` en el CI y las [puert
 | Tool MCP | Qué hace | En la terminal |
 |---|---|---|
 | `qdd_sprint` | Crea el sprint y su contrato de escenarios. Exige `numero`, `goal`, `happy_path`, `error_paths`, `technical_constraints` y `executable_tests`. | — |
-| `qdd_release` | Corre `npm run build` o `make build` si existen, cambia la versión en `state.json` y crea un tag **local**. No corre el gate e ignora los errores de compilación y de tag ([FND-310](../.qdd/project/findings/FND-310-QDD-RELEASE-NO-PASA-EL-GATE.yaml)). | — |
+| `qdd_release` | Corre el gate y `npm run build` o `make build` si existen; si algo falla, lo dice y no etiqueta. Si pasa, crea un tag **local** y anota la versión en `state.json`. | — |
 | `qdd_sync` | Vuelve a escribir el bloque de reglas de cada IA. | `qdd init` |
 | `qdd_harness_generate` | Arma el texto de instrucciones combinado para la IA. | — |
 | `qdd_certify_human` | Recorridos con Playwright que escribe el proyecto. `target`: `all`, una categoría o un nodo. | `qdd certify human` |

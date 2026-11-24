@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Fixed
+
+- **`qdd estado` ya no escribe en el tablero de otro proyecto (FND-314):** un repositorio con su propio QDD, dentro de otro
+  proyecto, usa el suyo aunque todavía no lo haya creado. Un worktree sigue usando el de su checkout principal.
+- **`qdd_release` no etiqueta lo que el gate bloquea (FND-310):** corre el gate y compila antes, y dice qué falló.
+- **`qdd report` ya no dice CERTIFIED en gobernanza de IA sin evaluarla (FND-311):** `ai_governance_status` es ahora
+  `SIN_EVALUAR`, `NO_APLICA`, `SIN_HALLAZGOS` o `VIOLATIONS_DETECTED`.
+- **npm instala en Windows arm64 con el binario amd64 (FND-313):** antes pedía un archivo que no existe.
+
 ### Changed
 
 - **La documentación pública dice lo que QDD es hoy (FND-307, sprint 10):** README, npm, Getting Started, arquitectura,

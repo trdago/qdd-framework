@@ -31,6 +31,11 @@ func RunAIGovernanceCheck(cwd string) []Violation {
 	return violations
 }
 
+// UsaIA dice si el código del proyecto parece usar IA: sin eso, sus reglas no tienen qué evaluar.
+func UsaIA(cwd string) bool {
+	return detectAIComponents(cwd)
+}
+
 func detectAIComponents(cwd string) bool {
 	hasAI := false
 	aiKeywords := []string{"openai", "anthropic", "gemini", "langchain", "ollama", "llm", "claude", "gpt-4", "evaluator"}
