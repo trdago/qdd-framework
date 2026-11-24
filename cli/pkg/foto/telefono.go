@@ -24,8 +24,8 @@ const (
 // IDTelefono es el id que da el teléfono a una foto: es parte del nombre del archivo, así que nunca trae / ni ..
 var IDTelefono = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
-// GuardarDelTelefono valida la imagen, la guarda 0600 en tmp/fotos/movil-<id>.<ext> (la extensión sale de sus bytes) y
-// borra las del teléfono de más de VidaTelefono. Devuelve la ruta absoluta.
+// GuardarDelTelefono valida la imagen, la guarda 0600 en tmp/fotos/movil-<id>.<ext> (la extensión sale de sus bytes).
+// Devuelve la ruta absoluta.
 func GuardarDelTelefono(root, id string, data []byte, now time.Time) (string, error) {
 	if !IDTelefono.MatchString(id) {
 		return "", errors.New("el id de la foto solo lleva letras, números, - y _ (de 1 a 64)")
@@ -50,18 +50,18 @@ func GuardarDelTelefono(root, id string, data []byte, now time.Time) (string, er
 		os.Remove(temporal)
 		return "", err
 	}
-	PodarDelTelefono(root, now)
 	return ruta, nil
 }
 
 // PodarDelTelefono borra de tmp/fotos del proyecto las fotos del teléfono de más de VidaTelefono; las de qdd foto no las
-// toca. La llaman GuardarDelTelefono y qdd remoto, cada hora (FND-315).
-func PodarDelTelefono(root string, now time.Time) {
+// toca. Devuelve las que borró. La llama qdd remoto, al arrancar y cada hora (FND-315), y anota cada una (FND-320).
+func PodarDelTelefono(root string, now time.Time) []string {
 	dir := filepath.Join(root, filepath.FromSlash(Carpeta))
 	entradas, err := os.ReadDir(dir)
 	if err != nil {
-		return
+		return nil
 	}
+	var borradas []string
 	for _, e := range entradas {
 		if e.IsDir() || !strings.HasPrefix(e.Name(), PrefijoTelefono) {
 			continue
@@ -70,6 +70,9 @@ func PodarDelTelefono(root string, now time.Time) {
 		if err != nil || now.Sub(info.ModTime()) <= VidaTelefono {
 			continue
 		}
-		os.Remove(filepath.Join(dir, e.Name()))
+		if os.Remove(filepath.Join(dir, e.Name())) == nil {
+			borradas = append(borradas, e.Name())
+		}
 	}
+	return borradas
 }

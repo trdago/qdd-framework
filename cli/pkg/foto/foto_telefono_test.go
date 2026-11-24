@@ -11,8 +11,8 @@ import (
 // Rule: Prohibido usar 'else'
 // Fotos de QDD Móvil (ADR-0003 de qdd-movile, acordado el 2026-11-23): la foto que la persona adjunta a un mensaje
 // para la IA queda en tmp/fotos/movil-<id>.<ext> del proyecto, 0600, con la extensión del tipo que dicen sus bytes.
-// La persona eligió que se borren a los 7 días (el original sigue en su teléfono): al guardar una se borran las movil-*
-// más viejas, nunca las de qdd foto.
+// La persona eligió que se borren a los 7 días (el original sigue en su teléfono): qdd remoto llama PodarDelTelefono,
+// que borra las movil-* más viejas y nunca las de qdd foto.
 
 var pngMinimo = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89")
 
@@ -46,7 +46,7 @@ func TestGuardarDelTelefono_QuedaEnTmpFotosConSuTipo(t *testing.T) {
 	}
 }
 
-func TestGuardarDelTelefono_BorraLasDelTelefonoDeMasDe7Dias(t *testing.T) {
+func TestPodarDelTelefono_BorraLasDeMasDe7DiasYDiceCuales(t *testing.T) {
 	root := t.TempDir()
 	now := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
 	vieja, _ := GuardarDelTelefono(root, "vieja", pngMinimo, now)
@@ -58,8 +58,8 @@ func TestGuardarDelTelefono_BorraLasDelTelefonoDeMasDe7Dias(t *testing.T) {
 	os.Chtimes(delPortapapeles, hace8, hace8)
 	os.Chtimes(reciente, now.Add(-6*24*time.Hour), now.Add(-6*24*time.Hour))
 
-	if _, err := GuardarDelTelefono(root, "nueva", pngMinimo, now); err != nil {
-		t.Fatal(err)
+	if b := PodarDelTelefono(root, now); len(b) != 1 || b[0] != filepath.Base(vieja) {
+		t.Fatalf("devuelve las que borró: %v", b)
 	}
 	if _, err := os.Stat(vieja); !os.IsNotExist(err) {
 		t.Fatal("la del teléfono de hace 8 días se borra")

@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.131] - 2026-11-24
+
+### Fixed
+
+- **qdd remoto anota cada foto del teléfono que borra (FND-320):** su registro dice qué archivo, de qué proyecto y por qué. Guardar una foto ya no borra las viejas; lo hace solo `qdd remoto`, al arrancar y cada hora.
+
 ## [2.10.0-rc.130] - 2026-11-24
 
 ### Fixed
