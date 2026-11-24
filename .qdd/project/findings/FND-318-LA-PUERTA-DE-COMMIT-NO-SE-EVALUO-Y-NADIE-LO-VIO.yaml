@@ -1,0 +1,9 @@
+id: "FND-318"
+title: "La puerta de commit no se evaluó en varios commits de la IA y nada lo avisó"
+description: "2026-11-24, en un worktree de este repositorio. Un commit se hizo con qdd audit en rojo (se deshizo antes de subirlo y se repitió con el gate aprobado). El registro de las puertas no tiene ninguna decisión de esa sesión entre las 15:21 y las 16:37, aunque hubo 7 commits; la de las 16:39 sí quedó. El mismo comando, pasado a mano a qdd puertas revisar, se rechaza en 15 ms desde cualquier carpeta. Comprobado: (1) core.hooksPath es una ruta absoluta al .husky/_ del checkout principal, cuyo .husky/ no tiene pre-commit ni commit-msg (su rama es anterior), así que los hooks de git no corren en los worktrees; qdd doctor mira el .husky/ del worktree y los da por buenos. (2) En el panel, rechazoDePuertas deja pasar sin anotar nada si qdd no responde o falla. Sin determinar: por qué la puerta del panel no dejó decisión en esos commits."
+impact: "Un commit sin gate pasa en silencio, doctor dice que todo está bien y el informe de las puertas cuenta menos decisiones que commits. El CI sigue siendo el juez final."
+action_taken: "El commit afectado se rehízo con el gate en verde. Falta: que doctor mire el hook que git ejecuta de verdad, y que el panel anote cuando deja pasar algo por no poder decidir."
+test_result: ""
+status: open
+detectado_por: ia
+date: "2026-11-24"
