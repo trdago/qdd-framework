@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Changed
+
+- **La documentación pública dice lo que QDD es hoy (FND-307, sprint 10):** README, npm, Getting Started, arquitectura,
+  referencia, blueprints, contribución y especificación, comparados con el código y el binario. Se suman SECURITY y el
+  índice de RFC, y se dicen los límites: qué cubre cada IA, qué lee el gate en cada lenguaje y qué usa la red.
+
 ## [2.10.0-rc.125] - 2026-11-24
 
 ### Fixed

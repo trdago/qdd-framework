@@ -1,6 +1,6 @@
 # RFC 0001: Diseño del comando `qdd init`
 
-**Status:** Draft
+**Status:** Implemented. `qdd init` existe y creció desde este diseño; lo vigente está en [Getting Started](../docs/getting-started.md#paso-1-iniciar-el-proyecto)
 **Author:** [Tu Nombre/Equipo]
 **Created:** 2026-07-01
 

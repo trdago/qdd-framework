@@ -1,4 +1,7 @@
-# Comunicación entre qdd y QDD Móvil: revisión del 2026-11-15
+# Comunicación entre qdd y QDD Móvil
+
+El contrato entre los dos lados, revisado el 2026-11-15 y puesto al día el 2026-11-24. El porqué está en el
+[RFC 0013](../rfcs/0013-consola-remota.md).
 
 Pedido de la persona desde QDD Móvil: «revisa toda la comunicación con qdd-movil-play y crea un test para auto
 diagnóstico y reparación usando qdd doctor». Se revisó el código del PC (`cli/pkg/remoto`, `cli/cmd/remoto*`) contra la
@@ -13,16 +16,17 @@ dio ida y vuelta en unos 450 ms con un teléfono mirando.
 | Presence del PC | PC → app | Realtime presence | `rol: pc`, `version_qdd`, `desde` | app (`PresenciaPc.buscar`) | la app muestra el PC «apagado» |
 | Presence del teléfono | app → PC | Realtime presence | `rol: movil`, `dispositivo`, `mirando`, `version_app?`, `capacidades?` (p. ej. `logrado_bajo_pedido`) | PC (`Telefonos`) | sin teléfonos el PC no publica (inv. 12) |
 | `sync` | app → PC | broadcast | `version` | PC | el teléfono no recibe la base; reintenta |
-| `estado` | PC → app | broadcast | `version`, `qdd`, `maquina`, `en`, `seq`, `fuera_del_plan`, `limites`, `diagnostico` (nuevo), `proyectos[]` | app (`exigirVersion`, `seq`, `proyectos`) | Realtime lo descarta sin aviso si pasa su tope (FND-209) |
+| `estado` | PC → app | broadcast | `version`, `qdd`, `maquina`, `en`, `seq`, `fuera_del_plan`, `limites`, `diagnostico`, `capacidades`, `reglas_atrasadas`, `proyectos[]`; si no cabe en un mensaje, va en partes numeradas (`parte`) | app (`exigirVersion`, `seq`, `proyectos`) | Realtime descarta sin aviso lo que pasa su tope; por eso se reparte (FND-209) |
 | `delta` | PC → app | broadcast | `version`, `seq`, `proyectos{clave: panel\|null}`, `limites` | app | un `seq` que no sigue pide `sync` |
 | `flujo` | PC → app | broadcast | `version`, `clave`, `flujo` (≤ 100 KB) | app | el flujo no se dibuja |
-| `consola` | PC → app | broadcast | `version`, `proyecto`, `inicio`, `lineas[]`, `pausada` | app | se ve la consola incompleta |
+| `consola` | PC → app | broadcast | `version`, `proyecto`, `inicio`, `lineas[]`, `pausada`, `sesion`, `trabajando` | app | se ve la consola incompleta |
 | `accion_estado` | PC → app | broadcast | `version`, `solicitud`, `estado`, `resultado`, `lugar` | app (`_fases`) | la acción queda «sin respuesta» |
 | `sincronizar` / `sincronizado` | app → PC / PC → app | broadcast | `version` / avisos por proyecto | PC / app | el teléfono no sabe qué quedó atrasado |
 | `pedir_logrado` / `logrado` | app → PC / PC → app | broadcast | `{version, proyecto, solicitud}` / `{version, proyecto, solicitud, entradas, recortado?, error?}` | PC (clave `^[a-z0-9-]{1,80}$`, solicitud ≤ 64) | inválido se ignora; desconocido o fuera del plan, `[]` con `error`; ver «Logrado bajo pedido» |
 | `accion` | app → relay → PC | RPC `qdd_remoto_accion` → `realtime.send` | `solicitud`, `proyecto`, `accion_id`, `dispositivo`, `dispositivo_nombre`, `en`, `firma` | relay (sesión, revocado, formato) y PC (firma HMAC, 5 min, id ofrecido) | `rechazada` o descartada al log |
 | `responder` | app → relay → PC | RPC `qdd_remoto_responder` | `pregunta`, `respuesta` (texto ≤ 4096), `nombre`, `firma`… | relay y PC (contra la pregunta guardada) | `rechazada`, `vencida` o `ya_aprobado` |
 | `ejecutar` | app → relay → PC | RPC `qdd_remoto_ejecutar` | `tipo` (qdd, ia, flujo), `texto`, `nombre`, `firma`… | relay (Pro, largo, caracteres) y PC (lista permitida, sin shell) | `rechazada` |
+| `foto` / `foto_ack` | app → relay → PC / PC → app | RPC `qdd_remoto_foto` / broadcast | la foto en partes (`parte`, `huella`…), como mucho 64 y 2 MB por foto, firmadas como una acción / `ok` y, si no, el motivo | relay (Pro) y PC (firma, partes, huella) | `foto_ack` con `ok: false` |
 | `sonda` (nuevo) | PC → PC | broadcast con `self` | `version`, `marca` | PC | la sonda nombra el tramo `eco` |
 | Latido | PC → relay | RPC `qdd_remoto_latido` | en curso, consola, mensajes | relay | doctor REM-07 |
 | Push | PC → relay → FCM | Edge Function `avisar` | `topico`, `firma`, `tipo`, `proyecto`, `clave` | relay (`validarPedido`) | se loguea; nunca bloquea |
@@ -88,6 +92,7 @@ Lo agregó en paralelo el PR #263 (REM-15 a REM-19) y completa el mapa: la sonda
 | REM-20 | La última sonda del servicio (`sonda.json`). | Sin sondear, aplica la reparación de su tramo (directorio o reinicio); el servicio la repite al arrancar. |
 | REM-21 | El peso del último estado completo frente al tope de Realtime (FND-209). | Nada: reducirlo es una decisión. |
 | REM-22 | El último aviso que el relay aceptó y no llegó a ningún teléfono (`push.json`, FND-217). | Nada: solo avisa; nunca reintenta ni bloquea. |
+| REM-23 | En Windows, que la tarea lance `qddw.exe` y no abra una ventana (FND-238). | Reescribe la tarea. |
 
 ### Avisos que no llegan (REM-22, MEJ-027, 2026-11-15)
 

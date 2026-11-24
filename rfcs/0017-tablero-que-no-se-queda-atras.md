@@ -1,7 +1,7 @@
 # RFC 0017: Un tablero que no se queda atrás
 
-- Estado: implementada en qdd. El punto 1 está publicado en la rc.9 (2026-11-05); los puntos 2 y 3, en la rama
-  `feat/tablero-no-se-queda-atras` (2026-11-15), para la 2.10.0-rc.79. La persona aprobó el aporte al blueprint
+- Estado: implementada en qdd. El punto 1 está publicado en la rc.9 (2026-11-05); los puntos 2 y 3, en la
+  2.10.0-rc.79 (2026-11-15). La persona aprobó el aporte al blueprint
   `estado-por-tareas` («dale», 2026-11-06); su propuesta al repositorio de blueprints sigue pendiente.
 - Origen: MEJ-010, reporte de proyecto-a. La persona dueña de proyecto-a pidió: «las tareas y objetivos sí mutan en el tiempo, él tiene
   que darse cuenta y mantenerlos actualizado».

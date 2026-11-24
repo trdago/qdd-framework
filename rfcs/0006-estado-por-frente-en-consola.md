@@ -1,6 +1,6 @@
 # RFC 0006: Estado por frente en la consola — `qdd estado`
 
-**Status:** Accepted (aprobado por el humano el 2026-10-29; implementado en la rama feat/estado-por-frente)
+**Status:** Accepted (aprobado por el humano el 2026-10-29; implementado)
 **Created:** 2026-10-29
 **Nota (2026-10-30):** el blueprint `estado-por-frente` pasó a llamarse `estado-por-tareas`, que suma la tarea en curso; los proyectos lo migran como dice el [RFC 0009](0009-blueprints-que-reemplazan.md).
 **Relacionado:** blueprint `estado-por-frente` (v1.0.0, opción `destino: archivo`), blueprint `consola-claude-code` (v2.0.0), [RFC 0004](0004-blueprints-centrales.md).

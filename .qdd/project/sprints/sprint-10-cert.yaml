@@ -1,0 +1,33 @@
+qdd_certificate:
+  version: "1.1"
+  sprint_id: "10"
+  status: "PASSING"
+  goal: "La documentación pública de QDD en GitHub y npm (README, guías, referencia, arquitectura, CONTRIBUTING, especificación, RFC y la ficha del repositorio) describe lo que QDD es y hace en la 2.10.0, sin afirmaciones que el código no sostenga, y una prueba avisa cuando vuelve a quedar atrás."
+  
+  scenarios:
+    happy_path:
+      - "Dado alguien que llega al repositorio, cuando lee el README, entonces entiende en una pantalla qué es QDD hoy (método, gate, puertas, fichas, blueprints, tablero, panel, flujos, baúl y QDD Móvil), cómo instalarlo y por dónde empezar"
+      - "Dado alguien que sigue getting-started en un proyecto nuevo, cuando corre cada comando, entonces ve lo que la guía dice"
+      - "Dado un comando, flag o tool MCP de la versión, cuando lo busca en la referencia, entonces está y describe lo que hace"
+      - "Dado un RFC, cuando se mira el índice, entonces dice su estado real"
+      - "Dado el repositorio en GitHub, cuando aparece en una búsqueda, entonces tiene descripción, temas y enlace a npm"
+    error_paths:
+      - "Si un documento afirma algo que el código no hace, se quita o se dice su límite, nunca se suaviza"
+      - "Si una función está solo en preview, el documento lo dice y cómo instalarla"
+      - "Si un enlace relativo o un ancla no existe, la prueba falla"
+      - "Si un grupo de comandos no está en el README ni un RFC en el índice, la prueba falla y lo nombra"
+      - "Si un documento nombra un proyecto, cliente u organización reales, la prueba de huellas falla"
+    edge_cases:
+      - "Pendiente de la persona: la descripción y los temas del repositorio en GitHub van como pedido, y GitHub muestra main hasta que se publique la 2.10"
+
+  technical_constraints:
+    - "Solo documentación y sus pruebas: ningún cambio de comportamiento de la CLI"
+    - "Pruebas primero y cada desfase es un finding con su prueba"
+    - "docs/command-reference.md sigue siendo la fuente única y los demás enlazan a ella"
+    - "Sin nombres reales"
+    - "La rama sale de feat/panel-flujo y no publica a latest: eso lo decide la persona"
+    - "Zero else"
+
+  executable_tests:
+    - "cd cli && go test -count=1 ./cmd/ -run 'TestDocs_|TestReadme_|TestInstrucciones_'"
+    - "qdd audit"
