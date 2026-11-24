@@ -1,0 +1,9 @@
+id: "FND-321"
+title: "Los documentos decían que el relay no guarda las acciones ni los textos del teléfono, y quedan de 3 a 4 días"
+description: "El RFC 0013 («No se guardan en Supabase ni el estado ni las acciones», entre lo que la persona decidió, y «El relay no guarda ni el comando ni su salida») y docs/command-reference.md lo afirmaban. Las migraciones del relay (qdd-movile, origin/main, leídas el 2026-11-24) mandan accion, responder, ejecutar y foto con realtime.send, y la documentación de Supabase dice que esos mensajes se guardan en realtime.messages y que Broadcast Replay los ofrece «at least 72 hours and at most 4 days». Lo encontró qdd-movile con las fotos (su FND-059). No se miró la base del relay. Que lo que el PC manda por Broadcast no se guarde tampoco está medido."
+impact: "Los textos a la IA (hasta 4000 caracteres), las respuestas (hasta 4096) y las acciones quedan días en Supabase sin cifrado de extremo a extremo, contra lo que la persona decidió y lo que dice la documentación pública de QDD. Según el FND-059 de qdd-movile, la política de la app sí lo dice de los textos («en pocos días»)."
+action_taken: "Los documentos dicen qué queda guardado, cuánto y qué no está medido; una prueba impide volver a negarlo. Falta que la persona decida si se acepta o se cambia cómo viajan (con qdd-movile)."
+test_result: "TestDocs_NadieDiceQueElRelayNoGuardaLoDelTelefono_FND321 fallaba antes del cambio y pasa. El comportamiento del relay no cambió."
+status: open
+detectado_por: ia
+date: "2026-11-24"

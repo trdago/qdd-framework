@@ -243,3 +243,25 @@ func filasDe(ref []string, comando string) string {
 	}
 	return filas.String()
 }
+
+// FND-321: el RFC 0013 y la referencia decían que el relay no guarda las acciones ni los textos, y lo que manda el
+// teléfono por el relay (realtime.send) queda unos días en realtime.messages. La comunicación lo dice y nadie lo niega.
+var niegaQueElRelayGuarda = regexp.MustCompile(`(?i)relay no (guarda|almacena|conserva)|no se (guardan|almacenan) en supabase`)
+
+func TestDocs_NadieDiceQueElRelayNoGuardaLoDelTelefono_FND321(t *testing.T) {
+	for _, archivo := range documentosPublicos(t) {
+		for _, m := range niegaQueElRelayGuarda.FindAllString(leerDoc(t, archivo), -1) {
+			t.Errorf("%s dice «%s»: lo que pasa por realtime.send queda de 72 horas a 4 días (FND-321)", archivo, m)
+		}
+	}
+	comunicacion := leerDoc(t, "../../docs/qdd-movil-comunicacion.md")
+	_, seccion, hay := strings.Cut(comunicacion, "## Qué queda guardado en el relay")
+	if !hay {
+		t.Fatal("docs/qdd-movil-comunicacion.md no dice qué queda guardado en el relay")
+	}
+	for _, evento := range []string{"`accion`", "`responder`", "`ejecutar`", "`foto`", "realtime.messages"} {
+		if !strings.Contains(seccion, evento) {
+			t.Errorf("la sección «Qué queda guardado en el relay» no nombra %s", evento)
+		}
+	}
+}
