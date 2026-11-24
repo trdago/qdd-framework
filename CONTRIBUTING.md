@@ -1,53 +1,59 @@
-# Contributing to QDD Framework
+# Contribuir a QDD
 
-¡Gracias por tu interés en contribuir a QDD Framework! Al ser una plataforma orientada a la calidad (*Quality-Driven Development*), nuestras reglas de contribución son estrictas para mantener la consistencia y fiabilidad del ecosistema.
+Gracias por querer mejorar QDD. Este repositorio se desarrolla con QDD: pasa su propio gate y sigue su propio método.
 
-## 🧠 Filosofía de Contribución
+## Entorno
 
-Antes de enviar código, asegúrate de comprender y aplicar los principios de nuestro marco de trabajo:
+- **Go 1.25+**, **Node 20.19+ o 22.12+** y npm.
+- La suite del panel usa la CLI de Claude Code; sin ella esa suite queda «sin medir», no fallida.
 
-1. **Zero-Else & Guard Clauses**: Está prohibido el uso de la palabra clave `else`. Utiliza siempre *Early Returns* (Retornos tempranos) para manejar flujos alternativos o errores. La razón de fondo: cada vez menos personas leen el código línea a línea, así que el que sí se lee tiene que entenderse de un vistazo; con guardas, el camino principal queda recto.
-2. **Casos de Borde (Edge Cases)**: Los tests no solo deben probar el "camino feliz". Se deben simular escenarios de fallo (timeouts, valores nulos, estados corruptos). **Todo bug encontrado genera un test unitario obligatorio.**
-3. **Pipelining**: QDD Framework soporta comandos en tubería. Si construyes una nueva herramienta, asegúrate de que sea componible de forma secuencial y atómica.
-4. **UI Predictiva**: En el Dashboard o interacciones del CLI, evita pedir texto libre al usuario. Usa modales, opciones estructuradas o menús selectivos para evitar ambigüedades.
+```bash
+git clone https://github.com/trdago/qdd-framework.git
+cd qdd-framework
+npm install     # instala los hooks de git
+make build      # deja ./qdd en la raíz
+make test
+```
 
-## 🛠️ Entorno de Desarrollo
+`make install` y `make audit` **reemplazan el `qdd` de tu equipo** (`~/.local/bin`) por el de esta copia. Para probar sin
+tocarlo, usa `./qdd audit` después de `make build`.
 
-Para comenzar a desarrollar en QDD Framework:
+## De qué rama partir
 
-1. **Requisitos**: Go (1.24+), Node.js (20+) y npm.
-2. **Inicializar**:
-   ```bash
-   git clone https://github.com/trdago/qdd-framework.git
-   cd qdd-framework
-   ```
-3. **Compilar e Instalar**:
-   Ejecuta el siguiente comando para compilar el frontend, el backend y copiar el binario a tu entorno local:
-   ```bash
-   make install
-   ```
-4. **Ejecutar Pruebas**:
-   Antes de hacer un commit, asegúrate de que todos los tests pasen y no haya violaciones arquitectónicas:
-   ```bash
-   make test
-   make audit
-   ```
+- Los arreglos para la versión estable salen del último tag estable y van a `main`.
+- Lo nuevo va a la rama de integración de la próxima versión: la base del PR abierto más grande hacia `main`, o pregunta en
+  un issue. El CI corre en los PR hacia `main` y hacia `feat/**`.
 
-## 📝 Convenciones de Código y Commits
+## Cómo se trabaja
 
-- **Commits Convencionales**: Utilizamos [Conventional Commits](https://www.conventionalcommits.org/). Ejemplos:
-  - `feat: añade soporte para plugins MCP`
-  - `fix: resuelve data race en el core engine`
-  - `docs: actualiza el diagrama del manifiesto`
-- **Changelog**: Cualquier cambio significativo debe reflejarse en el archivo `CHANGELOG.md` al realizar un release.
+1. **Lee la ficha** del módulo que vas a tocar: `qdd modules context <rutas>`. Si tu cambio altera una decisión o una
+   invariante, actualiza la ficha en el mismo PR.
+2. **Pruebas primero.** Comprueba que la prueba falla antes del cambio. Cubre también los caminos de error.
+3. **Cero `else`, salida temprana.** Cada vez menos personas leen el código línea a línea, así que el que sí se lee tiene
+   que entenderse de un vistazo.
+4. **Todo bug es un finding** en `.qdd/project/findings/`, con su prueba de regresión en `test_result`. Un commit `fix:` lo
+   nombra.
+5. **Documenta en el mismo PR** toda capacidad nueva; una prueba compara la referencia con el binario.
+6. **Sin nombres reales** de organizaciones, clientes o proyectos en la documentación: el repositorio es público.
+7. **`qdd audit` en verde** antes de cada commit.
 
-## 🚀 Proceso de Pull Request (PR)
+Lo temporal va en `./tmp`, que git ignora.
 
-1. Haz un fork del repositorio y crea tu rama desde `main` (ej. `feat/nueva-herramienta` o `fix/bug-v1`).
-2. Ejecuta `/qdd validate` o `make audit` localmente.
-3. Envía tu PR detallando claramente el problema que resuelves y los tests que añadiste.
-4. El Gatekeeper de CI de QDD validará estructuralmente tu código. Si tu código incluye cláusulas `else`, tu PR será rechazado automáticamente.
+## Commits y versiones
 
-## 🛡️ Reporte de Vulnerabilidades
+- [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
+- La versión la define el contenido: un `feat` pide MINOR y `!` o `BREAKING CHANGE:`, MAJOR (`VER-03`). Se declara en
+  `package.json`, `npm/package.json` y `cli/cmd/version.txt`, con su entrada en el [CHANGELOG](CHANGELOG.md).
+- Los cambios grandes empiezan por un [RFC](rfcs/README.md).
 
-Si encuentras un problema de seguridad, **no abras un issue público**. Por favor, revisa las políticas de seguridad o contacta directamente a los administradores del repositorio para una divulgación responsable.
+## Pull Request
+
+Cuenta qué problema resuelve, qué cambia para quien usa QDD y cómo lo verificaste. Una persona que mantiene el proyecto lo
+integra cuando el CI está en verde.
+
+## Reportar un problema
+
+- **Con GitHub:** un [issue](https://github.com/trdago/qdd-framework/issues).
+- **Sin GitHub:** `qdd reportar --titulo "…" --verifico "…"`; ves el texto exacto antes de que salga. Quien reporta verifica
+  el arreglo.
+- **De seguridad:** nunca en público; sigue [SECURITY](SECURITY.md).

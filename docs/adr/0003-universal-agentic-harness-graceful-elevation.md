@@ -1,7 +1,9 @@
 # ADR-0003: Arnés Universal Agnóstico de Agentes con Elevación Progresiva (Universal Agentic Harness & Graceful Elevation)
 
 ## 📌 Estado
-**Aprobado (SSOT)**
+**Aprobado.** Describe la intención de diseño. Hoy QDD escribe las reglas de cada IA y revisa con `qdd audit`; no crea
+`task.md`, `implementation_plan.md` ni `.cursor/rules/`, y lo que obliga de verdad está en
+[Arquitectura](../framework-architecture.md#qué-obliga-y-qué-solo-orienta).
 
 ## 🎯 Contexto
 El desarrollo de software asistido por Inteligencia Artificial se ejecuta a través de múltiples herramientas, entornos y modelos:

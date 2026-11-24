@@ -11,7 +11,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// FND-307: la persona eligió que las fotos del teléfono se borren a los 7 días, y rc.124 solo las borraba al guardar
+// FND-315: la persona eligió que las fotos del teléfono se borren a los 7 días, y rc.124 solo las borraba al guardar
 // otra en el mismo proyecto: sin una foto nueva se quedaban para siempre. qdd remoto las borra por su cuenta al arrancar
 // y cada CadaPoda, en todos los proyectos del registro, sin teléfono conectado.
 
@@ -33,7 +33,7 @@ func fotoDeHace(t *testing.T, root, nombre string, edad time.Duration) string {
 	return ruta
 }
 
-func TestFotos_SeBorranALos7DiasSinQueLlegueOtra_FND307(t *testing.T) {
+func TestFotos_SeBorranALos7DiasSinQueLlegueOtra_FND315(t *testing.T) {
 	homeTemporal(t)
 	root := proyecto(t, "app", true)
 	registro.Anotar(root, time.Now())
@@ -60,7 +60,7 @@ func TestFotos_SeBorranALos7DiasSinQueLlegueOtra_FND307(t *testing.T) {
 	}
 }
 
-func TestFotos_LaPodaEsCadaHora_FND307(t *testing.T) {
+func TestFotos_LaPodaEsCadaHora_FND315(t *testing.T) {
 	homeTemporal(t)
 	root := proyecto(t, "app", true)
 	registro.Anotar(root, time.Now())

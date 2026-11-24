@@ -1,6 +1,6 @@
 # RFC 0005: Reglas como principios con detección adaptable
 
-**Status:** Draft
+**Status:** Accepted, en parte. Implementada la fase 1 (cobertura por principio y *no evaluado*)
 **Created:** 2026-10-28
 **Origen:** revisión externa de QDD sobre un proyecto Node/serverless en producción (2026-10-28).
 

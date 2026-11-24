@@ -1,129 +1,143 @@
-# Architecture
+# Arquitectura
 
-QDD (Quality-Driven Development) es una Plataforma de Ingeniería de Software basada en Mejora Continua. Se compone de múltiples capas para asegurar la calidad y preservar el conocimiento del sistema desde el día cero.
+QDD es un binario en Go con tres caras: un **CLI** para la persona y el CI, un **servidor MCP** para la IA y un **panel**
+que muestra el trabajo y junta las decisiones de la persona. Todo lo que sabe de un proyecto vive en archivos dentro de
+`.qdd/`, versionados con el código.
 
-## The Wisdom Registry (El Cerebro)
-
-El núcleo absoluto de QDD es el **Wisdom Registry** ubicado en `.qdd/core/wisdom/`. Esta es la mente del proyecto.
-En lugar de depender del conocimiento efímero de los desarrolladores o de un LLM aislado, QDD almacena su Constitución aquí:
-- **`manifesto.md`**: Define las reglas inquebrantables del framework (Production-First, Quality-First).
-- **`principles.md`**: Contiene las reglas de ingeniería (No-Else, Timeouts, Contratos).
-
-Todo Motor Cognitivo que opere sobre el repositorio **debe** asimilar el Wisdom Registry antes de interactuar con el código.
-
-## Governance (Gobernanza)
-
-La Gobernanza en QDD es el mecanismo que asegura que el proyecto cumpla con los estándares arquitectónicos, apoyado en el principio de **"Rules-as-Code"**.
-
-### ¿Cómo agregar estándares a un componente o proyecto?
-
-El framework te ofrece un enfoque de 3 capas para definir y aplicar estándares:
-
-#### 1. La Vía Cognitiva (A través del IDE y MCP)
-Dado que QDD gobierna a la IA, puedes delegarle la creación del estándar directamente a tu IDE (Claude/Cursor) usando lenguaje natural:
-```bash
-/qdd "Agrega un estándar estricto que prohíba usar la librería Axios a favor de fetch nativo en el componente UI"
+```mermaid
+flowchart LR
+    subgraph IA["Tu IA"]
+        R["Reglas<br/>AGENTS.md, .clauderc…"]
+        M["Tools MCP"]
+    end
+    subgraph QDD["qdd"]
+        MCP["Servidor MCP"]
+        GATE["Gate<br/>qdd audit"]
+        PU["Puertas"]
+        PA["Panel y cola de pedidos"]
+        RE["qdd remoto"]
+    end
+    K[(".qdd/ en el repositorio<br/>fichas · findings · tablero · blueprints")]
+    H["QDD_HOME<br/>registros de esta máquina"]
+    P["Persona"]
+    R --> M --> MCP --> K
+    GATE --> K
+    PU --> GATE
+    PA --> K
+    PA --> H
+    P --> PA
+    P --> T["QDD Móvil"] --> RE --> PA
+    CI["CI"] --> GATE
 ```
-QDD operará como Gatekeeper. Si detecta que falta un estándar de la industria, el servidor MCP bloqueará el código libre y exigirá la adopción de un estándar antes de generar el código. Si lo autorizas, creará automáticamente el artefacto de certificación YAML.
 
-#### 2. La Vía Estructural (Archivos de Certificación)
-Si prefieres el control manual, los estándares se guardan como archivos YAML en la carpeta `.qdd/core/certification/` (framework) o `.qdd/project/certification/` (proyecto). 
-Para crear un nuevo estándar, simplemente creas un archivo (ej: `CERT-010-UI-PERFORMANCE.yaml`):
+## Qué obliga y qué solo orienta
 
-```yaml
-id: CERT-010
-title: "Performance Base del Dashboard UI"
-status: pending  # Empezará como pendiente hasta que qdd certify lo valide
-level: strict
-description: "Todos los componentes de Vue deben compilar en menos de 500ms y el bundle no debe superar los 100KB."
-criteria:
-  - "No usar librerías pesadas como lodash o moment."
-  - "Implementar Lazy Loading en las rutas principales."
-```
-El *Gatekeeper* de QDD no permitirá que el `QDD Score` llegue a 100 hasta que este estándar pase a estado `certified`.
+Es la distinción más importante de QDD.
 
-#### 3. Sincronización con Asistentes IA (Protocolo QCP)
-Para que tu IDE respete las reglas automáticamente mientras programas, QDD escribe tus estándares, el Wisdom Registry y el Manifiesto en los archivos de reglas de cada asistente: `.clauderc` (Claude Code), `.cursorrules` (Cursor), `.antigravityrules` (Antigravity) y `AGENTS.md` (OpenCode y agentes genéricos). Lo hace `qdd init` y, después, la tool MCP `qdd_sync`, que puedes pedirle a tu IA cuando cambies un estándar. Así, la filosofía "Production-First" se inyecta directamente en el "cerebro" del modelo de lenguaje en tu IDE.
+| Pieza | ¿Obliga? | Cómo |
+|---|---|---|
+| **`qdd audit` en el CI** | Sí | Sale con 1 si algo bloquea. Es el juez final si tu rama exige ese check |
+| **Hooks de git de las puertas** | Sí, en esa máquina | `pre-commit` y `commit-msg` rechazan el commit. Una persona puede saltarlos con `--no-verify` |
+| **Puertas del panel en Claude Code** | Sí, a la IA | Rechazan la edición o el comando antes de que corra, también un `--no-verify` de la IA |
+| **Pedidos y permisos del baúl** | Sí | Corren solo con el «Sí» de la persona, en el panel, el teléfono o su terminal |
+| **Tools MCP** | No | Entregan contexto y resultados. Ninguna detiene a la IA por sí misma |
+| **Reglas y método** (`AGENTS.md`, manifiesto, principios) | No | Son instrucciones. Una IA puede no seguirlas; por eso existen las filas de arriba |
 
----
-**Resumen del Flujo**: 
-Tú dictas la regla (o la IA la propone en Modo Consultivo) ➔ QDD la registra como una Certificación ➔ `qdd_sync` la inyecta en la IA ➔ `qdd certify` valida que el código la cumpla.
+Una puerta que no puede decidir (sin qdd, con un error o después de 2 s) deja pasar la acción y lo anota: nunca bloquea por
+una falla propia.
 
-## Fichas de módulo (El Corazón de cada módulo)
+## El conocimiento
 
-Las certificaciones dicen *cómo* se construye; las **fichas de módulo** dicen *para qué* existe cada parte del sistema. Una ficha (`.qdd/project/modules/<id>.yaml`) guarda:
+| Carpeta o archivo | Qué guarda |
+|---|---|
+| `.qdd/core/wisdom/` | El manifiesto y los principios de ingeniería |
+| `.qdd/core/certification/`, `.qdd/project/certification/` | Estándares declarados, del framework y del proyecto. Son documentación con estado: **no cambian el puntaje ni el gate**; `qdd evolution` los usa para recomendar |
+| `.qdd/project/modules/` | Las fichas de módulo |
+| `.qdd/project/findings/` | Cada bug, con su causa, su arreglo y la prueba que lo cubre |
+| `.qdd/project/estado.yaml` | El tablero: tareas por etapas, objetivos y dependencias |
+| `.qdd/project/flujos/` | Los flujos, con su historial y sus versiones |
+| `.qdd/project/adr/` y `docs/adr/` | Decisiones de arquitectura. La regla `CERT-030-MANDATORY-ADR` mira `docs/adr/` |
+| `.qdd/project/sprints/` | Sprints y su contrato de escenarios |
+| `.qdd/project/evidence/`, `metrics/` | Reportes, horas de uso, historial del puntaje |
+| `.qdd/blueprints.lock.yaml`, `.qdd/project/blueprints/` | Qué versión de cada estándar usa el proyecto y con qué respuestas |
+| `.qdd/herramientas/`, `.qdd/ambientes.yaml` | Herramientas del panel y ambientes |
 
-- **Objetivo operativo**: el problema que resuelve, para quién, cómo se mide el éxito y el caso real que lo motivó.
-- **Objetivo tecnológico**: la arquitectura, las decisiones vigentes y las **invariantes** (lo que ningún cambio puede romper).
-- **Cómo se prueba**: los comandos exactos y los goldensets del módulo.
-- Sus ADRs, findings y las fuentes de donde salió.
+`.qdd/project/` nunca lleva código de la aplicación: solo lo que se sabe de él. Lo que es de la máquina (cola de pedidos,
+registro de proyectos, credenciales de QDD Móvil, horas de uso) queda en `QDD_HOME`, por defecto `~/.local/share/qdd`, fuera
+del repositorio.
 
-Es el contexto que una IA necesita para tocar un módulo sin perder su intención:
+## Fichas de módulo
 
-1. Antes de cambiar código, la IA llama a la tool MCP `qdd_project_context` con las rutas que va a tocar y recibe la ficha, la forma de trabajo obligatoria y cómo se prueba (sin MCP: `qdd modules context <rutas>`).
-2. Si un módulo no tiene ficha, la IA la propone con `qdd_module_save`. Siempre queda en **borrador**.
-3. Un humano la aprueba con `qdd modules approve <id>`, que registra el commit revisado.
-4. El gate vigila el desfase: `HEART-02` avisa cuando el código cambió después de la aprobación y `HEART-03` señala zonas de código sin ficha (política `module_heart: true`).
+Una ficha dice *para qué* existe cada parte del sistema:
 
-## Blueprints (Los Estándares de la Organización)
+- **Objetivo operativo**: el problema, para quién, cómo se mide el éxito y el caso real que lo motivó.
+- **Objetivo tecnológico**: la arquitectura, las decisiones vigentes y las **invariantes**, lo que ningún cambio puede romper.
+- **Cómo se prueba**: los comandos exactos. Cada invariante lleva un id y las pruebas la citan con
+  `contrato: <ficha>#<id>`; `HEART-04-INVARIANTE-SIN-PRUEBA` nombra las que nadie demuestra.
 
-Una organización repite los mismos módulos en todos sus productos (usuarios y roles, notificaciones, auditoría). Un **blueprint** es el esqueleto conceptual de uno de esos módulos: vocabulario, preguntas de diseño, decisiones, invariantes y escenarios de conformidad.
+El ciclo:
 
-La separación es estricta:
+1. Antes de cambiar código, la IA pide `qdd_project_context` con las rutas que va a tocar.
+2. Si un módulo no tiene ficha, la propone con `qdd_module_save`. Siempre queda en **borrador**.
+3. Una persona la aprueba (`qdd modules approve`), que registra el commit revisado. En modo goal, que solo enciende una
+   persona, la aprueba QDD y queda anotado.
+4. Con `module_heart: true`, `HEART-02` avisa cuando el código cambió después de la aprobación y `HEART-03` nombra las zonas
+   de código sin ficha.
 
-- **El core de QDD** (público) trae solo el mecanismo: importar (`qdd blueprint add`), aplicar (`qdd blueprint apply`), vigilar (reglas `BP-01` a `BP-06`) y evolucionar (`contribute`, `propose`, `release`).
-- **El contenido** vive en el repositorio de cada organización, privado si quiere, versionado con tags. El proyecto lo registra una vez en `.qdd/config.yaml` y fija lo importado en `.qdd/blueprints.lock.yaml`.
+## Blueprints
 
-Aplicar un blueprint genera la **ficha del módulo** en borrador: así, el estándar de la organización entra al mismo ciclo de aprobación humana y de vigilancia que cualquier otra ficha. Las preguntas de diseño las responde siempre un humano; la IA las hace, no las contesta.
+Un **blueprint** es el estándar de un módulo que tu organización repite: vocabulario, preguntas de diseño, decisiones,
+invariantes y escenarios. QDD trae solo el mecanismo; el contenido vive en el repositorio de cada organización. Aplicarlo
+genera una ficha en borrador, y el gate vigila que no se altere, no quede atrás y tenga una prueba por escenario (`BP-01` a
+`BP-08`). Guía: [Blueprints](blueprints.md). Diseño: [RFC 0003](../rfcs/0003-blueprints.md) y
+[RFC 0004](../rfcs/0004-blueprints-centrales.md).
 
-Guía completa: [Blueprints](blueprints.md). Diseño: [RFC 0003](../rfcs/0003-blueprints.md).
+## El gate
 
-## Specification
+`qdd audit` es determinista: no llama a un modelo. Funciona sin red; con red consulta además un catálogo público, con un
+tope de 2 s y una caché de un día.
 
-La capa de **Specification** es el conjunto de reglas agnósticas que definen la estructura y comportamiento de QDD. Al estar documentada de forma abierta (QDD Schema y QDD Protocol), asegura que el framework no dependa de ninguna herramienta comercial específica.
+- **Pruebas primero en importancia, no en orden.** Las reglas corren antes y, si una bloquea, las pruebas esperan. Una suite
+  que declara sus `rutas` no se repite si ya pasó con esos archivos ([RFC 0020](../rfcs/0020-probar-solo-lo-necesario.md)).
+- **Principios con detector.** Cada regla pertenece a un principio (`cli/pkg/audit/principios.yaml`). Si en una parte del
+  proyecto ningún detector puede verificarlo, sale como no evaluado ([RFC 0005](../rfcs/0005-reglas-como-principios.md)).
+  Hoy los detectores de código leen solo Go.
+- **Un solo puntaje.** Parte en 100, resta 10 por cada problema que bloquea y 2 por cada recomendación.
+- **Políticas.** `.qdd/policies.yaml` decide qué se revisa y con qué severidad
+  ([lista](command-reference.md#políticas)).
 
-- **Formatos Universales**: Dicta cómo se estructuran las *Certifications*, *Findings*, *ADRs* y *Sprints* utilizando estándares YAML y JSON rígidos.
-- **Protocolo de Interacción**: Define los contratos que deben respetar los IDEs y los LLMs para leer el conocimiento y proponer cambios. Esto garantiza que una regla escrita hoy será entendida por los modelos de IA del mañana.
+## El servidor MCP
 
-## Engine (QDD Runtime & MCP Server)
+`qdd mcp-server` expone unas 35 herramientas por stdio, así que cualquier IA con MCP las usa. Las principales:
 
-El motor de QDD, compilado en Go para máximo rendimiento y distribución, opera como el cerebro certificador y Servidor MCP:
+- **Contexto:** `qdd_project_context` da el propósito, el método, cómo se prueba y las fichas de las rutas pedidas.
+- **Escribir con reglas:** `qdd_module_save`, `qdd_estado`, `qdd_consola_pedir` y las de blueprints validan antes de guardar.
+- **Revisar:** `qdd_audit` devuelve las violaciones como texto.
 
-1. **Fast Path (Determinista)**: 
-   Un motor rápido y local que ejecuta validaciones estrictas y seguras sin necesidad de invocar Inteligencia Artificial. Comandos como `qdd audit`, `qdd certify` y `qdd modules` viven aquí. Son inmediatos, reproducibles offline y actúan como el verdadero "juez" de calidad: `qdd audit` corre las pruebas del proyecto y bloquea si fallan, si no hay pruebas o si un pipeline despliega sin pasarlas.
+Cómo registrarlo en cada IA: [Conectar el servidor MCP](getting-started.md#conectar-el-servidor-mcp). La lista completa, con
+lo que hace cada una de verdad: [Tools MCP](command-reference.md#tools-mcp).
 
-2. **Servidor MCP (Model Context Protocol)**: 
-   Cuando pides a tu IA (ej. Antigravity) que trabaje en el repositorio, la orden entra en un ecosistema guiado por las herramientas MCP expuestas por QDD:
-   - **Gatekeeper**: Las tools abortan si el código incumple el `config.yaml`.
-   - **Context Provider**: `qdd_project_context` entrega las fichas de módulo, los blueprints de la organización, el *Intelligence Report* y las certificaciones a la IA.
-   - **Risk Analyzer**: Impide que la IA proponga cambios que rompan contratos públicos.
-   - **Consultative Node**: Impone el uso de estándares (ej. OpenAPI) exigiendo a la IA pedir aprobación antes de escribir código base.
+## El panel, los pedidos y el teléfono
 
-## Artifacts (Gestión del Conocimiento)
+- **El panel** (`qdd consola activar`) es un mod de Claude Code; OpenCode tiene uno de solo lectura y Antigravity y VS Code,
+  una extensión. Los alimenta un solo proceso por sesión, `qdd consola seguir`
+  ([RFC 0016](../rfcs/0016-panel-en-go-evaluacion.md)).
+- **Los pedidos** son la cola de comandos que la IA no puede o no debe correr. Tienen dependencias, se pueden armar para que
+  corran cuando estén listos y la sesión se entera de cómo terminaron. La persona ve todo en un turno único
+  ([RFC 0019](../rfcs/0019-turno-unico.md)).
+- **QDD Móvil** es un cliente más del mismo protocolo. Un único `qdd remoto` por PC publica sus proyectos y ejecuta solo
+  acciones que el panel ofreció, firmadas y confirmadas. Nada del estado se guarda en la nube
+  ([RFC 0013](../rfcs/0013-consola-remota.md), [comunicación](qdd-movil-comunicacion.md)).
 
-QDD trata el conocimiento como el activo más valioso. Los artefactos son los "documentos vivos" que persisten este conocimiento dentro de `.qdd/`:
+## Plugins
 
-- **Findings (`.qdd/project/findings/`)**: Todo bug encontrado se documenta aquí. Describe la causa raíz, la evidencia y la prueba asociada. Evita que un bug resuelto vuelva a ocurrir.
-- **ADRs (`.qdd/project/adr/`)**: Architecture Decision Records. Congelan en el tiempo el "por qué" se tomó una decisión (ej. "Por qué usamos gRPC en lugar de REST").
-- **Sprints (`.qdd/project/sprints/`)**: Archivos Markdown que orquestan el trabajo iterativo, definiendo el alcance, los criterios de aceptación y las certificaciones requeridas para el ciclo.
-- **Fichas de módulo (`.qdd/project/modules/`)**: El objetivo operativo, el objetivo tecnológico, las invariantes y las pruebas de cada módulo.
-- **Blueprints (`.qdd/blueprints.lock.yaml`, `.qdd/project/blueprints/`)**: La versión fijada de cada estándar (su contenido vive en la carpeta central de QDD, no en el proyecto) y las decisiones que el proyecto tomó al aplicarlos. Sus escenarios de conformidad van en `.qdd/project/goldensets/<modulo>/conformidad.yaml`.
+`.qdd/core/plugins/` trae tres carpetas que viajan embebidas en el binario. La única que qdd ejecuta es
+`qdd-human-certifier` (`qdd certify human`: recorridos con Playwright que escribe el proyecto, en Node).
+`qdd-antigravity-tools` y `qdd_docs_plugin` son material para la IA. No hay un cargador de plugins de terceros: los
+estándares propios van en un [blueprint](blueprints.md).
 
-> **Regla de oro (CERT-033):** `.qdd/project/` nunca contiene código de aplicación — solo el conocimiento que QDD acumula *sobre* ese código. El código real del proyecto vive siempre en la raíz del repo, en una carpeta de código explícita (`src/`, o la convención idiomática ya existente como `cmd/`+`pkg/` en Go). `qdd init` debe detectar esa convención o proponerla en Modo Consultivo — nunca improvisar.
+## Cómo se publica
 
-## Plugins (Extensibilidad)
-
-La arquitectura de **Plugins** permite a QDD integrarse nativamente con cualquier lenguaje o framework, sin alterar el binario principal.
-
-- Mediante inyección de dependencias o subprocesos (RPC), los plugins proveen lógicas específicas de escaneo.
-- Ejemplo: Un plugin de "Go" enseñará a `qdd audit` a buscar goroutines mal gestionadas, mientras que un plugin de "Node" auditará el árbol de dependencias de npm.
-- Los plugins del core (`.qdd/core/plugins/`, protocolo en `PLUGIN_PROTOCOL.md`) se compilan dentro del binario público. Hoy son `qdd-human-certifier` (certificación de comportamiento humano y WCAG 2.2, `qdd certify human`) y `qdd-antigravity-tools` (ejecución autónoma de herramientas con un agente local).
-- Un plugin trae **código** genérico. Los estándares propios de una organización no van en un plugin, sino en un [blueprint](blueprints.md), que vive en el repositorio de esa organización.
-
-## Protocolo MCP (Model Context Protocol)
-
-Para cumplir la directiva de **Independencia Tecnológica**, QDD utiliza el **Protocolo MCP**.
-
-- Al usar MCP, el framework se aísla completamente de un modelo de IA específico (Gemini, Claude, ChatGPT).
-- El *Engine* aplica la misma Gobernanza y el mismo Wisdom Registry; simplemente expone un conjunto de *Tools* estandarizadas que cualquier IDE moderno puede consumir.
-- Esta capa es la encargada de obligar al modelo (ej. Claude Code, Cursor) a operar en *Modo Consultivo* en lugar de escribir código a ciegas.
+Cada versión con funciones nuevas sale como `-rc.N` en el canal `preview` de npm. Pasa a `latest` con las horas de uso real
+que pide la política (`VER-05`, [RFC 0010](../rfcs/0010-uso-medido-y-preview.md)). La publicación corre en GitHub Actions y
+exige las pruebas y el gate.

@@ -41,7 +41,7 @@ const (
 	MaxFotosEjecucion     = 4
 	// VidaArmado es cuánto espera el PC las partes que faltan de una foto.
 	VidaArmado = 60 * time.Second
-	// CadaPoda es cada cuánto borra qdd remoto las fotos del teléfono de más de foto.VidaTelefono (FND-307).
+	// CadaPoda es cada cuánto borra qdd remoto las fotos del teléfono de más de foto.VidaTelefono (FND-315).
 	CadaPoda = time.Hour
 )
 
@@ -329,7 +329,7 @@ func (b *Bucle) ackFoto(ctx context.Context, proyecto, id, motivo string) {
 }
 
 // podarFotos borra, al arrancar y cada CadaPoda, las fotos del teléfono que ya cumplieron foto.VidaTelefono en todos los
-// proyectos del registro (FND-307): sin esperar a que llegue otra foto ni a que haya un teléfono.
+// proyectos del registro (FND-315): sin esperar a que llegue otra foto ni a que haya un teléfono.
 func (b *Bucle) podarFotos() {
 	now := b.ahora()
 	if !b.podadoEn.IsZero() && now.Sub(b.podadoEn) < CadaPoda {

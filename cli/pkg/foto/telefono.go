@@ -55,7 +55,7 @@ func GuardarDelTelefono(root, id string, data []byte, now time.Time) (string, er
 }
 
 // PodarDelTelefono borra de tmp/fotos del proyecto las fotos del teléfono de más de VidaTelefono; las de qdd foto no las
-// toca. La llaman GuardarDelTelefono y qdd remoto, cada hora (FND-307).
+// toca. La llaman GuardarDelTelefono y qdd remoto, cada hora (FND-315).
 func PodarDelTelefono(root string, now time.Time) {
 	dir := filepath.Join(root, filepath.FromSlash(Carpeta))
 	entradas, err := os.ReadDir(dir)

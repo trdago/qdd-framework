@@ -10,7 +10,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Fixed
 
-- **Las fotos del teléfono se borran solas a los 7 días (FND-307):** `qdd remoto` revisa al arrancar y cada hora, en todos los proyectos, y borra las `movil-*` de más de 7 días. En rc.124 solo se borraban al llegar otra foto al mismo proyecto.
+- **Las fotos del teléfono se borran solas a los 7 días (FND-315):** `qdd remoto` revisa al arrancar y cada hora, en todos los proyectos, y borra las `movil-*` de más de 7 días. En rc.124 solo se borraban al llegar otra foto al mismo proyecto.
+
+### Changed
+
+- **La documentación pública dice lo que QDD es hoy (FND-307, sprint 10):** README, npm, Getting Started, arquitectura,
+  referencia, blueprints, contribución y especificación, comparados con el código y el binario. Se suman SECURITY y el
+  índice de RFC, y se dicen los límites: qué cubre cada IA, qué lee el gate en cada lenguaje y qué usa la red.
 
 ## [2.10.0-rc.125] - 2026-11-24
 

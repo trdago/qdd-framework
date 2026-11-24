@@ -6,15 +6,18 @@ rutas:
     - docs
     - npm/README.md
     - rfcs
+    - CONTRIBUTING.md
+    - SECURITY.md
+    - specification
 objetivo_operativo:
     problema: Quien llega por GitHub o npm necesita saber qué hace QDD, cómo empezar y qué comandos y tools existen de verdad.
     usuarios: Personas que adoptan QDD, organizaciones que mantienen blueprints y las IAs que trabajan sobre un proyecto con QDD.
-    criterio_de_exito: Cada comando de la CLI y cada tool MCP registrada aparece en docs/command-reference.md, ninguna tool documentada falta en el servidor y ningún enlace relativo está roto (cli/cmd/docs_reference_test.go en verde).
+    criterio_de_exito: Cada comando de la CLI y cada tool MCP registrada aparece en docs/command-reference.md, ninguna tool documentada falta en el servidor y ningún enlace relativo está roto (cli/cmd/docs_reference_test.go en verde). El README nombra cada comando, los RFC tienen índice y ningún documento repite una afirmación sin respaldo (docs_al_dia_test.go).
     caso_real: FND-072, la documentación quedó atrás del binario desde v1.9.23 (blueprints, fichas de módulo y gate veraz sin documentar).
 objetivo_tecnologico:
     arquitectura: Markdown en el repositorio. docs/command-reference.md es la fuente única de comandos y tools; README, getting-started, blueprints y la arquitectura enlazan a ella en vez de repetir el detalle. npm/README.md se publica con el paquete y enlaza a GitHub.
     decisiones:
-        - Se documenta solo lo que existe; lo no implementado va en su sección de roadmap
+        - Se documenta solo lo que existe; lo que existe a medias dice su límite ahí mismo, con su finding
         - Los comandos que solo existen por MCP se marcan como tales
     invariantes:
         - 'Ningún ejemplo usa nombres de organizaciones, clientes o proyectos reales: el repositorio es público'
@@ -26,9 +29,10 @@ pruebas:
 findings:
     - FND-048
     - FND-072
+    - FND-307
 fuentes:
     - docs/command-reference.md
     - rfcs/0003-blueprints.md
     - CHANGELOG.md
-ultima_revision: "2026-10-30"
-revisado_en_commit: a0f49642aa70
+ultima_revision: "2026-11-24"
+revisado_en_commit: a94400e25ba8
