@@ -98,6 +98,30 @@ func TestInstalarHooks_ConHuskyAbsoluto(t *testing.T) {
 	}
 }
 
+// FND-318: con core.hooksPath en el .husky/_ de otro checkout, git ejecuta los hooks de ese: si no tienen las puertas, el
+// estado no es «al día» aunque este worktree los tenga.
+// contrato: puertas#77eb9692
+func TestEstadoHooks_MiraElQueGitEjecuta_FND318(t *testing.T) {
+	dir, otro := repoDePrueba(t), t.TempDir()
+	git(t, dir, "config", "core.hooksPath", filepath.Join(otro, ".husky", "_"))
+	if _, err := InstalarHooks(dir); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range EstadoHooks(dir) {
+		if e.Estado != HookDeOtro || e.Ruta != filepath.Join(otro, ".husky", e.Hook) {
+			t.Errorf("git no ejecuta el de este worktree: %+v", e)
+		}
+	}
+	for _, hook := range ordenHooks {
+		escribir(t, otro, ".husky/"+hook, bloque(hook))
+	}
+	for _, e := range EstadoHooks(dir) {
+		if e.Estado != HookAlDia {
+			t.Errorf("el que git ejecuta tiene las puertas: %+v", e)
+		}
+	}
+}
+
 func TestMensajeSinComentarios(t *testing.T) {
 	got := MensajeSinComentarios("fix: x (FND-1)\n\n# Please enter the commit message\n# On branch main\n")
 	if got != "fix: x (FND-1)" {

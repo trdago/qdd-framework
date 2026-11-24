@@ -4200,13 +4200,26 @@ function preguntaDePuertas(e) {
   return ['--editar', archivo, ...leidas.flatMap((l) => ['--leida', l])]
 }
 
+// carpetaDelComando es donde va a correr: Claude Code quita del comando el «cd» a la carpeta actual y la sesión pudo
+// arrancar en otro checkout (FND-318). Una edición sigue con la de arranque, a la que son relativas las rutas leídas.
+async function carpetaDelComando($, e) {
+  if (e.cwd) return String(e.cwd)
+  if (!HERRAMIENTAS_SHELL.has(e.tool)) return carpetaDeSesion || '.'
+  try {
+    return String((await $.session.cwd()) || carpetaDeSesion || '.')
+  } catch {
+    return carpetaDeSesion || '.'
+  }
+}
+
 async function rechazoDePuertas($, e) {
   anotarLeidas(e)
   const pregunta = preguntaDePuertas(e)
   if (!pregunta) return ''
-  const args = [await binario($), 'puertas', 'revisar', '--dir', String(e.cwd || carpetaDeSesion || '.'), '--sesion', await sesionPropia($), ...pregunta]
+  const args = [await binario($), 'puertas', 'revisar', '--dir', await carpetaDelComando($, e), '--sesion', await sesionPropia($), ...pregunta]
   const revision = $.process.run(args, { timeoutMs: TOPE_PUERTAS_MS }).catch(() => null)
   const r = await Promise.race([revision, $.clock.sleep(TOPE_PUERTAS_MS).then(() => null)])
+  if (!r) $.ui.log('la puerta no respondió a tiempo y dejó pasar el comando')
   if (r?.exitCode !== 2) return ''
   return String(r.stdout || '').trim()
 }
