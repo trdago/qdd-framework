@@ -104,6 +104,7 @@ type Bucle struct {
 	avisos         chan error
 	extras         extrasBucle
 	fotos          armador
+	podadoEn       time.Time // la última vez que se borraron las fotos viejas del teléfono
 	huellaBin      huella
 	conHuella      bool
 
@@ -244,6 +245,7 @@ func (b *Bucle) Correr(ctx context.Context) error {
 			}
 			b.quizasConsultar(ctx)
 			b.descartarVencidas(ctx)
+			b.podarFotos()
 			b.marcar()
 		case r := <-b.consultas:
 			if r.err != nil {

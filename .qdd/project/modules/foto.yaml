@@ -19,7 +19,7 @@ objetivo_tecnologico:
         - 'De dónde: auto (portapapeles y, si no tiene una imagen, la última captura), portapapeles o captura. La salida siempre dice de dónde salió la imagen y, si es una captura, hace cuánto.'
         - Una captura se usa en su lugar, sin copiarla; solo lo del portapapeles se guarda en tmp/fotos.
         - doctor (grupo de la consola) dice con qué se lee el portapapeles; si falta la herramienta, qué instalar. qdd no instala paquetes del sistema.
-        - 'Fotos de QDD Móvil (ADR-0003 de qdd-movile, acordado el 2026-11-23): GuardarDelTelefono deja la foto que qdd remoto armó en tmp/fotos/movil-<id>.<ext>, 0600, con la extensión del tipo que dicen sus bytes (Validar) y escrita aparte y renombrada. El id es [A-Za-z0-9_-] de 1 a 64, así nunca sale de la carpeta. La persona eligió que se borren a los 7 días (el original sigue en el teléfono): al guardar una se borran las movil-* más viejas; las de qdd foto no se tocan.'
+        - 'Fotos de QDD Móvil (ADR-0003 de qdd-movile, acordado el 2026-11-23): GuardarDelTelefono deja la foto que qdd remoto armó en tmp/fotos/movil-<id>.<ext>, 0600, con la extensión del tipo que dicen sus bytes (Validar) y escrita aparte y renombrada. El id es [A-Za-z0-9_-] de 1 a 64, así nunca sale de la carpeta. La persona eligió que se borren a los 7 días (el original sigue en el teléfono): PodarDelTelefono borra las movil-* más viejas al guardar una y cada hora desde qdd remoto (FND-315); las de qdd foto no se tocan.'
     invariantes:
         - Nada que no sea una imagen (PNG, JPEG, GIF o WebP) ni de más de 5 MB se entrega a la IA.
         - Lo que se pega nunca entra al repositorio - tmp/fotos tiene su .gitignore.
@@ -33,5 +33,5 @@ pruebas:
 fuentes:
     - cli/pkg/foto/foto.go
     - docs/command-reference.md
-ultima_revision: "2026-11-23"
-revisado_en_commit: dc62515fec12
+ultima_revision: "2026-11-24"
+revisado_en_commit: c6fcf0655dc0

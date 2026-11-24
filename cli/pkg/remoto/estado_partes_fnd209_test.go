@@ -92,8 +92,8 @@ func TestPartes_ConTodosLosTelefonosConLaCapacidadElEstadoVaEnPartes_FND209(t *t
 	viejo := TopeParte
 	TopeParte = 1
 	t.Cleanup(func() { TopeParte = viejo })
-	var pesos []int
-	_, tr, _, _ := bucleDePrueba(t, func(b *Bucle) { b.AlPesar = func(n int) { pesos = append(pesos, n) } })
+	pesos := make(chan int, 8)
+	_, tr, _, _ := bucleDePrueba(t, func(b *Bucle) { b.AlPesar = func(n int) { pesos <- n } })
 	tr.eventos <- telefonoCon("d1", CapacidadEstadoPorPartes)
 	partes := partesEnviadas(t, tr, 3)
 	for i, p := range partes {
@@ -101,8 +101,14 @@ func TestPartes_ConTodosLosTelefonosConLaCapacidadElEstadoVaEnPartes_FND209(t *t
 			t.Fatalf("tres partes del mismo seq, una por proyecto: %+v", p)
 		}
 	}
-	if len(pesos) == 0 || pesos[0] >= pesoDe(t, Estado{Proyectos: append(append(partes[0].Proyectos, partes[1].Proyectos...), partes[2].Proyectos...)}) {
-		t.Fatalf("lo que se pesa es la parte más grande, que es lo que Realtime mide: %v", pesos)
+	// FND-316: el bucle pesa después de mandar la última parte, así que la prueba espera el peso.
+	select {
+	case peso := <-pesos:
+		if peso >= pesoDe(t, Estado{Proyectos: append(append(partes[0].Proyectos, partes[1].Proyectos...), partes[2].Proyectos...)}) {
+			t.Fatalf("lo que se pesa es la parte más grande, que es lo que Realtime mide: %d", peso)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("un estado completo que salió se pesa")
 	}
 }
 

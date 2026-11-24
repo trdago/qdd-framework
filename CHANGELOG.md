@@ -6,6 +6,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.127] - 2026-11-24
+
 ### Fixed
 
 - **`qdd estado` ya no escribe en el tablero de otro proyecto (FND-314):** un repositorio con su propio QDD, dentro de otro
@@ -14,6 +16,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **`qdd report` ya no dice CERTIFIED en gobernanza de IA sin evaluarla (FND-311):** `ai_governance_status` es ahora
   `SIN_EVALUAR`, `NO_APLICA`, `SIN_HALLAZGOS` o `VIOLATIONS_DETECTED`.
 - **npm instala en Windows arm64 con el binario amd64 (FND-313):** antes pedía un archivo que no existe.
+
+## [2.10.0-rc.126] - 2026-11-24
+
+### Fixed
+
+- **Las fotos del teléfono se borran solas a los 7 días (FND-315):** `qdd remoto` revisa al arrancar y cada hora, en todos los proyectos, y borra las `movil-*` de más de 7 días. En rc.124 solo se borraban al llegar otra foto al mismo proyecto.
 
 ### Changed
 
