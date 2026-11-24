@@ -335,8 +335,8 @@ detiene a la IA por sí misma; lo que frena es `qdd audit` en el CI y las [puert
 | `qdd_evolution` | La siguiente mejora. | `qdd evolution` |
 | `qdd_report` | El reporte consolidado (`format`). | `qdd report` |
 | `qdd_map` | Escribe el mapa del proyecto en `.qdd/project/topology.json`. Su «Score Global» no es el puntaje del gate. | — |
-| `qdd_query_graph` | Corre una consulta SQL sobre `.qdd/knowledge.db`. **No está limitada a lectura** ([FND-312](../.qdd/project/findings/FND-312-TOOLS-MCP-QUE-ESCRIBEN-COMO-SI-SOLO-LEYERAN.yaml)). | — |
-| `qdd_graph_query` | Sin implementar: solo confirma que recibió la consulta. | — |
+| `qdd_query_graph` | Corre una consulta (SELECT, WITH o EXPLAIN, una sola) sobre `.qdd/knowledge.db`, tablas `nodes` y `edges`. **Solo lee.** | — |
+| `qdd_graph_query` | Igual que `qdd_query_graph`. | — |
 | `qdd_sync_graph` | Vuelve a armar `.qdd/knowledge.db`. | — |
 
 **Flujo de trabajo**
@@ -348,8 +348,8 @@ detiene a la IA por sí misma; lo que frena es `qdd audit` en el CI y las [puert
 | `qdd_sync` | Vuelve a escribir el bloque de reglas de cada IA. | `qdd init` |
 | `qdd_harness_generate` | Arma el texto de instrucciones combinado para la IA. | — |
 | `qdd_certify_human` | Recorridos con Playwright que escribe el proyecto. `target`: `all`, una categoría o un nodo. | `qdd certify human` |
-| `qdd_resolve_diagnose` | Guarda el diagnóstico que le pasan como finding con estado `diagnosed`, que el gate no reconoce: hay que ponerle un estado válido. | — |
-| `qdd_resolve_certify` | Escribe un acta `.md` si los dos campos que recibe son verdaderos. No corre pruebas ni firma. | — |
+| `qdd_resolve_diagnose` | Guarda el diagnóstico que le pasan como finding abierto. | — |
+| `qdd_resolve_certify` | Escribe un acta `.md` con lo que se declara. Comprueba que el golden set exista dentro del proyecto; no lo corre ni firma. | — |
 
 **IA y especialistas**
 

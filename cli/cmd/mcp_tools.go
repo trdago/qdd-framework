@@ -4,9 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -49,28 +53,31 @@ func registerCertifyTool(s *server.MCPServer) {
 
 func registerQueryGraphTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_query_graph",
-		mcp.WithDescription("SQL directo en .qdd/knowledge.db."),
+		mcp.WithDescription("SQL de solo lectura en .qdd/knowledge.db."),
 		mcp.WithString("query", mcp.Required(), mcp.Description("SELECT … FROM nodes/edges.")),
 	)
 
-	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		query, err := extractQueryArg(request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+	RegisterToolWithTelemetry(s, tool, consultarGrafo)
+}
 
-		results, err := executeGraphQuery(query)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+// consultarGrafo atiende qdd_query_graph y qdd_graph_query: las dos leen lo mismo.
+func consultarGrafo(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	query, err := extractQueryArg(request)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
 
-		jsonResult, err := json.MarshalIndent(results, "", "  ")
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Error formateando JSON: %v", err)), nil
-		}
+	results, err := executeGraphQuery(query)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
 
-		return mcp.NewToolResultText(string(jsonResult)), nil
-	})
+	jsonResult, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Error formateando JSON: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonResult)), nil
 }
 
 func extractQueryArg(request mcp.CallToolRequest) (string, error) {
@@ -85,17 +92,37 @@ func extractQueryArg(request mcp.CallToolRequest) (string, error) {
 	return query, nil
 }
 
+var empiezaComoConsulta = regexp.MustCompile(`(?i)^(select|with|explain)\b`)
+
+// unaConsulta admite una sola sentencia que lee: mode=ro protege la base del grafo, no una que se adjunte con ATTACH.
+func unaConsulta(query string) (string, error) {
+	q := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(query), ";"))
+	if strings.Contains(q, ";") || !empiezaComoConsulta.MatchString(q) {
+		return "", errors.New("solo se admite una consulta (SELECT, WITH o EXPLAIN), sin «;» en medio")
+	}
+	return q, nil
+}
+
+// executeGraphQuery abre la base solo para leer (FND-312).
 func executeGraphQuery(query string) ([]map[string]interface{}, error) {
+	consulta, err := unaConsulta(query)
+	if err != nil {
+		return nil, err
+	}
 	cwd, _ := os.Getwd()
 	dbPath := filepath.Join(cwd, ".qdd", "knowledge.db")
+	if !fileExists(dbPath) {
+		return nil, errors.New("no hay grafo todavía: créalo con qdd_sync_graph")
+	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	soloLectura := url.URL{Scheme: "file", Path: filepath.ToSlash(dbPath), RawQuery: "mode=ro&_pragma=query_only(1)"}
+	db, err := sql.Open("sqlite", soloLectura.String())
 	if err != nil {
 		return nil, fmt.Errorf("Error abriendo DB: %v", err)
 	}
 	defer db.Close()
 
-	rows, err := db.QueryContext(context.Background(), query)
+	rows, err := db.QueryContext(context.Background(), consulta)
 	if err != nil {
 		return nil, fmt.Errorf("Error ejecutando query: %v", err)
 	}
@@ -113,7 +140,7 @@ func scanGraphRows(rows *sql.Rows) ([]map[string]interface{}, error) {
 			results = append(results, rowMap)
 		}
 	}
-	return results, nil
+	return results, rows.Err()
 }
 
 func scanSingleRow(rows *sql.Rows, columns []string) (map[string]interface{}, error) {
@@ -162,7 +189,7 @@ func registerSyncGraphTool(s *server.MCPServer) {
 
 func registerPostgresTunerTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_postgres_tuner",
-		mcp.WithDescription("Analiza una consulta PostgreSQL lenta y propone optimizaciones (índices, parámetros)."),
+		mcp.WithDescription("Consejos generales de PostgreSQL; no analiza la consulta."),
 		mcp.WithString("query", mcp.Required(), mcp.Description("Consulta SQL lenta.")),
 	)
 
@@ -176,13 +203,11 @@ func registerPostgresTunerTool(s *server.MCPServer) {
 			return mcp.NewToolResultError("Argumento 'query' es requerido"), nil
 		}
 
-		analysis := fmt.Sprintf("Análisis de Especialista Tuning para Query:\n```sql\n%s\n```\n\n", query)
-		analysis += "Recomendaciones de Performance (Dry-Run):\n"
+		analysis := fmt.Sprintf("Consejos generales de PostgreSQL: qdd no analiza la consulta ni se conecta a la base.\n```sql\n%s\n```\n\n", query)
 		analysis += "1. **Conteo Masivo**: Si estás haciendo SELECT COUNT(*), recuerda que PostgreSQL bloquea y escanea toda la tabla. Usa `SELECT reltuples AS estimate FROM pg_class WHERE relname = 'tu_tabla';`.\n"
 		analysis += "2. **Índices Faltantes**: Asegúrate de tener índices B-Tree en las columnas que usas en el WHERE o JOIN.\n"
 		analysis += "3. **Parámetros Engine**: Si ves operaciones de ordenamiento en disco, considera subir `work_mem`.\n"
 		analysis += "4. **Particionamiento**: Si la tabla tiene más de 100GB, evalúa usar particionamiento por rangos de fecha.\n\n"
-		analysis += "NOTA: Esta es una herramienta estática y de análisis seguro. No modificó tu base de datos en producción."
 
 		return mcp.NewToolResultText(analysis), nil
 	})

@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.129] - 2026-11-24
+
+### Fixed
+
+- **Las tools MCP hacen lo que dicen (FND-312):** la consulta al grafo solo lee (antes aceptaba hasta un `DROP TABLE`),
+  `qdd_graph_query` funciona, el diagnóstico queda como finding abierto, y el acta de una resolución no escribe fuera de su
+  carpeta ni afirma haber verificado algo. `qdd_postgres_tuner` dice que son consejos generales.
+
 ## [2.10.0-rc.128] - 2026-11-24
 
 ### Fixed
