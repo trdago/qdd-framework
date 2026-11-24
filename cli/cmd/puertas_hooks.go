@@ -113,6 +113,10 @@ func buildPuertasChecks(projectPath string) *CheckGroup {
 
 func itemDeHook(e puertas.EstadoHook) *CheckItem {
 	item := &CheckItem{Name: "Hook " + e.Hook + " de las puertas", Success: e.Estado == puertas.HookAlDia}
+	if e.Estado == puertas.HookDeOtro {
+		item.Error = fmt.Sprintf("%s (%s, por core.hooksPath): llega al actualizar ese checkout, o con qdd puertas instalar ahí; --fix no toca otro checkout", e.Estado, e.Ruta)
+		return item
+	}
 	if !item.Success {
 		item.Error = fmt.Sprintf("%s en %s: qdd doctor --fix lo deja al día sin tocar lo demás", e.Estado, e.Ruta)
 	}
