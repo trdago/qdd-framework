@@ -341,6 +341,8 @@ func (b *Bucle) podarFotos() {
 		return
 	}
 	for _, p := range reg.Proyectos {
-		foto.PodarDelTelefono(p.Ruta, now)
+		for _, nombre := range foto.PodarDelTelefono(p.Ruta, now) {
+			b.logf("foto del teléfono borrada: %s de %s (más de 7 días)", nombre, registro.NombreDe(p.Ruta))
+		}
 	}
 }
