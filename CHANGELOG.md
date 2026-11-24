@@ -6,6 +6,13 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.125] - 2026-11-24
+
+### Fixed
+
+- **Un proyecto nuevo ya puede hacer su primer commit (FND-305):** la huella de la puerta audit deja fuera `.qdd/working` y `.qdd/cache`, que escribe qdd al correr. Antes, después de `qdd init` el hook rechazaba todos los commits aunque `qdd audit` aprobara.
+- **`qdd undo init` ya no borra el conocimiento del proyecto (FND-306):** borra `.qdd` solo si tiene únicamente lo que deja init y git no lo sigue; si no, no borra nada y dice por qué. Antes lo borraba entero, también desde el rollback de `qdd run init …`.
+
 ## [2.10.0-rc.124] - 2026-11-23
 
 ### Added
