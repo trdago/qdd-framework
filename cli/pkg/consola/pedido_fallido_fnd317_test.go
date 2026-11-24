@@ -7,6 +7,7 @@ import (
 
 // Rule: Prohibido usar 'else'
 
+// contrato: estado#f54a88a6
 // FND-317: el aviso de un pedido que falla dice «déjalo de nuevo en el panel», y dejarlo de nuevo no lo sacaba del fallo.
 func TestPedir_DeNuevoUnoQueFalloVuelveAPendiente_FND317(t *testing.T) {
 	root := proyectoConCola(t)
@@ -42,6 +43,7 @@ func TestPedir_DeNuevoUnoPendienteNoCambia_FND317(t *testing.T) {
 	}
 }
 
+// contrato: estado#f54a88a6
 // Un ciclo automático vuelve a pedir lo suyo en cada pasada: con el modo goal repetiría el fallo sin fin.
 func TestPedir_UnCicloAutomaticoNoReactivaElQueFallo_FND317(t *testing.T) {
 	root := proyectoConCola(t)
