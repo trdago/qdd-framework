@@ -35,7 +35,7 @@ func Huella(dir string) (string, error) {
 	if _, err := gitSalida(dir, env, "add", "-A"); err != nil {
 		return "", err
 	}
-	if _, err := gitSalida(dir, env, append([]string{"rm", "--cached", "-q", "--ignore-unmatch", "--"}, FueraDeHuella...)...); err != nil {
+	if _, err := gitSalida(dir, env, append([]string{"rm", "-r", "--cached", "-q", "--ignore-unmatch", "--"}, FueraDeHuella...)...); err != nil {
 		return "", err
 	}
 	return gitSalida(dir, env, "write-tree")
@@ -45,10 +45,14 @@ func Huella(dir string) (string, error) {
 // guardarse y qdd audit lo revisa. Si contara, un tablero al día dejaría viejo el audit de cada commit.
 const Tablero = ".qdd/project/estado.yaml"
 
-// FueraDeHuella son los archivos que qdd escribe solo mientras la IA trabaja: el tablero (FND-299) y los registros de
-// las herramientas del MCP, el de ahora y el que escribe un MCP anterior a FND-059 (FND-303, elegido por la persona).
-// No son código; si contaran, usar una herramienta de qdd dejaría viejo el audit.
-var FueraDeHuella = []string{Tablero, ".qdd/project/metrics/mcp_eventos.json", ".qdd/project/metrics/cognitive_history.json"}
+// FueraDeHuella es lo que qdd escribe solo mientras la IA trabaja: el tablero (FND-299); los registros de las
+// herramientas del MCP, el de ahora y el que escribe un MCP anterior a FND-059 (FND-303, elegido por la persona); y las
+// carpetas locales de trabajo y caché, que escribe hasta el propio hook (FND-305). No son código; si contaran, usar qdd
+// dejaría viejo el audit.
+var FueraDeHuella = []string{
+	Tablero, ".qdd/project/metrics/mcp_eventos.json", ".qdd/project/metrics/cognitive_history.json",
+	".qdd/working", ".qdd/cache",
+}
 
 // RestoHuella: un índice aparte más viejo que esto es de una huella que quedó a medias, no de una que corre: la más
 // lenta se corta a los 1,5 s (topePuertas).

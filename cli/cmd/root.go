@@ -41,12 +41,7 @@ var undoCmd = &cobra.Command{
 		}
 		target := args[0]
 		if target == "init" {
-			cwd, _ := os.Getwd()
-			qddPath := filepath.Join(cwd, ".qdd")
-			if _, err := os.Stat(qddPath); err == nil {
-				os.RemoveAll(qddPath)
-				fmt.Printf("[UNDO] Carpeta .qdd eliminada exitosamente para revertir 'init'.\n")
-			}
+			imprimirUndoInit()
 			return
 		}
 		fmt.Printf("[UNDO] Revirtiendo estado del comando '%s' (No-op en comandos de solo lectura)\n", target)

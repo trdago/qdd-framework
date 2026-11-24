@@ -1,0 +1,9 @@
+id: "FND-305"
+title: "Un proyecto nuevo no podía hacer su primer commit"
+description: "2026-11-24, al recorrer getting-started como usuario nuevo en una caja limpia (HOME y QDD_HOME propios) con rc.124: qdd init, qdd audit (exit 0) y git commit. El hook de las puertas rechazaba siempre («el árbol cambió desde el último qdd audit aprobado»), también al repetir el audit (2 de 2). Causa verificada: qdd anota el comando que corre en .qdd/working/comando y el hook lo cambia a «hook» antes de calcular la huella; qdd init no ignora .qdd/working en git. En el repositorio de QDD no se veía porque su .gitignore la excluye; con esa línea en el proyecto de prueba, el commit pasaba."
+impact: "Con las puertas activas por defecto en proyectos nuevos, nadie que empezara con QDD podía commitear sin --no-verify. Las 375 h de uso medido no lo vieron: todas son de proyectos que ya ignoraban la carpeta o no tenían puertas."
+action_taken: "FueraDeHuella (pkg/puertas/huella.go) deja fuera .qdd/working y .qdd/cache, que son locales y los escribe qdd al correr, en la línea de FND-299 y FND-303. Ficha puertas actualizada."
+test_result: "cli/pkg/puertas/huella_working_fnd305_test.go fallaba antes del cambio y pasa; otro archivo de .qdd sigue cambiando la huella. De punta a punta en una caja limpia con el binario de la rama: init, audit y commit pasan a la primera, y un commit sin audit se sigue rechazando."
+status: resolved
+detectado_por: sesion
+date: "2026-11-24"

@@ -28,6 +28,7 @@ objetivo_tecnologico:
         - 'Informe (2026-11-20): cada decisión lleva un id corto (fnv de fecha, puerta, sesión y resultado); qdd puertas falso [id] agrega al mismo registro una marca {falso, motivo} que no es una decisión (sin id, el último rechazo de la sesión). El % corregido cuenta solo los rechazos con un intento siguiente de la misma puerta en la misma sesión; los sin reintento se muestran aparte.'
         - 'Hooks (2026-11-20): pre-commit corre qdd puertas hook pre-commit (puerta audit) y commit-msg la finding (sin las líneas # del editor). Solo el 2 de qdd corta el commit (|| [ $? -ne 2 ] || exit 1, que sirve con sh -e de husky): sin qdd, con uno viejo o si falla, pasa. Dentro de Claude Code (CLAUDECODE) el hook decide pero no anota: el panel ya anotó ese commit. Con husky (core.hooksPath que termina en .husky/_, también absoluto) van en el .husky/ versionado del worktree; husky corre el del checkout principal, así que rigen cuando la rama llega a él. doctor --fix activa puertas: {} solo si ya hay policies.yaml (uno nuevo con solo puertas apagaría lo demás) e instala los hooks; init las deja activas en un proyecto nuevo. Los hooks son de todo el repositorio: se resuelven en su raíz y init y doctor --fix los instalan solo si el proyecto es esa raíz (un proyecto en una subcarpeta, o una prueba como TestPipelineExecution que corre init en cli/cmd, no los toca); en una subcarpeta doctor revisa solo la política, no los hooks (FND-245).'
         - 'Tope (FND-277, 2026-11-21): los hechos de una puerta (git) se esperan hasta 1,5 s, menos que los 2 s del panel, para que la anote qdd; pasado eso qdd puertas revisar y qdd puertas hook dejan pasar y anotan «error». El hook de git no tiene otro tope.'
+        - 'Carpetas locales (FND-305, 2026-11-24): .qdd/working y .qdd/cache quedan fuera de la huella, como el tablero y los registros del MCP: las escribe qdd al correr, hasta el propio hook, y un proyecto nuevo no las ignora en git.'
         - 'Restos de la huella (FND-293, 2026-11-22): un corte por el tope deja la huella a medias (qdd sale sin su defer y el git abandonado sigue); cada huella borra los .git/qdd-huella-* de más de 1 min (RestoHuella) y no toca uno reciente, que puede ser de otra huella en curso.'
     invariantes:
         - Una puerta que no puede decidir (qdd ausente, error, más de 2 s) deja pasar la acción y anota el error; nunca bloquea por una falla propia.
@@ -44,5 +45,5 @@ fuentes:
     - cli/pkg/uso/uso.go
     - cli/cmd/audit.go
     - cli/pkg/consola/mod/qdd-tareas/hooks/register.js
-ultima_revision: "2026-11-23"
-revisado_en_commit: a21486cf6155
+ultima_revision: "2026-11-24"
+revisado_en_commit: 9e0c8e42a7a3
