@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.135] - 2026-11-24
+
+### Fixed
+
+- **La consola avisa si sus herramientas son de una versión anterior (FND-304):** después de actualizar qdd, el servidor MCP abierto lo dice y `qdd doctor` lo informa, con cómo reconectarlo. Una consola abierta antes de esta versión no avisa.
+
 ## [2.10.0-rc.134] - 2026-11-24
 
 ### Fixed

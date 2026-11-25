@@ -182,6 +182,9 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 			g.Items = append(g.Items, item)
 		}
 	}
+	if item := checkMCPAlDia(projectPath); item != nil {
+		g.Items = append(g.Items, item)
+	}
 	if item := checkRendimiento(); activa || !item.Success {
 		g.Items = append(g.Items, item)
 	}
