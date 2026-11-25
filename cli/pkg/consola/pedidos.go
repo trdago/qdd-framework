@@ -725,9 +725,21 @@ func anotarHijo(root, id string, pid int) {
 	})
 }
 
+// PlazoResultado es cuánto insiste en anotar un resultado con la cola ocupada: el comando ya corrió y su resultado no se
+// vuelve a saber (FND-323).
+const PlazoResultado = time.Minute
+
+// insistirEnCola es conCola, que se vuelve a intentar mientras falle y no pase PlazoResultado.
+func insistirEnCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error)) {
+	limite := time.Now().Add(PlazoResultado)
+	for conCola(root, now, cambiar) != nil && time.Now().Before(limite) {
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func terminar(root, id string, codigo int, texto string, armar bool) {
 	fin := time.Now()
-	conCola(root, fin, func(cola []Pedido) ([]Pedido, error) {
+	insistirEnCola(root, fin, func(cola []Pedido) ([]Pedido, error) {
 		for i := range cola {
 			if cola[i].ID != id {
 				continue

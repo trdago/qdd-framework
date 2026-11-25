@@ -140,3 +140,21 @@ func TestAviso_ElMensajeEsElDeLaColaAlReclamarlo_FND187(t *testing.T) {
 		t.Fatalf("quien reclama recibe el mensaje del estado que reclamó: %q %v", mensaje, err)
 	}
 }
+
+// FND-323 (2026-11-24): «Mergear #336» mergeó, pero al anotar su resultado la cola estaba ocupada más de los 2 s del
+// candado: el error se ignoraba, el resultado se perdía y a la IA le llegaba «falló (exit -1) … se cortó».
+func TestPedidos_ElResultadoNoSePierdeSiLaColaEstaOcupada_FND323(t *testing.T) {
+	root := proyectoConCola(t)
+	p := aceptadoPor(t, root, "qdd consola mergear-pr 336", "Mergear #336", "sesion-1")
+	ruta, _ := colaPath(root)
+	soltar, err := bloquear(ruta + ".lock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	libre := time.AfterFunc(2500*time.Millisecond, soltar)
+	defer libre.Stop()
+	terminar(root, p.ID, 0, "#336 mergeado", true)
+	if cola := Pedidos(root); len(cola) != 1 || cola[0].Estado != EstadoHecho || !strings.Contains(cola[0].Salida, "#336 mergeado") {
+		t.Fatalf("el resultado queda aunque la cola estuviera ocupada: %+v", cola)
+	}
+}
