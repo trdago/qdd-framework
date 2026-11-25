@@ -37,7 +37,7 @@ env -u QDD_HOME -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR \
 	HOME="$caja/home" XDG_CONFIG_HOME="$caja/home/.config" XDG_RUNTIME_DIR="$caja/run" \
 	GOCACHE="$cache" GOMODCACHE="$modcache" GOFLAGS=-buildvcs=false PATH="$caja/bin:$PATH" \
 	GIT_DIR="$hook/.git" GIT_INDEX_FILE="$hook/.git/index" GOPROXY=off \
-	$sinred go test -count=1 ./... > "$caja/go-test.log" 2>&1 || { tail -40 "$caja/go-test.log"; echo "las pruebas fallaron dentro de la caja"; exit 1; }
+	$sinred go test -count=1 ./... > "$caja/go-test.log" 2>&1 || { "$raiz/e2e/hermeticas/fallas.sh" "$caja/go-test.log"; echo "las pruebas fallaron dentro de la caja"; exit 1; }
 falla=0
 for d in .local/share/qdd .claude .config/systemd .config/qdd; do
 	[ -e "$caja/home/$d" ] || continue

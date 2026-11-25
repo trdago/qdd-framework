@@ -21,7 +21,7 @@ func TestActividad_PulsosALaVezNoBorranUnaActivacion(t *testing.T) {
 	var wg sync.WaitGroup
 	for i, id := range ids[1:] {
 		wg.Add(2)
-		go func(id string) { defer wg.Done(); _ = Activar(root, id, "claude-code", ahora) }(id)
+		go func(id string) { defer wg.Done(); activarConTurno(t, root, id) }(id)
 		go func(n int) {
 			defer wg.Done()
 			_, _ = Pulsar(root, "", FuenteAgente, ahora.Add(time.Duration(n)*time.Millisecond))
@@ -31,4 +31,16 @@ func TestActividad_PulsosALaVezNoBorranUnaActivacion(t *testing.T) {
 	if en := EnCurso(LeerActividad(root), ahora.Add(time.Second)); len(en) != len(ids) {
 		t.Fatalf("cada activación sobrevive a los pulsos simultáneos: %d de %d en curso", len(en), len(ids))
 	}
+}
+
+// activarConTurno activa la tarea y, si el candado estuvo ocupado hasta su plazo, pide el turno otra vez: Activar lo dice
+// con un error, que no es perder una escritura. Un equipo lento del CI pasa los 2 s del candado con 47 a la vez.
+func activarConTurno(t *testing.T, root, id string) {
+	var err error
+	for range 10 {
+		if err = Activar(root, id, "claude-code", ahora); err == nil {
+			return
+		}
+	}
+	t.Errorf("no se pudo activar %s: %v", id, err)
 }
