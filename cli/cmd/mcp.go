@@ -17,6 +17,7 @@ var mcpCmd = &cobra.Command{
 	Use:   "mcp-server",
 	Short: "Inicia el servidor MCP nativo de QDD (JSON-RPC sobre Stdio)",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		vigilarBinario()
 		// Initialize the MCP server
 		s := server.NewMCPServer("QDD-MCP", "1.4.0")
 
@@ -108,7 +109,7 @@ func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(
 			return res, err
 		}
 		recordMCPActivity("success", tool.Name, nil)
-		return res, err
+		return conAvisoDeBinario(tool.Name, res), nil
 	})
 }
 
@@ -116,10 +117,13 @@ func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(
 // en cognitive_history.json, donde borraba los certificados del benchmark: FND-059).
 func recordMCPActivity(status, toolName string, details interface{}) {
 	cwd, _ := os.Getwd()
-	_ = benchmark.AnotarEventoMCP(cwd, map[string]interface{}{
-		"timestamp": time.Now().Format(time.RFC3339),
-		"tool":      toolName,
-		"status":    status,
-		"details":   details,
+	_ = benchmark.AnotarEventoMCP(cwd, eventoMCP{
+		Timestamp: time.Now().Format(time.RFC3339),
+		Tool:      toolName,
+		Status:    status,
+		Details:   details,
+		PID:       os.Getpid(),
+		Version:   Version,
+		Atrasado:  binarioCambio(),
 	})
 }
