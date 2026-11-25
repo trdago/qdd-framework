@@ -177,6 +177,14 @@ qdd consola activar                     # el panel en Claude Code (y en OpenCode
 En el panel, «▶ Para ti» junta lo que espera tu «Sí»: comandos que publican, fichas, preguntas y permisos. Para verlo en
 el teléfono: `qdd login` muestra un QR para la app QDD Móvil.
 
+<p>
+  <img src="assets/movil-mis-proyectos.png" alt="QDD Móvil: la lista de proyectos, con uno que tiene dos cosas esperando a la persona" width="260">
+  <img src="assets/movil-para-ti.png" alt="QDD Móvil: una ficha y un pedido de un proyecto de ejemplo, con los botones para aprobar o rechazar" width="260">
+</p>
+
+*Las dibuja la app QDD Móvil con un proyecto inventado y el relay simulado.* Antes de usarla, lee [qué queda guardado en el
+relay](qdd-movil-comunicacion.md#qué-queda-guardado-en-el-relay).
+
 ## Paso 8: certificar y versionar
 
 ```bash
