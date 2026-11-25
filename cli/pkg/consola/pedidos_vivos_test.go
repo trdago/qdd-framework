@@ -3,6 +3,7 @@ package consola
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -156,5 +157,25 @@ func TestPedidos_ElResultadoNoSePierdeSiLaColaEstaOcupada_FND323(t *testing.T) {
 	terminar(root, p.ID, 0, "#336 mergeado", true)
 	if cola := Pedidos(root); len(cola) != 1 || cola[0].Estado != EstadoHecho || !strings.Contains(cola[0].Salida, "#336 mergeado") {
 		t.Fatalf("el resultado queda aunque la cola estuviera ocupada: %+v", cola)
+	}
+}
+
+// FND-324: un pedido aceptado cuyo proceso encuentra la cola ocupada al empezar terminaba sin correrlo ni anotar nada, y
+// la lectura siguiente lo daba por cortado.
+func TestPedidos_UnoAceptadoCorreAunqueLaColaEsteOcupadaAlEmpezar_FND324(t *testing.T) {
+	root := proyectoConCola(t)
+	p := aceptadoPor(t, root, "echo publicado", "Publicar", "sesion-1")
+	ruta, _ := colaPath(root)
+	soltar, err := bloquear(ruta + ".lock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	libre := time.AfterFunc(2500*time.Millisecond, soltar)
+	defer libre.Stop()
+	if codigo := CorrerLanzado(root, p.ID, io.Discard); codigo != 0 {
+		t.Fatalf("corre cuando la cola se libera: salió con %d", codigo)
+	}
+	if cola := Pedidos(root); len(cola) != 1 || cola[0].Estado != EstadoHecho || !strings.Contains(cola[0].Salida, "publicado") {
+		t.Fatalf("queda hecho con su salida: %+v", cola)
 	}
 }

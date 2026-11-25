@@ -725,13 +725,13 @@ func anotarHijo(root, id string, pid int) {
 	})
 }
 
-// PlazoResultado es cuánto insiste en anotar un resultado con la cola ocupada: el comando ya corrió y su resultado no se
-// vuelve a saber (FND-323).
-const PlazoResultado = time.Minute
+// PlazoCola es cuánto insiste un pedido confirmado con la cola ocupada: para empezar (FND-324) y para anotar su resultado,
+// que no se vuelve a saber (FND-323).
+const PlazoCola = time.Minute
 
-// insistirEnCola es conCola, que se vuelve a intentar mientras falle y no pase PlazoResultado.
+// insistirEnCola es conCola, que se vuelve a intentar mientras falle y no pase PlazoCola.
 func insistirEnCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error)) {
-	limite := time.Now().Add(PlazoResultado)
+	limite := time.Now().Add(PlazoCola)
 	for conCola(root, now, cambiar) != nil && time.Now().Before(limite) {
 		time.Sleep(50 * time.Millisecond)
 	}
