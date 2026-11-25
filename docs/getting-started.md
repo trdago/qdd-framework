@@ -86,6 +86,8 @@ Corre las pruebas y revisa las reglas, desde cualquier subcarpeta. Separa tres c
 - **Recomendaciones**: en adopción gradual, E2E, ADR y Conventional Commits se muestran sin bloquear.
 - **Lo que no se pudo revisar**: no está aprobado, simplemente no se sabe. El reporte lo nombra.
 
+![qdd audit en un proyecto de ejemplo: aprobado, con dos recomendaciones y la lista de lo que no revisó](assets/gate-aprueba.png)
+
 Si una regla ya bloquea, las pruebas esperan (`QA-04-PRUEBAS-PENDIENTES`); `qdd audit --completo` las corre igual.
 
 Si QDD no reconoce tus pruebas (reconoce npm, Go, Flutter y pytest), decláralas en `.qdd/config.yaml`:
@@ -169,6 +171,8 @@ qdd estado nueva "Envío por correo"     # imprime el id de la tarea
 qdd estado set envio-correo Código ok --evidencia "commit abc1234"
 qdd consola activar                     # el panel en Claude Code (y en OpenCode, Antigravity o VS Code si están)
 ```
+
+![El panel en Claude Code con un proyecto de ejemplo](assets/panel.png)
 
 En el panel, «▶ Para ti» junta lo que espera tu «Sí»: comandos que publican, fichas, preguntas y permisos. Para verlo en
 el teléfono: `qdd login` muestra un QR para la app QDD Móvil.
