@@ -11,6 +11,10 @@ Es un CLI en Go, un servidor MCP y un panel. No genera código ni reemplaza a tu
 de que lo toque, revisa lo que hace con un gate determinista y te pasa a ti las decisiones que son tuyas. Funciona con
 Claude Code, Cursor, Antigravity y OpenCode; [cuánto cubre en cada uno](#qué-cubre-en-cada-ia) está más abajo.
 
+![Panel de QDD en Claude Code: el tablero de un proyecto de ejemplo con una tarea lista, una que espera y una que falla, y abajo lo que espera el «Sí» de la persona](docs/assets/panel.png)
+
+*El panel real, con un proyecto de ejemplo: el tablero, lo que espera tu «Sí» y lo que falla.*
+
 ## Qué problema resuelve
 
 Las IA escriben código rápido, pero olvidan entre sesiones por qué las cosas son como son, se saltan pasos y dan por listo
@@ -37,6 +41,10 @@ flowchart LR
     S --> V["Versión"]
     V -- lo aprendido --> F
 ```
+
+Con una prueba en rojo, el gate termina con error y dice qué bloquea, qué recomienda y qué no pudo revisar:
+
+![Salida de qdd audit en un proyecto de ejemplo: una prueba falla, el gate bloquea con salida 1 y lista lo que no revisó](docs/assets/gate-bloquea.png)
 
 ## Instalar
 
@@ -126,7 +134,7 @@ QDD no envía telemetría: las horas de `qdd uso` se miden y quedan en tu equipo
 | **Incidentes de QDD**: versión, sistema, comando con sus valores tapados y traza del código de QDD, publicados como issue con tu `gh` | Si QDD falla por dentro. Nunca rutas, valores ni datos del proyecto | `QDD_INCIDENTES=off` |
 | Catálogo de reglas en GitHub (solo lectura) | `qdd audit` y `qdd doctor`, una vez al día; si falla, sigue sin él | — |
 | Versión publicada en npm (solo lectura) | Con el panel abierto | — |
-| QDD Móvil, por su relay: que el PC está encendido, los avisos y, con un teléfono mirando, el estado de tus proyectos | Solo si corres `qdd login` | `qdd remoto desactivar` |
+| QDD Móvil, por su relay: que el PC está encendido, los avisos y, con un teléfono mirando, el estado de tus proyectos. Lo que mandas desde el teléfono (acciones, respuestas y textos) [queda de 3 a 4 días en el relay](docs/qdd-movil-comunicacion.md#qué-queda-guardado-en-el-relay) | Solo si corres `qdd login` | `qdd remoto desactivar` |
 | Repositorios de blueprints, con tu git | Solo si registras uno | — |
 | `qdd reportar` y compartir flujos por enlace | Solo con tu «Sí», con el texto a la vista | — |
 

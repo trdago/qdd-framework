@@ -6,6 +6,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Changed
+
+- **Imágenes nuevas en la documentación:** el panel y el gate, capturados de verdad en un proyecto de ejemplo. Reemplazan la captura del dashboard obsoleto.
+
 ## [2.10.0-rc.132] - 2026-11-24
 
 ### Fixed
