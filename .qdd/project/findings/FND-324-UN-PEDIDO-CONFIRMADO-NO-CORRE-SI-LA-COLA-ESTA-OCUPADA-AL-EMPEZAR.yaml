@@ -1,0 +1,9 @@
+id: "FND-324"
+title: "Un pedido confirmado no corre si la cola está ocupada cuando su proceso empieza"
+description: "2026-11-24, al revisar FND-323: si el proceso de un pedido confirmado no consigue el candado de la cola en 2 s al tomar su turno (al empezar o mientras está armado), termina con error sin correrlo ni anotar nada, y la lectura siguiente lo da por cortado. Reproducido con una prueba que ocupa la cola 2,5 s. No se vio en un proyecto real."
+impact: "La persona confirma y el comando no corre; se lee «falló, se cortó»."
+action_taken: "Tomar el turno insiste hasta un minuto si la cola está ocupada (candado.ErrOcupado); cualquier otro error termina como antes."
+test_result: "TestPedidos_UnoAceptadoCorreAunqueLaColaEsteOcupadaAlEmpezar_FND324 fallaba antes del cambio y pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-24"

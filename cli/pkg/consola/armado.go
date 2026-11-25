@@ -1,10 +1,13 @@
 package consola
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/candado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -176,11 +179,24 @@ func aceptadoPorNadie(p Pedido) bool {
 	return p.Estado == EstadoArmado && (p.PID == 0 || p.PID == os.Getpid() || !procesoVivo(p.PID))
 }
 
+// tomarTurnoConPaciencia es tomarTurno, que insiste hasta PlazoCola si la cola está ocupada: la persona ya confirmó el
+// pedido y rendirse lo dejaba sin correr y dado por cortado (FND-324).
+func tomarTurnoConPaciencia(root, id string, primero bool) (string, time.Duration, error) {
+	limite := time.Now().Add(PlazoCola)
+	for {
+		turno, espera, err := tomarTurno(root, id, time.Now(), primero)
+		if !errors.Is(err, candado.ErrOcupado) || time.Now().After(limite) {
+			return turno, espera, err
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // correrAceptado es el bucle de «qdd consola correr»: corre el pedido cuando le toca y, mientras diga «todavía no» o
 // espere a otro, vuelve a intentarlo solo.
 func correrAceptado(root, id string, salida io.Writer) int {
 	for primero := true; ; primero = false {
-		turno, espera, err := tomarTurno(root, id, time.Now(), primero)
+		turno, espera, err := tomarTurnoConPaciencia(root, id, primero)
 		if err != nil {
 			fmt.Fprintf(salida, "[!] %v\n", err)
 			return 1
