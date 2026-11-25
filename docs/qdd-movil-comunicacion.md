@@ -34,6 +34,20 @@ dio ida y vuelta en unos 450 ms con un teléfono mirando.
 
 Los nombres de eventos, los campos y la firma (`solicitud|proyecto|…|dispositivo|en`) coinciden en los tres lados.
 
+## Qué queda guardado en el relay
+
+Leído el 2026-11-24 en las migraciones de qdd-movile y en la documentación de Supabase (Broadcast y Broadcast Replay).
+qdd-movile contó ese día los mensajes guardados del 21 al 24: 62 `ejecutar`, 31 `accion`, 11 `responder` y ninguna `foto`.
+Desde las 21:18 el relay no acepta fotos.
+
+| Mensaje | Cómo pasa | Qué queda |
+|---|---|---|
+| `accion`, `responder`, `ejecutar` y `foto` | La función del relay llama a `realtime.send` | El mensaje entero (la respuesta, el texto o la parte de la foto) en la tabla `realtime.messages`, de 72 horas a 4 días. Quien puede unirse al canal podría pedir su repetición |
+| `estado`, `delta`, `flujo`, `consola`, `accion_estado`, `logrado` y los demás que publica el PC o la app | Broadcast por WebSocket | Según la documentación, solo lo enviado desde la base entra a esa tabla. No dice expresamente que lo demás no se guarde. En ese conteo no apareció ninguno: es un indicio, falta una prueba dirigida |
+
+No hay cifrado de extremo a extremo: Supabase ve pasar todo. Que lo del teléfono quede guardado no es lo que decidió la
+persona en el RFC 0013 (FND-321, FND-059 de qdd-movile). Cómo se arregla está por decidir.
+
 ## Desajustes encontrados
 
 | # | Lado | Qué | Estado |

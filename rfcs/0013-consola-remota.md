@@ -20,7 +20,9 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 - **El PC encendido es la fuente de verdad.** Un PC apagado se muestra «apagado desde HH:MM» y nada más: nunca un estado
   guardado o congelado.
 - **Supabase solo como relay**: Realtime **Broadcast** (estado, acciones, consola) y **Presence** (qué PC está encendido
-  y quién mira una consola). No se guardan en Supabase ni el estado ni las acciones.
+  y quién mira una consola). La decisión es que Supabase no guarde ni el estado ni las acciones. **No se cumple con lo que
+  manda el teléfono por el relay (FND-321):** acciones, respuestas y textos pasan por `realtime.send` y quedan unos días (las
+  fotos iban igual; no quedó ninguna guardada y el relay ya no las acepta); ver [Qué queda guardado en el relay](../docs/qdd-movil-comunicacion.md#qué-queda-guardado-en-el-relay).
 - **Un solo canal por PC**, manejado por un único proceso de qdd en Go (`qdd remoto`), que publica todos los proyectos.
 - **La app es un cliente más del protocolo**: el panel, la app y cualquier cliente futuro hablan lo mismo.
 - **Relay de desarrollo (2026-11-02):** mientras no exista el proyecto Supabase Pro propio, se usa el proyecto Supabase
@@ -377,7 +379,8 @@ Con Pro, la persona manda desde la app (Proyecto → «Ejecutar», con biometrí
   esquema de `responder`. `nombre` es solo para mostrar y no va firmado.
 - `tipo` es `qdd`, `ia` o `flujo` (abajo). `qdd`: una línea de 1 a 1000 caracteres, sin la palabra `qdd` del principio y sin caracteres
   de control. `ia`: de 1 a 4000 caracteres; admite saltos de línea y tabulaciones, ningún otro control.
-- El relay no guarda ni el comando ni su salida.
+- El comando o la instrucción queda en `realtime.messages` de 72 horas a 4 días (FND-321). Su salida la manda el PC por
+  Broadcast; según la documentación de Supabase, solo lo enviado desde la base entra a esa tabla. Falta una prueba dirigida.
 
 **PC.** El PC nunca confía en el relay:
 
