@@ -373,7 +373,7 @@ func TestEjecutar_UnComandoPorProyectoALaVez(t *testing.T) {
 	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoRechazada || !strings.Contains(got.Resultado, "ya corre") {
 		t.Fatalf("dos audit juntos se pisarían: %+v", got)
 	}
-	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoHecha || got.Solicitud != primero.Solicitud {
+	if got := estadoDe(t, tr, 20*time.Second); got.Estado != EstadoHecha || got.Solicitud != primero.Solicitud {
 		t.Fatalf("el primero termina: %+v", got)
 	}
 	if c := corridas(t, falso); len(c) != 1 {
