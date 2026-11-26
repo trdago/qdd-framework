@@ -28,7 +28,9 @@ const instruccionesRevision = `Revisa todo lo que el panel espera de mí y deja 
 - Ya no va: qdd estado cerrar <tarea> --descartado --motivo "…"; un pedido que sobra: qdd consola descartar <tecla>.
 - Se responde solo (npm:, pr:, tag:, pedido:, archivo:): ponle --verifica y deja de preguntármelo.
 - Es una nota de avance o espera a otro, no a mí: cámbiale de_quien o pásala a la etapa que corresponde.
-- Sigue esperándome: que se entienda solo, como pregunta ¿…? con la opción recomendada.
+- Es una decisión con opción recomendada que tu modo de permisos te deja tomar (no cambia una ficha aprobada ni un blueprint, no es una versión ni una publicación, y no borra datos): tómala tú, anótala como elegida por la IA con la opción recomendada y sigue.
+- No es para ahora (una función nueva en un congelamiento, o algo que espera a otra tarea): ponle depende_de y de_quien «después de …», para que no me espere.
+- Solo yo puedo hacerlo o decidirlo (una prueba en mi equipo, un acceso que no tienes, un cambio de lo definido): que se entienda solo, como pregunta ¿…? con la opción recomendada.
 Nunca respondas por mí: sin evidencia, queda como está. Al terminar, en una línea: cuántos quitaste y qué queda.`
 
 // Revision arma la revisión de lo que espera a la persona en root: cada ⏳ suyo de las tareas abiertas y cada pedido

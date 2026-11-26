@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.147] - 2026-11-26
+
+### Fixed
+
+- **«Para ti» deja solo lo que es tuyo:** la revisión de la tecla `l` ahora le pide a la IA que tome ella las decisiones que su modo de permisos le permite, con la opción recomendada y anotadas como suyas. Lo que no es para ahora, como una función nueva durante un congelamiento o algo que espera a otra tarea, sale de «Para ti» con su dependencia. Te quedan solo las pruebas en tu equipo, los accesos que la IA no tiene y los cambios a lo ya definido.
+
 ## [2.10.0-rc.146] - 2026-11-26
 
 ### Changed
