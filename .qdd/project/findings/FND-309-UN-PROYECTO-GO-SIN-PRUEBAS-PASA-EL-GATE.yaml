@@ -2,8 +2,8 @@ id: "FND-309"
 title: "Un proyecto Go sin ninguna prueba pasa el gate"
 description: "2026-11-24, al comparar la documentación pública con el código (sprint 10). Reproducido con rc.124 en una caja limpia: go.mod, un main.go y ningún _test.go dan «[QA] OK: go test ./...» y exit 0. En npm y pytest sí sale QA-00."
 impact: "El gate dice que las pruebas pasan cuando no hay ninguna, justo lo que QDD promete no hacer."
-action_taken: "El README lo dice como límite."
-test_result: ""
-status: open
+action_taken: "qdd audit da QA-00 para un módulo Go sin ningún _test.go (en la raíz, en cli/ o en una subcarpeta de un monorepo; sin contar vendor ni carpetas ocultas) y ya no corre go test ./... en vacío. Bloquea con go_sin_pruebas: bloquea en .qdd/policies.yaml, que qdd init pone en los proyectos nuevos; en los que ya usaban QDD (sin la clave) solo avisa. Con test_commands declarados no se mira. Lo eligió el modo goal con la opción recomendada, no la persona (2026-11-26). README y referencia actualizados."
+test_result: "coverage_go_sin_pruebas_fnd309_test.go (7 pruebas) fallaba antes del cambio (no compilaba: no existía violacionGoSinPruebas) y pasa; TestInit_ProyectoNuevoConPuertas fija que init pone go_sin_pruebas: bloquea. go test ./pkg/audit ./cmd pasa."
+status: resolved
 detectado_por: sesion
 date: "2026-11-24"

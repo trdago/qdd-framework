@@ -34,7 +34,13 @@ type QDDPolicies struct {
 	// Puertas activa las puertas de QDD (ficha puertas); sin la clave, el proyecto no las tiene. Está aquí para que
 	// guardar las políticas no las borre (FND-243).
 	Puertas *PoliticaPuertas `yaml:"puertas,omitempty" json:"puertas,omitempty"`
+	// GoSinPruebas "bloquea" hace que un módulo Go sin ningún _test.go no pase el gate (FND-309). qdd init lo pone en
+	// los proyectos nuevos; sin la clave (los que ya usaban QDD) solo se avisa.
+	GoSinPruebas string `yaml:"go_sin_pruebas,omitempty" json:"go_sin_pruebas,omitempty"`
 }
+
+// GoSinPruebasBloquea es el valor de go_sin_pruebas con que qdd init deja a los proyectos nuevos.
+const GoSinPruebasBloquea = "bloquea"
 
 // PoliticaPuertas: publicar "ia" deja publicar a la IA; vacío o "pedido", va como pedido de la persona.
 type PoliticaPuertas struct {

@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.141] - 2026-11-26
+
+### Fixed
+
+- **Un proyecto Go sin pruebas ya no pasa el gate en silencio (FND-309):** `qdd audit` da `QA-00` cuando un módulo Go no tiene ningún `_test.go`. Bloquea en los proyectos que crea `qdd init` desde esta versión (`go_sin_pruebas: bloquea` en `.qdd/policies.yaml`) y solo avisa en los que ya usaban QDD.
+
 ## [2.10.0-rc.140] - 2026-11-26
 
 ### Fixed

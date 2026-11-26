@@ -118,9 +118,9 @@ en el CI.
 
 - **Las reglas de código solo leen Go** (cero `else`, inyección, criptografía, pánicos, llamadas sin límite). En los demás
   lenguajes el gate corre las pruebas, el formato y los despliegues, y dice qué principios no pudo evaluar.
-- **Las suites que reconoce solo son** npm, Go, Flutter y pytest; cualquier otra se declara en `test_commands`. Un proyecto
-  Go sin ninguna prueba todavía pasa el gate
-  ([FND-309](.qdd/project/findings/FND-309-UN-PROYECTO-GO-SIN-PRUEBAS-PASA-EL-GATE.yaml)).
+- **Las suites que reconoce solo son** npm, Go, Flutter y pytest; cualquier otra se declara en `test_commands`. Un módulo
+  Go sin ningún `_test.go` bloquea en los proyectos creados desde la 2.10.0; en los anteriores solo avisa, hasta que
+  agregues `go_sin_pruebas: bloquea` a `.qdd/policies.yaml`.
 - **Las reglas de IA no son una certificación.** `ai_governance` son comprobaciones sencillas inspiradas en normas
   conocidas. No acreditan el cumplimiento de ISO, SOC 2 ni ninguna otra.
 - **`qdd dashboard` está obsoleto:** solo recibe arreglos. Lo reemplaza el panel.
