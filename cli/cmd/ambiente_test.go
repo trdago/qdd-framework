@@ -111,8 +111,8 @@ func TestAmbienteLevantar_SinCloudflareEnElBaulDiceComoGuardarlo(t *testing.T) {
 func TestCloudflareDeAmbiente_PrefiereLaEntradaDeEseAmbiente(t *testing.T) {
 	indice := []baul.Entrada{
 		{Nombre: "cf-general", Tipo: "cloudflare"},
-		{Nombre: "cf-prod", Tipo: "cloudflare", Direccion: "prod/cloudflare.com/dns/token/fairplay"},
-		{Nombre: "cf-dev-rechazado", Tipo: "cloudflare", Direccion: "dev/cloudflare.com/dns/token/fairplay", Rechazado: true},
+		{Nombre: "cf-prod", Tipo: "cloudflare", Direccion: "prod/cloudflare.com/dns/token/mi-organizacion"},
+		{Nombre: "cf-dev-rechazado", Tipo: "cloudflare", Direccion: "dev/cloudflare.com/dns/token/mi-organizacion", Rechazado: true},
 	}
 	if e, _ := cloudflareDe(indice, "prod"); e.Nombre != "cf-prod" {
 		t.Fatalf("la de prod para prod: %+v", e)

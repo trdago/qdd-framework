@@ -21,7 +21,7 @@ const PANEL = {
 
 const COMPLETO = {
   clave: 'c1',
-  nombre: 'notificador',
+  nombre: 'proyecto-b',
   existe: true,
   puntaje: 90,
   hace: 'hace 3 h',
@@ -91,7 +91,7 @@ test('al abrirla pide las filas a qdd y dibuja una por proyecto, con las mismas 
   const ui = await abrir($, on, [COMPLETO], r)
   expect(lecturas(r)).toEqual([['qdd', 'consola', 'proyectos', '--json']])
   expect(await ui.find({ type: 'Text', text: /Puntaje.*Hace.*Findings.*⏳ y ❌/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /notificador\s+90\s+hace 3 h\s+151\s+⏳ 6 ❌ 1/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b\s+90\s+hace 3 h\s+151\s+⏳ 6 ❌ 1/ })).toBeDefined()
 })
 
 test('null se ve «sin medir» y un cero medido se ve como cero', async ($, on) => {
@@ -138,11 +138,11 @@ test('una carpeta que ya no está dice «no existe» y no finge datos', async ($
 test('a 40 columnas quedan proyecto, puntaje y ⏳ y ❌; lo demás, al elegir la fila', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, [COMPLETO], r, 40)
-  const fila = await ui.find({ type: 'Text', text: /notificador/ })
+  const fila = await ui.find({ type: 'Text', text: /proyecto-b/ })
   expect(fila).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /notificador\s+90\s+⏳ 6 ❌ 1/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /notificador.*hace 3 h/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /notificador.*151/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b\s+90\s+⏳ 6 ❌ 1/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b.*hace 3 h/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b.*151/ })).toBeUndefined()
   await ui.press({ key: 'proy-c1' })
   expect(await ui.find({ type: 'Text', text: /hace 3 h · 151 findings abiertos/ })).toBeDefined()
 })
@@ -185,7 +185,7 @@ test('↻ relee las filas; cerrarla no vuelve a leer', async ($, on) => {
   await ui.press({ key: 'leer' })
   expect(lecturas(r).length).toBe(2)
   await ui.press({ key: 'proyectos' })
-  expect(await ui.find({ type: 'Text', text: /notificador/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b/ })).toBeUndefined()
   await ui.press({ key: 'leer' })
   expect(lecturas(r).length).toBe(2)
 })
@@ -229,17 +229,17 @@ test('es una vista a la vez: Blueprints la cierra, y al abrirla cierra Blueprint
   const r = nuevo()
   const ui = await abrir($, on, [COMPLETO], r)
   await ui.press({ key: 'blueprints' })
-  expect(await ui.find({ type: 'Text', text: /notificador/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /p cierra/ })).toBeDefined()
   await ui.press({ key: 'proyectos' })
-  expect(await ui.find({ type: 'Text', text: /notificador/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /p cierra/ })).toBeUndefined()
 })
 
 test('un proyecto con las reglas de las IAs atrasadas va marcado, y al elegirlo dice dónde y cómo renovarlas', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, [{ ...COMPLETO, reglas_atrasadas: ['AGENTS.md', '.cursorrules'] }, { ...SIN_MEDIR, reglas_atrasadas: [] }], r)
-  expect(await ui.find({ type: 'Text', text: /⚑ notificador/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /⚑ proyecto-b/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /⚑ sin-datos/ })).toBeUndefined()
   await ui.press({ key: 'proy-c1' })
   expect(await ui.find({ type: 'Text', text: /Reglas para las IAs atrasadas en AGENTS\.md, \.cursorrules: qdd doctor --fix las renueva/ })).toBeDefined()

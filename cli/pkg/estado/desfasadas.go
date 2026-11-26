@@ -1,7 +1,7 @@
 package estado
 
 // Rule: Prohibido usar 'else'
-// MEJ-010 (sfrc, 2026-11-04): las tareas cambian con el tiempo y el tablero queda atrás sin que nada avise. qdd estado check
+// MEJ-010 (proyecto-a, 2026-11-04): las tareas cambian con el tiempo y el tablero queda atrás sin que nada avise. qdd estado check
 // pasaba con 15 tareas terminadas y abiertas, y con 6 cerradas que conservaban un ⏳. Esto solo mira la tabla: no adivina
 // si un nombre o un criterio siguen siendo ciertos, y no bloquea, porque terminar una tarea lo decide quien trabaja en ella.
 

@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -20,31 +21,57 @@ const VarHuellasPrivadas = "QDD_HUELLAS_PRIVADAS"
 
 var palabraDeDoc = regexp.MustCompile(`[a-z0-9][a-z0-9_-]*`)
 
-// Ningún ejemplo de la documentación pública nombra una organización, un cliente o un proyecto real. Sin el archivo de huellas
-// (en CI) no hay con qué comparar y se salta; en el PC de la persona lo pasa «make test».
-// contrato: documentacion#d7c8baeb
+// Ningún archivo versionado nombra una organización, un cliente o un proyecto real: no solo la documentación, también
+// findings, fichas, evidencias, el CHANGELOG, el código y sus pruebas (antes solo se revisaba docs/ y se colaron 157).
+// Sin el archivo de huellas (en CI) no hay con qué comparar y se salta; en el PC de la persona lo pasa «make test».
+// contrato: documentacion#8fcb5511
 func TestDocs_NoNombranProyectosReales(t *testing.T) {
 	ruta := os.Getenv(VarHuellasPrivadas)
 	if ruta == "" {
 		t.Skip(VarHuellasPrivadas + " vacía: sin las huellas de los nombres reales no hay con qué comparar")
 	}
 	huellas := leerHuellas(t, ruta)
-	for _, carpeta := range []string{"../../docs", "../../rfcs", "../../README.md", "../../npm/README.md", "../../CONTRIBUTING.md", "../../SECURITY.md", "../../specification"} {
-		filepath.WalkDir(carpeta, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") {
-				return nil
-			}
-			for n, linea := range lineasDe(t, p) {
-				for _, w := range palabraDeDoc.FindAllString(strings.ToLower(linea), -1) {
-					if huellas[huella(w)] {
-						t.Errorf("%s:%d nombra un proyecto real (huella %s)", p, n+1, huella(w)[:8])
-					}
+	for _, p := range archivosVersionados(t, "../..") {
+		for n, linea := range lineasDeTexto(p) {
+			for _, w := range palabraDeDoc.FindAllString(strings.ToLower(linea), -1) {
+				if huellas[huella(w)] {
+					t.Errorf("%s:%d nombra un proyecto real (huella %s)", p, n+1, huella(w)[:8])
 				}
 			}
-			return nil
-		})
+		}
 	}
 }
+
+// archivosVersionados son los archivos que git sigue en el repositorio: lo que se publica.
+func archivosVersionados(t *testing.T, raiz string) []string {
+	t.Helper()
+	out, err := exec.Command("git", "-C", raiz, "ls-files", "-z").Output()
+	if err != nil {
+		t.Fatalf("git ls-files: %v", err)
+	}
+	var rutas []string
+	for _, r := range strings.Split(string(out), "\x00") {
+		if r != "" {
+			rutas = append(rutas, filepath.Join(raiz, r))
+		}
+	}
+	return rutas
+}
+
+// lineasDeTexto lee un archivo de texto; uno binario, enorme o que ya no existe no tiene líneas.
+func lineasDeTexto(p string) []string {
+	info, err := os.Stat(p)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxArchivoRevisado {
+		return nil
+	}
+	b, err := os.ReadFile(p)
+	if err != nil || bytes.IndexByte(b, 0) >= 0 {
+		return nil
+	}
+	return strings.Split(string(b), "\n")
+}
+
+const maxArchivoRevisado = 4 << 20
 
 func TestDocs_LasHuellasSeComparanPorPalabra(t *testing.T) {
 	dir := t.TempDir()
@@ -91,13 +118,4 @@ func leerHuellas(t *testing.T, ruta string) map[string]bool {
 		huellas[strings.ToLower(l)] = true
 	}
 	return huellas
-}
-
-func lineasDe(t *testing.T, p string) []string {
-	t.Helper()
-	b, err := os.ReadFile(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strings.Split(string(b), "\n")
 }

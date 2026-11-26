@@ -12,7 +12,7 @@ import (
 
 // Rule: Prohibido usar 'else'
 // «Para ti» de todos los proyectos (2026-11-15): la persona mira el panel de una sesión y no vio las fichas ni las
-// preguntas de notificador, abiertas en otra. Con --con otros, el panel trae lo que espera a la persona en los demás
+// preguntas de proyecto-b, abiertas en otra. Con --con otros, el panel trae lo que espera a la persona en los demás
 // proyectos de la máquina (registro de proyectos), con su carpeta, para mostrarlo y responderlo desde ahí.
 
 func proyectoRegistrado(t *testing.T, visto time.Time) string {

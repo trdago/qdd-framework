@@ -12,6 +12,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 - **Una pregunta de varias partes ya no deja la consola esperando «Submit answers» en el PC (FND-330, MEJ-104):** QDD rechaza un AskUserQuestion con 2 o más preguntas antes de mostrarlo y la IA las hace de a una, cada una con sus botones en «▶ Para ti» y en QDD Móvil. El bloque de reglas (revisión 7) lo pide desde el principio.
 
+## [2.10.0-rc.142] - 2026-11-26
+
+### Fixed
+
+- **El repositorio ya no nombra proyectos reales (FND-329):** findings, fichas, evidencias, comentarios, la ayuda de `qdd baul guardar` y datos de prueba usan `proyecto-a`, `proyecto-b`… y `mi-organizacion`. `make test` revisa ahora todo lo versionado con las huellas privadas, no solo la documentación.
+
 ## [2.10.0-rc.141] - 2026-11-26
 
 ### Fixed
@@ -675,7 +681,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Agregado
 
-- **Dirección estándar en el baúl:** cada acceso puede llevar `ambiente/servidor/servicio/clase/cuenta` (p. ej. `prod/db-01/notificador/postgres/app_user`), con ambiente dev, qa, prod o global. La misma dirección no se guarda dos veces con nombres distintos. Va con `qdd baul guardar --direccion` y con el campo Dirección en Config del panel.
+- **Dirección estándar en el baúl:** cada acceso puede llevar `ambiente/servidor/servicio/clase/cuenta` (p. ej. `prod/db-01/proyecto-b/postgres/app_user`), con ambiente dev, qa, prod o global. La misma dirección no se guarda dos veces con nombres distintos. Va con `qdd baul guardar --direccion` y con el campo Dirección en Config del panel.
 
 ## [2.10.0-rc.67] - 2026-11-11
 
@@ -1582,12 +1588,12 @@ en la rama `hotfix/2.8.3`.
   un ⏳ no llega al teléfono y su respuesta se rechaza. Antes la respuesta vencía a los 30 min mientras la pregunta seguía
   como «respondida», y se perdía.
 - **Un pedido armado ya no puede ejecutarse dos veces** (FND-125, MEJ-008). Si dos procesos quedaban esperando el mismo
-  pedido, los dos lo corrían al mismo tiempo: en sfrc lanzó dos despliegues en el mismo segundo. Ahora solo lo corre su
+  pedido, los dos lo corrían al mismo tiempo: en proyecto-a lanzó dos despliegues en el mismo segundo. Ahora solo lo corre su
   dueño, y el otro termina sin correrlo.
 
 ### ✨ Añadido
 
-- **Lo que la IA necesita de la persona no se queda en el chat** (pedido de sfrc). El bloque de `AGENTS.md` trae la
+- **Lo que la IA necesita de la persona no se queda en el chat** (pedido de proyecto-a). El bloque de `AGENTS.md` trae la
   regla: una decisión va con la herramienta de preguntar (AskUserQuestion en Claude Code) y una opción recomendada; lo
   que no es una elección, como ⏳ escrito con `¿…?`; un comando, con `qdd_consola_pedir`.
 - `qdd estado check` avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta: los que no preguntan
@@ -1660,7 +1666,7 @@ mejora-continua) y lo que el estado espera de la persona como pregunta en QDD M�
 
 - Lo que el estado espera de la persona llega a QDD Móvil como pregunta: cada ⏳ «de la persona» de una tarea abierta
   se responde desde el teléfono con texto libre, y la respuesta le llega a la IA del proyecto como un mensaje tuyo. Sale
-  sola cuando la celda cambia (pedido de sfrc, RFC 0013).
+  sola cuando la celda cambia (pedido de proyecto-a, RFC 0013).
 
 ## [2.8.0-rc.26] - 2026-11-03 (preview)
 
@@ -1827,7 +1833,7 @@ Decimoctava **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Los ids de l
 
 ### 🏷️ Ids de QDD: nombrar una tarea ya no la crea (FND-109)
 
-- **Antes:** `qdd estado set <id> …` con un id que no existía creaba una tarea nueva, y le ponía el id como nombre. En notificador_de_ofertas la IA escribió `segmento-barra` y `qdd-estado` para tareas que ya existían (`barra-estado`, `estado-por-frente`), y hubo que descartarlas a mano.
+- **Antes:** `qdd estado set <id> …` con un id que no existía creaba una tarea nueva, y le ponía el id como nombre. En proyecto-b la IA escribió `segmento-barra` y `qdd-estado` para tareas que ya existían (`barra-estado`, `estado-por-frente`), y hubo que descartarlas a mano.
 - **Ahora, crear es explícito:** `qdd estado nueva "Quitar claves de Gemini"` le da el id `quitar-claves-gemini` y lo imprime. La IA hace lo mismo con la acción `nueva` de `qdd_estado`. `set` y `tarea` siguen creando con `--nombre`, pero solo con un id de QDD (minúsculas, números y guiones).
 - **Un id equivocado se rechaza con sugerencia:** «no hay una tarea "qdd-estado": ¿quisiste decir estado-por-frente («qdd estado (RFC 0006)»)?». Vale para `set`, `cerrar`, `activar`, `tarea`, `--objetivo`, `--depende-de`, `--ciclo` y el `--tarea` de un pedido. No se escribe nada.
 - **Sin duplicados:** una tarea cuyo nombre casi repite el de una abierta se rechaza nombrando la otra; `--aunque-exista` la crea igual.

@@ -20,7 +20,7 @@ objetivo_tecnologico:
         - Se documenta solo lo que existe; lo que existe a medias dice su límite ahí mismo, con su finding
         - Los comandos que solo existen por MCP se marcan como tales
     invariantes:
-        - 'Ningún ejemplo usa nombres de organizaciones, clientes o proyectos reales: el repositorio es público'
+        - 'Ningún archivo versionado (documentación, findings, fichas, evidencias, CHANGELOG, código y pruebas) nombra una organización, un cliente o un proyecto real: el repositorio es público. make test lo revisa con las huellas privadas de la persona; los ejemplos usan proyecto-a, proyecto-b… y mi-organizacion.'
         - Toda capacidad nueva de la CLI o del MCP se documenta en la misma versión que la incorpora
 pruebas:
     comandos:
@@ -34,5 +34,5 @@ fuentes:
     - docs/command-reference.md
     - rfcs/0003-blueprints.md
     - CHANGELOG.md
-ultima_revision: "2026-11-24"
-revisado_en_commit: a94400e25ba8
+ultima_revision: "2026-11-26"
+revisado_en_commit: 1aec086bbf7d

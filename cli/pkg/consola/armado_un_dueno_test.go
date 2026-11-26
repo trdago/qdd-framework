@@ -7,7 +7,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// FND-125 (MEJ-008, sfrc, 2026-11-03): un pedido armado se ejecutó dos veces: dos workflow_dispatch en el mismo segundo.
+// FND-125 (MEJ-008, proyecto-a, 2026-11-03): un pedido armado se ejecutó dos veces: dos workflow_dispatch en el mismo segundo.
 // Dos «qdd consola correr» esperaban el mismo pedido y despertaban a la misma hora (Proximo). El primero lo pasaba a
 // ejecutando; el segundo, al verlo ejecutando, también lo corría. Un pedido tiene un solo dueño vivo: quien ya no lo es,
 // termina sin correrlo.

@@ -44,7 +44,7 @@ func TestBarra_LaListaNoEmpiezaConEspaciosYDejaMargen_FND091(t *testing.T) {
 
 func TestBarra_ModeloYModoALaIzquierdaUsosEnListaALaDerecha_CCC_C01(t *testing.T) {
 	resets5h := time.Date(2026, 10, 29, 18, 30, 0, 0, time.Local).Unix()
-	in := fmt.Sprintf(`{"workspace":{"project_dir":"/home/a/proyectos/notificador"},"model":{"display_name":"Opus 5.5"},
+	in := fmt.Sprintf(`{"workspace":{"project_dir":"/home/a/proyectos/proyecto-b"},"model":{"display_name":"Opus 5.5"},
 "context_window":{"used_percentage":37.6},
 "rate_limits":{"five_hour":{"used_percentage":12.2,"resets_at":%d},"seven_day":{"used_percentage":40,"resets_at":"2026-10-31T09:00:00-03:00"}}}`, resets5h)
 	got := strings.Split(Barra([]byte(in), ahora, "auto", 70), "\n")
@@ -56,7 +56,7 @@ func TestBarra_ModeloYModoALaIzquierdaUsosEnListaALaDerecha_CCC_C01(t *testing.T
 	if !strings.HasPrefix(got[0], "Opus 5.5 · auto ") || !strings.HasSuffix(got[0], " contexto 38%") {
 		t.Fatalf("modelo y modo a la izquierda, contexto a la derecha: %q", got[0])
 	}
-	if largo(got[1]) != 70-MargenBarra || !strings.HasPrefix(got[1], "📂 notificador ") || !strings.HasSuffix(got[1], " 5h 12% ↻ 18:30") {
+	if largo(got[1]) != 70-MargenBarra || !strings.HasPrefix(got[1], "📂 proyecto-b ") || !strings.HasSuffix(got[1], " 5h 12% ↻ 18:30") {
 		t.Fatalf("la carpeta debajo del modelo, 5 h a la derecha: %q", got[1])
 	}
 	if want := "semana 40% ↻ " + dias[sabado.Weekday()] + " " + sabado.Format("15:04"); derecha(t, got[2], 70) != want {

@@ -8,7 +8,7 @@ import (
 
 // Rule: Prohibido usar 'else'
 // FND-153 (2026-11-05): dos sesiones en un repositorio. El pedido del #132 de una quedó asociado a mej-002, la tarea en
-// curso de la otra; al cerrarla esa otra sesión, el pedido se retiró. Es el error derivado que reportó sfrc en MEJ-010.
+// curso de la otra; al cerrarla esa otra sesión, el pedido se retiró. Es el error derivado que reportó proyecto-a en MEJ-010.
 
 const sesionClaude = "CLAUDE_CODE_SESSION_ID"
 

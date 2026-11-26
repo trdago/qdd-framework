@@ -11,9 +11,9 @@ rutas:
     - cli/pkg/audit/blueprint_check.go
 objetivo_operativo:
     problema: Cada organización mantiene sus estándares de módulo (auth, auditoría…) en su propio repositorio, privado si quiere, y todos sus proyectos deben usarlos, mantenerlos al día y aportar mejoras sin que cada proyecto cargue con una copia del repositorio. Una persona puede además sumar estándares de otras fuentes (p. ej. su repositorio público) sin mezclarlos con los de la organización.
-    usuarios: Equipos que desarrollan varios proyectos con QDD (p. ej. FairplayChile) y las IAs que trabajan en ellos vía MCP.
+    usuarios: Equipos que desarrollan varios proyectos con QDD (p. ej. Mi-organizacion) y las IAs que trabajan en ellos vía MCP.
     criterio_de_exito: Un proyecto cuyo remote git pertenece a una organización registrada ve sus blueprints sin configurar nada; el repositorio se clona una sola vez por máquina; el proyecto solo versiona el lockfile; el CI reconstruye cada blueprint desde el commit del lockfile; un proyecto del esquema anterior se migra solo, una vez.
-    caso_real: 'RFC 0004: con 10 proyectos de FairplayChile había 10 registros, 10 copias vendorizadas y ningún flujo para aportar al repositorio de la organización.'
+    caso_real: 'RFC 0004: con 10 proyectos de Mi-organizacion había 10 registros, 10 copias vendorizadas y ningún flujo para aportar al repositorio de la organización.'
 objetivo_tecnologico:
     arquitectura: 'Carpeta central por usuario ($QDD_HOME, por defecto ~/.local/share/qdd/blueprints): organizaciones.yaml (registro por patrón de remote git), mirrors/ (un clon espejo por repositorio, fetch incremental), store/<sha256>/ (contenido inmutable, de solo lectura, compartido por todos los proyectos) y aportes/ (clon editable por repositorio, y un worktree <clon>@<id> por aporte para que dos aportes en paralelo no se mezclen, FND-113). El proyecto guarda solo .qdd/blueprints.lock.yaml (formato 2) con origen, subcarpeta, commit y sha256. Para qdd doctor (grupo 4), Diagnosticar revisa copias legadas, carpeta central, acceso al repositorio, vigencia y versión de los módulos, y Reparar los repara de forma determinista (diagnostico.go).'
     decisiones:
