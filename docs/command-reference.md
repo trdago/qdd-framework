@@ -196,7 +196,7 @@ Los ejecutables del proyecto como pestañas del panel ([RFC 0011](../rfcs/0011-h
 
 ### Modo goal
 
-Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a la persona: qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3 recordatorios sin avance real se detiene y avisa. Sin una sesión abierta se pausa y nunca abre una. Siempre esperan a la persona: las preguntas de diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo.
+Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a la persona: qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3 recordatorios sin avance real se detiene y avisa, también a la IA, y vuelve solo cuando hay avance (cambia el tablero o git). Sin una sesión abierta se pausa y nunca abre una. Siempre esperan a la persona: las preguntas de diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo.
 
 | Comando | Qué hace |
 |---|---|

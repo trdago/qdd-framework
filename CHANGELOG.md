@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.144] - 2026-11-26
+
+### Fixed
+
+- **El modo goal detenido vuelve solo cuando hay avance, y la IA lo sabe (FND-331, MEJ-105):** tras 3 recordatorios sin avance el modo se detenía hasta que la persona lo activara de nuevo, y la IA seguía esperando un 🎯 que no llegaba. Ahora la sesión lee que se detuvo, y con un cambio real en el tablero o en git el modo vuelve a trabajar y lo avisa.
+
 ## [2.10.0-rc.143] - 2026-11-26
 
 ### Fixed
