@@ -29,7 +29,7 @@ frentes:
   - {id: sin-quien, nombre: SinQuien, estado: abierto, celdas: {Código: {estado: "⏳", bloqueo: algo}}}
 `
 
-// sfrc (MEJ-055): con etapas «software», lo que queda en Validación real sin empezar es un uso real, no trabajo de la IA.
+// proyecto-a (MEJ-055): con etapas «software», lo que queda en Validación real sin empezar es un uso real, no trabajo de la IA.
 const tableroUsoReal = `formato: 1
 etapas: [Código, Pruebas, Producción, Validación real]
 frentes:
@@ -78,7 +78,7 @@ func TestMovibles_LaValidacionRealSinEmpezarEsperaUnUsoReal_FND216(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	movibles, esperas := e.Movibles("sfrc")
+	movibles, esperas := e.Movibles("proyecto-a")
 	if len(movibles) != 2 || movibles[0].ID != "fallo-real" || movibles[1].ID != "desplegar" {
 		t.Fatalf("un fallo en el uso real y un despliegue los mueve la IA: %+v", movibles)
 	}
@@ -91,7 +91,7 @@ func TestMovibles_DeLaIA(t *testing.T) {
 	for quien, es := range map[string]bool{
 		"ia": true, "IA": true, "la IA": true, "Claude": true, "agente": true, "nosotros": true, "qdd": true, "qdd-6e": true, "qdd-88": true,
 		"persona": false, "la persona": false, "usuario": false, "dpailahueque": false, "uso real": false, "CI": false,
-		"qdd-movile": false, "qdd-movile-13": false, "notificador": false, "": false, "usuario o qdd-26": false,
+		"qdd-movile": false, "qdd-movile-13": false, "proyecto-b": false, "": false, "usuario o qdd-26": false,
 	} {
 		if DeLaIA(quien, "qdd") != es {
 			t.Errorf("%q: de la IA = %v", quien, !es)

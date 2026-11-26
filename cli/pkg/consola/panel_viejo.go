@@ -7,7 +7,7 @@ import (
 
 // Rule: Prohibido usar 'else'
 // FND-236 (2026-11-15): Claude Code lee el mod al abrir la consola y no lo vuelve a leer. Una consola abierta antes de
-// instalar una versión nueva sigue dibujando con el mod anterior (en notificador_de_ofertas y fairplay_agent, «Para
+// instalar una versión nueva sigue dibujando con el mod anterior (en proyecto-b y fairplay_agent, «Para
 // ti» seguía mezclando los proyectos después de rc.88). El instalador deja su versión en el mod (marcaVersionPanel);
 // el panel la manda como «panel:<versión>» en --con, y qdd avisa si no es la suya. Un qdd anterior ignora lo que no
 // conoce en --con.

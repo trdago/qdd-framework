@@ -7,7 +7,7 @@ objetivo_operativo:
     problema: Un panic o una consulta a la base sin contexto en código Go pueden botar o colgar un servicio, y hay que detectarlos antes del commit sin bloquear código correcto.
     usuarios: Las personas y las IAs que corren qdd audit en un proyecto con Go.
     criterio_de_exito: qdd audit marca panic() y las consultas sin contexto, y no bloquea una llamada que no toca la base.
-    caso_real: '2026-11-03: en sfrc el gate bloqueó r.URL.Query() de un handler HTTP como si fuera una consulta sin contexto (FND-134).'
+    caso_real: '2026-11-03: en proyecto-a el gate bloqueó r.URL.Query() de un handler HTTP como si fuera una consulta sin contexto (FND-134).'
 objetivo_tecnologico:
     arquitectura: RunBeyondLimitsCheck recorre los .go del proyecto, los lee con go/parser y revisa cada llamada. Se activa con beyond_limits en las políticas.
     decisiones:

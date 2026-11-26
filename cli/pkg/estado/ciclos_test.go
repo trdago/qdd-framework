@@ -10,7 +10,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Ciclos con nombre (decisión de la persona, 2026-11-01, por ciclo-de-vida-agentico en llmlocal): las etapas del
+// Ciclos con nombre (decisión de la persona, 2026-11-01, por ciclo-de-vida-agentico en proyecto-c): las etapas del
 // archivo son el ciclo del proyecto; un objetivo puede seguir otro ciclo y sus tareas toman sus etapas.
 
 var etapasAgentico = []string{"Concepto", "Artefacto", "Medición", "Puerta"}

@@ -3,7 +3,7 @@ package puertas
 import "testing"
 
 // Rule: Prohibido usar 'else'
-// FND-303 (notificador_de_ofertas, 2026-11-23): con FND-299 la puerta siguió rechazando el commit: un qdd_estado set por
+// FND-303 (proyecto-b, 2026-11-23): con FND-299 la puerta siguió rechazando el commit: un qdd_estado set por
 // MCP escribió también el registro de herramientas del MCP (mcp_eventos.json; un MCP anterior a FND-059 escribe
 // cognitive_history.json). La persona eligió sacar los dos de la huella, como el tablero: qdd los escribe solo al usar
 // sus herramientas y no son código.

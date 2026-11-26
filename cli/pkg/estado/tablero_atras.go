@@ -14,12 +14,12 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// RFC 0017 §2 y §3 (MEJ-010, sfrc): un tablero que no se queda atrás. QDD no juzga si un nombre o un criterio siguen
+// RFC 0017 §2 y §3 (MEJ-010, proyecto-a): un tablero que no se queda atrás. QDD no juzga si un nombre o un criterio siguen
 // siendo ciertos; con el módulo de una tarea y la hora de su última celda, solo dice cuándo revisarlos. Es git y nada
 // más: solo lo corren qdd estado check y el contexto de la IA, nunca el panel ni la barra.
 
 // presupuestoCommits: si los git log de todas las tareas pasan de esto, el aviso se limita al objetivo en foco (RFC 0017
-// §2, medido en Linux: 40 ms en sfrc y 57 ms en qdd). Variable para que las pruebas lo agoten.
+// §2, medido en Linux: 40 ms en proyecto-a y 57 ms en qdd). Variable para que las pruebas lo agoten.
 var presupuestoCommits = 200 * time.Millisecond
 
 // TareaConCommits es una tarea con commits en las rutas de su ficha después de su última celda.

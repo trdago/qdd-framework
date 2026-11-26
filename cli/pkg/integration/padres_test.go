@@ -10,7 +10,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// MEJ-062: una sesión en sfrc cargaba el bloque de QDD tres veces (~/AGENTS.md, ~/Documents/proyectos/AGENTS.md y el
+// MEJ-062: una sesión en proyecto-a cargaba el bloque de QDD tres veces (~/AGENTS.md, ~/Documents/proyectos/AGENTS.md y el
 // del proyecto): los AGENTS.md de las carpetas padre también llegan a la IA. El del proyecto es el que vale; los de
 // arriba sobran.
 

@@ -6,7 +6,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// MEJ-053 (sfrc, 2026-11-09): cada push es el mismo comando, y el seguro de FND-154 lo rechazaba como «ya se hizo»
+// MEJ-053 (proyecto-a, 2026-11-09): cada push es el mismo comando, y el seguro de FND-154 lo rechazaba como «ya se hizo»
 // aunque hubiera commits nuevos que subir; obligaba a pedir cada push con --de-nuevo.
 
 func TestMEJ053_UnPushConCommitsNuevosNoEsRepetido(t *testing.T) {

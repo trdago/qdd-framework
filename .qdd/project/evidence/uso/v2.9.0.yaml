@@ -10,8 +10,8 @@ versiones:
     - '2.9.0-rc.5: 1.12 h'
     - '2.9.0-rc.6: 0.00 h'
 proyectos:
-    notificador_de_ofertas: 2.99
+    proyecto-b: 2.99
     qdd: 2.9
     qdd-movile: 4.85
-    sfrc: 4.29
+    proyecto-a: 4.29
     tmp.BrN6cM8bcA: 0
