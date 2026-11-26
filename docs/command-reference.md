@@ -485,10 +485,10 @@ propio que tengas alrededor:
 
 | Asistente | Reglas | Servidor MCP |
 |---|---|---|
-| Claude Code | `.clauderc`, `.claude/commands/qdd.md` | `claude mcp add …` ([cómo](getting-started.md#conectar-el-servidor-mcp)) |
+| Claude Code | `.clauderc`, `.claude/commands/qdd.md` | `.mcp.json`, lo escribe `init` ([cómo](getting-started.md#conectar-el-servidor-mcp)) |
 | Cursor | `.cursorrules` | `.cursor/mcp.json`, lo escribe `init` |
 | Antigravity | `.antigravityrules`, `.agents/workflows/qdd.md`, `.agents/workflows/equipo_resolutor.md` | `init` escribe `.cursor/mcp.json` |
-| OpenCode y agentes genéricos | `AGENTS.md`, `.agentrules`, `.opencode/qdd.md` | A mano, en `opencode.json` |
+| OpenCode y agentes genéricos | `AGENTS.md`, `.agentrules`, `.opencode/qdd.md` | `opencode.json`, lo escribe `init` (`opencode.jsonc`, a mano) |
 
 Una carpeta que contiene proyectos no lleva `AGENTS.md`, y un bloque de una revisión más nueva no se pisa. El panel no lo
 instala `init`: es `qdd consola activar`.

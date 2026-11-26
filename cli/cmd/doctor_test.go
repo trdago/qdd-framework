@@ -14,6 +14,8 @@ type DoctorInput struct {
 	DirsToCreate  []string `json:"dirs_to_create"`
 	FilesToCreate []string `json:"files_to_create"`
 	AutoFix       bool     `json:"auto_fix"`
+	// Contenidos da el contenido de un archivo que no puede quedar vacío, como .mcp.json con el servidor qdd (FND-308).
+	Contenidos map[string]string `json:"contenidos"`
 }
 
 type DoctorOutput struct {
@@ -29,6 +31,9 @@ func TestDoctorWithGoldenSet(t *testing.T) {
 			_ = os.MkdirAll(filepath.Join(tempDir, d), 0755)
 		}
 
+		for f, c := range in.Contenidos {
+			_ = os.WriteFile(filepath.Join(tempDir, f), []byte(c), 0644)
+		}
 		for _, f := range in.FilesToCreate {
 			_ = os.MkdirAll(filepath.Dir(filepath.Join(tempDir, f)), 0755)
 			content := []byte("")

@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.140] - 2026-11-26
+
+### Fixed
+
+- **`qdd init` conecta el servidor MCP de QDD en Claude Code y OpenCode (FND-308):** escribe la entrada `qdd` en `.mcp.json` y `opencode.json` del proyecto, sin tocar lo demás que tengan. `qdd doctor` revisa que siga ahí y `--fix` la vuelve a poner. Antes había que correr `claude mcp add` a mano.
+
 ## [2.10.0-rc.139] - 2026-11-26
 
 ### Fixed

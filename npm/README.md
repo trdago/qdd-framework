@@ -29,8 +29,7 @@ cd mi-proyecto
 git init        # si todavía no es un repositorio
 qdd init        # detecta el stack, escribe las reglas de tu IA y activa el gate
 qdd audit       # pruebas + reglas
-claude mcp add --scope project qdd -- qdd mcp-server   # el servidor MCP, en Claude Code
-qdd consola activar                                    # el panel, en Claude Code
+qdd consola activar   # el panel, en Claude Code (init ya conectó el servidor MCP)
 ```
 
 ## Qué trae
