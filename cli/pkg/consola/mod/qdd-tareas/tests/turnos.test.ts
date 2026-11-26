@@ -45,7 +45,6 @@ async function montado($, on, acciones, esperas = [EN_LA_TABLA], estado = null) 
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await esperar()
   const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
-  if (await ui.find({ key: 'preguntas-ver' })) await ui.press({ key: 'preguntas-ver' })
   return { ui, r }
 }
 
