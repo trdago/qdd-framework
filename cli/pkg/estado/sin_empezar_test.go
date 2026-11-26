@@ -54,7 +54,7 @@ func TestSet_TareaNuevaQuedaSinEmpezarYSigueEnElPanel_FND085(t *testing.T) {
 	}
 }
 
-// FND-156 (qdd-movile, sfrc): esperan 13, esperas 2, ocultos 10. El teléfono decía «2 esperan una consola» con unos 10 ⏳
+// FND-156 (qdd-movile, proyecto-a): esperan 13, esperas 2, ocultos 10. El teléfono decía «2 esperan una consola» con unos 10 ⏳
 // de la persona, porque solo podía contar los de las tareas visibles.
 func TestDatos_EsperanPersonaCuentaTambienLasOcultas_FND156(t *testing.T) {
 	yaml := "formato: 1\netapas: [Código, Pruebas]\nfrentes:\n" +

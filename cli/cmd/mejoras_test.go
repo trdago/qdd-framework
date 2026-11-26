@@ -31,15 +31,15 @@ func TestMejoras_UnaSesionReportaAOtroProyectoYSuCicloLoEntrega(t *testing.T) {
 	viejas := mejorasFuentes
 	mejorasFuentes = func() mejoras.Fuentes { return mejoras.Fuentes{} }
 	t.Cleanup(func() { mejorasFuentes = viejas })
-	qdd, sfrc := proyectoMejoras(t, "qdd"), proyectoMejoras(t, "sfrc")
+	qdd, proyectoA := proyectoMejoras(t, "qdd"), proyectoMejoras(t, "proyecto-a")
 	if err := registro.Anotar(qdd, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	var salida, errores bytes.Buffer
-	if c := mejorasReportar(sfrc, "qdd", mejoras.Reporte{Titulo: "Las consultas no salen en el tablero", Autor: "sfrc-82"}, &salida, &errores); c != 0 {
+	if c := mejorasReportar(proyectoA, "qdd", mejoras.Reporte{Titulo: "Las consultas no salen en el tablero", Autor: "sfrc-82"}, &salida, &errores); c != 0 {
 		t.Fatalf("%d %s", c, errores.String())
 	}
-	if c := mejorasReportar(sfrc, "no-existe", mejoras.Reporte{Titulo: "x"}, &salida, &errores); c != 1 || !strings.Contains(errores.String(), "qdd") {
+	if c := mejorasReportar(proyectoA, "no-existe", mejoras.Reporte{Titulo: "x"}, &salida, &errores); c != 1 || !strings.Contains(errores.String(), "qdd") {
 		t.Fatalf("un proyecto desconocido dice cuáles hay: %d %s", c, errores.String())
 	}
 	salida.Reset()
@@ -58,7 +58,7 @@ func TestMejoras_UnaSesionReportaAOtroProyectoYSuCicloLoEntrega(t *testing.T) {
 	if c := mejorasLista(qdd, false, &salida, &errores); c != 0 || !strings.Contains(salida.String(), "MEJ-001") || !strings.Contains(salida.String(), mejoras.EnTarea) {
 		t.Fatalf("%d %s", c, salida.String())
 	}
-	if c := mejorasLista(sfrc, false, &salida, &errores); c != 0 {
+	if c := mejorasLista(proyectoA, false, &salida, &errores); c != 0 {
 		t.Fatal("la cola del que reporta sigue vacía")
 	}
 }

@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-// «Para ti» de todos los proyectos (#256, 2026-11-15): la persona no vio las fichas ni las preguntas de notificador,
+// «Para ti» de todos los proyectos (#256, 2026-11-15): la persona no vio las fichas ni las preguntas de proyecto-b,
 // abiertas en otra sesión, y el panel pasó a mostrar debajo de lo propio lo que la espera en los demás proyectos.
 // MEJ-086 (2026-11-15): así el tablero de cada consola mostraba proyectos que no eran el de la sesión. La persona eligió
 // «Solo este + una línea»: «Para ti» muestra solo este proyecto y, si otros la esperan, una línea que los cuenta y abre
@@ -15,7 +15,7 @@ const PANEL = {
   surface: 'terminal',
 } as const
 
-const CARPETA = '/home/p/notificador_de_ofertas'
+const CARPETA = '/home/p/proyecto-b'
 const FICHA = { id: 'aprobar:usuarios', tipo: 'aprobar', etiqueta: 'Aprobar «Usuarios»', detalle: 'qdd modules approve usuarios', confirmar: true, turno: 3 }
 const PEDIDO = { id: 'pedido:1', tipo: 'pedido', etiqueta: 'Subir d5b19cc4', detalle: 'git push', tecla: 'a', estado: 'pendiente', confirmar: true, turno: 1 }
 const ASK = {
@@ -23,7 +23,7 @@ const ASK = {
   preguntas: [{ id: 'q1', encabezado: 'Push', texto: '¿Subo a producción?', opciones: [{ valor: 'a', etiqueta: 'Sí (Recommended)' }, { valor: 'b', etiqueta: 'No' }] }],
 }
 const ESPERA = { id: 'pregunta:espera-9', tipo: 'pregunta', origen: 'estado', estado: 'pendiente', etiqueta: '⏳', detalle: '¿SES listo?', confirmar: true, turno: 4 }
-const OTRO = { proyecto: 'notificador_de_ofertas', carpeta: CARPETA, acciones: [PEDIDO, ASK, FICHA, ESPERA], esperas: [{ pregunta: ESPERA.id, atender: 'atender:ses:0', donde: 'SES · Producción', texto: '¿SES listo?' }] }
+const OTRO = { proyecto: 'proyecto-b', carpeta: CARPETA, acciones: [PEDIDO, ASK, FICHA, ESPERA], esperas: [{ pregunta: ESPERA.id, atender: 'atender:ses:0', donde: 'SES · Producción', texto: '¿SES listo?' }] }
 
 type Salida = { exitCode: number; stdout: string; stderr: string }
 const ok = (d: unknown): Salida => ({ exitCode: 0, stdout: JSON.stringify(d), stderr: '' })
@@ -72,12 +72,12 @@ test('lo de otro proyecto no se dibuja en «Para ti»: una línea lo cuenta (MEJ
   expect(await ui.find({ type: 'Button', text: /Subir d5b19cc4/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /¿Subo a producción\?/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /◦ / })).toBeUndefined()
-  expect(await ui.find({ key: 'pt-otros' })).toMatchObject({ props: { label: '+ 1 proyecto te espera: notificador_de_ofertas · ver en Proyectos (y)', plain: true } })
+  expect(await ui.find({ key: 'pt-otros' })).toMatchObject({ props: { label: '+ 1 proyecto te espera: proyecto-b · ver en Proyectos (y)', plain: true } })
 })
 
 test('con varios proyectos, la línea los cuenta y los nombra', async ($, on) => {
   const { ui } = await montado($, on, [OTRO, OTRO_MAS])
-  expect(await ui.find({ key: 'pt-otros' })).toMatchObject({ props: { label: '+ 2 proyectos te esperan: notificador_de_ofertas, fairplay_agent · ver en Proyectos (y)' } })
+  expect(await ui.find({ key: 'pt-otros' })).toMatchObject({ props: { label: '+ 2 proyectos te esperan: proyecto-b, fairplay_agent · ver en Proyectos (y)' } })
 })
 
 test('la línea abre la vista Proyectos', async ($, on) => {

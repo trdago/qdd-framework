@@ -325,7 +325,7 @@ func TestSet_FrenteNuevoYCerrar(t *testing.T) {
 
 func TestPanel_AjustaAlAnchoYListaEsperasYFallas(t *testing.T) {
 	e := mustParse(t, valido)
-	lineas := Panel(e, "notificador", 40, ahora)
+	lineas := Panel(e, "proyecto-b", 40, ahora)
 	for _, l := range lineas {
 		if AnchoVisible(l) > 40 {
 			t.Fatalf("línea más ancha que la terminal (%d): %q", AnchoVisible(l), l)
@@ -372,7 +372,7 @@ func TestAbreviaturas_SonUnicasAunqueEmpiecenIgual(t *testing.T) {
 
 func TestPanel_ColumnaFrenteMideLoQueElNombreMasLargo(t *testing.T) {
 	e := mustParse(t, valido)
-	lineas := Panel(e, "notificador", 200, ahora)
+	lineas := Panel(e, "proyecto-b", 200, ahora)
 	largo := 0
 	for _, f := range e.Frentes {
 		if n := AnchoVisible(f.Nombre); n > largo {

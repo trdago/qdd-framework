@@ -10,7 +10,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Pedido de sfrc (2026-11-03): la IA dejó decisiones como ⏳ «de la persona» en el estado y nunca llegaron como
+// Pedido de proyecto-a (2026-11-03): la IA dejó decisiones como ⏳ «de la persona» en el estado y nunca llegaron como
 // preguntas al teléfono, porque solo AskUserQuestion las registra. Cada ⏳ de la persona es una pregunta de respuesta
 // libre, sacada del estado cada vez que se lee: no hay una copia que se desincronice, y sale sola cuando la celda
 // cambia. La respuesta del teléfono le llega a la IA como un mensaje de la persona.

@@ -110,14 +110,14 @@ func TestBaulPanel_GuardarDelPortapapelesListarYQuitar(t *testing.T) {
 // --direccion ambiente/servidor/servicio/clase/cuenta.
 func TestBaulLista_MuestraLaDireccion(t *testing.T) {
 	baulDePrueba(t)
-	e := baul.Entrada{Nombre: "pg-app", Tipo: "otro", Donde: baul.EnLlavero, Variable: "PGPASSWORD", Direccion: "prod/db-prod-01/notificador/postgres/app_user"}
+	e := baul.Entrada{Nombre: "pg-app", Tipo: "otro", Donde: baul.EnLlavero, Variable: "PGPASSWORD", Direccion: "prod/db-prod-01/proyecto-b/postgres/app_user"}
 	var salida bytes.Buffer
 	if err := guardarDelPortapapeles(&salida, e, &copiadoFalso{valor: "clave-de-prueba-123"}); err != nil {
 		t.Fatal(err)
 	}
 	var lista bytes.Buffer
 	listarBaul(&lista)
-	if !strings.Contains(lista.String(), "DIRECCIÓN") || !strings.Contains(lista.String(), "prod/db-prod-01/notificador/postgres/app_user") {
+	if !strings.Contains(lista.String(), "DIRECCIÓN") || !strings.Contains(lista.String(), "prod/db-prod-01/proyecto-b/postgres/app_user") {
 		t.Fatalf("la lista muestra la dirección: %s", lista.String())
 	}
 	if f := baulGuardarCmd.Flags().Lookup("direccion"); f == nil {

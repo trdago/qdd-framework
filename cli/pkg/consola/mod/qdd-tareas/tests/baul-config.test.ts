@@ -463,8 +463,8 @@ test('el vencimiento que declaró la persona se ve en la fila y vuelve al modifi
 })
 
 test('una entrada con la dirección de antes la sigue mostrando', async ($, on) => {
-  const PG = { nombre: 'pg-app', tipo: 'otro', donde: 'llavero', variable: 'PGPASSWORD', direccion: 'prod/db-prod-01/notificador/postgres/app_user', guardado: '2026-11-13T00:00:00Z' }
+  const PG = { nombre: 'pg-app', tipo: 'otro', donde: 'llavero', variable: 'PGPASSWORD', direccion: 'prod/db-prod-01/proyecto-b/postgres/app_user', guardado: '2026-11-13T00:00:00Z' }
   const r = nuevo([PG])
   const ui = await abrirConfig($, on, r)
-  expect(await ui.find({ type: 'Text', text: /prod\/db-prod-01\/notificador\/postgres\/app_user · llavero/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /prod\/db-prod-01\/proyecto-b\/postgres\/app_user · llavero/ })).toBeDefined()
 })

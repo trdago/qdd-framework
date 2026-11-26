@@ -11,7 +11,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// MEJ-061 / FND-203: en sfrc qdd audit dio 0 y el CI rechazó el commit por gofmt. El gate revisa el formato con el formateador
+// MEJ-061 / FND-203: en proyecto-a qdd audit dio 0 y el CI rechazó el commit por gofmt. El gate revisa el formato con el formateador
 // que usa el proyecto, como el CI; sin el formateador lo dice y no bloquea.
 
 const goSinFormato = "package x\n\nfunc  F( ) int {\nreturn 1\n}\n"
@@ -75,7 +75,7 @@ func TestFormato_GoConFormatoNoDiceNada(t *testing.T) {
 	}
 }
 
-// FND-203: el caso de sfrc, con el módulo de Go en backend/ y el CI corriendo gofmt ahí.
+// FND-203: el caso de proyecto-a, con el módulo de Go en backend/ y el CI corriendo gofmt ahí.
 func TestFormato_FND203_GoEnUnaSubcarpetaTambienSeRevisa(t *testing.T) {
 	dir := proyectoCon(t, map[string]string{"backend/go.mod": "module x\n", "backend/internal/h.go": goSinFormato, "frontend/package.json": "{}"})
 	vs := violacionesDe(RunFormatoCheck(dir), ReglaFormato)

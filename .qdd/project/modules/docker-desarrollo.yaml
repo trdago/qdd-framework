@@ -8,7 +8,7 @@ objetivo_operativo:
     problema: La persona recuerda el desarrollo muy lento con front y back en Docker. Nada en QDD lo impedía, y una IA podía proponerlo sin decir lo que cuesta.
     usuarios: Las personas y las IAs que desarrollan con QDD en cualquier proyecto.
     criterio_de_exito: Quien pone la app en Docker para desarrollar se entera de que será más lento y por qué, y decide. Una base de datos en Docker no genera ningún aviso.
-    caso_real: '2026-11-07: en sfrc la persona pidió que QDD no ponga Docker en desarrollo salvo para la base de datos; si alguien igual lo quiere, avisar que aumenta la lentitud y explicar por qué.'
+    caso_real: '2026-11-07: en proyecto-a la persona pidió que QDD no ponga Docker en desarrollo salvo para la base de datos; si alguien igual lo quiere, avisar que aumenta la lentitud y explicar por qué.'
 objetivo_tecnologico:
     arquitectura: RunDockerDesarrolloCheck recorre el proyecto y lee cada compose de desarrollo y .devcontainer. Da una recomendación DEV-01-APP-EN-DOCKER. La forma de trabajo le pide a la IA avisar antes de proponerlo. La explicación con fuentes está en docs/docker-en-desarrollo.md.
     decisiones:

@@ -7,7 +7,7 @@ objetivo_operativo:
     problema: 'El CI de un proyecto suele rechazar código sin formato (gofmt, prettier, ruff format…), pero el gate no lo revisaba: qdd audit aprobaba un commit que después caía en el CI, y la regla «no se commitea sin pasar el gate» no cubría lo que el CI exige.'
     usuarios: Las personas y las IAs que corren qdd audit antes de un commit, localmente y en el CI.
     criterio_de_exito: Un commit que pasa qdd audit no cae en el CI por formato. Si el formateador del proyecto no está en la máquina, el gate lo dice y no lo da por revisado.
-    caso_real: '2026-11-11 (MEJ-061, desde sfrc): qdd audit dio 0 y el CI del backend falló en «gofmt, go vet y go test»; el agente tuvo que guardar una memoria para correr el formateador aparte (FND-203).'
+    caso_real: '2026-11-11 (MEJ-061, desde proyecto-a): qdd audit dio 0 y el CI del backend falló en «gofmt, go vet y go test»; el agente tuvo que guardar una memoria para correr el formateador aparte (FND-203).'
 objetivo_tecnologico:
     arquitectura: 'RunFormatoCheck corre entre las reglas (antes de las pruebas). gofmt -l sobre todos los .go del proyecto que recorre walkProject, sin testdata, vendor ni node_modules. Los demás formateadores son una tabla (prettier, biome, ruff format, black, dart format): cada uno dice a qué carpetas aplica (la raíz o, si no, cada subcarpeta de primer nivel), cuándo el proyecto lo declara, dónde está su programa y cómo leer los archivos que marca. Una violación por formateador y carpeta, con hasta 10 archivos y el comando para arreglarlo.'
     decisiones:

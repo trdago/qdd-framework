@@ -432,7 +432,7 @@ func init() {
 	baulGuardarCmd.Flags().StringVar(&baulTipo, "tipo", "", "el sitio: cloudflare, github, supabase, resend, aws-sso u otro (con --url)")
 	baulGuardarCmd.Flags().StringVar(&baulEn, "en", baul.EnLlavero, "llavero o 1password")
 	baulGuardarCmd.Flags().StringVar(&baulVariable, "variable", "", "con --tipo otro: la variable de entorno donde va")
-	baulGuardarCmd.Flags().StringVar(&baulDireccion, "direccion", "", "ambiente/servidor/servicio/clase/cuenta (p. ej. prod/db-01/notificador/postgres/app_user; ambiente: dev, qa, prod o global): una dirección es de una sola entrada")
+	baulGuardarCmd.Flags().StringVar(&baulDireccion, "direccion", "", "ambiente/servidor/servicio/clase/cuenta (p. ej. prod/db-01/proyecto-b/postgres/app_user; ambiente: dev, qa, prod o global): una dirección es de una sola entrada")
 	baulGuardarCmd.Flags().BoolVar(&baulPortapapeles, "portapapeles", false, "lee el valor del portapapeles y lo vacía (lo usa Config en el panel)")
 	baulGuardarCmd.Flags().BoolVar(&baulNuevo, "nuevo", false, "solo si el nombre no existe: agregar nunca reemplaza otro acceso")
 	for _, c := range []*cobra.Command{baulGuardarCmd, baulEditarCmd} {

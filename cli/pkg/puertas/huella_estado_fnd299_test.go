@@ -3,7 +3,7 @@ package puertas
 import "testing"
 
 // Rule: Prohibido usar 'else'
-// FND-299 (notificador_de_ofertas, 2026-11-22): la puerta audit rechazó dos commits porque estado.yaml cambió después
+// FND-299 (proyecto-b, 2026-11-22): la puerta audit rechazó dos commits porque estado.yaml cambió después
 // del qdd audit (8 min ahí). Las reglas piden a la IA mover el tablero mientras trabaja, y cada escritura del tablero ya
 // se valida antes de guardarse. La huella deja fuera .qdd/project/estado.yaml (elegido por el modo goal, la opción
 // recomendada); cualquier otro archivo la sigue cambiando.

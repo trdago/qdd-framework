@@ -14,7 +14,7 @@ func rulesFor(t *testing.T, files map[string]string) []Violation {
 	return RunDeployGateCheck(dir)
 }
 
-// Caso real (notificador): "Test & Deploy" que solo construye y sube a S3.
+// Caso real (proyecto-b): "Test & Deploy" que solo construye y sube a S3.
 func TestDeployGate_GitHubDeployWithoutTests(t *testing.T) {
 	v := rulesFor(t, map[string]string{".github/workflows/deploy.yml": `
 name: Test & Deploy

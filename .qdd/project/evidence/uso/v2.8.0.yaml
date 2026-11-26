@@ -36,8 +36,8 @@ proyectos:
     fairplay_agent: 4.81
     go: 0
     hypr-materialize: 0.21
-    llmlocal: 5.7
-    notificador_de_ofertas: 15.67
+    proyecto-c: 5.7
+    proyecto-b: 15.67
     proy-herr: 0.01
     proy-tutor.CMLh: 0
     proyectos: 0.19
@@ -45,5 +45,5 @@ proyectos:
     qdd: 18.48
     qdd-movile: 11.04
     qproj: 0
-    sfrc: 1.37
+    proyecto-a: 1.37
     teleLg: 0.06

@@ -9,12 +9,12 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// FND-109 (notificador_de_ofertas, 2026-11-02): la IA escribió 'qdd estado set segmento-barra …' y 'set qdd-estado …'
+// FND-109 (proyecto-b, 2026-11-02): la IA escribió 'qdd estado set segmento-barra …' y 'set qdd-estado …'
 // para tareas que ya existían como barra-estado y estado-por-frente; set las creó en silencio (con el id de nombre) y
 // hubo que descartarlas a mano. Regla de QDD: nombrar una tarea u objetivo nunca lo crea. Crear es explícito (qdd estado
 // nueva, o --nombre) y qdd da o valida el id; una referencia que no existe es un error que sugiere la más parecida.
 
-const notificador = `formato: 2
+const proyectoB = `formato: 2
 etapas: [Código, Pruebas]
 objetivos:
   - {id: gemini, nombre: Retirar Gemini, criterio: sin llamadas a Gemini, estado: abierto}
@@ -32,7 +32,7 @@ func proyectoNotificador(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(ruta, []byte(notificador), 0o644); err != nil {
+	if err := os.WriteFile(ruta, []byte(proyectoB), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return root
@@ -214,7 +214,7 @@ func TestIDs_ElCheckNoRechazaIDsViejos_FND109(t *testing.T) {
 }
 
 func TestIDs_DoctorVeLasTareasQueParecenFantasma_FND109(t *testing.T) {
-	e := mustParse(t, notificador+`  - {id: qdd-estado, nombre: qdd-estado, estado: abierto, celdas: {Código: {estado: ✅, evidencia: x}, Pruebas: {estado: ·}}}
+	e := mustParse(t, proyectoB+`  - {id: qdd-estado, nombre: qdd-estado, estado: abierto, celdas: {Código: {estado: ✅, evidencia: x}, Pruebas: {estado: ·}}}
   - {id: quitar-claves, nombre: Quitar las claves de Gemini, estado: abierto, celdas: {Código: {estado: ·}, Pruebas: {estado: ·}}}
   - {id: vieja, nombre: vieja, estado: descartado, motivo_cierre: x, cerrado_el: "2026-11-01T00:00:00Z", celdas: {Código: {estado: ·}, Pruebas: {estado: ·}}}
 `)
@@ -227,7 +227,7 @@ func TestIDs_DoctorVeLasTareasQueParecenFantasma_FND109(t *testing.T) {
 	if s := Sospechosas(repetida); len(s) != 0 {
 		t.Fatalf("cada palabra cuenta una vez: %v", s)
 	}
-	if s := Sospechosas(mustParse(t, notificador)); len(s) != 0 {
+	if s := Sospechosas(mustParse(t, proyectoB)); len(s) != 0 {
 		t.Fatalf("un estado sano no tiene sospechosas: %v", s)
 	}
 }
