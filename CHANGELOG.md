@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.146] - 2026-11-26
+
+### Changed
+
+- **La tecla `l` del panel revisa lo que te espera:** además de volver a leer el tablero, le manda a la IA la lista completa de lo que espera de ti, también lo que el panel esconde: cada ⏳ y cada pedido sin confirmar. La IA cierra con evidencia lo que ya se respondió o ya no va, y deja como pregunta clara, con la opción recomendada, solo lo que de verdad te espera. Nunca responde por ti. La lista sale del nuevo `qdd consola revisar --json`. Si nada te espera, la `l` solo relee, y dos `l` seguidas mandan una sola revisión.
+
 ## [2.10.0-rc.145] - 2026-11-26
 
 ### Fixed

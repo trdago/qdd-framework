@@ -152,6 +152,9 @@ let firma = ''
 let confirmando = null // la acción que espera el segundo paso
 let resultado = null // { titulo, ok, texto, zona }
 let ocupado = false
+// Revisión de lo que espera a la persona (tecla l): cuándo se mandó la última, para que dos l seguidas manden una sola.
+let revisionEnviada = -Infinity
+const REVISION_CADA_MS = 60_000
 // Botón 📷 (pedido de la persona, 2026-11-07): fotoHay es lo que dijo «qdd foto --hay» (si, no, no_se; null con un qdd que
 // no lo conoce) y fotoAviso, cómo terminó el último 📷, que se borra solo a las FOTO_AVISO_LECTURAS lecturas.
 let fotoHay = null
@@ -1722,11 +1725,38 @@ function preguntar($, texto) {
   $.ui.invalidate('ui.render')
 }
 
-// releer: «l ↻» vuelve a leer el tablero en el acto, sin esperar a la próxima lectura.
+// releer: «l ↻» vuelve a leer el tablero en el acto, sin esperar a la próxima lectura, y le pide a la IA que vuelva a
+// evaluar todo lo que espera a la persona (pedido de la persona, 2026-11-26: «preguntas van quedando en el camino como
+// residuo […] y ya están contestadas»).
 async function releer($) {
   await leer($)
   if (proyectos) await leerProyectos($)
+  await pedirRevision($)
   $.ui.invalidate('ui.render')
+}
+
+// pedirRevision manda a la IA lo que arma qdd consola revisar: cada ⏳ de la persona y cada pedido sin confirmar, para
+// que cierre con evidencia lo ya respondido y deje solo lo que aporta valor. Dos l seguidas mandan una sola revisión;
+// sin nada que revisar, o con un qdd sin el comando, la l solo relee.
+async function pedirRevision($) {
+  const ahora = await $.clock.now()
+  if (ahora - revisionEnviada < REVISION_CADA_MS) return
+  const bin = await binario($)
+  let rev = null
+  try {
+    const r = await $.process.run([bin, 'consola', 'revisar', '--json'], { timeoutMs: TOPE_MS })
+    rev = r.exitCode === 0 ? JSON.parse(r.stdout || 'null') : null
+  } catch {
+    rev = null
+  }
+  if (!rev) return
+  if (!rev.texto) {
+    resultado = { titulo: '↻ Releído', ok: true, texto: '✓ Nada te espera', zona: 'tabla' }
+    return
+  }
+  revisionEnviada = ahora
+  resultado = { titulo: '↻ Revisar lo que te espera', ok: true, texto: '→ la IA revisa ' + rev.total + ' y deja solo lo que aporta valor', zona: 'tabla' }
+  $.prompt.submit({ text: rev.texto }).catch((err) => $.ui.log('no se envió la revisión a la IA: ' + String(err?.message ?? err)))
 }
 
 // fallas: cada etapa en ❌ como «• tarea › etapa» y debajo, atenuado, qué falla.
