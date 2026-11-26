@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.138] - 2026-11-26
+
+### Fixed
+
+- **Las preguntas del tablero se ven en «▶ Para ti» (FND-327):** antes llegaban plegadas en «? N» y, al abrirlas, solo 5. Ahora llegan desplegadas y todas; «? N» las pliega si quieres. Los pedidos y las fichas siguen primero.
+
 ## [2.10.0-rc.137] - 2026-11-26
 
 ### Fixed

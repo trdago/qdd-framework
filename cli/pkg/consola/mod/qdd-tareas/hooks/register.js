@@ -1713,10 +1713,6 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   })
 }
 
-// TOPE_ESPERAS: cuántos ⏳ se ven de entrada, para no empujar fuera lo demás; «ver las N» trae el resto.
-const TOPE_ESPERAS = 5
-let esperasTodas = false
-
 // preguntar envía a la conversación la pregunta que qdd da para una tarea u objetivo: la IA responde avance, bloqueos
 // y siguiente paso, y actualiza el estado con evidencia.
 function preguntar($, texto) {
@@ -2125,12 +2121,8 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
   const tarjetaDe = (a) => (esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : dibujo(a))
   const conLugar = new Set(turnos.map((a) => a.id))
   const sueltas = preguntas.filter((q) => !conLugar.has(q.pregunta))
-  const puestas = []
-  const espera = (q) => {
-    if (!esperasTodas && puestas.length >= TOPE_ESPERAS) return []
-    puestas.push(q)
-    return [preguntaDeParaTi(Box, Text, Button, $, q, puestas.length - 1, ancho)]
-  }
+  let puestas = 0
+  const espera = (q) => [preguntaDeParaTi(Box, Text, Button, $, q, puestas++, ancho)]
   const preguntaEn = new Map(preguntas.map((q) => [q.pregunta, q]))
   const teclasFichas = teclas(fichas)
   const fila = (a) => {
@@ -2141,17 +2133,16 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
     if (!q) return []
     return espera(conLugarEnLaLista(q, a))
   }
-  // Pedido de la persona (2026-11-08): las acciones (pedidos y fichas) se ven; las preguntas (⏳ y lo abierto en la
-  // terminal) quedan plegadas en «? N», que se despliega si la persona quiere. Cada una conserva su número de turno.
+  // Pedido de la persona (2026-11-08): las acciones (pedidos y fichas) van primero y las preguntas después, bajo «? N».
+  // Llegan desplegadas y todas, sin tope (2026-11-26): con 30 plegadas la persona no veía ninguna. «? N» las pliega si
+  // ella quiere. Cada una conserva su número de turno.
   const esAccion = (a) => a.tipo === 'pedido' || a.tipo === 'aprobar'
   const enTurno = turnos.filter(esAccion).flatMap(fila)
   const arriba = [...enTerminal, ...locales].map((a) => preguntaArriba(Box, Text, Button, $, a))
   const cuerpo = [...arriba, ...enTurno, ...[...abiertos, ...hechos].map(tarjetaDe), ...seVa]
   if (preguntas.length) cuerpo.push(...preguntasPlegadas(Button, $, preguntas.length, () => {
     const enLaLista = turnos.filter((a) => !esAccion(a) && !esDeLaTerminal(a)).flatMap(fila)
-    const sinLugar = sueltas.flatMap(espera)
-    const resto = preguntas.length - puestas.length
-    return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
+    return [...enLaLista, ...sueltas.flatMap(espera)]
   }))
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
@@ -2175,8 +2166,8 @@ function esConfirmacionDe(a) {
   return confirmando?.id === a.id
 }
 
-// preguntasPlegadas: el botón «? N» y, si la persona lo abrió, las preguntas debajo. filas se calcula solo abierto.
-let preguntasAbiertas = false
+// preguntasPlegadas: el botón «? N» y, salvo que la persona lo plegó, las preguntas debajo. filas se calcula solo abierto.
+let preguntasAbiertas = true
 
 function preguntasPlegadas(Button, $, n, filas) {
   const boton = Button({ key: 'preguntas-ver', label: (preguntasAbiertas ? '▾ ' : '▸ ') + '? ' + n + (n === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarPreguntas($) })
@@ -2290,11 +2281,6 @@ async function responderEspera($, q, valor) {
 let tuyasVisibles = false
 function verLasTuyas($) {
   tuyasVisibles = true
-  $.ui.invalidate('ui.render')
-}
-
-function verTodasLasEsperas($) {
-  esperasTodas = true
   $.ui.invalidate('ui.render')
 }
 
