@@ -869,7 +869,7 @@ onUnmounted(() => {
           <div class="brand-logo"><span class="icon" style="color:var(--accent-color)">◬</span></div>
           <div class="brand-text" v-show="!isSidebarCollapsed">
             <h1>QDD Framework</h1>
-            <span class="version-badge">{{ state?.version || 'v1.1.0' }}</span>
+            <span class="version-badge">{{ state?.version || 'sin medir' }}</span>
           </div>
         </div>
         <button class="hamburger-btn" @click="isSidebarCollapsed = !isSidebarCollapsed" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 4px;">☰</button>

@@ -2,6 +2,7 @@ package consola
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -21,6 +22,15 @@ type Orden struct {
 	// Tarea es la tarea del estado que el pedido extiende (sin ella, la tarea en curso): si sigue cambiando después
 	// de un mensaje de la persona, el pedido sale del panel hasta que se pide de nuevo.
 	Tarea string
+	// DeNuevo: lo pide aunque ya se haya hecho hace poco o esté abierto con otro texto (seguro, pedidos_seguro.go).
+	DeNuevo bool
+	// DePersona: solo la persona lo puede confirmar; el modo goal no lo lanza (el permiso de un token, RFC 0023).
+	DePersona bool
+	// Reemplaza: id o tecla de un pedido que falló o sigue pendiente; el nuevo toma su lugar en la cadena (MEJ-072).
+	Reemplaza string
+	// Reactiva: lo pide alguien a propósito (CLI o tool), así que el mismo que falló vuelve a pendiente (FND-317). Un
+	// ciclo automático no la usa: con el modo goal repetiría un fallo sin fin.
+	Reactiva bool
 }
 
 func (o Orden) vacio() bool {
@@ -68,6 +78,9 @@ func esperaA(p Pedido, cola []Pedido) []string {
 			}
 		}
 	}
+	for _, d := range p.Descartados {
+		faltan = append(faltan, d.Nombre+" (descartado)")
+	}
 	return faltan
 }
 
@@ -95,6 +108,37 @@ func esperados(cola []Pedido) map[string]bool {
 		}
 	}
 	return out
+}
+
+// sinCumplidas quita de despues las teclas de pedidos que ya terminaron bien (FND-196): en modo goal un pedido se
+// confirma en segundos y su tecla queda libre, así que quien lo espera llega tarde. Una tecla de un pedido abierto o un id
+// siguen como están, y una tecla que nadie tuvo sigue siendo un error.
+func sinCumplidas(cola []Pedido, hechos []hechoAnotado, despues []string) []string {
+	var out []string
+	for _, ref := range despues {
+		if teclaCumplida(cola, hechos, strings.TrimSpace(ref)) {
+			continue
+		}
+		out = append(out, ref)
+	}
+	return out
+}
+
+func teclaCumplida(cola []Pedido, hechos []hechoAnotado, ref string) bool {
+	if _, err := resolver(cola, ref); err == nil {
+		return false
+	}
+	for _, p := range cola {
+		if p.Estado == EstadoHecho && p.Tecla == ref {
+			return true
+		}
+	}
+	for _, h := range hechos {
+		if h.Tecla == ref {
+			return true
+		}
+	}
+	return false
 }
 
 // resolver convierte una referencia (id o tecla de un pedido abierto) en el id del pedido.
@@ -134,7 +178,9 @@ func ordenar(cola []Pedido, i int, orden Orden) error {
 		if j == i {
 			return fmt.Errorf("el pedido %s no puede ir antes de sí mismo", cola[i].ID)
 		}
-		if !cola[j].Ejecutable() {
+		// Uno armado sigue armado: su bucle mira cada CadaEspera lo que espera, y esperar uno más no cambia lo que la
+		// persona confirmó (MEJ-072).
+		if !cola[j].Ejecutable() && cola[j].Estado != EstadoArmado {
 			return fmt.Errorf("no puede ir antes del pedido %s: %v", cola[j].ID, errNoEjecutable(cola[j].ID, cola[j].Estado))
 		}
 		cola[j].Despues = agregarUno(cola[j].Despues, cola[i].ID)
@@ -186,7 +232,16 @@ func ciclo(cola []Pedido) bool {
 	return false
 }
 
-// sinDependencia quita id de lo que esperan los demás: lo que se descarta ya no bloquea a nadie.
+// Descartado es un pedido que otro esperaba y se descartó (FND-213): con qué tecla y motivo lo vio la persona, y su
+// comando y carpeta, para reconocerlo si la IA lo pide de nuevo.
+type Descartado struct {
+	Nombre  string `json:"nombre"`
+	Motivo  string `json:"motivo"`
+	Comando string `json:"comando"`
+	Carpeta string `json:"carpeta"`
+}
+
+// sinDependencia quita id de lo que esperan los demás.
 func sinDependencia(cola []Pedido, id string) []Pedido {
 	for i := range cola {
 		resto := cola[i].Despues[:0:0]
@@ -200,5 +255,104 @@ func sinDependencia(cola []Pedido, id string) []Pedido {
 			cola[i].Despues = nil
 		}
 	}
+	return cola
+}
+
+// bloquearDependientes: lo que esperaba a un pedido descartado no queda libre (FND-213). Un despliegue que esperaba un
+// push descartado correría desde el código viejo. Queda bloqueado, con el motivo a la vista, hasta que la IA lo pida de
+// nuevo o pida de nuevo lo descartado; uno ya confirmado (armado) deja de esperar.
+func bloquearDependientes(cola []Pedido, d Pedido) []Pedido {
+	marca := Descartado{Nombre: nombreDe(d), Motivo: d.Motivo, Comando: d.Comando, Carpeta: d.Carpeta}
+	for i := range cola {
+		if !slices.Contains(cola[i].Despues, d.ID) || !cola[i].Abierto() {
+			continue
+		}
+		cola[i].Descartados = append(cola[i].Descartados, marca)
+		if cola[i].Estado == EstadoArmado {
+			cola[i] = desarmado(cola[i], "Dejó de esperar: "+bloqueoDe(cola[i])+".")
+		}
+	}
+	return sinDependencia(cola, d.ID)
+}
+
+// bloqueoDe dice por qué un pedido no se confirma: lo que esperaba se descartó.
+func bloqueoDe(p Pedido) string {
+	var nombres []string
+	for _, d := range p.Descartados {
+		nombres = append(nombres, d.Nombre+" «"+d.Motivo+"»")
+	}
+	return "esperaba a " + strings.Join(nombres, ", ") + ", que se descartó: la IA tiene que pedirlo de nuevo o descartarlo"
+}
+
+// sinBloqueo: la IA pidió de nuevo un pedido bloqueado, sabiendo que lo que esperaba se descartó; vuelve a poder correr.
+func sinBloqueo(cola []Pedido, id string) []Pedido {
+	for i := range cola {
+		if cola[i].ID == id {
+			cola[i].Descartados = nil
+		}
+	}
+	return cola
+}
+
+// sinReemplazado saca de la cola el pedido que el nuevo reemplaza (MEJ-072) y lo devuelve, para que el nuevo herede
+// su tecla y lo que esperaba. Solo uno que falló o sigue pendiente: uno armado o en curso ya tiene el «s  Sí» de la
+// persona.
+func sinReemplazado(cola []Pedido, ref string) ([]Pedido, Pedido, error) {
+	if strings.TrimSpace(ref) == "" {
+		return cola, Pedido{}, nil
+	}
+	i, err := resolver(cola, ref)
+	if err != nil {
+		return nil, Pedido{}, err
+	}
+	viejo := cola[i]
+	if !viejo.Ejecutable() {
+		return nil, Pedido{}, fmt.Errorf("no se puede reemplazar: %v", errNoEjecutable(viejo.ID, viejo.Estado))
+	}
+	return append(append([]Pedido{}, cola[:i]...), cola[i+1:]...), viejo, nil
+}
+
+// heredarEsperas: lo que esperaba al pedido viejo pasa a esperar al nuevo.
+func heredarEsperas(cola []Pedido, viejo, nuevo string) []Pedido {
+	for i := range cola {
+		for j, d := range cola[i].Despues {
+			if d == viejo {
+				cola[i].Despues[j] = nuevo
+			}
+		}
+	}
+	return cola
+}
+
+// reenganchar: la IA pidió de nuevo lo que se había descartado (el mismo comando en la misma carpeta); los que lo
+// esperaban vuelven a esperar al nuevo.
+func reenganchar(cola []Pedido, nuevo Pedido) []Pedido {
+	for i := range cola {
+		resto := cola[i].Descartados[:0:0]
+		for _, d := range cola[i].Descartados {
+			if d.Comando == nuevo.Comando && d.Carpeta == nuevo.Carpeta && cola[i].ID != nuevo.ID {
+				cola[i].Despues = append(cola[i].Despues, nuevo.ID)
+				continue
+			}
+			resto = append(resto, d)
+		}
+		cola[i].Descartados = resto
+		if len(resto) == 0 {
+			cola[i].Descartados = nil
+		}
+	}
+	return cola
+}
+
+// reactivado: pedido de nuevo, el que falló vuelve a pendiente sin su resultado ni su «s  Sí» (FND-317).
+func reactivado(cola []Pedido, id string, reactiva bool) []Pedido {
+	i := indiceID(cola, id)
+	if !reactiva || i < 0 || cola[i].Estado != EstadoFallo {
+		return cola
+	}
+	p := &cola[i]
+	p.Estado, p.Codigo, p.Salida, p.Inicio, p.Fin = EstadoPendiente, 0, "", nil, nil
+	p.Confirmado, p.Sesion, p.Avisado, p.Huella = nil, "", false, ""
+	p.ArmadoEn, p.Proximo, p.Intentos, p.Aviso, p.AvisoEn = nil, nil, 0, "", nil
 	return cola
 }

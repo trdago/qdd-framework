@@ -7,3 +7,4 @@ enterprise: false
 ai_governance: true
 allow_execution: true
 uso_minimo_horas: 5
+puertas: {}

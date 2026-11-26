@@ -1,0 +1,9 @@
+id: "FND-314"
+title: "qdd estado escribe en el tablero de otro proyecto si este todavía no tiene el suyo"
+description: "2026-11-24, al recorrer la guía en una caja (git init y qdd init) dentro de un worktree de qdd. estado.BuscarRaiz (cli/pkg/estado/render.go) sube carpetas hasta encontrar un estado.yaml, sin detenerse en un proyecto con su propio .qdd y su propio .git. «qdd estado init» dijo que ya existía y «qdd estado nueva» creó la tarea en el tablero de qdd. Subir es a propósito en un worktree (.git es un archivo), que usa el tablero del checkout principal; un repositorio propio (.git es una carpeta) no debería."
+impact: "En un proyecto anidado, las tareas quedan en el tablero de otro y el propio no se puede crear."
+action_taken: "La búsqueda del tablero se detiene en un repositorio propio con QDD (.git es carpeta y hay .qdd); un worktree sigue usando el de su checkout principal. La tarea que se coló se descartó con su motivo."
+test_result: "cli/pkg/estado/raiz_fnd314_test.go. Fallaba antes del cambio y pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-24"

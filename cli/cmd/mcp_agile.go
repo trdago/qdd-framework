@@ -3,8 +3,9 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/qdd-framework/qdd/pkg/findings"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,8 +13,10 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/qdd-framework/qdd/pkg/audit"
+	"github.com/qdd-framework/qdd/pkg/findings"
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 	"github.com/qdd-framework/qdd/pkg/integration"
-	"gopkg.in/yaml.v3"
 )
 
 func registerFindingsTool(s *server.MCPServer) {
@@ -21,68 +24,39 @@ func registerFindingsTool(s *server.MCPServer) {
 		mcp.WithDescription("Findings del proyecto (bugs, vulnerabilidades)."),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		qddDir := filepath.Join(".", ".qdd", "project", "findings")
-		if _, err := os.Stat(qddDir); os.IsNotExist(err) {
+		if _, err := os.Stat(findings.Dir(".")); os.IsNotExist(err) {
 			return mcp.NewToolResultText("No se encontró el directorio de findings (.qdd/project/findings)."), nil
 		}
-
-		files, err := os.ReadDir(qddDir)
+		fs, err := findings.Leer(".")
 		if err != nil {
 			return mcp.NewToolResultText(fmt.Sprintf("Error leyendo directorio de findings: %v", err)), nil
 		}
-
-		out, total := processFindingsFiles(qddDir, files)
-
-		if total == 0 {
+		if len(fs) == 0 {
 			return mcp.NewToolResultText("No hay hallazgos registrados en el proyecto."), nil
 		}
-
-		return mcp.NewToolResultText(out), nil
+		return mcp.NewToolResultText(reporteFindings(fs)), nil
 	})
 }
 
-func processFindingsFiles(qddDir string, files []os.DirEntry) (string, int) {
+// iconoFinding: cada estado de pkg/findings con el suyo; un sin estado no es abierto ni resuelto (FND-261).
+var iconoFinding = map[findings.Estado]string{
+	findings.Abierto: "🔴", findings.Resuelto: "🟢", findings.Descartado: "⚪", findings.SinEstado: "❔",
+}
+
+// reporteFindings cuenta con pkg/findings, como los demás lectores (FND-261).
+func reporteFindings(fs []findings.Finding) string {
 	out := "--- QDD FINDINGS REPORT ---\n\n"
-	total := 0
-	resolved := 0
-	pending := 0
-
-	for _, file := range files {
-		if shouldProcessFinding(file) {
-			processSingleFinding(filepath.Join(qddDir, file.Name()), &out, &total, &resolved, &pending)
+	for _, f := range fs {
+		estado := strings.ToUpper(f.EstadoOriginal)
+		if f.Estado == findings.SinEstado {
+			estado = "SIN ESTADO"
 		}
+		out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", iconoFinding[f.Estado], f.ID, strings.ToUpper(f.Severidad), estado, f.Titulo)
 	}
-
+	c := findings.Contar(fs)
 	out += "\n-------------------------------\n"
-	out += fmt.Sprintf("Total: %d | Resueltos: %d | Pendientes: %d\n", total, resolved, pending)
-	return out, total
-}
-
-func shouldProcessFinding(file os.DirEntry) bool {
-	return !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml")
-}
-
-func processSingleFinding(path string, out *string, total, resolved, pending *int) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-
-	var f Finding
-	if err := yaml.Unmarshal(content, &f); err != nil {
-		return
-	}
-
-	*total++
-	icon := "🔴"
-	if findings.Normalizar(f.Status) == findings.Resuelto {
-		icon = "🟢"
-		*resolved++
-		*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
-		return
-	}
-	*pending++
-	*out += fmt.Sprintf("%s [%s] [%s] %s - %s\n", icon, f.ID, strings.ToUpper(f.Severity), strings.ToUpper(f.Status), f.Title)
+	out += fmt.Sprintf("Total: %d | Resueltos: %d | Pendientes: %d | Descartados: %d | Sin estado: %d\n", len(fs), c.Resueltos, c.Abiertos, c.Descartados, c.SinEstado)
+	return out
 }
 
 func registerSprintTool(s *server.MCPServer) {
@@ -227,7 +201,7 @@ func registerSyncTool(s *server.MCPServer) {
 
 func registerReleaseTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_release",
-		mcp.WithDescription("Empaqueta una nueva versión del framework"),
+		mcp.WithDescription("Corre el gate, compila y crea un tag local."),
 		mcp.WithString("version", mcp.Required(), mcp.Description("Versión a liberar (ej: v1.0.0)")),
 	)
 	RegisterToolWithTelemetry(s, tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -245,38 +219,79 @@ func registerReleaseTool(s *server.MCPServer) {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		runReleaseBuilds(cwd)
-		updateReleaseVersion(version)
-		tagRelease(version)
+		cwd = integration.FindProjectRoot(cwd)
+		if err := publicarRelease(cwd, version, violacionesDelGate, compilarRelease); err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 
-		return mcp.NewToolResultText(fmt.Sprintf("Release %s finalizado.", version)), nil
+		return mcp.NewToolResultText(fmt.Sprintf("Release %s: gate aprobado y tag local creado. Commitea .qdd/state.json; publicar es de la persona.", version)), nil
 	})
 }
 
-func runReleaseBuilds(cwd string) {
+func violacionesDelGate(cwd string) []audit.Violation {
+	return audit.NewEngine(cwd).ParandoAlBloquear().Evaluar().Violaciones
+}
+
+// publicarRelease etiqueta solo lo que el gate aprueba y compila (FND-310). El tag va antes que state.json: si ya existe,
+// la versión anotada no cambia.
+func publicarRelease(cwd, version string, gate func(string) []audit.Violation, compilar func(string) error) error {
+	if bloqueantes := audit.Bloqueantes(gate(cwd)); len(bloqueantes) > 0 {
+		return fmt.Errorf("el gate bloquea la release %s, no se creó el tag:\n%s", version, listarViolaciones(bloqueantes))
+	}
+	if err := compilar(cwd); err != nil {
+		return fmt.Errorf("no se creó el tag %s: %w", version, err)
+	}
+	if err := correrEn(cwd, "git", "tag", "--", version); err != nil {
+		return fmt.Errorf("no se creó el tag %s: %w", version, err)
+	}
+	return updateReleaseVersion(cwd, version)
+}
+
+func compilarRelease(cwd string) error {
+	comando := comandoDeCompilar(cwd)
+	if len(comando) == 0 {
+		return nil
+	}
+	return correrEn(cwd, comando[0], comando[1:]...)
+}
+
+func comandoDeCompilar(cwd string) []string {
 	if fileExists(filepath.Join(cwd, "package.json")) {
-		exec.Command("npm", "run", "build").Run()
+		return []string{"npm", "run", "build", "--if-present"}
 	}
-
-	if !fileExists(filepath.Join(cwd, "package.json")) && fileExists(filepath.Join(cwd, "Makefile")) {
-		exec.Command("make", "build").Run()
+	if fileExists(filepath.Join(cwd, "Makefile")) {
+		return []string{"make", "build"}
 	}
+	return nil
 }
 
-func updateReleaseVersion(version string) {
-	qddDir := filepath.Join(".", ".qdd")
-	statePath := filepath.Join(qddDir, "state.json")
+func correrEn(cwd, nombre string, args ...string) error {
+	cmd := exec.Command(nombre, args...)
+	cmd.Dir, cmd.Env = cwd, gitenv.Limpio(os.Environ())
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %s: %w\n%s", nombre, strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func updateReleaseVersion(cwd, version string) error {
+	statePath := filepath.Join(cwd, ".qdd", "state.json")
 	stateData, err := os.ReadFile(statePath)
-	if err == nil {
-		var state map[string]interface{}
-		json.Unmarshal(stateData, &state)
-		state["version"] = version
-		newData, _ := json.MarshalIndent(state, "", "  ")
-		os.WriteFile(statePath, newData, 0644)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
 	}
-}
-
-func tagRelease(version string) {
-	execCmd := exec.Command("git", "tag", version)
-	execCmd.Run()
+	if err != nil {
+		return err
+	}
+	state := map[string]interface{}{}
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		return fmt.Errorf("el tag %s se creó, pero .qdd/state.json no se pudo leer: %w", version, err)
+	}
+	state["version"] = version
+	newData, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(statePath, newData, 0644)
 }

@@ -101,6 +101,8 @@ func TestTelefono_ElPanelLoMuestraComoPedidoDelTelefonoSoloConCon(t *testing.T) 
 	}
 }
 
+// contrato: remoto#b613d6de
+// contrato: remoto#0b183847
 func TestTelefono_LaInstruccionLaTomaUnaSolaSesionComoMensajeDelTelefono(t *testing.T) {
 	root := proyectoConCola(t)
 	RegistrarEjecucion(root, instruccion("s1", "!rm -rf ~"), enTelefono)

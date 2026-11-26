@@ -16,6 +16,7 @@ objetivo_tecnologico:
         - Se aceptan sinónimos y mayúsculas (closed, fixed, resuelto → resolved; pending, in-progress → open) para no romper findings antiguos.
         - Un archivo que no se puede leer como YAML se omite. No se cuenta.
         - 'EscribirCanonicos cambia solo la línea status de primer nivel y no toca los findings sin estado: ese estado lo decide una persona (FND-061).'
+        - 'Finding.Cuando es la fecha del hallazgo en cualquiera de sus nombres (date, created_at, discovered_at), para mostrar historiales. Fecha sigue siendo solo date porque el gate decide con ella (FND-02). Una fecha con otra forma no invalida el archivo: los conteos no dependen de ella (FND-170).'
     invariantes:
         - Ningún otro paquete interpreta el campo status de un finding. Todos usan Normalizar.
         - Un estado faltante o no reconocido es SinEstado. QDD no lo infiere del resto del archivo.
@@ -27,5 +28,5 @@ fuentes:
     - cli/pkg/findings/findings.go
     - cli/pkg/findings/revision.go
     - rfcs/0005-reglas-como-principios.md
-ultima_revision: "2026-11-05"
-revisado_en_commit: e29d4fcba50c
+ultima_revision: "2026-11-06"
+revisado_en_commit: 0718cc2c7985

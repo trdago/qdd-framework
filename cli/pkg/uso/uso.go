@@ -264,9 +264,14 @@ func guardar(dest string, u Uso) error {
 	return os.Rename(tmp, dest)
 }
 
+// EsperaBloqueo es lo más que un evento espera el registro de uso tomado por otro proceso. Alcanza para muchos eventos
+// juntos (cada uno lo tiene un par de milisegundos); si no, el evento no se anota: registrar el uso no demora el
+// comando que lo produce, y un evento de menos nunca inventa tiempo (FND-280).
+const EsperaBloqueo = 250 * time.Millisecond
+
 // bloquear toma el bloqueo exclusivo de el registro de uso (pkg/candado).
 func bloquear(lock string) (func(), error) {
-	return candado.Tomar(lock, 2*time.Second, "el registro de uso")
+	return candado.Tomar(lock, EsperaBloqueo, "el registro de uso")
 }
 
 // ApartarIlegibles renombra cada registro ilegible a <archivo>.ilegible: deja de estorbar sin perderse.

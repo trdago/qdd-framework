@@ -1,0 +1,9 @@
+id: "FND-263"
+title: "qdd rendimiento corría git y qdd en su caja con el GIT_DIR de quien lo lanzaba"
+description: "prepararCaja (pkg/rendimiento) armaba el entorno de la caja desde os.Environ() sin quitar las variables con que git elige repositorio. Con GIT_DIR exportado (un hook de git), conRepositorio hacía git init y git remote add origin https://github.com/qdd-medicion/proyecto.git en el repositorio del hook, y los qdd medidos trabajaban sobre él. Sus pruebas (TestMedir_*) no llamaban gitenv.LimpiarProceso y la prueba de arquitectura de gitenv no lo veía porque el exec de git no estaba en un _test.go."
+impact: "Correr go test ./... (o qdd rendimiento) desde un hook dejaba un remote origin falso en el repositorio de la persona (ficha gitenv: «Las pruebas nunca escriben en un repositorio fuera de sus carpetas temporales»)."
+action_taken: "prepararCaja pasa el entorno por gitenv.Limpio; el TestMain de pkg/rendimiento llama gitenv.LimpiarProceso; la prueba de arquitectura de gitenv cuenta también el código (no solo las pruebas) que ejecuta git; e2e/hermeticas/correr.sh corre la suite con GIT_DIR y GIT_INDEX_FILE exportados hacia un repositorio que tiene que quedar igual."
+test_result: "cli/pkg/rendimiento/rendimiento_test.go TestMedir_ConGitDirExportadoNoTocaEseRepositorio_FND263 falló («sin remotes: \"origin\"») y pasa con el arreglo; TestArquitectura_LasPruebasQueCorrenGitLimpianElEntorno falló con «../../pkg/rendimiento corre git…» y pasa; correr.sh sin el arreglo dijo «una prueba escribió en el repositorio del hook» con el remote origin."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

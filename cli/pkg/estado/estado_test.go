@@ -79,6 +79,7 @@ func TestCheck_ArchivoValidoNoTieneViolaciones(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#af16e32d
 func TestCheck_EPFC01_UnEstadoPorCelda(t *testing.T) {
 	s := strings.Replace(valido, `Pruebas: {estado: "—"}`, `Pruebas: {estado: "listo"}`, 1)
 	s = strings.Replace(s, `      Producción: {estado: "—"}`+"\n", "", 1)
@@ -104,13 +105,19 @@ func TestCheck_EPFC02_HechoSinEvidencia(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#7932e1e3
 func TestCheck_EPFC03_EsperaSinBloqueoODeQuien(t *testing.T) {
 	s := strings.Replace(valido, `de_quien: "uso real"`, `de_quien: ""`, 1)
 	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C03") {
 		t.Fatalf("⏳ sin de quién: %s", ids(vs))
 	}
+	s = strings.Replace(valido, `bloqueo: "ver un análisis con imagen"`, `bloqueo: "  "`, 1)
+	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C03") {
+		t.Fatalf("⏳ sin qué espera: %s", ids(vs))
+	}
 }
 
+// contrato: estado-por-tareas#3a638040
 func TestCheck_EPFC09_FallaSinNombrar(t *testing.T) {
 	s := strings.Replace(valido, `falla: "la URL con el ticket se imprime"`, `falla: ""`, 1)
 	if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C09") {
@@ -144,6 +151,8 @@ frentes:
 	}
 }
 
+// contrato: estado-por-tareas#3f96d503
+// contrato: estado#06cad8a1
 func TestCheck_EPFC05_FrenteQueDesapareceSinCierre(t *testing.T) {
 	prev := mustParse(t, valido)
 	cur := mustParse(t, valido)
@@ -171,15 +180,32 @@ func TestCheck_EPFC06_AprobacionPendienteNoPasaAHecho(t *testing.T) {
 	}
 }
 
+// La lista mínima de la decisión: correos, teléfonos, RUT, tokens con prefijo conocido (sk-, ghp_, AKIA, xox, npm_),
+// claves privadas, «clave=», «token=», «password=» y «Bearer …»; ni en la tabla ni en el texto del reporte.
+// contrato: estado-por-tareas#01243347
 func TestCheck_EPFC07_SinSecretosNiDatosPersonales(t *testing.T) {
-	for _, malo := range []string{"sk-abcdefghijklmnopqrstuvwx", "ghp_abcdefghijklmnopqrstuv", "AKIAABCDEFGHIJKLMNOP", "password=hunter2", "juan@empresa.cl", "RUT 12.345.678-5"} {
+	malos := []string{"sk-abcdefghijklmnopqrstuvwx", "ghp_abcdefghijklmnopqrstuv", "AKIAABCDEFGHIJKLMNOP", "password=hunter2", "juan@empresa.cl", "RUT 12.345.678-5",
+		"xoxb-1234567890-abcdefghij", "npm_abcdefghijklmnopqrstuvwxyz0123456789", "Bearer eyJhbGciOiJIUzI1NiJ9.x", "-----BEGIN OPENSSH PRIVATE KEY-----",
+		"+56 9 8765 4321", "clave=hunter2", "token=abc123", "RUT 12345678-5"}
+	for _, malo := range malos {
 		s := strings.Replace(valido, `bloqueo: "ver un análisis con imagen"`, `bloqueo: "`+malo+`"`, 1)
 		if vs := Check(mustParse(t, s), nil); !tieneViolacion(vs, "EPF-C07") {
-			t.Fatalf("%q debe ser EPF-C07: %s", malo, ids(vs))
+			t.Errorf("%q debe ser EPF-C07: %s", malo, ids(vs))
+		}
+	}
+	e := mustParse(t, valido)
+	md := Markdown(e, ahora, AlcanceAbiertos)
+	if vs := CheckRespuesta(e, md+"\nAvance del día, sin datos de nadie: análisis 1234-5-LP26, v2.10.0-rc.41.\n", ahora); tieneViolacion(vs, "EPF-C07") {
+		t.Fatalf("un reporte sin credenciales ni datos personales no es EPF-C07: %v", vs)
+	}
+	for _, malo := range malos {
+		if vs := CheckRespuesta(e, md+"\nContacto: "+malo+"\n", ahora); !tieneViolacion(vs, "EPF-C07") {
+			t.Errorf("%q en el texto del reporte debe ser EPF-C07: %s", malo, ids(vs))
 		}
 	}
 }
 
+// contrato: estado#35c3dab3
 func TestStatusline(t *testing.T) {
 	got := Statusline(mustParse(t, valido), ahora)
 	if got != "◧ 2 tareas · ⏳1 ❌1" {
@@ -191,6 +217,7 @@ func TestStatusline(t *testing.T) {
 	}
 }
 
+// contrato: estado#35c3dab3
 func TestStatuslineDir_SinArchivoODanadoNoMuestraNada(t *testing.T) {
 	dir := t.TempDir()
 	if got := StatuslineDir(dir, ahora); got != "" {
@@ -220,6 +247,7 @@ func TestMarkdown_AlcanceAbiertosYRecienCerrados(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ac2d62de
 func TestCheckRespuesta_EPFA01(t *testing.T) {
 	e := mustParse(t, valido)
 	md := Markdown(e, ahora, AlcanceAbiertos)
@@ -235,6 +263,7 @@ func TestCheckRespuesta_EPFA01(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#e21a4121
 func TestSet_ValidaAntesDeEscribirYEsAtomico(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, ".qdd", "project"), 0o755)
@@ -264,6 +293,8 @@ func TestSet_ValidaAntesDeEscribirYEsAtomico(t *testing.T) {
 	}
 }
 
+// contrato: estado#9bb4c65e
+// contrato: estado#06cad8a1
 func TestSet_FrenteNuevoYCerrar(t *testing.T) {
 	dir := t.TempDir()
 	err := Set(dir, Cambio{Frente: "nuevo", Nombre: "Frente nuevo", Etapa: "Código", Estado: "espera", Bloqueo: "revisión", DeQuien: "usuario"}, ahora)
@@ -354,6 +385,7 @@ func TestPanel_ColumnaFrenteMideLoQueElNombreMasLargo(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#3a638040
 func TestDatos_LoQueDibujaElPanelDeLaConsola(t *testing.T) {
 	e := mustParse(t, valido)
 	d := Datos(e, ahora)
@@ -420,6 +452,7 @@ func TestDatosPendientes_TopeDeLasMasNuevas(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ac2d62de
 func TestCheckRespuesta_ElTextoYLaTablaCoinciden_EPF_C08(t *testing.T) {
 	e := mustParse(t, valido)
 	md := Markdown(e, ahora, AlcanceAbiertos)

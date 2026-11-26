@@ -1,0 +1,9 @@
+id: "FND-322"
+title: "El CI falla por plazos cortos de dos pruebas y las herméticas esconden cuál falló"
+description: "2026-11-24, feat/panel-flujo y la publicación de rc.132 en rojo. (1) TestActividad_PulsosALaVezNoBorranUnaActivacion (17 de 24, 2,08 s) ignoraba el error de Activar: con 47 a la vez en un equipo lento, algunas pasan los 2 s del candado y reciben «lo usa otro proceso», que no es perder una escritura. Reproducido acortando el candado a 20 ms. (2) TestEjecutar_UnComandoPorProyectoALaVez esperó 3 s a que terminara el primer comando y no alcanzó; no se reprodujo aquí. (3) e2e/hermeticas/correr.sh mostraba las últimas 40 líneas: en la corrida 45494807370 no se ve qué prueba falló, y sigue sin saberse. Otras dos corridas en rojo (45472452347 y 45476074136) fueron equipos de GitHub: no es de qdd."
+impact: "Una versión con tag queda sin publicar en npm por una prueba que no falla por el código, y una falla de las herméticas no se puede investigar."
+action_taken: "La prueba de actividad pide el turno otra vez si el candado estuvo ocupado, la de ejecutar espera hasta 20 s y las herméticas muestran qué prueba falló. El plazo del candado del producto no cambia."
+test_result: "La de actividad pasa con el candado a 20 ms y falla sin candado (13 de 24). TestHermeticas_UnaFallaDeUnPaqueteAnteriorSeMuestra_FND322 falla con el corte anterior. La de ejecutar no se pudo reproducir: se mira en el CI."
+status: resolved
+detectado_por: ia
+date: "2026-11-24"

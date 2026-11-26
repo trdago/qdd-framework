@@ -22,6 +22,7 @@ func opciones(abrir bool) Opciones {
 	return Opciones{Abrir: abrir, DuracionMs: 800, CuadroMs: 40, Acento: "#7DAEA3", Semilla: 7}
 }
 
+// contrato: estado#d3c42817
 func TestCuadros_AbrirTerminaEnElTextoExacto(t *testing.T) {
 	cuadros := Cuadros(fila, opciones(true))
 	if len(cuadros) != 20 {
@@ -47,6 +48,7 @@ func TestCuadros_CerrarTerminaEnBlanco(t *testing.T) {
 	}
 }
 
+// contrato: estado#d3c42817
 func TestCuadros_NingunCuadroCambiaDeAncho(t *testing.T) {
 	quiere := Ancho(texto(fila))
 	for _, abrir := range []bool{true, false} {
@@ -96,6 +98,7 @@ func TestCuadros_UnAcentoDelTemaNoSeMezcla(t *testing.T) {
 	}
 }
 
+// contrato: estado#d3c42817
 func TestAncho_EmojiYVariantesOcupanDos(t *testing.T) {
 	casos := map[string]int{"abc": 3, "✅": 2, "⏳": 2, "❌": 2, "🎯": 2, "⚙️": 2, "▶": 1, "ｱ": 1, "·": 1}
 	for s, quiere := range casos {

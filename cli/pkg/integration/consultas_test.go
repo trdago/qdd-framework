@@ -15,3 +15,13 @@ func TestProtocolo_LasConsultasALaPersonaNoSeQuedanEnElChat(t *testing.T) {
 		}
 	}
 }
+
+// MEJ-021: una sesión larga nunca declaró su tarea porque ninguna regla lo pedía, y el tablero y el teléfono no la mostraban.
+
+func TestProtocolo_LaTareaEnCursoSeDeclara_MEJ021(t *testing.T) {
+	for _, debe := range []string{"CURRENT TASK", "accion=activar", "accion=terminar", "qdd estado activa"} {
+		if !strings.Contains(QDDCommandProtocol, debe) {
+			t.Errorf("el bloque de AGENTS.md debe decir %q", debe)
+		}
+	}
+}

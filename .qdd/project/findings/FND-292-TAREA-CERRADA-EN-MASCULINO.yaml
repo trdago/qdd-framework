@@ -1,0 +1,9 @@
+id: "FND-292"
+title: "Activar una tarea cerrada decía «la tarea \"a\" está cerrado»"
+description: "Observado 2026-11-21 por el frente 2 de la oleada 2 de pruebas de contrato: tareaAbierta (pkg/estado/actividad.go) armaba el error con el estado del frente tal cual («cerrado», «descartado»), y la tarea es femenina. Lo lee la persona en el panel y la IA en el error de qdd_estado."
+impact: "Un mensaje de qdd con un error de concordancia: menos confiable para quien lo lee."
+action_taken: "El estado se dice de la tarea en femenino («está cerrada», «está descartada»)."
+test_result: "cli/pkg/estado/actividad_concordancia_test.go TestActividad_UnaTareaCerradaODescartadaLoDiceEnFemenino_FND292 falló sin el arreglo («está cerrado») y pasa con él."
+status: resolved
+detectado_por: ia
+date: "2026-11-22"

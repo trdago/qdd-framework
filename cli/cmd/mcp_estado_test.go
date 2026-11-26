@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -119,6 +121,8 @@ func TestEstadoTool_ObjetivoYTarea_EPT_O01_EPT_D02(t *testing.T) {
 }
 
 // FND-109: la IA crea con «nueva» (qdd da el id) y un id que no existe se rechaza con sugerencia, sin crear nada.
+// contrato: estado#3f848983
+// contrato: estado-por-tareas#0a77121e
 func TestEstadoTool_NuevaDaElIDYUnIDDesconocidoSugiere_FND109(t *testing.T) {
 	root := chdirToTempRepo(t)
 	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
@@ -139,5 +143,83 @@ func TestEstadoTool_NuevaDaElIDYUnIDDesconocidoSugiere_FND109(t *testing.T) {
 	}
 	if bad, txt := call(map[string]interface{}{"accion": "nueva", "nombre": "Segmento de estado en la barra de nuevo", "aunque_exista": true}); bad {
 		t.Fatalf("con aunque_exista se crea: %q", txt)
+	}
+}
+
+// MEJ-021: un avance sin tarea declarada lo recuerda ahí mismo, pero no la enciende: el teléfono diría «Trabajando» por
+// una tarea que quizá ya se terminó.
+func TestEstadoTool_SetRecuerdaDeclararLaTareaSinEncenderla_MEJ021(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "esta")
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	set := func(cambios map[string]interface{}) string {
+		t.Helper()
+		pedido := map[string]interface{}{"accion": "set", "frente": "x", "nombre": "X", "etapa": "Código"}
+		for k, v := range cambios {
+			pedido[k] = v
+		}
+		res, _ := handleEstadoTool(context.Background(), toolRequest(pedido))
+		if res.IsError {
+			t.Fatalf("el set falló: %q", resultText(t, res))
+		}
+		return resultText(t, res)
+	}
+	if texto := set(map[string]interface{}{"estado": "espera", "bloqueo": "¿sigo?", "de_quien": "persona"}); strings.Contains(texto, "accion=activar") {
+		t.Errorf("una tarea que queda esperando a alguien no es trabajo en curso: %q", texto)
+	}
+	if texto := set(map[string]interface{}{"estado": "falla", "falla": "rompe"}); strings.Contains(texto, "accion=activar") {
+		t.Errorf("una tarea que queda fallando no es trabajo en curso: %q", texto)
+	}
+	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "1/1 pruebas"}); !strings.Contains(texto, "accion=activar") {
+		t.Errorf("un avance sin tarea declarada debe recordarlo: %q", texto)
+	}
+	if len(estado.EnCurso(estado.LeerActividad(root), time.Now())) != 0 {
+		t.Error("el set no enciende la tarea: la declara el agente")
+	}
+	handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "activar", "frente": "x"}))
+	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "2/2 pruebas"}); strings.Contains(texto, "accion=activar") {
+		t.Errorf("con la tarea declarada sobra el recordatorio: %q", texto)
+	}
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "otra")
+	if texto := set(map[string]interface{}{"estado": "ok", "evidencia": "3/3 pruebas"}); !strings.Contains(texto, "accion=activar") {
+		t.Errorf("la tarea declarada por otra sesión no cuenta como la de esta (FND-153): %q", texto)
+	}
+}
+
+// contrato: estado-por-tareas#c53e6daf
+// Por la tool que usa la IA: una etapa que requiere aprobación lo dice en la celda de la tabla, y un ✅ sin la
+// aprobación dada se rechaza sin tocar el archivo (EPF-C06), aunque traiga evidencia.
+func TestEstadoTool_LoQueRequiereAprobacionLoDiceYNoAvanzaSinElla(t *testing.T) {
+	root := chdirToTempRepo(t)
+	if err := estado.Init(root, []string{"Código", "Producción"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	res, _ := handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{
+		"accion": "set", "frente": "deploy", "nombre": "Deploy", "etapa": "Producción", "estado": "espera",
+		"bloqueo": "aprobar el despliegue", "de_quien": "usuario", "requiere_aprobacion": "usuario",
+	}))
+	if res.IsError {
+		t.Fatalf("la espera con su aprobación pendiente se escribe: %q", resultText(t, res))
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{"accion": "ver"}))
+	if !strings.Contains(resultText(t, res), "requiere aprobación de usuario") {
+		t.Fatalf("la celda dice de quién espera la aprobación: %q", resultText(t, res))
+	}
+	antes, err := os.ReadFile(filepath.Join(root, estado.Ruta))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _ = handleEstadoTool(context.Background(), toolRequest(map[string]interface{}{
+		"accion": "set", "frente": "deploy", "etapa": "Producción", "estado": "ok", "evidencia": "v1.0.0",
+	}))
+	if !res.IsError || !strings.Contains(resultText(t, res), "EPF-C06") {
+		t.Fatalf("un ✅ sin la aprobación no se escribe: %q", resultText(t, res))
+	}
+	despues, _ := os.ReadFile(filepath.Join(root, estado.Ruta))
+	if string(despues) != string(antes) {
+		t.Fatalf("el archivo no cambia:\n%s", despues)
 	}
 }

@@ -1,12 +1,19 @@
 package cmd
 
 import (
+	"bufio"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/qdd-framework/qdd/pkg/gitenv"
 )
 
 // FND-164: el dashboard acepta escrituras sin autenticación, así que solo puede atender a este PC y a su propia página.
@@ -70,4 +77,84 @@ func TestRutaDelProyecto(t *testing.T) {
 			t.Fatalf("%q queda fuera del proyecto y dio %q", fuera, got)
 		}
 	}
+}
+
+// envDashboardDePrueba hace del binario de pruebas un «qdd dashboard» (TestMain).
+const envDashboardDePrueba = "QDD_DASHBOARD_DE_PRUEBA"
+
+// Caja negra del cableado: el «qdd dashboard» de verdad, no soloLocal suelto. Si http.Serve dejara de envolver sus
+// rutas con soloLocal, otro Host, otro Origin o un POST sin JSON llegarían a /api/file y escribirían en el proyecto.
+// contrato: dashboard#7ceb11f1
+func TestDashboard_ElServidorDeVerdadSoloAtiendeAEstePC(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("lanza el binario de pruebas con un PATH vacío")
+	}
+	proyecto, home := t.TempDir(), t.TempDir()
+	c := exec.Command(os.Args[0], "dashboard")
+	c.Dir = proyecto
+	c.Env = append(gitenv.Limpio(os.Environ()), envDashboardDePrueba+"=1", "HOME="+home, "QDD_HOME="+filepath.Join(home, "qdd"), "PATH="+t.TempDir())
+	salida, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.Process.Kill(); c.Wait() })
+	puerto := make(chan string, 1)
+	go func() {
+		lineas := bufio.NewScanner(salida)
+		for lineas.Scan() {
+			if _, p, ok := strings.Cut(lineas.Text(), "escuchando en http://localhost:"); ok {
+				puerto <- strings.TrimSpace(p)
+			}
+		}
+	}()
+	var p string
+	select {
+	case p = <-puerto:
+	case <-time.After(30 * time.Second):
+		t.Fatal("qdd dashboard no dijo en qué puerto escucha")
+	}
+	pedir := func(host, origen, tipo string) int {
+		t.Helper()
+		r, _ := http.NewRequest(http.MethodPost, "http://127.0.0.1:"+p+"/api/file", strings.NewReader(`{"path":"pwned.txt","content":"x"}`))
+		r.Host = host
+		if origen != "" {
+			r.Header.Set("Origin", origen)
+		}
+		if tipo != "" {
+			r.Header.Set("Content-Type", tipo)
+		}
+		res, err := http.DefaultClient.Do(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res.StatusCode
+	}
+	local := "localhost:" + p
+	casos := []struct {
+		nombre, host, origen, tipo string
+		codigo                     int
+	}{
+		{"otro Host", "evil.test", "", "application/json", http.StatusForbidden},
+		{"otra página", local, "https://evil.test", "application/json", http.StatusForbidden},
+		{"un POST sin JSON", local, "", "text/plain", http.StatusUnsupportedMediaType},
+	}
+	for _, caso := range casos {
+		if got := pedir(caso.host, caso.origen, caso.tipo); got != caso.codigo {
+			t.Errorf("%s: %d, se esperaba %d", caso.nombre, got, caso.codigo)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(proyecto, "pwned.txt")); err == nil {
+		t.Fatal("una petición rechazada escribió en el proyecto")
+	}
+	r, _ := http.NewRequest(http.MethodGet, "http://127.0.0.1:"+p+"/", nil)
+	r.Host = local
+	res, err := http.DefaultClient.Do(r)
+	if err != nil || res.StatusCode != http.StatusOK {
+		t.Fatalf("su propia página sí se atiende: %v %v", res, err)
+	}
+	res.Body.Close()
 }

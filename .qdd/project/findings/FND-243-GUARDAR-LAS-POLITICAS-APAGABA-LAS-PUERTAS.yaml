@@ -1,0 +1,9 @@
+id: "FND-243"
+title: "Guardar las políticas apagaba las puertas sin decirlo"
+description: "2026-11-20, al preparar los hooks de las puertas: SavePolicies reescribe .qdd/policies.yaml desde QDDPolicies, y la estructura no tenía la clave puertas. Cambiar cualquier política desde el dashboard (o cualquier camino que guarde con SavePolicies) borraba 'puertas:' y con ella todas las puertas del proyecto."
+impact: "Un proyecto con puertas las perdía en silencio al cambiar una política: commits sin audit, fix sin finding y publicaciones de la IA volvían a pasar sin que nadie lo notara."
+action_taken: "QDDPolicies tiene Puertas *PoliticaPuertas (yaml puertas, con publicar): guardar conserva 'puertas: {}' y 'puertas: {publicar: ia}'. qdd doctor --fix y qdd init escriben las puertas por el mismo camino."
+test_result: "cli/pkg/audit/policies_puertas_test.go TestPolicies_GuardarConservaLasPuertas_FND243: cargar, cambiar otra política y guardar deja 'puertas:' con su publicar, y 'puertas: {}' igual. Falló antes del cambio y pasa después."
+status: resolved
+detectado_por: ia
+date: "2026-11-20"

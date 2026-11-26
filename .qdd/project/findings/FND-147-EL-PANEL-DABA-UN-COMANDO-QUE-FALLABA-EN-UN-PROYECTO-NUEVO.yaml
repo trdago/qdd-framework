@@ -1,0 +1,9 @@
+id: "FND-147"
+title: "En un proyecto nuevo el panel daba un comando que fallaba"
+description: "El panel decía «créalo con 'qdd estado init'», pero en un proyecto recién creado ese comando sale con error porque ninguna ficha define las etapas y pide --etapas. Encontrado al instalar qdd en un contenedor limpio a pedido de la persona, en 2.9.9 y en 2.10.0-rc.6."
+impact: "La primera instrucción que recibe un usuario nuevo en el panel falla. El segundo mensaje sí decía qué hacer, pero con un ejemplo de relleno (\"A,B,C\") y hablando de fichas que ese usuario aún no conoce."
+action_taken: "El aviso da un comando que funciona tal cual (qdd estado init --etapas \"Código,Pruebas,Producción\"), el error de qdd estado init explica que las etapas son las columnas del tablero y el panel ya no repite el comando incompleto. No se inventan etapas por defecto: las sigue eligiendo cada proyecto."
+test_result: "cli/cmd/estado_init_limpio_test.go (FND147) corre el comando que da el aviso; prueba del mod en tests/qdd-tareas.test.ts. Comprobado también en un contenedor limpio con el binario de la rama."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

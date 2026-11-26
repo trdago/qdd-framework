@@ -3,6 +3,10 @@ nombre: Servidor MCP de QDD (qdd mcp-server)
 estado: aprobado
 rutas:
     - cli/cmd/mcp.go
+    - cli/cmd/mcp_tools.go
+    - cli/cmd/mcp_resolver.go
+    - cli/cmd/mcp_telemetry.go
+    - cli/cmd/mcp_binario.go
 objetivo_operativo:
     problema: 'Las IAs (Claude Code, OpenCode, Cursor…) usan QDD por sus tools MCP: cada sesión carga la lista completa de tools, así que lo que dicen sus descripciones es un costo fijo en tokens, y una tool que cae no puede tumbar la sesión.'
     usuarios: Las IAs que trabajan en un proyecto con QDD y las personas que pagan sus tokens y esperan sus respuestas.
@@ -14,15 +18,19 @@ objetivo_tecnologico:
         - 'Descripciones estilo chat (pedido del usuario, 2026-10-31): qué hace, cuándo usarla y las reglas que la IA no puede adivinar (preguntas del humano, confirmaciones, nunca ejecutar por la persona); topes de 400 caracteres por tool, 260 por parámetro y 16.000 para tools/list (~4.500 son la estructura JSON).'
         - 'Anotaciones verdaderas y sin relleno: readOnlyHint solo en las tools que no cambian nada (soloLeen); las demás van sin anotaciones, que en MCP valen lo mismo que los valores por defecto de mcp-go.'
         - Un pánico atrapado por la guarda Zero-Panic también se registra como incidente de QDD (mcp:<tool>), anonimizado; el registro nunca cambia la respuesta de la tool.
+        - 'Registro de las herramientas (FND-059): cada llamada queda en .qdd/project/metrics/mcp_eventos.json (los últimos 100); cognitive_history.json es solo de los certificados del benchmark y el MCP no lo toca.'
+        - 'El servidor avisa, no se reinicia (FND-304): Claude Code no reinicia el MCP al actualizar qdd. Si el binario cambió, la primera respuesta y cada qdd_project_context suman qué versión corre y que la persona reconecte con /mcp; el evento queda con pid, versión y atrasado, y doctor lo informa mientras ese proceso viva.'
     invariantes:
         - Toda tool se registra con RegisterToolWithTelemetry; un panic en un handler vuelve como un error de la tool, nunca tumba el servidor.
         - Acortar una descripción nunca quita una regla de seguridad (quién responde, quién confirma, qué no ejecuta la IA).
+        - Una consulta al grafo de conocimiento solo lee.
+        - El acta de una resolución no afirma nada que la tool no haya comprobado.
         - docs/command-reference.md documenta exactamente las tools que registra el servidor (FND-072).
 pruebas:
     comandos:
-        - cd cli && go test ./cmd/ -run 'TestMCP_|TestDocs_ReferenciaYServidorMCPCoinciden|ZeroPanic'
+        - cd cli && go test ./cmd/ -run 'TestMCP_|TestDocs_ReferenciaYServidorMCPCoinciden|ZeroPanic|FND312|FND304'
 fuentes:
     - cli/cmd/mcp.go
     - cli/cmd/mcp_presupuesto_test.go
-ultima_revision: "2026-11-01"
-revisado_en_commit: bbecb4430d50
+ultima_revision: "2026-11-24"
+revisado_en_commit: 1ebf4f45e934

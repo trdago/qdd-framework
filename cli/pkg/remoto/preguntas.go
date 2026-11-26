@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/estado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -124,6 +125,10 @@ func (b *Bucle) contestar(ctx context.Context, s Solicitud, respuesta string) {
 		b.cerrar(ctx, s, EstadoEjecutando, "entregándola a la sesión de Claude Code abierta en el proyecto")
 		return
 	}
+	if respondida.Aplicado != "" {
+		b.cerrar(ctx, s, EstadoHecha, respondida.Aplicado)
+		return
+	}
 	b.cerrar(ctx, s, EstadoHecha, "respuesta entregada a la consola del PC")
 }
 
@@ -143,12 +148,20 @@ func (b *Bucle) seguirPreguntas(ctx context.Context) {
 	}
 }
 
-// ocultarDelPanel pasa por el ocultador lo que se publica de cada pregunta (inv. 16): textos, opciones y el detalle
-// de un permiso (el comando puede traer un token); y de lo mandado desde el teléfono, el texto, el aviso y la salida.
+// ocultarDelPanel pasa por el ocultador todo el texto que se publica (inv. 16): el tablero (FND-157), los pedidos (el
+// comando puede traer un token), las preguntas con sus opciones y el detalle de un permiso, lo mandado desde el teléfono
+// las elecciones del modo goal y lo logrado. El teléfono actúa por id, así que tapar un comando no cambia lo que se ejecuta.
 func ocultarDelPanel(root string, panel *consola.DatosConsola) {
-	var o *Ocultador
+	o := OcultadorDe(root)
+	ocultarTablero(o, panel.Estado)
+	// El motivo puede ser el error de un estado.yaml ilegible, que cita su contenido (FND-250).
+	panel.Motivo, panel.AvisoVersion = o.Ocultar(panel.Motivo), o.Ocultar(panel.AvisoVersion)
+	panel.EsperasPersona = ocultarEsperas(o, panel.EsperasPersona)
+	ocultarOtros(o, panel.Otros)
+	if panel.Goal != nil {
+		panel.Goal.Motivo = o.Ocultar(panel.Goal.Motivo)
+	}
 	if panel.Goal != nil && len(panel.Goal.Elegidas) > 0 {
-		o = OcultadorDe(root)
 		elegidas := make([]consola.Elegida, len(panel.Goal.Elegidas))
 		for i, e := range panel.Goal.Elegidas {
 			e.Etiqueta, e.Eleccion = o.Ocultar(e.Etiqueta), o.Ocultar(e.Eleccion)
@@ -157,18 +170,108 @@ func ocultarDelPanel(root string, panel *consola.DatosConsola) {
 		panel.Goal.Elegidas = elegidas
 	}
 	for i, a := range panel.Acciones {
-		if a.Tipo != consola.TipoPregunta && a.Origen != consola.OrigenTelefono {
-			continue
-		}
-		if o == nil {
-			o = OcultadorDe(root)
-		}
-		panel.Acciones[i] = ocultarPregunta(o, a)
+		panel.Acciones[i] = ocultarAccion(o, a)
+	}
+	if panel.Logrado != nil {
+		logrado := ocultarLogrado(o, *panel.Logrado, salidaParaTelefono)
+		panel.Logrado = &logrado
 	}
 }
 
-func ocultarPregunta(o *Ocultador, a consola.Accion) consola.Accion {
+// ocultarEsperas tapa el texto de cada ⏳ de la persona, en una copia.
+func ocultarEsperas(o *Ocultador, lista []consola.EsperaDelPanel) []consola.EsperaDelPanel {
+	if len(lista) == 0 {
+		return lista
+	}
+	esperas := make([]consola.EsperaDelPanel, len(lista))
+	for i, e := range lista {
+		e.Texto = o.Ocultar(e.Texto)
+		esperas[i] = e
+	}
+	return esperas
+}
+
+// ocultarOtros tapa lo que espera a la persona en los demás proyectos, como en el panel propio.
+func ocultarOtros(o *Ocultador, otros *[]consola.ProyectoEsperando) {
+	if otros == nil {
+		return
+	}
+	lista := make([]consola.ProyectoEsperando, len(*otros))
+	for i, p := range *otros {
+		acciones := make([]consola.Accion, len(p.Acciones))
+		for j, a := range p.Acciones {
+			acciones[j] = ocultarAccion(o, a)
+		}
+		p.Acciones, p.Esperas = acciones, ocultarEsperas(o, p.Esperas)
+		lista[i] = p
+	}
+	*otros = lista
+}
+
+// ocultarLogrado pasa cada texto de lo logrado por el ocultador (inv. 16), en una copia: la lista de quien la armó no
+// cambia. salida recorta la salida: en el estado, a TopeSalidaTelefono; a pedido, queda la del contrato.
+func ocultarLogrado(o *Ocultador, lista []consola.Logro, salida func(string) string) []consola.Logro {
+	logrado := make([]consola.Logro, len(lista))
+	for i, l := range lista {
+		l.Titulo, l.Detalle, l.Salida = o.Ocultar(l.Titulo), o.Ocultar(l.Detalle), salida(o.Ocultar(l.Salida))
+		l.Motivo, l.Criterio, l.Evidencia = o.Ocultar(l.Motivo), o.Ocultar(l.Criterio), o.Ocultar(l.Evidencia)
+		logrado[i] = l
+	}
+	return logrado
+}
+
+// ocultarFilas tapa el nombre y las notas de cada fila del tablero, en una copia. La pregunta no viaja: es lo que el
+// panel del PC le envía a la IA y el teléfono no la muestra (FND-209, acordado con qdd-movile).
+func ocultarFilas(o *Ocultador, filas []estado.FrentePanel) []estado.FrentePanel {
+	if filas == nil {
+		return nil
+	}
+	out := make([]estado.FrentePanel, len(filas))
+	for i, f := range filas {
+		f.Nombre, f.Pregunta = o.Ocultar(f.Nombre), ""
+		notas := make([]string, len(f.Notas))
+		for j, n := range f.Notas {
+			notas[j] = o.Ocultar(n)
+		}
+		f.Notas = notas
+		out[i] = f
+	}
+	return out
+}
+
+// ocultarTablero tapa los textos que escribe la IA en el tablero: nombres, criterios, lo que espera y lo que falla.
+func ocultarTablero(o *Ocultador, d *estado.DatosPanel) {
+	if d == nil {
+		return
+	}
+	d.Resumen = o.Ocultar(d.Resumen)
+	d.Frentes = ocultarFilas(o, d.Frentes)
+	d.OcultasTuyas = ocultarFilas(o, d.OcultasTuyas)
+	for i, p := range d.Esperas {
+		p.Frente, p.Texto, p.DeQuien = o.Ocultar(p.Frente), o.Ocultar(p.Texto), o.Ocultar(p.DeQuien)
+		d.Esperas[i] = p
+	}
+	for i, p := range d.Fallas {
+		p.Frente, p.Texto, p.DeQuien = o.Ocultar(p.Frente), o.Ocultar(p.Texto), o.Ocultar(p.DeQuien)
+		d.Fallas[i] = p
+	}
+	for i, ob := range d.Objetivos {
+		ob.Nombre, ob.Criterio, ob.Resumen, ob.Pregunta = o.Ocultar(ob.Nombre), o.Ocultar(ob.Criterio), o.Ocultar(ob.Resumen), o.Ocultar(ob.Pregunta)
+		d.Objetivos[i] = ob
+	}
+}
+
+func ocultarAccion(o *Ocultador, a consola.Accion) consola.Accion {
+	a.Mensaje = o.Ocultar(a.Mensaje)
+	if len(a.Espera) > 0 {
+		espera := make([]string, len(a.Espera))
+		for i, l := range a.Espera {
+			espera[i] = o.Ocultar(l)
+		}
+		a.Espera = espera
+	}
 	a.Etiqueta, a.Detalle, a.Resultado, a.Aviso = o.Ocultar(a.Etiqueta), o.Ocultar(a.Detalle), o.Ocultar(a.Resultado), o.Ocultar(a.Aviso)
+	a.Bloqueo = o.Ocultar(a.Bloqueo)
 	if a.Permiso != nil {
 		permiso := *a.Permiso
 		permiso.Detalle = o.Ocultar(permiso.Detalle)

@@ -205,6 +205,7 @@ func TestCuerpo_FormatoEstandarParaLaIA(t *testing.T) {
 	}
 }
 
+// contrato: incidentes#0d196077
 func TestLeer_UnRegistroIlegibleSeApartaSinPerderse(t *testing.T) {
 	dir := t.TempDir()
 	_, _ = Registrar(dir, Nuevo(TipoPanico, "qdd x", "boom", nil, "2.8.0"), time.Now())

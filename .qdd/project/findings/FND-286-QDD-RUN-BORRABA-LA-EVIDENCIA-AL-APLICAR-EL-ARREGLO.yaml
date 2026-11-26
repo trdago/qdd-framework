@@ -1,0 +1,9 @@
+id: "FND-286"
+title: "qdd run --keep-alive borraba la evidencia original si el agente la quitaba del sandbox"
+description: "Medido 2026-11-21 al probar el invariante «La evidencia original nunca se borra» (bugreport#63466c6d): applySandboxFix copia el arreglo del sandbox al proyecto con rsync -a --delete, excluyendo solo .git y node_modules. Si el agente de reparación borraba .qdd/project/evidence en el sandbox (por ejemplo al «limpiar»), el rsync borraba también el log original del proyecto (.qdd/project/evidence/bugs/FND-n_<fecha>.log) y el finding quedaba resuelto apuntando a un archivo que ya no existe."
+impact: "Se perdía la única copia de la salida del proceso que falló: quien revisa el finding después no puede saber qué pasó ni escribir la prueba de regresión que el finding aún debe (test_pending)."
+action_taken: "El rsync de vuelta excluye /.qdd/project/evidence/: lo excluido no se borra en el destino aunque falte en el sandbox, y el resto del arreglo se copia igual."
+test_result: "cli/cmd/run_supervisor_test.go TestApplySandboxFix_ConservaLaEvidenciaYMarcaResuelto falló sin el arreglo («la evidencia original se borró al aplicar el arreglo: … no such file or directory») y pasa con él; el arreglo del sandbox (main.go) sí llega al proyecto y el finding queda resolved."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

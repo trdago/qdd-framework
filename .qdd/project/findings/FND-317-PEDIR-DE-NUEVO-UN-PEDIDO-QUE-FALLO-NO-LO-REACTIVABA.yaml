@@ -1,0 +1,9 @@
+id: "FND-317"
+title: "Pedir de nuevo un pedido que falló no lo reactivaba"
+description: "2026-11-24, PR #329. El aviso de un pedido que falla dice «déjalo de nuevo en el panel», pero PedirEnOrden trata a uno que falló como abierto: con el mismo comando lo devuelve tal cual, todavía «falló», con de_nuevo o sin él, y responde «Quedó en el panel». El modo goal no corre los fallidos, así que el merge con CI en verde y la publicación encadenada quedaron detenidos 40 min sin aviso."
+impact: "Un pedido arreglado no vuelve a correr y la IA le dice a la persona que sí quedó pedido."
+action_taken: "Pedir a propósito (qdd consola pedir o qdd_consola_pedir) el mismo comando en la misma carpeta deja el pedido que falló otra vez pendiente, sin su resultado ni la confirmación anterior: pide un «Sí» nuevo. Conserva su id, su tecla, su marca de la persona y lo que espera por él. Un ciclo automático no lo reactiva: con el modo goal repetiría el fallo sin fin."
+test_result: "cli/pkg/consola/pedido_fallido_fnd317_test.go. Fallaba antes del cambio y pasa."
+status: resolved
+detectado_por: ia
+date: "2026-11-24"

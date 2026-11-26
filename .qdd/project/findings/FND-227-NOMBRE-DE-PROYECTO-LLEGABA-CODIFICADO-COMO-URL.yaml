@@ -1,0 +1,9 @@
+id: "FND-227"
+title: "El nombre de un proyecto llegaba al teléfono codificado como URL (%20, %C3%B3) — MEJ-077"
+description: "2026-11-15, reportado desde QDD Móvil (MEJ-077): un proyecto registrado desde un PC Windows aparecía en el teléfono como «Sistema%20de%20gesti%C3%B3n». El registro de proyectos (pkg/remoto/registro) guardaba la ruta tal como llegaba (de un file:// del editor, codificada como URL), y tanto el estado que va al relay (pkg/remoto/estado.go) como «Para ti» de otros proyectos (pkg/consola/para_ti_otros.go) sacaban el nombre con filepath.Base de esa ruta."
+impact: "El nombre del proyecto en el teléfono y en «Para ti» era ilegible con espacios o tildes, y la misma carpeta podía quedar dos veces en el registro (codificada y real)."
+action_taken: "registro.RutaReal decodifica una ruta con % que no existe así pero sí decodificada; Anotar la usa antes de calcular la clave y reemplaza la entrada codificada que ya estaba. registro.NombreDe da el nombre decodificado solo si la ruta no existe tal cual (una carpeta real con % queda igual) y lo usan estado.go y para_ti_otros.go."
+test_result: "cli/pkg/remoto/registro/nombre_mej077_test.go: TestAnotar_UnaRutaCodificadaComoURLSeGuardaDecodificada_MEJ077, TestAnotar_LaRutaRealReemplazaUnaCodificadaQueYaEstaba_MEJ077 y TestNombreDe_DecodificaSoloSiLaCarpetaNoExisteAsi_MEJ077 no compilaban sin NombreDe (rojo) y pasan; go test ./pkg/remoto/... ./pkg/consola/ en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

@@ -97,6 +97,7 @@ func fichaQueImplementa(t *testing.T, root, id, blueprint string) {
 	}
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_UnEscenarioSinPruebaNoPasaElGate_BP08(t *testing.T) {
 	root := t.TempDir()
 	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
@@ -118,6 +119,7 @@ func TestCheckConformidad_UnEscenarioSinPruebaNoPasaElGate_BP08(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_SinElBlueprintEnLaMaquinaNoSeMideNiUsaLaRed_BP08(t *testing.T) {
 	home := freshHome(t)
 	repo := gitOrgRepo(t)
@@ -169,6 +171,7 @@ func proyectoQueAplicaAuth(t *testing.T) string {
 	return root
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_UnBlueprintQueImplementaQDDNoPidePruebasAlProyecto_FND102(t *testing.T) {
 	root := proyectoQueAplicaAuth(t)
 	conImplementados(t, map[string]string{})
@@ -187,6 +190,7 @@ func TestCheckConformidad_UnBlueprintQueImplementaQDDNoPidePruebasAlProyecto_FND
 	}
 }
 
+// contrato: blueprints#2bfada30
 func TestCheckConformidad_UnQDDQueNoCubreLaVersionAplicadaBloquea_FND102(t *testing.T) {
 	root := proyectoQueAplicaAuth(t)
 	for implementa, pista := range map[string]string{"0.9.0": "actualiza qdd", "2.0.0": "qdd blueprint add auth"} {
@@ -299,5 +303,36 @@ func TestCheckConformidad_UnModuloQueAplicaDeclaraFueraEnSuFicha_FND121(t *testi
 	}
 	if bloquean, _ = CheckConformidad(root); len(bloquean) != 1 || !strings.Contains(bloquean[0].Descripcion, "RUT-1") {
 		t.Fatalf("un id que el blueprint no tiene falta, igual que en implementa: %+v", bloquean)
+	}
+}
+
+// MEJ-022 (issue #143): un módulo que aplica un blueprint y lo declaró fuera en «implementa» seguía bloqueado, y el gate
+// solo decía «en la raíz de la ficha», sin nombrar la entrada equivocada. Ahora la nombra.
+func TestCheckConformidad_FueraEnImplementaDeUnModuloQueAplicaSeNombra_MEJ022(t *testing.T) {
+	root := t.TempDir()
+	if _, problems := AddManaged(AddInput{Root: root, Origen: gitOrgRepo(t), Blueprints: []string{"auth"}}); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	writeFile(t, filepath.Join(root, "internal", "cliente", "auth_test.go"), "func TestLogin_AUTH_01(t *testing.T) {}\n")
+	m := modules.Module{ID: "cliente", Nombre: "cliente", Rutas: []string{"internal/cliente"}, Blueprint: "auth@1.0.0",
+		ObjetivoOperativo:   modules.ObjetivoOperativo{Problema: "Entrar.", CriterioDeExito: "Entra."},
+		ObjetivoTecnologico: modules.ObjetivoTecnologico{Arquitectura: "Un login."},
+		Pruebas:             modules.Pruebas{Comandos: []string{"go test ./internal/..."}},
+		Implementa:          []modules.Implementacion{{Blueprint: "auth", Fuera: map[string]string{"RUT-01": "el RUT lo valida el registro civil"}}}}
+	if _, problems := modules.Save(root, m); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if _, err := saveApplication(root, Aplicacion{Blueprint: "auth", Version: "1.0.0", Modulo: "cliente", Respuestas: map[string]string{"identificador": "rut", "recuperacion": "correo"}}); err != nil {
+		t.Fatal(err)
+	}
+	bloquean, _ := CheckConformidad(root)
+	aplicado := ""
+	for _, b := range bloquean {
+		if strings.HasPrefix(filepath.ToSlash(b.Archivo), ApplicationsDir) {
+			aplicado = b.Descripcion
+		}
+	}
+	if !strings.Contains(aplicado, "RUT-01") || !strings.Contains(aplicado, "implementa") || !strings.Contains(aplicado, "raíz") {
+		t.Fatalf("el gate nombra la entrada de implementa que no vale para lo aplicado: %+v", bloquean)
 	}
 }

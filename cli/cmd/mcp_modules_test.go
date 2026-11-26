@@ -84,6 +84,10 @@ pruebas:
 	if err != nil || !strings.Contains(string(saved), "estado: borrador") {
 		t.Fatalf("la ficha debe quedar en borrador aunque la IA pida 'aprobado': %s %v", saved, err)
 	}
+	// FND-201 (MEJ-059, #243): la respuesta dice dónde la ve la persona, para que la IA no la pida solo en el chat.
+	if guardada := resultText(t, res); !strings.Contains(guardada, "▶ Para ti") || !strings.Contains(guardada, "qdd_consola_pedir") {
+		t.Fatalf("la respuesta dice que la ficha ya llega a «▶ Para ti» y que no va con qdd_consola_pedir: %q", guardada)
+	}
 
 	res, err = handleProjectContextTool(context.Background(), toolRequest(map[string]interface{}{"paths": "internal/crm/service.go"}))
 	if err != nil {

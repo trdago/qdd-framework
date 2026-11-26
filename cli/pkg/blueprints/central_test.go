@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/qdd-framework/qdd/pkg/aislar"
 )
 
 // TestMain aísla la carpeta central: ninguna prueba toca ~/.local/share/qdd.
 func TestMain(m *testing.M) {
-	home, err := os.MkdirTemp("", "qdd-home-")
+	home, propia, err := aislar.Carpeta("qdd-home-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
 		os.Exit(1)
@@ -22,7 +24,9 @@ func TestMain(m *testing.M) {
 		os.Setenv(k, v)
 	}
 	code := m.Run()
-	os.RemoveAll(home)
+	if propia {
+		aislar.Borrar(home)
+	}
 	os.Exit(code)
 }
 
@@ -73,6 +77,7 @@ func isUnder(path, dir string) bool {
 	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
+// contrato: blueprints#496ebf9e
 func TestAdd_KeepsOnlyTheLockfileInTheProject(t *testing.T) {
 	root := importedProject(t)
 	if _, err := os.Stat(filepath.Join(root, Dir)); !os.IsNotExist(err) {
@@ -138,6 +143,7 @@ func TestAdd_GitRepositoryIsClonedOnceAndFetchedAfter(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#088d59f5
 func TestFind_RebuildsFromTheLockfileOnAnotherMachine(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := t.TempDir()
@@ -163,6 +169,7 @@ func TestFind_RebuildsFromTheLockfileOnAnotherMachine(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#088d59f5
 func TestFind_RepairsATamperedCentralCopy(t *testing.T) {
 	root := importedProject(t)
 	b, _ := Find(root, "auth")
@@ -179,6 +186,7 @@ func TestFind_RepairsATamperedCentralCopy(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#088d59f5
 func TestCheck_LockfileThatDoesNotMatchTheOrigin(t *testing.T) {
 	root := importedProject(t)
 	lock, _ := LoadLock(root)
@@ -209,6 +217,7 @@ func legacyProject(t *testing.T) (string, string) {
 	return root, src
 }
 
+// contrato: blueprints#496ebf9e
 func TestMigrar_MovesIntactLegacyCopiesOnlyOnce(t *testing.T) {
 	root, _ := legacyProject(t)
 	m, err := Migrar(root)
@@ -244,11 +253,17 @@ func TestMigrar_WorksEvenIfTheOriginIsGone(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#496ebf9e
+// contrato: doctor#9fdd2a35
+// contrato: blueprints#1833c507
 func TestMigrar_NeverDiscardsEditedOrUnlockedCopies(t *testing.T) {
 	root, _ := legacyProject(t)
 	edited := filepath.Join(root, Dir, "auth", ManifestName)
-	writeFile(t, edited, strings.Replace(authBlueprint, "nunca por nombre de rol", "o por rol", 1))
-	writeFile(t, filepath.Join(root, Dir, "crm", ManifestName), strings.Replace(authBlueprint, "id: auth", "id: crm", 1))
+	editado := strings.Replace(authBlueprint, "nunca por nombre de rol", "o por rol", 1)
+	writeFile(t, edited, editado)
+	crm := filepath.Join(root, Dir, "crm", ManifestName)
+	sinLock := strings.Replace(authBlueprint, "id: auth", "id: crm", 1)
+	writeFile(t, crm, sinLock)
 
 	m, err := Migrar(root)
 	if err != nil {
@@ -257,8 +272,11 @@ func TestMigrar_NeverDiscardsEditedOrUnlockedCopies(t *testing.T) {
 	if len(m.Migrados) != 0 || len(m.Pendientes) != 2 {
 		t.Fatalf("las copias editadas o sin lockfile quedan pendientes: %+v", m)
 	}
-	if _, err := os.Stat(edited); err != nil {
-		t.Fatal("una copia editada no se borra: sus cambios deben llegar al repositorio de la organización")
+	if b, err := os.ReadFile(edited); err != nil || string(b) != editado {
+		t.Fatal("una copia editada no se borra ni se toca: sus cambios deben llegar al repositorio de la organización")
+	}
+	if b, err := os.ReadFile(crm); err != nil || string(b) != sinLock {
+		t.Fatal("una copia fuera del lockfile no se borra ni se toca")
 	}
 	problems := Check(root)
 	if !hasRule(problems, "BP-05-LEGACY") {
@@ -326,6 +344,7 @@ func TestSincronizar_ReportsNewerVersions(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#496ebf9e
 func TestAportar_PreparesABranchInTheCentralWorkspace(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := t.TempDir()
@@ -404,6 +423,7 @@ func TestAportar_DosAportesEnParaleloNoSeMezclan_FND113(t *testing.T) {
 }
 
 // FND-117: un qdd que corre dentro de un hook de git (GIT_DIR exportado) trabaja en su clon, no en el repo del hook.
+// contrato: gitenv#f720bab8
 func TestGitRaw_DentroDeUnHookTrabajaEnElClonYNoEnElRepoDelHook(t *testing.T) {
 	hook := t.TempDir()
 	if _, err := gitRaw(hook, "init", "-q"); err != nil {

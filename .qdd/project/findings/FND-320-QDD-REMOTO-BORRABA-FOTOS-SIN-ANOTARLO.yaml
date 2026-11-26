@@ -1,0 +1,9 @@
+id: "FND-320"
+title: "qdd remoto borraba fotos del teléfono sin anotarlo"
+description: "qdd-movile, 2026-11-24, comprobando FND-315 en el PC: el archivo de prueba de 8 días desapareció al arrancar qdd remoto, pero el journal no decía nada. Solo se podía deducir por la hora, y no se podía descartar que lo hubiera quitado una persona u otra sesión."
+impact: "qdd remoto borra archivos de la persona y no dejaba rastro de cuáles ni cuándo."
+action_taken: "PodarDelTelefono devuelve lo que borró y qdd remoto anota cada uno: «foto del teléfono borrada: <archivo> de <proyecto> (más de 7 días)». Guardar una foto ya no borra las viejas: lo hace solo qdd remoto, al arrancar y cada hora, así todo borrado queda anotado."
+test_result: "TestFotos_CadaBorradoQuedaEnElRegistro_FND320 (fotos_retencion_fnd315_test.go) fallaba antes y pasa (-race, 10 de 10); también prueba la pasada de cada hora con el bucle corriendo y el reloj adelantado. La de cada hora no se vio en el servicio instalado: otra versión lo reiniciaba antes."
+status: resolved
+detectado_por: sesion
+date: "2026-11-24"

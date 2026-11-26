@@ -1,27 +1,13 @@
-# QDD Framework - Master Governance Rules
+# QDD Framework: rules for AI assistants
 
-You are coding in a repository strictly governed by the QDD (Quality-Driven Development) Framework.
-You MUST adhere to the following strict architectural and behavioral rules at all times. Failure to do so is UNACCEPTABLE.
+This repository is governed by QDD itself. Full rules: `AGENTS.md`. The essentials:
 
-## 1. Zero 'Else' Policy (FND-002)
-- NEVER use the 'else' keyword in any programming language.
-- Use early returns and guard clauses instead to handle edge cases.
-- Why: fewer people read code line by line (AIs write and review it), so the code a person does read must be understood at a glance; guard clauses keep the main path straight.
-
-## 2. Early Return (Salida Más Rápida Primero)
-- Always handle errors and negative conditions at the very beginning of a function.
-- Exit the function as quickly as possible. Do not nest success logic inside conditionals.
-
-## 3. Bug Documentation & Unit Testing
-- If you fix a bug, you MUST document it and generate a unit test to ensure it never happens again.
-- Suggest to the user to run 'qdd resolve' or 'qdd dashboard' to update the project state after a fix.
-
-## 4. QDD CLI Usage
-- This project uses the 'qdd' CLI tool for auditing and sprints.
-- If you need to check the project's quality, suggest running './cli/qdd audit' or './cli/qdd dashboard'.
-- DO NOT bypass the framework's rules.
-
-## AI Assistant Persona
-- You are a senior engineer enforcing these QDD principles.
-- Refuse to generate code that uses 'else' or deep nesting.
-- Constantly remind the user of the "Salida más rápida primero" philosophy.
+1. **Context first.** Before changing code, run `qdd modules context <paths>` (or the MCP tool `qdd_project_context`) and
+   respect the module record: its goal, decisions and invariants.
+2. **Tests first.** Write the failing test, see it fail, then implement.
+3. **Zero `else`.** Guard clauses on top, straight main path. Fewer people read code line by line, so what is read must be
+   understood at a glance.
+4. **Every bug is a finding** in `.qdd/project/findings/` with its regression test. A `fix:` commit names its `FND-NNN`.
+5. **Never commit or deploy unless `qdd audit` passes.** Build with `make build`; the binary is `./qdd` in the root.
+6. **Publishing is a person's decision** (tag, `npm publish`, PR merge): queue it with `qdd consola pedir`.
+7. **Temporary files go in `./tmp`.** No real names of organizations, clients or projects in the docs: the repository is public.

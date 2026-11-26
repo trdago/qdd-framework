@@ -1,0 +1,9 @@
+id: "FND-213"
+title: "Descartar un pedido liberaba a los que lo esperaban"
+description: "Reporte de sesión (MEJ-043): al descartar el pedido a, los que tenían --despues a quedaban pendientes y se podían correr antes del nuevo push; un despliegue podía salir del main viejo. Confirmado en cli/pkg/consola: Descartar llamaba a sinDependencia, que borraba la dependencia, y la prueba TestDescartar_LoQueOtroEsperabaLoLibera_FND080 fijaba ese comportamiento. Contradice la invariante de la ficha estado: un pedido que espera a otro no hecho no se ejecuta ni tiene botón."
+impact: "Lo que debía correr después de algo (un despliegue después de un push) quedaba listo para correr sin eso; en modo goal corría solo, y uno ya confirmado (armado) corría apenas se descartaba lo que esperaba."
+action_taken: "Descartar deja a los que lo esperaban bloqueados: anota en el pedido lo descartado (descartados: tecla, motivo, comando y carpeta), no tiene tecla, el panel dice «esperaba a a «…», que se descartó: la IA tiene que pedirlo de nuevo o descartarlo», aceptar y ejecutar lo rechazan y uno armado vuelve a pendiente con ese aviso. Si la IA pide de nuevo lo descartado (el mismo comando en la misma carpeta), los bloqueados vuelven a esperarlo; si pide de nuevo el bloqueado, queda libre. Lo que la persona hizo por su cuenta (descartar --hecho) sigue cumpliendo la espera."
+test_result: "cli/pkg/consola/pedidos_mej043_test.go: TestDescartar_LoQueLoEsperabaQuedaBloqueado_FND213, TestDescartar_UnArmadoQueLoEsperabaVuelveAPendiente_FND213, TestPedirDeNuevo_ElDescartadoReengancha_FND213, TestPedirDeNuevo_ElBloqueadoQuedaLibre_FND213 y TestHechoPorLaPersona_SigueLiberandoALosQueEsperaban; TestDescartar_LoQueOtroEsperabaYaNoLoEspera_FND080 ajustada. Mod: «un pedido que esperaba a uno descartado queda sin botón y dice por qué (FND-213)». Fallaban antes del arreglo y pasan después."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

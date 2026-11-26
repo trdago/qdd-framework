@@ -1,0 +1,9 @@
+id: "FND-316"
+title: "La prueba del peso en partes leía antes de que el bucle pesara"
+description: "TestPartes_ConTodosLosTelefonosConLaCapacidadElEstadoVaEnPartes_FND209 falló una vez en las e2e herméticas (2026-11-24, preparando rc.126). La prueba leía una variable compartida apenas recibía la tercera parte, y el bucle llama AlPesar después de mandarla, en otra goroutine. En la base, sin el cambio de rc.126: go test -race informa DATA RACE y la prueba falla en 3 de 5 corridas, y con AlPesar 50 ms más tarde falla siempre."
+impact: "Una suite podía fallar sin un error del producto. qdd remoto no estaba afectado: es solo la prueba."
+action_taken: "El peso llega por un canal y la prueba lo espera hasta 5 s, como peso_fnd209_test.go."
+test_result: "go test -race -count=20 de esa prueba sin DATA RACE ni fallas; antes fallaba 3 de 5."
+status: resolved
+detectado_por: sesion
+date: "2026-11-24"

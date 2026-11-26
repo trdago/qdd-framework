@@ -92,3 +92,35 @@ func TestDoctor_MEJ03UnaMejoraSinSuTareaLaDevuelveElCiclo(t *testing.T) {
 		t.Fatalf("--fix corre el ciclo, que la vuelve a entregar: %+v", g.Items)
 	}
 }
+
+// RFC 0024, fase 3: un reporte del relay lo admite la persona, con el pedido 📮 que confirmó o en su terminal; la IA no.
+func TestMejorasAdmitir_SoloLaPersona(t *testing.T) {
+	nunca := func(string, string) bool { return false }
+	if err := autorizarAdmision("MEJ-001", "", nil, nunca); err == nil {
+		t.Fatal("sin pedido ni terminal no se admite")
+	}
+	if err := autorizarAdmision("MEJ-001", "4", nil, nunca); err == nil {
+		t.Fatal("un pedido que la persona no confirmó no admite")
+	}
+	confirmado := func(p, c string) bool { return p == "4" && c == "qdd mejoras admitir MEJ-001" }
+	if err := autorizarAdmision("MEJ-001", "4", nil, confirmado); err != nil {
+		t.Fatalf("el pedido confirmado admite: %v", err)
+	}
+	if err := autorizarAdmision("MEJ-001", "", func(string) bool { return true }, nunca); err != nil {
+		t.Fatalf("en su terminal, la persona dice sí: %v", err)
+	}
+}
+
+// Solo el repositorio de QDD lee el relay de reportes: los demás proyectos no le preguntan nada.
+func TestMejorasRelay_SoloElRepositorioDeQDD(t *testing.T) {
+	if relayAplica("trdago/otro", true) || relayAplica("", false) {
+		t.Fatal("otro repositorio no lee los reportes de QDD")
+	}
+	if !relayAplica("trdago/qdd-framework", true) {
+		t.Fatal("el repositorio de QDD los lee")
+	}
+	t.Setenv("QDD_INCIDENTES_REPO", "yo/mi-fork")
+	if !relayAplica("yo/mi-fork", true) || relayAplica("trdago/qdd-framework", true) {
+		t.Fatal("QDD_INCIDENTES_REPO cambia el repositorio de QDD, como en los incidentes")
+	}
+}

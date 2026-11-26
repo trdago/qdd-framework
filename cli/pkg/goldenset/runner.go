@@ -65,19 +65,19 @@ func processTestCaseFile[In any, Out any](t *testing.T, dir string, f os.DirEntr
 
 func evaluateTestCase[In any, Out any](t *testing.T, tc TestCase[In, Out], handler func(In) (Out, error)) {
 	out, err := handler(tc.Input)
-	
+
 	if tc.ExpectedError != "" {
 		evaluateExpectedError(t, tc.ExpectedError, err)
 		return
 	}
-	
+
 	if err != nil {
 		t.Fatalf("Error inesperado en la funcionalidad: %v", err)
 	}
 
 	outJSON, _ := json.Marshal(out)
 	expectedJSON, _ := json.Marshal(tc.ExpectedOutput)
-	
+
 	if string(outJSON) != string(expectedJSON) {
 		t.Errorf("\n=== Mismatch ===\nEsperado: %s\nObtenido: %s\n", expectedJSON, outJSON)
 	}

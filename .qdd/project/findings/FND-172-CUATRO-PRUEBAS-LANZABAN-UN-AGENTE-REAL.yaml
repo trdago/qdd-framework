@@ -1,0 +1,9 @@
+id: "FND-172"
+title: "Cuatro pruebas lanzaban un agente real en cada go test"
+description: "TestDashboardIntentHandler_Success, TestDashboardAgentExecuteHandler_Success, TestLocalLLMMCPTools y TestExecuteLocalIntent_OfflineGuidance llamaban a ExecuteLocalIntent sin forzar nada: con Claude Code o Antigravity instalados corrían claude -p o agentapi de verdad, dentro de la carpeta del paquete. Medido: 127 s de los 180 s de pruebas de Go, y 99 de los 100 s de cmd."
+impact: "Cada auditoría sin caché gastaba tokens de la persona y unos 70 s más. Un agente corría dentro del árbol que se estaba probando, también durante un push. El resultado dependía de la máquina: la prueba con OfflineGuidance en el nombre no probaba eso. Y el camino con agente no comprobaba la respuesta."
+action_taken: "defaultBackends y DetectLocalLLM no dan ningún motor bajo go test, en cualquier paquete que llegue hasta ahí. ejecutarIntento recibe el motor y la forma de preguntar, y el camino con agente se prueba con uno de mentira que sí mira la respuesta. Go sin caché pasó de 101 s a 33 s, y cmd de 107 s a 2,6 s."
+test_result: "cli/pkg/cognitive/sin_agentes_test.go: las pruebas con FND172, con agentes de mentira en el PATH. cli/cmd/dashboard_llm_test.go: TestDashboardIntentHandler_NoLanzaUnAgenteReal_FND172."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

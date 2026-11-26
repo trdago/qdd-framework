@@ -35,6 +35,30 @@ func proyectoGoal(t *testing.T) string {
 	return root
 }
 
+// FND-146: esta es la barrera que queda si la regla del panel no ve el comando (el issue #112 no la había comprobado): la
+// acción del panel relanza qdd con el entorno de quien la llamó, así que una IA tampoco lo activa por aquí.
+// contrato: goal#63945bca
+// contrato: goal#777735ad
+func TestGoal_UnaIANoLoActivaNiPorLaAccionDelPanel_FND146(t *testing.T) {
+	root := proyectoGoal(t)
+	var salida, errores bytes.Buffer
+	t.Setenv("CLAUDECODE", "1")
+	if codigo := consolaAccion(root, consola.AccionGoalActivar, true, "", &salida, &errores); codigo == 0 || !strings.Contains(salida.String(), "solo la persona") {
+		t.Fatalf("con CLAUDECODE es una IA: %d %s %s", codigo, salida.String(), errores.String())
+	}
+	if consola.VistaGoal(root, time.Now()).Activo {
+		t.Fatal("no quedó activo")
+	}
+	t.Setenv("CLAUDECODE", "")
+	if codigo := consolaAccion(root, consola.AccionGoalActivar, true, "", &salida, &errores); codigo != 0 {
+		t.Fatalf("el panel limpia CLAUDECODE y la persona sí: %d %s %s", codigo, salida.String(), errores.String())
+	}
+	if !consola.VistaGoal(root, time.Now()).Activo {
+		t.Fatal("quedó activo")
+	}
+}
+
+// contrato: goal#63945bca
 func TestGoal_UnaIANoLoActivaYLaPersonaSi(t *testing.T) {
 	root := proyectoGoal(t)
 	now := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
@@ -71,6 +95,7 @@ func TestGoal_EstadoEnJSONSigueElContrato(t *testing.T) {
 	}
 }
 
+// contrato: goal#b842add7
 func TestGoal_DoctorVeElArchivoIlegibleYLoAparta(t *testing.T) {
 	root := proyectoGoal(t)
 	if g := buildGoalChecks(root); len(g.Items) != 0 {
@@ -104,4 +129,3 @@ func TestGoal_NoPasaPorElGatekeeperNiElRegistroDeTrabajo(t *testing.T) {
 		t.Fatal("corre cada 5 s y en proyectos sin config: sin los hooks de la raíz")
 	}
 }
-

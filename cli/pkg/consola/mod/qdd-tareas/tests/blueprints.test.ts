@@ -78,7 +78,7 @@ async function abrir($, on, estado, r) {
   preparar(on, estado, r)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work/bot' })
   const ui = await $.ui.mount({ ...TAREAS, surface: 'terminal' })
-  expect(await ui.find({ key: 'blueprints' })).toMatchObject({ props: { label: '📦 Blueprints', hotkey: 'p' } })
+  expect(await ui.find({ key: 'blueprints' })).toMatchObject({ props: { label: 'Blueprints', hotkey: 'p' } })
   await ui.press({ key: 'blueprints' })
   return ui
 }
@@ -112,6 +112,8 @@ test('↻ Actualizar catálogo corre sin confirmar, relee y dice cuántas versio
   expect(r.enviados).toEqual([])
 })
 
+// contrato: estado#bc172f02
+
 test('⬆ Actualizar e ＋ Instalar escriben el lockfile: piden «s  Sí» y no le escriben a la IA', async ($, on) => {
   const r = nuevo()
   const estado = { blueprints: inventario() as unknown, acciones: { 'blueprint:actualizar:estado': ok('[+] estado-por-tareas 2.0.1\n') } }
@@ -133,6 +135,8 @@ test('⬆ Actualizar e ＋ Instalar escriben el lockfile: piden «s  Sí» y no 
   expect(r.enviados).toEqual([])
 })
 
+// contrato: estado#bc172f02
+
 test('✦ Aplicar con la IA es lo único que le escribe a la IA, con el mensaje que da qdd', async ($, on) => {
   const r = nuevo()
   const estado = { blueprints: inventario(), acciones: { 'blueprint:aplicar:auth': ok('Actualiza «Usuarios y acceso» con qdd blueprint add auth…\n') } }
@@ -153,4 +157,38 @@ test('sin copia central lo dice y ofrece traerla; lo instalado queda sin medir',
   expect(await ui.find({ type: 'Text', text: /sin copia central/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /sin medir/ })).toBeDefined()
   expect(await ui.find({ key: 'bp-blueprint:sync' })).toBeDefined()
+})
+
+// MEJ-045 y MEJ-050 (FND-189): sin repositorio de blueprints, un qdd anterior entregaba "entradas": null y el panel
+// quedaba en negro. La vista se dibuja igual, con el aviso de qué falta.
+test('📦 Sin repositorio de blueprints (entradas null) la vista se dibuja con su aviso (FND-189)', async ($, on) => {
+  const r = nuevo()
+  const sinRepo = {
+    inventario: { entradas: null, instalados: 0, disponibles: 0, sin_ia: 0, con_ia: 0, problemas: ['el proyecto no tiene repositorio de blueprints de la organización: qdd blueprint add <repo> <id>'] },
+    acciones: null,
+  }
+  const ui = await abrir($, on, { blueprints: sinRepo }, r)
+  expect(await ui.find({ type: 'Text', text: '0 instalados · 0 sin IA · 0 con IA · 0 disponibles' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /no tiene repositorio de blueprints/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /falló/ })).toBeUndefined()
+})
+
+// FND-189: ninguna vista deja el panel en negro. Si una lanza, se ve «✗ la vista … falló», se puede volver al tablero
+// y la falla queda en qdd incidentes, sin datos del proyecto.
+// contrato: estado#4606a394
+test('✗ Una vista que falla se dice, deja volver al tablero y queda como incidente (FND-189)', async ($, on) => {
+  const r = nuevo()
+  const roto = { inventario: { entradas: [{ id: 'x', estado: 'al-dia', razones: 7 }], instalados: 'x', problemas: 'no es lista' }, acciones: [] }
+  const ui = await abrir($, on, { blueprints: roto }, r)
+  expect(await ui.find({ type: 'Text', text: /✗ La vista Blueprints falló/ })).toBeDefined()
+  const incidentes = r.llamadas.filter((a) => a[1] === 'incidentes' && a[2] === 'panel')
+  expect(incidentes.length).toBe(1)
+  expect(incidentes[0][3]).toBe('blueprints')
+  await ui.press({ key: 'blueprints' })
+  await ui.press({ key: 'blueprints' })
+  expect(await ui.find({ type: 'Text', text: /✗ La vista Blueprints falló/ })).toBeDefined()
+  expect(r.llamadas.filter((a) => a[1] === 'incidentes').length).toBe(1)
+  await ui.press({ key: 'vista-volver' })
+  expect(await ui.find({ type: 'Text', text: /✗ La vista/ })).toBeUndefined()
+  expect(await ui.find({ key: 'blueprints' })).toBeDefined()
 })

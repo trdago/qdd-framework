@@ -57,19 +57,35 @@ function resolverBinarioLocal(pkgDir, nombreBinario, log = console.log) {
   return null;
 }
 
-function main() {
-  const os = platformMap[process.platform];
-  const arch = archMap[process.arch];
+// plataformaDeBinario: Windows se publica solo en amd64, que Windows 11 en arm64 corre emulado (FND-313).
+function plataformaDeBinario(platform, arch) {
+  const os = platformMap[platform];
+  const publicado = archMap[arch];
+  if (!os || !publicado) {
+    return null;
+  }
+  if (os === 'windows') {
+    return { os, arch: 'amd64' };
+  }
+  return { os, arch: publicado };
+}
 
-  if (!os || !arch) {
+function main() {
+  const plataforma = plataformaDeBinario(process.platform, process.arch);
+
+  if (!plataforma) {
     console.error(`[QDD] Plataforma no soportada: ${process.platform} ${process.arch}`);
     process.exit(1);
   }
+  const { os, arch } = plataforma;
 
   const ext = os === 'windows' ? 'zip' : 'tar.gz';
   const binaryExt = os === 'windows' ? '.exe' : '';
   const binaryName = `qdd${binaryExt}`;
   const binDir = path.join(__dirname, 'bin');
+
+  const carpeta = carpetaDeVersiones({ os, env: process.env });
+  const destino = destinoDelBinario({ carpeta, version: pkg.version, binDir, binaryName });
 
   if (!fs.existsSync(binDir)) {
     fs.mkdirSync(binDir, { recursive: true });
@@ -88,7 +104,28 @@ function main() {
     process.exit(0);
   }
 
-  descargarDesdeRelease({ os, arch, ext, binaryName, binDir });
+  // Reinstalar la misma versión: su binario puede estar corriendo y no hace falta tocarlo.
+  if (carpeta && respondeBinario(destino)) {
+    console.log(`[QDD] La versión ${pkg.version} ya está en ${destino}.`);
+    terminarInstalacion({ bin: destino, carpeta });
+    return;
+  }
+
+  if (process.env.QDD_INSTALL_BINARIO) {
+    instalarBinarioIndicado({ origen: process.env.QDD_INSTALL_BINARIO, destino, carpeta });
+    return;
+  }
+
+  descargarDesdeRelease({ os, arch, ext, binaryName, binDir, destino, carpeta });
+}
+
+// QDD_INSTALL_BINARIO instala ese binario en vez de descargarlo: es como el CI prueba el paquete antes de publicarlo.
+function instalarBinarioIndicado({ origen, destino, carpeta }) {
+  try {
+    terminarInstalacion({ bin: instalarCopia(origen, destino), carpeta });
+  } catch (err) {
+    fallar(`no se pudo instalar ${origen}: ${err.message}`);
+  }
 }
 
 // tomarTurno: varios qdd sin binario a la vez (un panel, por ejemplo) no bajan cada uno el suyo.
@@ -118,14 +155,14 @@ function pedirTurno(ruta) {
   } catch (err) {
     fallar(`no se pudo escribir en la carpeta del paquete: ${err.message}`);
   }
-  process.on('exit', () => fs.rmSync(ruta, { force: true }));
+  process.on('exit', () => borrarSinFallar(ruta));
 }
 
 // carpetaDeDescarga es propia de este proceso: un postinstall y un primer uso pueden correr a la vez.
 function carpetaDeDescarga() {
   try {
     const carpeta = fs.mkdtempSync(path.join(__dirname, 'descarga-'));
-    process.on('exit', () => fs.rmSync(carpeta, { recursive: true, force: true }));
+    process.on('exit', () => borrarSinFallar(carpeta));
     return carpeta;
   } catch (err) {
     return fallar(`no se pudo escribir en la carpeta del paquete: ${err.message}`);
@@ -133,10 +170,10 @@ function carpetaDeDescarga() {
 }
 
 // 2. Descarga desde GitHub Releases
-function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
+function descargarDesdeRelease({ os, arch, ext, binaryName, binDir, destino, carpeta }) {
   const url = `https://github.com/${REPO}/releases/download/${VERSION}/qdd_${os}_${arch}.${ext}`;
-  const carpeta = carpetaDeDescarga();
-  const downloadDest = path.join(carpeta, `qdd-download.${ext}`);
+  const descarga = carpetaDeDescarga();
+  const downloadDest = path.join(descarga, `qdd-download.${ext}`);
 
   console.log(`[QDD] Descargando binario nativo para ${os}-${arch}...`);
   console.log(`[QDD] URL: ${url}`);
@@ -169,9 +206,9 @@ function descargarDesdeRelease({ os, arch, ext, binaryName, binDir }) {
   function extractBinary() {
     console.log('[QDD] Extrayendo...');
     try {
-      const bin = instalarDescarga({ os, paquete: downloadDest, carpeta, binaryName, binDir, env: process.env });
+      const bin = instalarDescarga({ os, paquete: downloadDest, carpeta: descarga, binaryName, binDir, env: process.env, destino });
       console.log('[QDD] ¡Instalación nativa completada exitosamente!');
-      actualizarConsola(bin);
+      terminarInstalacion({ bin, carpeta });
     } catch (err) {
       fallar(`no se pudo instalar el binario: ${err.message}`);
     }
@@ -188,8 +225,133 @@ function comandoExtraer(os, paquete, destino, env) {
   return { programa: 'tar', args: ['-xzf', paquete, '-C', destino] };
 }
 
-// instalarDescarga deja el binario en bin/ solo si responde; si algo falla, lanza el error y el binario anterior sigue ahí.
-function instalarDescarga({ os, paquete, carpeta, binaryName, binDir, env }) {
+// En Windows, npm no puede reemplazar un qdd.exe en uso, y siempre hay uno: el panel y los pedidos corren desde él (issue
+// #107, FND-142). Por eso ahí el binario vive fuera del paquete, en %LOCALAPPDATA%\qdd\bin\<versión>\qdd.exe: lo que
+// corre se queda con su versión y npm no se topa con nada. bin\actual.txt dice cuál es la instalada: lo que corre lo
+// mira para saber que tiene que cerrarse. Linux y macOS pueden reemplazar un binario en uso: siguen con él en el paquete.
+function carpetaDeVersiones({ os, env }) {
+  if (os !== 'windows' || !env.LOCALAPPDATA) {
+    return '';
+  }
+  return path.join(env.LOCALAPPDATA, 'qdd', 'bin');
+}
+
+function destinoDelBinario({ carpeta, version, binDir, binaryName }) {
+  if (!carpeta) {
+    return path.join(binDir, binaryName);
+  }
+  return path.join(carpeta, version, binaryName);
+}
+
+function respondeBinario(ruta) {
+  try {
+    execFileSync(ruta, ['--version'], { stdio: 'pipe', timeout: TOPE_VERSION_MS });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// En Windows, un antivirus puede retener unos segundos el qdd.exe que se acaba de ejecutar (#175).
+const OCUPADO = new Set(['EBUSY', 'EPERM']);
+const ESPERA_OCUPADO_MS = 1000;
+const INTENTOS_OCUPADO = 30;
+
+function dormirSincrono(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// moverBinario copia si el destino está en otro volumen (el prefijo de npm y %LOCALAPPDATA% pueden estarlo) o si el
+// binario sigue ocupado tras unos 30 s: copiar solo necesita leerlo.
+function moverBinario(origen, destino, renombrar = fs.renameSync, { dormir = dormirSincrono, intentos = INTENTOS_OCUPADO } = {}) {
+  for (let i = 0; ; i++) {
+    try {
+      renombrar(origen, destino);
+      return;
+    } catch (err) {
+      if (err.code === 'EXDEV') {
+        break;
+      }
+      if (!OCUPADO.has(err.code)) {
+        throw err;
+      }
+      if (i + 1 >= intentos) {
+        break;
+      }
+      dormir(ESPERA_OCUPADO_MS);
+    }
+  }
+  copiarBinario(origen, destino);
+  borrarSinFallar(origen);
+}
+
+// quitarSiVacia no deja una carpeta de versión sin binario cuando la instalación falla (#175).
+function quitarSiVacia(carpeta) {
+  try {
+    fs.rmdirSync(carpeta);
+  } catch (_) {
+    // tiene archivos (otra instalación) o ya no está: se deja.
+  }
+}
+
+// borrarSinFallar: que no se pueda borrar algo temporal no rompe la instalación ni tapa su mensaje (#175).
+function borrarSinFallar(ruta) {
+  try {
+    fs.rmSync(ruta, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (err) {
+    console.error(`[QDD] No se pudo borrar ${ruta}: ${err.message}`);
+  }
+}
+
+// copiarBinario nunca deja un binario a medias con el nombre final.
+function copiarBinario(origen, destino) {
+  const temporal = destino + '.nuevo';
+  fs.copyFileSync(origen, temporal);
+  fs.renameSync(temporal, destino);
+}
+
+function instalarCopia(origen, destino) {
+  execFileSync(origen, ['--version'], { stdio: 'pipe', timeout: TOPE_VERSION_MS });
+  fs.mkdirSync(path.dirname(destino), { recursive: true });
+  copiarBinario(origen, destino);
+  return destino;
+}
+
+// registrarVersion avisa a lo que corre que hay otra versión y borra las viejas: quedan esta y la anterior. Lo que no se
+// puede borrar sigue corriendo: se borrará en otra actualización.
+function registrarVersion({ carpeta, version, borrar = fs.rmSync }) {
+  const puntero = path.join(carpeta, 'actual.txt');
+  const anterior = esArchivo(puntero) ? fs.readFileSync(puntero, 'utf8').trim() : '';
+  if (anterior !== version) {
+    fs.writeFileSync(puntero, version);
+  }
+  for (const nombre of fs.readdirSync(carpeta)) {
+    if (!/^\d+\.\d+\.\d+/.test(nombre) || nombre === version || nombre === anterior) {
+      continue;
+    }
+    try {
+      borrar(path.join(carpeta, nombre), { recursive: true, force: true });
+    } catch (_) {
+      console.log(`[QDD] La versión ${nombre} sigue en uso: se borrará más adelante.`);
+    }
+  }
+}
+
+// terminarInstalacion: primero el panel, y al final el puntero, porque lo que corre se cierra apenas cambia.
+function terminarInstalacion({ bin, carpeta }) {
+  actualizarConsola(bin);
+  if (!carpeta) {
+    return;
+  }
+  try {
+    registrarVersion({ carpeta, version: pkg.version });
+  } catch (err) {
+    console.error('[QDD] No se pudo registrar la versión instalada:', err.message);
+  }
+}
+
+// instalarDescarga deja el binario en su destino solo si responde; si algo falla, lanza el error y el binario anterior sigue ahí.
+function instalarDescarga({ os, paquete, carpeta, binaryName, binDir, env, destino = path.join(binDir, binaryName) }) {
   const { programa, args } = comandoExtraer(os, paquete, carpeta, env);
   execFileSync(programa, args, { stdio: 'pipe' });
   const extraido = path.join(carpeta, binaryName);
@@ -198,8 +360,13 @@ function instalarDescarga({ os, paquete, carpeta, binaryName, binDir, env }) {
   }
   fs.chmodSync(extraido, 0o755);
   execFileSync(extraido, ['--version'], { stdio: 'pipe', timeout: TOPE_VERSION_MS });
-  const destino = path.join(binDir, binaryName);
-  fs.renameSync(extraido, destino);
+  fs.mkdirSync(path.dirname(destino), { recursive: true });
+  try {
+    moverBinario(extraido, destino);
+  } catch (err) {
+    quitarSiVacia(path.dirname(destino));
+    throw err;
+  }
   fs.rmSync(paquete, { force: true });
   return destino;
 }
@@ -226,7 +393,7 @@ function actualizarConsola(bin) {
   }
 }
 
-module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, comandoExtraer, instalarDescarga, codigoDeFalla, tomarTurno };
+module.exports = { esArchivo, estaDentroDeNodeModules, resolverBinarioLocal, plataformaDeBinario, comandoExtraer, instalarDescarga, codigoDeFalla, carpetaDeVersiones, destinoDelBinario, respondeBinario, moverBinario, instalarCopia, registrarVersion, tomarTurno };
 
 if (require.main === module) {
   main();

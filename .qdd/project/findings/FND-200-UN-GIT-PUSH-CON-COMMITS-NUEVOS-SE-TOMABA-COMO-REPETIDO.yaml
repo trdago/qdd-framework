@@ -1,0 +1,9 @@
+id: "FND-200"
+title: "Un git push con commits nuevos se tomaba como repetido"
+description: "2026-11-09 (sfrc, MEJ-053): en sfrc cada push se pide con el mismo comando (git push origin main). El seguro de FND-154 recuerda 24 h el efecto de lo que terminó bien por su texto, así que el push siguiente se rechazaba con «ya se hizo» aunque hubiera commits nuevos que subir, y la IA tenía que pedir cada push con --de-nuevo."
+impact: "Cada push nuevo choca con el seguro; usar --de-nuevo por costumbre le quita al seguro su sentido."
+action_taken: "Un git push solo (sin encadenar) recuerda la huella de las ramas y tags locales de su carpeta al terminar (huellaPush). Al pedirlo de nuevo, si la huella cambió, no es repetido; si no cambió, el seguro lo rechaza como antes. Un comando encadenado, otro comando o una carpeta sin git siguen igual que antes."
+test_result: "cli/pkg/consola/pedido_push_test.go: TestMEJ053_UnPushConCommitsNuevosNoEsRepetido fallaba antes («ya se hizo» con un commit nuevo) y pasa después; el mismo push sin commits nuevos sigue rechazado. Las pruebas de FND-154 y de pkg/consola siguen pasando."
+status: resolved
+detectado_por: persona
+date: "2026-11-11"

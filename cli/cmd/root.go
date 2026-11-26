@@ -41,12 +41,7 @@ var undoCmd = &cobra.Command{
 		}
 		target := args[0]
 		if target == "init" {
-			cwd, _ := os.Getwd()
-			qddPath := filepath.Join(cwd, ".qdd")
-			if _, err := os.Stat(qddPath); err == nil {
-				os.RemoveAll(qddPath)
-				fmt.Printf("[UNDO] Carpeta .qdd eliminada exitosamente para revertir 'init'.\n")
-			}
+			imprimirUndoInit()
 			return
 		}
 		fmt.Printf("[UNDO] Revirtiendo estado del comando '%s' (No-op en comandos de solo lectura)\n", target)
@@ -86,20 +81,19 @@ Para encadenar comandos con rollback automático si uno falla:
 
 		cwd, _ := os.Getwd()
 		registrarUso(cwd)
-		workingPath := filepath.Join(cwd, ".qdd", "working")
-		os.WriteFile(workingPath, []byte(name), 0644)
+		marcarComando(cwd, name)
 
 		// No exigimos contexto si apenas estamos inicializando, aprendiendo, reparando,
 		// o reportando un error (bug): un proceso supervisado puede fallar incluso en un
 		// proyecto que todavía no completó `qdd init`, y ese fallo igual debe poder registrarse.
-		if name == "init" || name == "learn" || name == "doctor" || name == "bug" {
+		if name == "init" || name == "learn" || name == "doctor" || name == "bug" || deReportar(cmd) {
 			return nil
 		}
-		
+
 		// Para todo lo demás, el Gatekeeper bloquea si falta contexto crítico
 		if err := qcl.CheckMinimumAlignment(); err != nil {
 			fmt.Printf("[🛑 GATEKEEPER] %v\n", err)
-			os.Remove(workingPath)
+			desmarcarComando(cwd)
 			os.Exit(1)
 		}
 		return nil
@@ -110,8 +104,7 @@ Para encadenar comandos con rollback automático si uno falla:
 			return
 		}
 		cwd, _ := os.Getwd()
-		workingPath := filepath.Join(cwd, ".qdd", "working")
-		os.Remove(workingPath)
+		desmarcarComando(cwd)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
@@ -254,7 +247,7 @@ func executePipeline() {
 	var completed []string
 	for _, cmdStr := range os.Args[2:] {
 		fmt.Printf("\n🚀 [QDD PIPELINE] Ejecutando: qdd %s\n", cmdStr)
-		
+
 		if err := executePipelineCommand(cmdStr); err != nil {
 			fmt.Printf("\n[🛑 ERROR PIPELINE] El comando '%s' falló. Abortando pipeline secuencial y ejecutando Rollback automático.\n", cmdStr)
 			executeRollback(completed)
@@ -291,7 +284,7 @@ func executePipelineCommand(cmdStr string) error {
 	execCmd := selfExecutable()
 	args := strings.Fields(cmdStr)
 	processArgs := append([]string{os.Args[0]}, args...)
-	
+
 	process, err := os.StartProcess(execCmd, processArgs, &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	})
@@ -299,7 +292,7 @@ func executePipelineCommand(cmdStr string) error {
 		fmt.Printf("[🛑 ERROR PIPELINE] No se pudo iniciar el comando %s: %v\n", cmdStr, err)
 		return err
 	}
-	
+
 	state, err := process.Wait()
 	if err != nil || !state.Success() {
 		return fmt.Errorf("command execution failed")
@@ -357,18 +350,18 @@ func loadProjectState() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	statePath := filepath.Join(cwd, ".qdd", "state.json")
 	data, err := os.ReadFile(statePath)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var state map[string]interface{}
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, err
 	}
-	
+
 	return state, nil
 }
 
@@ -376,16 +369,26 @@ func parseVersion(v string) (int, int, int) {
 	v = strings.TrimPrefix(v, "v")
 	parts := strings.Split(strings.Split(v, "-")[0], ".")
 	var major, minor, patch int
-	if len(parts) > 0 { fmt.Sscanf(parts[0], "%d", &major) }
-	if len(parts) > 1 { fmt.Sscanf(parts[1], "%d", &minor) }
-	if len(parts) > 2 { fmt.Sscanf(parts[2], "%d", &patch) }
+	if len(parts) > 0 {
+		fmt.Sscanf(parts[0], "%d", &major)
+	}
+	if len(parts) > 1 {
+		fmt.Sscanf(parts[1], "%d", &minor)
+	}
+	if len(parts) > 2 {
+		fmt.Sscanf(parts[2], "%d", &patch)
+	}
 	return major, minor, patch
 }
 
 func isOlder(v1, v2 string) bool {
 	m1, min1, p1 := parseVersion(v1)
 	m2, min2, p2 := parseVersion(v2)
-	if m1 != m2 { return m1 < m2 }
-	if min1 != min2 { return min1 < min2 }
+	if m1 != m2 {
+		return m1 < m2
+	}
+	if min1 != min2 {
+		return min1 < min2
+	}
 	return p1 < p2
 }

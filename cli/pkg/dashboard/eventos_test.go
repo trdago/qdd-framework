@@ -23,13 +23,26 @@ func proyectoMedido(t *testing.T) string {
 	return dir
 }
 
-func mensajesEn(ch chan []byte, ventana time.Duration) int {
+// difusionLiviana cambia lo que difunde el vigilante por un mensaje fijo: estas pruebas miden cuándo reacciona, no qué
+// arma (FND-215: armar el estado espera al disco y con la máquina cargada la ráfaga no llegaba a tiempo).
+func difusionLiviana(t *testing.T) {
+	t.Helper()
+	antes := difundir
+	difundir = func() { Broker.Broadcast([]byte(`{}`)) }
+	t.Cleanup(func() { difundir = antes })
+}
+
+// mensajesEn cuenta las difusiones durante ventana; con hasta, vuelve apenas llegan esas.
+func mensajesEn(ch chan []byte, ventana time.Duration, hasta ...int) int {
 	n := 0
 	limite := time.After(ventana)
 	for {
 		select {
 		case <-ch:
 			n++
+			if len(hasta) > 0 && n >= hasta[0] {
+				return n
+			}
 		case <-limite:
 			return n
 		}
@@ -38,6 +51,8 @@ func mensajesEn(ch chan []byte, ventana time.Duration) int {
 
 // FND-058: el dashboard escribía dentro de lo que observaba y se reconstruía
 // cada 500 ms aunque nadie cambiara nada.
+// contrato: dashboard#6002ac96
+// contrato: dashboard#3d6c6819
 func TestVigilar_ProyectoQuietoNoReconstruye(t *testing.T) {
 	dir := proyectoMedido(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,6 +74,7 @@ func TestVigilar_ProyectoQuietoNoReconstruye(t *testing.T) {
 // y lo que escribe el propio dashboard o un editor no cuenta como evento.
 func TestVigilar_ReaccionaSoloAEventosReales(t *testing.T) {
 	dir := proyectoMedido(t)
+	difusionLiviana(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -80,14 +96,20 @@ func TestVigilar_ReaccionaSoloAEventosReales(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		os.WriteFile(filepath.Join(qdd, "project", "findings", "FND-001.yaml"), []byte("status: open\n"), 0644)
 	}
-	if n := mensajesEn(ch, 2500*time.Millisecond); n != 1 {
-		t.Errorf("una ráfaga de cambios reales produjo %d difusiones; want 1", n)
+	// FND-215: con la máquina cargada la difusión llegaba tarde. Con la difusión liviana basta esperar la primera y
+	// comprobar después que la ráfaga no produjo otra.
+	if n := mensajesEn(ch, 15*time.Second, 1); n != 1 {
+		t.Fatalf("una ráfaga de cambios reales produjo %d difusiones; want 1", n)
+	}
+	if n := mensajesEn(ch, ventanaDeEventos+time.Second); n != 0 {
+		t.Errorf("una ráfaga de cambios reales produjo %d difusiones de más; want 1 en total", n+1)
 	}
 }
 
 // Una carpeta creada después de abrir el dashboard también se observa.
 func TestVigilar_ObservaCarpetasNuevas(t *testing.T) {
 	dir := proyectoMedido(t)
+	difusionLiviana(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -109,6 +131,7 @@ func TestVigilar_ObservaCarpetasNuevas(t *testing.T) {
 
 // FND-058: BuildState solo lee. Antes escribía cognitive_history.json, que el
 // watcher observa, en cada reconstrucción.
+// contrato: dashboard#6002ac96
 func TestBuildState_NoEscribeHistoriales(t *testing.T) {
 	dir := proyectoMedido(t)
 	BuildState()
@@ -159,6 +182,7 @@ func TestBroker_UltimoEstado(t *testing.T) {
 
 // FND-055: el dashboard inventaba un historial para cada certificación, horas
 // ahorradas con constantes y la misma descripción para todo finding.
+// contrato: dashboard#f88cd0d7
 func TestBuildState_SinDatosSimulados(t *testing.T) {
 	dir := proyectoMedido(t)
 	os.WriteFile(filepath.Join(dir, ".qdd", "project", "findings", "FND-001.yaml"),

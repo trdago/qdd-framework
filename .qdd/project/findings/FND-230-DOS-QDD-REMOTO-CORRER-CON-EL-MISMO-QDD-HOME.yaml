@@ -1,0 +1,9 @@
+id: "FND-230"
+title: "Dos qdd remoto correr podían correr a la vez con el mismo QDD_HOME — MEJ-079"
+description: "2026-11-15, pedido de la persona (MEJ-079): «tenemos que asegurar que solo una ejecución de qdd remote esté activa por PC». unaSolaVez (cmd/remoto_relay.go) leía correr.pid y, si el pid no estaba vivo, escribía el suyo: no era atómico (dos que arrancan a la vez pasaban los dos), un pid reusado por otro proceso bloqueaba el servicio para siempre, y al terminar borraba correr.pid aunque ya fuera de otro. Ya habían quedado procesos viejos vivos tras una actualización (REP-485)."
+impact: "Dos procesos en el mismo tópico publican dos veces el estado, duplican las respuestas a acciones y preguntas y se pisan el seq; QDD Móvil ve comportamientos raros sin causa visible."
+action_taken: "remoto.UnaSolaVez toma un candado del sistema operativo (flock en Unix, LockFileEx en Windows) sobre <QDD_HOME>/remoto/correr.lock que dura lo que el proceso y lo suelta su muerte, y recién entonces anota correr.pid (que siguen leyendo Corriendo y doctor); al soltar, borra correr.pid solo si sigue siendo suyo. qdd remoto correr lo toma antes de leer el relay: si otro lo tiene, dice su pid y sale con el código 4 sin conectarse, y el servicio lo reintenta y toma el relevo cuando el otro termina. Es por QDD_HOME: el PC de muestra (otro QDD_HOME) sigue corriendo junto al principal."
+test_result: "cli/pkg/remoto/unico_mej079_test.go: el segundo con el mismo QDD_HOME recibe ErrYaCorre con el pid; con otro QDD_HOME corre; un correr.pid con un pid vivo sin candado no bloquea; al soltar no borra el pid de otro; y entre procesos, un hijo con el candado lo bloquea y al matarlo (sin soltar) queda libre. cli/cmd/remoto_relay_test.go: TestRemotoCorrer_OtroConElMismoQDDHomeSaleSinConectarse_MEJ079 (código 4). Compila para linux, darwin y windows."
+status: resolved
+detectado_por: persona
+date: "2026-11-15"

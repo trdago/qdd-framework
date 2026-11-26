@@ -2,6 +2,8 @@ package remoto
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -64,6 +66,7 @@ func proyectoConPregunta(t *testing.T) (string, string, consola.Pregunta) {
 	return root, clave, p
 }
 
+// contrato: remoto#c814f23f
 func TestResponder_LaRespuestaLlegaUnaSolaVezYElOtroTelefonoVeDonde(t *testing.T) {
 	homeTemporal(t)
 	root, clave, p := proyectoConPregunta(t)
@@ -171,6 +174,7 @@ func TestResponder_InvalidaVencidaRevocadaOSinFirma(t *testing.T) {
 	}
 }
 
+// contrato: remoto#c814f23f
 func TestResponder_SiGanoElTerminalElTelefonoTerminaViendoPC(t *testing.T) {
 	// El teléfono alcanzó a responder, pero el terminal respondió antes de que el mod lo entregara: el mod la cierra en
 	// el PC y el PC le corrige al teléfono el estado de su solicitud (ya_aprobado, lugar PC).
@@ -215,11 +219,60 @@ func TestArmar_LaPreguntaSalePublicadaSinSecretos(t *testing.T) {
 	}
 }
 
+// FND-157: ocultarDelPanel solo pasaba las preguntas y lo mandado desde el teléfono; el tablero y los pedidos salían tal cual.
+func TestArmar_ElTableroYLosPedidosSalenSinSecretos_FND157(t *testing.T) {
+	homeTemporal(t)
+	root := proyecto(t, "app", true)
+	const token = "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+	tablero := "formato: 1\netapas: [Código, Pruebas]\nobjetivos:\n" +
+		"  - {id: o, nombre: \"Obj " + token + "\", criterio: \"Crit " + token + "\", estado: abierto}\n" +
+		"frentes:\n" +
+		"  - {id: a, nombre: \"Tarea " + token + "\", estado: abierto, objetivo: o, celdas: {" +
+		"Código: {estado: ⏳, bloqueo: \"usa " + token + "\", de_quien: CI}, Pruebas: {estado: ❌, falla: \"401 con " + token + "\"}}}\n"
+	if err := os.WriteFile(filepath.Join(root, ".qdd", "project", "estado.yaml"), []byte(tablero), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := consola.Pedir(root, "curl -H 'Authorization: Bearer "+token+"' https://api.github.com", "Publicar "+token, root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	reg := registro.Registro{Proyectos: []registro.Proyecto{{Ruta: root, Clave: "app-1"}}}
+	p := Armar("v", reg, time.Now(), 0).Proyectos[0]
+	if p.Panel == nil || p.Panel.Estado == nil || len(p.Panel.Estado.Esperas) != 1 || len(p.Panel.Estado.Fallas) != 1 || len(p.Panel.Acciones) == 0 {
+		t.Fatalf("la prueba necesita el tablero y el pedido publicados: %+v", p.Panel)
+	}
+	b, _ := json.Marshal(p)
+	if strings.Contains(string(b), "ghp_") {
+		t.Fatalf("inv. 16: %s", b)
+	}
+}
+
+// contrato: goal#42e317f1
 func TestPanel_LasEleccionesDelModoGoalSalenSinSecretos(t *testing.T) {
 	root := t.TempDir()
 	panel := consola.DatosConsola{Goal: &consola.Goal{Activo: true, Elegidas: []consola.Elegida{{Etiqueta: "token ghp_123456789012345678901234567890123456", Eleccion: "ejecutar"}}}}
 	ocultarDelPanel(root, &panel)
 	if strings.Contains(panel.Goal.Elegidas[0].Etiqueta, "ghp_") {
 		t.Fatalf("inv. 16: %q", panel.Goal.Elegidas[0].Etiqueta)
+	}
+}
+
+// Logrado (QDD Móvil, 2026-11-09): el relay lo pide y cada texto pasa por el ocultador, como el resto del panel.
+func TestPanel_LoLogradoSalePedidoYSinSecretos(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	secreto := "ghp_" + strings.Repeat("1234567890", 3) + "123456"
+	logrado := []consola.Logro{{Tipo: consola.LogroPedido, ID: "pedido:1", Titulo: "Publicar " + secreto, Detalle: "curl " + secreto, Salida: "ok " + secreto, Motivo: secreto, Criterio: secreto, Evidencia: secreto}}
+	panel := consola.DatosConsola{Logrado: &logrado}
+	ocultarDelPanel(root, &panel)
+	b, _ := json.Marshal(panel)
+	if strings.Contains(string(b), "ghp_") {
+		t.Fatalf("inv. 16: %s", b)
+	}
+	if len(logrado) != 1 || !strings.Contains(logrado[0].Titulo, secreto) {
+		t.Fatal("ocultar no cambia la lista de quien la armó")
+	}
+	reg := registro.Registro{Proyectos: []registro.Proyecto{{Ruta: t.TempDir(), Clave: "app-1"}}}
+	if p := Armar("v", reg, time.Now(), 0).Proyectos[0]; p.Panel == nil || p.Panel.Logrado == nil {
+		t.Fatalf("el relay pide lo logrado para QDD Móvil: %+v", p.Panel)
 	}
 }

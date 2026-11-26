@@ -20,11 +20,13 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 - **El PC encendido es la fuente de verdad.** Un PC apagado se muestra «apagado desde HH:MM» y nada más: nunca un estado
   guardado o congelado.
 - **Supabase solo como relay**: Realtime **Broadcast** (estado, acciones, consola) y **Presence** (qué PC está encendido
-  y quién mira una consola). No se guardan en Supabase ni el estado ni las acciones.
+  y quién mira una consola). La decisión es que Supabase no guarde ni el estado ni las acciones. **No se cumple con lo que
+  manda el teléfono por el relay (FND-321):** acciones, respuestas y textos pasan por `realtime.send` y quedan unos días (las
+  fotos iban igual; no quedó ninguna guardada y el relay ya no las acepta); ver [Qué queda guardado en el relay](../docs/qdd-movil-comunicacion.md#qué-queda-guardado-en-el-relay).
 - **Un solo canal por PC**, manejado por un único proceso de qdd en Go (`qdd remoto`), que publica todos los proyectos.
 - **La app es un cliente más del protocolo**: el panel, la app y cualquier cliente futuro hablan lo mismo.
 - **Relay de desarrollo (2026-11-02):** mientras no exista el proyecto Supabase Pro propio, se usa el proyecto Supabase
-  del notificador de ofertas, con todo lo nuestro en un **esquema nuevo `qdd_remoto`**. Las políticas sobre
+  del proyecto-b, con todo lo nuestro en un **esquema nuevo `qdd_remoto`**. Las políticas sobre
   `realtime.messages` se limitan a los temas `qdd:pc:%`, así que no cambian el acceso de los demás proyectos.
 - **Planes, push, secretos, dispositivos, idiomas (complementos del usuario, 2026-11-02):** ver las secciones de abajo.
   El backend vive en `qdd-movil/supabase/` (migraciones, RLS, Edge Functions, límites por plan) y se despliega con la CLI
@@ -37,8 +39,12 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 1. El teléfono solo envía **ids de acción** que el PC ofreció en `qdd consola panel --json`. Nunca texto libre que se
    ejecute. El PC vuelve a calcular la acción antes de ejecutarla (`qdd consola accion <id> --confirmado`). La única
    excepción es **solo para Pro** (decisión del usuario, 2026-11-03): «Ejecutar desde el teléfono», un comando qdd de
-   la lista que permite el PC, sin shell, o una instrucción para la IA, que llega como un mensaje de la persona.
-2. Toda acción que escribe o ejecuta pasa por la confirmación de la persona en el teléfono (biometría o PIN).
+   la lista que permite el PC, sin shell, o una instrucción para la IA, que llega como un mensaje de la persona. También
+   solo con Pro (decisión de la persona, 2026-11-06), una edición de un flujo, en el esquema cerrado de «Editar un flujo
+   desde el teléfono».
+2. Toda acción que escribe o ejecuta pasa por la confirmación de la persona en el teléfono (biometría o PIN). Las
+   ediciones de un flujo se confirman una vez, al entrar a editar (decisión de la persona, 2026-11-06); lo exige la app:
+   el PC no ve la biometría de ninguna acción.
 3. Cada acción tiene un **id de solicitud único** y es idempotente: si llega dos veces, se ejecuta una sola vez.
 4. Cada acción recibe su respuesta: `recibida` → `ejecutando` → `hecha` | `fallo`. Sin `recibida` en 5 s, el teléfono
    reintenta con el mismo id.
@@ -46,7 +52,8 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
 6. La consola se transmite solo mientras alguien la mira (Presence de espectadores).
 7. La consola es de solo lectura. **Solo con Pro** (decisión del usuario, 2026-11-03) el teléfono puede mandar a un
    proyecto un comando qdd de la lista permitida y una instrucción para la IA de la sesión abierta (ver «Ejecutar desde
-   el teléfono»); la instrucción entra a la conversación como un mensaje de la persona, nunca como un comando.
+   el teléfono»); la instrucción entra a la conversación como un mensaje de la persona, nunca como un comando. Con Pro
+   también edita y comenta los flujos del proyecto (decisión de la persona, 2026-11-06).
 8. Un PC sin conexión nunca aparece «encendido»: lo decide Presence, no el último mensaje.
 9. Las credenciales del PC viven en `<QDD_HOME>/remoto/` con permisos `0600`. El PC y la app nunca usan la service key
    (la clave secreta se usa solo para aplicar las migraciones del relay); nada de credenciales en un repositorio.
@@ -66,6 +73,9 @@ La persona trabaja en varios proyectos y en más de un PC. Necesita una vista m�
     rechazada aunque tenga la sesión abierta.
 19. Un pedido ya aprobado en otro lugar (el PC u otro teléfono) responde `ya_aprobado` con el lugar y no se ejecuta otra
     vez (protección de la cola, FND-070).
+20. **El PC solo cambia de relay con una respuesta firmada.** El relay administrado sale de un directorio firmado con una
+    clave cuya privada no está en el servidor que lo sirve, y su serie nunca baja. Un relay dado con banderas es de la
+    persona y el directorio no lo toca.
 
 ## Diseño
 
@@ -113,6 +123,8 @@ Lo que el PC publicaría, sin red. El mismo JSON es el contenido del evento `est
 
 - `panel` es exactamente `consola.Panel(root, now)`: la app dibuja lo mismo que el panel y no hay un segundo modelo.
 - Un proyecto que falla trae `error` y no `panel`; nunca un panel inventado o vacío como si estuviera bien.
+- `reglas_atrasadas` (2026-11-07): los archivos con el bloque de reglas de un qdd anterior; `[]` es al día y sin el campo no se
+  midió (la carpeta no está). Renovarlas manda un `estado` completo, porque un `delta` no lo lleva.
 - Orden: por `visto`, el más reciente primero.
 - Sin `--json` imprime una línea por proyecto: nombre, foco, tareas, esperan, fallan.
 
@@ -152,7 +164,16 @@ existen y el nuestro no se configura a mano.
 | `qdd_remoto_latido(p_topico, p_firma, p_en_curso, p_consola_min, p_mensajes)` | PC | Cada minuto: latido, consumo; responde el plan y si la consola sigue permitida. |
 | `qdd_remoto_desactivar(p_topico, p_firma)` | PC | `qdd remoto desactivar`. |
 
-- **Login (issue #102):** `qdd login` es `qdd remoto activar` sin banderas: usa el relay guardado o, la primera vez, el que trae qdd. El PC muestra el QR y necesita hablar con el relay antes del escaneo, así que la app no puede entregárselo en el QR. Desde 2.9.1 qdd trae ese relay, solo con su clave publicable.
+- **Login (issue #102):** `qdd login` es `qdd remoto activar` sin banderas: usa el relay guardado, confirmado con el directorio, o, la primera vez, el que diga el directorio. El PC muestra el QR y necesita hablar con el relay antes del escaneo, así que la app no puede entregárselo en el QR.
+- **El relay sale de un directorio firmado (2026-11-06, decisión de la persona, inv. 20).** Si el relay cambia, cambia la URL y no el código.
+  - `GET` a un sitio responde `{"url","clave","serie","firma"}`. Son tres, fijos en el código y en este orden, con la misma respuesta (FND-171): `https://qdd-movile.3ldago.workers.dev/`, `https://dedwoaolrpaqliokrjah.supabase.co/functions/v1/directorio` y `https://raw.githubusercontent.com/trdago/qdd-directorio/main/directorio.json`. Se preguntan de a uno, con 10 s por sitio; se usa la primera respuesta que valide, cualquier fallo pasa al siguiente y, si fallan todos, el error da el motivo de cada uno por su número. Publicar un relay nuevo actualiza los tres en la misma pasada: un primer sitio atrasado, de serie no menor a la vista, gana y no se nota. raw.githubusercontent.com cachea unos 5 minutos: por eso es el último.
+  - La confianza está en la firma, no en el sitio. La firma es ed25519, en base64 estándar, sobre los bytes UTF-8 de `url|clave|serie`. qdd trae la clave pública, y la privada no está en el servidor: quien entra a esa cuenta no redirige a nadie.
+  - Por qué firmar: el PC manda su `firma` al relay en sus llamadas, así que un relay falso podría firmar eventos `ejecutar` e instrucciones para la IA.
+  - Se rechaza lo que no sea esa respuesta exacta: campos de más, datos después, firma mala, serie menor que la vista, una URL que no sea https y solo host, una clave que no sea publicable, una redirección, un estado que no sea 200 o más de 4 KB.
+  - Cuándo se consulta: al arrancar el servicio, en `qdd login` y `qdd remoto activar`, y con la conexión caída más de 1 minuto, como mucho cada 10 minutos. Mientras la conexión funciona no se consulta. Un `28000` no consulta: el relay respondió.
+  - Si la respuesta da otro relay, el servicio se reinicia con él (`ErrRelayCambio`). Si la consulta falla, sigue con el recordado: `qdd login` y `qdd remoto emparejar` lo avisan antes de dar el código, y `qdd doctor` lo dice (REM-11) sin usar la red. `qdd doctor --fix` es lo único de doctor que consulta: reemplaza el relay si el directorio da otro y, con el servicio corriendo, lo reinicia.
+  - Un relay propio, dado con banderas, no se consulta si este PC ya está emparejado: perdería su cuenta. Sin emparejar no hay nada que perder y manda el directorio; se avisa cómo volver a darlo a mano (FND-171).
+  - La primera vez, sin directorio no hay relay: el error dice cómo dar uno a mano. qdd no trae uno de respaldo.
 - **Emparejar:** `qdd remoto emparejar` genera un código de un solo uso, llama a `qdd_remoto_ofrecer` y muestra un QR con
   `{"v":1,"codigo","topico","nombre"}`. El teléfono llama a `qdd_remoto_aceptar(codigo)`. El PC consulta
   `qdd_remoto_emparejada` hasta ver el id. Un código usado o vencido no sirve.
@@ -165,12 +186,17 @@ existen y el nuestro no se configura a mano.
 |---|---|---|
 | `sync` | teléfono → PC | Pide el estado completo. |
 | `estado` | PC → teléfono | El JSON de `qdd remoto estado --json`, con `seq`. |
+| `sincronizar` | teléfono → PC | Sin payload, gratis y sin firma (2026-11-07, la persona: «Sincronizar», «releer y avisar»): el PC relee de cero, manda un `estado` completo y al final responde `sincronizado`. No escribe nada. |
+| `sincronizado` | PC → teléfono | `{version, en, estado_enviado, proyectos: [{clave, nombre, consola, inconsistencias: [{tipo, tarea?, etapa?, detalle?}]}]}`, siempre después del `estado`. Solo se revisan los proyectos con una sesión de Claude Code viva (`consola`). `tipo`: `espera_tras_pedido`, `lista_sin_cerrar`, `terminada_con_espera` o `flujo_invalido`; `tarea` es su nombre. `qdd sincronizar [--json]` da lo mismo en el PC. |
+| `pedir_logrado` | teléfono → PC | `{version, proyecto: <clave>, solicitud: <uuid>}` (2026-11-15, con qdd-movile; opcional por capacidad, sin subir `version`). Solo de un teléfono que declara `capacidades: ["logrado_bajo_pedido"]` en su presence. El PC ignora un `proyecto` que no cumple `^[a-z0-9-]{1,80}$` o una `solicitud` de más de 64. |
+| `logrado` | PC → teléfono | `{version, proyecto, solicitud, entradas: [...], recortado?: true, error?: "proyecto" \| "plan"}`: lo logrado del proyecto con el contrato de siempre (≤ 60, 14 días, la más nueva primero, salida ≤ 2000 con «…», sin secretos). Desconocido o fuera del plan: `[]` y el error. Más de 64 KB: quita lo más viejo y dice `recortado`. Una respuesta calculada por proyecto cada 5 s; dentro, la misma con su propia `solicitud`. Solo con un teléfono mirando (inv. 12). Cuando todos los teléfonos del canal declaran la capacidad, el panel de cada proyecto deja de llevar `logrado`; siempre lleva `logrado_bajo_pedido: true`. Si se suma uno que no la declara, va un `estado` completo con `logrado`. |
 | `delta` | PC → teléfono | `{seq, proyectos: {<clave>: panel | null}, limites?}`: los proyectos cuyo panel cambió (null: salió) y los límites de Claude si cambiaron. Si falta un `seq`, el teléfono pide `sync`. |
+| `flujo` | PC → teléfono | `{version, clave, flujo: {id, nombre, descripcion?, huella, nodos: [{id, tipo, nombre, descripcion?, tarea?, tarea_estado?: {estado, simbolos}, siguen?, comentarios?: [{de, texto, cuando, de_nodo?}]}]}}`, uno por flujo, sin `seq`: después de cada `estado` (también tras un `sync`) y cuando cambia su `huella`. El panel publicado lleva solo el resumen, en `flujos`: `[{id, nombre, nodos, huella, problema?, por_enviar, puede_deshacer}]`. La huella depende del archivo y del estado de las tareas fuera del tablero; un flujo con `problema` no trae evento. `tarea_estado` (MEJ-083, propuesta de qdd-movile, 2026-11-15) viene solo si la tarea del nodo existe y no está en `panel.estado.frentes` (cerrada, descartada u oculta): `estado` es `abierto`, `cerrado` o `descartado` y `simbolos` sus celdas. Si la tarea está en los frentes, la app la lee de ahí, al día; si no existe, no viene y la app dice que no está. Una tarea que sale del tablero cambia la huella y el flujo se reenvía. Los textos, también los comentarios, pasan por el ocultador. |
 | `accion` | relay → PC | El teléfono llama a `qdd_remoto_accion(maquina, solicitud, proyecto, accion_id)`; el relay sella `dispositivo`, verifica que no esté revocado y lo envía con `realtime.send` y `firma = hmac_sha256(firma_maquina, solicitud\|proyecto\|accion_id\|dispositivo\|en)`. El PC descarta lo que no traiga una firma válida. |
 | `responder` | relay → PC | El teléfono responde una pregunta de la consola con `qdd_remoto_responder`; el relay lo firma como `accion`, con la respuesta entre la pregunta y el dispositivo (ver «Preguntas desde el teléfono»). |
 | `ejecutar` | relay → PC | Solo Pro: el teléfono llama a `qdd_remoto_ejecutar`; el relay lo firma como `responder`, con el tipo y el texto (ver «Ejecutar desde el teléfono»). |
 | `accion_estado` | PC → teléfono | `{solicitud, estado: recibida/ejecutando/hecha/fallo/ya_aprobado/rechazada/vencida, resultado, lugar}`. |
-| `consola` | PC → teléfono | Fragmentos de la conversación o de un pedido, solo con espectadores. |
+| `consola` | PC → teléfono | Fragmentos de la conversación o de un pedido, solo con espectadores. Lleva `sesion?` (MEJ-082, propuesta de qdd-movile, 2026-11-15): la sesión de Claude Code cuya conversación se muestra (el nombre de su transcript). Una instrucción del teléfono va a esa sesión mientras late (la toma solo ella; si deja de latir o Claude Code la tiene detenida en un diálogo —un permiso, una pregunta—, cualquiera; una sesión detenida así no toma instrucciones y la que espera lo dice en su pedido, MEJ-084), y el pedido `telefono:<solicitud>` del panel dice en `sesion` a qué sesión va o cuál la recibió: con varias sesiones abiertas, la app puede seguir la respuesta en la consola correcta. |
 
 Presence: el PC publica `{rol: "pc", version_qdd, desde}`; cada teléfono `{rol: "movil", dispositivo, mirando}`. Cada
 mensaje lleva `version`; un cliente que no la entiende lo dice y no adivina.
@@ -221,6 +247,9 @@ subir `version`. Sirve para ver cuánto queda sin gastar tokens:
 - FCM (Android) y APNs (iOS). El PC llama a la Edge Function `avisar` con un tipo cerrado (`pedido`, `ficha`,
   `termino_bien`, `termino_falla`) y la clave del proyecto: no acepta texto libre, así que nunca lleva un comando ni una
   salida. No pasa por Realtime, no consume mensajes.
+- Cuando un proyecto ya no tiene nada esperando de un tipo, el PC pide `pedido_resuelto` o `ficha_resuelto`. El relay manda
+  un push solo de datos y la app cancela el tag `maquina:clave:<tipo>`. Es de mejor esfuerzo: si el PC está apagado o
+  `qdd remoto` se reinició, no se manda, y la app limpia su bandeja al abrirse.
 - «PC apagado con tareas en curso» no lo puede avisar el PC: el PC da un latido por RPC cada minuto con cuántas tareas
   tiene en curso, y un trabajo de `pg_cron` avisa cuando el latido se corta con tareas en curso.
 
@@ -239,7 +268,7 @@ desde la terminal: gana la primera respuesta.
   (a). Para un comando futuro que pregunte por su cuenta, el diseño ya existe: `qdd consola pregunta registrar` con
   `origen:"qdd"`, `etiqueta` y `preguntas` explícitas, y después `qdd consola pregunta esperar <id>` hasta tener la
   respuesta. Ningún comando lo usa todavía.
-- **(d) Lo que el estado espera de la persona** (pedido de sfrc, 2026-11-03): cada ⏳ cuyo «de quién» es la persona,
+- **(d) Lo que el estado espera de la persona** (pedido de proyecto-a, 2026-11-03): cada ⏳ cuyo «de quién» es la persona,
   en una tarea abierta, es una pregunta `origen:"estado"` de respuesta libre: una sola pregunta `q1`, con la tarea y la
   etapa como `encabezado`, lo que espera como `texto`, `otra:true` y sin opciones. Se responde con
   `{"q1":{"otra":"…"}}`. No se guarda una copia: sale del estado cada vez que se lee la cola, con un id
@@ -251,8 +280,11 @@ desde la terminal: gana la primera respuesta.
   Solo es pregunta el ⏳ que pregunta algo (MEJ-004, qdd-movile, 2026-11-03: de 11 publicados, casi todos eran notas de
   avance): su bloqueo tiene al menos una frase entre `¿` y `?`, y `texto` es solo esas frases, sin el historial de la
   tarea. Tampoco lo es si nombra con `[tecla]` un pedido abierto de la cola, que ya lo cubre en el panel.
-  Sin una sesión de Claude Code abierta en el proyecto (`ejecutar.ia=false`) no se publica y su respuesta da `vencida`,
-  porque nadie podría resolverlo y la respuesta se perdería (FND-124). Un ⏳ nunca genera push: solo los pedidos y las
+  Trae tres opciones fijas, además de «Otra»: `hecho` («Ya lo hice»), `todavia_no` («Todavía no») y `ya_no_va` («Ya no
+  va»), y `sin_sesion: true` (2026-11-07). La respuesta se escribe en el estado del proyecto, así que se publica y se
+  responde aunque no haya una sesión de Claude Code abierta: `hecho` y «Otra» pasan el ⏳ a la IA para que lo verifique,
+  `ya_no_va` deja la etapa en — y `todavia_no` lo vuelve a preguntar al día. La solicitud se cierra `hecha` con lo que
+  quedó en `resultado`. Antes, sin sesión, no se publicaba (FND-124). Un ⏳ nunca genera push: solo los pedidos y las
   fichas nuevas.
 
 **Cómo se engancha.** El mod `qdd-tareas` escucha `PermissionRequest`, que Claude Code corre **al mismo tiempo** que
@@ -345,9 +377,10 @@ Con Pro, la persona manda desde la app (Proyecto → «Ejecutar», con biometrí
 
 - `firma = hmac_sha256_hex(concat_ws('|', solicitud, proyecto, tipo, texto, dispositivo, en), firma_maquina)`, el mismo
   esquema de `responder`. `nombre` es solo para mostrar y no va firmado.
-- `tipo` es `qdd` o `ia`. `qdd`: una línea de 1 a 1000 caracteres, sin la palabra `qdd` del principio y sin caracteres
+- `tipo` es `qdd`, `ia` o `flujo` (abajo). `qdd`: una línea de 1 a 1000 caracteres, sin la palabra `qdd` del principio y sin caracteres
   de control. `ia`: de 1 a 4000 caracteres; admite saltos de línea y tabulaciones, ningún otro control.
-- El relay no guarda ni el comando ni su salida.
+- El comando o la instrucción queda en `realtime.messages` de 72 horas a 4 días (FND-321). Su salida la manda el PC por
+  Broadcast; según la documentación de Supabase, solo lo enviado desde la base entra a esa tabla. Falta una prueba dirigida.
 
 **PC.** El PC nunca confía en el relay:
 
@@ -394,6 +427,38 @@ Con Pro, la persona manda desde la app (Proyecto → «Ejecutar», con biometrí
 - La salida de un comando pasa entera por el ocultador de secretos (inv. 16). Al teléfono va su final: como mucho 4000
   caracteres, con «…» delante si se cortó.
 - Se usa `fallo` y no `fallida`: es la fase que la app conoce.
+
+**Editar un flujo desde el teléfono** (solo Pro, decisión de la persona, 2026-11-06). El `tipo` es `flujo`, y el `texto`, un
+objeto JSON de hasta 8000 caracteres sin controles crudos. El relay solo revisa eso; el PC verifica la firma sobre el
+texto tal cual y después aplica el esquema (`flujo.LeerOperacion`). Rechaza un campo desconocido, un campo que no sea de
+esa operación o datos después del objeto:
+
+| `op` | Exige, además de `flujo` | Admite |
+|---|---|---|
+| `comentar` | `nodo`, `texto` (hasta 2000) | |
+| `pedir-detalle` | `nodo` | |
+| `preguntar` | `texto` (hasta 2000) | `nodo`; sin él, la pregunta es sobre el flujo completo |
+| `item-agregar` | `nodo`, `tipo` (`prueba`, `nota`, `caracteristica` o `funcion`), `texto` (hasta 500) | |
+| `item-marcar` | `nodo`, `item`, `estado` (`pendiente`, `pasa` o `falla`) | `evidencia` (hasta 300) |
+| `item-quitar` | `nodo`, `item` | |
+| `agregar` | `nodo`, `nombre` | `descripcion`, `tipo`, `rama` |
+| `modificar` | `nodo` y uno de los que admite | `nombre`, `descripcion`, `tipo` |
+| `mover` | `nodo`, `despues_de` | |
+| `quitar` | `nodo` | |
+| `conectar`, `desconectar` | `nodo`, `con` | |
+| `deshacer`, `enviar` | | |
+
+- No hay campo `de`: lo que llega por aquí siempre es de la persona. No corre un comando ni pasa por una shell: el PC usa
+  las mismas funciones que `qdd flujo`.
+- Se aplica al recibirla, bajo el candado del flujo, sin esperar a un comando que corra. No entra a la cola del teléfono;
+  queda en el log, en el flujo y en su registro local.
+- `comentar`, `pedir-detalle` y `preguntar` llaman a la IA en el acto, como en el panel. Una pregunta queda marcada
+  (`pregunta: true`) bajo el nodo o en `comentarios` del flujo, y la respuesta de la IA llega igual, como un comentario
+  `de: ia` (2026-11-07). Una edición espera a `enviar` o al próximo
+  mensaje de la persona.
+- La respuesta es `hecha` con una línea de lo que hizo, o `rechazada` con el motivo si no escribió nada. Lo que llama a la
+  IA sigue como una instrucción: si no llega, lo pendiente vuelve a `por_enviar`.
+- El panel dice `ejecutar.flujos: true` cuando el PC las recibe.
 
 **Cola del teléfono.** Lo mandado vive en `<QDD_HOME>/claude/telefono/<proyecto>.json` (`RutaLocal`, como los pedidos),
 con candado y escritura atómica. Guarda las 10 más nuevas, y lo cerrado sale a los 30 min.
@@ -454,6 +519,55 @@ cada 5 s. Así el proyecto sabe que hay una sesión abierta, y el latido devuelv
 
 La app en español e inglés desde el principio, con las fichas de las tiendas en los dos.
 
+### La consola dice si Claude está trabajando (FND-239, 2026-11-15)
+
+Desde el teléfono, la persona vio la consola llegar hasta 40 s tarde. Medido en un PC con 300 respuestas: qdd lee y manda
+en menos de 1 s, pero Claude Code escribe cada respuesta en el transcript solo al terminarla (mediana 2-4 s, p90 7-14 s,
+máximo 30-50 s). La terminal ya la muestra; el teléfono no tiene nada que leer. Eso no se acelera desde qdd. El evento
+`consola` trae `trabajando`: la hora del transcript en que empezó el turno en curso, vacía si no trabaja. La primera
+`api-request` del hilo principal la pone; `turn_duration`, una compactación, una interrupción o un mensaje nuevo de la
+persona la quitan. Un cambio sale aunque no haya líneas nuevas, con el tope de 2 mensajes por segundo (inv. 13). Es
+aditivo: una app vieja no lo lee. Propuesto a qdd-movile el 2026-11-15; sale cuando lo acepte.
+
+### Windows sin ventana (sprint 9, 2026-11-15)
+
+La tarea «QDD remoto» lanzaba `qdd.exe remoto correr`, un programa de consola, y Windows le abría una ventana que la
+persona tenía que dejar abierta. Ahora lanza `qddw.exe`: un programa de ventanas que corre el `qdd.exe` de su misma
+carpeta sin ventana y sale con su código, así la tarea lo relanza como antes. Si Windows termina `qddw.exe`, termina
+también `qdd.exe`; los pedidos que lanzó siguen corriendo. `qdd.exe` lo lleva dentro y lo deja a su lado al registrar o
+renovar la tarea: el zip y el instalador de npm no cambian. Sin consola, el registro va a `<QDD_HOME>/remoto/correr.log`
+(1 MB y una copia). REM-23, en el grupo «Consola remota» de doctor, ve una tarea que todavía lanza `qdd.exe` o a la que le
+falta `qddw.exe`, y `--fix` la renueva. Un PC con la tarea anterior pasa al lanzador al actualizar qdd (FND-142).
+
+### Autodiagnóstico en `qdd doctor` (2026-11-15)
+
+Cada pieza de la comunicación entre el PC y el teléfono tiene su revisión en el grupo «QDD Móvil». Doctor solo lee
+archivos de `<QDD_HOME>/remoto` y el servicio instalado. La red la usa solo `--fix`, y solo para preguntar al directorio
+firmado. Lo que necesita a la persona o al teléfono se dice y no se intenta.
+
+| Id | Qué revisa | Qué hace `--fix` |
+|---|---|---|
+| REM-05 | Este PC está emparejado. | Nada: emparejar pide el teléfono (`qdd login`). |
+| REM-15 | El relay no respondió `28000` a este tópico (el servicio deja `quitado.json` con el tópico). Si respondió, no revisa lo demás: arrancar el servicio no sirve. | Nada: pide `qdd remoto desactivar` y `qdd login`. |
+| REM-16 | `credenciales.json` y `relay.json` se leen. | Aparta el archivo roto como `.ilegible`. Pide el relay al directorio. Unas credenciales no se reconstruyen. |
+| REM-11 | El relay guardado coincide con el directorio firmado. | Consulta y, si cambió, reinicia el servicio. |
+| REM-17 | El servicio de systemd o launchd lanza un qdd que existe. Por ejemplo, el de una versión de node que se desinstaló. | Lo reescribe con el qdd que corre doctor. No toca el servicio de otro `QDD_HOME`. |
+| REM-06 | El servicio corre. | Lo arranca o lo instala. |
+| REM-07 | El relay respondió al latido en los últimos 3 min. | Reinicia el servicio. |
+| REM-18 | El canal en tiempo real está unido. Si no, lleva menos de 3 min caído. El servicio deja `conexion.json` en cada cambio. | Reinicia el servicio. Una sola vez, aunque REM-07 también falle. |
+| REM-08 | El proyecto está en el registro y dentro del plan. | Lo anota. Quedar fuera del plan lo decide la persona. |
+| REM-09 | El último envío al teléfono salió. | Nada: el motivo está en el registro del servicio. |
+| REM-10 | No hay colas apartadas por ilegibles: preguntas, teléfono, turnos y `solicitudes.json`. | Nada: pueden traer un mensaje de la persona. |
+| REM-19 | El reloj de este PC no se separa más de 2 min del relay. La hora de una acción la sella el relay con `now()` de Postgres; el teléfono no la pone. El desfase sale del header `Date` del último latido y queda en `latido.json`. Las acciones descartadas por viejas en `log.jsonl` en las últimas 24 h son la evidencia. Con el reloj bien, esas acciones llegaron tarde por el canal, y eso lo revisa REM-18. | Nada: la persona activa la hora automática en este PC. |
+
+`log.jsonl` no se recorta: es el registro de quién aprobó qué (inv. 5).
+
+Consenso con qdd-movile (2026-11-15, pedido de la persona): las cinco revisiones nuevas (REM-15 a REM-19) quedan aceptadas. REM-19 se mide contra el relay, por lo que qdd-movile verificó en la app y en el relay:
+
+- El teléfono no encola acciones sin conexión: reintenta con el mismo id cada 5 s, hasta 3 veces, y después se rinde.
+- La app no necesita más para un PC quitado. El teléfono que lo quitó ya lo sabe, y la lista de PCs sale de `qdd_remoto.maquinas`.
+- El PC no puede ver el push, FCM, RevenueCat ni los dispositivos revocados, porque tienen RLS por cuenta. Quedan fuera de doctor.
+
 ## Fases (canal preview)
 
 | Fase | Entrega | Hecha cuando |
@@ -488,7 +602,7 @@ integrada, PC de demostración para la revisión, borrar la cuenta desde la app,
 ## Preguntas abiertas
 
 1. ¿«¿Cómo vamos?» desde el teléfono debe llegar a la conversación de Claude Code, o basta con ver la tabla?
-2. **Usuarios compartidos.** En el relay de desarrollo, el Auth es el del notificador: una cuenta de QDD Móvil es una
+2. **Usuarios compartidos.** En el relay de desarrollo, el Auth es el del proyecto-b: una cuenta de QDD Móvil es una
    cuenta de ese proyecto. Vale para desarrollar; para las tiendas hace falta el proyecto propio.
 
 ## Modo goal en el teléfono (RFC 0015)

@@ -30,6 +30,8 @@ func proyectoConBorrador(t *testing.T) string {
 	return root
 }
 
+// contrato: estado#47f9023c
+// contrato: estado#79252811
 func TestConsolaAccion_RechazaSinConfirmarYIdDesconocido_CCC_C11(t *testing.T) {
 	root := proyectoConBorrador(t)
 	for _, caso := range []struct {

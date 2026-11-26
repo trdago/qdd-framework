@@ -2,29 +2,22 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
-)
 
-type Finding struct {
-	ID       string `yaml:"id"`
-	Type     string `yaml:"type"`
-	Title    string `yaml:"title"`
-	Status   string `yaml:"status"`
-	Severity string `yaml:"severity"`
-}
+	"github.com/qdd-framework/qdd/pkg/qcl/benchmark"
+)
 
 var mcpCmd = &cobra.Command{
 	Use:   "mcp-server",
 	Short: "Inicia el servidor MCP nativo de QDD (JSON-RPC sobre Stdio)",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		vigilarBinario()
 		// Initialize the MCP server
 		s := server.NewMCPServer("QDD-MCP", "1.4.0")
 
@@ -84,7 +77,7 @@ func registerMCPTools(s *server.MCPServer) {
 // mismo que las que mcp-go pone por defecto (pueden escribir), sin gastar tokens en cada sesión.
 var soloLeen = map[string]bool{
 	"qdd_project_context": true, "qdd_blueprint_list": true, "qdd_findings": true, "qdd_score": true, "qdd_status": true,
-	"qdd_evolution": true, "qdd_map": true, "qdd_local_llm_status": true, "qdd_foto": true,
+	"qdd_evolution": true, "qdd_query_graph": true, "qdd_graph_query": true, "qdd_local_llm_status": true, "qdd_foto": true,
 }
 
 func anotaciones(nombre string) mcp.ToolAnnotation {
@@ -116,36 +109,21 @@ func RegisterToolWithTelemetry(s *server.MCPServer, tool mcp.Tool, handler func(
 			return res, err
 		}
 		recordMCPActivity("success", tool.Name, nil)
-		return res, err
+		return conAvisoDeBinario(tool.Name, res), nil
 	})
 }
 
+// recordMCPActivity anota cada llamada a una herramienta en el registro del MCP del proyecto (mcp_eventos.json; antes
+// en cognitive_history.json, donde borraba los certificados del benchmark: FND-059).
 func recordMCPActivity(status, toolName string, details interface{}) {
 	cwd, _ := os.Getwd()
-	metricsDir := filepath.Join(cwd, ".qdd", "project", "metrics")
-	_ = os.MkdirAll(metricsDir, 0755)
-
-	event := map[string]interface{}{
-		"timestamp": time.Now().Format(time.RFC3339),
-		"tool":      toolName,
-		"status":    status,
-		"details":   details,
-	}
-
-	historyPath := filepath.Join(metricsDir, "cognitive_history.json")
-	var history []interface{}
-
-	if data, err := os.ReadFile(historyPath); err == nil {
-		_ = json.Unmarshal(data, &history)
-	}
-
-	history = append(history, event)
-
-	if len(history) > 100 {
-		history = history[len(history)-100:]
-	}
-
-	if out, err := json.MarshalIndent(history, "", "  "); err == nil {
-		_ = os.WriteFile(historyPath, out, 0644)
-	}
+	_ = benchmark.AnotarEventoMCP(cwd, eventoMCP{
+		Timestamp: time.Now().Format(time.RFC3339),
+		Tool:      toolName,
+		Status:    status,
+		Details:   details,
+		PID:       os.Getpid(),
+		Version:   Version,
+		Atrasado:  binarioCambio(),
+	})
 }

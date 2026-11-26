@@ -1,0 +1,9 @@
+id: "FND-169"
+title: "REM-07 avisaba sin respuesta del relay con el PC latiendo bien"
+description: "qdd doctor leía la hora del último latido desde plan.json, pero el bucle solo escribe ese archivo si el plan cambia. Sin teléfonos conectados el plan queda igual, la hora no avanza y a los 3 minutos REM-07 decía «sin respuesta del relay». Medido por qdd-movile el 2026-11-06 en rc.18: el relay tenía un latido de hace 22 s y plan.json marcaba 9 minutos."
+impact: "Una falsa alarma en qdd doctor en el caso normal, un PC emparejado sin teléfonos conectados. Lleva a revisar la red y el servicio sin motivo, y resta confianza a REM-07 cuando el fallo es real."
+action_taken: "Cada latido respondido anota su hora en <QDD_HOME>/remoto/latido.json, aparte del plan, para no despertar cada minuto a quien lee plan.json. UltimoLatido toma la hora más reciente de los dos archivos, porque un servicio de una versión anterior solo escribe plan.json. Un latido sin respuesta no renueva la hora."
+test_result: "cli/pkg/remoto/bucle_test.go: TestAlLatido_PlanSinCambiosRenuevaElUltimoLatido_FND169 falló antes del arreglo; TestAlLatido_SinRespuestaNoRenuevaElUltimoLatido_FND169 y TestUltimoLatido_SinArchivoPropioUsaElPlan_FND169 cubren los otros dos casos. cli/cmd/remoto_movil_doctor_test.go: TestDoctorMovil_PlanViejoConLatidoRecienteNoAlarma_FND169. Sin medir todavía en un servicio real."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

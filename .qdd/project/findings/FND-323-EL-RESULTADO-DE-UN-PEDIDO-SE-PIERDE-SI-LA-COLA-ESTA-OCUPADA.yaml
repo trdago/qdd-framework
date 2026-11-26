@@ -1,0 +1,9 @@
+id: "FND-323"
+title: "El resultado de un pedido se pierde si la cola está ocupada al terminar"
+description: "2026-11-24: «Mergear #336» mergeó a las 21:47:21 y su proceso terminó a las 21:47:28 (systemd), pero a la IA le llegó «falló (exit -1) … se cortó: terminó sin anotar el resultado». terminar ignoraba el error de conCola, que espera el candado 2 s: con la cola ocupada más que eso, el resultado se pierde sin aviso y la lectura siguiente lo da por cortado. Reproducido con una prueba que ocupa la cola 2,5 s. Que fuera eso lo que pasó a las 21:47 es lo más probable, no se comprobó: ese proceso no deja registro."
+impact: "La persona y la IA leen que falló algo que terminó bien, y lo reintentan: con un merge no pasa nada, con una publicación podría repetirse."
+action_taken: "terminar insiste hasta un minuto en anotar el resultado. Mientras tanto su proceso sigue vivo, así que no se da por cortado."
+test_result: "TestPedidos_ElResultadoNoSePierdeSiLaColaEstaOcupada_FND323 fallaba antes del cambio y pasa; las de FND-187 siguen pasando."
+status: resolved
+detectado_por: ia
+date: "2026-11-24"

@@ -136,6 +136,7 @@ func TestCalidad_UnValorFijoEnUnEscenarioEsUnEjemploNoUnaRegla(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#9eda5071
 func TestApply_PreguntaLosParametrosDeNegocioALaPersona(t *testing.T) {
 	root := t.TempDir()
 	if _, problems := Add(AddInput{Root: root, Origen: sourceBlueprint(t, recetaConLimites)}); len(problems) > 0 {
@@ -261,6 +262,7 @@ func TestCalidad_UnValorDeclaradoSeCitaEnTodaLaReceta(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#9eda5071
 func TestParametro_SoloSePreguntaCuandoAplica(t *testing.T) {
 	conSi := strings.Replace(recetaConLimites, "  - id: visibles\n", "  - id: visibles\n    si: {avisos: si}\n", 1)
 	b := mustParse(t, conSi)

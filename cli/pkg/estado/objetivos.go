@@ -414,8 +414,13 @@ func GuardarObjetivo(root string, c CambioObjetivo, now time.Time) error {
 	if c.CambiaCiclo || c.Ciclo != "" {
 		e.Objetivos[i].Ciclo = c.Ciclo
 	}
-	if err := e.reformarObjetivo(c.ID); err != nil {
+	tocadas, err := e.reformarObjetivo(c.ID)
+	if err != nil {
 		return fmt.Errorf("no se escribió: %w", err)
+	}
+	// Las tareas que tomaron otro ciclo pasan por Check (FND-270).
+	if propias := violacionesDe(e, tocadas); len(propias) > 0 {
+		return fmt.Errorf("no se escribió: %s", strings.Join(propias, "; "))
 	}
 	return guardarObjetivoValidado(root, e, c.ID, now)
 }
@@ -481,6 +486,9 @@ type CambioTarea struct {
 	CambiaObjetivo       bool
 	CambiaDependencias   bool
 	AunqueExista         bool // la crea aunque su nombre repita el de una abierta (FND-109)
+	// Modulo es la ficha de la tarea (RFC 0017 §2); con CambiaModulo y vacío, la quita.
+	Modulo       string
+	CambiaModulo bool
 }
 
 // GuardarTarea aplica el cambio (qdd estado tarea); crea la tarea solo con nombre y un id de QDD, con todas sus etapas
@@ -494,6 +502,9 @@ func GuardarTarea(root string, c CambioTarea, now time.Time) error {
 		return err
 	}
 	if err := e.referenciasDe(c); err != nil {
+		return err
+	}
+	if err := fichaExiste(root, c); err != nil {
 		return err
 	}
 	i := e.buscar(c.ID)
@@ -514,28 +525,33 @@ func GuardarTarea(root string, c CambioTarea, now time.Time) error {
 	if c.CambiaDependencias {
 		e.Frentes[i].DependeDe = c.DependeDe
 	}
+	if c.CambiaModulo {
+		e.Frentes[i].Modulo = c.Modulo
+	}
 	return guardarValidado(root, e, c.ID, now)
 }
 
-// reformarObjetivo deja a las tareas del objetivo con las etapas de su ciclo (EPT-K03). Con un ciclo que no existe no
-// toca nada: lo rechaza EPT-K01.
-func (e *Estado) reformarObjetivo(id string) error {
+// reformarObjetivo deja a las tareas del objetivo con las etapas de su ciclo (EPT-K03) y dice cuáles. Con un ciclo que
+// no existe no toca nada: lo rechaza EPT-K01.
+func (e *Estado) reformarObjetivo(id string) ([]string, error) {
 	o, ok := e.objetivo(id)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	if _, existe := e.etapasDelCiclo(o.Ciclo); !existe {
-		return nil
+		return nil, nil
 	}
+	var tocadas []string
 	for i := range e.Frentes {
 		if e.Frentes[i].Objetivo != id {
 			continue
 		}
 		if err := reformar(&e.Frentes[i], e.EtapasDe(e.Frentes[i]), e.CicloDe(e.Frentes[i])); err != nil {
-			return err
+			return nil, err
 		}
+		tocadas = append(tocadas, e.Frentes[i].ID)
 	}
-	return nil
+	return tocadas, nil
 }
 
 // puedeNombrarObjetivo (FND-109): uno que existe se usa; uno nuevo necesita nombre y un id de QDD; el ciclo que sigue

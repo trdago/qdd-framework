@@ -24,13 +24,17 @@ type Cambio struct {
 	DeQuien            string
 	Falla              string
 	RequiereAprobacion string
-	Aprobado           bool
+	// Verifica: un ⏳ que qdd revisa solo (verificar.go), p. ej. «npm:qdd-framework@2.10.0-rc.43».
+	Verifica string
 	// AunqueExista crea la tarea aunque su nombre repita el de una abierta (FND-109).
 	AunqueExista bool
 }
 
+// ComandoInit es el comando que se le da a la persona: sin ficha que defina las etapas, 'qdd estado init' solo falla (FND-147).
+const ComandoInit = `qdd estado init --etapas "Código,Pruebas,Producción"`
+
 // ErrSinArchivo: el proyecto todavía no tiene estado.yaml (se crea con Init).
-var ErrSinArchivo = errors.New("el proyecto no tiene " + Ruta + ": créalo con 'qdd estado init'")
+var ErrSinArchivo = errors.New("el proyecto no tiene " + Ruta + ": créalo con '" + ComandoInit + "'")
 
 // Init crea el archivo con sus etapas. Falla si ya existe.
 func Init(root string, etapas []string, now time.Time) error {
@@ -80,13 +84,18 @@ func Set(root string, c Cambio, now time.Time) error {
 	if c.Nombre != "" {
 		e.Frentes[i].Nombre = c.Nombre
 	}
+	verifica, bloqueo, err := conVerificacion(c, estado)
+	if err != nil {
+		return err
+	}
 	anterior := e.Frentes[i].Celdas[c.Etapa]
-	celda := Celda{Estado: estado, Evidencia: c.Evidencia, Bloqueo: c.Bloqueo, DeQuien: c.DeQuien, Falla: c.Falla,
-		RequiereAprobacion: anterior.RequiereAprobacion, Aprobado: anterior.Aprobado || c.Aprobado}
+	celda := Celda{Estado: estado, Evidencia: c.Evidencia, Bloqueo: bloqueo, DeQuien: c.DeQuien, Falla: c.Falla,
+		RequiereAprobacion: anterior.RequiereAprobacion, Aprobado: aprobacionVigente(anterior, estado, c.Evidencia), Verifica: verifica}
 	if c.RequiereAprobacion != "" {
 		celda.RequiereAprobacion = c.RequiereAprobacion
 	}
 	e.Frentes[i].Celdas[c.Etapa] = celda
+	e.Frentes[i].TocadaEl = now.Format(time.RFC3339)
 	return guardarValidado(root, e, c.Frente, now)
 }
 
@@ -132,17 +141,31 @@ func Cerrar(root, frente, motivo string, descartado bool, now time.Time) error {
 // guardarValidado escribe solo si el frente tocado cumple las invariantes. Las violaciones de otros frentes no bloquean
 // (se ven con 'check'), para no impedir arreglar un frente por culpa de otro.
 func guardarValidado(root string, e Estado, frente string, now time.Time) error {
-	var propias []string
-	for _, v := range Check(e, nil) {
-		if v.Frente == frente {
-			propias = append(propias, v.String())
-		}
-	}
-	if len(propias) > 0 {
+	return guardarTareasValidadas(root, e, []string{frente}, now)
+}
+
+// guardarTareasValidadas es guardarValidado de varias tareas: las que reformó un cambio de ciclo (FND-270).
+func guardarTareasValidadas(root string, e Estado, tareas []string, now time.Time) error {
+	if propias := violacionesDe(e, tareas); len(propias) > 0 {
 		return fmt.Errorf("no se escribió: %s", strings.Join(propias, "; "))
 	}
 	e.Actualizado = now.Format(time.RFC3339)
 	return Save(root, e)
+}
+
+// violacionesDe son las violaciones de esas tareas; las de las demás no bloquean.
+func violacionesDe(e Estado, tareas []string) []string {
+	tocada := map[string]bool{}
+	for _, id := range tareas {
+		tocada[id] = true
+	}
+	var propias []string
+	for _, v := range Check(e, nil) {
+		if tocada[v.Frente] {
+			propias = append(propias, v.String())
+		}
+	}
+	return propias
 }
 
 // errEtapaAjena nombra las etapas de la tarea; con ciclos, también su ciclo (EPT-K02).
@@ -164,4 +187,34 @@ func (e Estado) puedeNombrar(id, nombre string, aunqueExista bool) error {
 		return e.ValidarTarea(id)
 	}
 	return e.puedeCrear(id, nombre, aunqueExista)
+}
+
+// aprobacionVigente: un set nunca da una aprobación, solo conserva la que hay. La de un ✅ vale para ese ✅: si la celda
+// ya estaba en ✅ y cambia de evidencia (otra versión) o de estado, el siguiente ✅ necesita la suya.
+func aprobacionVigente(anterior Celda, estado, evidencia string) bool {
+	if !anterior.Aprobado || NormalizarEstado(anterior.Estado) != Hecho {
+		return anterior.Aprobado
+	}
+	return estado == Hecho && anterior.Evidencia == evidencia
+}
+
+// Aprobar da la aprobación que una celda espera. La llama solo «qdd estado aprobar», que exige el «s  Sí» de la persona
+// en su pedido o su terminal: ni un set ni la IA aprueban.
+func Aprobar(root, frente, etapa string, now time.Time) error {
+	e, err := cargarParaEscribir(root)
+	if err != nil {
+		return err
+	}
+	i := e.buscar(frente)
+	if i < 0 {
+		return fmt.Errorf("no hay una tarea %q", frente)
+	}
+	c, ok := e.Frentes[i].Celdas[etapa]
+	if !ok || c.RequiereAprobacion == "" {
+		return fmt.Errorf("%s › %s no espera aprobación", frente, etapa)
+	}
+	c.Aprobado = true
+	e.Frentes[i].Celdas[etapa] = c
+	e.Frentes[i].TocadaEl = now.Format(time.RFC3339)
+	return guardarValidado(root, e, frente, now)
 }

@@ -82,8 +82,11 @@ type Pedido struct {
 	Codigo  int        `json:"codigo,omitempty"`
 	Salida  string     `json:"salida,omitempty"`  // últimas líneas de la salida
 	Despues []string   `json:"despues,omitempty"` // ids de los pedidos que tienen que quedar hechos antes
-	Aviso   string     `json:"aviso,omitempty"`   // «todavía no»: lo que dijo la última vez que salió con CodigoTodaviaNo
-	AvisoEn *time.Time `json:"aviso_en,omitempty"`
+	// Descartados son los pedidos que este esperaba y se descartaron (FND-213): hasta que la IA lo pida de nuevo, o pida
+	// de nuevo lo descartado, no se confirma ni corre.
+	Descartados []Descartado `json:"descartados,omitempty"`
+	Aviso       string       `json:"aviso,omitempty"` // «todavía no»: lo que dijo la última vez que salió con CodigoTodaviaNo
+	AvisoEn     *time.Time   `json:"aviso_en,omitempty"`
 	// PID es el qdd que lo ejecuta y Hijo, el comando; si los dos murieron sin anotar el resultado (un
 	// /reload-plugins, una terminal cerrada), el pedido se cortó (FND-089).
 	PID  int `json:"pid,omitempty"`
@@ -92,16 +95,47 @@ type Pedido struct {
 	// cambia después, la persona siguió trabajando en vez de ejecutarlo y el pedido se retira.
 	Tarea  string `json:"tarea,omitempty"`
 	Huella string `json:"huella,omitempty"`
+	// Confirmado es cuándo la persona le dio «s  Sí». Uno confirmado que vuelve a pendiente (dejó de esperar, o salió
+	// con «todavía no») no se retira: la persona no siguió trabajando en vez de ejecutarlo (FND-178).
+	Confirmado *time.Time `json:"confirmado,omitempty"`
 	// Armado (armado.go): desde cuándo espera con la intención de la persona, cuándo vuelve a intentarlo y cuántas
 	// veces corrió.
 	ArmadoEn *time.Time `json:"armado_en,omitempty"`
 	Proximo  *time.Time `json:"proximo,omitempty"`
 	Intentos int        `json:"intentos,omitempty"`
+	// Pidio es la sesión de la IA que lo dejó en el panel: si se retira, a ella se le avisa (RFC 0017).
+	Pidio string `json:"pidio,omitempty"`
 	// Sesion es la sesión de Claude Code que lo confirmó y Avisado, que ya recibió su resultado (aviso.go).
 	Sesion  string `json:"sesion,omitempty"`
 	Avisado bool   `json:"avisado,omitempty"`
 	// PR es el pull request que ofrece un pedido opcional de qdd (prs.go); 0 en uno de la IA.
 	PR int `json:"pr,omitempty"`
+	// Version es la versión de qdd que ofrece un pedido opcional (version_nueva.go); vacía en uno de la IA.
+	Version string `json:"version,omitempty"`
+	// DePersona: solo la persona lo confirma; el modo goal no lo lanza (el permiso de un token del baúl, RFC 0023).
+	DePersona bool `json:"de_persona,omitempty"`
+
+	// otros son los campos que este qdd no conoce: los escribió uno más nuevo y se devuelven tal cual (FND-188).
+	otros map[string]json.RawMessage
+}
+
+// VarPedido es el id del pedido que corre el comando: con él, «qdd baul permitir» comprueba que la persona lo confirmó.
+const VarPedido = "QDD_PEDIDO"
+
+// PedidoConfirmado dice si el pedido id es de la persona (DePersona), con este comando, y la persona le dio «s  Sí».
+func PedidoConfirmado(root, id, comando string, now time.Time) bool {
+	for _, p := range PedidosA(root, now) {
+		if p.ID != id {
+			continue
+		}
+		return p.DePersona && p.Comando == comando && p.Confirmado != nil && p.Estado == EstadoEjecutando
+	}
+	return false
+}
+
+// Opcional: lo ofrece qdd por su cuenta, no la IA. No abre el panel, no es una espera ni lo lanza el modo goal.
+func (p Pedido) Opcional() bool {
+	return p.PR != 0 || p.Version != ""
 }
 
 // Abierto dice si el pedido todavía cuenta en la cola: no está hecho ni retirado.
@@ -200,13 +234,9 @@ func AnotarHuellas(root string, now time.Time) error {
 	})
 }
 
-// tareaEnCurso es la tarea que la IA tiene activa ahora (qdd estado activar), o "".
+// tareaEnCurso es la tarea que esta sesión tiene activa ahora (qdd estado activar), o "".
 func tareaEnCurso(root string, now time.Time) string {
-	act := estado.LeerActividad(root)
-	if _, ok := estado.EnCurso(act, now)[act.Ultima]; ok {
-		return act.Ultima
-	}
-	return ""
+	return estado.TareaDeLaSesion(estado.LeerActividad(root), estado.SesionActual(), now)
 }
 
 // cicloDe es la hora del último mensaje de la persona (cero si no hay): lo hecho antes ya se vio.
@@ -231,6 +261,14 @@ func leerCola(root string) []Pedido {
 	return cola
 }
 
+// GraciaCorte: en sus primeros segundos un pedido no se da por cortado aunque no se vea su proceso; quien lo lanza y
+// quien lo corre todavía se están pasando la posta (FND-187).
+const GraciaCorte = 5 * time.Second
+
+func recienLanzado(p Pedido, now time.Time) bool {
+	return p.Inicio != nil && now.Sub(*p.Inicio) < GraciaCorte
+}
+
 // normalizar deja la cola como se ve a la hora now: un hecho sale en el ciclo siguiente (ya se vio; si falta avisarle
 // a la sesión que lo confirmó, después del aviso) o pasado VidaHecho si nadie lo espera; uno ejecutándose desde hace más de TopeEjecucion se da por cortado; uno que espera a la persona
 // se retira si su tarea cambió desde el último mensaje (huella da cómo está ahora). Lo que esperaba a un hecho que
@@ -251,7 +289,7 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 		if p.Estado == EstadoRetirado && p.Fin != nil && now.Sub(*p.Fin) > VidaRetirado {
 			continue
 		}
-		if ahora := huella(p.Tarea); p.Ejecutable() && p.Tarea != "" && p.Huella != "" && ahora != "" && ahora != p.Huella {
+		if ahora := huella(p.Tarea); p.Ejecutable() && p.Confirmado == nil && p.Tarea != "" && p.Huella != "" && ahora != "" && ahora != p.Huella {
 			retirado := now
 			p.Estado, p.Fin, p.Huella = EstadoRetirado, &retirado, ""
 		}
@@ -259,7 +297,7 @@ func normalizar(cola []Pedido, now, ciclo time.Time, huella func(string) string)
 			p.Estado, p.Codigo = EstadoFallo, -1
 			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: no terminó en " + TopeEjecucion.String())
 		}
-		if p.Estado == EstadoEjecutando && p.PID > 0 && !procesoVivo(p.PID) && !procesoVivo(p.Hijo) {
+		if p.Estado == EstadoEjecutando && p.PID > 0 && !recienLanzado(p, now) && !procesoVivo(p.PID) && !procesoVivo(p.Hijo) {
 			p.Estado, p.Codigo, p.PID, p.Hijo = EstadoFallo, -1, 0, 0
 			p.Salida = strings.TrimSpace(p.Salida + "\nse cortó: el proceso que lo ejecutaba terminó sin anotar el resultado (¿se recargó el panel?). Revisa qué alcanzó a hacer antes de reintentarlo.")
 		}
@@ -320,6 +358,7 @@ func conCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error
 	if err != nil {
 		return err
 	}
+	anotarPedidosLogrados(root, cola)
 	return guardarCola(ruta, cola)
 }
 
@@ -334,11 +373,7 @@ func guardarCola(ruta string, cola []Pedido) error {
 	if err != nil {
 		return err
 	}
-	tmp := ruta + ".tmp"
-	if err := os.WriteFile(tmp, b, 0600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, ruta)
+	return escribirSiCambio(ruta, b)
 }
 
 // Pedir agrega un comando a la cola. Sin carpeta, corre en la raíz del proyecto. El mismo comando en la misma
@@ -374,14 +409,27 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 	var nuevo Pedido
 	err = conCola(ColaDe(root, dir), now, func(cola []Pedido) ([]Pedido, error) {
 		cola, preferida := sinRetirados(cola, tarea)
+		orden.Despues = sinCumplidas(cola, hechosRecientes(ColaDe(root, dir), now), orden.Despues)
 		usadas := map[string]bool{}
+		efecto := efectoDe(comando, dir)
 		for _, p := range cola {
 			if p.Abierto() && p.Comando == comando && p.Carpeta == dir {
-				return conOrden(cola, p.ID, orden, &nuevo)
+				cola = reactivado(conMarcaDePersona(conQuienPide(cola, p.ID), p.ID, orden.DePersona), p.ID, orden.Reactiva)
+				return conOrden(sinBloqueo(cola, p.ID), p.ID, orden, &nuevo)
+			}
+			if p.Abierto() && !orden.DeNuevo && efectoDe(p.Comando, p.Carpeta) == efecto {
+				return conOrden(sinBloqueo(conQuienPide(cola, p.ID), p.ID), p.ID, orden, &nuevo)
 			}
 			if p.Abierto() {
 				usadas[p.Tecla] = true
 			}
+		}
+		if ya := hechoReciente(ColaDe(root, dir), efecto, huellaPush(comando, dir), now); ya != nil && !orden.DeNuevo {
+			return nil, ya
+		}
+		cola, viejo, err := sinReemplazado(cola, orden.Reemplaza)
+		if err != nil {
+			return nil, err
 		}
 		cola = sinAutomaticosQueNombra(cola, motivo, comando)
 		usadas = teclasAbiertas(cola)
@@ -398,10 +446,24 @@ func PedirEnOrden(root, comando, motivo, carpeta string, orden Orden, now time.T
 		if preferida != "" && !usadas[preferida] {
 			tecla = preferida
 		}
-		p := Pedido{ID: siguienteID(cola), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea}
-		return conOrden(append(cola, p), p.ID, orden, &nuevo)
+		if viejo.Tecla != "" && !usadas[viejo.Tecla] {
+			tecla = viejo.Tecla
+		}
+		p := Pedido{ID: siguienteID(append(cola, viejo)), Comando: comando, Motivo: motivo, Carpeta: dir, Creado: now, Tecla: tecla, Estado: EstadoPendiente, Tarea: tarea, Pidio: sesionValida(estado.SesionActual()), DePersona: orden.DePersona, Despues: viejo.Despues}
+		return conOrden(heredarEsperas(reenganchar(append(cola, p), p), viejo.ID, p.ID), p.ID, orden, &nuevo)
 	})
 	return nuevo, err
+}
+
+// conQuienPide deja como Pidio del pedido abierto id a la sesión que lo pide ahora: a ella le llegan el 🔑 del baúl y el
+// aviso si se retira, no a la que lo dejó primero y quizás ya cerró (FND-300). Pedido sin sesión (desde la terminal),
+// se queda la que había.
+func conQuienPide(cola []Pedido, id string) []Pedido {
+	sesion := sesionValida(estado.SesionActual())
+	if i := indiceID(cola, id); i >= 0 && sesion != "" {
+		cola[i].Pidio = sesion
+	}
+	return cola
 }
 
 // sinRetirados quita los pedidos retirados de la tarea (el nuevo los reemplaza: es la misma tarea que se extiende) y
@@ -420,6 +482,20 @@ func sinRetirados(cola []Pedido, tarea string) ([]Pedido, string) {
 		queda = append(queda, p)
 	}
 	return queda, preferida
+}
+
+// conMarcaDePersona le devuelve la marca a un pedido que la perdió: el mismo comando pedido de nuevo por qdd como de la
+// persona (un qdd anterior que reescribió la cola la borró, FND-188). Nunca se la quita.
+func conMarcaDePersona(cola []Pedido, id string, dePersona bool) []Pedido {
+	if !dePersona {
+		return cola
+	}
+	i, err := resolver(cola, id)
+	if err != nil {
+		return cola
+	}
+	cola[i].DePersona = true
+	return cola
 }
 
 // conOrden aplica el orden al pedido id y deja en elegido cómo quedó.
@@ -470,12 +546,19 @@ func Descartar(root, idOTecla string) error {
 			id = cola[i].ID
 		}
 		resto := make([]Pedido, 0, len(cola))
+		var descartado Pedido
 		for _, p := range cola {
+			if p.ID == id {
+				descartado = p
+			}
 			if p.ID == id && p.Estado == EstadoEjecutando {
 				return nil, fmt.Errorf("el pedido %s se está ejecutando: espera a que termine", id)
 			}
 			if p.ID == id && p.PR != 0 {
 				anotarDescartado(root, p.PR)
+			}
+			if p.ID == id && p.Version != "" {
+				anotarVersionDescartada(root, p.Version)
 			}
 			if p.ID != id {
 				resto = append(resto, p)
@@ -484,7 +567,7 @@ func Descartar(root, idOTecla string) error {
 		if len(resto) == len(cola) {
 			return nil, fmt.Errorf("no hay un pedido '%s' en la cola", id)
 		}
-		return sinDependencia(resto, id), nil
+		return bloquearDependientes(resto, descartado), nil
 	})
 }
 
@@ -498,7 +581,8 @@ func accionesDePedidos(root string) []Accion {
 		a := Accion{
 			ID: prefijoPedido + p.ID, Tipo: TipoPedido, Etiqueta: p.Motivo, Detalle: p.Comando, Carpeta: p.Carpeta,
 			Estado: p.Estado, Resultado: p.Salida, Inicio: p.Inicio, Fin: p.Fin, Aviso: p.Aviso, AvisoEn: p.AvisoEn,
-			Sesion: p.Sesion, PR: p.PR, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID,
+			Sesion: p.Sesion, PR: p.PR, VersionNueva: p.Version, DeTarea: p.Tarea, Confirmar: true, pedido: p.ID, pidio: p.Pidio,
+			despues: p.Despues, tareaTurno: p.Tarea, DePersona: p.DePersona,
 		}
 		if p.porAvisar() {
 			a.Avisar, a.Mensaje = true, mensajeAviso(p)
@@ -509,6 +593,10 @@ func accionesDePedidos(root string) []Accion {
 		// Uno que espera a otro también se confirma: queda armado y corre cuando el otro termina.
 		if p.Ejecutable() {
 			a.Tecla = p.Tecla
+		}
+		// Uno que esperaba a un descartado no se confirma: esperaría algo que ya no va a correr (FND-213).
+		if p.Ejecutable() && len(p.Descartados) > 0 {
+			a.Tecla, a.Bloqueo = "", bloqueoDe(p)
 		}
 		if p.Estado == EstadoArmado {
 			a.Espera, a.Proximo, a.Intentos = esperaA(p, cola), p.Proximo, p.Intentos
@@ -592,6 +680,10 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 	var copia bytes.Buffer
 	c := exec.Command(shell, flag, a.Detalle)
 	c.Dir = a.Carpeta
+	c.Env = append(entornoDelPedido(os.Environ(), runtime.GOOS, bashDelPedido()), VarPedido+"="+a.pedido)
+	if s := sesionDelPedido(a); s != "" {
+		c.Env = append(c.Env, "CLAUDE_CODE_SESSION_ID="+s)
+	}
 	c.Stdout = io.MultiWriter(salida, &copia)
 	c.Stderr = io.MultiWriter(salida, &copia)
 	err := c.Start()
@@ -600,8 +692,25 @@ func correrComando(root string, a Accion, salida io.Writer, armar bool) int {
 		err = c.Wait()
 	}
 	codigo := codigoDe(err, a, io.MultiWriter(salida, &copia))
-	terminar(root, a.pedido, codigo, ultimasLineas(copia.String(), lineasSalida), armar)
+	terminar(root, a.pedido, codigo, ultimasLineas(salidaLegible(copia.Bytes()), lineasSalida), armar)
 	return codigo
+}
+
+// sesionDelPedido: la sesión con la que corre el comando. Un pedido corre aparte, fuera de Claude Code, y sin ella lo
+// que pide permiso (el baúl) no tiene a quién preguntarle (FND-242): la que lo pidió o, si no hay, la que lo confirmó.
+func sesionDelPedido(a Accion) string {
+	if a.pidio != "" {
+		return a.pidio
+	}
+	return sesionValida(a.Sesion)
+}
+
+// bashDelPedido solo se busca en Windows (FND-197).
+func bashDelPedido() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	return bashDeEsteEquipo()
 }
 
 // anotarHijo deja en la cola el PID del comando que corre: si qdd muere, el comando puede seguir vivo.
@@ -616,17 +725,35 @@ func anotarHijo(root, id string, pid int) {
 	})
 }
 
+// PlazoCola es cuánto insiste un pedido confirmado con la cola ocupada: para empezar (FND-324) y para anotar su resultado,
+// que no se vuelve a saber (FND-323).
+const PlazoCola = time.Minute
+
+// insistirEnCola es conCola, que se vuelve a intentar mientras falle y no pase PlazoCola.
+func insistirEnCola(root string, now time.Time, cambiar func([]Pedido) ([]Pedido, error)) {
+	limite := time.Now().Add(PlazoCola)
+	for conCola(root, now, cambiar) != nil && time.Now().Before(limite) {
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func terminar(root, id string, codigo int, texto string, armar bool) {
 	fin := time.Now()
-	conCola(root, fin, func(cola []Pedido) ([]Pedido, error) {
+	insistirEnCola(root, fin, func(cola []Pedido) ([]Pedido, error) {
 		for i := range cola {
 			if cola[i].ID != id {
 				continue
 			}
-			pid := cola[i].PID
+			pid, armadoEn := cola[i].PID, cola[i].ArmadoEn
+			// Si una lectura lo dio por cortado (y quizás ya se avisó), el resultado real lo reemplaza y se avisa (FND-187).
+			if cola[i].Estado != EstadoEjecutando && cola[i].Estado != EstadoArmado {
+				cola[i].Avisado = false
+			}
 			cola[i].Estado, cola[i].Fin, cola[i].Codigo, cola[i].Salida, cola[i].Aviso, cola[i].AvisoEn = EstadoHecho, &fin, codigo, texto, "", nil
 			cola[i].PID, cola[i].Hijo, cola[i].Proximo, cola[i].ArmadoEn = 0, 0, nil, nil
+			// El tope del armado cuenta desde la primera vez que se armó, no desde el último «todavía no» (FND-297).
 			if codigo == CodigoTodaviaNo && armar {
+				cola[i].ArmadoEn = armadoEn
 				cola[i] = armadoTras(cola[i], pid, texto, fin)
 				continue
 			}
@@ -636,7 +763,9 @@ func terminar(root, id string, codigo int, texto string, armar bool) {
 			}
 			if codigo != 0 {
 				cola[i].Estado = EstadoFallo
+				continue
 			}
+			anotarHecho(root, cola[i], fin)
 		}
 		return cola, nil
 	})

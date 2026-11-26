@@ -69,8 +69,8 @@ func TestEspera_UnEsperaDeLaPersonaEsUnaPreguntaDeRespuestaLibre(t *testing.T) {
 		t.Fatalf("pendiente, con un id propio y la tarea y etapa a la vista: %+v", p)
 	}
 	q := p.Preguntas[0]
-	if len(p.Preguntas) != 1 || q.ID != "q1" || q.Texto != "¿mergeamos el #8?" || q.Encabezado != "Barra · PR" || !q.Otra || len(q.Opciones) != 0 {
-		t.Fatalf("una pregunta: lo que espera, de respuesta libre: %+v", p.Preguntas)
+	if len(p.Preguntas) != 1 || q.ID != "q1" || q.Texto != "¿mergeamos el #8?" || q.Encabezado != "Barra · PR" || !q.Otra {
+		t.Fatalf("una pregunta: lo que espera, también de respuesta libre: %+v", p.Preguntas)
 	}
 	if again := esperaDe(t, root, enCola.Add(time.Hour)); again.ID != p.ID {
 		t.Fatalf("la misma espera tiene el mismo id en cada lectura: %q != %q", again.ID, p.ID)
@@ -87,7 +87,7 @@ func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 	conSesionAbierta(t, root)
 	p := esperaDe(t, root, enCola)
 	if _, err := ResponderPregunta(root, prefijoPregunta+p.ID, `{"q1":{"opciones":["a"]}}`, "Pixel", enCola); !errors.Is(err, ErrRespuestaInvalida) {
-		t.Fatalf("no tiene opciones: solo texto: %v", err)
+		t.Fatalf("«a» no es una de sus opciones: %v", err)
 	}
 	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"ya lo mergeé"}}`, "Pixel", enCola); err != nil {
 		t.Fatal(err)
@@ -109,22 +109,6 @@ func TestEspera_LaRespuestaDelTelefonoLlegaALaIAComoMensaje(t *testing.T) {
 	}
 	if n := len(EjecucionesA(root, enCola.Add(time.Minute))); n != 1 {
 		t.Fatalf("la segunda respuesta no llega a la IA: %d", n)
-	}
-}
-
-func TestEspera_RespondidaNoSeVuelveAOfrecerMientrasLaCeldaNoCambie(t *testing.T) {
-	root := proyectoConTareas(t)
-	conEspera(t, root, "¿mergeamos el #8?")
-	conSesionAbierta(t, root)
-	p := esperaDe(t, root, enCola)
-	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"ya lo mergeé"}}`, "Pixel", enCola); err != nil {
-		t.Fatal(err)
-	}
-	if r := esperaDe(t, root, enCola.Add(2*time.Hour)); r.Estado != PreguntaRespondida {
-		t.Fatalf("pasado VidaCerrada sigue respondida, no vuelve a preguntar lo mismo: %+v", r)
-	}
-	if r := esperaDe(t, root, enCola.Add(VidaEsperaRespondida+time.Minute)); r.Estado != PreguntaPendiente {
-		t.Fatalf("si la IA nunca la reflejó, al día vuelve a preguntar: %+v", r)
 	}
 }
 
@@ -154,7 +138,18 @@ func TestEspera_CuandoLaCeldaCambiaLaPreguntaSale(t *testing.T) {
 
 // MEJ-004 (qdd-movile, 2026-11-03, datos reales): de 11 ⏳ publicados al teléfono, casi todos eran notas de avance o
 // esperaban un pedido que la persona ya había armado en el panel; solo uno preguntaba algo. Un ⏳ llega como pregunta
-// solo si pregunta (¿…?) y ningún pedido abierto lo cubre, y el teléfono ve solo la pregunta.
+// solo si pregunta (¿…?) y ningún pedido abierto lo cubre, y el teléfono no ve lo que va antes de la pregunta.
+
+// FND-155 (qdd-movile, compilación 69): el teléfono mostraba hasta el último «?», y lo que la persona tenía que hacer iba
+// después.
+func TestEspera_ElTelefonoVeLoQueSigueALaPregunta_FND155(t *testing.T) {
+	root := proyectoConTareas(t)
+	bloqueo := "¿Ves el modo goal arriba en el proyecto? Si lo ves, toca Apagar; si no, dime qué ves en esa pantalla."
+	conEspera(t, root, bloqueo)
+	if q := esperaDe(t, root, enCola).Preguntas[0].Texto; q != bloqueo {
+		t.Fatalf("la instrucción va con la pregunta: %q", q)
+	}
+}
 
 func TestEspera_UnaNotaDeAvanceNoEsPregunta_MEJ004(t *testing.T) {
 	root := proyectoConTareas(t)
@@ -166,12 +161,12 @@ func TestEspera_UnaNotaDeAvanceNoEsPregunta_MEJ004(t *testing.T) {
 	}
 }
 
-func TestEspera_ElTelefonoVeSoloLaPregunta_MEJ004(t *testing.T) {
+func TestEspera_ElTelefonoNoVeElHistorial_MEJ004(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "Código: listo y probado con 12 casos. ¿Hacemos el gate en el Stop hook? Lo demás espera a eso.")
 	p := esperaDe(t, root, enCola)
-	if q := p.Preguntas[0].Texto; q != "¿Hacemos el gate en el Stop hook?" {
-		t.Fatalf("el texto es la pregunta, no el historial de la tarea: %q", q)
+	if q := p.Preguntas[0].Texto; q != "¿Hacemos el gate en el Stop hook? Lo demás espera a eso." {
+		t.Fatalf("el texto parte en la pregunta, sin el historial de la tarea: %q", q)
 	}
 	conEspera(t, root, "¿Proveedor de correo? ¿Resend o SES?")
 	if q := esperaDe(t, root, enCola).Preguntas[0].Texto; q != "¿Proveedor de correo? ¿Resend o SES?" {
@@ -232,30 +227,26 @@ func TestEsperasSinPregunta_SoloLasQueNoPreguntanNiTienenPedido(t *testing.T) {
 }
 
 // FND-124 (qdd-movile, 2026-11-03): sin una sesión abierta, la respuesta a un ⏳ quedaba como instrucción que vence a los
-// 30 min, mientras la pregunta seguía «respondida» 24 h: la respuesta se perdía sin que nadie lo supiera.
-
+// 30 min, mientras la pregunta seguía «respondida» 24 h: la respuesta se perdía sin que nadie lo supiera. Desde los
+// botones (2026-11-07) la respuesta queda en el estado, así que no depende de una sesión.
 func TestEspera_SinSesionLaRespuestaNoSePierde_FND124(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
 	p := esperaDe(t, root, enCola)
-	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); !errors.Is(err, ErrPreguntaDesconocida) {
-		t.Fatalf("sin sesión no hay quien la reciba: se rechaza: %v", err)
+	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
+		t.Fatalf("sin sesión se responde: %v", err)
 	}
 	if e := EjecucionesA(root, enCola); len(e) != 0 {
 		t.Fatalf("no queda una instrucción que vaya a vencer: %+v", e)
 	}
-	if r := esperaDe(t, root, enCola); r.Estado != PreguntaPendiente {
-		t.Fatalf("sigue pendiente, no «respondida»: %+v", r)
-	}
-	conSesionAbierta(t, root)
-	if _, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola); err != nil {
-		t.Fatalf("con una sesión abierta, se responde: %v", err)
+	if c := celdaPR(t, root); !strings.Contains(c.Bloqueo, "«sí»") {
+		t.Fatalf("la respuesta queda en el estado: %+v", c)
 	}
 }
 
 // FND-141: la respuesta a un ⏳ se guardaba como respondida aunque ninguna sesión la tomara, y ya no se podía volver a
-// responder en 24 h. La pregunta recuerda qué instrucción lleva su respuesta para que qdd remoto la siga.
-func TestEspera_LaRespuestaDiceQueInstruccionLaLleva_FND141(t *testing.T) {
+// responder en 24 h. Ahora la respuesta queda en el estado: no viaja en una instrucción que qdd remoto tenga que seguir.
+func TestEspera_LaRespuestaNoDependeDeUnaInstruccion_FND141(t *testing.T) {
 	root := proyectoConTareas(t)
 	conEspera(t, root, "¿mergeamos el #8?")
 	conSesionAbierta(t, root)
@@ -264,37 +255,14 @@ func TestEspera_LaRespuestaDiceQueInstruccionLaLleva_FND141(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ejecuciones := EjecucionesA(root, enCola)
-	if len(ejecuciones) != 1 || r.Instruccion == "" || r.Instruccion != ejecuciones[0].Solicitud {
-		t.Fatalf("la pregunta apunta a su instrucción: %q, %+v", r.Instruccion, ejecuciones)
+	if r.Instruccion != "" || len(EjecucionesA(root, enCola)) != 1 {
+		t.Fatalf("la IA se entera, pero la respuesta no espera a que llegue: %+v", r)
 	}
-}
-
-func TestEspera_UnaRespuestaQueNoLlegoSePuedeResponderDeNuevo_FND141(t *testing.T) {
-	root := proyectoConTareas(t)
-	conEspera(t, root, "¿mergeamos el #8?")
-	conSesionAbierta(t, root)
-	p := esperaDe(t, root, enCola)
-	r, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí"}}`, "Pixel", enCola)
-	if err != nil {
+	if err := ReabrirEspera(root, p.ID, "", enCola); err != nil {
 		t.Fatal(err)
 	}
-	if err := ReabrirEspera(root, p.ID, r.Instruccion, enCola.Add(time.Second)); err != nil {
-		t.Fatal(err)
-	}
-	if v := esperaDe(t, root, enCola.Add(time.Second)); v.Estado != PreguntaPendiente {
-		t.Fatalf("vuelve a preguntarse: %+v", v)
-	}
-	otra := enCola.Add(2 * time.Second)
-	if err := LatirSesion(root, "s1", otra); err != nil {
-		t.Fatal(err)
-	}
-	segunda, err := ResponderPregunta(root, p.ID, `{"q1":{"otra":"sí, de nuevo"}}`, "Pixel", otra)
-	if err != nil {
-		t.Fatalf("se responde otra vez: %v", err)
-	}
-	if segunda.Instruccion == r.Instruccion {
-		t.Fatalf("la segunda respuesta es otra instrucción: %q", segunda.Instruccion)
+	if v := esperaDe(t, root, enCola); v.Estado != PreguntaRespondida {
+		t.Fatalf("sin instrucción no hay nada que reabrir: %+v", v)
 	}
 }
 
@@ -311,5 +279,123 @@ func TestEspera_ReabrirNoTocaUnaRespuestaMasNueva_FND141(t *testing.T) {
 	}
 	if v := esperaDe(t, root, enCola); v.Estado != PreguntaRespondida {
 		t.Fatalf("otra instrucción no reabre esta respuesta: %+v", v)
+	}
+}
+
+// Issue #149: el panel solo mostraba el símbolo; «no veo las preguntas en el tablero». Muestra lo mismo que el teléfono,
+// y una nota de la persona también, porque ahí tampoco se leía.
+func TestEsperasDelPanel_TraeSoloPreguntasConSuAccionDeAtender(t *testing.T) {
+	root := proyectoConTareas(t)
+	conEspera(t, root, "Probé en Linux. ¿Pruebas tú en Windows? Hace falta un PC real.")
+	if err := estado.Set(root, estado.Cambio{Frente: "barra", Etapa: "Código", Estado: "⏳", Bloqueo: "Lo pruebas cuando puedas", DeQuien: "usuario"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	got := EsperasDelPanel(root, enCola)
+	if len(got) != 1 {
+		t.Fatalf("solo la pregunta: una nota no pregunta nada: %+v", got)
+	}
+	p := got[0]
+	if p.Donde != "Barra · PR" || p.Texto != "¿Pruebas tú en Windows? Hace falta un PC real." {
+		t.Fatalf("la pregunta va entera desde el ¿: %+v", p)
+	}
+	ofrecida := false
+	for _, a := range atenciones(root) {
+		ofrecida = ofrecida || a.ID == p.Atender
+	}
+	if !ofrecida {
+		t.Fatalf("tiene que ser una acción que qdd ofrece: %+v", p)
+	}
+}
+
+func TestEsperasDelPanel_LoCubiertoPorUnPedidoNoSeRepite(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd, err := Pedir(root, "aws configure", "Configurar AWS", root, enCola)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conEspera(t, root, "¿Corres ["+pd.Tecla+"] para desplegar?")
+	if got := EsperasDelPanel(root, enCola); len(got) != 0 {
+		t.Fatalf("el pedido ya lo muestra el panel: %+v", got)
+	}
+}
+
+// FND-176 (qdd-movile, 2026-11-07): «¿Confirmas [a]?» se ocultaba solo mientras [a] estaba abierto. Al terminar, [a] sale
+// de la cola y la pregunta volvía al teléfono, ya respondida.
+func TestEspera_UnPedidoHechoDeSuTareaNoLaVuelveAPreguntar_FND176(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd := mustPedirEnOrden(t, root, "aws configure", Orden{Tarea: "barra"})
+	conEspera(t, root, "¿Confirmas ["+pd.Tecla+"] para desplegar?")
+	anotarHecho(root, pd, enCola)
+	marcarHecho(t, root, pd.ID)
+	sacarDeLaCola(t, root, pd.ID)
+	if ps := delEstado(root); len(ps) != 0 {
+		t.Fatalf("[%s] ya se hizo: el teléfono no vuelve a preguntarlo: %+v", pd.Tecla, ps)
+	}
+	tras := EsperasTrasPedido(root, enCola)
+	if len(tras) != 1 || tras[0].Tarea != "Barra" || tras[0].Etapa != "PR" {
+		t.Fatalf("el check le pide a la IA actualizar ese ⏳: %+v", tras)
+	}
+	otro := mustPedirEnOrden(t, root, "aws sso login", Orden{Tarea: "barra"})
+	if otro.Tecla != pd.Tecla {
+		t.Fatalf("la tecla libre se reutiliza: %q, %q", otro.Tecla, pd.Tecla)
+	}
+	if tras := EsperasTrasPedido(root, enCola); len(tras) != 0 {
+		t.Fatalf("un pedido abierto con esa tecla cubre el ⏳: no hay nada que actualizar: %+v", tras)
+	}
+}
+
+func TestEspera_UnPedidoHechoDeOtraTareaNoLaCubre_FND176(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd := mustPedirEnOrden(t, root, "aws configure", Orden{Tarea: "otra"})
+	conEspera(t, root, "¿Confirmas ["+pd.Tecla+"] para desplegar?")
+	anotarHecho(root, pd, enCola)
+	sacarDeLaCola(t, root, pd.ID)
+	if ps := delEstado(root); len(ps) != 1 {
+		t.Fatalf("la tecla se reutiliza: un pedido de otra tarea no responde esta pregunta: %+v", ps)
+	}
+	if tras := EsperasTrasPedido(root, enCola); len(tras) != 0 {
+		t.Fatalf("%+v", tras)
+	}
+}
+
+func TestEspera_UnPedidoHechoHaceMasDeUnDiaNoLaCubre_FND176(t *testing.T) {
+	root := proyectoConTareas(t)
+	pd := mustPedirEnOrden(t, root, "aws configure", Orden{Tarea: "barra"})
+	conEspera(t, root, "¿Confirmas ["+pd.Tecla+"] para desplegar?")
+	anotarHecho(root, pd, enCola.Add(-VidaHechos-time.Minute))
+	sacarDeLaCola(t, root, pd.ID)
+	if ps := delEstado(root); len(ps) != 1 {
+		t.Fatalf("lo hecho se recuerda VidaHechos: después vuelve a ser pregunta: %+v", ps)
+	}
+}
+
+func sacarDeLaCola(t *testing.T, root, id string) {
+	t.Helper()
+	if err := conCola(root, enCola, func(cola []Pedido) ([]Pedido, error) {
+		var out []Pedido
+		for _, p := range cola {
+			if p.ID != id {
+				out = append(out, p)
+			}
+		}
+		return out, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Pedido de la persona (2026-11-08): un ⏳ que qdd revisa solo (con verificación) no se le pregunta, ni cuenta como una
+// nota suya sin pregunta: se responde solo.
+func TestEspera_LaQueSeRespondeSolaNoSePregunta(t *testing.T) {
+	root := conGoal(t)
+	c := estado.Cambio{Frente: "barra", Etapa: "PR", Estado: "⏳", Bloqueo: "¿Ya está en npm?", DeQuien: "la persona", Verifica: "npm:qdd-framework@2.10.0-rc.43"}
+	if err := estado.Set(root, c, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if qs := delEstado(root); len(qs) != 0 {
+		t.Fatalf("se responde sola: no es pregunta para la persona: %+v", qs)
+	}
+	if sin := EsperasSinPregunta(root, enCola); len(sin) != 0 {
+		t.Fatalf("tampoco es una nota suya sin pregunta: %+v", sin)
 	}
 }

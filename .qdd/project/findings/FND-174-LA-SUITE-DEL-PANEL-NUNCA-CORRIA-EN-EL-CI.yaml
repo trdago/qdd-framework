@@ -1,0 +1,9 @@
+id: "FND-174"
+title: "La suite del panel nunca corría en el CI ni al publicar"
+description: "La suite del panel declara requiere: [claude], y los flujos de CI no instalan Claude Code. En el CI y en el gate de publicar quedaba QA-03-SIN-MEDIR, una recomendación que no bloquea, así que sus 221 pruebas solo corrían en el PC de quien auditaba. Visto en el registro de la corrida 42339283578 al revisar el proceso del RFC 0020, que decía que el CI corre todo."
+impact: "Un cambio del panel podía mergearse y publicarse sin que el CI corriera sus pruebas. Quien no tuviera claude en su PC tampoco las corría: nadie lo bloqueaba."
+action_taken: "quality.yml y publish.yml instalan Claude Code en una versión fija antes del gate. La suite no usa credenciales: probada con HOME limpio y sin clave, 221 de 221. Se corrigió lo que decían el RFC 0020 y el changelog."
+test_result: "cli/cmd/gate_sin_cache_test.go: TestCI_InstalaLasHerramientasDeLasSuitesDelGate_FND174. Y la corrida del CI de este PR, que debe mostrar [QA] OK en esa suite."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

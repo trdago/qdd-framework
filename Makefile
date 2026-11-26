@@ -36,9 +36,12 @@ run: install
 	@echo "==> Iniciando QDD Dashboard..."
 	qdd dashboard
 
+# Huellas (sha256) de nombres reales que no van en docs/ ni rfcs/: viven fuera del repositorio, en el PC de la persona.
+HUELLAS_PRIVADAS ?= $(wildcard $(HOME)/.config/qdd/huellas-privadas)
+
 test: core-assets
 	@echo "==> Ejecutando pruebas unitarias y de arquitectura (Go)..."
-	cd cli && go test ./...
+	cd cli && QDD_HUELLAS_PRIVADAS="$(HUELLAS_PRIVADAS)" go test ./...
 	@echo "==> Ejecutando pruebas de componentes Frontend (Vitest)..."
 	cd cli/ui && npm run test
 	@echo "==> Ejecutando pruebas del instalador npm..."

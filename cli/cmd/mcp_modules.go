@@ -10,14 +10,16 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 )
 
 func registerProjectContextTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_project_context",
-		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo obligatoria, cómo se prueba, la ficha de los módulos que vas a tocar (objetivos, invariantes, pruebas), el mapa de módulos y las zonas sin ficha."),
-		mcp.WithString("paths", mcp.Description("Archivos o carpetas a modificar, por coma o línea (relativos a la raíz). Sin rutas: el mapa general.")),
+		mcp.WithDescription("PRIMERA llamada de toda tarea: propósito, forma de trabajo, cómo se prueba y la ficha de lo que tocas."),
+		mcp.WithString("paths", mcp.Description("Archivos o carpetas a tocar, por coma o línea (relativos a la raíz). Sin rutas: el mapa.")),
+		mcp.WithString("detalle", mcp.Description("«completo»: fichas enteras y mapa.")),
 	)
 	RegisterToolWithTelemetry(s, tool, handleProjectContextTool)
 }
@@ -33,6 +35,9 @@ func handleProjectContextTool(ctx context.Context, request mcp.CallToolRequest) 
 		Estandares:   blueprints.Estandares(root),
 		Modo:         modo,
 		ModoVisto:    visto,
+
+		TareasPorRevisar: estado.LineasPorRevisar(root),
+		Completo:         stringArg(request, "detalle") == "completo",
 	})
 	if notice != "" {
 		text = notice + "\n" + text
@@ -61,7 +66,7 @@ func handleModuleSaveTool(ctx context.Context, request mcp.CallToolRequest) (*mc
 	if len(problems) > 0 {
 		return mcp.NewToolResultError("Ficha rechazada. Corrige y vuelve a enviarla:\n- " + strings.Join(problems, "\n- ")), nil
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("Ficha guardada en %s como BORRADOR. Pide al humano que la revise y la apruebe con: qdd modules approve %s", path, m.ID)), nil
+	return mcp.NewToolResultText(fmt.Sprintf("Ficha guardada en %s como BORRADOR. Ya le llega a la persona en «▶ Para ti» del panel (y al teléfono) para que la revise y la apruebe (qdd modules approve %s): avísale en una línea; no la pidas con qdd_consola_pedir ni la dejes solo en el chat.", path, m.ID)), nil
 }
 
 // projectRootForMCP resuelve la raíz real del proyecto aunque el servidor MCP

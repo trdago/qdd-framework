@@ -1,0 +1,9 @@
+id: "FND-151"
+title: "Una tarea cerrada seguía apareciendo en las esperas"
+description: "qdd estado --json listaba en esperas y fallas las celdas de todas las tareas, también las cerradas y descartadas. El reporte MEJ-010 de sfrc lo vio con 6 tareas cerradas que seguían con un ⏳ a nombre de la persona. Reproducido el 2026-11-05 en un proyecto aislado, donde además qdd estado check pasaba sin decir nada de esa tarea ni de una abierta con todo listo. Las preguntas al teléfono y lo que el panel espera de la persona ya miraban solo las abiertas: el defecto estaba en esta lista."
+impact: "Quien leía esperas para saber qué falta recibía pendientes de trabajo ya cerrado. La persona tenía que pedir a mano que se ordenara el tablero."
+action_taken: "esperas y fallas solo traen tareas abiertas. qdd estado check avisa, sin bloquear, de las tareas abiertas con todo listo y de las cerradas que conservan un ⏳, también en --json (tareas_desfasadas). El resto de MEJ-010 sigue abierto en su tarea: tareas desfasadas por commits, nombres y criterios por reformular, requisitos sin tarea y cambios de otra sesión."
+test_result: "cli/pkg/estado/desfasadas_test.go (FND151 y MEJ010) y cli/cmd/estado_desfasadas_test.go. Con el binario de la rama, sobre copias de cada estado: en qdd avisa de mej-018 (cerrada con ⏳) y de 2 tareas abiertas con todo listo; en notificador_de_ofertas, de 1 cerrada con ⏳. En sfrc da 0 porque ese tablero ya se ordenó a mano, así que el caso original no se volvió a ver con sus datos."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

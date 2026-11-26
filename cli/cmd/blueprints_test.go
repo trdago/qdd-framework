@@ -16,7 +16,11 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/blueprints"
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
+	"github.com/zalando/go-keyring"
+
+	"github.com/qdd-framework/qdd/pkg/aislar"
 )
 
 const cmdTestBlueprint = `id: auth
@@ -44,12 +48,42 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
-	home, err := os.MkdirTemp("", "qdd-home-")
+	// Las pruebas de caja negra corren este binario como qdd: main solo llama a Execute (audit_salida_test.go).
+	if os.Getenv(envComoQDD) == "1" {
+		Execute()
+		os.Exit(0)
+	}
+	// TestDashboard_ElServidorDeVerdadSoloAtiendeAEstePC lanza este binario como «qdd dashboard» (dashboard#7ceb11f1);
+	// lo demás que el dashboard relanza de sí mismo (certify) no corre nada.
+	if os.Getenv(envDashboardDePrueba) != "" && len(os.Args) > 1 {
+		if os.Args[1] == "dashboard" {
+			Execute()
+		}
+		os.Exit(0)
+	}
+	// La acción del panel que activa el modo goal relanza este binario como «qdd goal» (FND-146).
+	if len(os.Args) > 1 && os.Args[1] == "goal" {
+		Execute()
+		os.Exit(0)
+	}
+	// Las pruebas de caja negra de qdd flujo (flujo_propuestas_test.go) corren este binario como el qdd de verdad.
+	if len(os.Args) > 1 && os.Args[1] == "flujo" {
+		Execute()
+		os.Exit(0)
+	}
+	home, propia, err := carpetaCentralDePrueba()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no se pudo crear la carpeta central de prueba:", err)
 		os.Exit(1)
 	}
 	os.Setenv(blueprints.HomeEnv, home)
+	// El llavero y el Secret Service de la persona no son de las pruebas (baul#df85a0cf): llavero de prueba, y sin él
+	// el bus de sesión apunta a un socket que no existe, así que guardar falla en vez de escribir en el real.
+	keyring.MockInit()
+	os.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+filepath.Join(home, "sin-dbus"))
+	// Los AGENTS.md de las carpetas padre de la persona no son de las pruebas (MEJ-062): doctor --fix no mira más
+	// arriba que esta carpeta, y ninguna prueba vive dentro de ella.
+	integration.TopePadres = func() string { return home }
 	// El servicio de qdd remoto de esta máquina no es de las pruebas.
 	remotoUsuario = func() (string, error) { return home, nil }
 	remotoEjecutor = func(string, ...string) error { return nil }
@@ -57,7 +91,9 @@ func TestMain(m *testing.M) {
 		os.Setenv(k, v)
 	}
 	code := m.Run()
-	os.RemoveAll(home)
+	if propia {
+		aislar.Borrar(home)
+	}
 	os.Exit(code)
 }
 
@@ -436,4 +472,13 @@ func TestTextoDeEntrevista_SoloCuandoHayAlgoQuePreguntar(t *testing.T) {
 	if e := textoDeEntrevista(c); !strings.Contains(e, "no lo respondas tú") || !strings.Contains(e, "incluye") {
 		t.Fatalf("la entrevista es de la persona: %q", e)
 	}
+}
+
+// carpetaCentralDePrueba: el ayudante de audit (correrAudit) trae la carpeta central de su prueba, que borra el padre;
+// si creara otra, al salir con os.Exit quedaba en el TMPDIR de la máquina (FND-288).
+func carpetaCentralDePrueba() (string, bool, error) {
+	if h := os.Getenv(blueprints.HomeEnv); h != "" && os.Getenv("QDD_AUDIT_AYUDANTE") != "" {
+		return h, false, nil
+	}
+	return aislar.Carpeta("qdd-home-")
 }

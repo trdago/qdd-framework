@@ -1,0 +1,9 @@
+id: "FND-161"
+title: "Los latidos de cada sesión hacían releer todos los proyectos a qdd remoto"
+description: "Cada sesión abierta late cada 5 s, y cada latido reescribía su cola del teléfono aunque siguiera vacía. La cola de pedidos también se reescribía sin cambios. qdd remoto vigila esas carpetas: cada escritura contaba como un cambio y armaba de nuevo el estado de todos los proyectos, unos 88 ms cada vez con 7 proyectos. Medido el 2026-11-05 con rc.11 y sin ningún teléfono conectado: 13 % y 21 % de un núcleo en dos minutos distintos, y 146 eventos en 60 s, casi todos de telefono/ y pedidos/ (sesiones/ también escribe, pero el servicio no la vigila)."
+impact: "qdd remoto gastaba CPU todo el tiempo, también sin nadie mirando. El flujo del panel vigila las mismas carpetas, así que cada sesión también releía por los latidos de las demás. Ese gasto del flujo se dedujo del código y no se midió."
+action_taken: "guardarJSON y guardarCola pasan por escribirSiCambio: si el archivo ya dice lo mismo, no lo tocan. Lo que sí cambia se escribe igual que antes, con su rename atómico. No se cambió ni el vigía ni la agrupación de 300 ms."
+test_result: "cli/pkg/consola/sin_reescribir_test.go: dos pruebas FND161 comprueban que el archivo sigue siendo el mismo tras una escritura sin cambios, y fallaron antes del arreglo; otra comprueba que los cambios se guardan. La baja de CPU todavía no está medida: se mide con la versión instalada."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

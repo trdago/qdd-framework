@@ -49,7 +49,7 @@ func setupTestDocs(t *testing.T, tempDir string) {
 	if err := os.Mkdir(docsDir, 0755); err != nil {
 		t.Fatalf("Failed to create docs dir: %v", err)
 	}
-	
+
 	dummyContent := "# Arquitectura de Prueba\n\nEste es un documento de prueba para validar que el contexto se lee correctamente."
 	if err := os.WriteFile(filepath.Join(docsDir, "arquitectura.md"), []byte(dummyContent), 0644); err != nil {
 		t.Fatalf("Failed to write dummy markdown file: %v", err)

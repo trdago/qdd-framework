@@ -1,0 +1,9 @@
+id: "FND-267"
+title: "La IA podía dar la aprobación que una celda espera, y una aprobación vieja valía para un ✅ nuevo"
+description: "Medido 2026-11-21 al probar el invariante «Lo que requiere aprobación lo dice en la celda y nunca avanza sin ella» (estado-por-tareas#c53e6daf): qdd estado set --aprobado y qdd_estado aprobado=true marcaban la celda aprobada sin pasar por la persona, y Set conservaba la aprobación (anterior.Aprobado || c.Aprobado) aunque el ✅ cambiara de evidencia, así que la aprobación de v1.0.0 servía para v1.1.0."
+impact: "Una etapa que requería la aprobación de la persona (p. ej. Producción) podía pasar a ✅ con la sola palabra de la IA, en el tablero, el teléfono y el reporte."
+action_taken: "Un set ya no da aprobaciones: «aprobado» (CLI y MCP) deja un pedido 🔑 de la persona (DePersona, que el modo goal no lanza) con «qdd estado aprobar <tarea> <etapa>». Ese comando aprueba solo desde el pedido que la persona confirmó (QDD_PEDIDO + PedidoConfirmado) o en su terminal con la pregunta respondida, como flujo propuestas aprobar. La aprobación de un ✅ vale para ese ✅: otra evidencia o volver a otro estado necesita la suya. Decidido en modo goal con la opción recomendada (2026-11-21); la persona puede revertirlo."
+test_result: "cli/pkg/estado/aprobar_test.go TestAprobar_ValeParaElOkQueApruebaYNoParaElSiguiente y cli/cmd/estado_aprobar_test.go (TestEstadoTool_AprobadoDeLaIADejaUnPedidoDeLaPersona, TestEstadoAprobar_SoloConElSiDeLaPersona) fallaban sin el arreglo (no compilaban: no existía Aprobar; la IA aprobaba) y pasan con él."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

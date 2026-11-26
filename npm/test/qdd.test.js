@@ -27,6 +27,8 @@ test('sin binario sale con 75 y dice que qdd se está actualizando', (t) => {
   assert.match(r.stderr, /npm install -g qdd-framework --allow-scripts=qdd-framework/);
 });
 
+// contrato: envoltorio-npm#053cd2aa
+
 test('con binario entrega su salida tal cual', { skip: os.platform() === 'win32' }, (t) => {
   const dir = carpetaConEnvoltorio(t);
   const binario = path.join(dir, nombreBinario);
@@ -35,12 +37,36 @@ test('con binario entrega su salida tal cual', { skip: os.platform() === 'win32'
   assert.strictEqual(r.status, 7);
 });
 
+// contrato: envoltorio-npm#317567e2
+
 test('un binario que no se puede ejecutar sigue siendo un fallo', { skip: os.platform() === 'win32' }, (t) => {
   const dir = carpetaConEnvoltorio(t);
   fs.writeFileSync(path.join(dir, nombreBinario), 'nada', { mode: 0o644 });
   const r = spawnSync(process.execPath, [path.join(dir, 'qdd.js')], { encoding: 'utf8' });
   assert.strictEqual(r.status, 1, r.stderr);
   assert.match(r.stderr, /Reinstala/);
+});
+
+// FND-142: en Windows, qdd.exe vive fuera del paquete para que npm pueda actualizar con sesiones abiertas.
+const { rutaDelBinario } = require('../bin/qdd.js');
+
+test('en Windows usa el binario de la versión del paquete', () => {
+  const ruta = rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => true });
+  assert.strictEqual(ruta, path.join('L', 'qdd', 'bin', '2.10.0', 'qdd.exe'));
+});
+
+test('en Windows sin esa carpeta usa el del paquete: una instalación anterior sigue andando', () => {
+  const dentro = path.join('paquete', 'qdd.exe');
+  assert.strictEqual(rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => false }), dentro);
+  assert.strictEqual(rutaDelBinario({ platform: 'win32', env: {}, dir: 'paquete', version: '2.10.0', existe: () => true }), dentro);
+  assert.strictEqual(rutaDelBinario({ platform: 'win32', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '', existe: () => true }), dentro);
+});
+
+// contrato: envoltorio-npm#110c284b
+
+test('fuera de Windows nada cambia', () => {
+  const ruta = rutaDelBinario({ platform: 'linux', env: { LOCALAPPDATA: 'L' }, dir: 'paquete', version: '2.10.0', existe: () => true });
+  assert.strictEqual(ruta, path.join('paquete', 'qdd'));
 });
 
 // FND-143: quien instala sin la bandera de npm 12 queda sin binario: el primer qdd lo baja con el instalador del paquete.
@@ -54,6 +80,10 @@ function paqueteConInstalador(t, instalador) {
 }
 
 const correr = (dir, ...args) => spawnSync(process.execPath, [path.join(dir, 'bin', 'qdd.js'), ...args], { encoding: 'utf8' });
+
+// contrato: envoltorio-npm#d33d9e83
+
+// contrato: envoltorio-npm#053cd2aa
 
 test('sin binario lo baja con el instalador y corre lo pedido', { skip: os.platform() === 'win32' }, (t) => {
   const dir = paqueteConInstalador(t, `

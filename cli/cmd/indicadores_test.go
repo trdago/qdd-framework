@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/certificaciones"
@@ -92,6 +97,7 @@ func TestIndicadores_ReportNoInventaPuntaje(t *testing.T) {
 // FND-060: report buscaba el texto 'status: certified' y qdd_score comparaba
 // con "certified" exacto, así que 'status: "PASSED"' no contaba como cumplida;
 // el dashboard además contaba el catálogo. Ahora todos usan pkg/certificaciones.
+// contrato: certificaciones#56ed4ee1
 func TestIndicadores_MismoConteoDeCertificacionesEnTodosLosLectores(t *testing.T) {
 	dir := proyectoConFindings(t)
 	archivos := map[string]string{
@@ -115,5 +121,28 @@ func TestIndicadores_MismoConteoDeCertificacionesEnTodosLosLectores(t *testing.T
 	}
 	if total, cumplen, pendientes := countProjectCertifications(dir); total != 4 || cumplen != 2 || pendientes != 2 {
 		t.Errorf("report: total %d, cumplen %d, pendientes %d; want 4, 2, 2 (sin estado cuenta como pendiente)", total, cumplen, pendientes)
+	}
+}
+
+// contrato: findings#05482d89
+// FND-261: la tool qdd_findings contaba como pendiente todo lo que no estaba resuelto, también los sin estado y los
+// descartados. Es el lector que ve la IA: tiene que dar el mismo conteo que pkg/findings.
+func TestIndicadores_QddFindingsCuentaComoPkgFindings_FND261(t *testing.T) {
+	dir := proyectoConFindings(t)
+	os.WriteFile(filepath.Join(dir, ".qdd", "project", "findings", "FND-005.yaml"), []byte("title: e\nstatus: wontfix\n"), 0644)
+	s := server.NewMCPServer("TEST-MCP", "1.0.0")
+	registerFindingsTool(s)
+	res, err := s.GetTool("qdd_findings").Handler(context.Background(), mcp.CallToolRequest{})
+	if err != nil || res == nil || res.IsError || len(res.Content) == 0 {
+		t.Fatalf("la tool responde: %+v, %v", res, err)
+	}
+	texto := res.Content[0].(mcp.TextContent).Text
+	for _, want := range []string{"Total: 5", "Resueltos: 2", "Pendientes: 1", "Descartados: 1", "Sin estado: 1"} {
+		if !strings.Contains(texto, want) {
+			t.Errorf("qdd_findings no dice %q:\n%s", want, texto)
+		}
+	}
+	if !strings.Contains(texto, "SIN ESTADO - d") {
+		t.Errorf("el finding sin estado se informa como «sin estado», no como abierto:\n%s", texto)
 	}
 }

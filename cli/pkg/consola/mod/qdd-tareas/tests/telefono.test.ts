@@ -42,6 +42,9 @@ function preparar(on, r) {
 const nuevo = (extra = {}) => ({ llamadas: [] as string[][], enviados: [] as string[], notificaciones: [] as any[], latidos: [] as any[], activo: true, ...extra })
 const latidos = (r) => r.llamadas.filter((a) => a[2] === 'telefono' && a[3] === 'latir')
 
+// contrato: remoto#b613d6de
+
+// contrato: remoto#0b183847
 test('la instrucción del teléfono llega a la IA como mensaje de la persona, una vez, y se notifica', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] }] })
   const clock = preparar(on, r)
@@ -55,6 +58,7 @@ test('la instrucción del teléfono llega a la IA como mensaje de la persona, un
   expect(r.enviados.length).toBe(1)
 })
 
+// contrato: remoto#0b183847
 test('un mensaje que no viene marcado del teléfono no se envía (nunca un «!» o «/» suelto)', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'x', mensaje: '!rm -rf ~' }, { solicitud: 's2', nombre: 'x', mensaje: '/clear' }] }] })
   preparar(on, r)
@@ -90,6 +94,7 @@ test('si Claude Code descarta el mensaje, qdd la marca sin entregar y no la conf
   expect(r.notificaciones).toEqual([])
 })
 
+// contrato: remoto#0b183847
 test('sin terminal no late ni recibe nada', async ($, on) => {
   const r = nuevo({ latidos: [{ activo: true, entregar: [{ solicitud: 's1', nombre: 'Pixel', mensaje: MENSAJE }] }] })
   const clock = preparar(on, r)
@@ -122,4 +127,80 @@ test('al cerrarse la sesión deja de contar como abierta', async ($, on) => {
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await $.session.end({ reason: 'exit' })
   expect(latidos(r).at(-1)).toEqual(['qdd', 'consola', 'telefono', 'latir', '--sesion', 'sesion-1', '--fin'])
+})
+
+// MEJ-020: late el flujo abierto; el panel no lanza un proceso cada 5 s. Con un qdd que no lo dice, late como siempre.
+function conFlujo(on, r, lineas: () => AsyncGenerator<string>) {
+  on('process.spawn', async function* ($, e) {
+    r.lanzados.push([...e.argv])
+    for await (const texto of lineas()) yield { stream: 'stdout', text: texto + '\n' }
+    return { value: { code: 0, signal: null } }
+  })
+}
+const PANEL_LATE = JSON.stringify({ ...PANEL, telefono_en_flujo: true })
+const quieto = () => new Promise<void>(() => {})
+
+test('con un flujo que late, el panel pide el latido y no lanza «telefono latir»', async ($, on) => {
+  const r = nuevo({ lanzados: [] as string[][] })
+  const clock = preparar(on, r)
+  conFlujo(on, r, async function* () {
+    yield PANEL_LATE
+    await quieto()
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await new Promise((res) => setTimeout(res, 20))
+  expect(r.lanzados[0].at(-1).split(',')).toContain('telefono:sesion-1')
+  const antes = latidos(r).length
+  await clock.advance(30000)
+  expect(latidos(r).length).toBe(antes)
+})
+
+test('lo que llega por el flujo se entrega a la IA y se confirma', async ($, on) => {
+  const r = nuevo({ lanzados: [] as string[][] })
+  const clock = preparar(on, r)
+  conFlujo(on, r, async function* () {
+    yield PANEL_LATE
+    yield JSON.stringify({ telefono_entregar: [{ solicitud: 's1', nombre: 'Pixel de Ana', mensaje: MENSAJE }] })
+    await quieto()
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await new Promise((res) => setTimeout(res, 20))
+  await clock.advance(10)
+  expect(r.enviados).toEqual([MENSAJE])
+  expect(r.llamadas.find((a) => a[2] === 'telefono' && a[3] === 'entregada')).toEqual(['qdd', 'consola', 'telefono', 'entregada', 's1', '--sesion', 'sesion-1'])
+})
+
+test('si el flujo se corta vuelve a latir con procesos, y al cerrar la sesión deja de contar como abierta', async ($, on) => {
+  const r = nuevo({ lanzados: [] as string[][], activo: true })
+  const clock = preparar(on, r)
+  on('session.end', () => ({ sessionId: 'sesion-1' }))
+  let cortar: () => void = () => {}
+  const corte = new Promise<void>((res) => (cortar = res))
+  conFlujo(on, r, async function* () {
+    yield PANEL_LATE
+    await corte
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await new Promise((res) => setTimeout(res, 20))
+  const antes = latidos(r).length
+  cortar()
+  await new Promise((res) => setTimeout(res, 20))
+  await clock.advance(5000)
+  expect(latidos(r).length).toBeGreaterThan(antes)
+  await $.session.end({ reason: 'exit' })
+  expect(latidos(r).at(-1)).toEqual(['qdd', 'consola', 'telefono', 'latir', '--sesion', 'sesion-1', '--fin'])
+})
+
+test('un qdd que no late en el flujo sigue latiendo con procesos', async ($, on) => {
+  const r = nuevo({ lanzados: [] as string[][], activo: true })
+  const clock = preparar(on, r)
+  conFlujo(on, r, async function* () {
+    yield JSON.stringify(PANEL)
+    await quieto()
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await new Promise((res) => setTimeout(res, 20))
+  const antes = latidos(r).length
+  await clock.advance(5000)
+  expect(latidos(r).length).toBe(antes + 1)
 })

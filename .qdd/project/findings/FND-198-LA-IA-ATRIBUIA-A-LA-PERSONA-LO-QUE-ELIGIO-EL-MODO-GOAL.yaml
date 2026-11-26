@@ -1,0 +1,9 @@
+id: "FND-198"
+title: "La IA atribuía a la persona lo que eligió el modo goal"
+description: "2026-11-06 (issue #147, MEJ-025): con el modo goal encendido a mitad de un trabajo, goal respondió seis AskUserQuestion, entre ellas «¿Apruebas lo que propuse en la guía de voz?». La IA recibió el mismo resultado que si hubiera contestado la persona y dejó escrito en documentos versionados y en commits que esas decisiones y esa aprobación eran de ella. Solo se supo horas después, leyendo goal.elegidas."
+impact: "Decisiones y aprobaciones que nadie tomó quedan registradas como de la persona, en el historial del proyecto."
+action_taken: "EntregaDe, que arma lo que Claude Code recibe como answers, agrega MarcaGoal («[la eligió el modo goal (su opción recomendada), no la persona]») a cada respuesta de una pregunta respondida en LugarGoal. Las otras dos partes del issue quedan aparte: avisar a la sesión cuando el modo se enciende o se apaga, y que una pregunta de aprobación no se responda sola (cambia la regla del modo: la decide la persona)."
+test_result: "cli/pkg/consola/preguntas_test.go: TestPregunta_LaQueEligioElModoGoalLoDiceEnLaRespuesta_FND198 no compilaba antes (no existía MarcaGoal) y pasa después; las pruebas de preguntas y de goal siguen pasando (una respuesta del teléfono no cambia)."
+status: resolved
+detectado_por: persona
+date: "2026-11-11"

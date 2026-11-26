@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/candado"
@@ -32,6 +34,22 @@ type Actividad struct {
 	Pulso  string `json:"pulso"`
 	Fuente string `json:"fuente"`
 	Quien  string `json:"quien,omitempty"`
+	// Sesion es la sesión de la IA que encendió la tarea; vacía si esa IA no da un id (FND-153).
+	Sesion string `json:"sesion,omitempty"`
+}
+
+// SesionActual es el id de la sesión de Claude Code que corre este proceso; vacío en cualquier otra IA o en una terminal.
+func SesionActual() string {
+	return os.Getenv("CLAUDE_CODE_SESSION_ID")
+}
+
+// TareaDeLaSesion es la última tarea activada si sigue en curso y la encendió esta sesión; si no, "". Varias sesiones
+// comparten el archivo, así que la última activada puede ser de otra (FND-153).
+func TareaDeLaSesion(a Actividades, sesion string, now time.Time) string {
+	if act, ok := a.Tareas[a.Ultima]; ok && act.viva(now) && act.Sesion == sesion {
+		return a.Ultima
+	}
+	return ""
 }
 
 // Actividades es el archivo: Ultima es la última tarea activada, la que late con un pulso sin id.
@@ -88,13 +106,28 @@ func tareaAbierta(root, id string) error {
 	}
 	i := e.buscar(id)
 	if e.Frentes[i].Estado != EstadoAbierto {
-		return fmt.Errorf("la tarea %q está %s", id, e.Frentes[i].Estado)
+		return fmt.Errorf("la tarea %q está %s", id, enFemenino(e.Frentes[i].Estado))
 	}
 	return nil
 }
 
+// enFemenino: el estado de un frente («cerrado», «descartado») dicho de una tarea (FND-292).
+func enFemenino(estado string) string {
+	if base, ok := strings.CutSuffix(estado, "o"); ok {
+		return base + "a"
+	}
+	return estado
+}
+
+// quienHerramienta: «quién» nombra la herramienta que trabaja (claude-code, mcp), nunca a una persona: sin espacios,
+// mayúsculas ni datos personales (FND-276).
+var quienHerramienta = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,39}$`)
+
 // Activar deja la tarea en curso: la declara el agente al empezar a trabajarla.
 func Activar(root, id, quien string, now time.Time) error {
+	if quien != "" && (!quienHerramienta.MatchString(quien) || secretoODatoPersonal.MatchString(quien)) {
+		return fmt.Errorf("--quien nombra la herramienta que la trabaja (p. ej. claude-code), no a una persona: la actividad no guarda datos personales")
+	}
 	soltar, err := bloquearActividad(root)
 	if err != nil {
 		return err
@@ -105,7 +138,7 @@ func Activar(root, id, quien string, now time.Time) error {
 	}
 	a := LeerActividad(root)
 	hora := now.Format(time.RFC3339)
-	a.Tareas[id] = Actividad{Desde: hora, Pulso: hora, Fuente: FuenteAgente, Quien: quien}
+	a.Tareas[id] = Actividad{Desde: hora, Pulso: hora, Fuente: FuenteAgente, Quien: quien, Sesion: SesionActual()}
 	a.Ultima = id
 	return guardarActividad(root, a, now)
 }
@@ -156,7 +189,7 @@ func Pulsar(root, id, fuente string, now time.Time) (string, error) {
 	}
 	act, ok := a.Tareas[id]
 	if !ok || !act.viva(now) {
-		act = Actividad{Desde: hora}
+		act = Actividad{Desde: hora, Sesion: SesionActual()}
 	}
 	act.Pulso, act.Fuente = hora, fuente
 	a.Tareas[id] = act

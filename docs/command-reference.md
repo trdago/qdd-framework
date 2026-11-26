@@ -1,186 +1,200 @@
 # Command Reference
 
-La interfaz de línea de comandos de QDD (QDD CLI) se divide en dos rutas:
-1. **Fast Path**: Comandos deterministas que se ejecutan localmente sin IA.
-2. **Cognitive Path (MCP)**: Las *tools* que tu IDE con IA invoca para trabajar bajo las reglas de QDD.
+Todo lo que se puede invocar en QDD: los comandos de la terminal, las *tools* MCP que usa la IA y las reglas del gate. Una
+prueba compara esta página con el binario, así que un comando o una tool que no aparezca aquí es un error.
 
-## Mapa del Ciclo de Mejora Continua (Lifecycle)
+**Índice:** [Empezar y mantener](#empezar-y-mantener) · [Gate y medición](#gate-y-medición) · [Fichas](#fichas) · [Blueprints](#blueprints) · [Estado](#estado) · [Consola](#consola) · [Flujos](#flujos) · [Herramientas](#herramientas) · [Modo goal](#modo-goal) · [Mejoras, reportes y fallas](#mejoras-reportes-y-fallas) · [QDD Móvil](#qdd-móvil) · [Baúl y ambientes](#baúl-y-ambientes) · [Puertas](#puertas) · [Imágenes](#imágenes) · [Obsoletos](#obsoletos) · [Tools MCP](#tools-mcp) · [Reglas del gate](#reglas-del-gate) · [Políticas](#políticas) · [Controles de doctor](#controles-de-doctor) · [Códigos de salida y variables](#códigos-de-salida-y-variables) · [Adaptadores de IA](#adaptadores-de-ia)
 
-Este diagrama representa el flujo de trabajo orquestado para mantener la base de código segura, auditable y moderna en un ciclo infinito de integración continua.
+## Cómo leer esta página
 
-```mermaid
-graph TD
-    %% Estilos Globales
-    classDef default fill:#1e1e1e,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef init fill:#6366f1,stroke:#4338ca,stroke-width:2px,color:#fff;
-    classDef agent fill:#ec4899,stroke:#be185d,stroke-width:2px,color:#fff;
-    classDef gatekeeper fill:#14b8a6,stroke:#0f766e,stroke-width:2px,color:#fff;
-    classDef success fill:#22c55e,stroke:#15803d,stroke-width:2px,color:#fff;
-    classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+- Todos los comandos funcionan desde cualquier subcarpeta: se ubican solos en la raíz. `qdd <comando> --help` dice lo mismo
+  que esta página, y `--dir` apunta a otra carpeta en `estado`, `consola` y `puertas`.
+- **Solo lee** quiere decir que no cambia tu proyecto. Casi todos los comandos anotan además su uso en `QDD_HOME`, y los que
+  usan blueprints pueden migrar un proyecto del esquema anterior. Los que escriben algo más lo dicen en negrita.
+- Los `/qdd …` son pedidos en lenguaje natural a tu IA, no subcomandos. Un subcomando que no existe imprime un aviso y sale
+  con 0.
 
-    %% Nodos
-    A["qdd init<br/>Crea Entorno y conecta la IA"]:::init
-    BP["qdd blueprint add / apply<br/>Estándares de la organización"]:::default
-    B["qdd_sprint (MCP)<br/>Define Requerimientos"]:::default
-    C["/qdd 'prompt'<br/>Delegación a IA"]:::agent
-    PC["qdd_project_context (MCP)<br/>Fichas, invariantes y forma de trabajo"]:::gatekeeper
-    D{"Gatekeeper<br/>Pre-Flight Check"}:::gatekeeper
-    E["qdd_learn (MCP)<br/>Absorber Arquitectura e Intelligence Report"]:::default
-    F["Modo Consultivo<br/>Propuesta de Estándares"]:::agent
-    G["qdd audit<br/>Pruebas + reglas QDD"]:::warning
-    H["qdd certify<br/>Sello de Gobernanza"]:::success
-    I["qdd_release (MCP)<br/>Git Tag"]:::success
+## Comandos
 
-    %% Conexiones
-    A --> BP
-    BP --> B
-    B --> C
-    C --> PC
-    PC --> D
-    D -- Contexto Incompleto --> E
-    E --> C
-    D -- Autorizado --> F
-    F --> G
-    G -- Fallo Técnico --> C
-    G -- Reglas Cumplidas --> H
-    H --> I
-    I --> B
-```
-
-## The Safe Boundary: Análisis vs Mutación
-
-En QDD existe una línea estricta que separa **leer/auditar** de **modificar el código**. Los comandos de auditoría están diseñados para ser 100% seguros (Read-Only) y jamás alterarán tu código fuente.
-
-> ⚠️ **Solo los comandos de esta página que NO llevan la etiqueta "(MCP)" existen como subcomandos reales de la CLI** (probá `qdd <comando> --help`). Los que sí la llevan solo existen como *tools* MCP: no funcionan tipeados directo en la terminal — hay que pedirle a un IDE con IA conectado por MCP (Claude Code, Cursor, Antigravity, OpenCode) que las invoque. Ver FND-019.
-
-Todos los comandos funcionan desde cualquier subcarpeta: se ubican solos en la raíz del proyecto.
-
-### 🛡️ Comandos Seguros (Read-Only / Auditoría) — CLI real
-Estos comandos puedes ejecutarlos sin miedo directo en la terminal. Su único trabajo es leer tu repositorio y reportar su estado:
-
-| Comando | Descripción |
-|---------|-------------|
-| `qdd audit` | Revisa el proyecto contra las reglas del framework: corre las pruebas del proyecto y revisa OWASP, Cero `else`, despliegues, fichas y blueprints. Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. Ver [Reglas del gate](#reglas-del-gate). **Seguro.** |
-| `qdd certify` | Audita el proyecto, calcula el puntaje y lo guarda en el historial para medir la tendencia. **Seguro.** |
-| `qdd doctor [--fix]` | Verifica que el entorno QDD esté completamente funcional (checklist determinista), incluidos los blueprints de la organización: sin copias en el proyecto, íntegros en la carpeta central, acceso al repositorio y al día. `--fix` migra, reconstruye desde el lockfile (otro PC) y sincroniza; nunca borra copias editadas ni actualiza blueprints por su cuenta. **Seguro.** |
-| `qdd report` | Genera el reporte integral y consolidado de auditoría, certificaciones, findings y telemetría en formato Text, Markdown o JSON. **Seguro.** |
-| `qdd dashboard` | Inicia el Centro de Comando Web. Despliega el Intelligence Report, métricas, Sprints y Certificaciones. Solo atiende a este PC: no se abre desde otro equipo de la red. |
-| `qdd evolution` | Estudia findings abiertos, certificaciones pendientes, violaciones de auditoría e historial de score para recomendar la única siguiente mejora accionable. No crea ni certifica nada por sí solo (Modo Consultivo). **Seguro.** |
-| `qdd benchmark` | Evalúa la calidad de respuesta (Cognitive Quality) del framework. **Seguro.** |
-| `qdd modules` | Lista las fichas de módulo (`.qdd/project/modules/`) con su estado (borrador o aprobada), su desfase respecto del código y las zonas de código que aún no tienen ficha. **Seguro.** Ver [Fichas de módulo](#fichas-de-módulo). |
-| `qdd modules context [rutas…]` | Imprime el mismo contexto que recibe una IA con la tool MCP `qdd_project_context`: propósito, forma de trabajo obligatoria, cómo se prueba y la ficha de los módulos de esas rutas. Sirve para IAs sin MCP. **Seguro.** |
-| `qdd blueprint list [--json]` / `qdd blueprint show <id> [--json] [--seccion <s>]` | Lista los blueprints del lockfile en una línea cada uno (`id@versión · nombre · ❓preguntas 🔒invariantes ✓escenarios · dónde se aplicó`) o muestra uno completo. `--json` da su índice (lo que lee una IA: preguntas con sus opciones, escenarios y la línea de cada sección en blueprint.yaml) y `--seccion` solo `preguntas`, `invariantes`, `decisiones`, `escenarios`, `vocabulario` o `todo`. También reporta los problemas del gate (`BP-01` a `BP-07`). **Seguro.** Ver RFC 0003 y RFC 0004. |
-| `qdd blueprint quality [id\|carpeta...] [--json]` | Mide cada blueprint como receta, de forma determinista: `id@versión · calidad N/100 · ⚠defectos ✂mejoras · receta ≈tokens por defecto (−ahorro)–máxima · índice ≈tokens`, con cada hallazgo y su arreglo. Defectos (−10): un escenario de la base que solo vale con una opción (`CAL-01`), una opción que usa una versión mayor que la que pide (`CAL-02`), una opción que no dice qué implica (`CAL-03`), código en la receta (`CAL-04`), invariantes de una opción sin un escenario que las verifique (`CAL-05`), una opción que depende de otra respuesta en una pregunta que se hace sin ella (`CAL-09`), sin límites (`CAL-10`), sin pasos (`CAL-11`), un paso sin escenario (`CAL-12`), un escenario al que ningún paso lleva (`CAL-13`), un valor escrito en una regla sin decir si es de negocio o técnico (`CAL-14`), un archivo de código o una función de una implementación (`CAL-15`), una receta nueva sin `requiere_qdd` (`CAL-17`), un `{{id}}` que queda sin valor con alguna combinación de respuestas (`CAL-18`). Mejoras (−3), que acortan sin quitar nada: una regla de más de 280 caracteres (`CAL-06`), una opción que repite la base (`CAL-07`), un término que nada usa (`CAL-08`), un parámetro o constante que nada cita (`CAL-16`). Sin argumentos mide los importados o, si no hay, lo publicado en la fuente de la organización; acepta la carpeta de un aporte. Sale con 1 si hay defectos. `qdd blueprint propose` rechaza un aporte que agrega defectos y pone la calidad antes → después en el PR. En la MCP: `qdd_blueprint_list {seccion: calidad}`. **Seguro.** |
-| `qdd blueprint distill <modulo> --id <blueprint> [--origen]` | QDD genera el blueprint desde lo que ya funciona: copia de la ficha aprobada lo que es receta (objetivos, arquitectura, decisiones, invariantes; nunca rutas ni el caso real del proyecto) a un aporte nuevo y entrega la **entrevista** para la persona: qué incluye y qué queda fuera (`alcance`), si cada valor escrito en una regla es de negocio (un **parámetro** `{{id}}` que cada proyecto decide al aplicar) o técnico (una **constante** `{{id}}` fija con su porqué); un parámetro con `si` solo se pregunta cuando aplica, y qué hace cada detalle de la implementación. Se repite hasta que no queda nada por delimitar; después, pasos y escenarios. **Escribe solo en la carpeta central.** |
-| `qdd blueprint conformance [--json]` | **Conformidad con la receta**, la regla de la certificación ciega sobre el código real: cada escenario que un módulo debe cumplir tiene una prueba que lleva su id (con «-» o «_») en los archivos de prueba de las rutas de su ficha (`x_test.go`, `x.test.ts`, `test_x.py`, `tests/`…). Un módulo que aplicó un blueprint se mide con sus respuestas; uno que lo implementa como origen (`implementa: [{blueprint: id}]` en su ficha) cubre todas las opciones. Un escenario que hace otro (no este código) va en `fuera: {ID: motivo}`: no se exige y siempre se muestra. El blueprint sale de lo importado o de lo publicado en la fuente. Un blueprint que implementa qdd no pide pruebas al proyecto que solo lo usa: lo cumple el qdd instalado («lo implementa qdd (id@versión)»). Que esas pruebas pasen lo dice `qdd audit`, que además exige esta conformidad sin usar la red (`BP-08-CONFORMIDAD`; sin el blueprint en la máquina, `BP-08-SIN-MEDIR`, que no bloquea). Sale con 1 si falta alguno. **Seguro.** |
-| `qdd blueprint certify <id\|carpeta> [--verificar]` | **Certificación ciega**: prepara, fuera del proyecto y del blueprint, una carpeta por variante (valores sugeridos y otros valores de negocio) con solo `RECETA.md`. Un agente nuevo, sin el original, construye cada una en el lenguaje que elija, con una prueba por escenario que lleva su id, y deja `construccion.yaml` (lenguaje, comando y `supuestos`: lo que la receta no decía). Con `--verificar`, QDD corre ese comando y exige que pase y que cada escenario tenga su prueba: lo técnico se replicó al 100 % y lo de negocio se adaptó (los escenarios de cada variante traen sus valores). Los supuestos vuelven como preguntas para la persona (¿se fija en la receta o queda libre?) y van al PR. Deja `certificacion.yaml` junto al blueprint, atado a su huella; `propose` exige una vigente para una receta con pasos. **Corre el comando de prueba de cada variante.** |
-| `qdd blueprint sync` | Trae lo publicado en cada fuente del proyecto (la organización y las demás del lockfile) y dice qué blueprints tienen una versión más nueva. Una fuente inaccesible se informa sin ocultar las demás. **Seguro.** |
-| `qdd mcp-server` | Inicia el servidor MCP de QDD (JSON-RPC sobre stdio). No se usa a mano: `qdd init` lo registra en tu IDE. **Seguro.** |
-
-### ⚡ Comandos de Mutación (Estructurales) — CLI real
-Estos comandos modifican el repositorio agregando carpetas o archivos de gobernanza:
-
-| Comando | Descripción |
-|---------|-------------|
-| `qdd init [--lenguaje L] [--arquitectura A]` | Inicializa el entorno creando el directorio `.qdd/`, `config.yaml`, el **Wisdom Registry** (`manifesto.md`) y las reglas de cada IA (ver [Adaptadores de IA](#adaptadores-de-ia)). Detecta Node, Go, Java/Kotlin, Python, Dart/Flutter, Rust, PHP, Ruby y .NET, también en subcarpetas (monorepo). En un proyecto sin código, declara el stack con las flags. Deja los proyectos nuevos en adopción gradual (`adopcion: gradual` en `policies.yaml`). Crea `./tmp` para lo temporal, ignorada por git con su propio `.gitignore`. Es seguro repetirlo: completa lo vacío y no pisa lo declarado. |
-| `qdd run <cmd1> <cmd2>...` | Ejecuta subcomandos de QDD en secuencia como una tubería (ej. `qdd run audit certify`), abortando y revirtiendo (`qdd undo`) si alguno falla. |
-| `qdd run --keep-alive <cmd>` | Supervisa un proceso externo (un binario, un servicio) manteniéndolo siempre vivo: lo reinicia en cada salida limpia. Ante un error real, registra un Finding + evidencia y luego invoca a un agente de IA local (Claude, Antigravity o Cursor — el primero disponible) para diagnosticar y aplicar el fix real de forma desatendida (`--dangerously-skip-permissions`), reintentando hasta 3 veces antes de detenerse para revisión humana. Ver ADR-004 (supersede ADR-003). |
-| `qdd undo <comando>` | Revierte el efecto de un comando (p. ej. `qdd undo init`). Es lo que usa el rollback de `qdd run`. |
-| `qdd bug --command <cmd> [--exit-code N] [--output …] [--title …]` | Registra un error como Finding permanente con estado OPEN y su evidencia (mismo mecanismo que usa `qdd run --keep-alive` internamente). No repara nada: deja el finding con `test_pending` para que se agregue la prueba de regresión. |
-| `qdd incidentes` | Las fallas de QDD mismo: un pánico de la CLI o de una tool MCP y cada autorreparación de `qdd doctor --fix` sobre datos que QDD escribió (un registro ilegible, la cola del panel). Quedan en `<QDD_HOME>/incidentes`, un archivo por firma, y se publican solas en segundo plano como issue del repositorio de QDD (`gh`), sin duplicar: la misma firma suma una ocurrencia y comenta el issue que ya existe; tope de 5 publicaciones por día. Solo viajan datos de QDD (versión, sistema, el comando con sus valores como `<marcador>`, la traza dentro del código de QDD); nunca rutas, nombres de archivo ni valores del proyecto. `QDD_INCIDENTES=off` las apaga. Lista el registro. **Seguro.** |
-| `qdd incidentes ver <firma>` | Muestra el issue exactamente como se publica (formato `qdd-incidente/1`, con un bloque YAML para la IA). **Seguro.** |
-| `qdd incidentes publicar [--silencioso]` | Publica ahora los pendientes, con el mismo tope y sin duplicar; sin `gh` o sin sesión quedan pendientes y lo dice. |
-| `qdd certify human [target]` | Certifica comportamiento humano, accesibilidad (WCAG 2.2) y usabilidad con el motor DAG del plugin `qdd-human-certifier`, en viewports Desktop (1440x900) y Mobile (390x844). Guarda la evidencia en `.qdd/evidence/run_…`. |
-| `qdd modules approve <id>` | Aprobación humana de una ficha de módulo: la marca como aprobada y registra el commit revisado. Desde ahí, `HEART-02` avisa si el código cambia sin actualizar la ficha. |
-| `qdd blueprint add [origen] [id…] [--paquete p \| --todos] [--ref vX.Y.Z]` | Importa blueprints de una **versión publicada** (tag `vX.Y.Z`; sin `--ref`, la última) del repositorio git de tu organización, con tus credenciales. La primera vez indicas el repositorio y QDD lo registra en `.qdd/config.yaml` y en el registro central: desde ahí, este y los demás proyectos de la organización (mismo dueño en su remote git) solo nombran los ids. También puedes importar de otras fuentes (p. ej. tu repositorio público) pasando su URL: el lockfile recuerda la fuente de cada blueprint y `add <id>` lo actualiza desde ahí. Un id ya importado desde otra fuente se rechaza salvo con `--reemplazar` (RFC 0007). El contenido vive en la carpeta central de QDD (`~/.local/share/qdd/blueprints`); el proyecto solo versiona `.qdd/blueprints.lock.yaml`. |
-| `qdd blueprint contribute <id> [--origen repo]` | Prepara un aporte a un blueprint (existente o nuevo) en la rama `aporte/<id>` de un clon en la carpeta central, nunca en el proyecto. Uno importado va a su fuente; uno nuevo, a la de `--origen` o a la organización. |
-| `qdd blueprint propose <id> -m "…" [--origen repo]` | Valida el aporte, **calcula el cambio semver y fija la versión** (major/minor/patch según lo que cambió), commitea, publica la rama y abre el PR con `gh`. |
-| `qdd blueprint release [--origen repo]` | Tras el merge, etiqueta el repositorio de la organización, o el de `--origen` (`vX.Y.Z`). Rechaza los blueprints que cambiaron sin pasar por `propose`. |
-| `qdd blueprint apply <id…> [--ruta …] [--modulo id] [--respuesta p=v …] [--prueba …]` | Pregunta las decisiones de diseño del blueprint (o las toma de `--respuesta`) y genera la ficha del módulo en **borrador**, sus escenarios de conformidad, el registro de decisiones y, si la carpeta no existe, un esqueleto `README.md`. Al volver a aplicarlo reutiliza las respuestas y conserva lo que el proyecto agregó a la ficha. |
-
-### 🧭 Estado por frente y consola de Claude Code (RFC 0006)
-El estado por frente es una tabla de frentes de trabajo por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-tareas`, que reemplazó a `estado-por-frente`; destino «archivo»). La consola la muestra en un panel a la derecha de Claude Code (blueprint `consola-claude-code`) y, desde qdd 2.7.0, también en la barra lateral de OpenCode, de solo lectura.
-
-| Comando | Descripción |
-|---------|-------------|
-| `qdd estado init [--etapas …]` | Crea `.qdd/project/estado.yaml` con las etapas de la ficha (o las de `--etapas`). Es del humano: la IA no lo crea. |
-| `qdd estado ver` | Imprime la tabla. **Seguro.** |
-| `qdd estado nueva "<nombre>" [--objetivo id] [--depende-de a,b]` | Crea una tarea y le da su id desde el nombre (lo imprime). Si el nombre se parece mucho al de una tarea abierta, no la crea y la nombra (`--aunque-exista` si de verdad es otra) (FND-109). |
-| `qdd estado set <frente> <etapa> <estado>` | Actualiza una celda y valida antes de escribir: un ✅ lleva evidencia (commit, versión, n/n pruebas), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Crea la tarea solo con `--nombre`; un id que no existe se rechaza y sugiere el más parecido (FND-109). |
-| `qdd estado cerrar <frente>` | Cierra (o descarta) un frente con su motivo. Un frente nunca se borra en silencio. |
-| `qdd estado objetivo <id> [--nombre …] [--criterio …] [--foco] [--ciclo nombre]` | Crea o cambia un objetivo: para qué se hacen sus tareas y cuándo se cumple. A lo más uno abierto es el foco. Con `--ciclo`, sus tareas toman las etapas de ese ciclo (`--ciclo ""` las vuelve al del proyecto). Con `--evidencia` se cumple (terminar sus tareas no basta), con `--descartado --motivo` se descarta y con `--reabrir` vuelve a abrirse; nunca desaparece en silencio. |
-| `qdd estado tarea <id> [--objetivo id] [--depende-de a,b]` | Cambia a qué objetivo sirve una tarea y de cuáles depende (`""` lo deja vacío); la crea solo con `--nombre`. Una tarea no termina antes que sus dependencias: su última etapa no pasa a ✅ mientras una no termine. |
-| `qdd estado ciclo <nombre> <etapa>…` | Declara un ciclo con sus etapas, o cambia las de uno (`proyecto` son las etapas del archivo). Las tareas de un objetivo que lo sigue toman sus etapas y el reporte trae una tabla por ciclo. Cambiar las etapas no pierde avance: si una tarea tiene ✅ ⏳ o ❌ en una etapa que se quita, no se escribe. |
-| `qdd estado check [--respuesta r.md] [--json]` | Lector automático de los escenarios EPF-C01…C07 (y, con `--respuesta`, EPF-A01 y EPF-C08: lo que el texto afirma con «<tarea> · <etapa>: <estado>» es lo de la tabla); compara contra git HEAD para detectar frentes que desaparecen. Sale con 1 si hay violaciones. **Seguro.** También avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta (`esperas_sin_pregunta` en `--json`). |
-| `qdd estado watch` | Panel en vivo en la terminal, con la tabla, lo que espera cada ⏳ y las fallas (`q` o Ctrl-C para salir). **Seguro.** |
-| `qdd estado activa <tarea> [--fin] [--quien texto]` | Declara la tarea en curso (el panel la marca «● running»); con `--fin` la apaga. Se apaga sola a los 120 s sin pulsos. (qdd 2.7.0) |
-| `qdd estado pulso [<tarea>] [--fuente agente\|subagente\|comando]` | Señal de vida de la tarea en curso; sin tarea, late la última activada. Sin tarea en curso no imprime nada y sale con 0. **Seguro.** (qdd 2.7.0) |
-| `qdd estado statusline` | Resumen de una línea para una barra de estado; sin archivo no imprime nada y nunca falla. **Seguro.** |
-| `qdd consola activar [--recursos]` | Instala en Claude Code (alcance de usuario) el panel de QDD y la barra; si OpenCode está en la máquina, también su panel de solo lectura; con `--recursos`, la barra suma al final, a la derecha, disco, GPU, RAM y CPU. Una barra propia no se reemplaza sin dejar copia. Nada se escribe en el proyecto. |
-| `qdd consola actualizar` / `qdd consola desactivar` | Deja el panel en la versión de esta CLI, o lo quita y devuelve la barra anterior. |
-| `qdd consola estado` | Dice si la consola está activa y al día. **Seguro.** |
-| `qdd consola panel [--con atender,pregunta,telefono]` | Lo que dibuja el panel, en JSON (estado por frente y acciones). Los tipos opcionales (`atender`: pulsar una etapa ⏳ o ❌; `pregunta`: lo que la consola le pregunta a la persona, para QDD Móvil; `telefono`: lo mandado a ejecutar desde QDD Móvil, como pedidos `origen:"telefono"` con `dispositivo` y `solicitud`) salen solo con `--con`, para que un panel que no los conoce no los muestre (FND-092). Con QDD Móvil activado y Pro trae además `ejecutar: {qdd, ia, sugeridos}`: lo que el PC acepta desde el teléfono (`ia`: hay una sesión de Claude Code abierta en el proyecto). Nunca falla. **Seguro.** |
-| `qdd consola accion <id> [--confirmado]` | Ejecuta una acción que ofrece el panel (aprobar una ficha, revisar el estado, auditar, un comando pedido). Lo que escribe corre solo con `--confirmado`, que el panel pasa después de «s  Sí». Un comando pedido se lanza aparte y vuelve en el acto: recargar el panel o cerrar la terminal no lo corta, y si igual muere queda con falla para reintentarlo (FND-089, qdd 2.8.0). Con `--sesion <id>` (lo pasa el panel de Claude Code) esa sesión recibe el resultado al terminar. |
-| `qdd consola avisado <id> --sesion <id>` | Lo que usa el panel antes de enviarle a la IA el resultado de un pedido que confirmó: lo marca avisado y sale con 0 solo la primera vez y solo para esa sesión, así el aviso llega una vez aunque haya varias sesiones o un reload. |
-| `qdd consola accion atender:<tarea>:<etapa>` | Lo que usa el panel al pulsar una etapa ⏳ o ❌: imprime el mensaje con que la IA la atiende (intenta completarla; si falta algo, deja un pedido o pregunta). El panel lo envía a la conversación. **Seguro.** |
-| `qdd consola statusline` | La barra de estado de Claude Code (lee su JSON por la entrada estándar): a la izquierda el modelo y el modo de la IA; a la derecha, en lista, contexto, 5h y semana. Nunca falla. **Seguro.** |
-| `qdd consola pedir -m <motivo> [--tarea <id>] [--carpeta dir] [--despues <tecla\|id>] [--antes <tecla\|id>] <comando…>` | Deja en «▶ Para ti» del panel un comando para que **la persona** lo ejecute con un clic (p. ej. el push de un tag). El motivo es un resumen estilo chat de 60 caracteres como mucho («Publicar v2.8.0-rc.6 → npm preview»). QDD no lo ejecuta: corre solo después de «s  Sí», en su carpeta. Un pedido aceptado queda en gris y no se acepta dos veces. Con `--despues`/`--antes` declara el orden: el que espera va justo después y queda «en espera», sin botón, hasta que lo otro esté hecho (qdd 2.8.0). Un comando que sale con **75** («todavía no»: falta un tag, un merge) vuelve a pendiente, en gris, con su aviso; no es una falla. Una cola por repositorio: un worktree usa la de su checkout principal. Con `--tarea` (por defecto, la tarea en curso) el pedido extiende esa tarea: si después de un mensaje de la persona la tarea sigue cambiando, sale de «▶ Para ti» (retirado) hasta que la IA lo pide de nuevo, con su misma tecla. |
-| `qdd consola blueprints [--json]` | Los blueprints del proyecto para el panel (📦 Blueprints, tecla `p`): los instalados y los disponibles en las fuentes del proyecto, con cuántos se actualizan sin la IA (la receta no cambió) y cuántos cambian la receta. Sin red ni IA: compara el lockfile con la copia central que trae `qdd blueprint sync`. Con `--json` entrega también las acciones del panel (↻ traer el catálogo, ⬆ actualizar, ＋ instalar con «s  Sí», ✦ aplicar con la IA). **Seguro.** |
-| `qdd consola efectos [on\|off]` | Enciende o apaga los efectos del panel (encendidos por defecto): lo que cambia se materializa como las ventanas de hypr-materialize. Sin argumento, dice cómo están y con qué estilo: el acento y las duraciones salen de `~/.config/hypr/materialize.conf` si existe (solo se lee) y si no, el acento del tema y 0,8 s / 0,4 s. `QDD_EFECTOS=off` también los apaga. |
-| `qdd consola materializar` | Lo usa el panel: recibe por la entrada estándar las líneas que cambiaron (`{lineas, abrir, semilla}`) y devuelve en JSON los cuadros del efecto (`{cuadro_ms, cuadros}`). Es determinista y ningún cuadro cambia el ancho del texto. **Seguro.** |
-| `qdd consola pedidos` | Lista los comandos pedidos con su tecla y su estado (pendiente, ⟳ ejecutando, ✓ hecho, falló). **Seguro.** |
-| `qdd consola desarmar <id\|tecla>` | Deja de esperar un pedido armado: uno que la persona ya confirmó y que corre solo cuando esté listo (su comando dijo «todavía no», código 75, o espera a otro pedido). Vuelve a pendiente; es «x Dejar de esperar» en el panel. |
-| `qdd consola descartar <id\|tecla> [--hecho [--nota …]]` | Quita un comando pedido sin ejecutarlo. Con `--hecho`, la persona ya lo hizo fuera del panel (lo dijo en el chat): queda hecho y libera a los que lo esperan (qdd 2.8.0). |
-| `qdd consola mergear-pr <número>` | El comando de los pedidos «🔀 Mergear #N» que el panel ofrece solo, uno por cada PR abierto del repositorio (no borrador), hasta 3 y siempre opcionales: no abren el panel, ceden su lugar a un pedido de la IA, y uno descartado no vuelve mientras siga abierto. Mergea con un commit de merge solo si el CI está verde; con el CI corriendo, o sin arrancar en un repositorio con workflows, sale con 75 («todavía no») y el pedido queda armado; con el CI en rojo o el PR cerrado, no mergea. qdd pregunta los PRs con `gh` a lo más cada minuto, aparte y sin demorar al panel (qdd 2.8.0). |
-| `qdd consola ciclo [--modo <permission_mode>] [--contexto]` | Lo llama el panel con cada mensaje de la persona: lo hecho antes sale del tablero y queda anotado el modo de permisos de la IA, que `qdd_project_context` usa para decir cuándo pedir autorización (RFC 0010). Con `--contexto` imprime, para la IA, qué espera el panel de la persona (pedidos, fichas en borrador, ⏳ suyos), solo si cambió desde el último mensaje: si ella lo resuelve en el chat, la IA lo refleja (sincronía panel–chat). Nunca falla. **Seguro.** (qdd 2.8.0) |
-| `qdd herramienta candidatos [--json]` | Los ejecutables del proyecto que se pueden agregar como pestaña del panel: `bin/`, `scripts/`, `cmd/*` de Go, `target/release` de Rust, los scripts de `package.json` y los objetivos del `Makefile`; marca los ya agregados. **Seguro.** (RFC 0011) |
-| `qdd herramienta ayuda <comando…>` | Corre su `--help` (si no, `-h` y `help`), sin entrada y con 5 s por intento, para que la IA arme la definición. |
-| `qdd herramienta configurar <comando…>` | Imprime el mensaje con que la IA arma la definición: leer su ayuda, proponerle las acciones a la persona y guardarla con `qdd herramienta guardar`, con el formato y las reglas. Es lo que el panel le envía a la conversación desde ⚙ Config → + Agregar herramienta. **Seguro.** |
-| `qdd herramienta guardar <archivo.yaml>` | Valida la definición (cada `{{campo}}` declarado y como argumento entero, sin secretos, modos válidos, ejecutable dentro del proyecto o en su ruta absoluta), corre su prueba de humo y, si sale con 0, la guarda tal como vino en `.qdd/herramientas/<id>.yaml`. Si no, dice por qué y no guarda nada. |
-| `qdd herramienta listar [--json]` | Las herramientas guardadas y lo que les falta en esta máquina (el ejecutable o una variable de entorno, por su nombre). Es lo que lee el panel. **Seguro.** |
-| `qdd herramienta correr <id> <acción> [campo=valor…] [--si]` | Corre una acción sin shell, en la raíz del proyecto, con el entorno de la máquina: lo escrito en un campo llega como un solo argumento. Si falta una variable de `entorno`, dice cuál (nunca su valor) y no corre. Una acción con `confirmar` pide `--si`. Sale con el código del ejecutable. |
-| `qdd herramienta quitar <id> --si` | Borra su definición; su pestaña se cierra. |
-
-### 📱 Consola remota: QDD Móvil (RFC 0013)
-`qdd remoto` es el lado PC de QDD Móvil: un solo proceso por máquina publica el panel de todos sus proyectos por un canal de Supabase Realtime (el relay no guarda ni el estado ni las acciones). Los proyectos salen del registro de la máquina, `<QDD_HOME>/proyectos.json` (0600), que anotan `qdd init` y cada mensaje con el panel (`qdd consola ciclo`); un worktree se anota como su checkout principal. `qdd doctor` señala las rutas que ya no existen (REM-01) y un registro ilegible (REM-02); `--fix` las quita o lo aparta. Nada de esto cuenta como uso en `qdd uso`.
-
-Una acción del teléfono (aprobar un pedido o una ficha, auditar…) llega firmada por el relay con la firma de la máquina; el PC descarta una sin firma válida o de hace más de 5 minutos, vuelve a calcular el panel, ejecuta solo un id que el panel ofrece y una sola vez por solicitud, y responde `recibida` → `ejecutando` → `hecha` \| `fallo`, o `ya_aprobado` (con el lugar: «PC» o el nombre del teléfono) o `rechazada`. Quién aprobó qué y cuándo queda en `<QDD_HOME>/remoto/log.jsonl` (0600), nunca en el relay. Nada que parezca un secreto sale del PC: los resultados pasan por un ocultador (claves, tokens, JWT, cadenas de conexión, llaves privadas y los valores de los `.env` del proyecto).
-
-**Preguntas desde el teléfono.** Lo que Claude Code le pregunta a la persona en una sesión interactiva (una pregunta de la IA con opciones, única, múltiple o «Otra» con texto; un permiso de herramienta con el comando exacto) llega al teléfono como una acción `pregunta` del panel del proyecto, y gana quien responde primero: la terminal o un teléfono. El teléfono responde por el RPC del relay (`public.qdd_remoto_responder`); el relay la firma como una acción, y el PC la valida contra la pregunta guardada (solo opciones que trae, una sola si no es múltiple, «Otra» de hasta 500 caracteres) y responde `hecha`, `ya_aprobado` (con el lugar donde ya se respondió), `vencida` (su sesión se cerró, dejó de esperarla 1 minuto o pasaron 30) o `rechazada`. Un permiso desde el teléfono solo se permite una vez o se niega: nunca «permitir siempre» ni un cambio de reglas. El texto de la pregunta y el comando pasan por el ocultador antes de salir del PC.
-
-La consola de un proyecto se transmite solo mientras un teléfono la mira y es de solo lectura: quien empieza a mirar recibe las últimas 40 líneas y después lo nuevo, juntado en como mucho dos mensajes por segundo. Sale del transcript más reciente de Claude Code del proyecto (`~/.claude/projects/…/*.jsonl`, o el de `CLAUDE_CONFIG_DIR`): los turnos de la persona y de la IA y el nombre de cada herramienta, nunca sus resultados ni el razonamiento. Los pedidos que terminan mientras alguien mira aparecen con el final de su salida. Todo pasa por el ocultador. Si el plan no la permite (cupo del mes, interruptor del relay), el teléfono recibe una vez el motivo de la pausa y el estado y las aprobaciones siguen.
-
-| Comando | Descripción |
-|---------|-------------|
-| `qdd remoto estado [--json]` | Lo que este PC publicaría, sin red: un proyecto por línea (nombre, foco, tareas, esperan, fallan) o, con `--json`, el contenido del evento `estado` (`version`, `qdd`, `maquina`, `en` y cada proyecto con su `clave`, `nombre`, `ruta` y el `panel` de `qdd consola panel --json`, o un `error` si falla), el más reciente primero. **Seguro.** (qdd 2.9.0) |
-| `qdd login [--relay <url> --clave <publicable>] [--sin-servicio]` | Empareja este PC con QDD Móvil: muestra el QR y deja el servicio. Es `qdd remoto activar`; sin banderas usa el relay guardado o, la primera vez, el que trae qdd. |
-| `qdd remoto activar [--relay <url> --clave <publicable>] [--sin-servicio]` | Guarda el relay (`<QDD_HOME>/remoto/relay.json`, 0600), empareja el PC si hace falta y deja el servicio que lo publica: `systemd --user` en Linux, launchd en macOS o una tarea al iniciar sesión en Windows, con el PATH de la terminal (los pedidos corren con las mismas herramientas). Solo acepta la clave publicable: una secreta (`sb_secret_…`, un JWT `service_role`) se rechaza y no se guarda. Sin flags usa lo guardado. (qdd 2.9.0) |
-| `qdd remoto emparejar` | Muestra en la terminal el QR (`{"v":1,"codigo","topico","nombre"}`) y el código de 8 caracteres, válido 5 minutos y una sola vez, y espera a que QDD Móvil lo acepte. El PC genera su id, el secreto de su canal (128 bits) y su firma (256 bits); la firma nunca va al teléfono. Credenciales en `<QDD_HOME>/remoto/credenciales.json` (0600). (qdd 2.9.0) |
-| `qdd remoto desactivar` | Saca el PC del relay (su canal deja de admitir a nadie), detiene y borra el servicio y borra las credenciales. (qdd 2.9.0) |
-| `qdd remoto dispositivos` | Los teléfonos de tu cuenta que ven este PC (id, nombre, plataforma, cuándo se vio y si está revocado). **Seguro.** (qdd 2.9.0) |
-| `qdd consola pregunta registrar` | Lo usa el panel de Claude Code (hook `PermissionRequest`, que corre al lado del diálogo): lee por la entrada estándar `{sesion, herramienta, entrada}` de una pregunta de la IA (`AskUserQuestion`) o de un permiso y la deja pendiente en `<QDD_HOME>/claude/preguntas/` (una cola por repositorio, fuera del proyecto); devuelve `{id, accion}`. Sin QDD Móvil activado no registra nada (id vacío y el motivo). (qdd 2.9.0) |
-| `qdd consola pregunta esperar <id> [--segundos N]` | Anota que la sesión la sigue esperando y espera hasta N s (10 por defecto) la respuesta de un teléfono; imprime cómo está y, si la respondió un teléfono, la respuesta en la forma de Claude Code (`answers` por texto de la pregunta, o `decision`: `permitir` \| `negar`). **Seguro.** (qdd 2.9.0) |
-| `qdd consola pregunta cerrar <id> [--vencida --motivo …]` | La respondió la terminal (vale aunque un teléfono la haya respondido un instante antes: el PC le corrige el estado a ese teléfono, `ya_aprobado` en el PC), o venció con su motivo. (qdd 2.9.0) |
-| `qdd consola pregunta vencer --sesion <id> [--motivo …]` | Vence las pendientes de una sesión de Claude Code que se cerró (lo hace el panel al terminar la sesión). (qdd 2.9.0) |
-| `qdd consola pregunta lista [--json]` | Las preguntas de la consola de este proyecto y cómo están (pendiente, respondida en el PC o en qué teléfono, vencida y por qué). **Seguro.** (qdd 2.9.0) |
-| `qdd consola telefono latir --sesion <id> [--fin] [--confirma]` | Lo usa el panel de Claude Code en cada sesión interactiva, cada 5 s: anota que la sesión sigue abierta en el proyecto (con `--fin`, que se cerró) y devuelve `{activo, entregar: [{solicitud, nombre, mensaje}]}`, las instrucciones mandadas desde QDD Móvil (Pro) que esta sesión le da a la IA como un mensaje de la persona, una sola vez aunque haya varias sesiones abiertas. Sin QDD Móvil activado no anota nada (`activo: false`). (qdd 2.9.0) |
-| `qdd consola telefono entregada <solicitud> --sesion <id>` | Claude Code aceptó una instrucción tomada con `latir --confirma`: recién entonces queda entregada. Sin confirmación en 15 min pasa a falla. (qdd 2.9.6) |
-| `qdd consola telefono fallo <solicitud> --sesion <id> --motivo …` | La sesión que tomó una instrucción del teléfono no pudo dársela a la IA: queda con falla y el teléfono lo ve. (qdd 2.9.0) |
-| `qdd consola telefono lista [--json]` | Lo mandado desde el teléfono a este proyecto (comandos qdd e instrucciones) y cómo está. **Seguro.** (qdd 2.9.0) |
-| `qdd remoto revocar <id>` | Saca un teléfono al instante: lo anota en `<QDD_HOME>/remoto/revocados.json` (este PC rechaza su próxima acción aunque tenga la sesión abierta) y lo revoca en el relay. (qdd 2.9.0) |
-
-### 🔁 Cola de mejoras (mejora continua)
-
-Lo que reportan las sesiones de Claude Code y los issues de GitHub queda como `MEJ-NNN` en `.qdd/project/cola_de_mejoras/`. Los issues admitidos son los de quien tiene acceso al repositorio, o los que llevan la etiqueta `mejora`. El ciclo es determinista: mantiene el objetivo `mejora-continua` del tablero con una tarea por mejora, 2 abiertas como mucho, y solo lo que ya es tarea pasa a la IA. Cerrar el issue de una mejora hecha queda como pedido en el panel.
+### Empezar y mantener
 
 | Comando | Qué hace |
 |---|---|
-| `qdd mejoras` | La cola de mejoras del proyecto: `reportar`, `ciclo` y `lista`. |
-| `qdd mejoras reportar --titulo … [--detalle …] [--autor …] [--proyecto <ruta\|nombre>] [--etiqueta bug]` | Deja un reporte en la entrada local del proyecto que lo recibe (por defecto, este; con `--proyecto`, otro del registro de la máquina). Lo pasa a la cola su próximo ciclo. No toca el árbol de trabajo de ese proyecto. |
-| `qdd mejoras ciclo [--si-toca] [--json]` | Recibe la entrada y los issues de GitHub, sigue las tareas de la cola (cerrada → hecha, descartada → descartada, borrada → vuelve a la cola) y entrega hasta 2 tareas: primero las de seguridad o bugs, después de la más antigua a la más nueva. Con `--si-toca`, solo si pasaron 10 min desde el último ciclo; así lo llama el panel de Claude Code cada minuto. El botón «Ciclo de mejoras» del panel lo corre sin esperar. |
-| `qdd mejoras lista [--json]` | La cola y en qué está cada mejora (`en_cola`, `tarea`, `hecha`, `descartada`). **Seguro.** |
+| `qdd doctor [--fix] [--todos]` | Verifica que el entorno QDD esté completamente funcional (checklist determinista), incluidos los blueprints de la organización: sin copias en el proyecto, íntegros en la carpeta central, acceso al repositorio y al día. `--fix` migra, reconstruye desde el lockfile (otro PC) y sincroniza; nunca borra copias editadas ni actualiza blueprints por su cuenta. `--todos` lo corre en cada proyecto registrado en la máquina y resume una línea por proyecto; con `--fix`, lo reparado queda como cambio en git en cada uno. **Escribe un reporte en `.qdd/project/evidence/`.** |
+| `qdd sincronizar [--json]` | Revisa, sin escribir nada, el tablero y los flujos de cada proyecto con una consola de Claude Code abierta en la máquina: ⏳ cuyo pedido ya terminó, tareas listas sin cerrar, cerradas o descartadas con ⏳ y flujos inválidos. Es lo que responde el botón «Sincronizar» de QDD Móvil. **Solo lee.** |
+| `qdd version` | La versión de qdd instalada (`qdd version vX`), igual que `qdd --version`; sirve en cualquier carpeta. **Solo lee.** |
+| `qdd mcp-server` | Inicia el servidor MCP de QDD (JSON-RPC sobre stdio). No se usa a mano: `qdd init` lo registra en tu IDE. **Expone herramientas que escriben.** |
+| `qdd init [--lenguaje L] [--arquitectura A]` | Inicializa el entorno creando el directorio `.qdd/`, `config.yaml`, el **Wisdom Registry** (`manifesto.md`) y las reglas de cada IA (ver [Adaptadores de IA](#adaptadores-de-ia)). Detecta Node, Go, Java/Kotlin, Python, Dart/Flutter, Rust, PHP, Ruby y .NET, también en subcarpetas (monorepo). En un proyecto sin código, declara el stack con las flags. Deja los proyectos nuevos en adopción gradual (`adopcion: gradual` en `policies.yaml`). Crea `./tmp` para lo temporal, ignorada por git con su propio `.gitignore`. Es seguro repetirlo: completa lo vacío y no pisa lo declarado. En un repositorio git nuevo para QDD instala también los hooks de las puertas, y anota el proyecto en el registro de la máquina. **El servidor MCP lo registra solo para Cursor** ([las demás](getting-started.md#conectar-el-servidor-mcp)). |
+| `qdd run <cmd1> <cmd2>...` | Ejecuta subcomandos de QDD en secuencia como una tubería (ej. `qdd run audit certify`), y se detiene si alguno falla; lo único que sabe revertir es `init` (ver `qdd undo`). |
+| `qdd run --keep-alive <cmd>` | Supervisa un proceso externo (un binario, un servicio) manteniéndolo siempre vivo: lo reinicia en cada salida limpia. Ante un error real, registra un Finding + evidencia y luego invoca a un agente de IA local (hoy solo Claude Code sabe reparar) para diagnosticar y aplicar el fix real de forma desatendida (`--dangerously-skip-permissions`), reintentando hasta 3 veces antes de detenerse para revisión humana. Trabaja sobre una copia del proyecto y, si el agente dice que lo arregló, la vuelca con `rsync --delete` sobre el original (menos `.git`, `node_modules` y la evidencia): úsalo con todo commiteado. Ver ADR-004 (supersede ADR-003). |
+| `qdd undo <comando>` | Solo deshace `init`: borra `.qdd` si tiene únicamente lo que deja init y git no lo sigue; si no, no borra nada y nombra lo que se perdería. Con cualquier otro comando no hace nada. Es lo que usa el rollback de `qdd run`. |
 
-### 🎯 Modo goal (RFC 0015)
+### Gate y medición
+
+Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview --allow-scripts=qdd-framework`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd audit [--completo] [--verificar-rutas]` | Revisa el proyecto contra las reglas del framework: corre las pruebas del proyecto y revisa OWASP, Cero `else`, el formato del código (como el CI), despliegues, fichas y blueprints. Una suite que declara `rutas` en `test_commands` no se repite si ya pasó con esos mismos archivos; `--completo` las corre todas. Las reglas van antes que las pruebas y, si una regla ya bloquea, no espera a las pruebas: lo dice con `QA-04-PRUEBAS-PENDIENTES` y sale con 1. `--verificar-rutas` corre cada suite que declara `rutas` en una copia con solo esos archivos y dice si le falta algo; el CI lo hace en cada PR. Separa los problemas que **bloquean** el gate (exit 1) de las **recomendaciones** (adopción gradual: E2E, ADR, Conventional Commits). Muestra el puntaje QDD. Ver [Reglas del gate](#reglas-del-gate). **Corre las pruebas; anota las suites que pasaron y la marca que lee la puerta de commit.** |
+| `qdd certify` | Audita el proyecto, calcula el puntaje y lo guarda en el historial para medir la tendencia. **Corre todas las pruebas y escribe `.qdd/project/metrics/certificate_history.json`. Siempre sale con 0: lo que frena es `qdd audit`.** |
+| `qdd report` | Genera el reporte integral y consolidado de auditoría, certificaciones, findings y telemetría en formato Text, Markdown o JSON. **Escribe un reporte en `.qdd/project/evidence/`.** `--format text\|md\|json` y `--output <archivo>`. |
+| `qdd evolution` | Estudia findings abiertos, certificaciones pendientes, violaciones de auditoría e historial de score para recomendar la única siguiente mejora accionable. No crea ni certifica nada por sí solo (Modo Consultivo). **Escribe un reporte en `.qdd/project/evidence/`.** |
+| `qdd benchmark` | Evalúa la calidad de respuesta (Cognitive Quality) del framework. **Escribe `.qdd/project/metrics/cognitive_history.json`.** |
+| `qdd certify human [target]` | Certifica comportamiento humano, accesibilidad (WCAG 2.2) y usabilidad con el motor DAG del plugin `qdd-human-certifier`, en viewports Desktop (1440x900) y Mobile (390x844). Guarda la evidencia en `.qdd/evidence/run_…`. |
+| `qdd uso` | Lo medido de cada versión de qdd y cuánto le falta a la que corre para pasar a latest. Se mide solo en proyectos QDD: comandos, herramientas MCP, pulsos del agente y mensajes con el panel; dos eventos a menos de 5 min son uso continuo y uno aislado no suma. **Solo lee.** (qdd 2.8.0) |
+| `qdd uso evidencia <versión>` | Deja en `.qdd/project/evidence/uso/vX.Y.Z.yaml` las horas medidas de la versión y sus previews, por proyecto, para commitearlas con la release (VER-05). (qdd 2.8.0) |
+| `qdd rendimiento [--segundos N] [--json]` | **Medición estándar de qdd en este equipo, sin tokens** (RFC 0022): corre qdd en una caja temporal (proyecto, `HOME` y `QDD_HOME` propios, iguales en cada equipo; sin Claude ni IA) y mide la latencia p95 de la barra, el panel, `qdd estado` y un flujo de 25 nodos; CPU, memoria y procesos por hora de `qdd consola seguir`; zombies y procesos que quedan vivos al cerrarlo (los cierra); y el contexto fijo del MCP. Cada medida tiene un presupuesto por sistema operativo; lo que no se pudo medir queda «sin medir». Guarda el informe por versión y `qdd doctor` muestra el último. Sale con 1 si dejó procesos y con 2 si solo pasó un presupuesto. El CI la corre en Linux, Windows y macOS. **Guarda su informe en la carpeta de qdd.** |
+
+### Fichas
+
+Qué es una ficha y su ciclo: [Fichas de módulo](#fichas-de-módulo).
+
+| Comando | Qué hace |
+|---|---|
+| `qdd modules` | Lista las fichas de módulo (`.qdd/project/modules/`) con su estado (borrador o aprobada), su desfase respecto del código y las zonas de código que aún no tienen ficha. **Solo lee.** Ver [Fichas de módulo](#fichas-de-módulo). |
+| `qdd modules context [rutas…]` | Imprime el mismo contexto que recibe una IA con la tool MCP `qdd_project_context`: propósito, forma de trabajo obligatoria, cómo se prueba y la ficha de los módulos de esas rutas, con cada decisión en una línea; `--completo` trae las fichas enteras y el mapa de módulos. Sirve para IAs sin MCP. **Solo lee.** |
+| `qdd modules approve <id>` | Aprobación humana de una ficha de módulo: la marca como aprobada y registra el commit revisado. Desde ahí, `HEART-02` avisa si el código cambia sin actualizar la ficha. |
+
+### Blueprints
+
+Guía: [Blueprints](blueprints.md).
+
+| Comando | Qué hace |
+|---|---|
+| `qdd blueprint list [--json]` / `qdd blueprint show <id> [--json] [--seccion <s>]` | Lista los blueprints del lockfile en una línea cada uno (`id@versión · nombre · ❓preguntas 🔒invariantes ✓escenarios · dónde se aplicó`) o muestra uno completo. `--json` da su índice (lo que lee una IA: preguntas con sus opciones, escenarios y la línea de cada sección en blueprint.yaml) y `--seccion` solo `preguntas`, `invariantes`, `decisiones`, `escenarios`, `vocabulario` o `todo`. También reporta los problemas del gate (`BP-01` a `BP-07`). **Solo lee.** Ver RFC 0003 y RFC 0004. |
+| `qdd blueprint quality [id\|carpeta...] [--json]` | Mide cada blueprint como receta, de forma determinista: `id@versión · calidad N/100 · ⚠defectos ✂mejoras · receta ≈tokens por defecto (−ahorro)–máxima · índice ≈tokens`, con cada hallazgo y su arreglo. Defectos (−10): un escenario de la base que solo vale con una opción (`CAL-01`), una opción que usa una versión mayor que la que pide (`CAL-02`), una opción que no dice qué implica (`CAL-03`), código en la receta (`CAL-04`), invariantes de una opción sin un escenario que las verifique (`CAL-05`), una opción que depende de otra respuesta en una pregunta que se hace sin ella (`CAL-09`), sin límites (`CAL-10`), sin pasos (`CAL-11`), un paso sin escenario (`CAL-12`), un escenario al que ningún paso lleva (`CAL-13`), un valor escrito en una regla sin decir si es de negocio o técnico (`CAL-14`), un archivo de código o una función de una implementación (`CAL-15`), una receta nueva sin `requiere_qdd` (`CAL-17`), un `{{id}}` que queda sin valor con alguna combinación de respuestas (`CAL-18`). Mejoras (−3), que acortan sin quitar nada: una regla de más de 280 caracteres (`CAL-06`), una opción que repite la base (`CAL-07`), un término que nada usa (`CAL-08`), un parámetro o constante que nada cita (`CAL-16`). Sin argumentos mide los importados o, si no hay, lo publicado en la fuente de la organización; acepta la carpeta de un aporte. Sale con 1 si hay defectos. `qdd blueprint propose` rechaza un aporte que agrega defectos y pone la calidad antes → después en el PR. En la MCP: `qdd_blueprint_list {seccion: calidad}`. **Solo lee.** |
+| `qdd blueprint distill <modulo> --id <blueprint> [--origen]` | QDD genera el blueprint desde lo que ya funciona: copia de la ficha aprobada lo que es receta (objetivos, arquitectura, decisiones, invariantes; nunca rutas ni el caso real del proyecto) a un aporte nuevo y entrega la **entrevista** para la persona: qué incluye y qué queda fuera (`alcance`), si cada valor escrito en una regla es de negocio (un **parámetro** `{{id}}` que cada proyecto decide al aplicar) o técnico (una **constante** `{{id}}` fija con su porqué); un parámetro con `si` solo se pregunta cuando aplica, y qué hace cada detalle de la implementación. Se repite hasta que no queda nada por delimitar; después, pasos y escenarios. **Escribe solo en la carpeta central.** |
+| `qdd blueprint conformance [--json]` | **Conformidad con la receta**, la regla de la certificación ciega sobre el código real: cada escenario que un módulo debe cumplir tiene una prueba que lleva su id (con «-» o «_») en los archivos de prueba de las rutas de su ficha (`x_test.go`, `x.test.ts`, `test_x.py`, `tests/`…). Un módulo que aplicó un blueprint se mide con sus respuestas; uno que lo implementa como origen (`implementa: [{blueprint: id}]` en su ficha) cubre todas las opciones. Un escenario que hace otro (no este código) va en `fuera: {ID: motivo}`: no se exige y siempre se muestra. El blueprint sale de lo importado o de lo publicado en la fuente. Un blueprint que implementa qdd no pide pruebas al proyecto que solo lo usa: lo cumple el qdd instalado («lo implementa qdd (id@versión)»). Que esas pruebas pasen lo dice `qdd audit`, que además exige esta conformidad sin usar la red (`BP-08-CONFORMIDAD`; sin el blueprint en la máquina, `BP-08-SIN-MEDIR`, que no bloquea). Sale con 1 si falta alguno. **Solo lee.** |
+| `qdd blueprint certify <id\|carpeta> [--verificar]` | **Certificación ciega**: prepara, fuera del proyecto y del blueprint, una carpeta por variante (valores sugeridos y otros valores de negocio) con solo `RECETA.md`. Un agente nuevo, sin el original, construye cada una en el lenguaje que elija, con una prueba por escenario que lleva su id, y deja `construccion.yaml` (lenguaje, comando y `supuestos`: lo que la receta no decía). Con `--verificar`, QDD corre ese comando y exige que pase y que cada escenario tenga su prueba: lo técnico se replicó al 100 % y lo de negocio se adaptó (los escenarios de cada variante traen sus valores). Los supuestos vuelven como preguntas para la persona (¿se fija en la receta o queda libre?) y van al PR. Deja `certificacion.yaml` junto al blueprint, atado a su huella; `propose` exige una vigente para una receta con pasos. **Corre el comando de prueba de cada variante.** |
+| `qdd blueprint sync` | Trae lo publicado en cada fuente del proyecto (la organización y las demás del lockfile) y dice qué blueprints tienen una versión más nueva. Una fuente inaccesible se informa sin ocultar las demás. **Actualiza las copias de la carpeta central.** |
+| `qdd blueprint add [origen] [id…] [--paquete p \| --todos] [--ref vX.Y.Z]` | Importa blueprints de una **versión publicada** (tag `vX.Y.Z`; sin `--ref`, la última) del repositorio git de tu organización, con tus credenciales. La primera vez indicas el repositorio y QDD lo registra en `.qdd/config.yaml` y en el registro central: desde ahí, este y los demás proyectos de la organización (mismo dueño en su remote git) solo nombran los ids. También puedes importar de otras fuentes (p. ej. tu repositorio público) pasando su URL: el lockfile recuerda la fuente de cada blueprint y `add <id>` lo actualiza desde ahí. Un id ya importado desde otra fuente se rechaza salvo con `--reemplazar` (RFC 0007). El contenido vive en la carpeta central de QDD (`~/.local/share/qdd/blueprints`); el proyecto solo versiona `.qdd/blueprints.lock.yaml`. |
+| `qdd blueprint contribute <id> [--origen repo]` | Prepara un aporte a un blueprint (existente o nuevo) en la rama `aporte/<id>` de un clon en la carpeta central, nunca en el proyecto. Uno importado va a su fuente; uno nuevo, a la de `--origen` o a la organización. |
+| `qdd blueprint propose <id> -m "…" [--origen repo]` | Valida el aporte, **calcula el cambio semver y fija la versión** (major/minor/patch según lo que cambió), commitea, publica la rama y abre el PR con `gh`. `-m`/`--mensaje`: qué cambia y por qué; va al commit y al PR. |
+| `qdd blueprint release [--origen repo]` | Tras el merge, etiqueta el repositorio de la organización, o el de `--origen` (`vX.Y.Z`). Rechaza los blueprints que cambiaron sin pasar por `propose`. |
+| `qdd blueprint apply <id…> [--ruta …] [--modulo id] [--respuesta p=v …] [--prueba …]` | Pregunta las decisiones de diseño del blueprint (o las toma de `--respuesta`) y genera la ficha del módulo en **borrador**, sus escenarios de conformidad, el registro de decisiones y, si la carpeta no existe, un esqueleto `README.md`. Al volver a aplicarlo reutiliza las respuestas y conserva lo que el proyecto agregó a la ficha. |
+
+### Estado
+
+El tablero: tareas por etapas (✅ hecho con evidencia, ⏳ espera algo de alguien, ❌ falla), en `.qdd/project/estado.yaml` (blueprint `estado-por-tareas`, [RFC 0006](../rfcs/0006-estado-por-frente-en-consola.md)). «Frente» y «tarea» son lo mismo.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd estado init [--etapas …]` | Crea `.qdd/project/estado.yaml` con las etapas de la ficha (o las de `--etapas`). Es del humano: la IA no lo crea. |
+| `qdd estado ver` | Imprime la tabla. **Solo lee.** Opciones: `--alcance`, `--formato`, `--json`. `qdd estado` solo imprime lo mismo. |
+| `qdd estado nueva "<nombre>" [--objetivo id] [--depende-de a,b]` | Crea una tarea y le da su id desde el nombre (lo imprime). Si el nombre se parece mucho al de una tarea abierta, no la crea y la nombra (`--aunque-exista` si de verdad es otra) (FND-109). |
+| `qdd estado set <frente> <etapa> <estado>` | Actualiza una celda y valida antes de escribir: un ✅ lleva evidencia que dice cómo se sabe (commit, versión, n/n pruebas, corrida o lo que confirmó la persona; «listo» suelto no vale), un ⏳ dice qué espera y de quién, un ❌ nombra la falla. Crea la tarea solo con `--nombre`; un id que no existe se rechaza y sugiere el más parecido (FND-109). Con `--verifica tipo:arg` un ⏳ se responde solo (ver `qdd estado verificar`). `--aprobado` no aprueba: deja el pedido 🔑 de la persona con `qdd estado aprobar` (FND-267). Opciones: `--evidencia`, `--bloqueo`, `--de-quien`, `--falla`, `--verifica`, `--requiere-aprobacion`, `--nombre`, `--aunque-exista`. |
+| `qdd estado aprobar <tarea> <etapa>` | Da la aprobación que una celda espera. Solo desde el pedido 🔑 que la persona confirmó o en su terminal; una IA no puede (FND-267). Vale para el ✅ que aprueba: otra evidencia necesita la suya. |
+| `qdd estado verificar [--si-toca] [--json]` | Revisa los ⏳ que se responden solos y pasa a ✅, con su evidencia, los que se cumplieron. Solo verificaciones tipadas y de solo lectura, nunca un comando suelto: `npm:<paquete>@<versión>` (publicado), `pr:<n>` (mergeado), `tag:<tag>` (en origin), `pedido:<n>` (hecho en el panel) y `archivo:<ruta>` (existe en el proyecto). Un error se avisa y nunca cierra la espera. El ⏳ lleva «⟳ se responde sola» y no se le pregunta a la persona. El panel lo llama cada minuto con `--si-toca` (cada 10 min por ⏳). |
+| `qdd estado cerrar <frente>` | Cierra (o descarta) un frente con su motivo. Un frente nunca se borra en silencio. `--motivo` es obligatorio; `--descartado` en vez de cerrada. |
+| `qdd estado objetivo <id> [--nombre …] [--criterio …] [--foco] [--ciclo nombre]` | Crea o cambia un objetivo: para qué se hacen sus tareas y cuándo se cumple. A lo más uno abierto es el foco. Con `--ciclo`, sus tareas toman las etapas de ese ciclo (`--ciclo ""` las vuelve al del proyecto). Con `--evidencia` se cumple (terminar sus tareas no basta), con `--descartado --motivo` se descarta y con `--reabrir` vuelve a abrirse; nunca desaparece en silencio. |
+| `qdd estado tarea <id> [--objetivo id] [--depende-de a,b]` | Cambia a qué objetivo sirve una tarea y de cuáles depende (`""` lo deja vacío); la crea solo con `--nombre`. Una tarea no termina antes que sus dependencias: su última etapa no pasa a ✅ mientras una no termine. También `--modulo` (su ficha) y `--aunque-exista`. |
+| `qdd estado ciclo <nombre> <etapa>…` | Declara un ciclo con sus etapas, o cambia las de uno (`proyecto` son las etapas del archivo). Las tareas de un objetivo que lo sigue toman sus etapas y el reporte trae una tabla por ciclo. Cambiar las etapas no pierde avance: si una tarea tiene ✅ ⏳ o ❌ en una etapa que se quita, no se escribe. |
+| `qdd estado check [--respuesta r.md] [--json]` | Lector automático de los escenarios EPF-C01…C07 (y, con `--respuesta`, EPF-A01 y EPF-C08: lo que el texto afirma con «<tarea> · <etapa>: <estado>» es lo de la tabla); compara contra git HEAD para detectar frentes que desaparecen. Sale con 1 si hay violaciones. **Solo lee.** También avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta (`esperas_sin_pregunta` en `--json`). |
+| `qdd estado watch` | Panel en vivo en la terminal, con la tabla, lo que espera cada ⏳ y las fallas (`q` o Ctrl-C para salir). **Solo lee.** `--intervalo` cambia cada cuánto se lee. |
+| `qdd estado activa <tarea> [--fin] [--quien texto]` | Declara la tarea en curso (el panel la marca «● running»); con `--fin` la apaga. Se apaga sola a los 120 s sin pulsos. (qdd 2.7.0) |
+| `qdd estado pulso [<tarea>] [--fuente agente\|subagente\|comando]` | Señal de vida de la tarea en curso; sin tarea, late la última activada. Sin tarea en curso no imprime nada y sale con 0. (qdd 2.7.0) **Escribe la actividad.** |
+| `qdd estado statusline` | Resumen de una línea para una barra de estado; sin archivo no imprime nada y nunca falla. **Solo lee.** |
+
+### Consola
+
+El panel muestra el tablero y lo que espera tu «Sí» (blueprint `consola-claude-code`). Está en Claude Code; en OpenCode, de solo lectura; y en Antigravity y VS Code, como extensión. Varios comandos los llama el panel y no hace falta usarlos a mano.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd consola activar [--recursos]` | Instala en Claude Code (alcance de usuario) el panel de QDD y la barra; si OpenCode está en la máquina, también su panel de solo lectura; si están Antigravity o VS Code, la extensión «QDD» en su barra de actividad (`qdd.qdd-panel`: tablero, pedidos con «s  Sí» y fichas por aprobar), escrita en su carpeta de extensiones sin abrir el IDE y sin tocar las demás; `qdd doctor` revisa que siga en la versión de la CLI y `--fix` la repara; con `--recursos`, la barra suma al final, a la derecha, disco, GPU, RAM y CPU. Una barra propia no se reemplaza sin dejar copia. Nada se escribe en el proyecto. `--sin-barra` no toca la barra; `--sin-recursos` saca esa línea. |
+| `qdd consola actualizar` / `qdd consola desactivar` | Deja el panel en la versión de esta CLI, o lo quita y devuelve la barra anterior. `--si-activo` solo actúa si la consola se activó. |
+| `qdd consola estado` | Dice si la consola está activa y al día. **Solo lee.** |
+| `qdd consola panel [--con atender,pregunta,telefono,herramientas,mejoras,logrado,flujos,esperas_persona]` | Lo que dibuja el panel, en JSON (estado por frente y acciones). Con `herramientas` y `mejoras` agrega la lista de herramientas y si toca el ciclo de mejoras. Con `logrado`, lo que salió bien en los últimos 14 días (pedidos hechos, tareas cerradas, objetivos cumplidos y lo del teléfono; como mucho 60, del más nuevo al más viejo), para la pantalla Logrado de QDD Móvil. Los tipos opcionales (`atender`: pulsar una etapa ⏳ o ❌; `pregunta`: lo que la consola le pregunta a la persona, para QDD Móvil; `telefono`: lo mandado a ejecutar desde QDD Móvil, como pedidos `origen:"telefono"` con `dispositivo` y `solicitud`) salen solo con `--con`, para que un panel que no los conoce no los muestre (FND-092). Con QDD Móvil activado y Pro trae además `ejecutar: {qdd, ia, sugeridos}`: lo que el PC acepta desde el teléfono (`ia`: hay una sesión de Claude Code abierta en el proyecto). Nunca falla. **Puede lanzar en segundo plano la revisión de PR y de versión nueva.** |
+| `qdd consola proyectos [--json]` | Una fila por proyecto de este PC, en JSON: puntaje, hace cuánto, findings abiertos, ⏳ y ❌, y su historial (los últimos 30 días con datos). `null` significa «sin medir». Del proyecto solo entrega el nombre de la carpeta. Solo lee archivos locales: no corre auditorías ni usa la red. Nunca falla. Es lo que dibuja la vista Proyectos del panel (tecla `y`; cada fila abre su historial con su número o un clic). **Solo lee.** |
+| `qdd consola accion <id> [--confirmado]` | Ejecuta una acción que ofrece el panel (aprobar una ficha, revisar el estado, auditar, un comando pedido). Lo que escribe corre solo con `--confirmado`, que el panel pasa después de «s  Sí». Un comando pedido se lanza aparte y vuelve en el acto: recargar el panel o cerrar la terminal no lo corta, y si igual muere queda con falla para reintentarlo (FND-089, qdd 2.8.0). Con `--sesion <id>` (lo pasa el panel de Claude Code) esa sesión recibe el resultado al terminar. |
+| `qdd consola avisado <id> --sesion <id>` | Lo que usa el panel antes de enviarle a la IA el resultado de un pedido que confirmó: lo marca avisado y sale con 0 solo la primera vez y solo para esa sesión, así el aviso llega una vez aunque haya varias sesiones o un reload. |
+| `qdd consola accion atender:<tarea>:<etapa>` | Lo que usa el panel al pulsar una etapa ⏳ o ❌: imprime el mensaje con que la IA la atiende (intenta completarla; si falta algo, deja un pedido o pregunta). El panel lo envía a la conversación. **Solo lee.** |
+| `qdd consola statusline` | La barra de estado de Claude Code (lee su JSON por la entrada estándar): a la izquierda el modelo y el modo de la IA; a la derecha, en lista, contexto, 5h y semana. Nunca falla. Con un qdd instalado por npm, `qdd consola activar` la deja llamando al binario por su ruta, con `qdd` de respaldo. **Solo lee.** |
+| `qdd consola pedir -m <motivo> [--tarea <id>] [--carpeta dir] [--despues <tecla\|id>] [--antes <tecla\|id>] [--de-persona] <comando…>` | Deja en «▶ Para ti» del panel un comando para que **la persona** lo ejecute con un clic (p. ej. el push de un tag). El motivo es un resumen estilo chat de 60 caracteres como mucho («Publicar v2.8.0-rc.6 → npm preview»). QDD no lo ejecuta: corre solo después de «s  Sí», en su carpeta. Un pedido aceptado queda en gris y no se acepta dos veces. Con `--despues`/`--antes` declara el orden: el que espera va justo después y queda «en espera», sin botón, hasta que lo otro esté hecho (qdd 2.8.0); si lo otro se descarta, el que esperaba queda bloqueado hasta que la IA pida de nuevo uno de los dos (FND-213). Varios argumentos se citan para la shell tal como llegan (uno con espacios va entero, FND-212); un solo argumento es un texto de shell. Un comando que sale con **75** («todavía no»: falta un tag, un merge) vuelve a pendiente, en gris, con su aviso; no es una falla. Una cola por repositorio: un worktree usa la de su checkout principal. Con `--tarea` (por defecto, la tarea en curso) el pedido extiende esa tarea: si después de un mensaje de la persona la tarea sigue cambiando, sale de «▶ Para ti» (retirado) hasta que la IA lo pide de nuevo, con su misma tecla. Lo que ya se hizo en las últimas 24 h no se vuelve a pedir, aunque cambie el texto; repetirlo se dice con `--de-nuevo`. Con el modo goal activo los pedidos corren sin el «s  Sí»; lo que solo la persona autoriza va con `--de-persona` (`de_persona` en la tool) y la espera igual. `--reemplaza <tecla>` pone el pedido nuevo en el lugar del que falló. `-m`/`--motivo`: qué hace y por qué lo ejecuta la persona. |
+| `qdd consola blueprints [--json]` | Los blueprints del proyecto para el panel (Blueprints, tecla `p`): los instalados y los disponibles en las fuentes del proyecto, con cuántos se actualizan sin la IA (la receta no cambió) y cuántos cambian la receta. Sin red ni IA: compara el lockfile con la copia central que trae `qdd blueprint sync`. Con `--json` entrega también las acciones del panel (↻ traer el catálogo, ⬆ actualizar, ＋ instalar con «s  Sí», ✦ aplicar con la IA). **Solo lee.** |
+| `qdd consola efectos [on\|off]` | Enciende o apaga los efectos del panel (encendidos por defecto): lo que cambia se materializa como las ventanas de hypr-materialize. Sin argumento, dice cómo están y con qué estilo: el acento y las duraciones salen de `~/.config/hypr/materialize.conf` si existe (solo se lee) y si no, el acento del tema y 0,8 s / 0,4 s. `QDD_EFECTOS=off` también los apaga. |
+| `qdd consola materializar` | Lo usa el panel: recibe por la entrada estándar las líneas que cambiaron (`{lineas, abrir, semilla}`) y devuelve en JSON los cuadros del efecto (`{cuadro_ms, cuadros}`). Es determinista y ningún cuadro cambia el ancho del texto. **Solo lee.** |
+| `qdd consola pedidos` | Lista los comandos pedidos con su tecla y su estado (pendiente, ⟳ ejecutando, ✓ hecho, falló). Con `--salida <id o tecla>` muestra cómo terminó uno y su salida, también uno ya hecho cuya tecla quedó libre. **Solo lee.** |
+| `qdd consola desarmar <id\|tecla>` | Deja de esperar un pedido armado: uno que la persona ya confirmó y que corre solo cuando esté listo (su comando dijo «todavía no», código 75, o espera a otro pedido). Vuelve a pendiente; es «x Dejar de esperar» en el panel. |
+| `qdd consola descartar <id\|tecla> [--hecho [--nota …]]` | Quita un comando pedido sin ejecutarlo. Con `--hecho`, la persona ya lo hizo fuera del panel (lo dijo en el chat): queda hecho y libera a los que lo esperan (qdd 2.8.0). |
+| `qdd consola mergear-pr <número>` | El comando de los pedidos «🔀 Mergear #N» que el panel ofrece solo, uno por cada PR abierto del repositorio (no borrador), hasta 3 y siempre opcionales: no abren el panel, ceden su lugar a un pedido de la IA, y uno descartado no vuelve mientras siga abierto. Mergea con un commit de merge solo si el CI está verde; con el CI corriendo, o sin arrancar en un repositorio con workflows, sale con 75 («todavía no») y el pedido queda armado; con el CI en rojo o el PR cerrado, no mergea. qdd pregunta los PRs con `gh` a lo más cada minuto, aparte y sin demorar al panel (qdd 2.8.0). |
+| `qdd consola ciclo [--modo <permission_mode>] [--contexto]` | Lo llama el panel con cada mensaje de la persona: lo hecho antes sale del tablero y queda anotado el modo de permisos de la IA, que `qdd_project_context` usa para decir cuándo pedir autorización (RFC 0010). Con `--contexto` imprime, para la IA, qué espera el panel de la persona (pedidos, fichas en borrador, ⏳ suyos), solo si cambió desde el último mensaje: si ella lo resuelve en el chat, la IA lo refleja (sincronía panel–chat). Nunca falla. (qdd 2.8.0) **Escribe el ciclo y el modo.** `--sesion`: la sesión que recibe el contexto y los avisos. |
+| `qdd consola pregunta registrar` | Lo usa el panel de Claude Code (hook `PermissionRequest`, que corre al lado del diálogo): lee por la entrada estándar `{sesion, herramienta, entrada}` de una pregunta de la IA (`AskUserQuestion`) o de un permiso y la deja pendiente en `<QDD_HOME>/claude/preguntas/` (una cola por repositorio, fuera del proyecto); devuelve `{id, accion, telefono}`. Registra también sin QDD Móvil: así aparece en «Para ti». (qdd 2.9.0) |
+| `qdd consola pregunta esperar <id> [--segundos N]` | Anota que la sesión la sigue esperando y espera hasta N s (10 por defecto) la respuesta de un teléfono; imprime cómo está y, si la respondió un teléfono, la respuesta en la forma de Claude Code (`answers` por texto de la pregunta, o `decision`: `permitir` \| `negar`). (qdd 2.9.0) **Escribe la cola de preguntas.** |
+| `qdd consola pregunta cerrar <id> [--vencida --motivo …]` | La respondió la terminal (vale aunque un teléfono la haya respondido un instante antes: el PC le corrige el estado a ese teléfono, `ya_aprobado` en el PC), o venció con su motivo. (qdd 2.9.0) |
+| `qdd consola pregunta vencer --sesion <id> [--motivo …]` | Vence las pendientes de una sesión de Claude Code que se cerró (lo hace el panel al terminar la sesión). (qdd 2.9.0) |
+| `qdd consola pregunta responder <id> <hecho\|todavia_no\|ya_no_va>` | Un botón de un ⏳ de la persona en «Para ti»: «Ya lo hice» pasa el ⏳ a la IA para que lo verifique, «Ya no va» deja la etapa en — y «Todavía no» lo vuelve a preguntar en 24 h. Escribe en el estado aunque no haya una sesión abierta e imprime `{aplicado, mensaje}`, donde `mensaje` es lo que el panel le envía a la IA (vacío con «Todavía no»). También responde una pregunta de la terminal, con la letra de su opción o `permitir`/`negar`. Los mismos botones llegan al teléfono (`sin_sesion: true`). (qdd 2.10.0) |
+| `qdd consola pregunta lista [--json]` | Las preguntas de la consola de este proyecto y cómo están (pendiente, respondida en el PC o en qué teléfono, vencida y por qué). **Solo lee.** (qdd 2.9.0) |
+| `qdd consola telefono latir --sesion <id> [--fin] [--confirma]` | Lo usa el panel de Claude Code en cada sesión interactiva, cada 5 s: anota que la sesión sigue abierta en el proyecto (con `--fin`, que se cerró) y devuelve `{activo, entregar: [{solicitud, nombre, mensaje}]}`, las instrucciones mandadas desde QDD Móvil (Pro) que esta sesión le da a la IA como un mensaje de la persona, una sola vez aunque haya varias sesiones abiertas. Sin QDD Móvil activado no anota nada (`activo: false`). (qdd 2.9.0) |
+| `qdd consola telefono entregada <solicitud> --sesion <id>` | Claude Code aceptó una instrucción tomada con `latir --confirma`: recién entonces queda entregada. Sin confirmación en 15 min pasa a falla. (qdd 2.9.6) |
+| `qdd consola telefono fallo <solicitud> --sesion <id> --motivo …` | La sesión que tomó una instrucción del teléfono no pudo dársela a la IA: queda con falla y el teléfono lo ve. (qdd 2.9.0) |
+| `qdd consola telefono lista [--json]` | Lo mandado desde el teléfono a este proyecto (comandos qdd e instrucciones) y cómo está. **Solo lee.** (qdd 2.9.0) |
+
+### Flujos
+
+Un flujo dibuja cómo funciona algo, para que la persona y la IA vean lo mismo ([RFC 0012](../rfcs/0012-grafo-de-trabajo.md)), y se conversa con un cliente ([RFC 0025](../rfcs/0025-flujo-para-clientes.md)). Los comandos que lo cambian aceptan `--de persona`. Alias: `qdd flujos`.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd flujo crear <archivo.yaml\|->` | Valida y guarda un flujo en `.qdd/project/flujos/<id>.yaml`. El panel lo muestra en la pestaña Flujos. |
+| `qdd flujo ver <id> [--ancho N] [--nivel 1\|2\|3] [--abrir <grupo>,…] [--detalle] [--json]` | Dibuja un flujo hacia abajo, en el ancho que se pida. Cada nodo muestra solo su título; `--detalle` pone la descripción debajo, separada por una línea (en el panel, `h`). `--nivel 1` es el panorama: una caja por grupo, con sus hitos y cuántos pasos y desvíos esconde; `--abrir` muestra los pasos de esos grupos. `--nivel 2` es el camino principal, con los desvíos contados, y `--nivel 3` (por defecto) es el flujo entero. El panel abre en el panorama los flujos de 15 nodos o más. `--elegido <nodo>` lo dibuja resaltado. |
+| `qdd flujo lista [--json]` | Los flujos del proyecto; uno roto sale con su problema. |
+| `qdd flujo nuevo <nombre> [--json]` | Crea un flujo con un solo nodo, para seguirlo desde la pestaña Flujos. |
+| `qdd flujo agregar <flujo> <nodo> --nombre N [--tipo paso\|resultado] [--descripcion D] [--rama]` | Agrega un nodo después de otro; con `--rama`, como una salida más. |
+| `qdd flujo modificar <flujo> <nodo> [--nombre N] [--descripcion D] [--tipo T] [--grupo G] [--nivel 0-3]` | Cambia un nodo. `--grupo` lo pone en una caja del panorama; `--nivel` corrige el calculado: 1 hito (se ve en el panorama), 2 paso, 3 desvío y 0 vuelve al calculado. |
+| `qdd flujo mover <flujo> <nodo> --despues-de <otro>` | Cuelga un nodo después de otro. |
+| `qdd flujo quitar <flujo> <nodo>` | Quita un nodo y une lo de antes con lo de después; sus comentarios pasan al primero. `--de ia\|persona`. |
+| `qdd flujo conectar <flujo> <nodo> --con <otro>` | Pone una flecha hacia otro nodo. `--de ia\|persona`. |
+| `qdd flujo desconectar <flujo> <nodo> --con <otro>` | Quita una flecha hacia otro nodo. `--de ia\|persona`. |
+| `qdd flujo comentar <flujo> <nodo> <texto>` | Comenta un nodo; se ve debajo de él en el panel. `--de ia\|persona`. |
+| `qdd flujo detalle <flujo> <nodo> <texto>` | Explica un nodo: es la respuesta de la IA a un «Detalle». `--de ia\|persona`. |
+| `qdd flujo deshacer <flujo>` | Deshace la última edición de la persona, si la IA todavía no la recibe y nadie cambió el flujo. |
+| `qdd flujo preguntar <flujo> [<nodo>] <texto>` | La persona pregunta por un nodo (qué hace, qué significa una palabra) o, sin nodo, por el flujo completo. Queda marcada (❓) bajo el nodo o en el flujo, y la IA la recibe con el contexto del nodo: su descripción, de dónde viene y qué sigue. Lo usa el panel; el teléfono manda la operación `preguntar`. (qdd 2.10.0) |
+| `qdd flujo responder <flujo> [<nodo>] <texto>` | La IA responde un ❓ de la persona, bajo el nodo o en el flujo completo. No vuelve a llamar a la IA. (qdd 2.10.0) |
+| `qdd flujo item` | Los ítems de un nodo: pruebas (pendiente, pasa, falla, con evidencia), notas, características y funciones. Al probar con qdd-human, las pruebas de cada paso; en cualquier flujo, notas. Se ven y se editan en el nodo, en el panel y en el teléfono. (qdd 2.10.0) |
+| `qdd flujo item agregar <flujo> <nodo> <prueba\|nota\|caracteristica\|funcion> <texto> [--de persona]` | Agrega un ítem al nodo, con id `i1`, `i2`…; una prueba nace pendiente. La IA ve qué hay que probar y cómo marcarlo. (qdd 2.10.0) |
+| `qdd flujo item marcar <flujo> <nodo> <item> <pendiente\|pasa\|falla> [--evidencia E] [--de persona]` | Marca una prueba del nodo. La evidencia es de esa marca: la carpeta del run de qdd-human, un commit o «a mano». (qdd 2.10.0) |
+| `qdd flujo item quitar <flujo> <nodo> <item> [--de persona]` | Quita un ítem del nodo. (qdd 2.10.0) |
+| `qdd flujo item compartir <flujo> <nodo> <item> [--interna] [--de persona]` | Deja que el cliente vea la nota, característica o función en el archivo compartido; con `--interna` vuelve a ser solo tuya. Una prueba nunca se comparte. (RFC 0025) |
+| `qdd flujo pedir-detalle <flujo> <nodo>` | Deja por enviar la pregunta de la persona por un nodo; lo usa el panel. |
+| `qdd flujo enviar <flujo> [--json]` | Reclama lo pendiente y escribe el mensaje para la IA; lo usa el panel. |
+| `qdd flujo devolver <flujo> --n N` | Deja como pendientes las últimas N líneas, si no se pudieron entregar; lo usa el panel. |
+| `qdd flujo version <flujo> "<nombre>"` | Guarda la foto actual como una versión con nombre (v1, v2…) sobre su revisión. (RFC 0025) |
+| `qdd flujo versiones <flujo> [--json]` | Lista las versiones con nombre y la revisión actual. (RFC 0025) |
+| `qdd flujo comparar <flujo> <v1> <v2\|actual> [--json]` | Dice qué nodos se agregaron, se quitaron o cambiaron entre dos versiones. (RFC 0025) |
+| `qdd flujo volver <flujo> <v1> [--de persona]` | Deja el flujo como en esa versión, en una revisión nueva: la historia no se reescribe. (RFC 0025) |
+| `qdd flujo historial <flujo> [--json]` | Quién cambió qué, revisión por revisión (`<flujo>.historial.jsonl`, versionado). (RFC 0025) |
+| `qdd flujo plantillas [--json]` | Las plantillas (proceso, web, datos, agentes): sus tipos de nodo y el nombre de sus niveles N1 · N2 · N3. (RFC 0025) |
+| `qdd flujo grupo <flujo> "<nombre>" [--clase fase\|cola\|ambiente…] [--descripcion D] [--de persona]` | Le da clase y descripción a un grupo de nodos; se dibuja como un marco «[fase] Ingreso». Los nodos entran con `modificar --grupo`. |
+| `qdd flujo compartir <flujo> [--para <nombre>] [--rol cliente\|experto] [--dias N] [--tope N] [--salida <archivo.html>]` | Escribe un HTML de un solo archivo para conversar el flujo con alguien sin QDD: N1 · N2 · N3, leyenda de la plantilla y detalle por nodo, limpio de rutas y secretos. Por defecto en `./tmp/`. Con `--rol` crea una invitación en el relay y quien abra el archivo propone cambios (el experto, además, notas técnicas); el token va solo dentro del archivo. `--revocar <invitación>` la cierra. (RFC 0025) `--sesion`: la que pide el permiso del baúl (la pasa el panel). |
+| `qdd flujo compartir <flujo> --enlace [--rol cliente\|experto] [--cuenta <id>] [--json]` | Publica la página en tu Worker de Cloudflare (`qdd-flujos`, con su KV) y da un enlace en vez de un archivo. Usa el token de Cloudflare del baúl con `qdd baul usar`: la primera vez en cada consola pide tu permiso en «Para ti». Con `--rol`, el token de la invitación va solo en el `#` del enlace, nunca en Cloudflare. Sin Cloudflare en el baúl, escribe el archivo. En el panel es el botón «↗ Compartir» (c) de la pestaña Flujos. (RFC 0025) |
+| `qdd flujo compartir --quitar-enlace <id>` | Borra esa página de tu Worker: el enlace deja de abrir. Revocar una invitación también borra el suyo. (RFC 0025) |
+| `qdd flujo historia <flujo> --quiero Q [--como C] [--para P] [--criterio K]… [--nodo N]… [--de persona]` | Escribe una historia de usuario del flujo, con id `h1`, `h2`…; se ve en sus nodos, en el panel y en el archivo compartido. Un invitado también la propone (operación `historia`) y entra cuando la persona la aprueba, con su origen. (RFC 0025) |
+| `qdd flujo historia tarea <flujo> <historia>` | Crea la tarea del tablero que implementa la historia, la anota en ella e imprime sus criterios. (RFC 0025) |
+| `qdd flujo historia quitar <flujo> <historia> [--de persona]` | Quita una historia de usuario; su tarea, si tiene, sigue en el tablero. (RFC 0025) |
+| `qdd flujo historias <flujo> [--json]` | Las historias de usuario del flujo, con sus criterios, nodos, origen y tarea. (RFC 0025) |
+| `qdd flujo invitaciones [--json]` | Las invitaciones del proyecto: flujo, rol, para quién, cuándo vencen y si siguen vivas. |
+| `qdd flujo proponer <flujo> '<operación JSON>' [--de asistente] [--minuto mm:ss]` | La IA, como asistente de una conversación con el cliente, propone un nodo, una nota o una historia sin editar el flujo. Queda en la cola de propuestas (`ASI-n`), llega a «Para ti» como pedido 🎙 de la persona y, aprobada, entra con origen `asistente` o `transcripcion@mm:ss`. (RFC 0025, fase 4) |
+| `qdd flujo propuestas [--json]` | Lo que propusieron los invitados y el asistente, y en qué quedó cada propuesta (por pedir, pedida, aprobada, rechazada). |
+| `qdd flujo propuestas ciclo [--si-toca] [--json]` | Lee las propuestas nuevas del relay, rechaza solas las que no cumplen el esquema o el rol, deja cada una como pedido 📝 de la persona en el panel (tres a la vez) y avisa al relay lo resuelto. El panel lo llama en su latido. |
+| `qdd flujo propuestas aprobar <PRO-n>` | Integra la propuesta a nombre de quien la hizo y sube la foto nueva al relay. Corre desde el pedido 📝 que la persona confirmó o en su terminal; nunca desde una IA ni el modo goal. |
+| `qdd flujo propuestas rechazar <PRO-n> [--motivo M]` | La deja fuera sin tocar el flujo; quien la propuso ve el motivo. Lo decide la persona en su terminal (descartar el pedido 📝 también la rechaza). |
+
+### Herramientas
+
+Los ejecutables del proyecto como pestañas del panel ([RFC 0011](../rfcs/0011-herramientas-en-el-panel.md)). Alias: `qdd herramientas`, `qdd tool`.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd herramienta candidatos [--json]` | Los ejecutables del proyecto que se pueden agregar como pestaña del panel: `bin/`, `scripts/`, `cmd/*` de Go, `target/release` de Rust, los scripts de `package.json` y los objetivos del `Makefile`; marca los ya agregados. **Solo lee.** (RFC 0011) |
+| `qdd herramienta ayuda <comando…>` | Corre su `--help` (si no, `-h` y `help`), sin entrada y con 5 s por intento, para que la IA arme la definición. |
+| `qdd herramienta configurar <comando…>` | Imprime el mensaje con que la IA arma la definición: leer su ayuda, proponerle las acciones a la persona y guardarla con `qdd herramienta guardar`, con el formato y las reglas. Es lo que el panel le envía a la conversación desde Config → + Agregar herramienta. **Solo lee.** |
+| `qdd herramienta guardar <archivo.yaml>` | Valida la definición (cada `{{campo}}` declarado y como argumento entero, sin secretos, modos válidos, ejecutable dentro del proyecto o en su ruta absoluta), corre su prueba de humo y, si sale con 0, la guarda tal como vino en `.qdd/herramientas/<id>.yaml`. Si no, dice por qué y no guarda nada. |
+| `qdd herramienta listar [--json]` | Las herramientas guardadas y lo que les falta en esta máquina (el ejecutable o una variable de entorno, por su nombre). Es lo que lee el panel. **Solo lee.** |
+| `qdd herramienta correr <id> <acción> [campo=valor…] [--si]` | Corre una acción sin shell, en la raíz del proyecto, con el entorno de la máquina: lo escrito en un campo llega como un solo argumento. Si falta una variable de `entorno`, dice cuál (nunca su valor) y no corre. Una acción con `confirmar` pide `--si`. Sale con el código del ejecutable. |
+| `qdd herramienta quitar <id> --si` | Borra su definición; su pestaña se cierra. |
+
+### Modo goal
 
 Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a la persona: qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3 recordatorios sin avance real se detiene y avisa. Sin una sesión abierta se pausa y nunca abre una. Siempre esperan a la persona: las preguntas de diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo.
 
@@ -192,81 +206,160 @@ Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a l
 | `qdd goal estado [--json]` | En qué está y sus últimas 20 elecciones. |
 | `qdd goal ciclo [--json] [--silencio <s>] [--ocupada] [--sesion <id>]` | Una vuelta del vigilante. La llama el panel cada 5 s con el modo activo. |
 
-### 📏 Uso real medido y canal preview (RFC 0010)
-Una minor o una major sale primero como **preview** (`vX.Y.Z-rc.N`: `npm i -g qdd-framework@preview --allow-scripts=qdd-framework`) y pasa a **latest** con sus horas de uso real medidas (VER-05). Un fix sale directo.
+### Mejoras, reportes y fallas
 
-| Comando | Descripción |
-|---------|-------------|
-| `qdd uso` | Lo medido de cada versión de qdd y cuánto le falta a la que corre para pasar a latest. Se mide solo en proyectos QDD: comandos, herramientas MCP, pulsos del agente y mensajes con el panel; dos eventos a menos de 5 min son uso continuo y uno aislado no suma. **Seguro.** (qdd 2.8.0) |
-| `qdd uso evidencia <versión>` | Deja en `.qdd/project/evidence/uso/vX.Y.Z.yaml` las horas medidas de la versión y sus previews, por proyecto, para commitearlas con la release (VER-05). (qdd 2.8.0) |
+Lo que reportan las sesiones de Claude Code y los issues de GitHub queda como `MEJ-NNN` en `.qdd/project/cola_de_mejoras/`. Los issues admitidos son los de quien tiene acceso al repositorio, o los que llevan la etiqueta `mejora`. El ciclo es determinista: mantiene el objetivo `mejora-continua` del tablero con una tarea por mejora, 2 abiertas como mucho, y solo lo que ya es tarea pasa a la IA. Cerrar el issue de una mejora hecha queda como pedido en el panel.
 
-### 🖼️ Imágenes a la consola
+| Comando | Qué hace |
+|---|---|
+| `qdd mejoras` | La cola de mejoras del proyecto: `reportar`, `admitir`, `arreglada`, `ciclo` y `lista`. |
+| `qdd mejoras reportar --titulo … [--detalle …] [--autor …] [--proyecto <ruta\|nombre>] [--etiqueta bug]` | Deja un reporte en la entrada local del proyecto que lo recibe (por defecto, este; con `--proyecto`, otro del registro de la máquina). Lo pasa a la cola su próximo ciclo. No toca el árbol de trabajo de ese proyecto. |
+| `qdd mejoras admitir <MEJ-NNN>` | Admite a la cola un reporte que llegó al relay con `qdd reportar` (RFC 0024). En el repositorio de QDD, el ciclo lee el relay y deja esos reportes `por_admitir`, con un pedido 📮 por cada uno (2 a la vez) que solo la persona confirma, como la etiqueta «mejora» de un issue. Corre desde ese pedido o en la terminal de la persona; admitida, el ciclo la entrega en su turno. |
+| `qdd mejoras arreglada <MEJ-NNN> --en <versión> --como "…"` | Marca arreglado un reporte admitido que se arregló fuera del ciclo. Como uno cuya tarea terminó, queda `arreglada`, no hecho: se cierra cuando quien lo reportó lo verifica con `qdd reportar --verifique` (MEJ-087). |
+| `qdd mejoras ciclo [--si-toca] [--json]` | Recibe la entrada y los issues de GitHub, sigue las tareas de la cola (cerrada → hecha, descartada → descartada, borrada → vuelve a la cola) y entrega hasta 2 tareas: primero las de seguridad o bugs, después de la más antigua a la más nueva. Con `--si-toca`, solo si pasaron 10 min desde el último ciclo; así lo llama el panel de Claude Code cada minuto. El botón «Ciclo de mejoras» del panel lo corre sin esperar. |
+| `qdd mejoras lista [--json]` | La cola y en qué está cada mejora (`por_admitir`, `en_cola`, `tarea`, `arreglada`, `hecha`, `descartada`). **Solo lee.** |
+| `qdd reportar --titulo … [--detalle … \| --detalle-de <archivo>] [--tipo bug\|mejora\|pregunta] --verifico "…"` | **Reportar a QDD sin GitHub** (RFC 0024): limpia el texto (credenciales, valores del baúl, la ruta del proyecto, tu carpeta y tu nombre de usuario), lo muestra tal cual viaja y lo envía al relay de QDD solo con tu «sí». En tu terminal pregunta; desde una IA deja un pedido 📮 en el panel que solo tú confirmas (el modo goal no lo lanza) y sale con 75. Si el envío falla, el reporte queda pendiente. Quien reporta valida (MEJ-087): un bug exige `--verifico` (qué harás y qué esperas ver cuando salga el arreglo), que viaja en el detalle firmado; al enviarlo queda en tu tablero un ⏳ para verificarlo. |
+| `qdd reportar --verifique REP-N --evidencia "…" [--sigue-fallando]` | Cierra un reporte tuyo con evidencia: viaja como «Verificado REP-N en <versión>» o «Sigue fallando REP-N en <versión>». En la cola de QDD, al admitirlo, cierra la mejora de ese reporte o la reabre con la evidencia nueva, sin abrir un duplicado (MEJ-087). |
+| `qdd reportar llave` | La llave pública de esta instalación (ed25519, `<QDD_HOME>/reportes/llave`, 0600, se crea la primera vez). La privada nunca sale de la máquina. **Crea la llave la primera vez.** |
+| `qdd reportar enviados` | Los reportes que esta instalación envió, con el id que les dio el relay (`<QDD_HOME>/reportes/enviados/`). **Solo lee.** |
+| `qdd incidentes` | Las fallas de QDD mismo: un pánico de la CLI o de una tool MCP y cada autorreparación de `qdd doctor --fix` sobre datos que QDD escribió (un registro ilegible, la cola del panel). Quedan en `<QDD_HOME>/incidentes`, un archivo por firma, y se publican solas en segundo plano como issue del repositorio de QDD (`gh`), sin duplicar: la misma firma suma una ocurrencia y comenta el issue que ya existe; tope de 5 publicaciones por día. Solo viajan datos de QDD (versión, sistema, el comando con sus valores como `<marcador>`, la traza dentro del código de QDD); nunca rutas, nombres de archivo ni valores del proyecto. `QDD_INCIDENTES=off` las apaga. Lista el registro. **Solo lee.** |
+| `qdd incidentes ver <firma>` | Muestra el issue exactamente como se publica (formato `qdd-incidente/1`, con un bloque YAML para la IA). **Solo lee.** |
+| `qdd incidentes publicar [--silencioso]` | Publica ahora los pendientes, con el mismo tope y sin duplicar; sin `gh` o sin sesión quedan pendientes y lo dice. |
+| `qdd incidentes panel <vista> <mensaje> [--traza <función>]…` | Lo llama el panel cuando una vista lanza al dibujarse: el panel muestra «✗ La vista X falló» y sigue andando, y la falla queda como incidente con el mensaje anonimizado y los nombres de las funciones del panel, una vez por vista y mensaje. (FND-189) |
+| `qdd bug --command <cmd> [--exit-code N] [--output …] [--title …]` | Registra un error como Finding permanente con estado OPEN y su evidencia (mismo mecanismo que usa `qdd run --keep-alive` internamente). No repara nada: deja el finding con `test_pending` para que se agregue la prueba de regresión. |
+
+### QDD Móvil
+
+`qdd remoto` es el lado PC de QDD Móvil: un solo proceso por máquina publica el panel de todos sus proyectos por un canal de Supabase Realtime (lo que manda el teléfono por el relay queda unos días en Supabase: [qué queda guardado](qdd-movil-comunicacion.md#qué-queda-guardado-en-el-relay)). Los proyectos salen del registro de la máquina, `<QDD_HOME>/proyectos.json` (0600), que anotan `qdd init` y cada mensaje con el panel (`qdd consola ciclo`); un worktree se anota como su checkout principal. `qdd doctor` señala las rutas que ya no existen (REM-01) y un registro ilegible (REM-02); `--fix` las quita o lo aparta. Nada de esto cuenta como uso en `qdd uso`.
+
+Una acción del teléfono (aprobar un pedido o una ficha, auditar…) llega firmada por el relay con la firma de la máquina; el PC descarta una sin firma válida o de hace más de 5 minutos, vuelve a calcular el panel, ejecuta solo un id que el panel ofrece y una sola vez por solicitud, y responde `recibida` → `ejecutando` → `hecha` \| `fallo`, o `ya_aprobado` (con el lugar: «PC» o el nombre del teléfono) o `rechazada`. Quién aprobó qué y cuándo queda en `<QDD_HOME>/remoto/log.jsonl` (0600), nunca en el relay. Nada que parezca un secreto sale del PC: los resultados pasan por un ocultador (claves, tokens, JWT, cadenas de conexión, llaves privadas y los valores de los `.env` del proyecto).
+
+**Preguntas desde el teléfono.** Lo que Claude Code le pregunta a la persona en una sesión interactiva (una pregunta de la IA con opciones, única, múltiple o «Otra» con texto; un permiso de herramienta con el comando exacto) llega al teléfono como una acción `pregunta` del panel del proyecto, y gana quien responde primero: la terminal o un teléfono. El teléfono responde por el RPC del relay (`public.qdd_remoto_responder`); el relay la firma como una acción, y el PC la valida contra la pregunta guardada (solo opciones que trae, una sola si no es múltiple, «Otra» de hasta 500 caracteres) y responde `hecha`, `ya_aprobado` (con el lugar donde ya se respondió), `vencida` (su sesión se cerró, dejó de esperarla 1 minuto o pasaron 30) o `rechazada`. Un permiso desde el teléfono solo se permite una vez o se niega: nunca «permitir siempre» ni un cambio de reglas. El texto de la pregunta y el comando pasan por el ocultador antes de salir del PC.
+
+La consola de un proyecto se transmite solo mientras un teléfono la mira y es de solo lectura: quien empieza a mirar recibe las últimas 40 líneas y después lo nuevo, juntado en como mucho dos mensajes por segundo. Sale del transcript más reciente de Claude Code del proyecto (`~/.claude/projects/…/*.jsonl`, o el de `CLAUDE_CONFIG_DIR`): los turnos de la persona y de la IA y el nombre de cada herramienta, nunca sus resultados ni el razonamiento. Los pedidos que terminan mientras alguien mira aparecen con el final de su salida. Todo pasa por el ocultador. Si el plan no la permite (cupo del mes, interruptor del relay), el teléfono recibe una vez el motivo de la pausa y el estado y las aprobaciones siguen.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd login [--relay <url> --clave <publicable>] [--sin-servicio]` | Empareja este PC con QDD Móvil: muestra el QR y deja el servicio. Es `qdd remoto activar`; sin banderas consulta el directorio firmado del relay (si no responde, avisa y sigue con el guardado); con banderas deja un relay propio, que el directorio no toca mientras este PC esté emparejado. |
+| `qdd remoto estado [--json]` | Lo que este PC publicaría, sin red: un proyecto por línea (nombre, foco, tareas, esperan, fallan) o, con `--json`, el contenido del evento `estado` (`version`, `qdd`, `maquina`, `en` y cada proyecto con su `clave`, `nombre`, `ruta` y el `panel` de `qdd consola panel --json`, o un `error` si falla), el más reciente primero. **Solo lee.** (qdd 2.9.0) |
+| `qdd remoto activar [--relay <url> --clave <publicable>] [--sin-servicio]` | Guarda el relay (`<QDD_HOME>/remoto/relay.json`, 0600), empareja el PC si hace falta y deja el servicio que lo publica: `systemd --user` en Linux, launchd en macOS o una tarea al iniciar sesión en Windows (desde qdd 2.10.0 la lanza `qddw.exe`, sin ventana de consola; su registro queda en `<QDD_HOME>/remoto/correr.log`), con el PATH de la terminal (los pedidos corren con las mismas herramientas). Solo acepta la clave publicable: una secreta (`sb_secret_…`, un JWT `service_role`) se rechaza y no se guarda. Sin flags usa lo guardado. (qdd 2.9.0) |
+| `qdd remoto emparejar` | Muestra en la terminal el QR (`{"v":1,"codigo","topico","nombre"}`) y el código de 8 caracteres, válido 5 minutos y una sola vez, y espera a que QDD Móvil lo acepte. El PC genera su id, el secreto de su canal (128 bits) y su firma (256 bits); la firma nunca va al teléfono. Credenciales en `<QDD_HOME>/remoto/credenciales.json` (0600). (qdd 2.9.0) |
+| `qdd remoto desactivar` | Saca el PC del relay (su canal deja de admitir a nadie), detiene y borra el servicio y borra las credenciales. (qdd 2.9.0) |
+| `qdd remoto dispositivos` | Los teléfonos de tu cuenta que ven este PC (id, nombre, plataforma, cuándo se vio y si está revocado). **Solo lee.** (qdd 2.9.0) |
+| `qdd remoto sonda [--json]` | Prueba ahora el canal con QDD Móvil con una conexión propia y dice en qué tramo falla: `relay` (sin relay o sin emparejar), `conexion` (red), `canal` (el relay no deja entrar), `realtime` (no responde) o `eco` (lo que el PC publica no vuelve), y con el canal bien prueba la función de los push con credenciales que no son de nadie: `avisar` (no está o está atrasada). Con un teléfono mirando manda un broadcast `sonda` con solo una marca y espera que vuelva; sin teléfono no publica nada. No repara ni anota. El servicio corre la misma prueba sola (al minuto de arrancar y cada hora), la anota para `qdd doctor` (REM-20), compara el relay con su directorio si el canal se rechaza o se reinicia si el eco no vuelve (como mucho una vez cada 6 h), y el teléfono ve en el `estado` el campo `diagnostico` mientras una falla o reparación sea del último día. **Solo lee.** |
+| `qdd remoto revocar <id>` | Saca un teléfono al instante: lo anota en `<QDD_HOME>/remoto/revocados.json` (este PC rechaza su próxima acción aunque tenga la sesión abierta) y lo revoca en el relay. (qdd 2.9.0) |
+
+### Baúl y ambientes
+
+Los accesos se guardan una vez y se prestan a un comando con permiso de la persona ([RFC 0023](../rfcs/0023-baul-de-accesos.md)).
+
+| Comando | Qué hace |
+|---|---|
+| `qdd baul [--json]` | **Baúl de accesos** (RFC 0023): lista los tokens guardados con su tipo, dónde están, dueño, alcance, vencimiento y último uso. Nunca muestra un valor: no existe `ver`. Doctor avisa de tokens vencidos, sin uso, registros rotos y `.env` con secretos (solo los nombres). **Solo lee.** |
+| `qdd baul guardar <nombre> --tipo <tipo> [--en llavero\|1password] [--variable X] [--direccion ambiente/servidor/servicio/clase/cuenta]` | Guarda un token una vez: pide el valor oculto y solo en tu terminal (sin terminal se niega). Va al llavero del sistema por defecto o a 1Password. Tipos: cloudflare, github, supabase, resend, aws-sso (guarda el perfil de IAM Identity Center) y otro (con `--variable`). No guarda un token que su API rechaza. Con `--direccion` (p. ej. `prod/db-01/proyecto-b/postgres/app_user`; ambiente dev, qa, prod o global) el acceso queda con su dirección estándar, y la misma dirección no se guarda dos veces con nombres distintos. **Escribe el llavero y el índice.** |
+| `qdd baul guardar <nombre> --tipo <tipo> [--correo C] [--url U] [--cuenta X] [--descripcion D] [--ambiente A] [--vence AAAA-MM-DD] [--nuevo]` | Los datos que la persona sabe del acceso: correo, URL del sitio (con `--tipo otro`; la variable sale de su dominio, `app.sendgrid.com` → `SENDGRID_TOKEN`), usuario o id de cuenta, descripción, ambiente (dev, qa, prod o global) y vencimiento si su API no lo informa (doctor avisa dos semanas antes). Modificar el token sin repetirlos los conserva. `--nuevo` se niega si el nombre ya existe: agregar nunca reemplaza otro acceso. **Escribe el llavero y el índice.** |
+| `qdd baul editar <nombre> [--correo] [--url] [--cuenta] [--descripcion] [--ambiente] [--vence]` | Cambia esos datos sin pedir el valor: solo los flags que se dan, y uno vacío borra el dato. En el panel es «Guardar cambios». |
+| `qdd baul guardar <nombre> --tipo <tipo> --portapapeles` | Lo mismo, pero lee el valor del portapapeles del sistema y lo vacía en el acto; lo usa «📋 Pegar del portapapeles» en Config del panel. El valor nunca se ve ni pasa por el panel. Guardar un nombre que ya existe lo modifica, y cambiarlo de lugar borra el valor anterior. **Escribe el llavero y el índice.** |
+| `qdd baul quitar <nombre> [--si]` | Borra el token de su lugar, del índice y de sus permisos, y lo anota en el registro. Sin `--si` pregunta en tu terminal; sin terminal se niega. El panel lo corre tras «¿Seguro?». |
+| `qdd baul renombrar <nombre> <nuevo>` | Le cambia el nombre a un token sin pedir ni mostrar su valor: en el llavero lo pasa al nombre nuevo y borra el anterior, en 1Password le cambia el título al ítem. La entrada conserva todo lo demás, los permisos y solicitudes lo siguen, y queda anotado en el registro. No pisa otro token. En el panel: Config › Modificar › «✎ Solo cambiar el nombre». |
+| `qdd baul verificar <nombre>` | Prueba el token contra su API con una llamada de solo lectura y anota dueño, alcance y vencimiento. **Usa la red y anota lo que supo.** |
+| `qdd baul usar <nombre> --para "<fin>" -- <comando>` | Corre el comando con el token solo en su entorno y con los valores del baúl tapados en la salida. El permiso es por sesión, proyecto, token y fin, y dura lo que la consola. Sin permiso, deja un pedido «🔑» que solo confirma la persona (el modo goal no lo lanza) y sale con 75. En tu terminal, sin sesión de Claude Code, pregunta ahí. **Ejecuta el comando.** |
+| `qdd baul registro` | Cada uso del baúl (quién, proyecto, token, fin, código), encadenado: sale con 1 si falta o cambió una línea. **Solo lee.** |
+| `qdd ambiente` | Los ambientes del proyecto (dev, qa, prod) que declara `.qdd/ambientes.yaml`, versionado y sin valores secretos. Por ahora, el DNS de Cloudflare: la zona y los registros (A, AAAA, CNAME, TXT, MX) que cada ambiente espera. (RFC 0023, fase 3) |
+| `qdd ambiente levantar <dev\|qa\|prod>` | Lee el DNS de la zona en Cloudflare con el token del baúl (permiso por sesión con el fin «leer el DNS de los ambientes») y muestra el plan: qué crearía (+), qué cambiaría (~, con lo que hay hoy) y qué ya está (=). **Solo plan: no cambia nada**, y lo que la zona tiene sin declarar no aparece ni se toca. Sin token en el baúl, dice cómo guardarlo. **Solo lee.** |
+
+### Puertas
+
+Frenan a la IA por lo que hace: un commit sin audit al día, un `fix` sin finding, una publicación o una edición sin leer la ficha. Las de ficha y publicar necesitan el panel de Claude Code; las de commit, también los hooks de git.
+
+| Comando | Qué hace |
+|---|---|
+| `qdd puertas` | Las puertas de QDD (ficha puertas): encaminan a la IA por lo que hace, sin modelo ni tokens. Se activan por proyecto con `puertas:` en `.qdd/policies.yaml`. Un commit solo con el árbol que aprobó el último `qdd audit`, un `fix` solo con su finding, editar lo que cubre una ficha solo después de leerla, y publicar (`gh pr merge`, `git push` de un tag, `npm publish`, `gh release create`) como pedido de la persona (`puertas: {publicar: ia}` lo deja a la IA). Ojo: un `policies.yaml` que solo tenga `puertas:` deja apagadas las demás políticas ([por qué](#políticas)). |
+| `qdd puertas revisar [--dir D] [--sesion S] -- <comando>` | Lo llama el panel de Claude Code antes de cada comando de la IA que commitea o publica: revisa las puertas audit, finding (un `fix` nombra un FND-NNN con `test_result`) y publicar. Si pasa, no imprime nada y sale con 0; si una puerta lo rechaza, dice qué falta y sale con 2. Si no puede decidir, deja pasar. Anota cada decisión en `<QDD_HOME>/puertas/<proyecto>.jsonl`. **Anota la decisión, fuera del proyecto.** |
+| `qdd puertas revisar --editar <archivo> [--leida <ruta>]...` | La puerta ficha: el panel la pregunta antes de cada edición de la IA, con las rutas cuyo contexto ya pidió la sesión. Un archivo que cubre una ficha se edita solo si alguna de esas rutas mostró esa ficha; una zona sin ficha pasa. **Anota la decisión, fuera del proyecto.** |
+| `qdd puertas informe [--dir D] [--json]` | El resumen que mide si las puertas sirven (criterio de éxito de la ficha). Por puerta muestra decisiones, rechazos, % corregido al primer reintento (el siguiente intento de la misma puerta en la misma sesión pasa), falsos positivos marcados, ms promedio y máximo, tokens por rechazo (caracteres / 4) y errores. Debajo va la meta: ≥80 % corregido, ≤5 % falsos, ≤50 ms, 0 tokens al pasar. **Seguro: solo lee.** |
+| `qdd puertas falso [id] [--motivo …]` | Marca un rechazo como falso positivo; sin id, marca el último de esta sesión. Cuenta en el informe. **Anota la decisión, fuera del proyecto.** `--dir <carpeta>`: otro proyecto. |
+| `qdd puertas instalar [--dir D]` | Instala los hooks de git de las puertas: `pre-commit` revisa la puerta audit y `commit-msg` la finding, así llegan a cualquier IA y no solo a Claude Code. El bloque va tras el shebang, marcado (`# >>> qdd puertas >>>`), y convive con lo que ya hay. Con husky va en `.husky/`. La persona puede saltarlas en su terminal con `git commit --no-verify`. Lo corren `qdd init` (los proyectos nuevos nacen con puertas) y `qdd doctor --fix` (que además activa `puertas:` en un proyecto existente y lo dice). **Cambia los hooks de git del repositorio.** |
+
+### Imágenes
+
 Una captura pegada en la terminal (Ctrl+Shift+V) llega como bytes de PNG y la IA no la ve. En Claude Code, **Ctrl+V** pega la imagen del portapapeles como imagen; para todo lo demás está `qdd foto`.
 
-| Comando | Descripción |
-|---------|-------------|
-| `qdd foto [--de auto\|portapapeles\|captura]` | Trae la imagen del portapapeles (wl-paste o xclip en Linux, PowerShell en Windows, osascript en macOS) y la deja en `tmp/fotos` (git no la ve); sin imagen en el portapapeles, usa la última captura de pantalla. Imprime la ruta para decirle a la IA «mira <ruta>». Máximo 5 MB. **Seguro.** (qdd 2.8.0) |
+| Comando | Qué hace |
+|---|---|
+| `qdd foto [--de auto\|portapapeles\|captura] [--json] [--hay]` | Trae la imagen del portapapeles (wl-paste o xclip en Linux, PowerShell en Windows, osascript en macOS) y la deja en `tmp/fotos` (git no la ve); sin imagen en el portapapeles, usa la última captura de pantalla. Imprime la ruta para decirle a la IA «mira <ruta>». Máximo 5 MB. (qdd 2.8.0) `--json` da la ruta (y `ruta_corta`) o el error; `--hay` solo dice `si`, `no` o `no_se` sin copiar la imagen. El panel de Claude Code usa los dos para su botón **📷 Foto** (tecla `t`): aparece con una imagen copiada y deja «mira <ruta>» en el chat. **Escribe `tmp/fotos`.** |
 
-### 🤖 Solo vía MCP — pedile a tu IDE con IA que las invoque
-Estas *tools* existen y funcionan, pero únicamente a través del servidor MCP — tipear `qdd learn` (por ejemplo) en una terminal no hace nada útil:
+### Obsoletos
+
+| Comando | Qué hace |
+|---|---|
+| `qdd dashboard` | **Obsoleto:** sigue funcionando y solo recibe arreglos; el panel que sigue es `qdd-tareas`, con su vista Proyectos (`qdd consola activar`). Inicia el Centro de Comando Web. Despliega el Intelligence Report, métricas, Sprints y Certificaciones. Solo atiende a este PC: no se abre desde otro equipo de la red. **Permite cambiar políticas, escribir archivos y lanzar agentes.** |
+
+## Tools MCP
+
+Las usa la IA por el servidor MCP ([cómo conectarlo](getting-started.md#conectar-el-servidor-mcp)). Devuelven texto: ninguna
+detiene a la IA por sí misma; lo que frena es `qdd audit` en el CI y las [puertas](#puertas). Cada llamada queda anotada en
+`.qdd/project/metrics/mcp_eventos.json`.
 
 **Contexto, fichas y blueprints**
 
-| Tool MCP | Descripción |
-|---------|-------------|
-| `qdd_project_context` | **Primera llamada de toda tarea.** Recibe las rutas que la IA va a tocar y devuelve el propósito del proyecto, la forma de trabajo obligatoria, cómo se prueba, la ficha completa de esos módulos (con aviso si está en borrador o desfasada), los estándares de la organización (blueprints aplicados o sin aplicar), el mapa de módulos y las zonas sin ficha. |
-| `qdd_module_save` | La IA propone o actualiza una ficha de módulo. Se valida contra el esquema y **siempre queda en borrador**: solo un humano la aprueba (`qdd modules approve`). |
-| `qdd_blueprint_add` | Importa blueprints del repositorio registrado de la organización cuando el humano lo pide ("agrega auth y auditoría"). Sin registro, la IA debe preguntar la URL, nunca inventarla. |
-| `qdd_blueprint_list` | Una línea por blueprint importado (unos 50 tokens cada uno). Con `blueprint`, su índice en JSON; con `seccion`, solo ese detalle (`preguntas`, `invariantes`, `decisiones`, `escenarios`, `vocabulario` o `todo`). |
-| `qdd_blueprint_apply` | Igual que `qdd blueprint apply`. Si faltan decisiones, devuelve las preguntas sin escribir nada: la IA debe hacérselas al humano, no responderlas. |
-| `qdd_blueprint_sync` | Igual que `qdd blueprint sync`, para cuando el gate reporta `BP-06-BEHIND`: un resultado por fuente. |
-| `qdd_blueprint_contribute` | Igual que `qdd blueprint contribute`: devuelve la carpeta central donde la IA edita el blueprint, su calidad y la entrevista para la persona. Con `modulo`, destila un blueprint nuevo desde esa ficha aprobada (`qdd blueprint distill`); con `certificar: preparar\|verificar`, la certificación ciega (`qdd blueprint certify`). |
-| `qdd_blueprint_propose` | Igual que `qdd blueprint propose`. Publica fuera del proyecto: la IA solo la usa con confirmación del humano. |
-| `qdd_learn` | Explora el código base para asimilar arquitecturas e invoca a la IA para redactar/refinar el **Intelligence Report** (`.qdd/understanding.json`) — incremental desde FND-020. |
+| Tool MCP | Qué hace | En la terminal |
+|---|---|---|
+| `qdd_project_context` | **Primera llamada de toda tarea.** Con las rutas que se van a tocar: propósito, método, autorización según el modo de la IA, cómo se prueba, las fichas de esos módulos (cada decisión en una línea) y los blueprints. `detalle=completo` trae las fichas enteras; sin rutas, el mapa de módulos. | `qdd modules context` |
+| `qdd_module_save` | Propone o actualiza una ficha. Se valida y **siempre queda en borrador**. | — |
+| `qdd_blueprint_add` | Importa blueprints (`ids`, `paquete`, `todos`, `origen`, `ref`, `reemplazar`). Sin repositorio registrado, la IA debe preguntar la URL. | `qdd blueprint add` |
+| `qdd_blueprint_list` | Una línea por blueprint. Con `blueprint`, su índice; con `seccion`, solo ese detalle (`preguntas`, `invariantes`, `decisiones`, `escenarios`, `vocabulario`, `alcance`, `pasos`, `parametros`, `calidad`, `todo`). | `qdd blueprint list`, `show` |
+| `qdd_blueprint_apply` | Genera la ficha del módulo. Si faltan respuestas, devuelve las preguntas sin escribir nada: son para la persona. | `qdd blueprint apply` |
+| `qdd_blueprint_sync` | Trae lo publicado; un resultado por fuente. | `qdd blueprint sync` |
+| `qdd_blueprint_contribute` | Devuelve la carpeta central donde se edita, su calidad y la entrevista para la persona. Con `modulo`, destila un blueprint desde esa ficha; con `certificar: preparar\|verificar`, la certificación ciega. | `qdd blueprint contribute`, `distill`, `certify` |
+| `qdd_blueprint_propose` | Publica la rama y abre el PR: solo con confirmación de la persona. | `qdd blueprint propose` |
+| `qdd_learn` | Indexa los `.md` de `docs/`, `rfcs/` y `specification/` en `.qdd/knowledge_index.json` y le pide a la IA que escriba el resumen del proyecto (`.qdd/understanding.json`). | — |
 
-**Gate, estado y conocimiento**
+**Tablero, pedidos e imágenes**
 
-| Tool MCP | Descripción |
-|---------|-------------|
-| `qdd_foto` | Lo mismo que `qdd foto`, pero entrega la imagen como imagen: la IA la ve sin abrir el archivo. Úsala cuando la persona diga «mira la captura» o pegue bytes de una imagen como texto. `de=auto` (por defecto), `portapapeles` o `captura`. (qdd 2.8.0) |
-| `qdd_estado` | Estado por frente: `accion=ver` al retomar una sesión (seguir desde los ⏳), `set` al avanzar (antes de reportar), `cerrar` con motivo y `check` para el lector automático; desde qdd 2.7.0, `activar`, `pulso` y `terminar` para la tarea en curso. Las escrituras se validan: si violan una regla, no se escribe nada. |
-| `qdd_consola_pedir` | Deja un comando en el panel para que la persona lo ejecute (comando, motivo, carpeta y la tarea que extiende). Para lo que la IA no puede o no debe ejecutar, como publicar; la IA nunca lo ejecuta ella misma con `qdd consola accion`. Con `resuelto` (tecla o id, sin comando) refleja un pedido que la persona resolvió en el chat: se quita, o con `hecho` queda hecho por ella. |
-| `qdd_audit` | Lo mismo que `qdd audit`, para que la IA verifique su propio trabajo antes de proponer un commit. |
-| `qdd_certify` | Lo mismo que `qdd certify`. |
-| `qdd_status` | Panel de control. Escanea el repositorio para mostrar certificaciones activas y *Findings* (bugs) abiertos. |
-| `qdd_score` | Calcula el puntaje de calidad (el mismo de `qdd audit`, `certify`, `evolution` y `report`) y resume certificaciones y findings. |
-| `qdd_findings` | Lista los findings del proyecto con su estado. |
-| `qdd_evolution` | Misma lógica que el comando CLI `qdd evolution`, disponible también para que la IA la invoque. |
-| `qdd_report` | Genera el reporte integral de gobernanza y auditoría en formato Text, Markdown o JSON. |
-| `qdd_map` | Genera el mapa topológico de certificación del proyecto (`.qdd/project/topology.json`). |
-| `qdd_query_graph` | Ejecuta SQL de solo lectura sobre el grafo de conocimiento (`.qdd/knowledge.db`, tablas `nodes` y `edges`). |
-| `qdd_graph_query` | En desarrollo: hoy solo confirma que recibió la consulta. Usa `qdd_query_graph`. |
-| `qdd_sync_graph` | Fuerza la sincronización del grafo de conocimiento (`.qdd/knowledge.db`). |
+| Tool MCP | Qué hace | En la terminal |
+|---|---|---|
+| `qdd_estado` | `ver`, `nueva`, `set`, `cerrar`, `check`, `activar`, `pulso`, `terminar`, `objetivo`, `tarea` y `ciclo`. Valida antes de escribir. | `qdd estado` |
+| `qdd_consola_pedir` | Deja un comando para que la persona lo ejecute, con dependencias (`despues`, `antes`), `de_persona`, `reemplaza` y `de_nuevo`. Con `resuelto`, refleja lo que ella resolvió en el chat. | `qdd consola pedir`, `descartar` |
+| `qdd_foto` | Entrega la imagen del portapapeles o la última captura. Escribe `tmp/fotos`. | `qdd foto` |
+
+**Gate y conocimiento**
+
+| Tool MCP | Qué hace | En la terminal |
+|---|---|---|
+| `qdd_audit` | Las pruebas y las reglas; devuelve las violaciones. | `qdd audit` |
+| `qdd_certify` | Responde CERTIFICADO o RECHAZADO. A diferencia del comando, no calcula puntaje ni guarda historial. | `qdd certify` |
+| `qdd_status` | La versión y el estado que dice `.qdd/state.json`. | — |
+| `qdd_score` | El puntaje, con un resumen de certificaciones y findings. | — |
+| `qdd_findings` | Los findings y su estado. | — |
+| `qdd_evolution` | La siguiente mejora. | `qdd evolution` |
+| `qdd_report` | El reporte consolidado (`format`). | `qdd report` |
+| `qdd_map` | Escribe el mapa del proyecto en `.qdd/project/topology.json`. Su «Score Global» no es el puntaje del gate. | — |
+| `qdd_query_graph` | Corre una consulta (SELECT, WITH o EXPLAIN, una sola) sobre `.qdd/knowledge.db`, tablas `nodes` y `edges`. **Solo lee.** | — |
+| `qdd_graph_query` | Igual que `qdd_query_graph`. | — |
+| `qdd_sync_graph` | Vuelve a armar `.qdd/knowledge.db`. | — |
 
 **Flujo de trabajo**
 
-| Tool MCP | Descripción |
-|---------|-------------|
-| `qdd_sprint <n>` | Crea la plantilla de trabajo para una nueva iteración en `.qdd/project/sprints/`. Exige Happy Path y Error Paths. |
-| `qdd_release <version>` | Compila, actualiza la versión en `state.json`, y crea un Git Tag **local** (no hace push ni publica). |
-| `qdd_sync` | Sincroniza las reglas nativas y el Manifiesto con los adaptadores de IA de forma idempotente. |
-| `qdd_harness_generate` | Genera el system prompt combinado (Agentic Harness) para el IDE conectado. |
-| `qdd_certify_human` | Igual que `qdd certify human`: `target` puede ser `all`, una categoría (`usability`, `accessibility`, `resilience`, `auth`) o un nodo (`auth:login_nominal`). |
-| `qdd_resolve_diagnose` | Diagnóstico forense integral de incidentes para el Equipo Resolutor FAANG. |
-| `qdd_resolve_certify` | Valida y emite el certificado de resolución firmado tras solucionar un incidente. |
+| Tool MCP | Qué hace | En la terminal |
+|---|---|---|
+| `qdd_sprint` | Crea el sprint y su contrato de escenarios. Exige `numero`, `goal`, `happy_path`, `error_paths`, `technical_constraints` y `executable_tests`. | — |
+| `qdd_release` | Corre el gate y `npm run build` o `make build` si existen; si algo falla, lo dice y no etiqueta. Si pasa, crea un tag **local** y anota la versión en `state.json`. | — |
+| `qdd_sync` | Vuelve a escribir el bloque de reglas de cada IA. | `qdd init` |
+| `qdd_harness_generate` | Arma el texto de instrucciones combinado para la IA. | — |
+| `qdd_certify_human` | Recorridos con Playwright que escribe el proyecto. `target`: `all`, una categoría o un nodo. | `qdd certify human` |
+| `qdd_resolve_diagnose` | Guarda el diagnóstico que le pasan como finding abierto. | — |
+| `qdd_resolve_certify` | Escribe un acta `.md` con lo que se declara. Comprueba que el golden set exista dentro del proyecto; no lo corre ni firma. | — |
 
-**IA, modelos y especialistas**
+**IA y especialistas**
 
-| Tool MCP | Descripción |
-|---------|-------------|
-| `qdd_ai_risk_assess` | Evalúa riesgos de modelos y mitigaciones bajo ISO/IEC 23894 e ISO/IEC 42001. |
-| `qdd_ai_test_integrity` | Ejecuta y valida Golden Sets deterministas bajo ISO/IEC 29119-11 y SOC 2. |
-| `qdd_local_llm_status` | Sondea y reporta el estado de APIs locales de LLM (Antigravity, Ollama, LM Studio, Claude). |
-| `qdd_local_llm_exec` | Ejecuta instrucciones bajo gobernanza en el motor cognitivo local activo. |
-| `qdd_postgres_tuner` | Analiza una consulta SQL lenta de PostgreSQL y propone optimizaciones (índices, parámetros). |
-
-### 🚧 Documentados pero no implementados (roadmap, no lo intentes en la CLI ni por MCP)
-Estos aparecían en versiones previas de esta misma página describiendo funcionalidad que nunca se construyó — no existen como subcomandos ni como tools: `qdd validate`, `qdd review`, `qdd ui`, `qdd api`, `qdd db`, `qdd docs`, `qdd sync-ai`. Si tu caso de uso necesita alguno, es una propuesta de feature nueva, no un comando que puedas invocar ya. (Los `/qdd <comando>` que aparecen en `AGENTS.md` son instrucciones para la IA, no subcomandos de la CLI.)
+| Tool MCP | Qué hace | En la terminal |
+|---|---|---|
+| `qdd_ai_risk_assess` | Puntúa un cuestionario que responde la IA y lo deja en `.qdd/project/metrics/`. No es una evaluación ISO. | — |
+| `qdd_ai_test_integrity` | Valida que un Golden Set sea JSON y traiga sus campos. No lo ejecuta contra un modelo. | — |
+| `qdd_local_llm_status` | Dice qué motores locales responden (Antigravity, Ollama, LM Studio, LocalAI/vLLM, Claude). | — |
+| `qdd_local_llm_exec` | Le manda un `prompt` al motor activo. | — |
+| `qdd_postgres_tuner` | Consejos generales de PostgreSQL. No analiza la consulta. | — |
 
 ## Fichas de módulo
 
@@ -278,11 +371,11 @@ qdd modules context internal/pagos  # lo que la IA recibe antes de tocar esa car
 qdd modules approve pagos           # un humano aprueba la ficha que propuso la IA
 ```
 
-El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un humano aprueba (`qdd modules approve`), y el gate vigila que la ficha no quede atrás del código (`HEART-02`). Una ficha también puede nacer de un [blueprint](blueprints.md) con `qdd blueprint apply`.
+El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un humano aprueba (`qdd modules approve`), y el gate vigila que la ficha no quede atrás del código (`HEART-02`) y que cada invariante tenga una prueba que la cite con `contrato: <ficha>#<id>` (`HEART-04`). Una ficha también puede nacer de un [blueprint](blueprints.md) con `qdd blueprint apply`.
 
 ## Reglas del gate
 
-`qdd audit` (y `qdd_audit`) termina con código distinto de cero si algo bloquea. Además de las reglas de código (Cero `else`, OWASP, Clean Code, Unicidad del Dato…), revisa:
+`qdd audit` sale con 1 si algo bloquea. Cada regla pertenece a un principio, con su porqué, en `cli/pkg/audit/principios.yaml`.
 
 | Regla | Qué detecta | Política |
 |---|---|---|
@@ -290,8 +383,12 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `QA-01-ALL-TESTS-PASS` | Las pruebas del proyecto fallan o no compilan. | siempre |
 | `QA-02-E2E-TESTS` | No hay pruebas E2E. | recomendación en adopción gradual |
 | `QA-03-SIN-MEDIR` | Una suite declarada como `{comando, requiere: [programas]}` no se corrió porque falta uno de esos programas en esta máquina (p. ej. la CLI de Claude en el CI). Queda sin medir: ni aprobada ni fallida. | recomendación (no bloquea) |
-| `FND-01-SIN-ESTADO` | Un finding no dice su estado, o dice uno que QDD no reconoce. Bloquea: QDD no lo infiere. |
-| `FND-02-SIN-PRUEBA` | Un finding resuelto, con fecha desde 2026-11-06, no dice en `test_result` qué lo prueba. Bloquea. |
+| `QA-04-PRUEBAS-PENDIENTES` | Una regla ya bloquea el gate, así que las pruebas no se corrieron todavía. Ni aprobadas ni fallidas: corren cuando se arregle esa regla, con `--completo` y siempre en el CI. | recomendación (no bloquea por sí sola) |
+| `FMT-01-FORMATO` | Hay código sin formato que el CI rechazaría. Go se revisa siempre con `gofmt -l` (sin `testdata`, `vendor`, `node_modules` ni lo que git ignora). Prettier, Biome, `ruff format`, Black y `dart format` se revisan si el proyecto los declara: su configuración, o el CI, el `Makefile` o pre-commit que los corren; en la raíz o en cada subcarpeta (`frontend/`, `backend/`…). Nombra los archivos y dice cómo arreglarlo. Solo lee: nunca reformatea. | siempre (también en adopción gradual) |
+| `FMT-02-FORMATO-SIN-MEDIR` | El proyecto usa un formateador que no está en esta máquina (busca en `node_modules/.bin`, `.venv/bin` y el PATH; nunca `npx`), o que terminó con error sin nombrar archivos. Ni aprobado ni rechazado. | recomendación (no bloquea) |
+| `DEV-01-APP-EN-DOCKER` | Un compose o un `.devcontainer` pone la app en Docker para desarrollar. Se puede usar, pero es más lento: Docker queda para la base de datos ([por qué](docker-en-desarrollo.md)). | recomendación (no bloquea) |
+| `FND-01-SIN-ESTADO` | Un finding no dice su estado, o dice uno que QDD no reconoce. Bloquea: QDD no lo infiere. | siempre |
+| `FND-02-SIN-PRUEBA` | Un finding resuelto, con fecha desde 2026-11-06, no dice en `test_result` qué lo prueba. Bloquea. | siempre |
 | `CI-01-UNGATED-DEPLOY` | Un pipeline despliega sin depender de un job de pruebas (GitHub Actions, Azure, GitLab, Bitbucket). | `deploy_gate` (activa por defecto) |
 | `CI-02-DEPLOY-IGNORES-FAILURES` | Un pipeline despliega aunque las pruebas fallen (`succeededOrFailed`, `\|\| true`). | `deploy_gate` |
 | `HEART-01-INVALID-RECORD` | Una ficha de módulo no es válida. | siempre |
@@ -307,6 +404,20 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 | `BP-08-CONFORMIDAD` | A un módulo que aplica o implementa un blueprint le falta la prueba de un escenario (`qdd blueprint conformance` muestra cuáles). Se mide sin red, con lo importado o con la copia local del repositorio. Un módulo que solo usa un blueprint que implementa qdd (`estado-por-tareas`, `consola-claude-code`) lo cumple con el qdd instalado si este lo implementa en la misma versión mayor y no más vieja; si no, dice qué actualizar. | siempre |
 | `BP-08-SIN-MEDIR` | La conformidad no se pudo medir: el blueprint no está importado ni en la copia local de esta máquina (p. ej. el CI). | recomendación (no bloquea) |
 | `HER-01-DEFINICION` | Una definición de `.qdd/herramientas/` no se lee, no es válida o trae un secreto. No corre nada ni exige el ejecutable (el CI puede no compilarlo; eso lo revisa `qdd doctor`). | siempre |
+| `HEART-04-INVARIANTE-SIN-PRUEBA` | Una invariante de una ficha aprobada que ninguna prueba cita con `contrato: <ficha>#<id>`. | recomendación (no bloquea) |
+| `EPF-01-CHECK` | El tablero viola una de sus reglas (`qdd estado check` dice cuál). | siempre |
+| `BP-06-ESPERA-QDD` | La versión nueva de un blueprint pide un qdd más nuevo que el instalado. | recomendación (no bloquea) |
+| `CLEAN-01-NO-ELSE` | Un `else`. **Solo Go.** | `clean_code` y `zero_else` |
+| `CLEAN-02-NO-TEST-IN-PROD` | Código de prueba en producción. **Solo Go.** | `clean_code` |
+| `OWASP-A02-CRYPTOGRAPHY`, `OWASP-A03-INJECTION` | Secretos asignados en el código y SQL armado con texto. **Solo Go.** | `owasp` |
+| `CERT-020-ZERO-PANIC`, `CERT-021-CHAOS-TOLERANCE` | Pánicos y llamadas sin tiempo límite. **Solo Go.** | `beyond_limits` |
+| `CERT-030-MANDATORY-ADR` | No hay decisiones en `docs/adr/`. | `enterprise`; recomendación en adopción gradual |
+| `CERT-031-CYCLOMATIC-LIMIT`, `CERT-032-DOMAIN-ISOLATION` | Funciones con complejidad mayor que 5 y dominio acoplado a la infraestructura. **Solo Go.** | `enterprise` |
+| `CERT-034-DATA-UNIQUENESS` | Datos duplicados. | `data_uniqueness` |
+| `DB-PERF-01` | Un `SELECT COUNT(*)` sin filtros. | siempre |
+| `TRC-01-CONVENTIONAL-COMMITS` | El último commit no sigue Conventional Commits. | `traceability`; recomendación en adopción gradual |
+| `12F-01-CODEBASE` | El proyecto no está en un repositorio git. | siempre; recomendación en adopción gradual |
+| `ISO42001-GOV-01-MISSING-POLICY`, `ISO29119-TEST-01-NO-GOLDEN-SETS`, `SOC2-AI-02-UNVALIDATED-OUTPUT-EXECUTION`, `SOC2-AI-03-LEAKED-SECRETS-IN-PROMPTS`, `ISO23894-RISK-01-UNSANITIZED-PROMPT-INJECTION` | Solo si el código usa IA: falta la sección `governance`, no hay golden sets, se ejecuta la salida de un modelo sin validar, secretos en prompts o entrada sin limpiar. Son heurísticas; el nombre dice en qué se inspiran, **no acreditan la norma**. | `ai_governance` |
 | `VER-01-INVALID-SEMVER` | La versión declarada (`package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION`) no es `MAJOR.MINOR.PATCH`. | `versioning` (activa por defecto) |
 | `VER-02-VERSION-REGRESSION` | La versión declarada es menor que un tag ya publicado. | `versioning` |
 | `VER-03-UNDERSIZED-BUMP` | El salto no cubre los cambios desde el último tag (Conventional Commits): un `feat` exige MINOR; `!` o `BREAKING CHANGE:`, MAJOR (MINOR en `0.y.z`). Dice la versión que corresponde. | `versioning` |
@@ -315,33 +426,73 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 
 Las políticas se configuran en `.qdd/policies.yaml`. Con `adopcion: gradual` (lo que deja `qdd init` en un proyecto nuevo), las prácticas de madurez se muestran como recomendaciones: restan 2 puntos y no bloquean. Cada problema que bloquea resta 10. Para exigirlo todo: `adopcion: estricta`.
 
+Una línea se puede exceptuar con `// qdd:ignore <REGLA>` en las 5 líneas anteriores.
+
+## Políticas
+
+`.qdd/policies.yaml`. Sin el archivo, todo está encendido. **Con el archivo, una política que no se nombra queda apagada**,
+salvo `deploy_gate` y `versioning`: si agregas una clave a mano, escribe también las demás.
+
+| Clave | Qué controla |
+|---|---|
+| `owasp`, `clean_code`, `zero_else`, `beyond_limits` | Reglas de código (Go) |
+| `traceability` | Conventional Commits |
+| `enterprise` | ADR, complejidad y aislamiento del dominio |
+| `data_uniqueness` | Datos duplicados |
+| `ai_governance` | Reglas para proyectos con IA |
+| `deploy_gate`, `versioning` | Despliegues sin pruebas y versiones (encendidas si no se nombran) |
+| `module_heart` | `HEART-02` y `HEART-03` |
+| `uso_minimo_horas` | Horas de uso que pide `VER-05` (necesita `versioning`) |
+| `adopcion` | `gradual` (proyecto nuevo) o `estricta` |
+| `puertas` | Activa las puertas; `publicar: ia` deja publicar a la IA |
+| `allow_execution` | Permite correr comandos desde el dashboard |
+
+## Controles de doctor
+
+`qdd doctor` no bloquea el gate: diagnostica el entorno y, con `--fix`, repara lo que puede. Revisa la estructura y los
+registros del proyecto, las reglas de cada IA, los blueprints, la consola, las herramientas, los incidentes, las mejoras, el
+modo goal, los flujos, las verificaciones del tablero, el baúl, las puertas y QDD Móvil.
+
+| Códigos | De qué |
+|---|---|
+| `REM-01` a `REM-23` | QDD Móvil: registro de proyectos, servicio, canal, relay y avisos |
+| `FLU-01`, `FLU-02` | Flujos del proyecto |
+| `FLC-01` a `FLC-03` | Flujos compartidos con clientes |
+| `MEJ-01` a `MEJ-03` | La cola de mejoras |
+| `GOAL-01` | El modo goal |
+| `VRF-01`, `VRF-02` | Las esperas que se verifican solas |
+
+Otros códigos: `CAL-01` a `CAL-18` son de `qdd blueprint quality` y `EPF-C01` a `EPF-C09`, de `qdd estado check`.
+
+## Códigos de salida y variables
+
+| Código | Significa |
+|---|---|
+| 0 | Bien. `qdd certify` sale siempre con 0 |
+| 1 | Algo bloquea o falló |
+| 2 | Una puerta rechazó la acción, o `qdd rendimiento` pasó un presupuesto |
+| 75 | Todavía no: falta algo fuera de qdd (un permiso, un CI). Un pedido armado lo reintenta |
+
+| Variable | Para qué |
+|---|---|
+| `QDD_HOME` | Carpeta de qdd del usuario (por defecto `~/.local/share/qdd`) |
+| `QDD_INCIDENTES=off` | No registra ni publica fallas de QDD |
+
 ## Adaptadores de IA
 
-`qdd init` (y la tool `qdd_sync`) deja las reglas de QDD y el servidor MCP listos para cada asistente:
+`qdd init` (y la tool `qdd_sync`) escribe las reglas de QDD para cada asistente, siempre el mismo bloque, sin tocar el texto
+propio que tengas alrededor:
 
-| Asistente | Archivos |
-|---|---|
-| Claude Code | `.clauderc`, `.claude/commands/qdd.md` |
-| Cursor | `.cursorrules`, `.cursor/mcp.json` |
-| Antigravity | `.antigravityrules`, `.agents/workflows/qdd.md`, `.agents/workflows/equipo_resolutor.md` |
-| OpenCode y agentes genéricos | `AGENTS.md`, `.agentrules`, `.opencode/qdd.md` |
+| Asistente | Reglas | Servidor MCP |
+|---|---|---|
+| Claude Code | `.clauderc`, `.claude/commands/qdd.md` | `claude mcp add …` ([cómo](getting-started.md#conectar-el-servidor-mcp)) |
+| Cursor | `.cursorrules` | `.cursor/mcp.json`, lo escribe `init` |
+| Antigravity | `.antigravityrules`, `.agents/workflows/qdd.md`, `.agents/workflows/equipo_resolutor.md` | `init` escribe `.cursor/mcp.json` |
+| OpenCode y agentes genéricos | `AGENTS.md`, `.agentrules`, `.opencode/qdd.md` | A mano, en `opencode.json` |
 
-Esas reglas le exigen a la IA llamar a `qdd_project_context` antes de cambiar código, trabajar con pruebas primero, registrar cada bug como finding, aplicar los blueprints de la organización y no commitear sin pasar el gate.
+Una carpeta que contiene proyectos no lleva `AGENTS.md`, y un bloque de una revisión más nueva no se pisa. El panel no lo
+instala `init`: es `qdd consola activar`.
 
-## Cognitive Path (Pipeline Inteligente vía MCP)
-
-El motor cognitivo interno del CLI ha sido deprecado. En su lugar, QDD actúa como un **Servidor MCP** que transfiere su gobernanza directamente a tu IDE (Cursor, Claude Code, Antigravity, OpenCode).
-
-Para invocar a la Inteligencia Artificial bajo el amparo de QDD, utiliza los comandos integrados de tu IDE:
-
-```bash
-/qdd "agrega autenticación a la API"
-/qdd "resuelve la deuda técnica en el validador"
-```
-
-### 🧠 Capacidades del Ecosistema MCP
-- **Contexto antes que código**: `qdd_project_context` le entrega a la IA la ficha, las invariantes y la forma de trabajo del módulo antes de que lo toque.
-- **Estándares de la organización**: si el módulo que se va a construir lo define un blueprint, la IA lo aplica y le hace al humano sus preguntas de diseño; no las responde ella.
-- **Modo Consultivo (Production-First)**: El framework inyecta reglas que prohíben a la IA ser un "generador de código ciego". Si pides algo que requiera certificación (ej. Autenticación), la IA te propondrá un estándar (ej. OWASP ASVS) y solicitará tu aprobación antes de implementar, gracias a las políticas del MCP.
-- **Guardián (Gatekeeper)**: Las herramientas de MCP (`qdd_audit`, `qdd_certify`) abortarán la misión si el código generado por la IA no cumple los estándares estrictos (ej. pruebas que fallan o uso de `else`).
-- **Detección de Intención y Riesgo**: A través de las *tools* expuestas, la IA evalúa si tu petición romperá la retrocompatibilidad antes de programar.
+Esas reglas le piden a la IA el contexto antes de cambiar código, pruebas primero, un finding por cada bug, los blueprints de
+la organización y no commitear sin el gate. Son instrucciones: qué obliga de verdad está en
+[Arquitectura](framework-architecture.md#qué-obliga-y-qué-solo-orienta).

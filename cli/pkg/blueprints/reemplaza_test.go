@@ -74,6 +74,7 @@ func TestCheck_UnBlueprintReemplazadoPideMigrar_BP07(t *testing.T) {
 	}
 }
 
+// contrato: blueprints#043f2707
 func TestAdd_ElReemplazoMigraElLockfileYElRegistroConservandoElModulo(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := proyectoConAuthAplicado(t, repo)
@@ -110,6 +111,7 @@ func TestAdd_ElReemplazoMigraElLockfileYElRegistroConservandoElModulo(t *testing
 	}
 }
 
+// contrato: blueprints#043f2707
 func TestAdd_UnReemplazoDeOtraFuenteNoTocaElBlueprint(t *testing.T) {
 	repo := gitOrgRepo(t)
 	root := proyectoConAuthAplicado(t, repo)

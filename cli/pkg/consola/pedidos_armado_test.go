@@ -30,6 +30,8 @@ func correrAparte(root, id string) chan int {
 	return fin
 }
 
+// contrato: estado#fc9c5b05
+// contrato: estado#bbfc77dc
 func TestArmado_TodaviaNoSeReintentaSoloHastaQueSaleBien(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -62,6 +64,7 @@ func TestArmado_TodaviaNoSeReintentaSoloHastaQueSaleBien(t *testing.T) {
 	}
 }
 
+// contrato: estado#fc9c5b05
 func TestArmado_UnaFallaDeVerdadNoSeReintenta(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -155,9 +158,11 @@ func TestArmado_PasadoElTopeVuelveAPendienteConElMotivo(t *testing.T) {
 func TestArmado_SiMuereElProcesoQueEsperabaVuelveAPendiente(t *testing.T) {
 	root := proyectoConCola(t)
 	p := mustPedir(t, root, "exit 0", "m", "")
+	// FND-206: un PID fijo (999999) puede estar vivo en la máquina que corre la prueba; este terminó seguro.
+	muerto := procesoMuerto(t)
 	conCola(root, time.Now(), func(cola []Pedido) ([]Pedido, error) {
 		ahora := time.Now()
-		cola[0].Estado, cola[0].ArmadoEn, cola[0].Proximo, cola[0].PID = EstadoArmado, &ahora, &ahora, 999999
+		cola[0].Estado, cola[0].ArmadoEn, cola[0].Proximo, cola[0].PID = EstadoArmado, &ahora, &ahora, muerto
 		return cola, nil
 	})
 	q := Pedidos(root)[0]
@@ -166,6 +171,7 @@ func TestArmado_SiMuereElProcesoQueEsperabaVuelveAPendiente(t *testing.T) {
 	}
 }
 
+// contrato: estado#fc9c5b05
 func TestArmado_YaArmadoNoSeAceptaDosVeces(t *testing.T) {
 	root := proyectoConCola(t)
 	mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})

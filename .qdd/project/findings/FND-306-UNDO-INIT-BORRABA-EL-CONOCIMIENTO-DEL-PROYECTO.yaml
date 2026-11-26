@@ -1,0 +1,9 @@
+id: "FND-306"
+title: "qdd undo init borraba .qdd entero, también fichas y findings"
+description: "2026-11-24, al verificar lo que la referencia decía de qdd undo: undo init hacía os.RemoveAll(.qdd) sin mirar qué había. El rollback de qdd run lo llama por cada comando ya hecho, así que en un proyecto con historia 'qdd run init audit' borraba .qdd si audit fallaba. Reproducido con qdd undo init en una caja limpia; el camino de qdd run se leyó en executeRollback (cmd/root.go)."
+impact: "Un audit que falla, dentro de un ejemplo que la propia ayuda de qdd mostraba ('qdd run \"init\" \"audit\"'), podía borrar fichas, findings, decisiones y tablero sin preguntar. Lo no versionado no se recupera."
+action_taken: "undo init (cmd/undo_init.go) borra .qdd solo si tiene únicamente lo que deja init y git no lo sigue; si no, no borra nada y nombra el archivo que se perdería."
+test_result: "cli/cmd/undo_init_fnd306_test.go: un init recién hecho se deshace; con un finding, una ficha, el tablero, un sprint, el historial, el lockfile o una herramienta no se borra nada; tampoco si git ya sigue .qdd. Verificado con el binario de la rama en tres proyectos de una caja limpia."
+status: resolved
+detectado_por: sesion
+date: "2026-11-24"

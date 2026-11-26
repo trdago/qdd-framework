@@ -86,7 +86,7 @@ func TestMapProject_EdgeCases(t *testing.T) {
 
 	// Create project and core cert dir
 	os.MkdirAll(filepath.Join(tempDir, ".qdd", "core", "certification"), 0755)
-	
+
 	// Create unreadable file (using mode 0000 might not work as root/in all OS, but we try)
 	// We'll simulate error by passing a path that doesn't exist and is invalid
 	_, err = MapProject("invalid\x00path")

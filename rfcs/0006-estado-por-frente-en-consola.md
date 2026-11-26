@@ -1,6 +1,6 @@
 # RFC 0006: Estado por frente en la consola — `qdd estado`
 
-**Status:** Accepted (aprobado por el humano el 2026-10-29; implementado en la rama feat/estado-por-frente)
+**Status:** Accepted (aprobado por el humano el 2026-10-29; implementado)
 **Created:** 2026-10-29
 **Nota (2026-10-30):** el blueprint `estado-por-frente` pasó a llamarse `estado-por-tareas`, que suma la tarea en curso; los proyectos lo migran como dice el [RFC 0009](0009-blueprints-que-reemplazan.md).
 **Relacionado:** blueprint `estado-por-frente` (v1.0.0, opción `destino: archivo`), blueprint `consola-claude-code` (v2.0.0), [RFC 0004](0004-blueprints-centrales.md).
@@ -99,6 +99,7 @@ Claude Code (v2.1.287+) deja que un plugin de tipo *mod* dibuje un panel: al lad
 
 - `qdd estado ver --json` entrega el estado ya resuelto (`estado.Datos`): resumen, etapas y abreviaturas, un símbolo por celda, y las listas de ⏳ (con su bloqueo y de quién) y de ❌. Quien dibuja no interpreta reglas ni lee el YAML.
 - El mod (`cli/pkg/consola/mod/qdd-estado`, embebido en el binario) llama a esa salida cada 2 s (`$.process.run`, tope de 3 s) y redibuja solo si cambió. Sin `qdd`, con un `qdd` antiguo o sin archivo, el panel dice cómo crearlo. `/estado` abre el panel y `/estado cerrar` lo cierra. `QDD_BIN` apunta a otro binario.
+- Desde la RFC 0016, el mod recibe los cambios de un solo proceso (`qdd consola seguir`); lee cada 2 s solo si qdd no lo trae o mientras se reabre.
 - El panel se abre solo si hay frentes. Si se abre sin que el usuario lo pida, Claude Code solo lo muestra desde 144 columnas.
 - Pruebas: `claude plugin validate` y `claude plugin test` (dibujo, sin archivo, redibujo al cambiar).
 - Probado en una sesión real con fullscreen en Linux (2026-10-29). Windows: pendiente de una prueba real.

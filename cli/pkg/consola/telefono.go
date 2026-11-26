@@ -1,6 +1,7 @@
 package consola
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,9 +29,11 @@ const (
 	// ConTelefono es lo que pide qdd consola panel --con para recibir lo mandado desde el teléfono.
 	ConTelefono = "telefono"
 
-	// EjecutarQDD y EjecutarIA son los únicos tipos: un comando qdd o una instrucción para la IA.
-	EjecutarQDD = "qdd"
-	EjecutarIA  = "ia"
+	// EjecutarQDD y EjecutarIA son los tipos de esta cola: un comando qdd o una instrucción para la IA. EjecutarFlujo no
+	// entra en ella: una edición de un flujo se aplica al recibirla y queda en el registro del flujo.
+	EjecutarQDD   = "qdd"
+	EjecutarIA    = "ia"
+	EjecutarFlujo = "flujo"
 
 	// EstadoVencida: una instrucción que ninguna sesión tomó a tiempo. EstadoRetirada: la retiró el teléfono antes.
 	EstadoVencida  = "vencida"
@@ -57,19 +60,23 @@ var ErrSinSesion = errors.New("falta la sesión de Claude Code")
 
 // Ejecucion es lo que un teléfono mandó a ejecutar en el proyecto.
 type Ejecucion struct {
-	Solicitud   string     `json:"solicitud"`
-	Tipo        string     `json:"tipo"`
-	Texto       string     `json:"texto"`
-	Dispositivo string     `json:"dispositivo"`
-	Nombre      string     `json:"nombre,omitempty"`
-	Estado      string     `json:"estado"`
-	Codigo      int        `json:"codigo,omitempty"`
-	Salida      string     `json:"salida,omitempty"` // el final de la salida, ya sin secretos (lo pone qdd remoto)
-	Motivo      string     `json:"motivo,omitempty"`
-	Sesion      string     `json:"sesion,omitempty"` // la sesión de Claude Code que recibió la instrucción
-	Creada      time.Time  `json:"creada"`
-	Inicio      *time.Time `json:"inicio,omitempty"`
-	Fin         *time.Time `json:"fin,omitempty"`
+	Solicitud   string `json:"solicitud"`
+	Tipo        string `json:"tipo"`
+	Texto       string `json:"texto"`
+	Dispositivo string `json:"dispositivo"`
+	Nombre      string `json:"nombre,omitempty"`
+	Estado      string `json:"estado"`
+	Codigo      int    `json:"codigo,omitempty"`
+	Salida      string `json:"salida,omitempty"` // el final de la salida, ya sin secretos (lo pone qdd remoto)
+	Motivo      string `json:"motivo,omitempty"`
+	Sesion      string `json:"sesion,omitempty"` // la sesión de Claude Code que recibió la instrucción
+	// Para es la sesión a la que va (MEJ-082): la que el teléfono ve en su consola. Mientras late, solo ella la toma.
+	Para string `json:"para,omitempty"`
+	// Fotos son las rutas absolutas de las fotos que adjuntó la persona (qdd remoto las guarda en tmp/fotos).
+	Fotos  []string   `json:"fotos,omitempty"`
+	Creada time.Time  `json:"creada"`
+	Inicio *time.Time `json:"inicio,omitempty"`
+	Fin    *time.Time `json:"fin,omitempty"`
 }
 
 func (e Ejecucion) abierta() bool {
@@ -132,14 +139,17 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 	if sesion == "" {
 		return nil, ErrSinSesion
 	}
+	if SesionEnDialogo(sesion) {
+		return nil, anotarEspera(root, sesion, now)
+	}
 	var tomadas []Ejecucion
 	err := conTelefono(root, now, func(cola []Ejecucion) ([]Ejecucion, error) {
 		for i, e := range cola {
-			if e.Tipo != EjecutarIA || e.Estado != EstadoPendiente {
+			if e.Tipo != EjecutarIA || e.Estado != EstadoPendiente || esDeOtraSesion(root, e, sesion, now) {
 				continue
 			}
 			inicio := now.UTC()
-			cola[i].Estado, cola[i].Sesion, cola[i].Inicio = estado, sesion, &inicio
+			cola[i].Estado, cola[i].Sesion, cola[i].Inicio, cola[i].Motivo = estado, sesion, &inicio, ""
 			if estado == EstadoHecho {
 				cola[i].Fin = &inicio
 			}
@@ -149,6 +159,42 @@ func tomar(root, sesion string, now time.Time, estado string) ([]Ejecucion, erro
 	})
 	sort.Slice(tomadas, func(i, j int) bool { return tomadas[i].Creada.Before(tomadas[j].Creada) })
 	return tomadas, err
+}
+
+// anotarEspera deja en cada instrucción que esta sesión tomaría por qué todavía no la toma (MEJ-084): el teléfono lo
+// ve en su pedido y, si vence, vence con ese motivo. Sin instrucciones que esperen, no escribe la cola.
+func anotarEspera(root, sesion string, now time.Time) error {
+	motivo := motivoSinRecibir(sesion)
+	if !hayQueAnotar(leerTelefono(root, false), motivo) {
+		return nil
+	}
+	return conTelefono(root, now, func(cola []Ejecucion) ([]Ejecucion, error) {
+		for i, e := range cola {
+			if esperaSesion(e) && !esDeOtraSesion(root, e, sesion, now) {
+				cola[i].Motivo = motivo
+			}
+		}
+		return cola, nil
+	})
+}
+
+func hayQueAnotar(cola []Ejecucion, motivo string) bool {
+	for _, e := range cola {
+		if esperaSesion(e) && e.Motivo != motivo {
+			return true
+		}
+	}
+	return false
+}
+
+func esperaSesion(e Ejecucion) bool {
+	return e.Tipo == EjecutarIA && e.Estado == EstadoPendiente
+}
+
+// esDeOtraSesion: la instrucción va a otra sesión que puede recibirla (MEJ-082). Si esa ya no late, o Claude Code la
+// tiene detenida en un diálogo (MEJ-084), cualquiera la toma: no se queda sin entregar.
+func esDeOtraSesion(root string, e Ejecucion, sesion string, now time.Time) bool {
+	return e.Para != "" && e.Para != sesion && puedeRecibir(root, e.Para, now)
 }
 
 // ConfirmarEntrega: Claude Code aceptó la instrucción que esta sesión tomó.
@@ -227,7 +273,11 @@ func MensajeInstruccion(e Ejecucion) string {
 	if nombre == "" {
 		nombre = "su teléfono"
 	}
-	return "📱 La persona te escribe desde «" + nombre + "» (QDD Móvil). Atiéndelo como un mensaje suyo:\n\n" + e.Texto
+	mensaje := "📱 La persona te escribe desde «" + nombre + "» (QDD Móvil). Atiéndelo como un mensaje suyo:\n\n" + e.Texto
+	if len(e.Fotos) == 0 {
+		return mensaje
+	}
+	return mensaje + "\n\nFotos adjuntas:\n" + strings.Join(e.Fotos, "\n")
 }
 
 func indiceEjecucion(cola []Ejecucion, solicitud string) int {
@@ -247,7 +297,7 @@ func normalizarTelefono(cola []Ejecucion, now time.Time) []Ejecucion {
 	for _, e := range cola {
 		if e.Tipo == EjecutarIA && e.Estado == EstadoPendiente && now.Sub(e.Creada) > VidaInstruccion {
 			fin := e.Creada.Add(VidaInstruccion)
-			e.Estado, e.Fin, e.Motivo = EstadoVencida, &fin, "ninguna sesión de Claude Code se abrió en el proyecto en "+VidaInstruccion.String()
+			e.Estado, e.Fin, e.Motivo = EstadoVencida, &fin, motivoVencida(e.Motivo)
 		}
 		if e.Tipo == EjecutarIA && e.Estado == EstadoEjecutando && e.Inicio != nil && now.Sub(*e.Inicio) > TopeEntrega {
 			fin := e.Inicio.Add(TopeEntrega)
@@ -269,8 +319,31 @@ func normalizarTelefono(cola []Ejecucion, now time.Time) []Ejecucion {
 	return out
 }
 
+// motivoVencida: si alguna sesión abierta dijo por qué no la tomaba (MEJ-084), vence con ese motivo.
+func motivoVencida(espera string) string {
+	if espera != "" {
+		return "ninguna sesión pudo recibirla en " + VidaInstruccion.String() + ": " + espera
+	}
+	return "ninguna sesión de Claude Code se abrió en el proyecto en " + VidaInstruccion.String()
+}
+
 func rutaTelefono(root string) (string, error) {
 	return RutaLocal(root, "telefono")
+}
+
+// ColasApartadas son las colas del teléfono de este proyecto que se apartaron por ilegibles (qdd doctor, REM-10).
+func ColasApartadas(root string) []string {
+	out := []string{}
+	for _, nombre := range []string{"preguntas", "telefono", "turnos"} {
+		ruta, err := RutaLocal(root, nombre)
+		if err != nil {
+			continue
+		}
+		if _, err := os.Stat(ruta + ".ilegible"); err == nil {
+			out = append(out, ruta+".ilegible")
+		}
+	}
+	return out
 }
 
 // leerTelefono lee la cola; una ilegible se aparta como .ilegible (no se pierde) si apartar, y se empieza de cero.
@@ -298,6 +371,7 @@ func conTelefono(root string, now time.Time, cambiar func([]Ejecucion) ([]Ejecuc
 		if err != nil {
 			return err
 		}
+		anotarTelefonoLogrado(root, cola)
 		return guardarJSON(ruta, cola)
 	})
 }
@@ -317,7 +391,7 @@ func accionDelTelefono(root string, e Ejecucion) Accion {
 	a := Accion{
 		ID: prefijoTelefono + e.Solicitud, Tipo: TipoPedido, Etiqueta: etiquetaTelefono(e), Detalle: "qdd " + e.Texto,
 		Carpeta: root, Estado: e.Estado, Resultado: ultimasLineas(e.Salida, lineasSalida), Inicio: e.Inicio, Fin: e.Fin,
-		Origen: OrigenTelefono, Dispositivo: e.Nombre, Solicitud: e.Solicitud,
+		Origen: OrigenTelefono, Dispositivo: e.Nombre, Solicitud: e.Solicitud, Sesion: sesionDeEjecucion(e),
 	}
 	if e.Motivo != "" {
 		a.Resultado = e.Motivo
@@ -339,6 +413,14 @@ func accionDelTelefono(root string, e Ejecucion) Accion {
 		a.Estado = EstadoFallo
 	}
 	return a
+}
+
+// sesionDeEjecucion es la sesión que recibió la instrucción, o a la que va mientras espera (MEJ-082).
+func sesionDeEjecucion(e Ejecucion) string {
+	if e.Sesion != "" {
+		return e.Sesion
+	}
+	return e.Para
 }
 
 // etiquetaTelefono es «qdd <comando>» o la primera línea de la instrucción, hasta MaxMotivo.
@@ -389,6 +471,24 @@ func HaySesion(root string, now time.Time) bool {
 	var vivas []SesionViva
 	leerArchivoJSON(ruta, &vivas)
 	return len(sesionesVivas(vivas, "", now)) > 0
+}
+
+// SesionLate dice si esa sesión latió en el proyecto en los últimos VidaSesion y no se cerró (el permiso del baúl
+// vive lo que ella, RFC 0023).
+func SesionLate(root, sesion string, now time.Time) bool {
+	sesion = sesionValida(sesion)
+	ruta, err := rutaSesiones(root)
+	if sesion == "" || err != nil {
+		return false
+	}
+	var vivas []SesionViva
+	leerArchivoJSON(ruta, &vivas)
+	for _, v := range sesionesVivas(vivas, "", now) {
+		if v.Sesion == sesion {
+			return true
+		}
+	}
+	return false
 }
 
 // sesionesVivas son las que latieron hace menos de VidaSesion, sin sacar.
@@ -446,6 +546,15 @@ func guardarJSON(ruta string, v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
+	}
+	return escribirSiCambio(ruta, b)
+}
+
+// escribirSiCambio no toca un archivo que ya dice lo mismo: quien vigila su carpeta (qdd remoto y el flujo de cada panel)
+// vería un cambio que no hubo y volvería a leer todos los proyectos (FND-161).
+func escribirSiCambio(ruta string, b []byte) error {
+	if actual, err := os.ReadFile(ruta); err == nil && bytes.Equal(actual, b) {
+		return nil
 	}
 	tmp := ruta + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {

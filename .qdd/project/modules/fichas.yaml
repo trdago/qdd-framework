@@ -2,6 +2,7 @@ id: fichas
 nombre: Fichas de módulo (el contrato de cada módulo)
 estado: aprobado
 rutas:
+    - cli/pkg/modules/contrato.go
     - cli/pkg/modules/modules.go
 objetivo_operativo:
     problema: 'Una IA que cambia un módulo sin conocer su objetivo, sus decisiones y sus invariantes los rompe sin saberlo. La ficha es el contrato del módulo: la escribe una IA, la aprueba una persona y la lee la próxima IA antes de tocar código.'
@@ -16,10 +17,12 @@ objetivo_tecnologico:
         - 'implementa admite fuera: {ID: motivo}, un escenario que hace otro y no este código; la conformidad no lo exige y siempre lo muestra.'
         - 'Un módulo que aplica un blueprint (registro de aplicación) declara fuera: {ID: motivo} en la raíz de su ficha, junto a blueprint (FND-121); la conformidad de lo aplicado lo toma de ahí con las mismas reglas que implementa.'
         - 'Datos de QDD como ruta de un módulo (FND-108, 2026-11-01): una ficha y qdd blueprint apply rechazan las rutas bajo .qdd salvo los datos que QDD escribe por un módulo. EsDatoDeQDD los reconoce: los archivos de DatosDeQDD (.qdd/project/estado.yaml) y las carpetas de AreasDeDatos (.qdd/project/tutor/, el registro de ciclo-de-vida-agentico). Esas rutas no tienen que existir todavía, porque el esqueleto las crea.'
+        - 'Contrato (2026-11-21): cada invariante tiene un id (8 hexadecimales de su texto con los espacios normalizados) y lo demuestran las pruebas que lo citan con «contrato: <ficha>#<id>» en un comentario, en cualquier lenguaje. qdd modules context muestra cada invariante con su id y sus pruebas; qdd audit recomienda citar los que nadie cita (HEART-04, una sola recomendación por proyecto: resta 2 al puntaje, no 2 por ficha). Medido ese día: 118 de 262 promesas de qdd (228 invariantes y 34 criterios de éxito) tenían una prueba que fallaría si se rompían.'
     invariantes:
         - Una ficha guardada por una IA queda en borrador; solo una persona (o quien tenga la aprobación delegada) la aprueba.
+        - 'Un invariante solo cuenta como probado si una prueba cita su id actual: cambiar el texto de la promesa invalida las citas viejas hasta que alguien revise la prueba y la cite de nuevo.'
 pruebas:
     comandos:
         - cd cli && go test ./pkg/modules/ ./pkg/blueprints/ -run 'Module|Ficha|Conformar|Conformidad'
-ultima_revision: "2026-11-03"
-revisado_en_commit: 9392f4366a24
+ultima_revision: "2026-11-21"
+revisado_en_commit: a53dadab13ad

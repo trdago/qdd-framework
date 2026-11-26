@@ -1,0 +1,624 @@
+{
+ "descripcion": "Contrato de lo que espera a la persona (FND-041): cada acción del panel, si espera a la persona (aparece en la Bandeja y cuenta) y qué push la avisa. Lo leen la app (test/protocolo/esperas_contrato_test.dart), el relay (supabase/functions/_shared/avisos_test.ts) y qdd (esperan en pkg/remoto/bucle.go). Una acción que espera siempre tiene aviso, y su aviso siempre tiene su resuelto (<aviso>_resuelto).",
+ "casos": [
+  {
+   "caso": "pedido pendiente",
+   "accion": {
+    "id": "pedido:1",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "pendiente"
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pedido"
+  },
+  {
+   "caso": "pedido sin estado (cola de qdd 2.6.0) es pendiente",
+   "accion": {
+    "id": "pedido:2",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": ""
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pedido"
+  },
+  {
+   "caso": "pedido en espera de otro",
+   "accion": {
+    "id": "pedido:3",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "espera",
+    "espera": [
+     "pedido:1"
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pedido"
+  },
+  {
+   "caso": "pedido armado ya corre solo",
+   "accion": {
+    "id": "pedido:4",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "armado"
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "pedido ejecutando",
+   "accion": {
+    "id": "pedido:5",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "ejecutando"
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "pedido hecho",
+   "accion": {
+    "id": "pedido:6",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "hecho"
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "pedido que falló y se puede reintentar",
+   "accion": {
+    "id": "pedido:7",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "fallo",
+    "resultado": "Error"
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pedido"
+  },
+  {
+   "caso": "pedido del teléfono que falló no se reintenta",
+   "accion": {
+    "id": "telefono:abc",
+    "tipo": "pedido",
+    "etiqueta": "Desplegar",
+    "detalle": "supabase functions deploy avisar",
+    "carpeta": "/x",
+    "estado": "fallo",
+    "origen": "telefono"
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "ficha por aprobar",
+   "accion": {
+    "id": "aprobar:pantallas",
+    "tipo": "aprobar",
+    "etiqueta": "Aprobar «Pantallas»",
+    "detalle": "qdd modules approve pantallas"
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "ficha"
+  },
+  {
+   "caso": "pregunta de la IA con opciones",
+   "accion": {
+    "id": "pregunta:1",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ],
+    "sesion": "s-1"
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "pregunta de la IA sin estado es pendiente",
+   "accion": {
+    "id": "pregunta:2",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "pregunta de la IA en texto suelto, sin opciones",
+   "accion": {
+    "id": "pregunta:3",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": []
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "pregunta de la IA ya respondida",
+   "accion": {
+    "id": "pregunta:4",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "respondida",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "pregunta de la IA vencida",
+   "accion": {
+    "id": "pregunta:5",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "vencida",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "permiso de una herramienta",
+   "accion": {
+    "id": "pregunta:6",
+    "tipo": "pregunta",
+    "origen": "permiso",
+    "etiqueta": "¿Permites que Claude use Bash?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Permites que Claude use Bash?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "permitir",
+        "etiqueta": "Permitir"
+       },
+       {
+        "valor": "negar",
+        "etiqueta": "Negar"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "permiso"
+  },
+  {
+   "caso": "permiso de un subagente",
+   "accion": {
+    "id": "pregunta:7",
+    "tipo": "pregunta",
+    "origen": "permiso",
+    "etiqueta": "¿Permites que Claude use Bash? (subagente)",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Permites que Claude use Bash? (subagente)",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "permitir",
+        "etiqueta": "Permitir"
+       },
+       {
+        "valor": "negar",
+        "etiqueta": "Negar"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "permiso"
+  },
+  {
+   "caso": "pregunta de un comando qdd en la terminal",
+   "accion": {
+    "id": "pregunta:8",
+    "tipo": "pregunta",
+    "origen": "qdd",
+    "etiqueta": "¿Aplico el blueprint auth?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Aplico el blueprint auth?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "pregunta de un origen que la app no conoce",
+   "accion": {
+    "id": "pregunta:9",
+    "tipo": "pregunta",
+    "origen": "otro",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "⏳ de una tarea con consola abierta",
+   "accion": {
+    "id": "espera-a1b2c3",
+    "tipo": "pregunta",
+    "origen": "estado",
+    "etiqueta": "¿Ya revisaste la 128?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Ya revisaste la 128?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "⏳ sin consola que el PC aplica sin sesión",
+   "accion": {
+    "id": "espera-d4e5f6",
+    "tipo": "pregunta",
+    "origen": "estado",
+    "etiqueta": "¿Ya revisaste la 128?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Ya revisaste la 128?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ],
+    "sin_sesion": true
+   },
+   "sin_consola": true,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "⏳ sin consola que necesita una IA no se puede resolver",
+   "accion": {
+    "id": "espera-g7h8i9",
+    "tipo": "pregunta",
+    "origen": "estado",
+    "etiqueta": "¿Ya revisaste la 128?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Ya revisaste la 128?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": true,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "⏳ que no pregunta nada es una nota de la tarea",
+   "accion": {
+    "id": "espera-j1k2l3",
+    "tipo": "pregunta",
+    "origen": "estado",
+    "etiqueta": "Subiendo la 128 a Play",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "Subiendo la 128 a Play",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": false,
+   "espera": false,
+   "aviso": null
+  },
+  {
+   "caso": "pregunta de la IA sin consola: alguien la espera igual",
+   "accion": {
+    "id": "pregunta:10",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Sigo con la etapa 4?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Pregunta",
+      "texto": "¿Sigo con la etapa 4?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "si",
+        "etiqueta": "Sí (Recomendada)"
+       },
+       {
+        "valor": "no",
+        "etiqueta": "No"
+       }
+      ]
+     }
+    ]
+   },
+   "sin_consola": true,
+   "espera": true,
+   "aviso": "pregunta"
+  },
+  {
+   "caso": "pregunta de la IA que solo se responde en el PC (MEJ-094)",
+   "accion": {
+    "id": "pregunta:7",
+    "tipo": "pregunta",
+    "origen": "ia",
+    "etiqueta": "¿Qué base de datos uso?",
+    "estado": "pendiente",
+    "confirmar": true,
+    "responder_en": "pc",
+    "preguntas": [
+     {
+      "id": "q1",
+      "encabezado": "Base",
+      "texto": "¿Qué base de datos uso?",
+      "multiple": false,
+      "otra": true,
+      "opciones": [
+       {
+        "valor": "postgres",
+        "etiqueta": "Postgres (Recomendada)"
+       },
+       {
+        "valor": "sqlite",
+        "etiqueta": "SQLite"
+       }
+      ]
+     }
+    ],
+    "sesion": "s-7"
+   },
+   "sin_consola": false,
+   "espera": true,
+   "aviso": "pregunta"
+  }
+ ]
+}

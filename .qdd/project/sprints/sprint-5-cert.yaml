@@ -1,0 +1,28 @@
+qdd_certificate:
+  version: "1.1"
+  sprint_id: "5"
+  status: "FAILING"
+  goal: "qdd doctor diagnostica y repara las funciones nuevas de QDD, empezando por QDD Móvil: dice por qué un proyecto no llegaría al teléfono"
+  
+  scenarios:
+    happy_path:
+      - "Dado un PC con QDD Móvil activado, cuando corre qdd doctor, entonces revisa emparejamiento, servicio, llegada al relay, publicación del proyecto y último envío"
+      - "Dado todo sano, cuando corre qdd doctor, entonces esos ítems salen en verde sin usar la red"
+    error_paths:
+      - "Dado que el servicio no corre, cuando corre qdd doctor --fix, entonces lo arranca"
+      - "Dado que el proyecto no está en el registro, cuando corre --fix, entonces lo anota"
+      - "Dado que el PC no está emparejado, cuando corre --fix, entonces dice que falta qdd login y no lo intenta solo"
+      - "Dado un latido viejo o un envío fallido, cuando corre doctor, entonces falla y dice qué revisar"
+      - "Dado un PC sin QDD Móvil, cuando corre doctor, entonces no reporta nada de este grupo"
+    edge_cases:
+
+  technical_constraints:
+    - "Cero else"
+    - "sin red al diagnosticar"
+    - "las pruebas no tocan el servicio real ni QDD_HOME real"
+    - "ningún secreto ni texto de error del relay en el reporte"
+    - "reparar el servicio solo si no corre"
+
+  executable_tests:
+    - "cd cli && go test ./cmd/ -run 'Doctor|Remoto'"
+    - "cd cli && go test ./pkg/remoto/..."

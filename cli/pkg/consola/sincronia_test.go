@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/qdd-framework/qdd/pkg/flujo"
 )
 
 // Sincronía panel–chat (pedido del usuario, 2026-11-01): si la persona acepta, rechaza, cambia o deja sin efecto en el
@@ -26,22 +28,22 @@ func TestEsperas_PedidosFichasYEtapasQueEsperanALaPersona(t *testing.T) {
 
 func TestContextoCiclo_SoloCuandoCambiaLoQueEspera(t *testing.T) {
 	root := proyectoConTareas(t)
-	primero := ContextoCiclo(root, enCola)
+	primero := ContextoCiclo(root, "", enCola)
 	if !strings.Contains(primero, "Espera a la persona") || !strings.Contains(primero, "--hecho") {
 		t.Fatalf("el primer mensaje lo dice, con cómo reflejarlo:\n%s", primero)
 	}
-	if again := ContextoCiclo(root, enCola.Add(time.Minute)); again != "" {
+	if again := ContextoCiclo(root, "", enCola.Add(time.Minute)); again != "" {
 		t.Fatalf("sin cambios no gasta tokens: %q", again)
 	}
 	mustPedir(t, root, "gh pr merge 7", "Merge #7", "")
-	if nuevo := ContextoCiclo(root, enCola.Add(2*time.Minute)); !strings.Contains(nuevo, "«Merge #7»") {
+	if nuevo := ContextoCiclo(root, "", enCola.Add(2*time.Minute)); !strings.Contains(nuevo, "«Merge #7»") {
 		t.Fatalf("un pedido nuevo vuelve a decirlo:\n%s", nuevo)
 	}
 }
 
 func TestContextoCiclo_SinNadaQueEsperarNoDiceNada(t *testing.T) {
 	root := proyectoConCola(t)
-	if got := ContextoCiclo(root, enCola); got != "" {
+	if got := ContextoCiclo(root, "", enCola); got != "" {
 		t.Fatalf("sin esperas: %q", got)
 	}
 }
@@ -73,5 +75,23 @@ func TestDescartar_AceptaLaTeclaQueVeLaPersona(t *testing.T) {
 	}
 	if len(Pedidos(root)) != 0 {
 		t.Fatal("descartado por su tecla")
+	}
+}
+
+// Las ediciones de un flujo que la persona no envió viajan con su próximo mensaje, una sola vez.
+func TestContextoCiclo_LlevaLasEdicionesSinEnviarDeUnFlujo(t *testing.T) {
+	root := proyectoConCola(t)
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{ID: "a", Tipo: flujo.TipoPaso, Nombre: "A"}}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := flujo.Editar(root, "pago", flujo.DePersona, enCola, flujo.Agregar("a", "Cobra", flujo.TipoPaso, "", false)); err != nil {
+		t.Fatal(err)
+	}
+	if texto := ContextoCiclo(root, "", enCola); !strings.Contains(texto, "+ cobra «Cobra»") {
+		t.Fatalf("contexto: %q", texto)
+	}
+	if texto := ContextoCiclo(root, "", enCola.Add(time.Minute)); strings.Contains(texto, "Cobra") {
+		t.Fatalf("llegó dos veces: %q", texto)
 	}
 }

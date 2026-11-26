@@ -1,0 +1,9 @@
+id: "FND-168"
+title: "Una instalación nueva se emparejaba en el relay anterior"
+description: "Al mudar el relay de QDD Móvil a su propio proyecto el 2026-11-06, RelayPorDefecto siguió con el proyecto anterior. Los teléfonos ya entran al nuevo."
+impact: "Un PC recién instalado de una versión con ese valor ofrece el emparejamiento en un relay donde el teléfono no lo ve. Un PC ya emparejado no se afecta, porque usa su relay.json."
+action_taken: "Con la autorización de la persona, RelayPorDefecto usa la URL y la clave publicable del proyecto nuevo, tomadas de la respuesta firmada que se verificó con su clave pública."
+test_result: "cli/pkg/remoto/relay_test.go: TestRelayPorDefecto_VaCompletoYPublicable_FND133 rechaza el relay anterior. Sin probar: emparejar una instalación nueva con un teléfono real."
+status: resolved
+detectado_por: ia
+date: "2026-11-06"

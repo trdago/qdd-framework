@@ -1,0 +1,9 @@
+id: "FND-225"
+title: "La cobertura daba por revisadas pruebas que no corrieron"
+description: "2026-11-15, al llevar la RFC 0005 fase 1 (cobertura en el informe, #128) a feat/panel-flujo: desde la RFC 0020, qdd audit no corre las pruebas si una regla ya bloquea el gate y deja la recomendación QA-04-PRUEBAS-PENDIENTES. La cobertura miraba solo qué unidades tienen test_commands, así que en ese caso decía «P-TESTS-PER-UNIT evaluado» sin haber corrido nada. Además QA-04 no tenía principio, y TestPrincipios_CadaReglaDelMotorTienePrincipio fallaba."
+impact: "El informe de cobertura, cuyo fin es no sugerir que se revisó todo, decía que las pruebas se revisaron cuando no corrieron. El puntaje y lo que bloquea no cambiaban: el gate ya fallaba por la otra regla."
+action_taken: "CalcularCobertura reconoce QA-04: P-TESTS-PER-UNIT queda no evaluado en la raíz, diciendo por qué y cómo verlo (qdd audit --completo), y QA-04 no cuenta como violación del principio. QA-04 queda en las reglas de P-TESTS-PER-UNIT."
+test_result: "cli/pkg/audit/cobertura_test.go: TestCobertura_PruebasPendientesNoSonEvaluadas_FND225 fallaba con «evaluado» y pasa con «no_evaluado»; TestPrincipios_CadaReglaDelMotorTienePrincipio pasa con QA-04."
+status: resolved
+detectado_por: ia
+date: "2026-11-15"

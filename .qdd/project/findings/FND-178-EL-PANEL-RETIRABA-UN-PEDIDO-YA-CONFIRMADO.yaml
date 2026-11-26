@@ -1,0 +1,9 @@
+id: "FND-178"
+title: "El panel retiraba un pedido que la persona ya había confirmado"
+description: "Retirar un pedido cuando cambia su tarea supone que la persona prefirió seguir trabajando. Un pedido confirmado que esperaba a otro queda armado; si el proceso que lo esperaba muere, vuelve a pendiente, y con el siguiente cambio de su tarea se retiraba. Igual con uno que salió con 75. Lo reportó qdd-movile el 2026-11-07: la persona confirmó un pedido y el panel lo sacó de «Para ti»."
+impact: "Lo que la persona ya había aprobado desaparecía del panel y la IA recibía el aviso de retiro como si ella lo hubiera rechazado."
+action_taken: "El pedido anota cuándo se confirmó (confirmado). Uno confirmado no se retira por cambios de su tarea."
+test_result: "cli/pkg/consola/pedidos_tarea_test.go: TestPedido_UnoConfirmadoNoSeRetiraAunqueSuTareaCambie_FND178."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

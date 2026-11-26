@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // OpenCodeAdapter implements integration for OpenCode, Aider, Cline, and generic AI agents.
@@ -15,9 +16,10 @@ func (o *OpenCodeAdapter) Name() string {
 }
 
 func (o *OpenCodeAdapter) Sync(projectPath string) error {
-	// 1. Sync root AGENTS.md (Universal Standard)
+	// 1. Sync root AGENTS.md (Universal Standard). Una carpeta de proyectos no lo lleva: las IAs lo heredarían en
+	// cada proyecto de adentro, junto con el suyo (MEJ-062).
 	agentsMDPath := filepath.Join(projectPath, "AGENTS.md")
-	err := SafeInjectIdempotent(agentsMDPath)
+	err := syncAgentsMD(projectPath, agentsMDPath)
 	if err != nil {
 		return fmt.Errorf("OpenCode adapter failed to sync %s: %w", agentsMDPath, err)
 	}
@@ -47,4 +49,18 @@ func (o *OpenCodeAdapter) Sync(projectPath string) error {
 	}
 
 	return nil
+}
+
+func syncAgentsMD(projectPath, agentsMDPath string) error {
+	if Contenedor(projectPath) {
+		return quitarBloqueSiEsta(agentsMDPath)
+	}
+	return SafeInjectIdempotent(agentsMDPath)
+}
+
+func quitarBloqueSiEsta(ruta string) error {
+	if !tieneBloque(ruta) {
+		return nil
+	}
+	return quitarBloque(ruta, time.Now())
 }

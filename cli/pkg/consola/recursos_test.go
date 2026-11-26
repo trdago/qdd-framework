@@ -12,6 +12,7 @@ import (
 
 func f(v float64) *float64 { return &v }
 
+// contrato: estado#756194c0
 func TestLineaRecursos_Completa_CCC_C14(t *testing.T) {
 	m := Medidas{Disco: f(69.6), GPUs: []*float64{f(7), nil}, RAM: f(38.2), CPU: f(12.4)}
 	if got := LineaRecursos(m); got != "D 70% · G0 7% · G1 — · R 38% · C 12%" {
@@ -81,6 +82,7 @@ func TestMedirGPUs_CacheCadaCincoSegundos_CCC_C16(t *testing.T) {
 	}
 }
 
+// contrato: estado#756194c0
 func TestMedirGPUs_SinNvidiaSmiSeOmite_CCC_C15(t *testing.T) {
 	s := sensores{nvidia: func() (string, error) { return "", errors.New("no existe") }, otras: func() []*float64 { return nil }}
 	m := s.medir(t.TempDir(), filepath.Join(t.TempDir(), "r.json"), time.Now())
@@ -165,5 +167,34 @@ func TestActivar_RecursosSeRecuerdaYReparaLosConserva(t *testing.T) {
 	}
 	if reg, _ := c.LeerRegistro(); reg.Recursos {
 		t.Fatal("--sin-recursos la quita")
+	}
+}
+
+// contrato: estado#c9b4412c
+// Un sensor que se cuelga no demora la barra: pasados 400 ms sale sin la línea de recursos.
+func TestBarraConRecursos_UnaMedicionLentaNoDemoraLaBarra(t *testing.T) {
+	dir := t.TempDir()
+	in := `{"workspace":{"project_dir":"` + filepath.ToSlash(dir) + `"},"model":{"display_name":"Opus 5.5"}}`
+	// La medición lenta no se suelta nunca: si terminara al salir de la prueba, escribiría su caché en dir mientras
+	// TempDir lo borra («directory not empty»).
+	nunca := make(chan struct{})
+	lento := sensores{ram: func() (float64, bool) {
+		<-nunca
+		return 38, true
+	}}
+	inicio := time.Now()
+	got := barraCon([]byte(in), time.Now(), "", 40, &lento, filepath.Join(dir, "r.json"))
+	if d := time.Since(inicio); d < 350*time.Millisecond || d > 1500*time.Millisecond {
+		t.Fatalf("la barra espera la medición hasta 400 ms y no más: %v", d)
+	}
+	if strings.Contains(got, "R ") || strings.Count(got, "\n") != 1 {
+		t.Fatalf("sale sin la línea de recursos: %q", got)
+	}
+	rapido := sensores{ram: func() (float64, bool) {
+		time.Sleep(100 * time.Millisecond)
+		return 38, true
+	}}
+	if got := barraCon([]byte(in), time.Now(), "", 40, &rapido, filepath.Join(dir, "r.json")); !strings.Contains(got, "R 38%") {
+		t.Fatalf("dentro del tope sale con ella: %q", got)
 	}
 }

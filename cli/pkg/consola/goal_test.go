@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +19,18 @@ import (
 // se detiene y avisa. Lo activa solo la persona. Las preguntas de diseño de un blueprint y los permisos de Claude Code
 // siempre la esperan.
 
+// estadoGoal: Barra la puede mover la IA (su PR está sin empezar); Otra espera a «c» (MEJ-055).
+const estadoGoal = `formato: 1
+etapas: [Código, PR]
+frentes:
+  - {id: barra, nombre: Barra, estado: abierto, celdas: {Código: {estado: "✅", evidencia: commit a1}, PR: {estado: "·"}}}
+  - {id: otra, nombre: Otra, estado: abierto, celdas: {Código: {estado: "⏳", bloqueo: b, de_quien: c}, PR: {estado: "—"}}}
+`
+
 func conGoal(t *testing.T) string {
 	t.Helper()
 	root := proyectoConTareas(t)
+	escribirArchivo(t, filepath.Join(root, estado.Ruta), estadoGoal)
 	conSesionAbierta(t, root)
 	if err := ActivarGoal(root, "panel", enCola); err != nil {
 		t.Fatal(err)
@@ -77,6 +87,7 @@ func TestGoal_ActivarExigeTareasAbiertas(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestGoal_EligeLaOpcionRecomendadaYLoRegistra(t *testing.T) {
 	root := conGoal(t)
 	id := preguntaDe(t, root, "Otra cosa", "Mejor (Recommended)")
@@ -149,6 +160,9 @@ func TestGoal_UnaPreguntaDeDisenoDeBlueprintNuncaSeElige(t *testing.T) {
 func TestGoal_LasEsperasDelEstadoNoSeResponden(t *testing.T) {
 	root := conGoal(t)
 	conEspera(t, root, "¿Resend o SES?")
+	if err := estado.Set(root, estado.Cambio{Frente: "otra", Etapa: "Código", Estado: "❌", Falla: "rojo"}, enCola); err != nil {
+		t.Fatal(err)
+	}
 	r := cicloGoal(t, root, silencio(0), enCola)
 	if len(r.Elegidas) != 0 {
 		t.Fatalf("un ⏳ no tiene opciones: %+v", r.Elegidas)
@@ -158,6 +172,7 @@ func TestGoal_LasEsperasDelEstadoNoSeResponden(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 	root := conGoal(t)
 	marca := filepath.Join(t.TempDir(), "corrio")
@@ -176,6 +191,9 @@ func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 	if len(r.Elegidas) != 1 || r.Elegidas[0].Tipo != "pedido" || r.Elegidas[0].Etiqueta != "Desplegar" {
 		t.Fatalf("el pedido de la IA, registrado sin el comando: %+v", r.Elegidas)
 	}
+	if g := VistaGoal(root, enCola); len(g.Elegidas) != 1 || g.Elegidas[0].Tipo != "pedido" || g.Elegidas[0].Eleccion != "ejecutar" {
+		t.Fatalf("y queda guardado a la vista: %+v", g.Elegidas)
+	}
 	for _, p := range PedidosA(root, enCola) {
 		if p.ID == pd.ID && p.Estado == EstadoPendiente {
 			t.Fatalf("quedó aceptado: %+v", p)
@@ -191,6 +209,7 @@ func TestGoal_CorreLosPedidosDeLaIAYNoLosDeUnPR(t *testing.T) {
 	}
 }
 
+// contrato: goal#42e317f1
 func TestGoal_ApruebaLasFichasEnBorrador(t *testing.T) {
 	root := conGoal(t)
 	m := modules.Module{
@@ -205,6 +224,9 @@ func TestGoal_ApruebaLasFichasEnBorrador(t *testing.T) {
 	r := cicloGoal(t, root, silencio(0), enCola)
 	if len(r.Elegidas) != 1 || r.Elegidas[0].Tipo != "ficha" {
 		t.Fatalf("la aprueba y lo registra: %+v", r.Elegidas)
+	}
+	if g := VistaGoal(root, enCola); len(g.Elegidas) != 1 || g.Elegidas[0].Tipo != "ficha" || g.Elegidas[0].Etiqueta != "Nueva" {
+		t.Fatalf("y queda guardado a la vista: %+v", g.Elegidas)
 	}
 	if len(borradores(root)) != 0 {
 		t.Fatal("no queda en borrador")
@@ -228,6 +250,89 @@ func TestGoal_ConSilencioRecuerdaYSinSilencioNo(t *testing.T) {
 	}
 }
 
+func TestGoal_RecuerdaSoloLoQueLaIAPuedeMover_FND216(t *testing.T) {
+	root := conGoal(t)
+	r := cicloGoal(t, root, silencio(SilencioGoal), enCola)
+	if !strings.Contains(r.Mensaje, "quedan 1 tareas que puedes mover (Barra)") || strings.Contains(r.Mensaje, "Otra") {
+		t.Fatalf("cuenta solo las que la IA mueve: %q", r.Mensaje)
+	}
+	if !strings.Contains(r.Mensaje, "1 esperan a la persona o a otros") {
+		t.Fatalf("dice cuántas esperan, sin empujarlas: %q", r.Mensaje)
+	}
+}
+
+// goalTodoEspera: las dos tareas de proyectoConTareas esperan a otros (la persona y «c»).
+func goalTodoEspera(t *testing.T) string {
+	t.Helper()
+	root := proyectoConTareas(t)
+	conSesionAbierta(t, root)
+	if err := ActivarGoal(root, "panel", enCola); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func TestGoal_SiTodoEsperaAvisaUnaVezYCalla_FND216(t *testing.T) {
+	root := goalTodoEspera(t)
+	if r := cicloGoal(t, root, EntradaGoal{Sesion: "s1", Silencio: time.Hour, Ocupada: true}, enCola); r.Mensaje != "" || r.Aviso != "" {
+		t.Fatalf("mientras la IA trabaja no avisa: %+v", r)
+	}
+	if g := VistaGoal(root, enCola); g.Estado != GoalPausado || g.Motivo != MotivoTodoEspera {
+		t.Fatalf("el panel ya lo dice en pausa: %+v", g)
+	}
+	r := cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(time.Minute))
+	if r.Mensaje != "" {
+		t.Fatalf("no empuja a la IA: %q", r.Mensaje)
+	}
+	for _, parte := range []string{"todo espera a la persona", "⏳ Barra · PR: merge (la persona)", "⏳ Otra · Código: b (c)"} {
+		if !strings.Contains(r.Aviso, parte) {
+			t.Fatalf("el aviso dice qué espera y a quién (%q): %q", parte, r.Aviso)
+		}
+	}
+	for i := 1; i <= MaxRecordatoriosGoal+1; i++ {
+		otra := cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(time.Duration(i)*10*time.Minute))
+		if otra.Mensaje != "" || otra.Aviso != "" {
+			t.Fatalf("vuelta %d: sin cambios no vuelve a avisar ni empujar: %+v", i, otra)
+		}
+	}
+	if g := VistaGoal(root, enCola); g.Estado != GoalPausado || g.Motivo != MotivoTodoEspera || g.Recordatorios != 0 {
+		t.Fatalf("sigue en pausa, sin gastar recordatorios: %+v", g)
+	}
+}
+
+func TestGoal_UnaEsperaNuevaVuelveAAvisar_FND216(t *testing.T) {
+	root := goalTodoEspera(t)
+	cicloGoal(t, root, silencio(SilencioGoal), enCola)
+	if err := estado.Set(root, estado.Cambio{Frente: "otra", Etapa: "Código", Estado: "⏳", Bloqueo: "plazo", DeQuien: "INRPAC"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	r := cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(3*time.Minute))
+	if r.Mensaje != "" || !strings.Contains(r.Aviso, "⏳ Otra · Código: plazo (INRPAC)") {
+		t.Fatalf("cambió lo que espera: avisa de nuevo: %+v", r)
+	}
+}
+
+func TestGoal_CuandoAlgoSeMueveVuelveATrabajar_FND216(t *testing.T) {
+	root := goalTodoEspera(t)
+	cicloGoal(t, root, silencio(SilencioGoal), enCola)
+	if err := estado.Set(root, estado.Cambio{Frente: "otra", Etapa: "Código", Estado: "❌", Falla: "rojo"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	r := cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(3*time.Minute))
+	if r.Aviso != "" || !strings.Contains(r.Mensaje, "(Otra)") || strings.Contains(r.Mensaje, "Barra") {
+		t.Fatalf("hay algo que la IA mueve: se lo recuerda: %+v", r)
+	}
+	if g := VistaGoal(root, enCola.Add(3*time.Minute)); g.Estado != GoalTrabajando {
+		t.Fatalf("vuelve a trabajar: %+v", g)
+	}
+	if err := estado.Set(root, estado.Cambio{Frente: "otra", Etapa: "Código", Estado: "⏳", Bloqueo: "b", DeQuien: "c"}, enCola); err != nil {
+		t.Fatal(err)
+	}
+	if r := cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(6*time.Minute)); r.Aviso == "" {
+		t.Fatalf("todo espera otra vez: avisa otra vez, aunque sea lo mismo que antes: %+v", r)
+	}
+}
+
 func TestGoal_NoLeRecuerdaALaTerminalQueMiraMientrasOtraTrabaja(t *testing.T) {
 	root := conGoal(t)
 	cicloGoal(t, root, EntradaGoal{Sesion: "trabaja", Ocupada: true}, enCola)
@@ -241,6 +346,7 @@ func TestGoal_NoLeRecuerdaALaTerminalQueMiraMientrasOtraTrabaja(t *testing.T) {
 	}
 }
 
+// contrato: goal#ee46f816
 func TestGoal_TresRecordatoriosSinAvanceLoDetienen(t *testing.T) {
 	root := conGoal(t)
 	for i := 0; i < MaxRecordatoriosGoal; i++ {
@@ -380,13 +486,14 @@ func TestGoal_ElLimiteAgotadoLoPausaYAlReiniciarseSigue(t *testing.T) {
 	}
 }
 
+// contrato: goal#ee46f816
 func TestGoal_ReactivarEmpiezaDeCeroYDesactivarLoApaga(t *testing.T) {
 	root := conGoal(t)
 	cicloGoal(t, root, silencio(SilencioGoal), enCola.Add(3*time.Minute))
 	if err := ActivarGoal(root, "panel", enCola.Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	if g := VistaGoal(root, enCola); g.Recordatorios != 0 || g.Estado != GoalTrabajando {
+	if g := VistaGoal(root, enCola.Add(3*time.Minute)); g.Recordatorios != 0 || g.Estado != GoalTrabajando {
 		t.Fatalf("reactivarlo reinicia la cuenta: %+v", g)
 	}
 	if err := DesactivarGoal(root, enCola); err != nil {
@@ -430,6 +537,7 @@ func TestGoal_ElPanelSiempreDiceSiSeOfrece(t *testing.T) {
 	}
 }
 
+// contrato: goal#b842add7
 func TestGoal_UnArchivoIlegibleLoVeDoctorYSeAparta(t *testing.T) {
 	root := conGoal(t)
 	ruta, err := rutaGoal(root)
@@ -451,4 +559,51 @@ func TestGoal_UnArchivoIlegibleLoVeDoctorYSeAparta(t *testing.T) {
 	if activo, err := RevisarGoal(root); err != nil || activo {
 		t.Fatalf("apartado queda apagado y legible: %v %v", activo, err)
 	}
+}
+
+// contrato: estado#0240fe2c
+// Un pedido de la IA corre solo con el «s  Sí» de la persona; la única excepción es el modo goal activo en ESTE
+// proyecto. Apagado, o encendido en otro proyecto de la misma máquina, una vuelta del vigilante no lo lanza.
+func TestGoal_ApagadoOActivoEnOtroProyectoNoLanzaUnPedido(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("comando de prueba en sh")
+	}
+	root := proyectoConTareas(t)
+	escribirArchivo(t, filepath.Join(root, estado.Ruta), estadoGoal)
+	conSesionAbierta(t, root)
+	marca := filepath.Join(t.TempDir(), "corrio")
+	pd := mustPedir(t, root, "touch "+marca, "Desplegar", "")
+	bin := os.Args[0]
+	sigueEsperando := func(paso string) {
+		t.Helper()
+		r, err := CicloGoal(root, bin, silencio(time.Hour), enCola)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(r.Elegidas) != 0 {
+			t.Fatalf("%s: el modo no elige nada aquí: %+v", paso, r.Elegidas)
+		}
+		if p := pedidoDe(t, root, pd.ID, enCola); p.Estado != EstadoPendiente || p.Confirmado != nil {
+			t.Fatalf("%s: el pedido sigue esperando a la persona: %+v", paso, p)
+		}
+		time.Sleep(100 * time.Millisecond)
+		if _, err := os.Stat(marca); err == nil {
+			t.Fatalf("%s: el comando corrió sin la persona", paso)
+		}
+	}
+	sigueEsperando("con el modo apagado")
+
+	otro := t.TempDir()
+	escribirArchivo(t, filepath.Join(otro, estado.Ruta), estadoGoal)
+	conSesionAbierta(t, otro)
+	if err := ActivarGoal(otro, "panel", enCola); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CicloGoal(otro, bin, silencio(time.Hour), enCola); err != nil {
+		t.Fatal(err)
+	}
+	if g := VistaGoal(root, enCola); g.Activo {
+		t.Fatalf("activarlo en otro proyecto no lo enciende aquí: %+v", g)
+	}
+	sigueEsperando("con el modo activo en otro proyecto")
 }

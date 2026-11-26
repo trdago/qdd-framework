@@ -504,3 +504,17 @@ func TestCheck_DetectsOutdatedApplication(t *testing.T) {
 		t.Fatal("un módulo generado con una versión anterior debe marcarse")
 	}
 }
+
+// PreguntasDeDiseno es lo que el modo goal nunca responde solo (pkg/consola): trae el texto exacto de cada pregunta de
+// cada blueprint del lockfile, también las condicionales; sin lockfile, ninguna.
+func TestPreguntasDeDiseno_LasDeCadaBlueprintImportado(t *testing.T) {
+	if got := PreguntasDeDiseno(t.TempDir()); len(got) != 0 {
+		t.Fatalf("sin lockfile no hay preguntas: %v", got)
+	}
+	root := importedProject(t)
+	got := strings.Join(PreguntasDeDiseno(root), "\n")
+	want := "¿Con qué inicia sesión el usuario?\n¿Por qué canal se recupera la contraseña?\n¿Qué proveedor de WhatsApp?"
+	if got != want {
+		t.Fatalf("el texto exacto de cada pregunta, en orden:\n%s", got)
+	}
+}

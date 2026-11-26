@@ -29,8 +29,10 @@ func (v Violacion) String() string {
 	return fmt.Sprintf("[%s] %s: %s", v.ID, lugar, v.Mensaje)
 }
 
-// secretoODatoPersonal: forma de credencial, correo o RUT chileno (EPF-C07).
-var secretoODatoPersonal = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{16,}|ghp_[a-z0-9]{16,}|github_pat_[a-z0-9_]{16,}|AKIA[0-9A-Z]{16}|xox[baprs]-[a-z0-9-]{10,}|(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b)`)
+// secretoODatoPersonal: la lista mínima de la decisión del blueprint (EPF-C07): tokens con prefijo conocido (sk-, ghp_,
+// github_pat_, AKIA, xox, npm_), claves privadas, «Bearer …», «clave=», «token=», «password=», correos, teléfonos con
+// código de país y RUT (con o sin puntos).
+var secretoODatoPersonal = regexp.MustCompile(`(?i)(sk-[a-z0-9_-]{16,}|ghp_[a-z0-9]{16,}|github_pat_[a-z0-9_]{16,}|AKIA[0-9A-Z]{16}|xox[baprs]-[a-z0-9-]{10,}|\bnpm_[a-z0-9]{20,}|-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\bbearer\s+[a-z0-9._~+/=-]{8,}|(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+|\bclave\s*=\s*\S+|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|\+\d{1,3}(?:[\s.-]?\d){8,12}\b|\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b|\b\d{7,8}-[\dkK]\b)`)
 
 // Check revisa el archivo. prev es la versión anterior (p. ej. la de git HEAD) para EPF-C05; nil si no hay.
 func Check(e Estado, prev *Estado) []Violacion {
@@ -102,8 +104,8 @@ func checkCelda(frente, etapa string, c Celda) []Violacion {
 	vs := checkTexto(frente, etapa, c.Evidencia, c.Bloqueo, c.DeQuien, c.Falla, c.RequiereAprobacion)
 	switch NormalizarEstado(c.Estado) {
 	case Hecho:
-		if strings.TrimSpace(c.Evidencia) == "" {
-			vs = append(vs, Violacion{ID: "EPF-C02", Frente: frente, Etapa: etapa, Mensaje: "✅ sin evidencia (commit, versión, n/n pruebas o id de corrida)"})
+		if evidenciaSuelta(c.Evidencia) {
+			vs = append(vs, Violacion{ID: "EPF-C02", Frente: frente, Etapa: etapa, Mensaje: "✅ sin evidencia que diga cómo se sabe (commit, versión, n/n pruebas, id de corrida o lo que confirmó la persona)"})
 		}
 		if c.RequiereAprobacion != "" && !c.Aprobado {
 			vs = append(vs, Violacion{ID: "EPF-C06", Frente: frente, Etapa: etapa, Mensaje: "requiere aprobación de " + c.RequiereAprobacion + " y todavía no la tiene: no puede estar en ✅"})
@@ -123,23 +125,35 @@ func checkCelda(frente, etapa string, c Celda) []Violacion {
 	return vs
 }
 
-// checkDesplegadoNoEsValidado (EPF-C04): con etapas «software», Validación real en ✅ necesita su propia evidencia
-// (no la del despliegue); con etapas «modelos», Producción en ✅ necesita la Puerta en ✅.
+// checkDesplegadoNoEsValidado (EPF-C04): con etapas «software», Validación real en ✅ necesita la evidencia de un uso
+// real: ni la del despliegue ni solo una versión o un commit (FND-266); con etapas «modelos», Producción en ✅ necesita
+// la Puerta en ✅.
 func checkDesplegadoNoEsValidado(f Frente) []Violacion {
 	var vs []Violacion
 	prod, hayProd := f.Celdas["Producción"]
-	if !hayProd || NormalizarEstado(prod.Estado) != Hecho {
-		return nil
-	}
 	val, hayVal := f.Celdas["Validación real"]
-	if hayVal && NormalizarEstado(val.Estado) == Hecho && strings.TrimSpace(val.Evidencia) == strings.TrimSpace(prod.Evidencia) {
+	if hayVal && NormalizarEstado(val.Estado) == Hecho && evidenciaDeDespliegue(val.Evidencia, prod) {
 		vs = append(vs, Violacion{ID: "EPF-C04", Frente: f.ID, Etapa: "Validación real", Mensaje: "desplegado no es validado: la Validación real necesita evidencia de un uso real, no la del despliegue"})
+	}
+	if !hayProd || NormalizarEstado(prod.Estado) != Hecho {
+		return vs
 	}
 	puerta, hayPuerta := f.Celdas["Puerta"]
 	if hayPuerta && NormalizarEstado(puerta.Estado) != Hecho {
 		vs = append(vs, Violacion{ID: "EPF-C04", Frente: f.ID, Etapa: "Producción", Mensaje: "Producción en ✅ sin la Puerta en ✅ con su evidencia"})
 	}
 	return vs
+}
+
+// soloDespliegue es una evidencia que nombra solo una versión o un commit: dice qué se desplegó, no que se usó.
+var soloDespliegue = regexp.MustCompile(`(?i)^(?:(?:tag|versi[oó]n|release|commit)\s+)?(?:v?\d+\.\d+(?:\.\d+)?(?:-[0-9a-z.]+)?|[0-9a-f]{7,40})$`)
+
+func evidenciaDeDespliegue(evidencia string, prod Celda) bool {
+	ev := strings.TrimSpace(evidencia)
+	if NormalizarEstado(prod.Estado) == Hecho && ev == strings.TrimSpace(prod.Evidencia) {
+		return true
+	}
+	return soloDespliegue.MatchString(ev)
 }
 
 func checkTexto(frente, etapa string, textos ...string) []Violacion {
@@ -149,4 +163,15 @@ func checkTexto(frente, etapa string, textos ...string) []Violacion {
 		}
 	}
 	return nil
+}
+
+// palabrasSueltas no dicen cómo se sabe que algo está hecho.
+var palabrasSueltas = map[string]bool{"listo": true, "lista": true, "ok": true, "okay": true, "hecho": true, "hecha": true, "done": true,
+	"terminado": true, "terminada": true, "completo": true, "completado": true, "sí": true, "si": true, "yes": true, "✅": true,
+	"funciona": true, "bien": true, "arreglado": true, "fixed": true}
+
+// evidenciaSuelta: vacía o una palabra que no dice cómo se sabe (EPF-C02).
+func evidenciaSuelta(evidencia string) bool {
+	t := strings.ToLower(strings.TrimRight(strings.TrimSpace(evidencia), ".!"))
+	return t == "" || palabrasSueltas[t]
 }

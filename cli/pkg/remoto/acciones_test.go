@@ -3,6 +3,7 @@ package remoto
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/qdd-framework/qdd/pkg/aislar"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,7 +30,11 @@ func TestMain(m *testing.M) {
 	if root, id, ok := consola.EsCorrer(os.Args[1:]); ok {
 		os.Exit(consola.CorrerLanzado(root, id, os.Stdout))
 	}
-	os.Exit(m.Run())
+	// El ayudante del candado (MEJ-079) usa el QDD_HOME que le da su prueba: es el que tiene que compartir con ella.
+	if os.Getenv("QDD_AYUDANTE_CANDADO") != "" {
+		os.Exit(m.Run())
+	}
+	os.Exit(aislar.Correr(m))
 }
 
 const firmaPrueba = "abababababababababababababababababababababababababababababababab"
@@ -124,6 +129,7 @@ func lineasLog(t *testing.T) []EntradaLog {
 	return out
 }
 
+// contrato: remoto#76b499d6
 func TestAccion_AprobarUnaFichaUnaSolaVezYQuedaEnElLog(t *testing.T) {
 	homeTemporal(t)
 	root, clave := proyectoConFicha(t, "pagos")
@@ -159,6 +165,9 @@ func TestAccion_AprobarUnaFichaUnaSolaVezYQuedaEnElLog(t *testing.T) {
 	}
 }
 
+// contrato: remoto#6e30dfb4
+// contrato: remoto#76b499d6
+// contrato: remoto#389ef195
 func TestAccion_LoQueNoSeOfreceOLoQueNoVieneDelRelaySeRechaza(t *testing.T) {
 	homeTemporal(t)
 	_, clave := proyectoConFicha(t, "pagos")
@@ -233,13 +242,19 @@ func TestAccion_UnPedidoCorreUnaVezYOtroTelefonoVeYaAprobado(t *testing.T) {
 	if hecha.Estado != EstadoHecha || strings.Contains(hecha.Resultado, "supersecreto") || !strings.Contains(hecha.Resultado, Oculto) {
 		t.Fatalf("hecha, con el resultado sin secretos (inv. 16): %+v", hecha)
 	}
-	select {
-	case av := <-rl.avisos:
-		if av.Tipo != AvisoTerminoBien || av.Clave != clave {
-			t.Fatalf("push de cómo terminó: %+v", av)
+	// Al empezar a correr el pedido ya no espera a la persona: su aviso se quita, y ese push puede llegar antes o después.
+	vistos := map[string]bool{}
+	limite := time.After(2 * time.Second)
+	for !vistos[AvisoTerminoBien] || !vistos[AvisoPedidoResuelto] {
+		select {
+		case av := <-rl.avisos:
+			if av.Clave != clave || (av.Tipo != AvisoTerminoBien && av.Tipo != AvisoPedidoResuelto) {
+				t.Fatalf("push de cómo terminó: %+v", av)
+			}
+			vistos[av.Tipo] = true
+		case <-limite:
+			t.Fatalf("al terminar un pedido aprobado desde el teléfono, push: %v", vistos)
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("al terminar un pedido aprobado desde el teléfono, push")
 	}
 	pd, _ := pedidoDe(root, p.ID)
 	if pd.Sesion != "remoto:d1" || pd.Avisado != true {
@@ -284,6 +299,7 @@ func terminoYSoltoLaCola(root, id string) bool {
 	return false
 }
 
+// contrato: remoto#76b499d6
 func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")
@@ -308,6 +324,7 @@ func TestAccion_UnPedidoAprobadoEnElPCDiceLugarPC(t *testing.T) {
 	}
 }
 
+// contrato: remoto#6e30dfb4
 func TestAccion_RechazarUnPedidoLoQuitaDeLaColaSinEjecutarlo(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("comando de prueba en sh")

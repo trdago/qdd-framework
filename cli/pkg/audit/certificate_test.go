@@ -76,12 +76,12 @@ func testGenerateCertificateNegativeScoreCap(t *testing.T, tempDir string) {
 
 func TestGenerateCertificate_MkdirError(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a file where the directory should be, simulating an MkdirAll error
 	metricsDir := filepath.Join(tempDir, ".qdd", "project", "metrics")
 	os.MkdirAll(filepath.Dir(metricsDir), 0755)
 	os.WriteFile(metricsDir, []byte("file instead of dir"), 0644)
-	
+
 	_, err := GenerateCertificate(tempDir, []Violation{})
 	if err == nil {
 		t.Errorf("Expected mkdir error, got nil")

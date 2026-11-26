@@ -37,7 +37,7 @@ func TestEngineFormat(t *testing.T) {
 
 func TestEngineCoordinator_RunAll(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create dummy policies to disable things and test conditional logic
 	p := DefaultPolicies()
 	p.ZeroElse = false // Disable NO-ELSE
@@ -45,7 +45,7 @@ func TestEngineCoordinator_RunAll(t *testing.T) {
 	p.BeyondLimits = false
 	p.Traceability = false
 	p.OWASP = false
-	
+
 	SavePolicies(tempDir, p)
 
 	// Create a dummy file with an "else" statement
@@ -55,7 +55,7 @@ func TestEngineCoordinator_RunAll(t *testing.T) {
 
 	engine := NewEngine(tempDir)
 	violations := engine.RunAll()
-	
+
 	// Because ZeroElse is false in policy, it should skip the CLEAN-01-NO-ELSE violation
 	for _, v := range violations {
 		if v.RuleID == "CLEAN-01-NO-ELSE" {

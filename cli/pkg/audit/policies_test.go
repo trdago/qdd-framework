@@ -18,7 +18,7 @@ func TestLoadPolicies(t *testing.T) {
 	// 2. Archivo corrupto (yaml inválido) -> Default
 	os.MkdirAll(filepath.Join(tempDir, ".qdd"), 0755)
 	os.WriteFile(filepath.Join(tempDir, ".qdd", "policies.yaml"), []byte("invalid:\n  yaml: :"), 0644)
-	
+
 	p2 := LoadPolicies(tempDir)
 	if !p2.ZeroElse {
 		t.Errorf("Expected ZeroElse true as default on corrupt yaml")
@@ -38,15 +38,15 @@ owasp: false
 
 func TestSavePolicies(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	p := DefaultPolicies()
 	p.ZeroElse = false
-	
+
 	err := SavePolicies(tempDir, p)
 	if err != nil {
 		t.Errorf("Error saving policies: %v", err)
 	}
-	
+
 	// Read back
 	p2 := LoadPolicies(tempDir)
 	if p2.ZeroElse {

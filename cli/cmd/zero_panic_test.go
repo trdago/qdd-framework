@@ -31,7 +31,11 @@ func TestZeroPanicHTTPMiddleware(t *testing.T) {
 	}
 }
 
+// contrato: mcp#f76f665c
+// La tool que hace panic se llama de verdad: vuelve como error de la tool y el servidor sigue atendiendo.
 func TestZeroPanicMCPToolIsolation(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Chdir(t.TempDir())
 	s := server.NewMCPServer("TEST-MCP", "1.0.0")
 
 	panickingTool := mcp.NewTool("test_panic", mcp.WithDescription("Tool that panics"))
@@ -39,9 +43,16 @@ func TestZeroPanicMCPToolIsolation(t *testing.T) {
 		// qdd:ignore CERT-020-ZERO-PANIC
 		panic("Simulated tool panic")
 	})
+	RegisterToolWithTelemetry(s, mcp.NewTool("test_ok"), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return mcp.NewToolResultText("ok"), nil
+	})
 
-	// The MCP server shouldn't crash when registering or recovering
-	if s == nil {
-		t.Fatalf("Expected server to be non-nil")
+	res, err := s.GetTool("test_panic").Handler(context.Background(), mcp.CallToolRequest{})
+	if err != nil || res == nil || !res.IsError {
+		t.Fatalf("un panic vuelve como error de la tool: %+v, %v", res, err)
+	}
+	res, err = s.GetTool("test_ok").Handler(context.Background(), mcp.CallToolRequest{})
+	if err != nil || res == nil || res.IsError {
+		t.Fatalf("el servidor sigue atendiendo: %+v, %v", res, err)
 	}
 }

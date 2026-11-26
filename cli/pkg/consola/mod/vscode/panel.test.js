@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { vista, carpetaDe, motivoDeSalida } = require('./panel.js')
+const { vista, carpetaDe, motivoDeSalida, accionDe, binarioDe } = require('./panel.js')
 
 const ESTADO = {
   actualizado: '2026-11-05T20:50:00-03:00',
@@ -169,7 +169,7 @@ test('las fichas por aprobar se listan; las demás acciones no se dibujan', () =
     { id: 'nuevo', tipo: 'algo-que-no-conoce', etiqueta: '?' },
   ]
   const v = vista({ estado: ESTADO, acciones }, '')
-  assert.deepEqual(v.fichas, [{ id: 'aprobar:x', etiqueta: 'Aprobar ficha x' }])
+  assert.deepEqual(v.fichas.map((f) => [f.id, f.etiqueta]), [['aprobar:x', 'Aprobar ficha x']])
   assert.deepEqual(v.pedidos, [])
 })
 
@@ -188,4 +188,45 @@ test('el proyecto es la primera carpeta con .qdd', () => {
   assert.deepEqual(carpetaDe(['/a', '/b'], '/ya-no-esta', existe), { carpeta: '/b', opciones: ['/b'] })
   assert.deepEqual(carpetaDe(['/a'], '', existe), { carpeta: '', opciones: [] })
   assert.deepEqual(carpetaDe([], '', existe), { carpeta: '', opciones: [] })
+})
+
+// Fase B (RFC 0014): la vista sabe qué se puede ejecutar; qué hace y si se puede lo vuelve a decidir qdd.
+test('un pedido que se puede confirmar trae su acción; uno hecho, ejecutando o esperando sin tecla, no', () => {
+  const de = (campos) => vista({ estado: ESTADO, acciones: [pedido(campos)] }, '').pedidos[0]
+  for (const estado of ['pendiente', 'fallo']) assert.deepEqual([de({ estado }).ejecutar, de({ estado }).confirmar], [true, true], estado)
+  assert.equal(de({ estado: 'espera', espera: ['b'] }).ejecutar, true, 'con tecla queda armado y corre cuando el otro termine')
+  for (const campos of [{ estado: 'hecho' }, { estado: 'ejecutando' }, { estado: 'armado' }, { estado: 'espera', tecla: '' }]) {
+    assert.equal(de(campos).ejecutar, false, JSON.stringify(campos))
+  }
+})
+
+test('una ficha por aprobar trae su botón y lo que aprueba', () => {
+  const ficha = { id: 'aprobar:pagos', tipo: 'aprobar', etiqueta: 'Aprobar «Pagos»', detalle: 'qdd modules approve pagos', confirmar: true }
+  assert.deepEqual(vista({ estado: ESTADO, acciones: [ficha] }, '').fichas, [{ id: ficha.id, etiqueta: ficha.etiqueta, detalle: ficha.detalle, ejecutar: true, confirmar: true }])
+})
+
+test('accionDe solo da lo que la vista ofrece: un id inventado o un pedido hecho no se ejecuta', () => {
+  const ficha = { id: 'aprobar:pagos', tipo: 'aprobar', etiqueta: 'Aprobar', confirmar: true }
+  const datos = { estado: ESTADO, acciones: [pedido({ estado: 'pendiente' }), pedido({ id: 'pedido:2', estado: 'hecho' }), ficha, { id: 'pregunta:x', tipo: 'pregunta', confirmar: true }] }
+  assert.deepEqual(accionDe(datos, 'pedido:1'), { id: 'pedido:1', etiqueta: 'Publicar', confirmar: true })
+  assert.deepEqual(accionDe(datos, 'aprobar:pagos'), { id: 'aprobar:pagos', etiqueta: 'Aprobar', confirmar: true })
+  for (const id of ['pedido:2', 'pregunta:x', 'auditar', '--confirmado', '', undefined]) assert.equal(accionDe(datos, id), null, String(id))
+  assert.equal(accionDe(null, 'pedido:1'), null)
+})
+
+// Fase C: en Windows, execFile sin shell no encuentra el qdd.cmd de npm; qdd deja su ruta real en qdd.json al instalar.
+test('binarioDe: QDD_BIN manda; después la ruta que dejó qdd si existe; si no, qdd del PATH', () => {
+  const existe = (r) => r === '/opt/qdd/bin/qdd'
+  assert.equal(binarioDe({ QDD_BIN: '/a/qdd' }, { binario: '/opt/qdd/bin/qdd' }, existe), '/a/qdd')
+  assert.equal(binarioDe({}, { binario: '/opt/qdd/bin/qdd' }, existe), '/opt/qdd/bin/qdd')
+  assert.equal(binarioDe({}, { binario: '/ya/no/esta' }, existe), 'qdd', 'un qdd que se movió o se desinstaló no deja la vista sin datos')
+  assert.equal(binarioDe({}, { binario: 'relativo/qdd' }, () => true), 'qdd', 'solo una ruta absoluta')
+  assert.equal(binarioDe({}, null, existe), 'qdd')
+})
+
+test('fase D: la vista lleva los efectos que dice qdd, para animar solo lo que cambió', () => {
+  const efectos = { activo: true, acento: '#7daea3', abrir_ms: 800, cerrar_ms: 400 }
+  assert.deepEqual(vista({ estado: ESTADO, acciones: [], efectos }, '').efectos, efectos)
+  assert.deepEqual(vista({ estado: null, acciones: [], efectos }, '').efectos, efectos)
+  assert.equal(vista(null, 'x').efectos, null)
 })

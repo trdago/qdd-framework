@@ -34,6 +34,8 @@ func textos(m MensajeConsola) string {
 	return strings.Join(out, "\n")
 }
 
+// contrato: remoto#a79ebe5c
+// contrato: remoto#179be606
 func TestConsola_SoloMientrasLaMiranSinSecretosYDosPorSegundo(t *testing.T) {
 	homeTemporal(t)
 	root := proyecto(t, "p", true)

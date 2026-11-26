@@ -2,6 +2,7 @@ package estado
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -15,13 +16,18 @@ type DatosPanel struct {
 	Abreviaturas []string      `json:"abreviaturas"`
 	Frentes      []FrentePanel `json:"frentes"`
 	Ocultos      int           `json:"ocultos"` // pendientes que no entran en el tope de DatosPendientes (los más antiguos)
+	// OcultasTuyas son las de Ocultos con un ⏳ de la persona: el panel y el teléfono dicen «⏳ N esperan por ti» y las
+	// despliegan, para que algo de la persona nunca quede tapado por las más nuevas (FND-296).
+	OcultasTuyas []FrentePanel `json:"ocultas_tuyas"`
 	// Totales de las tareas pendientes, entren o no en el panel: los mismos que la barra (FND-086).
-	Tareas  int         `json:"tareas"`
-	Esperan int         `json:"esperan"`
-	Fallan  int         `json:"fallan"`
-	Esperas []Pendiente `json:"esperas"`
-	Fallas  []Pendiente `json:"fallas"`
-	Actual  string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
+	Tareas  int `json:"tareas"`
+	Esperan int `json:"esperan"`
+	// EsperanPersona son los de Esperan que tiene que resolver la persona (FND-156).
+	EsperanPersona int         `json:"esperan_persona"`
+	Fallan         int         `json:"fallan"`
+	Esperas        []Pendiente `json:"esperas"`
+	Fallas         []Pendiente `json:"fallas"`
+	Actual         string      `json:"actual,omitempty"` // la última tarea activada, si sigue en curso (§3.13)
 	// Hace es cuánto pasó desde la última escritura («hace 9 h»); Viejo, que hay tareas pendientes y nadie tocó el
 	// tablero en TableroViejo (FND-088). Sin fecha legible van vacíos: no se inventan.
 	Hace  string `json:"hace,omitempty"`
@@ -65,8 +71,8 @@ func cicloPropio(o Objetivo) string {
 // día (lo que dice ⏳ ya pudo pasar).
 const TableroViejo = 2 * time.Hour
 
-// hace dice cuánto pasó, redondeado hacia abajo: «hace 20 min», «hace 9 h», «hace 2 d».
-func hace(d time.Duration) string {
+// Hace dice cuánto pasó, redondeado hacia abajo: «hace 20 min», «hace 9 h», «hace 2 d».
+func Hace(d time.Duration) string {
 	if d < time.Hour {
 		return fmt.Sprintf("hace %d min", int(d.Minutes()))
 	}
@@ -83,11 +89,11 @@ type FrentePanel struct {
 	Estado   string   `json:"estado"`
 	Simbolos []string `json:"simbolos"`
 	// Objetivo, Prefijo («│  └─ ») y Notas («espera a X») dibujan el árbol tal cual (EPT-A02); Pregunta es lo que el
-	// panel le envía al agente al pinchar la tarea (EPT-A03).
+	// panel le envía al agente al pinchar la tarea (EPT-A03). Al teléfono no viaja (FND-209): ninguna pantalla la muestra.
 	Objetivo string   `json:"objetivo,omitempty"`
 	Prefijo  string   `json:"prefijo,omitempty"`
 	Notas    []string `json:"notas,omitempty"`
-	Pregunta string   `json:"pregunta"`
+	Pregunta string   `json:"pregunta,omitempty"`
 	// Actividad solo va en una tarea en curso (§3.13): el panel muestra «● running» y destella cuando cambia Pulso.
 	Actividad *ActividadPanel `json:"actividad,omitempty"`
 }
@@ -121,9 +127,11 @@ func DatosPendientes(e Estado, now time.Time, tope int) DatosPanel {
 }
 
 // DatosEnCurso es DatosPendientes con la actividad (§3.13): una tarea abierta en curso siempre se ve, aunque no esté
-// entre las tope más nuevas, y lleva su Actividad. Ocultos cuenta solo las pendientes que no se ven.
+// entre las tope más nuevas, y lleva su Actividad. Las pendientes del objetivo en foco también se ven siempre (FND-199):
+// la persona lo marcó para tenerlas a la vista. Ocultos cuenta solo las pendientes que no se ven.
 func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel {
 	enCurso := EnCurso(act, now)
+	foco := e.focoAbierto()
 	visibles := map[string]bool{}
 	var pendientes []string
 	for _, f := range e.Frentes {
@@ -131,6 +139,10 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 			continue
 		}
 		if _, ok := enCurso[f.ID]; ok {
+			visibles[f.ID] = true
+			continue
+		}
+		if foco != "" && f.Objetivo == foco && !f.Terminado(e.EtapasDe(f)) {
 			visibles[f.ID] = true
 			continue
 		}
@@ -144,6 +156,11 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 	}
 	d := datos(e, now, func(f Frente) bool { return f.Estado == EstadoAbierto && visibles[f.ID] })
 	d.Ocultos = ocultos
+	tuyas := map[string]bool{}
+	for _, id := range pendientes[:ocultos] {
+		tuyas[id] = e.esperaALaPersona(id)
+	}
+	d.OcultasTuyas = datos(e, now, func(f Frente) bool { return f.Estado == EstadoAbierto && tuyas[f.ID] }).Frentes
 	for i, f := range d.Frentes {
 		a, ok := enCurso[f.ID]
 		if !ok {
@@ -157,10 +174,41 @@ func DatosEnCurso(e Estado, act Actividades, now time.Time, tope int) DatosPanel
 	return d
 }
 
+// focoAbierto es el id del objetivo abierto en foco, o "" si no hay.
+func (e Estado) focoAbierto() string {
+	for _, o := range e.Objetivos {
+		if o.Foco && o.Estado == ObjetivoAbierto {
+			return o.ID
+		}
+	}
+	return ""
+}
+
 // Totales cuenta las tareas pendientes (abiertas y no terminadas) y cada ⏳ y cada ❌ que tienen. La barra y el panel
 // usan esta misma cuenta (FND-086).
 type Totales struct {
-	Tareas, Esperan, Fallan int
+	Tareas, Esperan, EsperanPersona, Fallan int
+}
+
+// esperaALaPersona dice si la tarea id tiene algún ⏳ que le toca a la persona.
+func (e Estado) esperaALaPersona(id string) bool {
+	i := e.buscar(id)
+	if i < 0 {
+		return false
+	}
+	f := e.Frentes[i]
+	for _, etapa := range e.EtapasDe(f) {
+		if NormalizarEstado(f.Celdas[etapa].Estado) == Espera && DeLaPersona(f.Celdas[etapa].DeQuien) {
+			return true
+		}
+	}
+	return false
+}
+
+// DeLaPersona dice si un ⏳ le toca a la persona, según su de_quien.
+func DeLaPersona(deQuien string) bool {
+	quien := strings.ToLower(deQuien)
+	return strings.Contains(quien, "persona") || strings.Contains(quien, "usuario")
 }
 
 func (e Estado) Totales() Totales {
@@ -174,6 +222,9 @@ func (e Estado) Totales() Totales {
 			switch NormalizarEstado(f.Celdas[etapa].Estado) {
 			case Espera:
 				t.Esperan++
+				if DeLaPersona(f.Celdas[etapa].DeQuien) {
+					t.EsperanPersona++
+				}
 			case Falla:
 				t.Fallan++
 			}
@@ -197,11 +248,11 @@ func datos(e Estado, now time.Time, incluir func(Frente) bool) DatosPanel {
 	t := e.Totales()
 	d := DatosPanel{
 		Formato: e.Formato, Actualizado: e.Actualizado, Resumen: Statusline(e, now), Etapas: e.Etapas,
-		Tareas: t.Tareas, Esperan: t.Esperan, Fallan: t.Fallan,
-		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
+		Tareas: t.Tareas, Esperan: t.Esperan, EsperanPersona: t.EsperanPersona, Fallan: t.Fallan,
+		Abreviaturas: abreviaturas(e.Etapas), Frentes: []FrentePanel{}, OcultasTuyas: []FrentePanel{}, Esperas: []Pendiente{}, Fallas: []Pendiente{},
 	}
 	if cuando, err := time.Parse(time.RFC3339, e.Actualizado); err == nil && !now.Before(cuando) {
-		d.Hace = hace(now.Sub(cuando))
+		d.Hace = Hace(now.Sub(cuando))
 		d.Viejo = t.Tareas > 0 && now.Sub(cuando) > TableroViejo
 	}
 	var usados []Objetivo
@@ -233,6 +284,10 @@ func filaPanel(e Estado, fa FilaArbol, objetivo string, d *DatosPanel) FrentePan
 	for _, etapa := range etapas {
 		c := f.Celdas[etapa]
 		fila.Simbolos = append(fila.Simbolos, simbolo(c))
+		// De una tarea cerrada o descartada no se espera nada, aunque conserve el símbolo (FND-151).
+		if f.Estado != EstadoAbierto {
+			continue
+		}
 		switch NormalizarEstado(c.Estado) {
 		case Espera:
 			d.Esperas = append(d.Esperas, Pendiente{Frente: f.Nombre, Etapa: etapa, Texto: c.Bloqueo, DeQuien: c.DeQuien})
@@ -241,4 +296,19 @@ func filaPanel(e Estado, fa FilaArbol, objetivo string, d *DatosPanel) FrentePan
 		}
 	}
 	return fila
+}
+
+// Simbolos da las celdas de una tarea como las muestra el panel, para quien la nombra desde otro lado (un flujo).
+func (e Estado) Simbolos(id string) ([]string, bool) {
+	i := e.buscar(id)
+	if i < 0 {
+		return nil, false
+	}
+	f := e.Frentes[i]
+	etapas := e.EtapasDe(f)
+	simbolos := make([]string, 0, len(etapas))
+	for _, etapa := range etapas {
+		simbolos = append(simbolos, simbolo(f.Celdas[etapa]))
+	}
+	return simbolos, true
 }

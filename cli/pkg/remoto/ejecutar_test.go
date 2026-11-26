@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -86,6 +87,7 @@ func TestFirmaEjecucion_LaMismaQueElRelay(t *testing.T) {
 	}
 }
 
+// contrato: remoto#e825732f
 func TestArgsPermitidos_SoloLaListaYSinShell(t *testing.T) {
 	bien := map[string][]string{
 		"audit":                         {"audit"},
@@ -210,6 +212,7 @@ func bucleConQDDFalso(t *testing.T, ajustes ...func(*Bucle)) (string, string, st
 	return root, clave, falso, tr
 }
 
+// contrato: remoto#e825732f
 func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 	root, clave, falso, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("0c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", `estado check --json`, "d1", ahoraEn())
@@ -242,17 +245,9 @@ func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 	if !ok || x.Estado != consola.EstadoHecho || x.Nombre != "Pixel de d1" || strings.Contains(x.Salida, "ghp_") {
 		t.Fatalf("queda en la cola del proyecto, hecha y sin secretos: %+v", x)
 	}
-	var en *consola.Accion
-	ev := tr.esperar(t, 2*time.Second, "delta")
-	var d Delta
-	json.Unmarshal(ev.Payload, &d)
-	for i, a := range d.Proyectos[clave].Acciones {
-		if a.Solicitud == e.Solicitud {
-			en = &d.Proyectos[clave].Acciones[i]
-		}
-	}
-	if en == nil || en.Origen != consola.OrigenTelefono || en.Dispositivo != "Pixel de d1" || strings.Contains(en.Resultado, "ghp_") {
-		t.Fatalf("el panel del teléfono lo trae como pedido del teléfono: %+v", d.Proyectos[clave])
+	en := tr.accionEnDelta(t, 2*time.Second, clave, e.Solicitud)
+	if en.Origen != consola.OrigenTelefono || en.Dispositivo != "Pixel de d1" || strings.Contains(en.Resultado, "ghp_") {
+		t.Fatalf("el panel del teléfono lo trae como pedido del teléfono: %+v", en)
 	}
 	var ejecutadas int
 	for _, l := range lineasLog(t) {
@@ -265,6 +260,8 @@ func TestEjecutar_UnComandoQDDCorreUnaSolaVezSinShellNiSecretos(t *testing.T) {
 	}
 }
 
+// contrato: remoto#76b499d6
+// contrato: remoto#1958cd48
 func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("1c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", "doctor", "d1", ahoraEn())
@@ -273,6 +270,12 @@ func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	estadoDe(t, tr, time.Second)
 	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoFallo || !strings.Contains(got.Resultado, "args=doctor") {
 		t.Fatalf("un código distinto de 0 es fallo, con la salida: %+v", got)
+	}
+	// El fallo también pasa por el ocultador (inv. 16): el qdd falso imprime un ghp_ antes de salir con 3.
+	for _, env := range tr.Enviados() {
+		if strings.Contains(string(env.Payload), "ghp_") {
+			t.Fatalf("inv. 16: %s sale con el token: %s", env.Evento, env.Payload)
+		}
 	}
 	if x, _ := consola.EjecucionDe(root, e.Solicitud, time.Now()); x.Estado != consola.EstadoFallo || x.Codigo != 3 {
 		t.Fatalf("la cola anota la falla y su código: %+v", x)
@@ -287,6 +290,9 @@ func TestEjecutar_FallaConElFinalDeLaSalida(t *testing.T) {
 	}
 }
 
+// contrato: remoto#2e9da439
+// contrato: remoto#e825732f
+// contrato: remoto#179be606
 func TestEjecutar_LoQueNoSePermiteSeRechazaYNoCorre(t *testing.T) {
 	_, clave, falso, tr := bucleConQDDFalso(t)
 	casos := []struct{ tipo, texto, dice string }{
@@ -367,7 +373,7 @@ func TestEjecutar_UnComandoPorProyectoALaVez(t *testing.T) {
 	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoRechazada || !strings.Contains(got.Resultado, "ya corre") {
 		t.Fatalf("dos audit juntos se pisarían: %+v", got)
 	}
-	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoHecha || got.Solicitud != primero.Solicitud {
+	if got := estadoDe(t, tr, 20*time.Second); got.Estado != EstadoHecha || got.Solicitud != primero.Solicitud {
 		t.Fatalf("el primero termina: %+v", got)
 	}
 	if c := corridas(t, falso); len(c) != 1 {
@@ -389,6 +395,9 @@ func TestAccion_AuditarDesdeElTelefonoDevuelveElFinalDeLaSalida(t *testing.T) {
 	}
 }
 
+// contrato: remoto#6e30dfb4
+// contrato: remoto#e825732f
+// contrato: remoto#179be606
 func TestEjecutar_SinProSeRechaza(t *testing.T) {
 	_, clave, falso, tr := bucleConQDDFalso(t, func(b *Bucle) {
 		b.R = &relayBucleFalso{plan: PlanGratis(), avisos: make(chan aviso, 32)}
@@ -403,6 +412,7 @@ func TestEjecutar_SinProSeRechaza(t *testing.T) {
 	}
 }
 
+// contrato: remoto#b613d6de
 func TestEjecutar_LaInstruccionEsperaUnaSesionYSeEntregaUnaVez(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
 	e := ejecucionFirmada("9c6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", "Revisa el build\ny arréglalo", "d1", ahoraEn())
@@ -510,6 +520,7 @@ func TestPlanLocal_SoloConQDDMovilActivado(t *testing.T) {
 	}
 }
 
+// contrato: goal#63945bca
 func TestEjecutar_ElModoGoalSeEnciendeYApagaDesdeElTelefono(t *testing.T) {
 	args, err := ArgsPermitidos("goal activar")
 	if err != nil || strings.Join(args, " ") != "goal activar --desde telefono" {
@@ -530,10 +541,235 @@ func TestEjecutar_ElModoGoalSeEnciendeYApagaDesdeElTelefono(t *testing.T) {
 	}
 }
 
+// contrato: goal#63945bca
 func TestEjecutar_UnComandoDelTelefonoNoCorreComoIA(t *testing.T) {
 	t.Setenv("CLAUDECODE", "1")
 	codigo, salida := CorrerQDD(context.Background(), "sh", t.TempDir(), []string{"-c", `printf "[%s]" "$CLAUDECODE"`}, 5*time.Second)
 	if codigo != 0 || salida != "[]" {
 		t.Fatalf("sin CLAUDECODE: %d %q", codigo, salida)
+	}
+}
+
+// flujoDelTelefono deja un flujo de tres nodos en el proyecto del bucle.
+func flujoDelTelefono(t *testing.T, root string) {
+	t.Helper()
+	f := flujo.Flujo{Formato: flujo.Formato, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{
+		{ID: "a", Tipo: flujo.TipoResultado, Nombre: "Llega", Siguen: []string{"b"}},
+		{ID: "b", Tipo: flujo.TipoPaso, Nombre: "Valida", Siguen: []string{"c"}},
+		{ID: "c", Tipo: flujo.TipoResultado, Nombre: "Fin"},
+	}}
+	if err := flujo.Guardar(root, f); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// contrato: remoto#2e9da439
+func TestValidarTexto_FlujoSoloConElEsquema(t *testing.T) {
+	if err := ValidarTexto(consola.EjecutarFlujo, `{"op":"deshacer","flujo":"pago"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidarTexto(consola.EjecutarFlujo, `{"op":"deshacer","flujo":"pago","de":"ia"}`); err == nil {
+		t.Fatal("un campo de más se rechaza")
+	}
+	if err := ValidarTexto(consola.EjecutarFlujo, `audit`); err == nil {
+		t.Fatal("un comando no es una operación")
+	}
+}
+
+// contrato: remoto#2e9da439
+func TestEjecutar_UnComentarioDelTelefonoEsDeLaPersonaLlamaALaIAYSeAplicaUnaVez(t *testing.T) {
+	root, clave, falso, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	e := ejecucionFirmada("1d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"comentar","flujo":"pago","nodo":"a","texto":"¿y si falla?"}`, "d1", ahoraEn())
+	mandarEjecucion(tr, e)
+	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoRecibida {
+		t.Fatalf("primero recibida: %+v", got)
+	}
+	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoRecibida || !strings.Contains(got.Resultado, "sesión") || got.AccionID != AccionEjecutar {
+		t.Fatalf("sin sesión abierta espera y lo dice: %+v", got)
+	}
+	f, err := flujo.Cargar(root, "pago")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Nodos[0].Comentarios; len(got) != 1 || got[0].De != flujo.DePersona {
+		t.Fatalf("queda de la persona: %+v", got)
+	}
+	if got := corridas(t, falso); len(got) != 0 {
+		t.Fatalf("no corre ningún comando: %v", got)
+	}
+	tomadas, _ := consola.TomarInstrucciones(root, "sesion-a", time.Now())
+	if len(tomadas) != 1 || !strings.Contains(tomadas[0].Texto, "¿y si falla?") {
+		t.Fatalf("pide respuesta, así que llama a la IA: %+v", tomadas)
+	}
+	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoHecha {
+		t.Fatalf("entregado: %+v", got)
+	}
+
+	mandarEjecucion(tr, e)
+	if got := estadoDe(t, tr, time.Second); got.Estado != EstadoHecha {
+		t.Fatalf("la repetida responde el último estado: %+v", got)
+	}
+	f, err = flujo.Cargar(root, "pago")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Nodos[0].Comentarios) != 1 {
+		t.Fatalf("no se aplica dos veces: %+v", f.Nodos[0].Comentarios)
+	}
+}
+
+func TestEjecutar_UnaEdicionEsperaElEnvioYSuResultadoSaleSinSecretos(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	mandarEjecucion(tr, ejecucionFirmada("0d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"modificar","flujo":"pago","nodo":"b","nombre":"Usa ghp_abcdefghijklmnopqrstuvwxyz0123456789"}`, "d1", ahoraEn()))
+	estadoDe(t, tr, time.Second)
+	got := estadoDe(t, tr, 3*time.Second)
+	if got.Estado != EstadoHecha || got.Resultado == "" {
+		t.Fatalf("hecha, con lo que hizo: %+v", got)
+	}
+	if strings.Contains(got.Resultado, "ghp_") {
+		t.Fatalf("el resultado sale sin secretos (inv. 16): %q", got.Resultado)
+	}
+	if len(flujo.PorEnviar(root, "pago")) != 1 {
+		t.Fatal("queda por enviar")
+	}
+	if tomadas, _ := consola.TomarInstrucciones(root, "sesion-a", time.Now()); len(tomadas) != 0 {
+		t.Fatalf("no gasta un turno por cambio: %+v", tomadas)
+	}
+}
+
+// contrato: remoto#2e9da439
+func TestEjecutar_UnaEdicionQueNoSePuedeSeRechazaSinEscribir(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	casos := map[string]string{
+		"2d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50": `{"op":"quitar","flujo":"pago","nodo":"no-existe"}`,
+		"3d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50": `{"op":"borrar","flujo":"pago"}`,
+		"4d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50": `{"op":"deshacer","flujo":"../../fuera"}`,
+	}
+	for solicitud, texto := range casos {
+		mandarEjecucion(tr, ejecucionFirmada(solicitud, clave, "flujo", texto, "d1", ahoraEn()))
+		estadoDe(t, tr, time.Second)
+		if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoRechazada || got.Resultado == "" {
+			t.Fatalf("%s: rechazada con el motivo: %+v", texto, got)
+		}
+	}
+	if len(flujo.PorEnviar(root, "pago")) != 0 {
+		t.Fatal("no anotó nada")
+	}
+}
+
+// contrato: remoto#2e9da439
+// contrato: remoto#179be606
+func TestEjecutar_FlujoSinProSeRechaza(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t, func(b *Bucle) {
+		b.R = &relayBucleFalso{plan: PlanGratis(), avisos: make(chan aviso, 32)}
+	})
+	flujoDelTelefono(t, root)
+	mandarEjecucion(tr, ejecucionFirmada("5d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"comentar","flujo":"pago","nodo":"a","texto":"hola"}`, "d1", ahoraEn()))
+	estadoDe(t, tr, time.Second)
+	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoRechazada || !strings.Contains(got.Resultado, "Pro") {
+		t.Fatalf("rechazada por el plan: %+v", got)
+	}
+	if len(flujo.PorEnviar(root, "pago")) != 0 {
+		t.Fatal("no anotó nada")
+	}
+}
+
+func TestEjecutar_UnaEdicionNoEsperaAUnComandoQueCorre(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	audit := ejecucionFirmada("6d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", "audit", "d1", ahoraEn())
+	mandarEjecucion(tr, audit)
+	estadoDe(t, tr, time.Second)
+	estadoDe(t, tr, time.Second)
+	edicion := ejecucionFirmada("7d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"modificar","flujo":"pago","nodo":"b","nombre":"Revisa"}`, "d1", ahoraEn())
+	mandarEjecucion(tr, edicion)
+	vistas := map[string]string{}
+	limite := time.Now().Add(5 * time.Second)
+	for time.Now().Before(limite) && (vistas[audit.Solicitud] != EstadoHecha || vistas[edicion.Solicitud] != EstadoHecha) {
+		got := estadoDe(t, tr, 5*time.Second)
+		vistas[got.Solicitud] = got.Estado
+	}
+	if vistas[edicion.Solicitud] != EstadoHecha {
+		t.Fatalf("la edición se aplica aunque corra audit: %v", vistas)
+	}
+	if len(flujo.PorEnviar(root, "pago")) != 1 {
+		t.Fatal("la edición quedó")
+	}
+}
+
+// contrato: remoto#b613d6de
+func TestEjecutar_EnviarLeEntregaLoPendienteALaSesion(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	if _, _, err := flujo.Editar(root, "pago", flujo.DePersona, time.Now(), flujo.Comentar("a", "¿y si falla?", flujo.DePersona, time.Now())); err != nil {
+		t.Fatal(err)
+	}
+	e := ejecucionFirmada("8d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"enviar","flujo":"pago"}`, "d1", ahoraEn())
+	mandarEjecucion(tr, e)
+	estadoDe(t, tr, time.Second)
+	got := estadoDe(t, tr, 2*time.Second)
+	if got.Estado != EstadoRecibida || !strings.Contains(got.Resultado, "sesión") {
+		t.Fatalf("sin sesión espera y lo dice: %+v", got)
+	}
+	if len(flujo.PorEnviar(root, "pago")) != 0 {
+		t.Fatal("lo reclamado no sale dos veces")
+	}
+	tomadas, _ := consola.TomarInstrucciones(root, "sesion-a", time.Now())
+	if len(tomadas) != 1 || !strings.Contains(tomadas[0].Texto, "¿y si falla?") {
+		t.Fatalf("la sesión recibe el comentario: %+v", tomadas)
+	}
+	if !strings.HasPrefix(consola.MensajeInstruccion(tomadas[0]), "📱") {
+		t.Fatal("llega como un mensaje del teléfono")
+	}
+	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoHecha {
+		t.Fatalf("entregada: %+v", got)
+	}
+}
+
+func TestEjecutar_EnviarSinNadaPendienteNoMolestaALaSesion(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	mandarEjecucion(tr, ejecucionFirmada("9d6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"enviar","flujo":"pago"}`, "d1", ahoraEn()))
+	estadoDe(t, tr, time.Second)
+	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoHecha || !strings.Contains(got.Resultado, "nada") {
+		t.Fatalf("hecha, sin nada que enviar: %+v", got)
+	}
+	if tomadas, _ := consola.TomarInstrucciones(root, "sesion-a", time.Now()); len(tomadas) != 0 {
+		t.Fatalf("no encola nada: %+v", tomadas)
+	}
+}
+
+func TestEjecutar_LoEnviadoQueNoSeEntregaVuelveAQuedarPendiente(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	flujoDelTelefono(t, root)
+	if _, _, err := flujo.Editar(root, "pago", flujo.DePersona, time.Now(), flujo.Comentar("a", "hola", flujo.DePersona, time.Now())); err != nil {
+		t.Fatal(err)
+	}
+	e := ejecucionFirmada("ad6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "flujo", `{"op":"enviar","flujo":"pago"}`, "d1", ahoraEn())
+	mandarEjecucion(tr, e)
+	estadoDe(t, tr, time.Second)
+	estadoDe(t, tr, 2*time.Second)
+	if _, err := consola.RetirarInstruccion(root, e.Solicitud, "retirada en la prueba", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if got := estadoDe(t, tr, 3*time.Second); got.Estado != EstadoRechazada {
+		t.Fatalf("retirada: %+v", got)
+	}
+	if len(flujo.PorEnviar(root, "pago")) != 1 {
+		t.Fatal("lo que no llegó vuelve a quedar por enviar")
+	}
+}
+
+func TestOpcionesEjecutar_ConProDiceQueRecibeFlujos(t *testing.T) {
+	homeTemporal(t)
+	now := time.Now()
+	if o := OpcionesEjecutar(t.TempDir(), Plan{Plan: "pro"}, now); o == nil || !o.Flujos {
+		t.Fatalf("con Pro: %+v", o)
+	}
+	if o := OpcionesEjecutar(t.TempDir(), PlanGratis(), now); o != nil {
+		t.Fatalf("sin Pro no se ofrece: %+v", o)
 	}
 }

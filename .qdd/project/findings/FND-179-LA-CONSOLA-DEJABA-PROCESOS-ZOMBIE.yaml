@@ -1,0 +1,9 @@
+id: "FND-179"
+title: "La consola dejaba un proceso zombie por cada hijo que lanzaba"
+description: "qdd consola seguir lanza procesos sin esperarlos (pedidos, qdd consola prs, qdd consola version-nueva, qdd incidentes publicar) y los soltaba con Process.Release(). En Linux eso no recoge al hijo: al terminar quedaba como 'qdd <defunct>' mientras viviera la consola. Lo reportó una sesión de diagnóstico de CPU (MEJ-042, 919 zombies en ~4 h); el 2026-11-07 había 744 con 7 consolas abiertas."
+impact: "Los zombies no usan memoria ni CPU, pero llenan la tabla de procesos; con consolas abiertas por días se acercan al tope de PIDs. La persona recibía el aviso una y otra vez."
+action_taken: "soltar(c) recoge al hijo con c.Wait() en una goroutine, sin bloquear a quien lo lanza. Lo usan lanzar.go, prs.go y version_nueva.go; incidentes/publicar.go hace lo mismo. Una prueba impide volver a usar Process.Release() en esos paquetes."
+test_result: "cli/pkg/consola/soltar_linux_test.go: TestSoltar_UnHijoQueTerminaNoQuedaZombie_FND179 y TestSoltar_NingunLanzamientoUsaRelease_FND179 (fallan con Release)."
+status: resolved
+detectado_por: ia
+date: "2026-11-07"

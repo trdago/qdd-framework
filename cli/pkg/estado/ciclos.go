@@ -143,17 +143,19 @@ func reformar(f *Frente, etapas []string, ciclo string) error {
 	return nil
 }
 
-// reformarCiclo reforma las tareas que siguen el ciclo.
-func (e *Estado) reformarCiclo(ciclo string) error {
+// reformarCiclo reforma las tareas que siguen el ciclo y dice cuáles.
+func (e *Estado) reformarCiclo(ciclo string) ([]string, error) {
+	var tocadas []string
 	for i := range e.Frentes {
 		if e.CicloDe(e.Frentes[i]) != ciclo {
 			continue
 		}
 		if err := reformar(&e.Frentes[i], e.EtapasDe(e.Frentes[i]), ciclo); err != nil {
-			return err
+			return nil, err
 		}
+		tocadas = append(tocadas, e.Frentes[i].ID)
 	}
-	return nil
+	return tocadas, nil
 }
 
 // DeclararCiclo crea un ciclo o cambia sus etapas (qdd estado ciclo); con «proyecto», las etapas del archivo. Sus
@@ -188,11 +190,12 @@ func DeclararCiclo(root, nombre string, etapas []string, now time.Time) error {
 		}
 		e.Ciclos[nombre] = etapas
 	}
-	if err := e.reformarCiclo(nombre); err != nil {
+	tocadas, err := e.reformarCiclo(nombre)
+	if err != nil {
 		return fmt.Errorf("no se escribió: %w", err)
 	}
-	e.Actualizado = now.Format(time.RFC3339)
-	return Save(root, e)
+	// Las tareas reformadas pasan por Check: una etapa nueva puede dejar una sin cumplir (FND-270).
+	return guardarTareasValidadas(root, e, tocadas, now)
 }
 
 // ciclosUsados: los ciclos propios (no «proyecto») de los objetivos dados, en su orden y sin repetir.

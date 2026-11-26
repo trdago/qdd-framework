@@ -99,6 +99,8 @@ func TestCandidatos_LosEjecutablesDelProyecto_HER_C01(t *testing.T) {
 	}
 }
 
+// contrato: herramientas#3dcdd332
+// contrato: herramientas#bb7175a2
 func TestGuardar_SinDefinicionValidaNoHayPestaña_HER_C02(t *testing.T) {
 	conShell(t)
 	root := t.TempDir()
@@ -118,6 +120,9 @@ func TestGuardar_SinDefinicionValidaNoHayPestaña_HER_C02(t *testing.T) {
 		if len(problemas) == 0 || !strings.Contains(strings.Join(problemas, "\n"), porque[caso]) {
 			t.Errorf("%s: no se guarda y se dice por qué (%q): %v", caso, porque[caso], problemas)
 		}
+		if strings.Contains(strings.Join(problemas, "\n"), "ghp_0123456789") {
+			t.Errorf("%s: el mensaje nunca repite el secreto: %v", caso, problemas)
+		}
 	}
 	if hs, _ := Cargar(root); len(hs) != 0 {
 		t.Fatalf("nada inválido quedó guardado: %+v", hs)
@@ -131,6 +136,49 @@ func TestGuardar_SinDefinicionValidaNoHayPestaña_HER_C02(t *testing.T) {
 	}
 }
 
+// Un secreto escrito en cualquier parte de la definición (no solo en sus argumentos) no se guarda, y el mensaje que lo
+// rechaza no lo repite; tampoco repite el valor de una variable de su entorno que su prueba de humo imprima al fallar.
+// contrato: herramientas#bb7175a2
+func TestGuardar_UnSecretoEnCualquierCampoNoSeGuardaNiSeRepite(t *testing.T) {
+	conShell(t)
+	root := t.TempDir()
+	simulador(t, root)
+	const token = "ghp_0123456789abcdefghijABCDEFGHIJ012345"
+	casos := map[string]string{
+		"--password y su valor": strings.Replace(definicion, "args: [reset]", "args: [reset, --password, hunter2]", 1),
+		"api_key=":              strings.Replace(definicion, "args: [reset]", "args: [reset, api_key=xyz]", 1),
+		"el nombre":             strings.Replace(definicion, "nombre: Simulador WS", "nombre: Simulador "+token, 1),
+		"la descripción":        strings.Replace(definicion, "descripcion: Simula", "descripcion: "+token+" Simula", 1),
+		"una opción":            strings.Replace(definicion, "opciones: [soporte, ventas]", "opciones: [soporte, "+token+"]", 1),
+		"el modo":               strings.Replace(definicion, "modo: una-vez\n  - id: reiniciar", "modo: "+token+"\n  - id: reiniciar", 1),
+		"el tipo de un campo":   strings.Replace(definicion, "{id: seco, tipo: si-no}", "{id: seco, tipo: "+token+"}", 1),
+		"el comando":            strings.Replace(definicion, "./bin/simulador", "./bin/"+token, 1),
+	}
+	for caso, texto := range casos {
+		_, problemas := Guardar(root, []byte(texto))
+		todo := strings.Join(problemas, "\n")
+		if len(problemas) == 0 {
+			t.Errorf("%s: una definición con un secreto no se guarda", caso)
+		}
+		for _, valor := range []string{"ghp_0123", "hunter2", "xyz"} {
+			if strings.Contains(todo, valor) {
+				t.Errorf("%s: el mensaje repite el secreto: %v", caso, problemas)
+			}
+		}
+	}
+	if hs, _ := Cargar(root); len(hs) != 0 {
+		t.Fatalf("nada con un secreto quedó guardado: %+v", hs)
+	}
+	escribir(t, filepath.Join(root, "bin", "roto"), "#!/bin/sh\necho \"401 con $BOT_TOKEN\" >&2\nexit 3\n", 0755)
+	t.Setenv("BOT_TOKEN", "valor-de-prueba-987654")
+	humo := strings.Replace(strings.Replace(definicion, "./bin/simulador", "./bin/roto", 1), "comando: [./bin/roto]", "comando: [./bin/roto]\nentorno: [BOT_TOKEN]", 1)
+	_, problemas := Guardar(root, []byte(humo))
+	if len(problemas) == 0 || !strings.Contains(strings.Join(problemas, "\n"), "401 con") || strings.Contains(strings.Join(problemas, "\n"), "valor-de-prueba-987654") {
+		t.Fatalf("la prueba de humo que falla dice su salida sin el valor de la variable: %v", problemas)
+	}
+}
+
+// contrato: herramientas#9ba74bf7
 func TestCorrer_UnCampoEsUnArgumento_HER_C03(t *testing.T) {
 	conShell(t)
 	root := t.TempDir()
@@ -218,6 +266,7 @@ func TestAyuda_LeeLaAyudaSinEntrada(t *testing.T) {
 	}
 }
 
+// contrato: doctor#9fdd2a35
 func TestDiagnosticar_CadaHerramientaDiceQueLeFaltaYComoSeArregla(t *testing.T) {
 	conShell(t)
 	root := t.TempDir()

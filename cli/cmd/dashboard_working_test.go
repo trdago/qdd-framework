@@ -25,7 +25,7 @@ func TestWorkingSemaphore(t *testing.T) {
 
 	statePath := filepath.Join(tempDir, ".qdd", "state.json")
 	os.WriteFile(statePath, []byte(`{"version":"v1.1.0"}`), 0644)
-	
+
 	dummyRoot := &cobra.Command{Version: "v1.1.0"}
 	dummyRoot.AddCommand(dummyCmd)
 
@@ -34,10 +34,10 @@ func TestWorkingSemaphore(t *testing.T) {
 		t.Fatalf("Error inesperado en PreRun: %v", err)
 	}
 
-	workingPath := filepath.Join(tempDir, ".qdd", "working")
+	workingPath := filepath.Join(tempDir, ".qdd", "working", "comando")
 	content, err := os.ReadFile(workingPath)
 	if err != nil {
-		t.Fatalf("No se creó el archivo .qdd/working: %v", err)
+		t.Fatalf("No se creó el archivo .qdd/working/comando (FND-182): %v", err)
 	}
 
 	if string(content) != "learn" {
@@ -47,7 +47,7 @@ func TestWorkingSemaphore(t *testing.T) {
 	rootCmd.PersistentPostRun(dummyCmd, []string{})
 
 	if _, err := os.Stat(workingPath); !os.IsNotExist(err) {
-		t.Errorf("El archivo .qdd/working no se eliminó después del PostRun")
+		t.Errorf("El archivo .qdd/working/comando no se eliminó después del PostRun")
 	}
 }
 

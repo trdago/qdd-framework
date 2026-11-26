@@ -36,6 +36,7 @@ func TestBlueprints_ActualizarElCatalogoNoEscribeEnElProyecto(t *testing.T) {
 	}
 }
 
+// contrato: estado#bc172f02
 func TestBlueprints_ActualizarEInstalarSonDeterministasYPidenConfirmar(t *testing.T) {
 	acciones := AccionesDeInventario(inventario)
 	for id, args := range map[string]string{

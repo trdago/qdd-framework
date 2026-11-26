@@ -1,0 +1,9 @@
+id: "FND-290"
+title: "La prueba de uso concurrente exigía lo que FND-280 decidió no garantizar"
+description: "Medido 2026-11-21 en el CI del PR #311 (Pruebas herméticas, run 44935802769): TestRegistrar_VeinteEventosALaVezNoPierdenNinguno falló con «el registro de uso: lo usa otro proceso». FND-280 hizo que un evento espere el bloqueo como mucho 250 ms y, si no lo consigue, no se anote; la prueba seguía exigiendo que los 20 eventos simultáneos se anotaran siempre, y en una máquina cargada (bwrap, varias suites) alguno esperó más."
+impact: "Una prueba inestable bloqueaba el merge de rc.112 (FND-289), sin que el producto tuviera un defecto."
+action_taken: "La prueba ahora verifica lo que la invariante promete (estado#bcb808b7): uno a la vez, sin perder ningún evento que se anotó. Un evento solo puede quedar fuera por esperar el bloqueo; lo medido llega exactamente hasta el último anotado y lo de cada proyecto suma el total."
+test_result: "go test -count=20 -run VeinteEventos ./pkg/uso y con -cpu 1 pasan; la suite de Go y el chequeo hermético pasan."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

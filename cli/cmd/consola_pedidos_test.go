@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,19 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
+
+func TestConsolaPedir_UnArgumentoConEspaciosLlegaEntero_FND212(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	var salida, errores bytes.Buffer
+	args := []string{"git", "-c", "credential.helper=!gh auth git-credential", "push"}
+	if codigo := consolaPedir(root, "Push con gh", "", consola.Orden{}, args, &salida, &errores); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, errores.String())
+	}
+	if got, want := consola.Pedidos(root)[0].Comando, consola.ComandoDeArgs(args, runtime.GOOS); got != want || got == strings.Join(args, " ") {
+		t.Fatalf("el argumento con espacios queda citado para la shell: %q (want %q)", got, want)
+	}
+}
 
 var ahoraPrueba = time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 
@@ -36,6 +50,7 @@ func TestConsolaPedir_DejaElComandoEnElPanel_CCC_C17(t *testing.T) {
 	}
 }
 
+// contrato: estado#fc9c5b05
 func TestConsolaAccion_UnPedidoSinConfirmarNoCorre_CCC_C18(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
@@ -229,6 +244,7 @@ func TestConsolaPedirTool_ResueltoEnElChat(t *testing.T) {
 }
 
 // Aviso al chat (pedido del usuario, 2026-11-02): el panel dice su sesión al confirmar y reclama el aviso una vez.
+// contrato: estado#0034d69c
 func TestConsolaAvisado_LaSesionQueConfirmoLoReclamaUnaSolaVez(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
 	root := t.TempDir()
@@ -240,13 +256,38 @@ func TestConsolaAvisado_LaSesionQueConfirmoLoReclamaUnaSolaVez(t *testing.T) {
 	if codigo := consolaAccion(root, "pedido:"+p.ID, true, "sesion-1", &salida, &errores); codigo != 0 || esperarFin(t, root, p.ID).Estado != consola.EstadoHecho {
 		t.Fatalf("confirmado corre: %d %q", codigo, errores.String())
 	}
-	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-2", &errores); codigo != 1 {
+	var aviso bytes.Buffer
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-2", &aviso, &errores); codigo != 1 {
 		t.Fatal("otra sesión no lo reclama")
 	}
-	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &errores); codigo != 0 {
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &aviso, &errores); codigo != 0 {
 		t.Fatalf("la que lo confirmó, sí: %q", errores.String())
 	}
-	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &errores); codigo != 1 {
+	if !strings.Contains(aviso.String(), "terminó bien") || !strings.Contains(aviso.String(), "publicado") {
+		t.Fatalf("y recibe el mensaje del estado que reclamó (FND-187): %q", aviso.String())
+	}
+	if codigo := consolaAvisado(root, "pedido:"+p.ID, "sesion-1", &aviso, &errores); codigo != 1 {
 		t.Fatal("una sola vez")
+	}
+}
+
+// MEJ-054: la salida de un pedido terminado solo se veía en el archivo de la cola. 'qdd consola pedidos --salida <id o
+// tecla>' la muestra, también la de uno hecho o fallido cuya tecla ya quedó libre.
+func TestConsolaPedidos_SalidaDeUnPedidoPorSuTecla_MEJ054(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
+	root := t.TempDir()
+	fallo, _ := consola.Pedir(root, "echo se cayó el push; exit 3", "Push", "", ahoraPrueba)
+	var salida, errores bytes.Buffer
+	consolaAccion(root, "pedido:"+fallo.ID, true, "", &salida, &errores)
+	esperarFin(t, root, fallo.ID)
+	salida.Reset()
+	if codigo := salidaDePedido(root, fallo.Tecla, &salida, &errores); codigo != 0 {
+		t.Fatalf("código %d: %s", codigo, errores.String())
+	}
+	if !strings.Contains(salida.String(), "Push · falló (código 3)") || !strings.Contains(salida.String(), "se cayó el push") {
+		t.Fatalf("dice cómo terminó y su salida: %q", salida.String())
+	}
+	if codigo := salidaDePedido(root, "z", &salida, &errores); codigo != 1 {
+		t.Fatalf("una referencia que no está es un error: %d", codigo)
 	}
 }

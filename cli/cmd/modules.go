@@ -7,6 +7,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/audit"
 	"github.com/qdd-framework/qdd/pkg/blueprints"
+	"github.com/qdd-framework/qdd/pkg/estado"
 	"github.com/qdd-framework/qdd/pkg/integration"
 	"github.com/qdd-framework/qdd/pkg/modules"
 	"github.com/spf13/cobra"
@@ -28,6 +29,8 @@ var modulesApproveCmd = &cobra.Command{
 	Run:   runModulesApprove,
 }
 
+var contextoCompleto bool
+
 var modulesContextCmd = &cobra.Command{
 	Use:   "context [rutas...]",
 	Short: "Imprime el contexto QDD que recibe una IA (igual que la tool MCP qdd_project_context)",
@@ -37,6 +40,7 @@ var modulesContextCmd = &cobra.Command{
 func init() {
 	modulesCmd.AddCommand(modulesApproveCmd)
 	modulesCmd.AddCommand(modulesContextCmd)
+	modulesContextCmd.Flags().BoolVar(&contextoCompleto, "completo", false, "las fichas enteras y el mapa de módulos, aunque haya rutas (MEJ-073)")
 	rootCmd.AddCommand(modulesCmd)
 }
 
@@ -104,5 +108,8 @@ func runModulesContext(cmd *cobra.Command, args []string) {
 		Estandares:   blueprints.Estandares(root),
 		Modo:         modo,
 		ModoVisto:    visto,
+
+		TareasPorRevisar: estado.LineasPorRevisar(root),
+		Completo:         contextoCompleto,
 	}))
 }

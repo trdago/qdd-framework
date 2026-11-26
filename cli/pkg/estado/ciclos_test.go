@@ -46,6 +46,7 @@ func guardarEn(t *testing.T, e Estado) string {
 	return root
 }
 
+// contrato: estado-por-tareas#28d94828
 func TestEPT_K01_UnCicloTieneEtapasYUnObjetivoSigueUnoQueExiste(t *testing.T) {
 	if vs := Check(conCiclos(), nil); len(vs) != 0 {
 		t.Fatalf("un estado con ciclos válido no debería tener violaciones: %s", idsDe(vs))
@@ -79,6 +80,7 @@ func TestEPT_K01_UnCicloTieneEtapasYUnObjetivoSigueUnoQueExiste(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#7b9910dc
 func TestEPT_K02_LaTareaTomaLasEtapasDeSuCiclo(t *testing.T) {
 	root := guardarEn(t, conCiclos())
 	if err := GuardarTarea(root, CambioTarea{ID: "f02", Nombre: "Explicar el tutor", Objetivo: "tutor", CambiaObjetivo: true}, time.Now()); err != nil {
@@ -111,6 +113,7 @@ func TestEPT_K02_LaTareaTomaLasEtapasDeSuCiclo(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#48a61817
 func TestEPT_K03_CambiarDeCicloNoPierdeAvance(t *testing.T) {
 	e := conCiclos()
 	e.Ciclos["corto"] = []string{"Concepto", "Puerta"}
@@ -150,6 +153,7 @@ func TestEPT_K03_CambiarDeCicloNoPierdeAvance(t *testing.T) {
 	}
 }
 
+// contrato: estado-por-tareas#ac2d62de
 func TestEPT_K04_UnaTablaPorCiclo(t *testing.T) {
 	e := conCiclos()
 	md := Markdown(e, time.Now(), AlcanceAbiertos)

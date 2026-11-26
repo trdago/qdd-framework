@@ -65,6 +65,8 @@ func TestPedidos_SeMuestranEnElOrdenDeSusDependencias_FND080(t *testing.T) {
 }
 
 // Desde el armado (pedido del usuario, 2026-11-01) el que espera tiene su tecla: confirmarlo lo arma (armado.go).
+// contrato: estado#5876cf02
+// contrato: estado#b4c12c3e
 func TestAcciones_UnPedidoQueEsperaDiceQueEsperaYSeArmaConSuTecla_FND080(t *testing.T) {
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})
@@ -113,7 +115,7 @@ func TestPedidos_UnHechoQueOtroEsperaNoSeVa_FND080(t *testing.T) {
 	}
 }
 
-func TestDescartar_LoQueOtroEsperabaLoLibera_FND080(t *testing.T) {
+func TestDescartar_LoQueOtroEsperabaYaNoLoEspera_FND080(t *testing.T) {
 	root := proyectoConCola(t)
 	primero := mustPedirEnOrden(t, root, "exit 0 # primero", Orden{})
 	segundo := mustPedirEnOrden(t, root, "exit 0 # segundo", Orden{Despues: []string{primero.ID}})
@@ -124,11 +126,13 @@ func TestDescartar_LoQueOtroEsperabaLoLibera_FND080(t *testing.T) {
 	if len(cola) != 1 || len(cola[0].Despues) != 0 {
 		t.Fatalf("descartar lo que se esperaba quita la dependencia: %+v", cola)
 	}
-	if a, _ := BuscarAccion(Acciones(root, false), "pedido:"+segundo.ID); a.Tecla != "b" {
-		t.Fatalf("y el que esperaba se puede ejecutar: %+v", a)
+	// Desde FND-213 el que esperaba no queda libre: queda bloqueado hasta que la IA lo pida de nuevo.
+	if a, _ := BuscarAccion(Acciones(root, false), "pedido:"+segundo.ID); a.Tecla != "" || a.Bloqueo == "" {
+		t.Fatalf("y el que esperaba queda bloqueado: %+v", a)
 	}
 }
 
+// contrato: estado#b4c12c3e
 func TestPedirEnOrden_RechazaCiclosYReferenciasQueNoSirven(t *testing.T) {
 	root := proyectoConCola(t)
 	uno := mustPedirEnOrden(t, root, "exit 0 # uno", Orden{})
@@ -178,5 +182,24 @@ func TestPedidos_UnaColaConUnCicloSeLeeSinPerderPedidos(t *testing.T) {
 	}
 	if got := comandosDe(Pedidos(root)); got != "dos uno" && got != "uno dos" {
 		t.Fatalf("una cola editada a mano con un ciclo se lee entera: %s", got)
+	}
+}
+
+// FND-196 (MEJ-054): en modo goal un pedido se confirma en segundos y su tecla queda libre. Otro pedido con --despues
+// <esa tecla> se rechazaba («no hay un pedido…») o, si le tocaba la misma tecla, se esperaba a sí mismo. La tecla de un
+// pedido ya hecho es una dependencia cumplida; una que nunca existió sigue siendo un error.
+func TestPedir_DespuesDeUnaTeclaYaHechaEsUnaDependenciaCumplida_FND196(t *testing.T) {
+	root := proyectoConCola(t)
+	push := mustPedirEnOrden(t, root, "exit 0 # push", Orden{})
+	terminar(root, push.ID, 0, "listo", false)
+	pr, err := PedirEnOrden(root, "exit 0 # pr", "m pr", "", Orden{Despues: []string{push.Tecla}}, enCola)
+	if err != nil {
+		t.Fatalf("la tecla de un pedido hecho no lo rechaza: %v", err)
+	}
+	if len(pr.Despues) != 0 || len(EsperaDe(root, pr.ID)) != 0 {
+		t.Fatalf("no espera nada: ya está cumplido: %+v", pr)
+	}
+	if _, err := PedirEnOrden(root, "exit 0 # otro", "m otro", "", Orden{Despues: []string{"z"}}, enCola); err == nil {
+		t.Fatal("una tecla que nunca fue de un pedido sigue siendo un error")
 	}
 }

@@ -1,0 +1,33 @@
+id: integracion
+nombre: Reglas para las IAs (bloque QCP en AGENTS.md y otros)
+estado: aprobado
+rutas:
+    - cli/pkg/integration
+objetivo_operativo:
+    problema: Cada IA que trabaja en un proyecto (Claude Code, Cursor, Antigravity, OpenCode y las que leen AGENTS.md) tiene que conocer el método de QDD sin que la persona se lo explique, y recibir las reglas nuevas cuando qdd se actualiza. Ese bloque entra en cada sesión, así que su tamaño y sus copias se pagan en contexto todo el tiempo.
+    usuarios: Las IAs de cada sesión; qdd init y qdd doctor --fix, que escriben y renuevan el bloque; el panel y QDD Móvil, que muestran las reglas atrasadas de cada proyecto.
+    criterio_de_exito: Una sesión recibe el bloque una sola vez, de la revisión de su qdd, y el bloque dice cada regla que cambia la conducta en lo mínimo (no más de la mitad de los 8,3 KB de la revisión 4).
+    caso_real: 'MEJ-062 (sfrc, 2026-11-11): el bloque se cargaba tres veces (~/AGENTS.md sin revisión, ~/Documents/proyectos/AGENTS.md y el del proyecto, revisión 4), unos 21 KB por sesión, con un catálogo de comandos que casi no se usa.'
+objetivo_tecnologico:
+    arquitectura: types.go tiene el bloque (QDDCommandProtocol) con su revisión; base.go lo inyecta entre los marcadores BEGIN/END conservando lo demás del archivo y sin pisar uno de revisión mayor. Cada adaptador (cursor, claude, antigravity, opencode) lo escribe en sus archivos; manager.go los corre todos. bloque.go nombra los archivos con un bloque viejo o sobrante (BloquesViejos, que leen doctor, el panel y qdd remoto). padres.go encuentra y quita las copias en las carpetas padre (BloquesEnPadres, QuitarBloquesDePadres) y dice si una carpeta contiene proyectos (Contenedor).
+    decisiones:
+        - Cambiar el texto del bloque obliga a subir su revisión (una prueba fija su huella), para que doctor --fix lo renueve en cada proyecto (FND-126).
+        - 'El bloque se acorta sin perder reglas (MEJ-062, revisión 5): el catálogo de comandos /qdd va en una línea que remite a qdd --help, y cada regla queda en lo que cambia la conducta. protocol_corto_test.go fija el tope (4148 bytes) y una frase de cada regla de la revisión 4.'
+        - 'Una carpeta de proyectos (un proyecto QDD con otro proyecto QDD directamente adentro, sin contar carpetas ocultas) no lleva el bloque en AGENTS.md: las IAs lo heredarían en cada proyecto de adentro. Su sync lo saca (con respaldo) y BloquesViejos lo nombra mientras esté. Los demás archivos (.cursorrules, .clauderc…) no se heredan y siguen con el bloque.'
+        - 'Las copias en carpetas padre se buscan solo hasta la carpeta personal (TopePadres): nunca fuera de ella. Las pruebas cambian TopePadres por su carpeta temporal.'
+        - 'La auto-asociación a un comando /qdd se conserva, en una línea: decir antes de empezar qué comando se aplica y por qué.'
+    invariantes:
+        - Sincronizar conserva todo lo que el archivo tiene fuera de los marcadores del bloque.
+        - Quitar un bloque de una carpeta padre deja antes un respaldo con el archivo entero; nunca toca nada fuera de los marcadores.
+        - Un qdd más viejo nunca pisa el bloque de uno más nuevo.
+        - Las pruebas no tocan los AGENTS.md reales de la persona.
+pruebas:
+    comandos:
+        - cd cli && go test ./pkg/integration/
+        - cd cli && go test ./cmd/ -run 'Doctor|Init'
+fuentes:
+    - cli/pkg/integration/types.go
+    - cli/pkg/integration/padres.go
+    - cli/pkg/integration/bloque.go
+ultima_revision: "2026-11-14"
+revisado_en_commit: 81d46ae25dc9

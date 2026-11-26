@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/qdd-framework/qdd/pkg/findings"
 	"gopkg.in/yaml.v3"
 )
 
 type DiagnosisPayload struct {
+	ID             string   `yaml:"id"`
 	IssueType      string   `yaml:"issue_type"`
 	Title          string   `yaml:"title"`
 	RootCause      string   `yaml:"root_cause"`
@@ -57,21 +60,22 @@ func registerResolveDiagnoseTool(s *server.MCPServer) {
 			}
 		}
 
+		findingID := fmt.Sprintf("FIND-DIAG-%d", time.Now().Unix())
 		payload := DiagnosisPayload{
+			ID:             findingID,
 			IssueType:      issueType,
 			Title:          title,
 			RootCause:      rootCause,
 			ImpactAnalysis: impactAnalysis,
 			AffectedFiles:  filesList,
 			DiagnosedAt:    time.Now().Format(time.RFC3339),
-			Status:         "diagnosed",
+			Status:         string(findings.Abierto),
 		}
 
 		cwd, _ := os.Getwd()
 		findingsDir := filepath.Join(cwd, ".qdd", "project", "findings")
 		os.MkdirAll(findingsDir, 0755)
 
-		findingID := fmt.Sprintf("FIND-DIAG-%d", time.Now().Unix())
 		targetFile := filepath.Join(findingsDir, fmt.Sprintf("%s.yaml", findingID))
 
 		data, err := yaml.Marshal(payload)
@@ -83,14 +87,32 @@ func registerResolveDiagnoseTool(s *server.MCPServer) {
 			return mcp.NewToolResultError(fmt.Sprintf("Error guardando diagnóstico: %v", err)), nil
 		}
 
-		msg := fmt.Sprintf("✅ Diagnóstico registrado exitosamente.\nID: %s\nRuta: %s\n\nEl testigo pasa al Implementador para crear el Golden Set (Fase 3) y la solución Cero-Else (Fase 4).", findingID, targetFile)
+		msg := fmt.Sprintf("Diagnóstico registrado como finding abierto.\nID: %s\nRuta: %s\n\nFalta la prueba que lo reproduce y el arreglo.", findingID, targetFile)
 		return mcp.NewToolResultText(msg), nil
 	})
 }
 
+var idDeResolucion = regexp.MustCompile(`^[A-Za-z0-9_-]{1,80}$`)
+
+// goldenSetDelProyecto: el acta nombra un archivo que existe dentro del proyecto.
+func goldenSetDelProyecto(cwd, ruta string) error {
+	completa := ruta
+	if !filepath.IsAbs(ruta) {
+		completa = filepath.Join(cwd, ruta)
+	}
+	rel, err := filepath.Rel(cwd, completa)
+	if err != nil || !filepath.IsLocal(rel) {
+		return fmt.Errorf("el golden set %s está fuera del proyecto", ruta)
+	}
+	if !fileExists(completa) {
+		return fmt.Errorf("el golden set %s no existe", ruta)
+	}
+	return nil
+}
+
 func registerResolveCertifyTool(s *server.MCPServer) {
 	tool := mcp.NewTool("qdd_resolve_certify",
-		mcp.WithDescription("Firma una resolución validada por QA y DevOps."),
+		mcp.WithDescription("Escribe el acta de una resolución; no corre pruebas."),
 		mcp.WithString("resolution_id", mcp.Required(), mcp.Description("Id de la resolución")),
 		mcp.WithString("golden_set_path", mcp.Required(), mcp.Description("Ruta del Golden Set")),
 		mcp.WithBoolean("qa_approved", mcp.Required(), mcp.Description("Aprobación de QA")),
@@ -116,6 +138,18 @@ func registerResolveCertifyTool(s *server.MCPServer) {
 			return mcp.NewToolResultError("resolution_id y golden_set_path son requeridos"), nil
 		}
 
+		if !idDeResolucion.MatchString(resolutionID) {
+			return mcp.NewToolResultError("resolution_id solo lleva letras, números, «-» y «_»"), nil
+		}
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		if err := goldenSetDelProyecto(cwd, goldenSetPath); err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
 		if !qaApproved {
 			return mcp.NewToolResultError("Certificación RECHAZADA: QA no ha dado su aprobación. Debe regresar a Fase 3 (Implementador)."), nil
 		}
@@ -124,31 +158,30 @@ func registerResolveCertifyTool(s *server.MCPServer) {
 			return mcp.NewToolResultError("Certificación RECHAZADA: DevOps no ha aprobado el plan de despliegue sin impacto."), nil
 		}
 
-		cwd, _ := os.Getwd()
 		certDir := filepath.Join(cwd, ".qdd", "project", "certification")
 		os.MkdirAll(certDir, 0755)
 
 		certFile := filepath.Join(certDir, fmt.Sprintf("resolution_%s.md", resolutionID))
-		content := fmt.Sprintf(`# CERTIFICADO DE RESOLUCIÓN %s
+		content := fmt.Sprintf(`# Acta de resolución %s
 
-- **Fecha de Certificación:** %s
-- **Golden Set Verificado:** %s
-- **Estado:** APROBADO 100%% (Cero-Else, Zero-Mocks en Prod)
+- **Fecha:** %s
+- **Golden set:** %s (el archivo existe; no se ejecutó)
+- **Aprobaciones:** las declaró quien llamó a la tool; QDD no las comprueba
 
-## Validación QA
-- **Aprobado:** Sí
-- **Notas de QA:** %s
+## QA
+- **Declarado:** aprobado
+- **Notas:** %s
 
-## Validación DevOps / SRE
-- **Aprobado:** Sí
-- **Notas de DevOps:** %s
+## DevOps / SRE
+- **Declarado:** aprobado
+- **Notas:** %s
 `, resolutionID, time.Now().Format(time.RFC3339), goldenSetPath, qaNotes, devopsNotes)
 
 		if err := os.WriteFile(certFile, []byte(content), 0644); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error guardando certificado: %v", err)), nil
 		}
 
-		msg := fmt.Sprintf("🎉 RESOLUCIÓN CERTIFICADA Y APROBADA.\nCertificado generado en: %s\nEl cambio está certificado para release a producción.", certFile)
+		msg := fmt.Sprintf("Acta escrita en %s. Registra lo declarado; el golden set no se ejecutó: corre qdd audit antes de commitear.", certFile)
 		return mcp.NewToolResultText(msg), nil
 	})
 }

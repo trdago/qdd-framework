@@ -161,3 +161,30 @@ func createAgentExecuteHandler() http.HandlerFunc {
 		json.NewEncoder(w).Encode(execResult)
 	}
 }
+
+// FND-172: el panel web tampoco lanza un agente real desde una prueba, y Claude Code instalado no cambia el resultado.
+func TestDashboardIntentHandler_NoLanzaUnAgenteReal_FND172(t *testing.T) {
+	dir := t.TempDir()
+	marca := filepath.Join(dir, "lanzado")
+	guion := "#!/bin/sh\n: > \"$MARCA_AGENTE\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "claude"), []byte(guion), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MARCA_AGENTE", marca)
+	t.Setenv("PATH", dir)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/intent", bytes.NewBufferString(`{"input": "x"}`))
+	w := httptest.NewRecorder()
+	createIntentHandler()(w, req)
+
+	var result cognitive.ExecutionResult
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "OFFLINE_GUIDANCE" {
+		t.Fatalf("%+v", result)
+	}
+	if _, err := os.Stat(marca); err == nil {
+		t.Fatal("una prueba lanzó un agente real")
+	}
+}

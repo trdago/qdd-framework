@@ -109,6 +109,11 @@ type Issue struct {
 type Fuentes struct {
 	// GitHub devuelve el repositorio (owner/repo) y sus issues abiertos, o ErrSinGitHub si no aplica.
 	GitHub func(root string) (string, []Issue, error)
+	// Cerrado dice cómo se cerró un issue que dejó de estar abierto: «completed», «not_planned»… (state_reason). Sin
+	// ella, un issue de la cola que se cerró se descarta (MEJ-066).
+	Cerrado func(root, repo string, numero int) (string, error)
+	// Relay devuelve los reportes del relay posteriores a desde, o ErrSinRelay si este proyecto no los lee (relay.go).
+	Relay func(root, desde string) ([]ReporteRelay, error)
 }
 
 // Resumen es lo que hizo un ciclo.
@@ -179,14 +184,16 @@ func Ciclo(root string, f Fuentes, now time.Time) (Resumen, error) {
 	if err != nil {
 		return Resumen{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(ruta), 0o700); err != nil {
-		return Resumen{}, err
-	}
-	soltar, err := candado.Tomar(ruta+".lock", 5*time.Second, "el ciclo de mejoras")
-	if err != nil {
-		return Resumen{}, err
-	}
-	defer soltar()
+	var r Resumen
+	err = conCandado(root, func() error {
+		r, err = cicloBloqueado(root, ruta, f, now)
+		return err
+	})
+	return r, err
+}
+
+func cicloBloqueado(root, ruta string, f Fuentes, now time.Time) (Resumen, error) {
+	var err error
 	c := &cicloEnCurso{root: root, now: now, r: Resumen{Nuevas: []string{}, Tareas: []string{}, Hechas: []string{}, Avisos: []string{}}}
 	if c.cola, err = Lista(root); err != nil {
 		return c.r, err
@@ -195,6 +202,8 @@ func Ciclo(root string, f Fuentes, now time.Time) (Resumen, error) {
 		return c.r, err
 	}
 	c.leerGitHub(f)
+	c.leerRelay(f)
+	c.pedirAdmisiones()
 	if err := c.seguirYEntregar(); err != nil {
 		return c.r, err
 	}
@@ -213,6 +222,8 @@ type cicloEnCurso struct {
 	now  time.Time
 	cola []Mejora
 	r    Resumen
+	// abiertos son los issues abiertos que leyó este ciclo; nil si GitHub no se leyó (MEJ-066).
+	abiertos map[string]bool
 }
 
 func (c *cicloEnCurso) recibirEntrada() error {
@@ -256,14 +267,37 @@ func (c *cicloEnCurso) leerGitHub(f Fuentes) {
 			c.r.Avisos = append(c.r.Avisos, err.Error())
 		}
 	}
+	c.abiertos = abiertos
 	prefijo := "github:" + repo + "#"
 	for i, m := range c.cola {
 		if m.Estado != EnCola || !strings.HasPrefix(m.Ref, prefijo) || abiertos[m.Ref] {
 			continue
 		}
-		c.cola[i].Estado, c.cola[i].Motivo = Descartada, "el issue se cerró en GitHub antes de ser tarea"
-		c.guardar(i)
+		c.alCerrarseEnGitHub(i, f, repo)
 	}
+}
+
+// alCerrarseEnGitHub: un issue de la cola que ya no está abierto se cerró como resuelto (hecha, sin pedir cerrarlo) o
+// por otro motivo (descartada). Si no se sabe cómo, espera al próximo ciclo (MEJ-066).
+func (c *cicloEnCurso) alCerrarseEnGitHub(i int, f Fuentes, repo string) {
+	motivo := ""
+	if f.Cerrado != nil {
+		_, n, _ := issueDe(c.cola[i].Ref)
+		var err error
+		motivo, err = f.Cerrado(c.root, repo, n)
+		if err != nil {
+			c.r.Avisos = append(c.r.Avisos, fmt.Sprintf("no se supo cómo se cerró el issue #%d: %v", n, err))
+			return
+		}
+	}
+	if motivo == "completed" {
+		c.cola[i].Estado, c.cola[i].Motivo, c.cola[i].CierrePedido = Hecha, "el issue se cerró en GitHub como resuelto antes de ser tarea", true
+		c.r.Hechas = append(c.r.Hechas, c.cola[i].ID)
+		c.guardar(i)
+		return
+	}
+	c.cola[i].Estado, c.cola[i].Motivo = Descartada, "el issue se cerró en GitHub antes de ser tarea"
+	c.guardar(i)
 }
 
 // admitido: de quien tiene acceso al repositorio, o con la etiqueta mejora.
@@ -324,16 +358,24 @@ func (c *cicloEnCurso) seguir(i int, tareas map[string]estado.Frente) int {
 	if f.Estado == estado.EstadoAbierto {
 		return 1
 	}
-	c.cola[i].Estado, c.cola[i].Motivo = Hecha, f.MotivoCierre
-	if f.Estado == estado.EstadoDescartado {
-		c.cola[i].Estado = Descartada
-	}
+	c.cola[i].Estado, c.cola[i].Motivo = terminada(m, f), f.MotivoCierre
 	c.guardar(i)
 	if c.cola[i].Estado == Hecha {
 		c.r.Hechas = append(c.r.Hechas, m.ID)
 		c.pedirCierre(i)
 	}
 	return 0
+}
+
+// terminada es cómo queda una mejora cuya tarea se cerró: un reporte del relay espera a quien lo reportó (MEJ-087).
+func terminada(m Mejora, f estado.Frente) string {
+	if f.Estado == estado.EstadoDescartado {
+		return Descartada
+	}
+	if m.Fuente == FuenteRelay {
+		return Arreglada
+	}
+	return Hecha
 }
 
 // pedirCierre deja en el panel el cierre del issue de una mejora hecha, una sola vez: publicar es de la persona.
@@ -346,10 +388,25 @@ func (c *cicloEnCurso) pedirCierre(i int) {
 	if !ok {
 		return
 	}
+	// Solo se pide cerrar lo que este ciclo vio abierto: sin leer GitHub no se sabe, y uno cerrado (por el PR o a mano)
+	// no se pide cerrar otra vez (MEJ-066).
+	if c.abiertos == nil {
+		return
+	}
+	if !c.abiertos[m.Ref] {
+		c.cola[i].CierrePedido = true
+		c.guardar(i)
+		return
+	}
 	comentario := "Resuelto: " + m.Motivo + " (" + m.ID + ", cola de mejoras de QDD)"
 	comando := fmt.Sprintf("gh issue close %d -R %s --comment %s", n, repo, comillas(comentario))
 	motivo := recortar(fmt.Sprintf("✅ Cerrar issue #%d · %s hecha", n, m.ID), 60)
-	if _, err := consola.PedirEnOrden(c.root, comando, motivo, "", consola.Orden{Tarea: m.Tarea}, c.now); err != nil {
+	_, err := consola.PedirEnOrden(c.root, comando, motivo, "", consola.Orden{Tarea: m.Tarea}, c.now)
+	var ya *consola.YaHecho
+	if errors.As(err, &ya) {
+		err = nil
+	}
+	if err != nil {
 		c.r.Avisos = append(c.r.Avisos, "no se pidió cerrar el issue #"+strconv.Itoa(n)+": "+err.Error())
 		return
 	}
@@ -445,7 +502,10 @@ func (c *cicloEnCurso) agregar(m Mejora) error {
 	for _, x := range c.cola {
 		mayor = max(mayor, numero(x.ID))
 	}
-	m.ID, m.Estado = fmt.Sprintf("MEJ-%03d", mayor+1), EnCola
+	m.ID = fmt.Sprintf("MEJ-%03d", mayor+1)
+	if m.Estado == "" {
+		m.Estado = EnCola
+	}
 	slug := estado.SlugDe(m.Titulo)
 	if slug == "" {
 		slug = "mejora"

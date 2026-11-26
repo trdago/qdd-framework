@@ -39,6 +39,7 @@ func comandosCLI(c *cobra.Command) []string {
 	return rutas
 }
 
+// contrato: documentacion#e44b7466
 func TestDocs_ReferenciaIncluyeTodosLosComandos(t *testing.T) {
 	doc := leerDoc(t, referenciaComandos)
 	for _, ruta := range comandosCLI(rootCmd) {
@@ -48,6 +49,8 @@ func TestDocs_ReferenciaIncluyeTodosLosComandos(t *testing.T) {
 	}
 }
 
+// contrato: mcp#ed4c5e74
+// contrato: documentacion#e44b7466
 func TestDocs_ReferenciaYServidorMCPCoinciden(t *testing.T) {
 	s := server.NewMCPServer("test-docs", "1.0.0")
 	registerMCPTools(s)

@@ -34,7 +34,7 @@ func runBenchmark(cmd *cobra.Command, args []string) {
 	}
 
 	scores := benchmark.RunBenchmark(cwd)
-	
+
 	fmt.Println("[+] Evaluando modelo y generando Certificado Cognitivo...")
 	cert, err := benchmark.GenerateCognitiveCertificate(cwd, scores)
 	if err != nil {
@@ -46,7 +46,7 @@ func runBenchmark(cmd *cobra.Command, args []string) {
 	fmt.Printf(" CERTIFICADO DE CALIDAD COGNITIVA (QCL)\n")
 	fmt.Printf("=========================================\n")
 	fmt.Printf(" Fecha:           %s\n\n", cert.Timestamp)
-	
+
 	fmt.Printf(" 🧠 Contexto (Identificación): %d/100\n", cert.Scores.ContextScore)
 	fmt.Printf(" 💡 Entendimiento (Intención): %d/100\n", cert.Scores.UnderstandingScore)
 	fmt.Printf(" 📈 Registro de Mejoras:       %d/100\n", cert.Scores.ImprovementScore)

@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func consolaBlueprints(root string, enJSON bool, out io.Writer) int {
 		return 1
 	}
 	if enJSON {
-		b, err := json.Marshal(d)
+		b, err := listas.Marshal(d)
 		if err != nil {
 			fmt.Fprintf(out, "[!] %v\n", err)
 			return 1

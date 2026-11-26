@@ -78,3 +78,38 @@ section { margin-bottom: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .latido { animation: none; }
 }
+
+.ficha { display: flex; flex-direction: column; gap: 2px; }
+.acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.pregunta { font-weight: 600; }
+.boton {
+  padding: 2px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  font: inherit;
+  cursor: pointer;
+}
+.boton.primario { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+.boton.primario:hover { background: var(--vscode-button-hoverBackground); }
+.boton.secundario { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+.boton.secundario:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.boton:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+.resultado {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-left: 2px solid currentColor;
+  background: var(--vscode-textBlockQuote-background, transparent);
+}
+
+/* Fase D: lo que cambió aparece con el acento de qdd y se asienta (como hypr-materialize en el panel de Claude Code). */
+.materializa { animation: materializar var(--materializar-ms, 800ms) ease-out; }
+
+@keyframes materializar {
+  from { opacity: 0; filter: blur(3px); background: color-mix(in srgb, var(--materializar-acento, var(--vscode-focusBorder)) 30%, transparent); }
+  60% { opacity: 1; filter: blur(0); }
+  to { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .materializa { animation: none; }
+}

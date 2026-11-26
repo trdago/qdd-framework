@@ -1,0 +1,222 @@
+package cmd
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/qdd-framework/qdd/pkg/baul"
+	"github.com/qdd-framework/qdd/pkg/enlaces"
+	"github.com/qdd-framework/qdd/pkg/flujo"
+	"github.com/qdd-framework/qdd/pkg/invitaciones"
+)
+
+// Rule: Prohibido usar 'else'
+// RFC 0025, fase 3b (pedido de la persona, 2026-11-08): «cuando el flujo está armado debería bastar con un click en
+// una esquina que diga compartir para que genere el enlace». Con Cloudflare en el baúl, compartir da un enlace; sin
+// token en el entorno pasa por qdd baul usar (y su permiso), y sin Cloudflare en el baúl escribe el archivo de siempre.
+
+type cloudflareDePrueba struct {
+	subidas  map[string]string
+	quitadas []string
+}
+
+func (c *cloudflareDePrueba) Preparar(context.Context) (enlaces.Sitio, error) {
+	return enlaces.Sitio{Cuenta: "a1", Espacio: "ns", Base: "https://qdd-flujos.ana.workers.dev"}, nil
+}
+
+func (c *cloudflareDePrueba) Subir(_ context.Context, s enlaces.Sitio, id string, pagina []byte) (string, error) {
+	c.subidas[id] = string(pagina)
+	return s.Base + "/f/" + id, nil
+}
+
+func (c *cloudflareDePrueba) Quitar(_ context.Context, _ enlaces.Sitio, id string) error {
+	c.quitadas = append(c.quitadas, id)
+	return nil
+}
+
+func conCloudflareDePrueba(t *testing.T) *cloudflareDePrueba {
+	t.Helper()
+	cf := &cloudflareDePrueba{subidas: map[string]string{}}
+	antes := cloudflareDeEnlace
+	cloudflareDeEnlace = func(token, cuenta string) publicador { return cf }
+	t.Cleanup(func() {
+		cloudflareDeEnlace = antes
+		flujoEnlace, flujoRol, flujoQuitarEnlace, flujoSesion = false, "", "", ""
+	})
+	return cf
+}
+
+func compartirJSON(t *testing.T, args ...string) resultadoCompartir {
+	t.Helper()
+	var salida bytes.Buffer
+	flujoCompartirCmd.SetOut(&salida)
+	flujoEnlace, flujoJSON = true, true
+	flujoCompartirCmd.Run(flujoCompartirCmd, args)
+	var r resultadoCompartir
+	if err := json.Unmarshal(salida.Bytes(), &r); err != nil {
+		t.Fatalf("%v: %q", err, salida.String())
+	}
+	return r
+}
+
+func TestCompartirEnlace_DeSoloLecturaSeSubeYSeReusa(t *testing.T) {
+	root := proyectoConFlujo(t)
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Setenv(variableCloudflare, "tok")
+	cf := conCloudflareDePrueba(t)
+	r := compartirJSON(t, "pago")
+	if !strings.HasPrefix(r.Enlace, "https://qdd-flujos.ana.workers.dev/f/") || strings.Contains(r.Enlace, "#") || len(cf.subidas) != 1 {
+		t.Fatalf("un enlace sin fragmento: %+v", r)
+	}
+	otra := compartirJSON(t, "pago")
+	if otra.Enlace != r.Enlace || len(cf.subidas) != 1 {
+		t.Fatalf("volver a compartir actualiza el mismo enlace: %q %q", otra.Enlace, r.Enlace)
+	}
+	l, _ := invitaciones.Leer(root)
+	if len(l.Publicados) != 1 || l.Publicados[0].Flujo != "pago" {
+		t.Fatalf("queda anotado en el PC: %+v", l.Publicados)
+	}
+	id := l.Publicados[0].ID
+	var salida bytes.Buffer
+	flujoCompartirCmd.SetOut(&salida)
+	flujoQuitarEnlace = id
+	flujoCompartirCmd.Run(flujoCompartirCmd, nil)
+	l, _ = invitaciones.Leer(root)
+	if len(cf.quitadas) != 1 || cf.quitadas[0] != id || !l.Publicados[0].Quitado {
+		t.Fatalf("quitar lo borra de Cloudflare y lo anota: %+v %+v", cf.quitadas, l.Publicados)
+	}
+}
+
+func TestCompartirEnlace_SinTokenPasaPorElBaulConSuPermiso(t *testing.T) {
+	proyectoConFlujo(t)
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Setenv(variableCloudflare, "")
+	t.Setenv(variableHijoDelBaul, "")
+	conCloudflareDePrueba(t)
+	antesEntrada, antesUsar := entradaCloudflare, usarBaul
+	t.Cleanup(func() { entradaCloudflare, usarBaul = antesEntrada, antesUsar })
+	entradaCloudflare = func() (baul.Entrada, bool) { return baul.Entrada{Nombre: "cf-ana", Tipo: "cloudflare"}, true }
+	var pedido baul.OpcionesUsar
+	usarBaul = func(o baul.OpcionesUsar) (int, error) {
+		pedido = o
+		return baul.CodigoTodaviaNo, baul.ErrSinPermiso
+	}
+	flujoSesion = "sesion-panel"
+	salidaCon := 0
+	antesSalir := salirDeCompartir
+	salirDeCompartir = func(codigo int) { salidaCon = codigo }
+	t.Cleanup(func() { salirDeCompartir = antesSalir })
+	r := compartirJSON(t, "pago")
+	if pedido.Nombre != "cf-ana" || pedido.Fin != FinEnlace || pedido.Sesion != "sesion-panel" || len(pedido.Comando) == 0 {
+		t.Fatalf("usa el token del baúl para ese fin, desde la sesión del panel: %+v", pedido)
+	}
+	if r.Permiso != "pendiente" || !strings.Contains(r.Mensaje, "Para ti") || salidaCon != baul.CodigoTodaviaNo {
+		t.Fatalf("sin permiso dice dónde darlo y sale con 75: %+v %d", r, salidaCon)
+	}
+}
+
+func TestCompartirEnlace_SinCloudflareEscribeElArchivo(t *testing.T) {
+	root := proyectoConFlujo(t)
+	t.Setenv("QDD_HOME", t.TempDir())
+	t.Setenv(variableCloudflare, "")
+	t.Setenv(variableHijoDelBaul, "")
+	conCloudflareDePrueba(t)
+	antes := entradaCloudflare
+	t.Cleanup(func() { entradaCloudflare = antes })
+	entradaCloudflare = func() (baul.Entrada, bool) { return baul.Entrada{}, false }
+	r := compartirJSON(t, "pago")
+	if r.Enlace != "" || !strings.HasPrefix(r.Archivo, root) || !strings.Contains(r.Mensaje, "qdd baul guardar") {
+		t.Fatalf("escribe el archivo y dice cómo tener enlaces: %+v", r)
+	}
+	if _, err := os.Stat(r.Archivo); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCompartirEnlace_LaPaginaDeUnaInvitacionNoLlevaElToken(t *testing.T) {
+	foto := flujo.ArmarFoto(flujo.Flujo{Formato: 1, ID: "pago", Nombre: "Pago", Nodos: []flujo.Nodo{{ID: "a", Tipo: "paso", Nombre: "A"}}}, func(s string) string { return s }, time.Now())
+	e := flujo.Enlace{Relay: "https://relay.ejemplo.co/functions/v1/", Clave: "k", Token: "tok-secreto", Rol: flujo.RolCliente, Invitacion: "inv-1"}
+	cf := &cloudflareDePrueba{subidas: map[string]string{}}
+	enlace, id, err := publicarInvitacion(context.Background(), cf, enlaces.Sitio{Base: "https://x.workers.dev"}, foto, e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(cf.subidas[id], "tok-secreto") || !strings.HasSuffix(enlace, "/f/"+id+"#t=tok-secreto") {
+		t.Fatalf("a Cloudflare va sin token; el token va solo en el fragmento: %q", enlace)
+	}
+}
+
+// Con --enlace y un rol, el token de la invitación va solo en el fragmento del enlace que recibe el panel: la página que
+// sube a Cloudflare no lo lleva, y ningún archivo de este PC (invitaciones, publicados, QDD_HOME) lo guarda.
+// contrato: flujo#51f50f31
+func TestCompartirEnlace_ConRolElTokenNoQuedaEnElPCNiSubeACloudflare(t *testing.T) {
+	t.Setenv("CLAUDECODE", "")
+	qddHome := t.TempDir()
+	t.Setenv("QDD_HOME", qddHome)
+	root := proyectoConFlujo(t)
+	usarRelayFalso(t)
+	t.Setenv(variableCloudflare, "tok-cloudflare")
+	cf := conCloudflareDePrueba(t)
+	salida := correrFlujo(t, flujoCompartirCmd, map[string]string{"enlace": "true", "json": "true", "rol": "cliente", "para": "Ana"}, "pago")
+	var r resultadoCompartir
+	if err := json.Unmarshal([]byte(salida), &r); err != nil {
+		t.Fatalf("%v: %q", err, salida)
+	}
+	if !strings.HasSuffix(r.Enlace, "#t=token-de-prueba-123") || r.Invitacion == "" || len(cf.subidas) != 1 {
+		t.Fatalf("el panel recibe el enlace con el token en el fragmento: %+v", r)
+	}
+	for id, pagina := range cf.subidas {
+		if strings.Contains(pagina, "token-de-prueba-123") {
+			t.Fatalf("la página %s subió a Cloudflare con el token", id)
+		}
+	}
+	l, _ := invitaciones.Leer(root)
+	if len(l.Invitaciones) != 1 || len(l.Publicados) != 1 || l.Publicados[0].Invitacion != r.Invitacion {
+		t.Fatalf("el PC anota la invitación y lo publicado: %+v", l)
+	}
+	if local, _ := json.Marshal(l); strings.Contains(string(local), "token-de-prueba-123") {
+		t.Fatal("el token no queda en las invitaciones ni en lo publicado")
+	}
+	for _, carpeta := range []string{root, qddHome} {
+		filepath.WalkDir(carpeta, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			if b, _ := os.ReadFile(p); strings.Contains(string(b), "token-de-prueba-123") {
+				t.Errorf("%s guarda el token de la invitación", p)
+			}
+			return nil
+		})
+	}
+}
+
+// Una IA (CLAUDECODE) que pide un enlace con rol recibiría la llave de la invitación en su salida, y de ahí al chat: se
+// rechaza antes de crear la invitación ni subir nada, y le dice que la persona lo comparte desde el panel (que limpia
+// CLAUDECODE). El de solo lectura no lleva llave y sigue disponible.
+// contrato: flujo#51f50f31
+func TestCompartirEnlace_UnaIANoRecibeLaLlaveDeUnaInvitacion(t *testing.T) {
+	for _, c := range []struct {
+		rol, claudecode     string
+		cloudflare, rechaza bool
+	}{
+		{"cliente", "1", true, true},
+		{"cliente", "", true, false},
+		{"", "1", true, false},
+		{"cliente", "1", false, false},
+	} {
+		err := enlaceConLlaveParaIA(c.rol, c.claudecode, c.cloudflare)
+		if (err != nil) != c.rechaza {
+			t.Fatalf("%+v: %v", c, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), "panel") {
+			t.Fatalf("dice que la persona lo comparte desde el panel: %v", err)
+		}
+	}
+}

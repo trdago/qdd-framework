@@ -1,213 +1,172 @@
-# QDD Framework — Quality-Driven Development
+# QDD — Quality-Driven Development
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/trdago/qdd-framework)](https://goreportcard.com/report/github.com/trdago/qdd-framework)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/github/v/release/trdago/qdd-framework)](https://github.com/trdago/qdd-framework/releases)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/trdago/qdd-framework/quality.yml?branch=main)](https://github.com/trdago/qdd-framework/actions/workflows/quality.yml)
-[![QDD Certified](https://img.shields.io/badge/QDD-Certified-success)](#)
+[![npm](https://img.shields.io/npm/v/qdd-framework?label=npm%20latest)](https://www.npmjs.com/package/qdd-framework)
+[![npm preview](https://img.shields.io/npm/v/qdd-framework/preview?label=npm%20preview)](https://www.npmjs.com/package/qdd-framework?activeTab=versions)
+[![CI](https://img.shields.io/github/actions/workflow/status/trdago/qdd-framework/quality.yml?branch=main)](https://github.com/trdago/qdd-framework/actions/workflows/quality.yml)
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
 
-<p align="center">
-  <img src="docs/assets/dashboard_demo.png" alt="QDD Dashboard Demo" width="800">
-</p>
+**QDD hace que una IA que programa en tu proyecto trabaje con tu método, y te deja ver y decidir lo que importa.**
 
-> QDD no es un generador de código.  
-> QDD no es un asistente de programación.  
-> QDD no es un agente conversacional.  
+Es un CLI en Go, un servidor MCP y un panel. No genera código ni reemplaza a tu IA: le da el contexto de cada módulo antes
+de que lo toque, revisa lo que hace con un gate determinista y te pasa a ti las decisiones que son tuyas. Funciona con
+Claude Code, Cursor, Antigravity y OpenCode; [cuánto cubre en cada uno](#qué-cubre-en-cada-ia) está más abajo.
 
-**QDD es una Plataforma de Ingeniería de Software basada en Mejora Continua**, cuyo propósito es ayudar a construir y evolucionar productos de software preparados para producción siguiendo estándares de clase mundial.
+![Panel de QDD en Claude Code: el tablero de un proyecto de ejemplo con una tarea lista, una que espera y una que falla, y abajo lo que espera el «Sí» de la persona](docs/assets/panel.png)
 
-La Inteligencia Artificial es solamente uno de sus motores. El verdadero propósito de QDD es preservar, incrementar y gobernar el conocimiento del proyecto durante todo su ciclo de vida.
+*El panel real, con un proyecto de ejemplo: el tablero, lo que espera tu «Sí» y lo que falla.*
 
----
+## Qué problema resuelve
 
-## 🎯 Problema que buscamos resolver
+Las IA escriben código rápido, pero olvidan entre sesiones por qué las cosas son como son, se saltan pasos y dan por listo
+lo que nadie comprobó. QDD lo ataca con cuatro ideas:
 
-Actualmente las herramientas de IA generan código, sin embargo:
-- No preservan el conocimiento del sistema.
-- Generan prototipos y maquetas desechables sin estándares de producción.
-- No convierten los bugs en conocimiento permanente.
-- No mantienen una certificación viva del software.
-- Sacrifican la calidad y mantenibilidad a largo plazo por velocidad inmediata.
+- **El conocimiento queda en el repositorio.** Cada módulo tiene una ficha con su objetivo, sus decisiones y lo que ningún
+  cambio puede romper. Cada bug queda como un finding con la prueba que lo cubre.
+- **Las reglas se comprueban, no se piden por favor.** `qdd audit` corre las pruebas y las reglas; las puertas frenan un
+  commit sin auditar. Son deterministas: no llaman a un modelo ni gastan tokens.
+- **Las decisiones son de la persona.** Publicar, aprobar una ficha o responder una pregunta de diseño espera tu «Sí», en
+  el panel o en el teléfono.
+- **Lo que no se midió se dice.** El gate informa qué no pudo revisar en vez de darlo por aprobado.
 
-QDD resuelve este problema operando bajo el **Manifiesto QDD** y el principio fundamental de **Production-First Engineering**.
-
----
-
-## 🧠 Filosofía y Principios Fundamentales
-
-- **"Lo que no se mide no se mejora":** QDD rechaza las mejoras subjetivas. Todo avance debe ser medible, comparable y demostrable mediante métricas matemáticas (Score de Calidad 0-100, reducción de deuda técnica, horas ahorradas, cobertura de pruebas y certificaciones formales).
-- **Production-First:** QDD no genera ejemplos desechables. Toda solución se diseña pensando en su operación a largo plazo y debe poder desplegarse en producción con calidad profesional.
-- **El conocimiento es el activo principal:** El código no es la fuente de verdad, la fuente de verdad es el conocimiento acumulado (Certificaciones, ADRs, Findings).
-- **Modo Consultivo y Certificación:** QDD actúa como un Arquitecto Principal. Nunca escribirá código deficiente ciegamente. Si detecta la oportunidad de implementar un estándar (ej. OpenAPI, OWASP, Clean Architecture), detendrá la ejecución, entrará en Modo Consultivo, explicará los beneficios y pedirá autorización.
-- **Findings Become Knowledge:** Cada bug descubierto se transforma automáticamente en conocimiento permanente, generando nuevas pruebas, certificaciones y evidencias.
-- **Backward Compatibility First:** Nunca se rompen contratos automáticamente. Si hay que modificar APIs o contratos públicos, el framework solicita autorización explícita.
-
----
-
-## 🚀 Getting Started: Ciclo Completo de Desarrollo Gobernado
-
-El siguiente ejemplo demuestra cómo se utiliza QDD para desarrollar de forma iterativa y segura.
-
-### 1. Inicialización e Inyección de MCP
-Prepara el entorno y haz que tu IDE (Claude Code, Cursor, Antigravity, OpenCode) absorba el contexto arquitectónico de tu proyecto automáticamente vía MCP:
-```bash
-qdd init
-```
-
-### 2. Identificación de Brechas (Auditoría Segura)
-Corre las pruebas del proyecto y las reglas de QDD, y visualiza tu deuda técnica en el panel de control interactivo.
-```bash
-qdd audit       # Lo que bloquea vs. lo que es recomendación
-qdd dashboard   # Visualiza el Centro de Comando (ver captura de arriba)
-```
-
-### 3. Estándares de tu Organización y Fichas de Módulo
-Importa los blueprints de tu organización (usuarios y roles, notificaciones, auditoría…) y genera la ficha de cada módulo: su objetivo, sus invariantes y cómo se prueba.
-```bash
-qdd blueprint add git@github.com:org/qdd-blueprints.git --ref v1.0.0 notificaciones
-qdd blueprint apply notificaciones --ruta internal/notificaciones
-qdd modules approve notificaciones
-```
-
-### 4. Aplicación de Soluciones (Cognitive Path)
-Delega la solución de problemas desde tu IDE. Antes de tocar código, la IA pide `qdd_project_context` y recibe la ficha del módulo; las herramientas MCP de QDD (`qdd_audit`, `qdd_learn`, `qdd_certify`) la gobiernan para que aplique estándares de producción.
-```bash
-/qdd "resuelve los bugs críticos identificados en el validador"
-```
-
-### 5. Certificación y Entrega Automática
-Tu asistente verificará que el nuevo código pase `qdd_audit` (pruebas + reglas QDD) antes de sugerir el commit o el despliegue.
-
----
-
-## 🔄 Ciclo de Vida (Arquitectura MCP)
+## Cómo funciona
 
 ```mermaid
-graph TD
-    classDef default fill:#1e1e1e,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef init fill:#6366f1,stroke:#4338ca,stroke-width:2px,color:#fff;
-    classDef agent fill:#ec4899,stroke:#be185d,stroke-width:2px,color:#fff;
-    classDef gatekeeper fill:#14b8a6,stroke:#0f766e,stroke-width:2px,color:#fff;
-    classDef success fill:#22c55e,stroke:#15803d,stroke-width:2px,color:#fff;
-    classDef warning fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
-
-    A["qdd init<br/>Inyecta MCP Config en IDE"]:::init
-    BP["qdd blueprint add / apply<br/>Estándares de la organización"]:::default
-    B["qdd_sprint<br/>Define Requerimientos"]:::default
-    C["/qdd 'prompt'<br/>IDE delega a MCP"]:::agent
-    PC["qdd_project_context<br/>Ficha e invariantes del módulo"]:::gatekeeper
-    D{"Gatekeeper<br/>MCP Policy Check"}:::gatekeeper
-    E["qdd_learn<br/>Absorber Arquitectura"]:::default
-    F["Modo Consultivo<br/>Propuesta de Estándares"]:::agent
-    G["qdd_audit<br/>Inspección Técnica MCP"]:::warning
-    H["qdd_certify<br/>Sello de Gobernanza"]:::success
-
-    A --> BP
-    BP --> B
-    B --> C
-    C --> PC
-    PC --> D
-    D -- Contexto Incompleto --> E
-    E --> C
-    D -- Autorizado --> F
-    F --> G
-    G -- Fallo Técnico --> C
-    G -- Reglas Cumplidas --> H
-    H --> B
+flowchart LR
+    F["Fichas y blueprints<br/>los aprueba una persona"] --> C["La IA lee la ficha<br/>y escribe la prueba"]
+    C --> K["Código"]
+    K --> A["qdd audit<br/>pruebas + reglas"]
+    A -- bloquea --> K
+    A -- aprueba --> P["Puertas<br/>y CI"]
+    P --> S["Decisión<br/>de la persona"]
+    S --> V["Versión"]
+    V -- lo aprendido --> F
 ```
 
----
+Con una prueba en rojo, el gate termina con error y dice qué bloquea, qué recomienda y qué no pudo revisar:
 
-## Instalación
+![Salida de qdd audit en un proyecto de ejemplo: una prueba falla, el gate bloquea con salida 1 y lista lo que no revisó](docs/assets/gate-bloquea.png)
 
-### Opción 1: NPM (recomendada)
+## Instalar
+
 ```bash
 npm install -g qdd-framework --allow-scripts=qdd-framework
 ```
 
-npm 12 no corre los scripts de instalación sin esa bandera. Si instalas sin ella, la primera vez que uses `qdd` se baja su
-binario desde el release de GitHub de esa versión, fuera del bloqueo de npm.
+npm 12 no corre los scripts de instalación sin esa bandera. Si instalas sin ella, qdd baja su binario desde el release de
+GitHub la primera vez que lo usas.
 
-### Opción 2: Binario (sin Node)
-Descarga el de tu sistema desde [Releases](https://github.com/trdago/qdd-framework/releases/latest) (Linux, macOS y Windows; amd64 y arm64), descomprímelo y deja `qdd` en tu `PATH`:
-```bash
-curl -fsSL https://github.com/trdago/qdd-framework/releases/latest/download/qdd_linux_amd64.tar.gz | tar -xz
-sudo mv qdd /usr/local/bin/
-```
+| Otra forma | Cómo |
+|---|---|
+| **Canal preview** (las `-rc.N`, lo más nuevo) | `npm install -g qdd-framework@preview --allow-scripts=qdd-framework` |
+| **Binario, sin Node** | [Releases](https://github.com/trdago/qdd-framework/releases): Linux y macOS (amd64 y arm64, `.tar.gz`) y Windows (amd64, `.zip`). Deja `qdd` en tu `PATH` |
+| **Desde el código** | Go 1.25+ y Node 20.19+: `git clone https://github.com/trdago/qdd-framework && cd qdd-framework && make install` (deja `qdd` en `~/.local/bin`) |
 
-### Opción 3: Desde el código (Go 1.24+ y Node para el dashboard)
-```bash
-git clone https://github.com/trdago/qdd-framework && cd qdd-framework
-make install
-```
+Una versión con funciones nuevas sale primero en `preview` y pasa a `latest` después de horas de uso real medido
+([RFC 0010](rfcs/0010-uso-medido-y-preview.md)). Esta página describe la 2.10.
 
-### Primeros pasos
+## Empezar
+
 ```bash
 cd mi-proyecto
-qdd init      # detecta el stack (también monorepos) y conecta tu IA
-qdd audit     # revisa el proyecto; funciona desde cualquier subcarpeta
+git init           # si todavía no es un repositorio: las puertas se instalan como hooks de git
+qdd init           # detecta el stack, escribe las reglas de tu IA y activa el gate
+qdd audit          # pruebas + reglas; funciona desde cualquier subcarpeta
 ```
-Lo temporal (scripts de un solo uso, pruebas manuales, logs, salidas) va en `./tmp`: `qdd init` la crea y git la ignora. Las IA conectadas a QDD también la usan.
-En un proyecto nuevo, QDD parte en **adopción gradual**: las prácticas de madurez (E2E, ADR, Conventional Commits) aparecen como recomendaciones y no bloquean; las pruebas que fallan, OWASP o desplegar sin pruebas sí bloquean. Para exigirlo todo desde el día uno: `adopcion: estricta` en `.qdd/policies.yaml`.
 
----
+Conecta el servidor MCP a tu IA. `qdd init` lo registra solo para Cursor; en Claude Code:
 
-## 🏗️ Arquitectura General
+```bash
+claude mcp add --scope project qdd -- qdd mcp-server
+qdd consola activar   # el panel de QDD en Claude Code
+```
 
-QDD está compuesto por:
-- **Wisdom Registry:** La mente y constitución del proyecto (`.qdd/core/wisdom/`).
-- **Fichas de módulo:** El objetivo operativo, el objetivo tecnológico y las invariantes de cada módulo (`.qdd/project/modules/`).
-- **Blueprints:** Los estándares de módulo de tu organización, importados desde su propio repositorio a la carpeta central de QDD; el proyecto solo versiona `.qdd/blueprints.lock.yaml`.
-- **Specification:** Definiciones independientes del modelo de IA.
-- **Runtime MCP (Model Context Protocol):** El motor principal que expone las herramientas a tu IDE (`qdd_project_context`, `qdd_audit`, `qdd_certify`, etc.).
-- **Dashboard:** Centro de Comando Web que despliega el *Intelligence Report*.
-- **AI Adapters:** Integraciones Zero-Config para Claude Code, Cursor, Antigravity y OpenCode (`AGENTS.md`).
+Y pídele trabajo a tu IA. El recorrido completo, con OpenCode incluido, está en
+[Getting Started](docs/getting-started.md).
 
-Detalle en [Architecture](docs/framework-architecture.md).
+## Qué trae hoy
 
----
+| Área | Qué hace | Más |
+|---|---|---|
+| **Gate** | `qdd audit` corre las pruebas del proyecto y las reglas: formato, versiones, findings, fichas, blueprints y despliegues sin pruebas. No repite una suite cuyos archivos no cambiaron. | [Reglas](docs/command-reference.md#reglas-del-gate) |
+| **Puertas** | Frenan en el momento: un commit sin audit al día, un `fix` sin su finding, una publicación hecha por la IA, una edición sin leer la ficha. | [Puertas](docs/command-reference.md#puertas) |
+| **Fichas de módulo** | El porqué de cada módulo, con sus invariantes y las pruebas que las demuestran. La IA propone, una persona aprueba. | [Arquitectura](docs/framework-architecture.md#fichas-de-módulo) |
+| **Blueprints** | Los estándares de tu organización, versionados en su propio repositorio y aplicados con las respuestas de cada proyecto. | [Blueprints](docs/blueprints.md) |
+| **Tablero** | Tareas por etapas: ✅ con evidencia, ⏳ con lo que espera y de quién, ❌ con la falla. Objetivos, dependencias y esperas que se verifican solas. | [Estado](docs/command-reference.md#estado) |
+| **Panel** | El tablero al lado de la conversación y «▶ Para ti»: los comandos, fichas y preguntas que esperan tu «Sí». | [Consola](docs/command-reference.md#consola) |
+| **Flujos** | Diagramas que la persona y la IA editan y comentan. Se comparten con un cliente en un HTML o un enlace, y sus propuestas esperan tu aprobación. | [RFC 0012](rfcs/0012-grafo-de-trabajo.md) · [RFC 0025](rfcs/0025-flujo-para-clientes.md) |
+| **Modo goal** | La IA sigue trabajando mientras no miras: QDD elige lo recomendado, corre los pedidos y lo registra. Solo lo enciende una persona. | [RFC 0015](rfcs/0015-modo-goal.md) |
+| **QDD Móvil** | Todos tus proyectos en el teléfono, en tiempo real: aprobar, responder y ver qué hace la IA. | [RFC 0013](rfcs/0013-consola-remota.md) |
+| **Baúl de accesos** | Los tokens van al llavero o a 1Password y se prestan a un comando con tu permiso, por sesión y por fin. La IA nunca ve el valor. | [RFC 0023](rfcs/0023-baul-de-accesos.md) |
+| **Herramientas** | Los ejecutables del proyecto como pestañas del panel, con botones y sin IA. | [RFC 0011](rfcs/0011-herramientas-en-el-panel.md) |
+| **Mejora continua** | Una cola que junta reportes de sesiones, issues y reportes sin GitHub, y los convierte en tareas. Quien reporta verifica el arreglo. | [RFC 0024](rfcs/0024-reportar-sin-github.md) |
+| **Diagnóstico** | `qdd doctor --fix` revisa y repara; `qdd rendimiento` mide QDD en tu equipo. | [Doctor](docs/command-reference.md#controles-de-doctor) |
 
-## 🌟 Capacidades Avanzadas
+## Qué cubre en cada IA
 
-El framework soporta y obliga comportamientos avanzados tanto para humanos como para la IA:
+| | Claude Code | Cursor | Antigravity | OpenCode | VS Code |
+|---|---|---|---|---|---|
+| Reglas que escribe `qdd init` | Sí | Sí | Sí | Sí | — |
+| Servidor MCP | `claude mcp add …` | Lo registra `init` | `init` escribe `.cursor/mcp.json` | A mano ([cómo](docs/getting-started.md#conectar-el-servidor-mcp)) | — |
+| Panel (`qdd consola activar`) | Completo | — | Extensión: tablero, pedidos y fichas | Solo lectura | Extensión: tablero, pedidos y fichas |
+| Puertas de commit (audit y finding) | Sí, también antes de correr el comando | Hooks de git | Hooks de git | Hooks de git | Hooks de git |
+| Puertas de ficha y de publicar | Sí, con el panel activo | — | — | — | — |
 
-1. **Intelligent Certification Tags:** Los certificados (`CERT-*.yaml`) ahora declaran `tags`. QDD asocia certificados automáticamente según los tags inferidos del código (ej. `.vue` hereda certificados con tags de `frontend`).
-2. **Layered Certifications (Certificaciones Anidadas):** El motor exige que toda funcionalidad pase un nivel mínimo global (`core`) **Y** obligatoriamente al menos un certificado de negocio del proyecto (`isCore: false`). Si no existen certificados de negocio, la funcionalidad falla con la alerta `MISSING-PROJECT-CERT`.
-3. **Zero-Else Enforcement Nativo:** El framework predica con el ejemplo; no utiliza la cláusula `else` ni `v-else` internamente, apoyándose 100% en *Guard Clauses* y retornos tempranos. No es una moda: cada vez menos personas leen el código línea a línea (lo escriben y revisan IAs), así que el que sí se lee tiene que entenderse de un vistazo. Con guardas, cada caso especial se resuelve arriba y sale, y el camino principal queda recto. QDD se lo dice a la IA donde lee la regla: en la forma de trabajo de `qdd_project_context`, en el mensaje del gate y en las instrucciones que deja en el proyecto.
-4. **Command Pipelining (`qdd run`):** QDD soporta encadenamiento secuencial nativo de comandos. Puedes ejecutar múltiples fases interdependientes como una tubería, aislando estado:
-   ```bash
-   qdd run audit certify
-   ```
-5. **Supervisión Resiliente y Auto-Reparación (`qdd run --keep-alive`):** QDD puede mantener vivo un proceso externo (un servicio, un binario), reiniciándolo en cada salida limpia. Ante un error real, registra un Finding + evidencia y delega el diagnóstico y la reparación a un agente de IA local disponible (Claude, Antigravity o Cursor), de forma desatendida, reintentando hasta 3 veces antes de detenerse para revisión humana:
-   ```bash
-   qdd run --keep-alive ./mi-servicio --puerto 8080
-   ```
-6. **Equipo Resolutor Multi-Agente (`/qdd resolve`):** Orquesta un equipo FAANG de 5 agentes especializados (Orquestador, Analista Integral, Implementador Senior, QA Zero-Mock y DevOps/SRE) con emisión de certificado de resolución firmado.
-7. **Gobernanza y Certificaciones de Inteligencia Artificial:** Cumplimiento auditable de **ISO/IEC 42001 (AIMS)**, **ISO/IEC 29119-11 (AI Testing)**, **AICPA SOC 2 (Processing Integrity & Anti-Hallucination)** e **ISO/IEC 23894:2023 (AI Risk Management)** con Golden Sets deterministas.
-8. **Sistema Unificado de Reportes (`qdd report`):** Genera reportes ejecutivos consolidados multi-formato (`text`, `md`, `json`) integrables en terminal y pipelines de CI/CD.
-9. **Detección de Motores Locales & Ejecución en Dashboard:** Detección automática de **Antigravity** (Google AI), **Ollama**, **LM Studio**, **LocalAI/vLLM** y **Claude Code** para ejecutar intenciones y prompts en tiempo real directamente desde el Centro de Comando Web con streaming SSE.
-10. **Gate Veraz:** `qdd audit` corre las pruebas reales del proyecto y bloquea si fallan, si no compilan o si no hay pruebas (`QA-00`, `QA-01`). También revisa los pipelines de GitHub Actions, Azure, GitLab y Bitbucket, y marca todo despliegue que no dependa de las pruebas o que despliegue aunque fallen (`CI-01`, `CI-02`).
-11. **Fichas de Módulo (`qdd modules`):** Cada módulo tiene una ficha con su objetivo operativo, su objetivo tecnológico, sus invariantes y cómo se prueba. La IA la recibe con `qdd_project_context` antes de tocar el código, propone fichas nuevas con `qdd_module_save` (siempre en borrador) y un humano las aprueba con `qdd modules approve`. El gate avisa cuando el código se aleja de su ficha (`HEART-*`).
-12. **Blueprints (`qdd blueprint`):** Los estándares de módulo de tu organización (vocabulario, preguntas de diseño, decisiones, invariantes y escenarios de conformidad) viven en su propio repositorio, privado si quiere, y se importan con un comando. Al aplicarlos, QDD pregunta las decisiones de diseño, genera la ficha del módulo y el gate vigila que no se altere ni quede atrás de su fuente (`BP-01` a `BP-06`). Los cambios al estándar van por PR (`contribute` → `propose` → `release`). La IA los usa sola: si pides *"agrega el blueprint de auditoría"*, lo importa, y te hace a ti sus preguntas. Ver [Blueprints](docs/blueprints.md).
-13. **Estado por frente y consola de Claude Code (`qdd estado`, `qdd consola`):** Una tabla de frentes de trabajo por etapas (✅ con evidencia, ⏳ qué espera y de quién, ❌ la falla) que la IA actualiza antes de reportar y lee al retomar una sesión. `qdd consola activar` la muestra en un panel a la derecha de Claude Code, con botones para aprobar fichas y auditar, y «▶ Para ti»: los comandos que la IA no puede o no debe ejecutar (como publicar un tag) te quedan ahí para ejecutarlos con un clic y una confirmación. Ver [Command Reference](docs/command-reference.md#-estado-por-frente-y-consola-de-claude-code-rfc-0006).
-14. **Adopción Gradual y Puntaje Único:** En un proyecto nuevo, E2E, ADR y Conventional Commits son recomendaciones que no bloquean; las pruebas, OWASP y los despliegues sin pruebas sí. Audit, certify, evolution, report, MCP y el dashboard usan el mismo puntaje.
+Sin el panel o los hooks, lo que QDD le pide a una IA son instrucciones: puede no seguirlas. Por eso el gate corre también
+en el CI.
 
----
+## Límites que conviene saber
 
-## 📚 Documentación
+- **Las reglas de código solo leen Go** (cero `else`, inyección, criptografía, pánicos, llamadas sin límite). En los demás
+  lenguajes el gate corre las pruebas, el formato y los despliegues, y dice qué principios no pudo evaluar.
+- **Las suites que reconoce solo son** npm, Go, Flutter y pytest; cualquier otra se declara en `test_commands`. Un proyecto
+  Go sin ninguna prueba todavía pasa el gate
+  ([FND-309](.qdd/project/findings/FND-309-UN-PROYECTO-GO-SIN-PRUEBAS-PASA-EL-GATE.yaml)).
+- **Las reglas de IA no son una certificación.** `ai_governance` son comprobaciones sencillas inspiradas en normas
+  conocidas. No acreditan el cumplimiento de ISO, SOC 2 ni ninguna otra.
+- **`qdd dashboard` está obsoleto:** solo recibe arreglos. Lo reemplaza el panel.
+
+## Qué sale de tu máquina
+
+QDD no envía telemetría: las horas de `qdd uso` se miden y quedan en tu equipo. Esto sí usa la red:
+
+| Qué | Cuándo | Cómo apagarlo |
+|---|---|---|
+| **Incidentes de QDD**: versión, sistema, comando con sus valores tapados y traza del código de QDD, publicados como issue con tu `gh` | Si QDD falla por dentro. Nunca rutas, valores ni datos del proyecto | `QDD_INCIDENTES=off` |
+| Catálogo de reglas en GitHub (solo lectura) | `qdd audit` y `qdd doctor`, una vez al día; si falla, sigue sin él | — |
+| Versión publicada en npm (solo lectura) | Con el panel abierto | — |
+| QDD Móvil, por su relay: que el PC está encendido, los avisos y, con un teléfono mirando, el estado de tus proyectos. Lo que mandas desde el teléfono (acciones, respuestas y textos) [queda de 3 a 4 días en el relay](docs/qdd-movil-comunicacion.md#qué-queda-guardado-en-el-relay) | Solo si corres `qdd login` | `qdd remoto desactivar` |
+| Repositorios de blueprints, con tu git | Solo si registras uno | — |
+| `qdd reportar` y compartir flujos por enlace | Solo con tu «Sí», con el texto a la vista | — |
+
+## Todos los comandos
+
+El detalle, con cada opción, está en la [Command Reference](docs/command-reference.md).
+
+| Para | Comandos |
+|---|---|
+| Empezar y mantener | `qdd init` · `qdd doctor` · `qdd version` · `qdd undo` · `qdd run` · `qdd mcp-server` |
+| Revisar | `qdd audit` · `qdd certify` · `qdd report` · `qdd evolution` · `qdd benchmark` · `qdd rendimiento` · `qdd uso` |
+| Método | `qdd modules` · `qdd blueprint` · `qdd puertas` |
+| Trabajo | `qdd estado` · `qdd consola` · `qdd flujo` · `qdd herramienta` · `qdd goal` · `qdd sincronizar` · `qdd foto` |
+| Teléfono | `qdd login` · `qdd remoto` |
+| Accesos y ambientes | `qdd baul` · `qdd ambiente` |
+| Reportar y mejorar | `qdd mejoras` · `qdd reportar` · `qdd incidentes` · `qdd bug` |
+| Obsoleto | `qdd dashboard` |
+
+## Documentación
 
 | Documento | Para qué |
 |---|---|
-| [Getting Started](docs/getting-started.md) | De la instalación a tu primer módulo construido con IA. |
-| [Command Reference](docs/command-reference.md) | Todos los comandos de la CLI, las tools MCP y las reglas del gate. |
-| [Blueprints](docs/blueprints.md) | Crear el repositorio de estándares de tu organización y usarlo en cada proyecto. |
-| [Architecture](docs/framework-architecture.md) | Cómo se arma QDD: Wisdom Registry, fichas, blueprints, motor y MCP. |
-| [RFCs](rfcs/) | Diseño de cada capacidad (RFC 0003: Blueprints). |
+| [Getting Started](docs/getting-started.md) | De la instalación al primer commit con las puertas puestas. |
+| [Command Reference](docs/command-reference.md) | Todos los comandos, las tools MCP, las reglas del gate y las políticas. |
+| [Blueprints](docs/blueprints.md) | Crear los estándares de tu organización y usarlos en cada proyecto. |
+| [Arquitectura](docs/framework-architecture.md) | Cómo está hecho QDD y qué parte obliga de verdad. |
+| [Docker en desarrollo](docs/docker-en-desarrollo.md) | Por qué la app corre directo y Docker queda para la base de datos. |
+| [QDD Móvil: comunicación](docs/qdd-movil-comunicacion.md) | El protocolo entre el PC, el relay y el teléfono. |
+| [RFC](rfcs/README.md) | El diseño de cada capacidad y en qué estado está. |
 | [CHANGELOG](CHANGELOG.md) | Qué trae cada versión. |
 
----
+## Contribuir
 
-## 🤝 Contribuyendo y RFCs
-
-QDD es un estándar abierto enfocado en gobernar el desarrollo de software seguro y auditable. Lee `CONTRIBUTING.md` para más información.
-
+QDD se desarrolla con QDD: este repositorio pasa su propio gate. Lee [CONTRIBUTING](CONTRIBUTING.md). Para un problema de
+seguridad, [SECURITY](SECURITY.md). Licencia [MIT](LICENSE).

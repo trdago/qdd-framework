@@ -1,0 +1,9 @@
+id: "FND-262"
+title: "doctor --fix pisaba un cognitive_history.json ilegible con [] sin apartarlo"
+description: "repairDashboardContracts escribía [] sobre .qdd/project/metrics/cognitive_history.json cuando no era un arreglo JSON válido, y TestSelectiveFixDashboardContracts lo exigía así. Lo que tenía el archivo se perdía."
+impact: "Contradice el criterio de la ficha doctor: «qdd doctor --fix deja el entorno operativo sin descartar información». Un historial con un error de una línea se borraba entero."
+action_taken: "Antes de escribir [] el archivo se aparta como cognitive_history.json.ilegible, igual que los demás registros ilegibles de QDD; si no se puede apartar, no se escribe."
+test_result: "cli/cmd/doctor_test.go TestSelectiveFixDashboardContracts, ahora exige el .ilegible con el contenido anterior: falló («open …cognitive_history.json.ilegible: no such file or directory») y pasa con el arreglo."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

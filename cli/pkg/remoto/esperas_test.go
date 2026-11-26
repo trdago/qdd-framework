@@ -48,20 +48,20 @@ func TestResponder_UnEsperaDeLaPersonaSePublicaYSuRespuestaLlegaALaIA(t *testing
 	tr.eventos <- telefono("d1", "")
 	tr.esperar(t, time.Second, "estado")
 	mandarRespuesta(tr, respuestaFirmada("3b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, id, `{"q1": {"otra": "sí, fuera"}}`, "d1", ahoraEn()))
-	for _, want := range []string{EstadoRecibida, EstadoEjecutando} {
-		if got := estadoDe(t, tr, 5*time.Second); got.Estado != want {
-			t.Fatalf("esperaba %s: %+v", want, got)
+	for _, want := range []string{EstadoRecibida, EstadoHecha} {
+		if got := estadoDe(t, tr, 5*time.Second); got.Estado != want || (want == EstadoHecha && !strings.Contains(got.Resultado, "IA")) {
+			t.Fatalf("esperaba %s, y al final qué quedó en el estado: %+v", want, got)
 		}
 	}
 	ejecuciones := consola.EjecucionesA(root, time.Now())
 	if len(ejecuciones) != 1 || ejecuciones[0].Tipo != consola.EjecutarIA || !strings.Contains(ejecuciones[0].Texto, "sí, fuera") || ejecuciones[0].Nombre != "Pixel de d1" {
-		t.Fatalf("la respuesta queda para la IA, del teléfono que respondió: %+v", ejecuciones)
+		t.Fatalf("con una sesión, la IA también se entera, del teléfono que respondió: %+v", ejecuciones)
 	}
 }
 
-// respuestaAEspera manda una respuesta al ⏳ del proyecto, con una sesión abierta, y espera a que quede ejecutando.
-func respuestaAEspera(t *testing.T, solicitud string) (string, *transporteFalso, consola.Ejecucion) {
-	t.Helper()
+// FND-141: el teléfono decía «entregada» al dejar la respuesta en la cola, antes de que una sesión la tomara. Desde los
+// botones (2026-11-07) la respuesta queda en el estado: está hecha aunque ninguna sesión la tome.
+func TestResponder_SinSesionLaRespuestaQuedaEnElEstado_FND141(t *testing.T) {
 	homeTemporal(t)
 	root := proyecto(t, "app", true)
 	if err := os.WriteFile(filepath.Join(root, estado.Ruta), []byte(estadoConEspera), 0o644); err != nil {
@@ -69,9 +69,6 @@ func respuestaAEspera(t *testing.T, solicitud string) (string, *transporteFalso,
 	}
 	registro.Anotar(root, time.Now())
 	clave, _ := registro.ClaveDe(root)
-	if err := consola.LatirSesion(root, "s1", time.Now()); err != nil {
-		t.Fatal(err)
-	}
 	var id string
 	for _, p := range consola.PreguntasA(root, time.Now()) {
 		id = p.ID
@@ -79,49 +76,26 @@ func respuestaAEspera(t *testing.T, solicitud string) (string, *transporteFalso,
 	_, tr, _ := bucleConFirma(t)
 	tr.eventos <- telefono("d1", "")
 	tr.esperar(t, time.Second, "estado")
-	mandarRespuesta(tr, respuestaFirmada(solicitud, clave, id, `{"q1": {"otra": "sí, fuera"}}`, "d1", ahoraEn()))
+	mandarRespuesta(tr, respuestaFirmada("4b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, id, `{"q1": {"opciones": ["ya_no_va"]}}`, "d1", ahoraEn()))
 	estadoDe(t, tr, 5*time.Second)
-	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoEjecutando || strings.Contains(got.Resultado, "entregada") {
-		t.Fatalf("todavía no la tomó nadie: no dice entregada: %+v", got)
+	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoHecha || !strings.Contains(got.Resultado, "ya no va") {
+		t.Fatalf("hecha, y dice qué quedó: %+v", got)
 	}
-	return root, tr, consola.EjecucionesA(root, time.Now())[0]
-}
-
-// FND-141: el teléfono decía «entregada» al dejar la respuesta en la cola, antes de que una sesión la tomara.
-func TestResponder_UnEsperaEsHechaSoloCuandoLaSesionConfirma_FND141(t *testing.T) {
-	root, tr, x := respuestaAEspera(t, "4b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50")
-	if _, err := consola.TomarParaEntregar(root, "s1", time.Now()); err != nil {
+	e, err := estado.Load(root)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := consola.ConfirmarEntrega(root, x.Solicitud, "s1", time.Now()); err != nil {
-		t.Fatal(err)
+	if c := e.Frentes[0].Celdas["Código"]; c.Estado != estado.NoAplica {
+		t.Fatalf("la etapa quedó en —: %+v", c)
 	}
-	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoHecha || !strings.Contains(got.Resultado, "entregada") {
-		t.Fatalf("recién ahora está entregada: %+v", got)
-	}
-	if p := consola.PreguntasA(root, time.Now())[0]; p.Estado != consola.PreguntaRespondida {
-		t.Fatalf("entregada, no se vuelve a preguntar: %+v", p)
+	if x := consola.EjecucionesA(root, time.Now()); len(x) != 0 {
+		t.Fatalf("sin sesión no queda una instrucción que vaya a vencer: %+v", x)
 	}
 }
 
-func TestResponder_UnEsperaQueNoSeEntregoFallaYVuelveAPreguntarse_FND141(t *testing.T) {
-	root, tr, x := respuestaAEspera(t, "5b6b1c1e-6a2f-4f39-9f4e-4a1c2d3e4f50")
-	if _, err := consola.TomarParaEntregar(root, "s1", time.Now()); err != nil {
-		t.Fatal(err)
-	}
-	if err := consola.FallarEntrega(root, x.Solicitud, "s1", "Claude Code la descartó", time.Now()); err != nil {
-		t.Fatal(err)
-	}
-	if got := estadoDe(t, tr, 5*time.Second); got.Estado != EstadoFallo || !strings.Contains(got.Resultado, "descartó") {
-		t.Fatalf("el teléfono ve que falló y por qué: %+v", got)
-	}
-	if p := consola.PreguntasA(root, time.Now())[0]; p.Estado != consola.PreguntaPendiente {
-		t.Fatalf("la persona puede responder de nuevo: %+v", p)
-	}
-}
-
-// FND-124: sin una sesión de Claude Code abierta nadie puede resolver un ⏳, así que no se publica al teléfono.
-func TestEstado_SinSesionUnEsperaNoSePublica_FND124(t *testing.T) {
+// FND-124 decía que sin una sesión nadie podía resolver un ⏳ y no se publicaba. Desde los botones (2026-11-07) la
+// respuesta queda en el estado, así que se publica siempre, marcada sin_sesion.
+func TestEstado_SinSesionUnEsperaSePublica_FND124(t *testing.T) {
 	homeTemporal(t)
 	root := proyecto(t, "app", true)
 	if err := os.WriteFile(filepath.Join(root, estado.Ruta), []byte(estadoConEspera), 0o644); err != nil {
@@ -132,23 +106,13 @@ func TestEstado_SinSesionUnEsperaNoSePublica_FND124(t *testing.T) {
 	publicadas := func(now time.Time) int {
 		n := 0
 		for _, a := range PanelDe("v", p, now).Panel.Acciones {
-			if a.Tipo == consola.TipoPregunta && a.Origen == consola.OrigenEstado {
+			if a.Tipo == consola.TipoPregunta && a.Origen == consola.OrigenEstado && a.SinSesion {
 				n++
 			}
 		}
 		return n
 	}
-	now := time.Now()
-	if n := publicadas(now); n != 0 {
-		t.Fatalf("sin sesión no se publica: %d", n)
-	}
-	if err := consola.LatirSesion(root, "s1", now); err != nil {
-		t.Fatal(err)
-	}
-	if n := publicadas(now); n != 1 {
-		t.Fatalf("con sesión sí: %d", n)
-	}
-	if n := publicadas(now.Add(consola.VidaSesion + time.Second)); n != 0 {
-		t.Fatalf("cuando la sesión deja de latir, sale: %d", n)
+	if n := publicadas(time.Now()); n != 1 {
+		t.Fatalf("sin sesión también se publica: %d", n)
 	}
 }

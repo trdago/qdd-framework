@@ -7,6 +7,7 @@ import (
 
 // La IA que trabaja con QDD tiene que encontrar la razón de fondo del cero 'else' donde lee la regla, no solo en la
 // documentación (pedido del usuario, 2026-10-31).
+// contrato: metodo#1995b1da
 func TestMetodoDeTrabajo_CeroElseDiceElPorQue(t *testing.T) {
 	m := MetodoDeTrabajo()
 	for _, debe := range []string{"Cero 'else'", "No es una moda", PorQueCeroElse, "cualquier lenguaje"} {

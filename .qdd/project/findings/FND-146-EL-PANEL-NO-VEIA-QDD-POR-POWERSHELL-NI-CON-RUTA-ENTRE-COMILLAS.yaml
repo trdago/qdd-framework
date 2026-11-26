@@ -1,0 +1,9 @@
+id: "FND-146"
+title: "El panel no veía los comandos qdd corridos por PowerShell ni con una ruta entre comillas"
+description: "El panel de Claude Code solo miraba la herramienta Bash, en dos reglas: la que relee el panel tras un comando qdd y la que niega a una IA activar el modo goal. Y sus expresiones no reconocían rutas con \\ ni rutas entre comillas (& \"C:\\x y\\qdd.exe\"). El issue #112 (MEJ-016) reportó lo de PowerShell; al verificarlo por lectura del código apareció que una ruta entre comillas y qdd.cmd también las esquivaban por Bash."
+impact: "En Windows, lo que una IA cambiaba con qdd por PowerShell no aparecía en el panel hasta su siguiente lectura. La negativa del modo goal no se aplicaba a esos comandos; quedaba la segunda barrera, el rechazo de qdd con CLAUDECODE en el entorno, que sí funciona también por la acción del panel."
+action_taken: "Las dos reglas miran Bash y PowerShell (HERRAMIENTAS_SHELL) y reconocen rutas con / o \\, entre comillas, y con sufijo (qdd.exe, qdd.cmd, qdd-rc10). Un archivo o carpeta llamado qdd en los argumentos sigue sin contar (FND-106). Sin confirmar: el nombre y el campo reales de la herramienta PowerShell de Claude Code, que se tomaron del reporte, y el panel en un PC con Windows."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/qdd-tareas.test.ts y goal.test.ts (FND-146), que fallaban antes del cambio. cli/cmd/goal_test.go (FND146) comprueba la barrera de qdd por la acción del panel; esa pasó desde el principio: no era parte del bug."
+status: resolved
+detectado_por: ia
+date: "2026-11-05"

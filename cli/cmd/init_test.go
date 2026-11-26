@@ -44,7 +44,7 @@ func setupNestedProjectStructure(t *testing.T, tempDir string) {
 
 func validateDetectedLanguages(t *testing.T, languages []string) {
 	expected := []string{"Go", "Node"}
-	
+
 	if !reflect.DeepEqual(languages, expected) {
 		t.Errorf("Expected detected languages %v, but got %v", expected, languages)
 	}

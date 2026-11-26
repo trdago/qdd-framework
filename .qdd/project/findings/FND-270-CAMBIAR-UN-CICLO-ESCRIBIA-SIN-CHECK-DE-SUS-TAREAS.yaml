@@ -1,0 +1,9 @@
+id: "FND-270"
+title: "Cambiar un ciclo o el ciclo de un objetivo escribía estado.yaml sin pasar por Check de sus tareas"
+description: "Medido 2026-11-21 al probar el invariante «Nada escribe estado.yaml sin pasar por Check del frente tocado» (estado#f47c5e80): DeclararCiclo (qdd estado ciclo) y GuardarObjetivo con --ciclo reforman las tareas del ciclo y llamaban a Save directo; GuardarObjetivo solo revisaba el objetivo. Con una tarea con Producción ✅, agregar la etapa Puerta al ciclo (o pasar su objetivo a un ciclo con Puerta) la dejaba con Puerta «·» y Producción ✅, y el archivo quedaba escrito con EPF-C04. Pasaba igual con el ciclo «proyecto» y con un ciclo propio."
+impact: "El tablero, el teléfono y el reporte mostraban una tarea en producción sin su puerta, y qdd audit fallaba después por un archivo que qdd mismo había escrito; las demás escrituras (set, cerrar, aprobar, ya lo vi, tarea) sí lo rechazaban."
+action_taken: "reformarCiclo y reformarObjetivo devuelven las tareas que reformaron; DeclararCiclo escribe con guardarTareasValidadas y GuardarObjetivo revisa esas tareas antes de guardar: si una queda sin cumplir Check, no se escribe y el error la nombra. guardarValidado pasa por la misma función (violacionesDe), con una sola tarea."
+test_result: "cli/pkg/estado/escribir_con_check_test.go TestEscribir_CambiarUnCicloPasaPorCheckDeSusTareas_FND270 falló sin el arreglo («qdd estado ciclo despliegue: una tarea que quedaría sin cumplir Check no se escribe») y pasa con él, igual en el ciclo «proyecto» y en qdd estado objetivo --ciclo; un ciclo que deja las tareas cumpliendo se sigue escribiendo. TestEscribir_CadaEscrituraDeUnaTareaPasaPorSuCheck cubre set, cerrar, aprobar, ya lo vi y tarea."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

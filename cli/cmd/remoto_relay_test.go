@@ -117,6 +117,7 @@ func TestRemotoActivar_GuardaEmparejaYDejaElServicio(t *testing.T) {
 	}
 }
 
+// contrato: remoto#5e30cfe9
 func TestRemotoActivar_RechazaUnaClaveSecreta(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("QDD_HOME", home)
@@ -131,18 +132,19 @@ func TestRemotoActivar_RechazaUnaClaveSecreta(t *testing.T) {
 	}
 }
 
-func TestRemotoCorrer_UnaSolaVezPorMaquina(t *testing.T) {
+// MEJ-079 (FND-230): un segundo qdd remoto correr con el mismo QDD_HOME sale con su código, sin leer el relay ni
+// conectarse, y dice qué pid tiene el candado.
+func TestRemotoCorrer_OtroConElMismoQDDHomeSaleSinConectarse_MEJ079(t *testing.T) {
 	t.Setenv("QDD_HOME", t.TempDir())
-	soltar, err := unaSolaVez()
+	soltar, err := remoto.UnaSolaVez()
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir, _ := remoto.DirRemoto()
-	os.WriteFile(dir+"/correr.pid", []byte("1"), 0o600)
-	if _, err := unaSolaVez(); err == nil && runtime.GOOS != "windows" {
-		t.Fatal("con otro vivo (pid 1), no corre otro")
+	defer soltar()
+	var errs bytes.Buffer
+	if c := remotoCorrer(&errs); c != codigoYaCorre || !strings.Contains(errs.String(), "ya corre con este QDD_HOME (pid ") {
+		t.Fatalf("sale con %d y dice quién lo tiene: %d %s", codigoYaCorre, c, errs.String())
 	}
-	soltar()
 }
 
 func TestRemotoRevocar_LocalYEnElRelay(t *testing.T) {
@@ -224,5 +226,34 @@ func TestRemoto_EmparejarAvisaQueSinServicioNoPublica_FND136(t *testing.T) {
 	var out, errs bytes.Buffer
 	if c := remotoEmparejar(context.Background(), &out, &errs); c != 0 || !strings.Contains(out.String(), "qdd login") {
 		t.Fatalf("avisa qué falta: %d %s %s", c, out.String(), errs.String())
+	}
+}
+
+// FND-171: emparejar tampoco puede dar un código de un relay retirado.
+func TestRemoto_EmparejarUsaElRelayDelDirectorio_FND171(t *testing.T) {
+	antiguo, urlAntiguo := nuevoRelayCmd(t)
+	nuevo, urlNuevo := nuevoRelayCmd(t)
+	prepararLogin(t, remoto.ConfigRelay{URL: urlNuevo, Clave: "sb_publishable_prueba", Serie: 1})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: urlAntiguo, Clave: "sb_publishable_prueba"}); err != nil {
+		t.Fatal(err)
+	}
+	var out, errs bytes.Buffer
+	if c := remotoEmparejar(context.Background(), &out, &errs); c != 0 {
+		t.Fatalf("empareja: %d %s", c, errs.String())
+	}
+	if len(antiguo.llamadas) != 0 || len(nuevo.llamadas) == 0 {
+		t.Fatalf("el código sale del relay del directorio: antiguo %v, nuevo %v", antiguo.llamadas, nuevo.llamadas)
+	}
+}
+
+func TestRemoto_EmparejarAvisaSiNoPudoConfirmarElRelay_FND171(t *testing.T) {
+	_, url := nuevoRelayCmd(t)
+	prepararLogin(t, remoto.ConfigRelay{})
+	if err := remoto.GuardarRelay(remoto.ConfigRelay{URL: url, Clave: "sb_publishable_prueba"}); err != nil {
+		t.Fatal(err)
+	}
+	var out, errs bytes.Buffer
+	if c := remotoEmparejar(context.Background(), &out, &errs); c != 0 || !strings.Contains(errs.String(), "no se pudo confirmar") {
+		t.Fatalf("avisa antes del código: %d %q", c, errs.String())
 	}
 }

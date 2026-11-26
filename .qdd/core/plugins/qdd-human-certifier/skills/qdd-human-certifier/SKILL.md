@@ -77,6 +77,21 @@ flowchart TD
 
 ---
 
+## 🧪 PRUEBAS EN LOS NODOS DE UN FLUJO (`qdd flujo item`)
+
+Un flujo del proyecto (`.qdd/project/flujos/<id>.yaml`) puede traer en cada nodo ítems de tipo `prueba`. Son lo que la
+persona quiere ver probado en ese paso, y muchas veces los agrega ella desde el panel o el teléfono. Cuando certifiques un
+flujo que tiene esas pruebas:
+
+1. **Léelas primero:** `qdd flujo ver <id> --json`, en `nodos[].items` con `tipo: prueba`. Cada una entra al run como un
+   caso más del nodo del DAG que corresponde a ese paso. Una pendiente (`☐`) nueva es un pedido explícito de la persona:
+   no la saltes.
+2. **Márcalas al terminar,** cada una con el veredicto del LLM y la carpeta del run como evidencia:
+   `qdd flujo item marcar <id> <nodo> <item> pasa|falla --evidencia .qdd/evidence/run_<…>`. La persona lo ve en el mismo
+   nodo (✓ o ✗) sin abrir el certificado.
+3. **No inventes un resultado:** una prueba que no corriste queda `pendiente`. Las notas, características y funciones del
+   nodo no se marcan; úsalas como contexto de lo que el paso tiene que hacer.
+
 ## 🚀 MODOS DE EJECUCIÓN
 
 1. **Ejecución vía QDD CLI (Golang):**

@@ -25,7 +25,33 @@ var remoteGitHub = regexp.MustCompile(`github\.com[:/]([A-Za-z0-9_.-]+)/([A-Za-z
 
 // FuentesReales son las fuentes de verdad: GitHub con gh.
 func FuentesReales() Fuentes {
-	return Fuentes{GitHub: issuesDeGitHub}
+	return Fuentes{GitHub: issuesDeGitHub, Cerrado: cierreEnGitHub}
+}
+
+func cierreEnGitHub(root, repo string, numero int) (string, error) {
+	ctx, cancelar := context.WithTimeout(context.Background(), TopeGitHub)
+	defer cancelar()
+	salida, err := correr(ctx, root, "gh", "api", fmt.Sprintf("repos/%s/issues/%d", repo, numero))
+	if err != nil {
+		return "", fmt.Errorf("gh api: %v", err)
+	}
+	return CierreDeAPI([]byte(salida))
+}
+
+// CierreDeAPI saca de GET /repos/{owner}/{repo}/issues/{n} cómo se cerró: state_reason («completed», «not_planned»,
+// «duplicate»). Un issue que sigue abierto no se cerró, y eso es un error para quien preguntó (MEJ-066).
+func CierreDeAPI(b []byte) (string, error) {
+	var crudo struct {
+		State       string `json:"state"`
+		StateReason string `json:"state_reason"`
+	}
+	if err := json.Unmarshal(b, &crudo); err != nil {
+		return "", fmt.Errorf("la respuesta de GitHub no se entiende: %v", err)
+	}
+	if crudo.State != "closed" {
+		return "", fmt.Errorf("el issue está %q, no cerrado", crudo.State)
+	}
+	return crudo.StateReason, nil
 }
 
 func issuesDeGitHub(root string) (string, []Issue, error) {
@@ -48,6 +74,17 @@ func issuesDeGitHub(root string) (string, []Issue, error) {
 	}
 	issues, err := IssuesDeAPI([]byte(salida))
 	return repo, issues, err
+}
+
+// RepoDeProyecto es el owner/repo de GitHub del remote origin del proyecto, si lo tiene.
+func RepoDeProyecto(root string) (string, bool) {
+	ctx, cancelar := context.WithTimeout(context.Background(), TopeGitHub)
+	defer cancelar()
+	remote, err := correr(ctx, root, "git", "remote", "get-url", "origin")
+	if err != nil {
+		return "", false
+	}
+	return RepoDeRemote(remote)
 }
 
 // RepoDeRemote saca owner/repo de un remote de GitHub (SSH o HTTPS).

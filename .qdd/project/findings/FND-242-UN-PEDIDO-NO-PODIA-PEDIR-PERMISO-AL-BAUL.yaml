@@ -1,0 +1,9 @@
+id: "FND-242"
+title: "Un pedido que usa el baúl no podía pedir permiso: corría sin sesión"
+description: "2026-11-20: el pedido «Probar el plan del DNS de prod» corrió qdd ambiente levantar, que usa el token de Cloudflare del baúl. Falló con «sin sesión de Claude Code ni terminal no hay a quién pedirle permiso». Un pedido corre aparte, fuera de Claude Code, y su comando no recibía CLAUDE_CODE_SESSION_ID aunque el pedido anota qué sesión lo pidió (Pidio)."
+impact: "Todo comando del baúl dejado como pedido (lo que la IA no puede correr sola porque usa una credencial) fallaba sin dejar el 🔑 en el panel: la persona no tenía cómo darle permiso."
+action_taken: "correrComando corre el comando con CLAUDE_CODE_SESSION_ID de la sesión que pidió el pedido o, si no hay, de la que lo confirmó. El baúl deja el 🔑 en el panel de esa sesión y el pedido sale con «todavía no» hasta que la persona lo da."
+test_result: "cli/pkg/consola/pedidos_mej043_test.go TestPedido_CorreConLaSesionQueLoPidio_FND242: un pedido pedido con una sesión y corrido sin ella en el entorno imprime esa sesión. Falló antes del cambio («sesion=|») y pasa después; go test ./pkg/consola en verde."
+status: resolved
+detectado_por: persona
+date: "2026-11-20"

@@ -1,0 +1,9 @@
+id: "FND-246"
+title: "Las pruebas de consola y estado escribían en el QDD_HOME de la persona"
+description: "Medido 2026-11-21 corriendo go test ./... con HOME falso y espías en lugar de claude, gh, npm, systemctl y otros: pkg/consola dejaba un archivo de turnos (claude/turnos/001-<hash>.json, con la acción de prueba «aprobar:pagos») en ~/.local/share/qdd por corrida, y pkg/estado creaba carpetas allí. En este PC había 536 archivos de turnos; 525 eran de pruebas."
+impact: "Cada corrida de pruebas ensuciaba la carpeta central de la persona; una prueba que escribe ahí también puede pisar datos reales (colas, turnos, actividad) de un proyecto con el mismo nombre de carpeta."
+action_taken: "pkg/aislar.Correr(m) corre las pruebas de un paquete con un QDD_HOME temporal que se borra al final (lo hereda el qdd hijo que lanzan); lo usan los TestMain de pkg/consola y pkg/estado. e2e/hermeticas/correr.sh corre todas las pruebas de Go con HOME falso y espías y falla si alguna escribe en ~/.local/share/qdd, ~/.claude, ~/.config/systemd o ~/.config/qdd, o lanza un programa real; corre en CI."
+test_result: "cli/pkg/consola/qdd_home_pruebas_test.go TestPruebas_NoEscribenEnElQDDHomeDeLaPersona_FND246 falló sin el TestMain aislado (QDD_HOME = ~/.local/share/qdd) y pasa con él; e2e/hermeticas/correr.sh: antes «una prueba escribió en ~/.local/share/qdd», después «[✓] Pruebas herméticas»."
+status: resolved
+detectado_por: ia
+date: "2026-11-21"

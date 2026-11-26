@@ -6,10 +6,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/listas"
+	"github.com/qdd-framework/qdd/pkg/mejoras"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -63,11 +66,18 @@ var consolaEstadoCmd = &cobra.Command{Use: "estado", Short: "Dice si la consola 
 var consolaActualizarCmd = &cobra.Command{Use: "actualizar", Short: "Deja el panel en la versión de esta CLI", Run: runConsolaActualizar}
 var consolaStatuslineCmd = &cobra.Command{Use: "statusline", Short: "Barra de estado de Claude Code (JSON por la entrada estándar); nunca falla", Run: runConsolaStatusline}
 var consolaPanelCmd = &cobra.Command{Use: "panel", Short: "Lo que dibuja el panel, en JSON (tareas y acciones); nunca falla", Run: runConsolaPanel}
+var consolaProyectosCmd = &cobra.Command{Use: "proyectos", Short: "Una fila por proyecto de este PC, en JSON (puntaje, findings, ⏳ y ❌); solo lee y nunca falla", Run: runConsolaProyectos}
 var consolaAccionCmd = &cobra.Command{
 	Use:   "accion <id>",
 	Short: "Ejecuta una acción que ofrece 'qdd consola panel' (lo que escribe, solo con --confirmado)",
 	Args:  cobra.ExactArgs(1),
 	Run:   runConsolaAccion,
+}
+
+func init() {
+	// Con --dir, cualquier comando de la consola actúa en otro proyecto: «Para ti» responde desde un panel lo que espera
+	// a la persona en los demás (para_ti_otros.go).
+	consolaCmd.PersistentFlags().StringVar(&estadoDir, "dir", "", "carpeta del proyecto (por defecto, la actual)")
 }
 
 func init() {
@@ -78,16 +88,29 @@ func init() {
 	consolaActualizarCmd.Flags().BoolVar(&consolaSiActivo, "si-activo", false, "no hace nada si la consola no se activó (para instaladores)")
 	consolaPanelCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
 	consolaPanelCmd.Flags().StringSliceVar(&consolaCon, "con", nil, "tipos de acción opcionales que este panel sabe dibujar (atender, pregunta, telefono); sin esto no se ofrecen (FND-092)")
+	consolaProyectosCmd.Flags().Bool("json", true, "salida JSON (la única que hay)")
 	consolaAccionCmd.Flags().BoolVar(&consolaConfirmado, "confirmado", false, "la persona ya confirmó (el segundo paso del panel)")
 	consolaAccionCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión de Claude Code que confirma un pedido: recibe su resultado al terminar")
 	consolaAvisadoCmd.Flags().StringVar(&consolaSesion, "sesion", "", "sesión que recibió el aviso (la que confirmó el pedido)")
 	consolaCmd.AddCommand(consolaActivarCmd, consolaDesactivarCmd, consolaEstadoCmd, consolaActualizarCmd, consolaStatuslineCmd,
-		consolaPanelCmd, consolaAccionCmd, consolaAvisadoCmd)
+		consolaPanelCmd, consolaProyectosCmd, consolaAccionCmd, consolaAvisadoCmd)
 	rootCmd.AddCommand(consolaCmd)
 }
 
 func consolaActual() consola.Consola {
-	return consola.Consola{Version: Version}
+	bin, err := os.Executable()
+	if err != nil {
+		return consola.Consola{Version: Version}
+	}
+	return consola.Consola{Version: Version, Binario: binarioDeLaBarra(bin)}
+}
+
+// binarioDeLaBarra es la ruta que la barra llama directo: solo la de un qdd instalado, nunca la de uno compilado a mano.
+func binarioDeLaBarra(bin string) string {
+	if !consola.InstaladoConNPM(bin) {
+		return ""
+	}
+	return bin
 }
 
 func imprimirHecho(hecho []string, err error) {
@@ -113,6 +136,7 @@ func runConsolaDesactivar(cmd *cobra.Command, args []string) {
 }
 
 func runConsolaActualizar(cmd *cobra.Command, args []string) {
+	seguirVersionEnLaTarea()
 	c := consolaActual()
 	if _, ok := c.LeerRegistro(); !ok {
 		if consolaSiActivo {
@@ -121,6 +145,18 @@ func runConsolaActualizar(cmd *cobra.Command, args []string) {
 		salirCon("la consola no está activada: usa 'qdd consola activar'")
 	}
 	imprimirHecho(c.Reparar())
+}
+
+// seguirVersionEnLaTarea: en Windows, cada versión de qdd vive en su carpeta, y la tarea de qdd remoto tiene que lanzar la
+// nueva (FND-142). Una falla no detiene la instalación: 'qdd doctor --fix' la repara.
+func seguirVersionEnLaTarea() {
+	s, err := remotoServicio()
+	if err != nil {
+		return
+	}
+	if err := s.RenovarTarea(remotoEjecutor); err != nil {
+		fmt.Fprintf(os.Stderr, "[!] No se pudo actualizar la tarea de qdd remoto: %v\n", err)
+	}
 }
 
 func runConsolaEstado(cmd *cobra.Command, args []string) {
@@ -143,11 +179,37 @@ func runConsolaEstado(cmd *cobra.Command, args []string) {
 	}
 }
 
+const (
+	// topeEntradaBarra: Claude Code escribe la entrada de la barra en el acto; nada justifica esperar más.
+	topeEntradaBarra = 3 * time.Second
+	maxEntradaBarra  = 1 << 20
+)
+
+// leerEntradaBarra corta al tope: con un stdin que nadie cierra, la barra quedaba viva para siempre (FND-145). Al salir
+// el proceso, la lectura pendiente termina con él.
+func leerEntradaBarra(r io.Reader, tope time.Duration) ([]byte, bool) {
+	type lectura struct {
+		datos []byte
+		err   error
+	}
+	listo := make(chan lectura, 1)
+	go func() {
+		datos, err := io.ReadAll(io.LimitReader(r, maxEntradaBarra))
+		listo <- lectura{datos, err}
+	}()
+	select {
+	case l := <-listo:
+		return l.datos, l.err == nil
+	case <-time.After(tope):
+		return nil, false
+	}
+}
+
 // runConsolaStatusline nunca falla ni escribe en stderr: con una entrada ilegible no imprime nada.
 func runConsolaStatusline(cmd *cobra.Command, args []string) {
 	defer func() { _ = recover() }()
-	datos, err := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
-	if err != nil {
+	datos, ok := leerEntradaBarra(os.Stdin, topeEntradaBarra)
+	if !ok {
 		return
 	}
 	c := consolaActual()
@@ -166,15 +228,20 @@ func runConsolaStatusline(cmd *cobra.Command, args []string) {
 
 // runConsolaPanel siempre imprime un JSON: sin estado.yaml, el estado es null y el motivo dice cómo crearlo.
 func runConsolaPanel(cmd *cobra.Command, args []string) {
-	root := estadoRaiz()
-	prsAlDia(root)
-	datos := datosPanel(root, time.Now(), consolaCon)
-	conEfectos(&datos)
-	out, err := json.Marshal(datos)
+	out, err := lecturaPanel(estadoRaiz(), consolaCon)()
 	if err != nil {
 		salirCon("%v", err)
 	}
 	fmt.Println(string(out))
+}
+
+// runConsolaProyectos entrega las filas de la vista «Proyectos» (RFC 0018): el panel las dibuja y no decide nada.
+func runConsolaProyectos(cmd *cobra.Command, args []string) {
+	out, err := listas.Marshal(consola.Proyectos(time.Now()))
+	if err != nil {
+		salirCon("%v", err)
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), string(out))
 }
 
 // datosPanel es el panel con la versión de qdd y, con QDD Móvil activado y Pro, lo que este PC acepta ejecutar desde
@@ -183,7 +250,46 @@ func datosPanel(root string, now time.Time, con []string) consola.DatosConsola {
 	datos := consola.Panel(root, now, con...)
 	datos.Version = Version
 	datos.Ejecutar = remoto.OpcionesEjecutar(root, remoto.PlanLocal(), now)
+	datos.AvisoVersion = consola.AvisoDeVersion(root, Version)
+	conLoQuePide(&datos, root, now, con)
 	return datos
+}
+
+// conLoQuePide agrega lo que el panel leía con un proceso propio cada tanto, si dice que lo sabe usar (MEJ-020).
+func conLoQuePide(datos *consola.DatosConsola, root string, now time.Time, con []string) {
+	for _, c := range con {
+		if c == "herramientas" {
+			datos.Herramientas = herramientasDelPanel(root)
+		}
+		if c == "flujos" {
+			datos.Flujos = flujosDelPanel(root)
+		}
+		if c == "esperas_persona" {
+			datos.EsperasPersona = consola.EsperasDelPanel(root, now)
+		}
+		if strings.HasPrefix(c, prefijoTelefonoEnFlujo) {
+			datos.TelefonoEnFlujo = true
+		}
+		if panel, ok := strings.CutPrefix(c, consola.PrefijoVersionPanel); ok {
+			datos.AvisoVersion = primero(consola.AvisoDeReinicio(panel, Version), datos.AvisoVersion)
+		}
+		if c == "mejoras" {
+			toca := mejoras.TocaCiclo(root, now)
+			datos.MejorasToca = &toca
+		}
+	}
+}
+
+func herramientasDelPanel(root string) json.RawMessage {
+	vs, _ := listadoDeHerramientas(root)
+	if len(vs) == 0 {
+		return json.RawMessage("[]")
+	}
+	b, err := listas.Marshal(vs)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 // runConsolaAccion vuelve a calcular las acciones: el panel solo pasa el id y qdd decide si existe y si está confirmada.
@@ -216,15 +322,19 @@ var consolaAvisadoCmd = &cobra.Command{
 	Short: "Marca que la sesión que confirmó un pedido ya recibió su resultado (sale con 1 si ya se avisó)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(consolaAvisado(estadoRaiz(), args[0], consolaSesion, os.Stderr))
+		os.Exit(consolaAvisado(estadoRaiz(), args[0], consolaSesion, os.Stdout, os.Stderr))
 	},
 }
 
-func consolaAvisado(root, id, sesion string, errores io.Writer) int {
-	if err := consola.Avisado(root, id, sesion); err != nil {
+// consolaAvisado imprime el mensaje para la IA tal como quedó al reclamarlo (FND-187): el panel lo prefiere al de su
+// lectura anterior.
+func consolaAvisado(root, id, sesion string, salida, errores io.Writer) int {
+	mensaje, err := consola.ReclamarAviso(root, id, sesion)
+	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
+	fmt.Fprintln(salida, mensaje)
 	return 0
 }
 
@@ -249,6 +359,8 @@ var consolaRaiz string
 // RFC 0006 §3.9: comandos que la IA deja para que la persona los ejecute desde el panel.
 var consolaMotivo, consolaCarpeta string
 var consolaDespues, consolaAntes []string
+var consolaDeNuevo, consolaDePersona bool
+var consolaReemplaza string
 var consolaTarea string
 
 // consolaCon son los tipos opcionales que pide el panel (qdd consola panel --con atender).
@@ -264,6 +376,14 @@ se acepta dos veces); si falla queda para reintentarlo o descartarlo (x). Para c
 Si un pedido depende de otro, dilo: --despues <id|tecla> lo deja esperando a ese (el panel lo muestra «espera a [a]»,
 sin botón, hasta que quede hecho) y --antes <id|tecla> hace que ese otro espere a este. El panel los ordena solo.
 Pedir de nuevo un comando que ya está, con --despues o --antes, lo reordena sin duplicarlo.
+Si se descarta un pedido, los que lo esperaban quedan bloqueados (no corren ni se confirman): pide de nuevo lo
+descartado y vuelven a esperarlo, o pide de nuevo el bloqueado si ya no lo necesita.
+Varios argumentos se citan para la shell tal como llegan (uno con espacios va entero); un solo argumento es un texto de
+shell y va tal cual (p. ej. 'gh pr merge 14 && git push').
+Lo que ya se hizo en las últimas 24 h no se vuelve a pedir, aunque cambie el texto (cerrar el mismo issue, mergear el
+mismo PR): repetirlo de verdad se dice con --de-nuevo.
+Con el modo goal activo, los pedidos corren sin el «s  Sí» de la persona. Lo que solo ella puede autorizar (un push que
+su proyecto reserva para ella, un despliegue) va con --de-persona: espera su «s  Sí» aunque el modo esté activo.
 --tarea <id> dice qué tarea del estado extiende el pedido (sin él, la tarea en curso). Si después de un mensaje de la
 persona esa tarea sigue cambiando (la persona prefirió seguir trabajando en vez de ejecutarlo), el pedido sale de
 «▶ Para ti». Cuando la tarea vuelva a estar lista, pídelo de nuevo con la misma --tarea: vuelve con su tecla.
@@ -281,7 +401,7 @@ con 'exit 75' y la persona lo vuelve a apretar.
   qdd consola pedir -m "Mergear #14, después del tag" --despues a -- gh pr merge 14 --merge`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea}
+		orden := consola.Orden{Despues: consolaDespues, Antes: consolaAntes, Tarea: consolaTarea, DeNuevo: consolaDeNuevo, DePersona: consolaDePersona, Reemplaza: consolaReemplaza}
 		os.Exit(consolaPedir(estadoRaiz(), consolaMotivo, consolaCarpeta, orden, args, os.Stdout, os.Stderr))
 	},
 }
@@ -290,8 +410,45 @@ var consolaPedidosCmd = &cobra.Command{
 	Use:   "pedidos",
 	Short: "Lista los comandos que esperan a la persona en el panel",
 	Run: func(cmd *cobra.Command, args []string) {
+		if consolaSalidaDe != "" {
+			os.Exit(salidaDePedido(estadoRaiz(), consolaSalidaDe, os.Stdout, os.Stderr))
+		}
 		listarPedidos(estadoRaiz(), os.Stdout)
 	},
+}
+
+var consolaSalidaDe string
+
+// salidaDePedido muestra cómo terminó un pedido y su salida (MEJ-054). La referencia es su id, la tecla de uno abierto o
+// la de uno que ya terminó (el más reciente con esa tecla), porque al terminar su tecla queda libre.
+func salidaDePedido(root, ref string, salida, errores io.Writer) int {
+	p, ok := pedidoPorReferencia(consola.Pedidos(root), strings.TrimSpace(ref))
+	if !ok {
+		fmt.Fprintf(errores, "[!] no hay un pedido '%s' en la cola: los hechos se van a la media hora (qdd consola pedidos)\n", ref)
+		return 1
+	}
+	fmt.Fprintf(salida, "[%s] %s · %s\n    %s\n", marcaPedido(p), p.Motivo, estadoPedido(p, consola.EsperaDe(root, p.ID)), p.Comando)
+	if strings.TrimSpace(p.Salida) == "" {
+		fmt.Fprintln(salida, "(sin salida)")
+		return 0
+	}
+	fmt.Fprintln(salida, p.Salida)
+	return 0
+}
+
+func pedidoPorReferencia(cola []consola.Pedido, ref string) (consola.Pedido, bool) {
+	for _, p := range cola {
+		if p.ID == ref || (p.Abierto() && p.Tecla == ref) {
+			return p, true
+		}
+	}
+	var ultimo consola.Pedido
+	for _, p := range cola {
+		if p.Tecla == ref && p.Fin != nil && (ultimo.Fin == nil || p.Fin.After(*ultimo.Fin)) {
+			ultimo = p
+		}
+	}
+	return ultimo, ultimo.Fin != nil
 }
 
 // listarPedidos muestra cada pedido con su tecla (✓ si ya está hecho, sin tecla si se está ejecutando) y su estado.
@@ -377,8 +534,12 @@ func init() {
 	consolaPedirCmd.Flags().StringVarP(&consolaMotivo, "motivo", "m", "", "resumen estilo chat (≤ 60 caracteres, con símbolos): qué hace y por qué lo ejecuta la persona")
 	consolaPedirCmd.Flags().StringVar(&consolaCarpeta, "carpeta", "", "dónde corre (por defecto, la raíz del proyecto)")
 	consolaPedirCmd.Flags().StringVar(&consolaTarea, "tarea", "", "tarea del estado que el pedido extiende (por defecto, la tarea en curso): si sigue cambiando, sale del panel")
+	consolaPedirCmd.Flags().BoolVar(&consolaDeNuevo, "de-nuevo", false, "repetir algo que ya se hizo en las últimas 24 h")
+	consolaPedirCmd.Flags().BoolVar(&consolaDePersona, "de-persona", false, "espera el «s  Sí» de la persona aunque el modo goal esté activo (lo que solo ella autoriza)")
+	consolaPedidosCmd.Flags().StringVar(&consolaSalidaDe, "salida", "", "muestra cómo terminó un pedido y su salida (id o tecla, también de uno ya hecho)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaDespues, "despues", nil, "pedidos que tienen que quedar hechos antes (id o tecla, separados por coma)")
 	consolaPedirCmd.Flags().StringSliceVar(&consolaAntes, "antes", nil, "pedidos que tienen que esperar a este (id o tecla, separados por coma)")
+	consolaPedirCmd.Flags().StringVar(&consolaReemplaza, "reemplaza", "", "pedido que falló o sigue pendiente (id o tecla): este toma su tecla y su lugar en la cadena")
 	consolaCorrerCmd.Flags().StringVar(&consolaRaiz, "raiz", "", "raíz del proyecto del pedido")
 	consolaDescartarCmd.Flags().BoolVar(&consolaHecho, "hecho", false, "la persona ya lo hizo fuera del panel: queda hecho (no descartado) y libera a los que lo esperan")
 	consolaDescartarCmd.Flags().StringVar(&consolaNota, "nota", "", "con --hecho: lo que dijo la persona («lo mergeé en GitHub»)")
@@ -386,14 +547,23 @@ func init() {
 }
 
 func consolaPedir(root, motivo, carpeta string, orden consola.Orden, args []string, salida, errores io.Writer) int {
-	p, err := consola.PedirEnOrden(root, strings.Join(args, " "), motivo, carpeta, orden, time.Now())
+	orden.Reactiva = true
+	p, err := consola.PedirEnOrden(root, consola.ComandoDeArgs(args, runtime.GOOS), motivo, carpeta, orden, time.Now())
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
 	cola := consola.ColaDe(root, p.Carpeta)
-	fmt.Fprintf(salida, "[+] Quedó en %s con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»).\n", panelDe(root, cola), p.Tecla, p.Motivo, conEspera(consola.EsperaDe(cola, p.ID)), p.Comando, p.Carpeta)
+	fmt.Fprintf(salida, "[+] Quedó en %s con la tecla %s: %s%s\n    %s (en %s)\n    Corre solo cuando la persona lo confirma en el panel («s  Sí»)%s.\n", panelDe(root, cola), p.Tecla, p.Motivo, conEspera(consola.EsperaDe(cola, p.ID)), p.Comando, p.Carpeta, aunqueGoal(p))
 	return 0
+}
+
+// aunqueGoal lo dice de un pedido de la persona, que el modo goal no lanza (MEJ-024).
+func aunqueGoal(p consola.Pedido) string {
+	if !p.DePersona {
+		return ""
+	}
+	return ", aunque el modo goal esté activo"
 }
 
 // panelDe nombra el panel donde quedó un pedido: el de esta sesión o el del repositorio donde corre (FND-081).

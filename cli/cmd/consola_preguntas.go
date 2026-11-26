@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/listas"
 	"github.com/qdd-framework/qdd/pkg/remoto"
 	"github.com/spf13/cobra"
 )
@@ -29,16 +30,20 @@ const cadaMiradaPregunta = 200 * time.Millisecond
 
 var consolaPreguntaCmd = &cobra.Command{
 	Use:   "pregunta",
-	Short: "Las preguntas de la consola que también se responden desde QDD Móvil (registrar | esperar | cerrar | vencer | lista)",
+	Short: "Las preguntas de la consola que también se responden desde QDD Móvil (registrar | esperar | cerrar | vencer | responder | lista)",
 	Long: `Lo usa el panel de Claude Code (mod qdd-tareas): cada pregunta de la IA (AskUserQuestion) o permiso de herramienta
-que se le hace a la persona queda en una cola local del repositorio y qdd remoto la publica en el teléfono. Gana quien
+que se le hace a la persona queda en una cola local del repositorio: el panel la muestra en «▶ Para ti» y, con QDD Móvil
+activado, qdd remoto la publica en el teléfono. Gana quien
 responde primero, el terminal o un teléfono; un permiso desde el teléfono solo se permite una vez o se niega.
 
-  qdd consola pregunta registrar            lee {sesion, herramienta, entrada} por la entrada estándar; devuelve {id, accion}
-                                            (sin QDD Móvil activado no registra: id vacío y el motivo)
+  qdd consola pregunta registrar            lee {sesion, herramienta, entrada} por la entrada estándar; devuelve
+                                            {id, accion, telefono} (telefono: si QDD Móvil también la puede responder)
   qdd consola pregunta esperar <id>         espera hasta --segundos la respuesta de un teléfono; imprime cómo está
   qdd consola pregunta cerrar <id>          la respondió el terminal (o --vencida --motivo …)
   qdd consola pregunta vencer --sesion <id> vence las pendientes de una sesión que se cerró
+  qdd consola pregunta responder <id> <op>  un botón de «Para ti»: en un ⏳, hecho, todavia_no o ya_no_va; imprime
+                                            {aplicado, mensaje} (mensaje: lo que el panel le envía a la IA). En una
+                                            pregunta de la terminal, el valor de la opción (a, b… o permitir/negar)
   qdd consola pregunta lista [--json]       la cola de este proyecto`,
 }
 
@@ -70,6 +75,13 @@ var consolaPreguntaVencerCmd = &cobra.Command{
 	},
 }
 
+var consolaPreguntaResponderCmd = &cobra.Command{
+	Use: "responder <id> <hecho|todavia_no|ya_no_va>", Short: "Responde un ⏳ de la persona desde el panel del PC", Args: cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		os.Exit(preguntaResponder(estadoRaiz(), args[0], args[1], os.Stdout, os.Stderr))
+	},
+}
+
 var consolaPreguntaListaCmd = &cobra.Command{
 	Use: "lista", Short: "Las preguntas de la consola de este proyecto y cómo están", Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -84,16 +96,15 @@ func init() {
 	consolaPreguntaVencerCmd.Flags().StringVar(&preguntaSesion, "sesion", "", "la sesión de Claude Code que se cerró")
 	consolaPreguntaVencerCmd.Flags().StringVar(&preguntaMotivo, "motivo", "", "por qué venció (por defecto, que se cerró la sesión)")
 	consolaPreguntaListaCmd.Flags().BoolVar(&preguntaJSON, "json", false, "salida JSON")
-	consolaPreguntaCmd.AddCommand(consolaPreguntaRegistrarCmd, consolaPreguntaEsperarCmd, consolaPreguntaCerrarCmd, consolaPreguntaVencerCmd, consolaPreguntaListaCmd)
+	consolaPreguntaCmd.AddCommand(consolaPreguntaRegistrarCmd, consolaPreguntaEsperarCmd, consolaPreguntaCerrarCmd, consolaPreguntaVencerCmd, consolaPreguntaResponderCmd, consolaPreguntaListaCmd)
 	consolaCmd.AddCommand(consolaPreguntaCmd)
 }
 
-// preguntaRegistrar registra la pregunta solo si este PC tiene QDD Móvil activado: sin teléfono no hay a quién más
-// preguntarle, y el terminal pregunta como siempre.
+// preguntaRegistrar registra toda pregunta de la terminal, para que aparezca en «▶ Para ti» (MEJ-057). telefono dice si
+// QDD Móvil (o el modo goal) también la puede responder: sin él, el panel no ofrece el teléfono.
 func preguntaRegistrar(root string, entrada io.Reader, salida, errores io.Writer) int {
-	if _, err := remoto.LeerCredenciales(); err != nil && !consola.VistaGoal(root, time.Now()).Activo {
-		return jsonPregunta(salida, map[string]string{"id": "", "motivo": "QDD Móvil no está activado en este PC (qdd remoto activar)"})
-	}
+	_, sinTelefono := remoto.LeerCredenciales()
+	telefono := sinTelefono == nil || consola.VistaGoal(root, time.Now()).Activo
 	datos, err := io.ReadAll(io.LimitReader(entrada, 1<<20))
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
@@ -109,7 +120,30 @@ func preguntaRegistrar(root string, entrada io.Reader, salida, errores io.Writer
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	return jsonPregunta(salida, map[string]string{"id": p.ID, "accion": "pregunta:" + p.ID})
+	return jsonPregunta(salida, map[string]any{"id": p.ID, "accion": "pregunta:" + p.ID, "telefono": telefono})
+}
+
+// preguntaResponder aplica un botón de «▶ Para ti»: en un ⏳ («Ya lo hice», «Todavía no», «Ya no va») dice qué quedó en
+// el estado; en una pregunta de la terminal (MEJ-057), la opción elegida, que la sesión entrega a Claude Code.
+func preguntaResponder(root, id, valor string, salida, errores io.Writer) int {
+	if !consola.EsEspera(id) {
+		return preguntaResponderEnPanel(root, id, valor, salida, errores)
+	}
+	p, mensaje, err := consola.ResponderEsperaEnPC(root, id, valor, time.Now())
+	if err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	return jsonPregunta(salida, map[string]string{"aplicado": p.Aplicado, "mensaje": mensaje})
+}
+
+func preguntaResponderEnPanel(root, id, valor string, salida, errores io.Writer) int {
+	p, err := consola.ResponderPreguntaEnPanel(root, id, valor, time.Now())
+	if err != nil {
+		fmt.Fprintf(errores, "[!] %v\n", err)
+		return 1
+	}
+	return jsonPregunta(salida, map[string]string{"aplicado": "Respondida desde el panel: " + consola.RespuestaDe(p)})
 }
 
 // preguntaEsperar anota que la sesión la sigue esperando y mira la cola hasta que cambie o pase el plazo; imprime cómo
@@ -185,7 +219,7 @@ func estadoDePregunta(p consola.Pregunta) string {
 }
 
 func jsonPregunta(salida io.Writer, v any) int {
-	b, err := json.Marshal(v)
+	b, err := listas.Marshal(v)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[!] %v\n", err)
 		return 1

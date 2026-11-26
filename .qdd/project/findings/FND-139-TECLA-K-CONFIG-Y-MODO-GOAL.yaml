@@ -1,0 +1,9 @@
+id: "FND-139"
+title: "La tecla k del panel era a la vez Config y Modo goal"
+description: "Al agregarse el modo goal (RFC 0015), el panel le dio la tecla k, que ya era de Config. Los dos botones quedaron con la misma tecla en la misma pantalla."
+impact: "Con la tecla k no se sabía qué se abría: Config o la confirmación del modo goal. El modo no se activaba sin «s  Sí», pero la persona podía llegar a esa confirmación sin buscarla."
+action_taken: "El botón del modo goal pasa a la tecla z, que un pedido no alcanza (la cola tiene tope 9: a b d e f g h i j). Config sigue en k."
+test_result: "cli/pkg/consola/mod/qdd-tareas/tests/marca.test.ts: «ningún botón del panel comparte su tecla con otro (FND-139)», con 9 pedidos y todas las acciones."
+status: resolved
+detectado_por: agente
+date: "2026-11-05"

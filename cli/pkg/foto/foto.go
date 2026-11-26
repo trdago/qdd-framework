@@ -298,3 +298,55 @@ func Diagnostico(e Entorno, buscar func(string) (string, error)) (bool, string) 
 	}
 	return false, "no está " + strings.Join(nombres, " ni ") + ": qdd foto usa la última captura"
 }
+
+// Lo que responde HayImagen.
+const (
+	HaySi   = "si"
+	HayNo   = "no"
+	HayNoSe = "no_se" // no hay una consulta barata en este sistema: el panel muestra el botón siempre
+)
+
+// EsperaConsulta es cuánto se le da a la consulta de tipos: el panel la hace seguido.
+const EsperaConsulta = 2 * time.Second
+
+// consultaDeTipos es el comando que lista los tipos del portapapeles sin copiar su contenido. Windows y macOS no tienen
+// uno barato (PowerShell y osascript tardan en arrancar): ahí no hay consulta.
+func consultaDeTipos(e Entorno) []string {
+	if e.GOOS != "linux" {
+		return nil
+	}
+	if e.Env("WAYLAND_DISPLAY") != "" {
+		return []string{"wl-paste", "--list-types"}
+	}
+	if e.Env("DISPLAY") != "" {
+		return []string{"xclip", "-selection", "clipboard", "-t", "TARGETS", "-o"}
+	}
+	return nil
+}
+
+// HayImagen dice si el portapapeles tiene una imagen, solo con la lista de sus tipos (botón 📷 del panel, pedido de la
+// persona, 2026-11-07). Un portapapeles vacío hace salir a wl-paste con 1: eso es «no».
+func HayImagen(ctx context.Context, e Entorno, correr func(context.Context, []string) (string, error)) string {
+	argv := consultaDeTipos(e)
+	if argv == nil {
+		return HayNoSe
+	}
+	ctx, cancel := context.WithTimeout(ctx, EsperaConsulta)
+	defer cancel()
+	salida, err := correr(ctx, argv)
+	if err != nil {
+		return HayNo
+	}
+	for _, tipo := range strings.Fields(salida) {
+		if strings.HasPrefix(tipo, "image/") {
+			return HaySi
+		}
+	}
+	return HayNo
+}
+
+// CorrerConsulta corre la consulta de tipos y devuelve lo que imprimió.
+func CorrerConsulta(ctx context.Context, argv []string) (string, error) {
+	salida, err := exec.CommandContext(ctx, argv[0], argv[1:]...).Output()
+	return string(salida), err
+}

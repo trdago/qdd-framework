@@ -1,0 +1,121 @@
+FAIL ./a.test.js
+  suite a
+    ✓ prueba a0 (1 ms)
+    ✓ prueba a1 (1 ms)
+    ✓ prueba a2
+    ✕ prueba a3 (1 ms)
+    ✓ prueba a4
+    ✓ prueba a5
+    ✓ prueba a6 (1 ms)
+    ✓ prueba a7
+    ✓ prueba a8
+    ✓ prueba a9
+    ✓ prueba a10
+    ✓ prueba a11
+    ✓ prueba a12
+    ✓ prueba a13
+    ✓ prueba a14
+    ✓ prueba a15
+    ✓ prueba a16 (1 ms)
+    ✓ prueba a17
+    ✓ prueba a18
+    ✓ prueba a19
+    ✓ prueba a20
+    ✓ prueba a21
+    ✓ prueba a22
+    ✓ prueba a23
+    ✓ prueba a24
+    ✓ prueba a25
+    ✓ prueba a26
+    ✓ prueba a27
+    ✓ prueba a28
+    ✓ prueba a29
+
+  ● suite a › prueba a3
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 2
+
+      1 | describe('suite a', () => {
+      2 |   for (let i = 0; i < 30; i++) {
+    > 3 |     test('prueba a' + i, () => { expect(i === 3 ? 2 : 1).toBe(1); });
+        |                                                          ^
+      4 |   }
+      5 | });
+      6 |
+
+      at Object.<anonymous> (a.test.js:3:58)
+
+PASS ./c.test.js
+  suite c
+    ✓ prueba c0 (1 ms)
+    ✓ prueba c1
+    ✓ prueba c2
+    ✓ prueba c3
+    ✓ prueba c4
+    ✓ prueba c5
+    ✓ prueba c6
+    ✓ prueba c7
+    ✓ prueba c8
+    ✓ prueba c9
+    ✓ prueba c10
+    ✓ prueba c11
+    ✓ prueba c12
+    ✓ prueba c13
+    ✓ prueba c14
+    ✓ prueba c15
+    ✓ prueba c16
+    ✓ prueba c17
+    ✓ prueba c18
+    ✓ prueba c19
+    ✓ prueba c20
+    ✓ prueba c21 (1 ms)
+    ✓ prueba c22
+    ✓ prueba c23
+    ✓ prueba c24
+    ✓ prueba c25
+    ✓ prueba c26
+    ✓ prueba c27
+    ✓ prueba c28
+    ✓ prueba c29
+
+PASS ./b.test.js
+  suite b
+    ✓ prueba b0
+    ✓ prueba b1
+    ✓ prueba b2
+    ✓ prueba b3
+    ✓ prueba b4
+    ✓ prueba b5 (1 ms)
+    ✓ prueba b6
+    ✓ prueba b7
+    ✓ prueba b8
+    ✓ prueba b9
+    ✓ prueba b10
+    ✓ prueba b11
+    ✓ prueba b12
+    ✓ prueba b13
+    ✓ prueba b14
+    ✓ prueba b15
+    ✓ prueba b16
+    ✓ prueba b17
+    ✓ prueba b18
+    ✓ prueba b19
+    ✓ prueba b20
+    ✓ prueba b21
+    ✓ prueba b22
+    ✓ prueba b23
+    ✓ prueba b24
+    ✓ prueba b25
+    ✓ prueba b26
+    ✓ prueba b27
+    ✓ prueba b28
+    ✓ prueba b29 (1 ms)
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       1 failed, 89 passed, 90 total
+Snapshots:   0 total
+Time:        0.429 s, estimated 2 s
+Ran all test suites.

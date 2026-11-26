@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// contrato: estado#5712689f
 func TestEstadoCheck_SilentWithoutFile(t *testing.T) {
 	if v := RunEstadoCheck(t.TempDir()); len(v) != 0 {
 		t.Fatalf("sin .qdd/project/estado.yaml no debe haber violaciones: %v", v)

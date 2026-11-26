@@ -47,7 +47,11 @@ type Finding struct {
 	Estado         Estado
 	EstadoOriginal string
 	Fecha          string
-	Prueba         string
+	// Cuando es la fecha del hallazgo en cualquiera de los nombres que usan los proyectos (date, created_at o
+	// discovered_at), tal como está escrita (FND-170). Fecha sigue siendo solo date: el gate decide con ella qué findings
+	// exigen prueba (FND-02), y ampliarla empezaría a bloquear findings de otros proyectos.
+	Cuando string
+	Prueba string
 }
 
 type archivo struct {
@@ -59,6 +63,22 @@ type archivo struct {
 	Status      string `yaml:"status"`
 	Date        string `yaml:"date"`
 	TestResult  string `yaml:"test_result"`
+	// Son yaml.Node para que uno con otra forma no invalide el archivo: los conteos no pueden depender de una fecha.
+	CreatedAt    yaml.Node `yaml:"created_at"`
+	DiscoveredAt yaml.Node `yaml:"discovered_at"`
+}
+
+func (a archivo) cuando() string {
+	if a.Date != "" {
+		return a.Date
+	}
+	if a.CreatedAt.Kind == yaml.ScalarNode && a.CreatedAt.Value != "" {
+		return a.CreatedAt.Value
+	}
+	if a.DiscoveredAt.Kind == yaml.ScalarNode {
+		return a.DiscoveredAt.Value
+	}
+	return ""
 }
 
 // Dir devuelve la carpeta de findings del proyecto.
@@ -109,6 +129,7 @@ func leerArchivo(cwd string, e os.DirEntry) (Finding, bool) {
 		Estado:         Normalizar(a.Status),
 		EstadoOriginal: a.Status,
 		Fecha:          a.Date,
+		Cuando:         a.cuando(),
 		Prueba:         a.TestResult,
 	}, true
 }

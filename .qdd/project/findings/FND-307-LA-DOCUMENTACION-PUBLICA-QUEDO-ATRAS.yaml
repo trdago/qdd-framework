@@ -1,0 +1,9 @@
+id: "FND-307"
+title: "La documentación pública quedó atrás de lo que QDD hace hoy"
+description: "2026-11-24, pedido de la persona: la documentación de GitHub está desactualizada. Al comparar README, npm, guías, arquitectura, referencia, contribución y especificación con el código y el binario 2.10.0-rc.124: el README no nombraba la mitad de los comandos; decía que init conecta el MCP en las cuatro IA (solo lo hace en Cursor), que el gate certifica normas ISO y SOC, que hay 9 pilares, horas ahorradas y un certificado firmado; la arquitectura describía un Gatekeeper y plugins que no existen; la referencia marcaba como seguros comandos que escriben y le faltaban 21 reglas; CONTRIBUTING citaba una política de seguridad inexistente; la captura era de la 1.5.0."
+impact: "Quien llega por GitHub o npm cree cosas que QDD no hace y no encuentra las que sí; contradice «lo que no se midió se dice»."
+action_taken: "Se reescribieron README, npm, Getting Started, arquitectura, CONTRIBUTING, especificación e instrucciones de Copilot; la referencia se reagrupó por área y se corrigió contra el código; se agregaron SECURITY y el índice de RFC, y se sacaron la captura vieja y un certificado que nada emitía. Lo que resultó ser una falla del código quedó en FND-308 a FND-313 y se dice como límite."
+test_result: "cli/cmd/docs_al_dia_test.go (comandos en el README, cada opción en la referencia, índice y estado de los RFC, enlaces y anclas, Go de go.mod, afirmaciones sin respaldo): fallaban antes y pasan; docs_nombres_test.go cubre ahora también README, npm, CONTRIBUTING, SECURITY y specification."
+status: resolved
+detectado_por: persona
+date: "2026-11-24"

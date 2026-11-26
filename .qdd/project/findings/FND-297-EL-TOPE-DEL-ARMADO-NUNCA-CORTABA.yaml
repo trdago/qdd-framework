@@ -1,0 +1,9 @@
+id: "FND-297"
+title: "Un pedido armado que siempre dice «todavía no» se reintentaba para siempre"
+description: "Reportado 2026-11-22 por qdd-movile: el pedido [e] (Desplegar avisar, MEJ-027), confirmado el 15/11, se reintentó 18 876 veces en 6 días, cada 30 s. terminar borraba ArmadoEn antes de rearmar el pedido: cada «todavía no» volvía a empezar la cuenta y TopeArmado (2 h) solo cortaba al que espera a otro pedido. El proceso de ese reintento era del 15/11 y seguía con el binario de entonces, anterior a FND-242: por eso el baúl dijo «sin sesión de Claude Code ni terminal» aun con rc.114 instalada."
+impact: "Un proceso reintentando días con código viejo, y la persona sin enterarse de que su pedido nunca iba a salir."
+action_taken: "terminar conserva el primer ArmadoEn al rearmar: pasadas 2 h el pedido vuelve a pendiente con «Dejó de esperar…» y el proceso termina."
+test_result: "TestArmado_ElQueSiempreDiceTodaviaNoVuelveAPendienteTrasElTope_FND297 falla sin el arreglo (sigue reintentando a los 10 s) y pasa con él."
+status: resolved
+detectado_por: ia
+date: "2026-11-22"
