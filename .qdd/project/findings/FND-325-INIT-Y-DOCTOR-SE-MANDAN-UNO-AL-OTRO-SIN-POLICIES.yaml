@@ -1,0 +1,9 @@
+id: "FND-325"
+title: "qdd init y doctor --fix se mandan uno al otro sin .qdd/policies.yaml, e init falla por lo que no es suyo"
+description: "2026-11-25, reporte del relay REP-820 (MEJ-102), reproducido con rc.135 en un proyecto aislado: con .qdd/config.yaml y sin policies.yaml, doctor --fix decía «corre qdd init» y no lo creaba; init repara con ese mismo --fix, así que repetía el mensaje y salía con 1 («anomalías estancadas»). Además, init salía con 1 cuando el doctor final hallaba algo que init no instala ni repara (en el reporte, REM-15: el teléfono desvinculó el PC). Un proyecto nuevo no lo sufría: init crea policies.yaml antes."
+impact: "Las puertas no se podían activar sin escribir el archivo a mano, e init se leía como fallido aunque su trabajo estuviera bien."
+action_taken: "doctor --fix crea policies.yaml en un proyecto de QDD con las políticas por defecto (las que ya regían sin el archivo) y las puertas; sin .qdd/config.yaml no crea nada. init decide su salida solo con los grupos 1 a 3 y las puertas, y muestra lo demás como aviso."
+test_result: "TestDoctorPuertas_SinPoliticasLasCreaConLasQueYaRegian_FND325 y TestInit_LoAjenoNoHaceFallarInit_FND325 fallaban antes del cambio y pasan; TestDoctorPuertas_SinQDDNoInventaPoliticas y TestInit_LoPropioSigueFallando_FND325 fijan los límites. Con el binario de la rama, en un proyecto aislado sin policies.yaml: doctor --fix y init salen con 0 y dejan las puertas activas. El caso REM-15 no se repitió con un teléfono real."
+status: resolved
+detectado_por: relay
+date: "2026-11-26"

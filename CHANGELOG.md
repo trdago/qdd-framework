@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.136] - 2026-11-26
+
+### Fixed
+
+- **`qdd init` y `qdd doctor --fix` activan las puertas en un proyecto sin `.qdd/policies.yaml` (FND-325, MEJ-102):** antes cada uno mandaba al otro y los dos fallaban. Ahora `doctor --fix` crea el archivo con las políticas que ya regían y las puertas. `qdd init` sale con 0 cuando su propio trabajo quedó bien y muestra como aviso lo que no es suyo, como un teléfono desvinculado.
+
 ## [2.10.0-rc.135] - 2026-11-24
 
 ### Fixed
