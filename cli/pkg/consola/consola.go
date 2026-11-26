@@ -559,8 +559,12 @@ func (c Consola) Desactivar() ([]string, error) {
 		}
 		hecho = append(hecho, msg)
 	}
-	if err := os.RemoveAll(c.DirMarketplace()); err != nil {
-		return hecho, err
+	// FND-332: en DirMarketplace vive también el estado local de cada proyecto (pedidos, preguntas, goal…): se quita
+	// solo lo que Activar escribió.
+	for _, delPanel := range []string{"plugins", ".claude-plugin", "activo.json"} {
+		if err := os.RemoveAll(filepath.Join(c.DirMarketplace(), delPanel)); err != nil {
+			return hecho, err
+		}
 	}
 	return hecho, nil
 }

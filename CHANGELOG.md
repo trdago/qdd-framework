@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.145] - 2026-11-26
+
+### Fixed
+
+- **Desactivar el panel ya no borra las colas de los proyectos (FND-332):** `qdd consola desactivar` borraba toda la carpeta `claude` de QDD, donde también viven los pedidos, las preguntas, el modo goal y los turnos de cada proyecto. Ahora quita solo el panel (`plugins/`, `.claude-plugin/` y `activo.json`).
+
 ## [2.10.0-rc.144] - 2026-11-26
 
 ### Fixed

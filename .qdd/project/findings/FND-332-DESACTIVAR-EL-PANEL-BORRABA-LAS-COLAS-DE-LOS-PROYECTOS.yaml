@@ -1,0 +1,9 @@
+id: "FND-332"
+title: "Desactivar el panel borraba las colas de todos los proyectos"
+description: "Al inventariar lo que QDD deja en una máquina para MEJ-031 (qdd remove): qdd consola desactivar terminaba con os.RemoveAll(<QDD_HOME>/claude). Esa carpeta es el marketplace del panel, pero también la de pkg/estado.RutaLocal: pedidos, pedidos hechos, preguntas, goal, turnos, teléfono, sesiones, verificaciones y mejoras de cada proyecto de la máquina. En este PC tiene 18 de esas carpetas."
+impact: "Quien desactivaba el panel (por ejemplo, para reinstalarlo) perdía sin aviso los pedidos armados, las preguntas abiertas y el modo goal de todos sus proyectos. No se recuperan."
+action_taken: "Desactivar quita solo lo que Activar escribió en esa carpeta: plugins/, .claude-plugin/ y activo.json. El estado local de los proyectos queda."
+test_result: "TestDesactivar_QuitaElPanelYNoLasColasDeLosProyectos_FND332 fallaba antes del cambio (borraba la cola de pedidos de proyecto-a) y pasa; las pruebas de pkg/consola pasan."
+status: resolved
+detectado_por: ia
+date: "2026-11-26"
