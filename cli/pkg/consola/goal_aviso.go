@@ -1,6 +1,7 @@
 package consola
 
 import (
+	"fmt"
 	"slices"
 	"time"
 )
@@ -9,6 +10,18 @@ import (
 // Aviso del modo goal a la sesión (MEJ-025 parte 2, issue #147): la persona lo enciende o lo apaga a mitad de un trabajo
 // y la IA tiene que saberlo, porque cambia de quién son las respuestas y quién corre sus pedidos. Cada sesión lo lee una
 // vez, con su mensaje siguiente (el 🎯 del modo también lo es).
+
+const (
+	cambioEncendido = "encendido"
+	cambioApagado   = "apagado"
+	cambioDetenido  = "detenido"
+	cambioReanudado = "reanudado"
+)
+
+// marcarCambio anota qué cambió y cuándo: cada sesión lo lee de nuevo una vez.
+func marcarCambio(g *goalGuardado, fue string, now time.Time) {
+	g.Cambio, g.CambioFue, g.Enteradas = &now, fue, nil
+}
 
 // maxEnteradas es el tope de sesiones que recuerda por cambio: una sesión más vieja que esas ya terminó.
 const maxEnteradas = 20
@@ -28,12 +41,20 @@ func tomarAvisoGoal(root, sesion string) string {
 		}
 		return nil
 	})
-	return mensajeCambioGoal(g.Activo, *g.Cambio)
+	return mensajeCambioGoal(g, *g.Cambio)
 }
 
-func mensajeCambioGoal(activo bool, cuando time.Time) string {
+func mensajeCambioGoal(g goalGuardado, cuando time.Time) string {
 	hora := cuando.Local().Format("15:04")
-	if !activo {
+	if g.CambioFue == cambioDetenido {
+		return fmt.Sprintf("[qdd · panel] A las %s el modo goal se detuvo: %d recordatorios sin avance. No llegan más 🎯 hasta que haya avance real "+
+			"(un cambio en el tablero o en git) o la persona lo active de nuevo: sigue con lo que puedas mover, sin esperarlo.", hora, MaxRecordatoriosGoal)
+	}
+	if g.CambioFue == cambioReanudado {
+		return "[qdd · panel] A las " + hora + " el modo goal volvió a trabajar: hubo avance desde que se detuvo. Siguen llegando los 🎯, " +
+			"y sus respuestas las elige el modo, no la persona."
+	}
+	if !g.Activo {
 		return "[qdd · panel] A las " + hora + " se apagó el modo goal: desde ahora tus preguntas, pedidos y fichas esperan a la persona, " +
 			"y no llegan más recordatorios 🎯. Lo que eligió el modo antes sigue en qdd goal estado."
 	}

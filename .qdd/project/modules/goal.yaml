@@ -28,7 +28,7 @@ objetivo_tecnologico:
         - 'Una pregunta con responder_en «pc» (MEJ-094) tampoco se responde sola: el modo no puede llevarle la respuesta a Claude Code, así que cuenta como algo que espera a la persona.'
         - Cada elección queda registrada, y lo publicado al teléfono pasa por el ocultador (inv. 16 de remoto).
         - 'Nunca abre una sesión: sin una abierta se pausa, y vuelve cuando la sesión vuelve.'
-        - Tras 3 recordatorios sin avance real se detiene y queda detenido hasta que la persona lo active de nuevo.
+        - Tras 3 recordatorios sin avance real se detiene y se lo dice a la sesión con su mensaje siguiente. Sigue detenido mientras no haya avance y vuelve solo cuando el tablero o git cambian, avisándolo (FND-331, MEJ-105; el modo goal eligió la recomendada, no la persona, 2026-11-26). Detenido, mira el avance solo con la consola callada y como mucho una vez cada 2 min.
         - Solo cuenta como avance el tablero sin su fecha, el último commit y los cambios de git, sin lo que qdd escribe solo.
         - 'Un archivo ilegible es modo apagado, nunca activo: doctor lo ve (GOAL-01) y --fix lo aparta.'
 pruebas:
@@ -41,4 +41,4 @@ fuentes:
     - rfcs/0015-modo-goal.md
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-26"
-revisado_en_commit: ad3e7809ab67
+revisado_en_commit: 85d9d43d878c
