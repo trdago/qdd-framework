@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.139] - 2026-11-26
+
+### Fixed
+
+- **La IA sabe cuando el modo goal se enciende o se apaga (FND-328, MEJ-025):** con su mensaje siguiente, cada sesión lee una vez que el modo se encendió (sus respuestas las elige el modo, no la persona) o se apagó (todo vuelve a esperar a la persona).
+
 ## [2.10.0-rc.138] - 2026-11-26
 
 ### Fixed
