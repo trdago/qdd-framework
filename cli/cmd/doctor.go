@@ -396,6 +396,7 @@ func buildGroup2Checks(projectPath string) *CheckGroup {
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".cursor", "mcp.json"), "Integración Cursor (.cursor/mcp.json)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
+	g2.Items = append(g2.Items, itemsMCP(projectPath)...)
 	g2.Items = append(g2.Items, checkBloquesDeReglas(projectPath))
 	g2.Items = append(g2.Items, checkReglasUnaVez(projectPath))
 
@@ -647,6 +648,8 @@ func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 		"Integración Claude (.clauderc)":                 repairMCP,
 		"Integración Antigravity (.antigravityrules)":    repairMCP,
 		itemBloquesDeReglas:                              repairMCP,
+		itemMCPClaude:                                    repairMCP,
+		itemMCPOpenCode:                                  repairMCP,
 		itemReglasUnaVez:                                 repairReglasUnaVez,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,

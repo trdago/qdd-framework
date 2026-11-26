@@ -27,7 +27,11 @@
       ".antigravityrules",
       ".qdd/project/metrics/cognitive_history.json"
     ],
-    "auto_fix": false
+    "auto_fix": false,
+    "contenidos": {
+      ".mcp.json": "{\"mcpServers\":{\"qdd\":{\"command\":\"qdd\",\"args\":[\"mcp-server\"]}}}",
+      "opencode.json": "{\"mcp\":{\"qdd\":{\"type\":\"local\",\"command\":[\"qdd\",\"mcp-server\"]}}}"
+    }
   },
   "expected_output": {
     "success": true,

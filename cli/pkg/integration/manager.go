@@ -36,6 +36,19 @@ func (m *IntegrationManager) SyncAll(projectPath string) error {
 		}
 		fmt.Printf("    [✓] %s\n", adapter.Name())
 	}
-
+	imprimirMCP(ConectarMCP(projectPath))
 	return nil
+}
+
+// imprimirMCP dice qué archivos recibieron el servidor qdd (FND-308) y qué falta para usarlo.
+func imprimirMCP(cambios []string, err error) {
+	if err != nil {
+		fmt.Printf("[!] Servidor MCP de QDD: %v\n", err)
+	}
+	for _, c := range cambios {
+		fmt.Printf("    [+] Servidor MCP de QDD en %s\n", c)
+	}
+	if len(cambios) > 0 {
+		fmt.Println("    [i] Claude Code pide aprobar el servidor qdd de .mcp.json la primera vez que abre el proyecto.")
+	}
 }
