@@ -373,8 +373,15 @@ func repairFindingsNoCanonicos(projectPath, qddDir string) {
 	}
 }
 
+// Los grupos 1 a 3 del doctor: lo que qdd init deja en el proyecto, junto con las puertas (FND-325).
+const (
+	grupoEstructura = "1. Estructura de Archivos y Carpetas Base"
+	grupoIA         = "2. Infraestructura de IA y MCP"
+	grupoDashboard  = "3. Dashboard y Entorno Nativo"
+)
+
 func buildGroup1Checks(projectPath string) *CheckGroup {
-	g1 := &CheckGroup{Name: "1. Estructura de Archivos y Carpetas Base"}
+	g1 := &CheckGroup{Name: grupoEstructura}
 	qddDir := filepath.Join(projectPath, ".qdd")
 	g1.Items = append(g1.Items, checkDir(qddDir, "Directorio raíz .qdd/"))
 	g1.Items = append(g1.Items, checkDir(filepath.Join(qddDir, "core"), "Directorio base .qdd/core/"))
@@ -385,7 +392,7 @@ func buildGroup1Checks(projectPath string) *CheckGroup {
 }
 
 func buildGroup2Checks(projectPath string) *CheckGroup {
-	g2 := &CheckGroup{Name: "2. Infraestructura de IA y MCP"}
+	g2 := &CheckGroup{Name: grupoIA}
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".cursor", "mcp.json"), "Integración Cursor (.cursor/mcp.json)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
@@ -403,7 +410,7 @@ func buildGroup2Checks(projectPath string) *CheckGroup {
 }
 
 func buildGroup3Checks(projectPath string) *CheckGroup {
-	g3 := &CheckGroup{Name: "3. Dashboard y Entorno Nativo"}
+	g3 := &CheckGroup{Name: grupoDashboard}
 	g3.Items = append(g3.Items, buildDashboardCheck())
 	g3.Items = append(g3.Items, buildHistoryCheck(projectPath))
 	return g3
@@ -701,17 +708,22 @@ func repairDashboardContracts(projectPath string) {
 
 // RunDoctorCheck ejecuta las pruebas deterministas del framework y deja un reporte.
 func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
+	checklist := revisarConDoctor(projectPath, autoFix)
+	if checklist.HasFailures() {
+		return false, countFailures(checklist)
+	}
+	return true, 0
+}
+
+// revisarConDoctor corre el checklist, repara con autoFix y deja el reporte; devuelve cómo quedó.
+func revisarConDoctor(projectPath string, autoFix bool) *Checklist {
 	checklist := runDeterministicChecks(projectPath)
 	if autoFix && checklist.HasFailures() {
 		runSelectiveFixes(projectPath, checklist)
 		checklist = runDeterministicChecks(projectPath)
 	}
 	generateReport(projectPath, checklist)
-
-	if checklist.HasFailures() {
-		return false, countFailures(checklist)
-	}
-	return true, 0
+	return checklist
 }
 
 func countFailures(checklist *Checklist) int {
