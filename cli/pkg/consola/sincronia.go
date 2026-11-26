@@ -59,11 +59,15 @@ func esDeLaPersona(deQuien string) bool {
 	return estado.DeLaPersona(deQuien)
 }
 
-// ContextoCiclo es lo que la IA recibe con el mensaje de la persona: qué pedidos de su sesión se retiraron, qué espera el
-// panel y cómo reflejar lo que ella resuelva en el chat. Vacío si no hay nada nuevo.
+// ContextoCiclo es lo que la IA recibe con el mensaje de la persona: qué pedidos de su sesión se retiraron, si el modo
+// goal se encendió o se apagó, qué espera el panel y cómo reflejar lo que ella resuelva en el chat. Vacío si no hay nada
+// nuevo.
 func ContextoCiclo(root, sesion string, now time.Time) string {
 	var partes []string
 	partes = append(partes, tomarRetirados(root, sesion, now)...)
+	if goal := tomarAvisoGoal(root, sesion); goal != "" {
+		partes = append(partes, goal)
+	}
 	if esperas := contextoEsperas(root, now); esperas != "" {
 		partes = append(partes, esperas)
 	}

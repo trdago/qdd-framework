@@ -20,6 +20,7 @@ objetivo_tecnologico:
         - 'Sesión del ciclo (FND-294, 2026-11-22): qdd goal ciclo --sesion late esa sesión, porque la pide ella cada 5 s; sin QDD Móvil el mod late cada 60 s y VidaSesion es 30 s, y la vista decía «pausado · sin consola» con la sesión trabajando. Un ciclo sin ninguna sesión abierta no recuerda ni cuenta recordatorios: nadie puede avanzar.'
     invariantes:
         - 'Lo que elige el modo llega a la IA marcado (FND-198): cada respuesta de una pregunta respondida por el modo goal termina con «[la eligió el modo goal (su opción recomendada), no la persona]», así la IA nunca la atribuye a la persona.'
+        - 'Cuando se enciende o se apaga, cada sesión lo lee una vez con su mensaje siguiente (MEJ-025, issue #147): encendido, que sus respuestas las elige el modo y no la persona; apagado, que sus preguntas, pedidos y fichas vuelven a esperar a la persona. Un archivo sin la hora del cambio no avisa.'
         - 'Solo la persona lo activa: qdd goal activar se rechaza con CLAUDECODE en el entorno, y solo el panel tras la confirmación y el teléfono firmado lo limpian.'
         - El panel niega activarlo a una IA por cualquier herramienta de shell (Bash, PowerShell), con ruta, comillas o sufijo; quien decide sigue siendo qdd, también por la acción del panel (FND-146).
         - Nunca se responde solo un permiso de Claude Code, una pregunta de diseño de un blueprint ni una pregunta sin opción recomendada.
@@ -40,4 +41,4 @@ fuentes:
     - rfcs/0015-modo-goal.md
     - rfcs/0013-consola-remota.md
 ultima_revision: "2026-11-26"
-revisado_en_commit: 889e6d09475e
+revisado_en_commit: ad3e7809ab67

@@ -89,6 +89,9 @@ type goalGuardado struct {
 	OcupadaEn     *time.Time `json:"ocupada_en,omitempty"`
 	// EsperaAvisada es la huella de lo que esperaba cuando avisó «todo espera»: con la misma no vuelve a avisar.
 	EsperaAvisada string `json:"espera_avisada,omitempty"`
+	// Cambio es cuándo se encendió o se apagó por última vez, y Enteradas, las sesiones que ya lo leyeron (MEJ-025).
+	Cambio    *time.Time `json:"cambio,omitempty"`
+	Enteradas []string   `json:"enteradas,omitempty"`
 }
 
 // EntradaGoal es lo que el mod sabe de la sesión: cuánto lleva en silencio y si está haciendo algo.
@@ -224,6 +227,7 @@ func ActivarGoal(root, desde string, now time.Time) error {
 	return conGoalGuardado(root, func(g *goalGuardado) error {
 		g.Activo, g.Estado, g.Motivo, g.Desde, g.Recordatorios = true, GoalTrabajando, "", &now, 0
 		g.ActivadoDesde, g.Huella, g.Recordado, g.EsperaAvisada = desde, "", nil, ""
+		g.Cambio, g.Enteradas = &now, nil
 		return nil
 	})
 }
@@ -232,7 +236,7 @@ func ActivarGoal(root, desde string, now time.Time) error {
 func DesactivarGoal(root string, now time.Time) error {
 	return conGoalGuardado(root, func(g *goalGuardado) error {
 		g.Activo, g.Estado, g.Motivo, g.Desde, g.Recordatorios, g.Huella, g.Recordado = false, "", "", nil, 0, "", nil
-		g.EsperaAvisada = ""
+		g.EsperaAvisada, g.Cambio, g.Enteradas = "", &now, nil
 		return nil
 	})
 }
