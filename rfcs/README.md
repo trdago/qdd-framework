@@ -29,6 +29,7 @@ cada comando está en la [Command Reference](../docs/command-reference.md). No e
 | [0023](0023-baul-de-accesos.md) | Baúl de accesos y ambientes | En parte: baúl y plan de DNS. `ambiente levantar` todavía no cambia nada |
 | [0024](0024-reportar-sin-github.md) | Reportar sin GitHub | Implementado |
 | [0025](0025-flujo-para-clientes.md) | Flujos para clientes | En parte: fases 1 a 4. Falta el audio |
+| [0026](0026-qdd-remove.md) | `qdd remove`: quitar QDD de la máquina | Propuesto: el código, después de la 2.10.0 |
 
 ## Proponer uno
 
