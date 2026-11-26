@@ -69,6 +69,7 @@ func ensureAdopcion(cwd string, nuevo bool) {
 	p := audit.DefaultPolicies()
 	p.Adopcion = audit.AdopcionGradual
 	p.Puertas = &audit.PoliticaPuertas{}
+	p.GoSinPruebas = audit.GoSinPruebasBloquea
 	_ = audit.SavePolicies(cwd, p)
 	if !puertas.EsRaiz(cwd) {
 		return

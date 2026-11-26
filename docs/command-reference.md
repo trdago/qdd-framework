@@ -379,7 +379,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 
 | Regla | Qué detecta | Política |
 |---|---|---|
-| `QA-00-NO-TEST-COMMAND` | No hay cómo correr las pruebas. Decláralas en `.qdd/config.yaml` (`test_commands: ["…"]`). | siempre |
+| `QA-00-NO-TEST-COMMAND` | No hay cómo correr las pruebas, o un módulo Go no tiene ningún `_test.go`. Decláralas en `.qdd/config.yaml` (`test_commands: ["…"]`). | siempre; Go sin pruebas, recomendación sin `go_sin_pruebas: bloquea` (lo pone `init` en los proyectos nuevos) |
 | `QA-01-ALL-TESTS-PASS` | Las pruebas del proyecto fallan o no compilan. | siempre |
 | `QA-02-E2E-TESTS` | No hay pruebas E2E. | recomendación en adopción gradual |
 | `QA-03-SIN-MEDIR` | Una suite declarada como `{comando, requiere: [programas]}` no se corrió porque falta uno de esos programas en esta máquina (p. ej. la CLI de Claude en el CI). Queda sin medir: ni aprobada ni fallida. | recomendación (no bloquea) |

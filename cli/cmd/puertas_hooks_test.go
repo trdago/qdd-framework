@@ -96,8 +96,8 @@ func TestInit_ProyectoNuevoConPuertas(t *testing.T) {
 	repo := t.TempDir()
 	gitEn(t, repo, "init", "-q")
 	ensureAdopcion(repo, true)
-	if p := audit.LoadPolicies(repo); p.Puertas == nil || p.Adopcion != audit.AdopcionGradual {
-		t.Fatalf("un proyecto nuevo nace con puertas: %+v", p)
+	if p := audit.LoadPolicies(repo); p.Puertas == nil || p.Adopcion != audit.AdopcionGradual || p.GoSinPruebas != audit.GoSinPruebasBloquea {
+		t.Fatalf("un proyecto nuevo nace con puertas y exige pruebas en Go (FND-309): %+v", p)
 	}
 	for _, e := range puertas.EstadoHooks(repo) {
 		if e.Estado != puertas.HookAlDia {

@@ -130,7 +130,7 @@ func detectTestCommandsIn(cwd string) []testCommand {
 	if hasNpmTestScript(cwd) {
 		cmds = append(cmds, testCommand{Label: "npm run test", Dir: cwd, Args: []string{"npm", "run", "test"}})
 	}
-	if goDir, ok := goModuleDir(cwd); ok {
+	if goDir, ok := goModuleDir(cwd); ok && hayPruebasGo(goDir) {
 		cmds = append(cmds, testCommand{Label: "go test ./...", Dir: goDir, Args: []string{"go", "test", "./..."}})
 	}
 	if fileExists(filepath.Join(cwd, "pubspec.yaml")) && hayPruebasDart(filepath.Join(cwd, "test")) {
@@ -289,6 +289,74 @@ func hayPruebasDart(testDir string) bool {
 	return encontrado
 }
 
+// violacionGoSinPruebas es QA-00 para un módulo Go sin ningún _test.go (FND-309): go test ./... sale con 0 sin pruebas.
+// Bloquea con go_sin_pruebas: bloquea (proyectos nuevos); sin la clave, avisa. Con test_commands declarados no se mira.
+func violacionGoSinPruebas(cwd string) (Violation, bool) {
+	sin := modulosGoSinPruebas(cwd)
+	if len(sin) == 0 || len(declaredTestCommands(cwd)) > 0 {
+		return Violation{}, false
+	}
+	return Violation{
+		Category:      "COVERAGE",
+		RuleID:        "QA-00-NO-TEST-COMMAND",
+		Description:   "El módulo Go de " + strings.Join(relativas(cwd, sin), ", ") + " no tiene ningún archivo _test.go: go test ./... pasaría sin probar nada. Escribe la primera prueba.",
+		Recomendacion: LoadPolicies(cwd).GoSinPruebas != GoSinPruebasBloquea,
+	}, true
+}
+
+// modulosGoSinPruebas mira donde mira detectTestCommands: la raíz (o cli/) y, si ahí no hay Go, cada subcarpeta.
+func modulosGoSinPruebas(cwd string) []string {
+	if goDir, ok := goModuleDir(cwd); ok {
+		return sinPruebasGo(goDir)
+	}
+	var sin []string
+	for _, sub := range subcarpetasDeCodigo(cwd) {
+		if goDir, ok := goModuleDir(filepath.Join(cwd, sub)); ok {
+			sin = append(sin, sinPruebasGo(goDir)...)
+		}
+	}
+	return sin
+}
+
+func relativas(cwd string, rutas []string) []string {
+	var out []string
+	for _, r := range rutas {
+		rel, err := filepath.Rel(cwd, r)
+		if err != nil || rel == "." {
+			rel = "la raíz"
+		}
+		out = append(out, rel)
+	}
+	return out
+}
+
+func sinPruebasGo(goDir string) []string {
+	if hayPruebasGo(goDir) {
+		return nil
+	}
+	return []string{goDir}
+}
+
+// hayPruebasGo busca un _test.go en el módulo, sin vendor, node_modules ni carpetas ocultas (son de otros o
+// worktrees). Para en el primero.
+func hayPruebasGo(goDir string) bool {
+	encontrado := false
+	filepath.WalkDir(goDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() && path != goDir && (strings.HasPrefix(d.Name(), ".") || carpetasSinPruebasPropias[d.Name()]) {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() && strings.HasSuffix(d.Name(), "_test.go") {
+			encontrado = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return encontrado
+}
+
 const (
 	lineasDelLog   = 60
 	maxFallasEnLog = 40
@@ -330,7 +398,11 @@ func RunCoverageCheck(cwd string) []Violation {
 	var violations []Violation
 
 	cmds := resolveTestCommands(cwd)
-	if len(cmds) == 0 {
+	goSin, hayGoSin := violacionGoSinPruebas(cwd)
+	if hayGoSin {
+		violations = append(violations, goSin)
+	}
+	if len(cmds) == 0 && !hayGoSin {
 		violations = append(violations, Violation{
 			Category:    "COVERAGE",
 			RuleID:      "QA-00-NO-TEST-COMMAND",
