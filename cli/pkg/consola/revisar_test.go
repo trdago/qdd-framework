@@ -103,6 +103,9 @@ func TestRevision_LeDiceALaIACómoCerrarYQueNuncaRespondaPorLaPersona(t *testing
 		"qdd consola descartar", // un pedido que sobra
 		"--verifica",            // lo que se responde solo deja de preguntarse
 		"opción recomendada",    // lo que queda, como pregunta que se entiende sola
+		"tómala tú",             // una decisión que la IA puede tomar no espera a la persona (2026-11-26)
+		"No es para ahora",      // lo congelado o lo que espera a otra tarea sale de «Para ti»
+		"Solo yo puedo",         // en «Para ti» queda solo lo que es de la persona
 		"Nunca respondas por mí",
 	} {
 		if !strings.Contains(r.Texto, debe) {
