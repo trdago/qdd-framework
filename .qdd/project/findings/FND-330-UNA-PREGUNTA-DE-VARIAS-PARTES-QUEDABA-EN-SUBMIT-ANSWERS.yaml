@@ -1,0 +1,9 @@
+id: "FND-330"
+title: "Una pregunta de varias partes quedaba en «Submit answers» del PC"
+description: "MEJ-104 (REP-822, QDD rc.135 en Windows): la IA hizo un AskUserQuestion con 2 preguntas y la persona estaba lejos. Claude Code quedó en la pantalla final «Review your answers / Submit answers», que solo aparece con más de una pregunta; QDD Móvil decía «esperando consola» sin mostrar qué faltaba, y la IA estuvo detenida hasta que la persona volvió al PC. En Linux el mismo caso sí se respondía desde fuera (proyecto-a, 26-11: dos diálogos de 2 preguntas respondidos por el modo goal en 2,5 s); de ese PC Windows no hay datos."
+impact: "Una consola quedaba detenida sin que el teléfono ni el panel dijeran por qué. Además, el panel solo dibuja botones para una pregunta suelta: varias juntas había que responderlas en la terminal."
+action_taken: "El mod qdd-tareas rechaza antes de mostrarlo un AskUserQuestion con 2 o más preguntas (también en un subagente) y le dice a la IA que las haga de a una, cada una con su opción recomendada. El bloque de reglas (revisión 7) lo pide desde el principio: «one question per call». Elegido por el modo goal (opción recomendada), 2026-11-26."
+test_result: "tests/una-pregunta.test.ts: las dos pruebas de varias preguntas (conversación principal y subagente) fallaban antes del cambio (el diálogo se mostraba) y pasan; una pregunta sola sigue igual. claude plugin test: 367 pass. TestProtocolo_ConservaCadaRegla_MEJ062 fija «one question per call»; el bloque pesa menos de su tope."
+status: resolved
+detectado_por: relay
+date: "2026-11-26"

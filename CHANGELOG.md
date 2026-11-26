@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.143] - 2026-11-26
+
+### Fixed
+
+- **Una pregunta de varias partes ya no deja la consola esperando «Submit answers» en el PC (FND-330, MEJ-104):** QDD rechaza un AskUserQuestion con 2 o más preguntas antes de mostrarlo y la IA las hace de a una, cada una con sus botones en «▶ Para ti» y en QDD Móvil. El bloque de reglas (revisión 7) lo pide desde el principio.
+
 ## [2.10.0-rc.142] - 2026-11-26
 
 ### Fixed

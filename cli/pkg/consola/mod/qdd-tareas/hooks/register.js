@@ -3864,6 +3864,10 @@ function decisionDe(e, p) {
 // «pc» (acordado con qdd-movile): sale en «Para ti» y en el teléfono, suena el push, y solo se responde en la terminal.
 // Si qdd no la registra, «Para ti» la cuenta igual (como MEJ-057). El escritorio avisa al minuto.
 const SIN_PERMISO_MS = 5000
+
+// MEJ-104 (REP-822): con 2 o más preguntas Claude Code cierra el diálogo con «Review your answers / Submit answers», y en
+// Windows quedó ahí con la persona lejos. Una por llamada: sin esa pantalla, con botones en «▶ Para ti» y el teléfono.
+const VARIAS_PREGUNTAS = 'QDD: una pregunta por llamada. Con varias juntas, Claude Code espera «Submit answers» en el PC y el teléfono no puede terminarla. Haz la primera ahora y las demás después, cada una con su opción recomendada.'
 const permisosPedidos = new Set() // tool + entrada de lo que pasó por PermissionRequest
 
 function clavePermiso(tool, entrada) {
@@ -4401,6 +4405,7 @@ export function register(on) {
     hubo()
     anotarHerramienta(e)
     if (HERRAMIENTAS_SHELL.has(e.tool) && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
+    if (e.tool === PREGUNTAR && e.questions?.length > 1) return { deny: VARIAS_PREGUNTAS }
     const rechazo = await rechazoDePuertas($, e)
     if (rechazo) return { deny: rechazo }
     const seguir = !e.agentId && e.tool_use_id
