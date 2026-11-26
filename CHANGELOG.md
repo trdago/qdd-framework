@@ -6,6 +6,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.137] - 2026-11-26
+
+### Fixed
+
+- **El modo goal ya no responde solo una pregunta de aprobación (FND-326, MEJ-025):** una pregunta con encabezado «Aprobar» o que empieza con «¿Apruebas…?» espera a la persona aunque traiga opción recomendada. El bloque de reglas (revisión 6) les pide a las IAs ese encabezado; `qdd doctor --fix` lo renueva en cada proyecto.
+
 ## [2.10.0-rc.136] - 2026-11-26
 
 ### Fixed
