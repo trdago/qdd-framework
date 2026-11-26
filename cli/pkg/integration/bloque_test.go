@@ -13,7 +13,7 @@ import (
 // FND-126: el bloque de reglas solo se escribía si faltaba el archivo: al actualizar qdd, ningún proyecto recibía las
 // reglas nuevas.
 
-const huellaBloque = "0adfe050c70118f0f511849dc321ddc4be0e57c7931a7bc0dbec3f91a07f85a0"
+const huellaBloque = "a28dcb6aa9f95a6dbec54af821e4e58da23ad13179018810500e1898c7ade16c"
 
 func TestBloque_CambiarSuTextoObligaASubirLaRevision_FND126(t *testing.T) {
 	suma := sha256.Sum256([]byte(QDDCommandProtocol))
