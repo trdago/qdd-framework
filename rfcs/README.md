@@ -30,6 +30,7 @@ cada comando está en la [Command Reference](../docs/command-reference.md). No e
 | [0024](0024-reportar-sin-github.md) | Reportar sin GitHub | Implementado |
 | [0025](0025-flujo-para-clientes.md) | Flujos para clientes | En parte: fases 1 a 4. Falta el audio |
 | [0026](0026-qdd-remove.md) | `qdd remove`: quitar QDD de la máquina | Propuesto: el código, después de la 2.10.0 |
+| [0027](0027-cifrado-desde-el-telefono.md) | Cifrar en el teléfono lo que va al PC (FND-321) | Aceptado (2026-11-27): la 2.10.0 sale antes, con la política al día |
 
 ## Proponer uno
 
