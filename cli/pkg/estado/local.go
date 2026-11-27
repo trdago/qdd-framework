@@ -40,7 +40,25 @@ func RutaLocalSinRepositorio(root, carpeta string) (string, error) {
 }
 
 func rutaLocalDe(home, abs, carpeta string) (string, error) {
+	return filepath.Join(home, "claude", carpeta, claveDe(abs, MaxClave)+".json"), nil
+}
+
+// rutaLocalLarga es la ruta con la clave de antes de FND-334, sin tope: doctor la busca para renombrarla.
+func rutaLocalLarga(home, abs, carpeta string) (string, error) {
+	return filepath.Join(home, "claude", carpeta, claveDe(abs, 0)+".json"), nil
+}
+
+// MaxClave es el largo que el relay acepta en la clave de un proyecto (^[a-z0-9-]{1,80}$, FND-334).
+const MaxClave = 80
+
+// claveDe es <carpeta>-<hash de 12> con la carpeta acortada para que el total no pase de tope (0: sin tope). El hash
+// queda entero: es lo que distingue a dos proyectos.
+func claveDe(abs string, tope int) string {
 	sum := sha256.Sum256([]byte(abs))
+	hash := hex.EncodeToString(sum[:])[:12]
 	slug := strings.Trim(noSlug.ReplaceAllString(strings.ToLower(filepath.Base(abs)), "-"), "-")
-	return filepath.Join(home, "claude", carpeta, slug+"-"+hex.EncodeToString(sum[:])[:12]+".json"), nil
+	if tope > 0 && len(slug)+1+len(hash) > tope {
+		slug = strings.TrimRight(slug[:tope-1-len(hash)], "-")
+	}
+	return slug + "-" + hash
 }

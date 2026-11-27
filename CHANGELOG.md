@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.150] - 2026-11-27
+
+### Fixed
+- **Un proyecto con una carpeta de nombre largo ya funciona desde el teléfono** (FND-334). Si el nombre de la carpeta pasaba de 67 caracteres, el relay rechazaba las acciones, respuestas y ejecuciones de ese proyecto. Ahora la clave del proyecto se acorta a 80 caracteres y `qdd doctor --fix` acomoda lo que ya estaba guardado en tu PC.
+
 ## [2.10.0-rc.149] - 2026-11-26
 
 ### Changed
