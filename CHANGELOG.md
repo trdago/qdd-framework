@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.148] - 2026-11-26
+
+### Fixed
+- **La app ya no ofrece adjuntar fotos mientras el relay las tiene cortadas** (FND-333). Desde el 24-11 el relay no transporta fotos, pero qdd remoto seguía anunciándolas, y al intentarlo la app mostraba un falso «Tu sesión terminó». El PC deja de anunciarlas hasta que se decida el transporte nuevo, que irá con otro nombre.
+
 ## [2.10.0-rc.147] - 2026-11-26
 
 ### Fixed

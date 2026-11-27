@@ -299,10 +299,13 @@ func TestFotos_RechazosConMotivo(t *testing.T) {
 	}
 }
 
-func TestEstado_ElPCDeclaraQueRecibeFotos(t *testing.T) {
+// FND-333: desde el 2026-11-24 el relay tiene cortadas las fotos (FND-059 de qdd-movile: realtime.send las guardaba
+// de 3 a 4 días). Si el PC sigue declarando fotos, la app ofrece adjuntar, el relay responde 42501 y la persona lee
+// «Tu sesión terminó». Mientras dure el corte el PC no las declara; el transporte nuevo vendrá con otro nombre (fotos2).
+func TestEstado_ElPCNoDeclaraFotosMientrasElRelayLasTieneCortadas_FND333(t *testing.T) {
 	e := Armar("v", registro.Registro{}, time.Now(), 3)
 	b, _ := json.Marshal(e)
-	if !strings.Contains(string(b), `"capacidades":["fotos"]`) {
-		t.Fatalf("la cabecera del estado dice que este PC recibe fotos: %s", b)
+	if strings.Contains(string(b), CapacidadFotos) {
+		t.Fatalf("con las fotos cortadas en el relay, la cabecera del estado no ofrece fotos: %s", b)
 	}
 }
