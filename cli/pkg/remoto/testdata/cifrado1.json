@@ -1,0 +1,106 @@
+{
+ "_": "RFC 0027 (cifrar en el teléfono lo que va al PC), fase 2. Lo escribe qdd (pkg/remoto/cifrado, QDD_ACTUALIZAR_FIXTURE=1) y qdd-movile lo copia sin cambios. Claves de prueba: nunca usar fuera de pruebas. Todo en base64url sin relleno salvo claro_base64 (base64 estándar). Un caso con abre=false lo tiene que rechazar el PC con el motivo clave, sin ejecutar nada.",
+ "construccion": [
+  "sellado = «c1.» + base64url_sin_relleno(efimera_publica(32) ‖ AES-256-GCM(clave, nonce, claro, aad) con su etiqueta de 16 bytes al final)",
+  "efimera: X25519 nueva por campo (aquí, efimera_semilla como privada); compartido = X25519(efimera, x25519_publica del PC)",
+  "clave ‖ nonce = HKDF-SHA256(ikm = compartido, sal = efimera_publica ‖ x25519_publica, info = «qdd cifrado1», 44 bytes): los primeros 32 son la clave y los 12 siguientes el nonce",
+  "aad = «qdd cifrado1|» + evento + «|» + lo que el relay ve en claro, unido por «|»: ejecutar|solicitud|proyecto|tipo · responder|solicitud|proyecto|pregunta · accion|solicitud|proyecto · foto2|proyecto|id|parte|de",
+  "campos sellados: texto de ejecutar, respuesta de responder, accion_id de accion y datos de cada parte de foto2 (los bytes de la parte, no su base64)",
+  "clave del estado y de la oferta: {identidad, x25519, firma, desde}; firma = Ed25519(identidad, «qdd cifrado1 clave|» + x25519 + «|» + desde), con x25519 tal como viaja (base64url)",
+  "huella = sha256(identidad_publica), 8 primeros bytes en hex mayúscula, en cuatro grupos de cuatro separados por un espacio",
+  "el PC declara «cifrado1» en capacidades; sin ella la app no sella nada"
+ ],
+ "claves": {
+  "identidad_semilla": "ERERERERERERERERERERERERERERERERERERERERERE",
+  "identidad_publica": "0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc",
+  "huella": "10BA 682C 8AD1 3513",
+  "x25519_privada": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI",
+  "x25519_publica": "D6poTtKIZ7l_Smot7l34zpdOdrcBjj8iocTPJnhXDyA",
+  "clave": {
+   "identidad": "0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc",
+   "x25519": "D6poTtKIZ7l_Smot7l34zpdOdrcBjj8iocTPJnhXDyA",
+   "firma": "fDkbcue-mVzqAnE7rEaHfSCEVZ6xhKz8m2eqDhdJmaah3AC1MLlkWYpf0RHZ1Tpje3aSX1-fq6vAderYRo1iDQ",
+   "desde": "2026-11-27T15:00:00Z"
+  }
+ },
+ "mensajes": [
+  {
+   "caso": "comando qdd",
+   "evento": "ejecutar",
+   "campo": "texto",
+   "aad": "qdd cifrado1|ejecutar|0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10|qdd-a45873ff129c|qdd",
+   "efimera_semilla": "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE",
+   "claro_base64": "YXVkaXQgLS1jb21wbGV0bw==",
+   "claro_texto": "audit --completo",
+   "sellado": "c1.ehpOcJvwhaxJSroEabmx7aCrH3ixaqu3n_7akGI-hSITdxdACsSXT8-_dIcfry7FcPUUxAdYu3KiI0EeMSQPLQ",
+   "abre": true
+  },
+  {
+   "caso": "instrucción con tildes y salto de línea",
+   "evento": "ejecutar",
+   "campo": "texto",
+   "aad": "qdd cifrado1|ejecutar|0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10|qdd-a45873ff129c|ia",
+   "efimera_semilla": "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI",
+   "claro_base64": "UmV2aXNhIGVsIMKrUGFyYSB0acK7CnkgZGltZSBxdcOpIGZhbHRhIPCfmYI=",
+   "claro_texto": "Revisa el «Para ti»\ny dime qué falta 🙂",
+   "sellado": "c1.EyxEK-AQ-9V-cmAzKKp25x_MwVA6riGTJ9FNnJmT9HIxOVxIBpR-u_Jmrm5MX3dr8fFCXcAfG5Z-DKExHbOvKc_3EC1JVhB4Vina3u95vnzskVFl_9oZndbZ9rA",
+   "abre": true
+  },
+  {
+   "caso": "respuesta a una pregunta",
+   "evento": "responder",
+   "campo": "respuesta",
+   "aad": "qdd cifrado1|responder|0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10|qdd-a45873ff129c|p-7",
+   "efimera_semilla": "Q0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0M",
+   "claro_base64": "eyJyZXNwdWVzdGEiOiJTw60sIHB1YmxpY2FyIn0=",
+   "claro_texto": "{\"respuesta\":\"Sí, publicar\"}",
+   "sellado": "c1.ze_YeDqRtEZkDi4flVmds15ISgBxvSGCs7YNCBLBDHAVXUDNAcTHz3SX05NmbVACBqk9rUezTWpv4zOIG6w6aML_iIe5dr_vbKnnPjM",
+   "abre": true
+  },
+  {
+   "caso": "acción del panel",
+   "evento": "accion",
+   "campo": "accion_id",
+   "aad": "qdd cifrado1|accion|0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10|qdd-a45873ff129c",
+   "efimera_semilla": "REREREREREREREREREREREREREREREREREREREREREQ",
+   "claro_base64": "cGVkaWRvOmE=",
+   "claro_texto": "pedido:a",
+   "sellado": "c1._y7kVgHsG2cxDHeQQEWFrmlzMe7hwfjPJBlzHB__Pms_WFbe_wPITTxhT-pd51plq6yesaaXnSA",
+   "abre": true
+  },
+  {
+   "caso": "parte de una foto",
+   "evento": "foto2",
+   "campo": "datos",
+   "aad": "qdd cifrado1|foto2|qdd-a45873ff129c|967abdd4db74e625512f058a8306fe96ee01e32e21dc94bfe565a8cb00e20537|1|4",
+   "efimera_semilla": "RUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUU",
+   "claro_base64": "/9j/4AAQSkZJRgA=",
+   "sellado": "c1.MoaJTNKEWm22oo-_BndgX4DlpiOFv04Qp5CuX942c2tIcpIwFMESIwNauSA2lDDDyp3S8I0mrS3axiA",
+   "abre": true
+  },
+  {
+   "caso": "el mismo sellado en otra solicitud",
+   "evento": "ejecutar",
+   "campo": "texto",
+   "aad": "qdd cifrado1|ejecutar|0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10|qdd-a45873ff129c|qdd",
+   "efimera_semilla": "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE",
+   "claro_base64": "YXVkaXQgLS1jb21wbGV0bw==",
+   "sellado": "c1.ehpOcJvwhaxJSroEabmx7aCrH3ixaqu3n_7akGI-hSITdxdACsSXT8-_dIcfry7FcPUUxAdYu3KiI0EeMSQPLQ",
+   "abre": false,
+   "aad_del_pc": "qdd cifrado1|ejecutar|5d0c3a8e-1b2f-4c6d-8e9f-0a1b2c3d4e5f|qdd-a45873ff129c|qdd",
+   "por_que": "quien guarda el mensaje no puede repetirlo con otra solicitud"
+  },
+  {
+   "caso": "sellado hacia una clave vieja",
+   "evento": "accion",
+   "campo": "accion_id",
+   "aad": "qdd cifrado1|accion|0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10|qdd-a45873ff129c",
+   "efimera_semilla": "RkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkY",
+   "claro_base64": "cGVkaWRvOmE=",
+   "sellado": "c1.oop8RO3iV9Zk-_FWr_p9qKuzrnS5_ujXogeFQ1BOGnX1D_ceA-xuDbmEBahQgDzkLnnvymEDa-k",
+   "abre": false,
+   "clave_pc": "ew1H2TQn-DERYHgcfHM_2J-IlwrvSQ2KoO4ZpMuKGxQ",
+   "por_que": "la app usó la x25519 de antes de volver a emparejar: el PC responde clave y la app la reconfirma"
+  }
+ ]
+}
