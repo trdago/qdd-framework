@@ -6,6 +6,26 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-11-27
+
+Versión estable (`npm i -g qdd-framework`). Reúne las 150 previews de 2.10.0, con 442 h de uso real medido en 15
+proyectos (VER-05, `.qdd/project/evidence/uso/v2.10.0.yaml`). El detalle de cada cambio está en su preview, abajo. Lo
+principal:
+
+- **El panel en la terminal** (`qdd-tareas`): «▶ Para ti» junta lo que solo tú puedes hacer, los pedidos esperan tu
+  «Sí», y las vistas de proyectos, flujos, blueprints y baúl reemplazan a `qdd dashboard`, que queda obsoleto (RFC 0018).
+- **QDD Móvil**: el relay sale de un directorio firmado, el teléfono responde preguntas, aprueba pedidos y manda
+  mensajes a la sesión que ves, y las fotos van por canal directo, sin guardarse en Supabase. La política de la app dice
+  qué guarda el relay y cuánto (FND-321); el cifrado en el teléfono llega después (RFC 0027).
+- **Flujos**: se ven, se editan, se comentan y se les pregunta desde el panel y el teléfono.
+- **Baúl**: los accesos se guardan en el llavero del sistema, con asistente en el panel; los valores nunca pasan por el
+  chat.
+- **Modo goal**: elige la opción recomendada, corre los pedidos y aprueba las fichas, todo anotado; nunca se hace pasar
+  por la persona.
+- **Calidad**: cada invariante de las fichas aprobadas tiene su prueba, `qdd audit` revisa el formato como el CI, `qdd
+  init` conecta el servidor MCP (FND-308) y un proyecto sin pruebas no pasa el gate (FND-309).
+- **Documentación pública** reescrita, con imágenes del panel real y del teléfono.
+
 ## [2.10.0-rc.150] - 2026-11-27
 
 ### Fixed
