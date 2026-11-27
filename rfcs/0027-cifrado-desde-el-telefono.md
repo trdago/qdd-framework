@@ -68,6 +68,25 @@ lo que el relay necesita para validar y firmar.
 - Las validaciones del relay (sesión, Pro, revocado, largo) y las del PC (firma, vigencia de 5 min, lista permitida,
   sin shell) siguen todas.
 
+## Teléfonos que no escanearon el QR
+
+Un segundo teléfono de la misma cuenta ve el PC por la cuenta, sin escanear el QR. Acordado con qdd-movile (27-11):
+
+- **Primera clave:** confía en la primera identidad Ed25519 que ve para ese PC.
+- **Huella a la vista:** la app muestra una huella corta de la identidad en el detalle del PC. `qdd remoto dispositivos`
+  imprime la misma huella, así que la persona puede compararlas cuando quiera. No es un paso obligatorio: una
+  comparación obligatoria termina en «sí» sin mirar.
+- **Rotación:** si la X25519 cambia con la misma identidad, la app la acepta sin avisar.
+- **Cambio de identidad:** un teléfono que ya confía y ve otra identidad para el mismo PC deja de cifrar hacia ese PC.
+  Avisa «La identidad de este PC cambió: vuelve a escanear el QR».
+
+## Riesgos
+
+- **Primer contacto de un segundo teléfono:** en ese momento el relay podría darle otra identidad. Es el mismo modelo de
+  SSH: lo acota la huella visible en los dos lados y que un cambio posterior nunca se acepte en silencio.
+- **Lo que sigue visible:** el id de una foto es el sha256 de la foto en claro. Quien ya tenga la misma foto puede
+  confirmar que se mandó, pero no puede verla.
+
 ## Alternativas
 
 - **Aceptarlo y decirlo en la política:** es lo más rápido, pero contradice lo que decidió la persona en el RFC 0013.
@@ -84,13 +103,7 @@ lo que el relay necesita para validar y firmar.
 
 ## Preguntas abiertas
 
-1. **Teléfonos que no escanearon:** un segundo teléfono de la misma cuenta ve el PC por la cuenta, sin escanear el QR,
-   así que no tiene la identidad desde fuera de Supabase. Hay dos caminos:
-   - confiar en la primera clave que ve y avisar si cambia sin firma válida;
-   - mostrar en el PC y en el teléfono una huella corta para compararla.
-
-   Propuesta: confiar en la primera clave, con la huella visible en el detalle del PC.
-2. **Latest:** el congelamiento de la 2.10.0 espera a que se cierre FND-321. ¿La 2.10.0 pasa a latest con FND-321
+1. **Latest:** el congelamiento de la 2.10.0 espera a que se cierre FND-321. ¿La 2.10.0 pasa a latest con FND-321
    resuelto en la política (decir qué se guarda y cuánto) y el cifrado después, o espera el cifrado? Lo decide la
    persona.
 
@@ -99,7 +112,8 @@ lo que el relay necesita para validar y firmar.
 1. Este RFC, revisado por qdd-movile y confirmado por la persona.
 2. Fixture compartido con las claves de prueba, los mensajes cifrados y lo esperado al abrirlos. Va en los dos
    repositorios, sin cambios.
-3. PC: claves, `clave` en la cabecera del estado, abrir antes de validar, motivo `clave` y capacidad `cifrado1`.
-4. App: cifrar cuando ve `cifrado1` y reconfirmar la pública.
+3. PC: claves, `clave` en la cabecera del estado, huella en `qdd remoto dispositivos`, abrir antes de validar, motivo
+   `clave` y capacidad `cifrado1`.
+4. App: cifrar cuando ve `cifrado1`, reconfirmar la pública, mostrar la huella y frenar ante un cambio de identidad.
 5. Prueba real con el teléfono de la persona: qdd-movile cuenta en `realtime.messages` que lo guardado ya no se lee. Al
    final, el PC deja de aceptar contenido en claro.
