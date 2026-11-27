@@ -58,6 +58,9 @@ func remotoDispositivos(ctx context.Context, salida, errores io.Writer) int {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
+	if h := cred.HuellaIdentidad(); h != "" {
+		fmt.Fprintf(salida, "Huella de este PC: %s (la misma que muestra QDD Móvil en el detalle del PC)\n", h)
+	}
 	if len(ds) == 0 {
 		fmt.Fprintln(salida, "Ningún teléfono registrado todavía: inicia sesión en QDD Móvil.")
 		return 0

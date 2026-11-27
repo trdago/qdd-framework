@@ -424,7 +424,9 @@ func (b *Bucle) armar() Estado {
 			b.logf("registro de proyectos: %v", err)
 		}
 		b.errRegistro = err.Error()
-		return Estado{Version: VersionProtocolo, QDD: b.QDD, Maquina: EstaMaquina(), En: b.ahora().UTC(), Capacidades: CapacidadesPC, Proyectos: []ProyectoEstado{}}
+		e := Estado{Version: VersionProtocolo, QDD: b.QDD, Maquina: EstaMaquina(), En: b.ahora().UTC(), Capacidades: CapacidadesPC, Proyectos: []ProyectoEstado{}}
+		b.conCifrado(&e)
+		return e
 	}
 	b.errRegistro = ""
 	b.vigia.vigilar(carpetasDe(reg))
@@ -432,6 +434,7 @@ func (b *Bucle) armar() Estado {
 	ConEjecutar(&e, b.plan, b.ahora())
 	b.aplicarLogradoBajoPedido(&e)
 	e.Diagnostico = diagnosticoDe(b.ultimaSonda, b.ahora())
+	b.conCifrado(&e)
 	return e
 }
 

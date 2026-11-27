@@ -17,6 +17,7 @@ import (
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/flujo"
 	"github.com/qdd-framework/qdd/pkg/gitenv"
+	"github.com/qdd-framework/qdd/pkg/remoto/cifrado"
 )
 
 // Rule: Prohibido usar 'else'
@@ -413,6 +414,12 @@ func (b *Bucle) alEjecutar(ctx context.Context, payload json.RawMessage) {
 		b.responder(ctx, s)
 		return
 	}
+	texto, err := b.abrir(e.Texto, cifrado.AADEjecutar(e.Solicitud, e.Proyecto, e.Tipo, e.Fotos))
+	if err != nil {
+		b.rechazarClave(ctx, Solicitud{Solicitud: e.Solicitud, Proyecto: e.Proyecto, AccionID: AccionEjecutar, Dispositivo: e.Dispositivo, Nombre: e.Nombre})
+		return
+	}
+	e.Texto = texto
 	s := Solicitud{Solicitud: e.Solicitud, Proyecto: e.Proyecto, AccionID: AccionEjecutar, Ejecutar: e.Tipo, Dispositivo: e.Dispositivo, Nombre: e.Nombre, Estado: EstadoRecibida, Recibida: b.ahora().UTC()}
 	b.recordar(s)
 	b.responder(ctx, s)

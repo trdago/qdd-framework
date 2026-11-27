@@ -107,7 +107,9 @@ func (o Oferta) ContenidoQR() string {
 		Codigo string `json:"codigo"`
 		Topico string `json:"topico"`
 		Nombre string `json:"nombre"`
-	}{1, o.Codigo, o.Cred.Topico, o.Cred.Nombre})
+		// Identidad es la Ed25519 pública del PC (RFC 0027): el QR es el único canal que no pasa por el relay.
+		Identidad string `json:"identidad,omitempty"`
+	}{1, o.Codigo, o.Cred.Topico, o.Cred.Nombre, o.Cred.IdentidadPublica()})
 	return string(b)
 }
 
@@ -162,6 +164,12 @@ var ErrOfertaVencida = errors.New("el código venció sin que un teléfono lo ac
 func Emparejar(ctx context.Context, r RelayEmparejar, nombre string, salida io.Writer, cada, plazo time.Duration) (Credenciales, error) {
 	o, err := NuevaOferta(nombre)
 	if err != nil {
+		return Credenciales{}, err
+	}
+	if antes, err := LeerCredenciales(); err == nil {
+		o.Cred.Identidad = antes.Identidad
+	}
+	if err := GenerarCifrado(&o.Cred, true, time.Now()); err != nil {
 		return Credenciales{}, err
 	}
 	hash := HashCodigo(o.Codigo)
