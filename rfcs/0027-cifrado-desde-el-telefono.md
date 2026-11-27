@@ -1,8 +1,7 @@
 # RFC 0027: cifrar en el teléfono lo que va al PC
 
-**Estado:** propuesto (2026-11-27). El modo goal eligió la opción (cifrar en el teléfono, la recomendada); falta que la
-persona la confirme. qdd-movile revisa este diseño antes de tocar código, y ninguno de los dos lados programa el cifrado
-hasta esa confirmación.
+**Estado:** aceptado (2026-11-27). La persona confirmó cifrar en el teléfono y que la 2.10.0 pase a latest antes del
+cifrado, diciendo en la política qué guarda el relay y cuánto. qdd-movile revisó el diseño.
 
 **Origen:** FND-321 y FND-059 de qdd-movile. En el RFC 0013, la persona decidió que el relay no guarde lo que manda desde
 el teléfono. No se cumple: las funciones del relay llaman a `realtime.send`, y cada `accion`, `responder` y `ejecutar`
@@ -101,15 +100,14 @@ Un segundo teléfono de la misma cuenta ve el PC por la cuenta, sin escanear el 
   encontró filas guardadas, pero Supabase lo ve pasar. Cifrarlo es otro paso.
 - Los metadatos: la clave de proyecto (`<carpeta>-<hash>`), los tiempos y los tamaños siguen visibles.
 
-## Preguntas abiertas
+## Decisiones
 
-1. **Latest:** el congelamiento de la 2.10.0 espera a que se cierre FND-321. ¿La 2.10.0 pasa a latest con FND-321
-   resuelto en la política (decir qué se guarda y cuánto) y el cifrado después, o espera el cifrado? Lo decide la
-   persona.
+1. **Latest:** la 2.10.0 pasa a latest con FND-321 resuelto en la política (qué guarda el relay y cuánto) y el cifrado
+   llega en una versión siguiente. Lo decidió la persona el 2026-11-27. Promover a latest sigue siendo su paso.
 
 ## Fases
 
-1. Este RFC, revisado por qdd-movile y confirmado por la persona.
+1. Este RFC, revisado por qdd-movile y confirmado por la persona (hecho).
 2. Fixture compartido con las claves de prueba, los mensajes cifrados y lo esperado al abrirlos. Va en los dos
    repositorios, sin cambios.
 3. PC: claves, `clave` en la cabecera del estado, huella en `qdd remoto dispositivos`, abrir antes de validar, motivo
