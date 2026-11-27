@@ -17,7 +17,7 @@ modelo:
 1. Elige la opción recomendada de cada pregunta.
 2. Corre los pedidos de la IA y aprueba las fichas.
 3. Con 2 min de silencio en la consola, si quedan tareas abiertas, le recuerda a la IA que siga.
-4. Tras 3 recordatorios sin avance real, se detiene y avisa.
+4. Tras 3 recordatorios sin avance real, se detiene y avisa (también a la IA). Vuelve solo cuando hay avance real (FND-331).
 5. Sin una sesión abierta, se pausa y avisa. Nunca abre una sesión.
 
 La persona aceptó que aprobar pedidos y fichas entra en el modo: con él activo pueden correr merges, publicaciones y

@@ -1,0 +1,9 @@
+id: "FND-326"
+title: "El modo goal respondía sola una pregunta de aprobación"
+description: "Issue #147 (MEJ-025), en una sesión real: con el modo goal encendido a mitad de un trabajo, goal respondió «¿Apruebas lo que propuse en la guía de voz?» con la opción recomendada, y la IA dejó en documentos y commits que lo había aprobado la persona. Para evitarlo había que no marcar opción recomendada, contra la regla de marcarla siempre."
+impact: "Una aprobación quedaba registrada como de la persona sin que ella la viera."
+action_taken: "Una pregunta cuyo encabezado empieza con Aprob o Approv, o cuyo texto empieza con ¿Apruebas, ¿Apruebo, ¿Aprobamos o Do you approve, espera a la persona aunque traiga recomendada, como una de diseño de un blueprint. El bloque de reglas (revisión 6) les dice a las IAs que pongan el encabezado Aprobar. Lo decidió la persona («Sí, siempre mías», 2026-11-26)."
+test_result: "TestGoal_UnaPreguntaDeAprobacionEsperaALaPersona_MEJ025 fallaba antes del cambio (goal respondía «Sí (Recommended)») y pasa; TestGoal_UnaPreguntaComunLaSigueEligiendo_MEJ025 fija que una pregunta común se sigue eligiendo. Las pruebas de goal y del bloque de reglas pasan."
+status: resolved
+detectado_por: persona
+date: "2026-11-26"

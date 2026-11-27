@@ -152,6 +152,9 @@ let firma = ''
 let confirmando = null // la acción que espera el segundo paso
 let resultado = null // { titulo, ok, texto, zona }
 let ocupado = false
+// Revisión de lo que espera a la persona (tecla l): cuándo se mandó la última, para que dos l seguidas manden una sola.
+let revisionEnviada = -Infinity
+const REVISION_CADA_MS = 60_000
 // Botón 📷 (pedido de la persona, 2026-11-07): fotoHay es lo que dijo «qdd foto --hay» (si, no, no_se; null con un qdd que
 // no lo conoce) y fotoAviso, cómo terminó el último 📷, que se borra solo a las FOTO_AVISO_LECTURAS lecturas.
 let fotoHay = null
@@ -1713,10 +1716,6 @@ function tabla(Box, Text, Button, $, e, lista, ancho) {
   })
 }
 
-// TOPE_ESPERAS: cuántos ⏳ se ven de entrada, para no empujar fuera lo demás; «ver las N» trae el resto.
-const TOPE_ESPERAS = 5
-let esperasTodas = false
-
 // preguntar envía a la conversación la pregunta que qdd da para una tarea u objetivo: la IA responde avance, bloqueos
 // y siguiente paso, y actualiza el estado con evidencia.
 function preguntar($, texto) {
@@ -1726,11 +1725,38 @@ function preguntar($, texto) {
   $.ui.invalidate('ui.render')
 }
 
-// releer: «l ↻» vuelve a leer el tablero en el acto, sin esperar a la próxima lectura.
+// releer: «l ↻» vuelve a leer el tablero en el acto, sin esperar a la próxima lectura, y le pide a la IA que vuelva a
+// evaluar todo lo que espera a la persona (pedido de la persona, 2026-11-26: «preguntas van quedando en el camino como
+// residuo […] y ya están contestadas»).
 async function releer($) {
   await leer($)
   if (proyectos) await leerProyectos($)
+  await pedirRevision($)
   $.ui.invalidate('ui.render')
+}
+
+// pedirRevision manda a la IA lo que arma qdd consola revisar: cada ⏳ de la persona y cada pedido sin confirmar, para
+// que cierre con evidencia lo ya respondido y deje solo lo que aporta valor. Dos l seguidas mandan una sola revisión;
+// sin nada que revisar, o con un qdd sin el comando, la l solo relee.
+async function pedirRevision($) {
+  const ahora = await $.clock.now()
+  if (ahora - revisionEnviada < REVISION_CADA_MS) return
+  const bin = await binario($)
+  let rev = null
+  try {
+    const r = await $.process.run([bin, 'consola', 'revisar', '--json'], { timeoutMs: TOPE_MS })
+    rev = r.exitCode === 0 ? JSON.parse(r.stdout || 'null') : null
+  } catch {
+    rev = null
+  }
+  if (!rev) return
+  if (!rev.texto) {
+    resultado = { titulo: '↻ Releído', ok: true, texto: '✓ Nada te espera', zona: 'tabla' }
+    return
+  }
+  revisionEnviada = ahora
+  resultado = { titulo: '↻ Revisar lo que te espera', ok: true, texto: '→ la IA revisa ' + rev.total + ' y deja solo lo que aporta valor', zona: 'tabla' }
+  $.prompt.submit({ text: rev.texto }).catch((err) => $.ui.log('no se envió la revisión a la IA: ' + String(err?.message ?? err)))
 }
 
 // fallas: cada etapa en ❌ como «• tarea › etapa» y debajo, atenuado, qué falla.
@@ -2125,12 +2151,8 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
   const tarjetaDe = (a) => (esConfirmacionDe(a) ? confirmacion(Box, Text, Button, $) : dibujo(a))
   const conLugar = new Set(turnos.map((a) => a.id))
   const sueltas = preguntas.filter((q) => !conLugar.has(q.pregunta))
-  const puestas = []
-  const espera = (q) => {
-    if (!esperasTodas && puestas.length >= TOPE_ESPERAS) return []
-    puestas.push(q)
-    return [preguntaDeParaTi(Box, Text, Button, $, q, puestas.length - 1, ancho)]
-  }
+  let puestas = 0
+  const espera = (q) => [preguntaDeParaTi(Box, Text, Button, $, q, puestas++, ancho)]
   const preguntaEn = new Map(preguntas.map((q) => [q.pregunta, q]))
   const teclasFichas = teclas(fichas)
   const fila = (a) => {
@@ -2141,17 +2163,16 @@ function paraTi(Box, Text, Button, $, todas, preguntas, ancho, otros = []) {
     if (!q) return []
     return espera(conLugarEnLaLista(q, a))
   }
-  // Pedido de la persona (2026-11-08): las acciones (pedidos y fichas) se ven; las preguntas (⏳ y lo abierto en la
-  // terminal) quedan plegadas en «? N», que se despliega si la persona quiere. Cada una conserva su número de turno.
+  // Pedido de la persona (2026-11-08): las acciones (pedidos y fichas) van primero y las preguntas después, bajo «? N».
+  // Llegan desplegadas y todas, sin tope (2026-11-26): con 30 plegadas la persona no veía ninguna. «? N» las pliega si
+  // ella quiere. Cada una conserva su número de turno.
   const esAccion = (a) => a.tipo === 'pedido' || a.tipo === 'aprobar'
   const enTurno = turnos.filter(esAccion).flatMap(fila)
   const arriba = [...enTerminal, ...locales].map((a) => preguntaArriba(Box, Text, Button, $, a))
   const cuerpo = [...arriba, ...enTurno, ...[...abiertos, ...hechos].map(tarjetaDe), ...seVa]
   if (preguntas.length) cuerpo.push(...preguntasPlegadas(Button, $, preguntas.length, () => {
     const enLaLista = turnos.filter((a) => !esAccion(a) && !esDeLaTerminal(a)).flatMap(fila)
-    const sinLugar = sueltas.flatMap(espera)
-    const resto = preguntas.length - puestas.length
-    return [...enLaLista, ...sinLugar, ...(resto ? [Button({ key: 'esperas-todas', label: 'ver las ' + preguntas.length, plain: true, dimColor: true, onPress: () => verTodasLasEsperas($) })] : [])]
+    return [...enLaLista, ...sueltas.flatMap(espera)]
   }))
   return [
     separador(Box, Text, 't-pedidos', '▶ Para ti', porHacer || porResponder ? COLOR.espera : undefined, resumen, ancho),
@@ -2175,8 +2196,8 @@ function esConfirmacionDe(a) {
   return confirmando?.id === a.id
 }
 
-// preguntasPlegadas: el botón «? N» y, si la persona lo abrió, las preguntas debajo. filas se calcula solo abierto.
-let preguntasAbiertas = false
+// preguntasPlegadas: el botón «? N» y, salvo que la persona lo plegó, las preguntas debajo. filas se calcula solo abierto.
+let preguntasAbiertas = true
 
 function preguntasPlegadas(Button, $, n, filas) {
   const boton = Button({ key: 'preguntas-ver', label: (preguntasAbiertas ? '▾ ' : '▸ ') + '? ' + n + (n === 1 ? ' pregunta' : ' preguntas'), plain: true, onPress: () => alternarPreguntas($) })
@@ -2290,11 +2311,6 @@ async function responderEspera($, q, valor) {
 let tuyasVisibles = false
 function verLasTuyas($) {
   tuyasVisibles = true
-  $.ui.invalidate('ui.render')
-}
-
-function verTodasLasEsperas($) {
-  esperasTodas = true
   $.ui.invalidate('ui.render')
 }
 
@@ -3878,6 +3894,10 @@ function decisionDe(e, p) {
 // «pc» (acordado con qdd-movile): sale en «Para ti» y en el teléfono, suena el push, y solo se responde en la terminal.
 // Si qdd no la registra, «Para ti» la cuenta igual (como MEJ-057). El escritorio avisa al minuto.
 const SIN_PERMISO_MS = 5000
+
+// MEJ-104 (REP-822): con 2 o más preguntas Claude Code cierra el diálogo con «Review your answers / Submit answers», y en
+// Windows quedó ahí con la persona lejos. Una por llamada: sin esa pantalla, con botones en «▶ Para ti» y el teléfono.
+const VARIAS_PREGUNTAS = 'QDD: una pregunta por llamada. Con varias juntas, Claude Code espera «Submit answers» en el PC y el teléfono no puede terminarla. Haz la primera ahora y las demás después, cada una con su opción recomendada.'
 const permisosPedidos = new Set() // tool + entrada de lo que pasó por PermissionRequest
 
 function clavePermiso(tool, entrada) {
@@ -4415,6 +4435,7 @@ export function register(on) {
     hubo()
     anotarHerramienta(e)
     if (HERRAMIENTAS_SHELL.has(e.tool) && ACTIVA_GOAL.test(String(e.command || ''))) return { deny: 'El modo goal lo activa solo la persona, desde el panel o el teléfono.' }
+    if (e.tool === PREGUNTAR && e.questions?.length > 1) return { deny: VARIAS_PREGUNTAS }
     const rechazo = await rechazoDePuertas($, e)
     if (rechazo) return { deny: rechazo }
     const seguir = !e.agentId && e.tool_use_id

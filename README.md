@@ -73,10 +73,10 @@ qdd init           # detecta el stack, escribe las reglas de tu IA y activa el g
 qdd audit          # pruebas + reglas; funciona desde cualquier subcarpeta
 ```
 
-Conecta el servidor MCP a tu IA. `qdd init` lo registra solo para Cursor; en Claude Code:
+`qdd init` también conecta el servidor MCP de QDD en Claude Code (`.mcp.json`), OpenCode (`opencode.json`) y Cursor.
+Claude Code te pide aprobarlo la primera vez que abres el proyecto. Suma el panel:
 
 ```bash
-claude mcp add --scope project qdd -- qdd mcp-server
 qdd consola activar   # el panel de QDD en Claude Code
 ```
 
@@ -106,7 +106,7 @@ Y pídele trabajo a tu IA. El recorrido completo, con OpenCode incluido, está e
 | | Claude Code | Cursor | Antigravity | OpenCode | VS Code |
 |---|---|---|---|---|---|
 | Reglas que escribe `qdd init` | Sí | Sí | Sí | Sí | — |
-| Servidor MCP | `claude mcp add …` | Lo registra `init` | `init` escribe `.cursor/mcp.json` | A mano ([cómo](docs/getting-started.md#conectar-el-servidor-mcp)) | — |
+| Servidor MCP | `init` escribe `.mcp.json` | Lo registra `init` | `init` escribe `.cursor/mcp.json` | `init` escribe `opencode.json` | — |
 | Panel (`qdd consola activar`) | Completo | — | Extensión: tablero, pedidos y fichas | Solo lectura | Extensión: tablero, pedidos y fichas |
 | Puertas de commit (audit y finding) | Sí, también antes de correr el comando | Hooks de git | Hooks de git | Hooks de git | Hooks de git |
 | Puertas de ficha y de publicar | Sí, con el panel activo | — | — | — | — |
@@ -118,9 +118,9 @@ en el CI.
 
 - **Las reglas de código solo leen Go** (cero `else`, inyección, criptografía, pánicos, llamadas sin límite). En los demás
   lenguajes el gate corre las pruebas, el formato y los despliegues, y dice qué principios no pudo evaluar.
-- **Las suites que reconoce solo son** npm, Go, Flutter y pytest; cualquier otra se declara en `test_commands`. Un proyecto
-  Go sin ninguna prueba todavía pasa el gate
-  ([FND-309](.qdd/project/findings/FND-309-UN-PROYECTO-GO-SIN-PRUEBAS-PASA-EL-GATE.yaml)).
+- **Las suites que reconoce solo son** npm, Go, Flutter y pytest; cualquier otra se declara en `test_commands`. Un módulo
+  Go sin ningún `_test.go` bloquea en los proyectos creados desde la 2.10.0; en los anteriores solo avisa, hasta que
+  agregues `go_sin_pruebas: bloquea` a `.qdd/policies.yaml`.
 - **Las reglas de IA no son una certificación.** `ai_governance` son comprobaciones sencillas inspiradas en normas
   conocidas. No acreditan el cumplimiento de ISO, SOC 2 ni ninguna otra.
 - **`qdd dashboard` está obsoleto:** solo recibe arreglos. Lo reemplaza el panel.

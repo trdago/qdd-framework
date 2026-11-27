@@ -1,6 +1,6 @@
 id: "FND-299"
 title: "Mover el tablero después de qdd audit dejaba viejo el audit y la puerta rechazaba el commit"
-description: "Reportado 2026-11-22 por notificador_de_ofertas con qdd rc.105: la puerta «audit al día» rechazó dos commits seguidos sin que se tocara el código entre el audit (unos 8 min ahí) y el commit. Lo único que cambió fue .qdd/project/estado.yaml, que escribe la IA o el panel al mover el tablero, cosa que las reglas piden hacer mientras se trabaja. .qdd/working/ no influía: git lo ignora."
+description: "Reportado 2026-11-22 por proyecto-b con qdd rc.105: la puerta «audit al día» rechazó dos commits seguidos sin que se tocara el código entre el audit (unos 8 min ahí) y el commit. Lo único que cambió fue .qdd/project/estado.yaml, que escribe la IA o el panel al mover el tablero, cosa que las reglas piden hacer mientras se trabaja. .qdd/working/ no influía: git lo ignora."
 impact: "En un proyecto con el tablero vivo y un audit lento, la IA no podía commitear nunca sin dejar de actualizar el tablero."
 action_taken: "La huella deja fuera .qdd/project/estado.yaml (puertas.Tablero): cada escritura del tablero ya se valida antes de guardarse y qdd audit lo revisa. Cualquier otro archivo, también los de .qdd/, sigue cambiando la huella. Opción elegida por el modo goal, la recomendada."
 test_result: "TestHuella_ElTableroNoLaCambiaYLoDemasSi_FND299 (cli/pkg/puertas) falla sin el cambio y pasa con él; go test ./pkg/puertas y las pruebas de puertas de cmd pasan."

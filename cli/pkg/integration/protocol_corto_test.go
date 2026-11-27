@@ -29,7 +29,7 @@ func TestProtocolo_ConservaCadaRegla_MEJ062(t *testing.T) {
 		"tarea en curso": {"CURRENT TASK", "accion=activar", "qdd estado activa", "2 minutes", "accion=terminar"},
 		"comandos para la persona": {"qdd_consola_pedir", "qdd consola pedir", "saying why", "never run it yourself", "qdd consola accion",
 			"--despues", "only what can run now", "exit 75", "One command per human step", "chain of merges", "Another repository"},
-		"preguntas":        {"QUESTIONS FOR THE HUMAN", "never stay only in the chat", "AskUserQuestion", "recommended option", "qdd_estado", "¿…?", "phone", "qdd estado check"},
+		"preguntas":        {"QUESTIONS FOR THE HUMAN", "never stay only in the chat", "AskUserQuestion", "one question per call", "recommended option", "qdd_estado", "¿…?", "phone", "qdd estado check"},
 		"temporales":       {"./tmp", "never in the root or source folders", "with its test"},
 		"modo de permisos": {"auto mode", "acceptEdits", "bypassPermissions", "dontAsk", "approved module record", "blueprint decision or invariant", "version, tag, publication or deployment", "cannot be undone", "design questions stay the human's"},
 		"modo goal":        {"GOAL MODE", "never activate it", "recommended option", "🎯", "next open task", "tool permission stops the mode"},

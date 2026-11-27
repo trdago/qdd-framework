@@ -1,0 +1,9 @@
+id: "FND-331"
+title: "El modo goal detenido sin avance no volvía, y la IA no lo sabía"
+description: "MEJ-105 (REP-823), en un proyecto real el 2026-11-26: el modo goal se detuvo a las 03:08 tras 3 recordatorios sin avance. Desde la mañana la IA avanzaba, pero el modo siguió detenido; a las 10:28 la IA cerró su turno esperando un 🎯 que no podía llegar y la persona la encontró sin hacer nada unos 20 minutos después. Nada le había dicho a la IA que el modo estaba detenido."
+impact: "Con el modo encendido, la IA quedaba detenida con trabajo pendiente y parecía colgada."
+action_taken: "Al detenerse, la sesión lo lee con su mensaje siguiente: no llegan más 🎯 hasta que haya avance, y sigue con lo que pueda mover. Detenido, el modo mira el avance (la huella del tablero y de git) cuando la consola calla, como mucho una vez cada 2 min, y con avance real vuelve a trabajar y lo avisa a la persona y a la sesión. Lo eligió el modo goal con la opción recomendada, no la persona (2026-11-26). La otra mitad del reporte (la IA preguntó algo ya delegado y cerró el turno con trabajo propio) es de la conducta del modelo, no de qdd."
+test_result: "goal_reanuda_mej105_test.go: TestGoal_LaSesionSabeQueSeDetuvo_FND331 y TestGoal_ConAvanceRealVuelveATrabajar_FND331 fallaban antes del cambio y pasan; TestGoal_DetenidoNoMiraElAvanceMientrasLaSesionTrabaja_FND331 fija que no corre git con la sesión trabajando. go test ./pkg/consola ./pkg/remoto ./cmd pasa."
+status: resolved
+detectado_por: relay
+date: "2026-11-26"

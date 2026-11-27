@@ -1,0 +1,9 @@
+id: "FND-329"
+title: "Nombres de proyectos reales en archivos públicos del repositorio"
+description: "2026-11-24, sprint 10: la revisión de huellas privadas (make test) solo miraba docs/, rfcs/ y los README. Al extenderla a todo lo versionado aparecieron 157 nombres de proyectos y de la organización de la persona en 81 archivos: findings, fichas, evidencias de doctor, el CHANGELOG, comentarios del código, la ayuda de qdd baul guardar y datos de prueba."
+impact: "El repositorio es público: cualquiera leía en GitHub los nombres de los proyectos y la organización de la persona."
+action_taken: "Se cambiaron por proyecto-a, proyecto-b, proyecto-c, proyecto-d y mi-organizacion (proyectoA… donde era un identificador de Go). TestDocs_NoNombranProyectosReales revisa ahora cada archivo que git sigue, no solo la documentación. El historial de git los conserva. Lo eligió el modo goal con la opción recomendada, no la persona (2026-11-26)."
+test_result: "TestDocs_NoNombranProyectosReales con las huellas de la persona: habría marcado los 157 (5 solo en el CHANGELOG de origin) y pasa en 0,56 s. go test ./... y claude plugin test (364/364) pasan. En CI se salta: no tiene las huellas."
+status: resolved
+detectado_por: sesion
+date: "2026-11-26"

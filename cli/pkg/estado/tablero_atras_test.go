@@ -10,7 +10,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// RFC 0017 §2 y §3 (MEJ-010, sfrc): una tarea con módulo avisa de los commits nuevos en las rutas de su ficha y pide
+// RFC 0017 §2 y §3 (MEJ-010, proyecto-a): una tarea con módulo avisa de los commits nuevos en las rutas de su ficha y pide
 // revisar su nombre y su criterio cuando la ficha cambia sus decisiones u objetivo operativo después de su última celda.
 
 var tocada = time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)

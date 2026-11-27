@@ -157,6 +157,9 @@ func buildHerramientasChecks(projectPath string) *CheckGroup {
 	return g
 }
 
+// nombreClaveLarga es el chequeo de FND-334: lo local con la clave de antes, sin tope de largo.
+const nombreClaveLarga = "Clave local del proyecto (80 caracteres como máximo)"
+
 // grupoConsola revisa el panel y la barra de QDD en Claude Code, solo si se activaron en esta máquina (RFC 0006 §3.6).
 const grupoConsola = "6. Consola de Claude Code (qdd consola)"
 
@@ -169,6 +172,9 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 	}
 	if cola := consola.DiagnosticarCola(projectPath); len(g.Items) > 0 || !cola.OK {
 		g.Items = append(g.Items, &CheckItem{Name: cola.Nombre, Success: cola.OK, Error: cola.Detalle})
+	}
+	if largas := estado.ClavesLargas(projectPath); len(largas) > 0 {
+		g.Items = append(g.Items, &CheckItem{Name: nombreClaveLarga, Success: false, Error: fmt.Sprintf("%d archivo(s) locales del proyecto siguen con la clave de más de %d caracteres, que el relay rechaza (FND-334). 'qdd doctor --fix' los renombra a la clave nueva", len(largas), estado.MaxClave)})
 	}
 	activa := len(diagnostico) > 0
 	if item := checkUso(); activa || !item.Success {
@@ -246,6 +252,13 @@ func repairConsola(projectPath string, g *CheckGroup) {
 			hecho, err := uso.ApartarIlegibles()
 			imprimirReparado(hecho, err)
 			registrarAutorreparacion("doctor: "+nombreUso, "un registro de uso que escribió QDD estaba ilegible", hecho)
+			continue
+		}
+		if item.Name == nombreClaveLarga {
+			fmt.Println("  [~] Renombrando lo local a la clave de 80 caracteres...")
+			hecho, err := estado.MigrarClavesLargas(projectPath)
+			imprimirReparado(hecho, err)
+			registrarAutorreparacion("doctor: "+nombreClaveLarga, "lo local del proyecto seguía con la clave larga que el relay rechaza", hecho)
 			continue
 		}
 		if item.Name == consola.DiagnosticarCola(projectPath).Nombre {
@@ -373,8 +386,15 @@ func repairFindingsNoCanonicos(projectPath, qddDir string) {
 	}
 }
 
+// Los grupos 1 a 3 del doctor: lo que qdd init deja en el proyecto, junto con las puertas (FND-325).
+const (
+	grupoEstructura = "1. Estructura de Archivos y Carpetas Base"
+	grupoIA         = "2. Infraestructura de IA y MCP"
+	grupoDashboard  = "3. Dashboard y Entorno Nativo"
+)
+
 func buildGroup1Checks(projectPath string) *CheckGroup {
-	g1 := &CheckGroup{Name: "1. Estructura de Archivos y Carpetas Base"}
+	g1 := &CheckGroup{Name: grupoEstructura}
 	qddDir := filepath.Join(projectPath, ".qdd")
 	g1.Items = append(g1.Items, checkDir(qddDir, "Directorio raíz .qdd/"))
 	g1.Items = append(g1.Items, checkDir(filepath.Join(qddDir, "core"), "Directorio base .qdd/core/"))
@@ -385,10 +405,11 @@ func buildGroup1Checks(projectPath string) *CheckGroup {
 }
 
 func buildGroup2Checks(projectPath string) *CheckGroup {
-	g2 := &CheckGroup{Name: "2. Infraestructura de IA y MCP"}
+	g2 := &CheckGroup{Name: grupoIA}
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".cursor", "mcp.json"), "Integración Cursor (.cursor/mcp.json)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".clauderc"), "Integración Claude (.clauderc)"))
 	g2.Items = append(g2.Items, checkFile(filepath.Join(projectPath, ".antigravityrules"), "Integración Antigravity (.antigravityrules)"))
+	g2.Items = append(g2.Items, itemsMCP(projectPath)...)
 	g2.Items = append(g2.Items, checkBloquesDeReglas(projectPath))
 	g2.Items = append(g2.Items, checkReglasUnaVez(projectPath))
 
@@ -403,7 +424,7 @@ func buildGroup2Checks(projectPath string) *CheckGroup {
 }
 
 func buildGroup3Checks(projectPath string) *CheckGroup {
-	g3 := &CheckGroup{Name: "3. Dashboard y Entorno Nativo"}
+	g3 := &CheckGroup{Name: grupoDashboard}
 	g3.Items = append(g3.Items, buildDashboardCheck())
 	g3.Items = append(g3.Items, buildHistoryCheck(projectPath))
 	return g3
@@ -640,6 +661,8 @@ func dispatchRepairCommand(itemName, projectPath, qddDir string) {
 		"Integración Claude (.clauderc)":                 repairMCP,
 		"Integración Antigravity (.antigravityrules)":    repairMCP,
 		itemBloquesDeReglas:                              repairMCP,
+		itemMCPClaude:                                    repairMCP,
+		itemMCPOpenCode:                                  repairMCP,
 		itemReglasUnaVez:                                 repairReglasUnaVez,
 		"Assets estáticos del Dashboard (Vue) embebidos": repairAssets,
 		"Contrato de Historial (cognitive_history.json)": repairHistory,
@@ -701,17 +724,22 @@ func repairDashboardContracts(projectPath string) {
 
 // RunDoctorCheck ejecuta las pruebas deterministas del framework y deja un reporte.
 func RunDoctorCheck(projectPath string, autoFix bool) (bool, int) {
+	checklist := revisarConDoctor(projectPath, autoFix)
+	if checklist.HasFailures() {
+		return false, countFailures(checklist)
+	}
+	return true, 0
+}
+
+// revisarConDoctor corre el checklist, repara con autoFix y deja el reporte; devuelve cómo quedó.
+func revisarConDoctor(projectPath string, autoFix bool) *Checklist {
 	checklist := runDeterministicChecks(projectPath)
 	if autoFix && checklist.HasFailures() {
 		runSelectiveFixes(projectPath, checklist)
 		checklist = runDeterministicChecks(projectPath)
 	}
 	generateReport(projectPath, checklist)
-
-	if checklist.HasFailures() {
-		return false, countFailures(checklist)
-	}
-	return true, 0
+	return checklist
 }
 
 func countFailures(checklist *Checklist) int {

@@ -1,0 +1,9 @@
+id: "FND-327"
+title: "La persona no veía las preguntas del tablero: llegaban plegadas en «? N» y con tope de 5"
+description: "2026-11-25, la persona: «no veo nada que me estés preguntando», con 30 ⏳ suyos en el tablero. qdd consola panel --json los entregaba, pero «▶ Para ti» los dibujaba plegados en una línea «▸ ? 30 preguntas», sin botones, y al abrirla mostraba 5 y un «ver las N»."
+impact: "Las decisiones se acumulaban sin respuesta y la IA creía que estaban a la vista."
+action_taken: "Las preguntas llegan desplegadas y todas, sin tope; «? N» sigue y las pliega si la persona quiere. Las acciones (pedidos y fichas) siguen primero. Lo eligió el modo goal (opción recomendada «Desplegadas, sin tope», 2026-11-26); la decisión de la persona de 2026-11-08 queda con esa nota en la ficha estado."
+test_result: "preguntas-plegadas.test.ts, para-ti-siempre.test.ts y esperas.test.ts fallaban con el panel anterior (20 fallas) y pasan; claude plugin test 364/364. No probado en una consola real de Claude Code."
+status: resolved
+detectado_por: persona
+date: "2026-11-26"

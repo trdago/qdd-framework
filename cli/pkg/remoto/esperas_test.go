@@ -13,7 +13,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Pedido de sfrc (2026-11-03): un ⏳ «de la persona» del estado llega al teléfono como pregunta de respuesta libre, y
+// Pedido de proyecto-a (2026-11-03): un ⏳ «de la persona» del estado llega al teléfono como pregunta de respuesta libre, y
 // lo que la persona responde le llega a la IA del proyecto como una instrucción del teléfono.
 
 const estadoConEspera = `formato: 1

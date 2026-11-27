@@ -123,15 +123,16 @@ func itemDeHook(e puertas.EstadoHook) *CheckItem {
 	return item
 }
 
-// repairPuertas activa las puertas en un proyecto que ya tiene políticas (lo dice) e instala sus hooks. Sin
-// policies.yaml no inventa uno: con solo puertas, las demás políticas quedarían apagadas.
+// repairPuertas activa las puertas (lo dice) e instala sus hooks. Un proyecto de QDD sin policies.yaml lo recibe con
+// las políticas que ya regían sin el archivo, más las puertas (FND-325): mandarlo a qdd init era un bucle, porque init
+// repara con este mismo --fix. Una carpeta sin QDD no recibe un .qdd inventado.
 func repairPuertas(projectPath string, g *CheckGroup) {
 	if !groupHasFailures(g) {
 		return
 	}
-	politicas := filepath.Join(projectPath, ".qdd", "policies.yaml")
-	if _, err := os.Stat(politicas); err != nil {
-		fmt.Println("  [!] Sin .qdd/policies.yaml no se activan las puertas: corre qdd init.")
+	nuevo := !fileExists(filepath.Join(projectPath, ".qdd", "policies.yaml"))
+	if nuevo && !fileExists(filepath.Join(projectPath, ".qdd", "config.yaml")) {
+		fmt.Println("  [!] Sin .qdd/config.yaml esta carpeta no es un proyecto de QDD: corre qdd init.")
 		return
 	}
 	p := audit.LoadPolicies(projectPath)
@@ -140,6 +141,9 @@ func repairPuertas(projectPath string, g *CheckGroup) {
 		if err := audit.SavePolicies(projectPath, p); err != nil {
 			fmt.Printf("  [!] %v\n", err)
 			return
+		}
+		if nuevo {
+			fmt.Println("  [~] Creé .qdd/policies.yaml con las políticas que ya regían sin el archivo (las por defecto).")
 		}
 		fmt.Println("  [~] Activé las puertas de QDD en .qdd/policies.yaml: commit solo con qdd audit al día, fix con su finding, leer la ficha antes de editar y publicar como pedido. Se apagan quitando 'puertas:'.")
 	}

@@ -1,0 +1,9 @@
+id: "FND-333"
+title: "El PC ofrecía fotos con el relay cortado"
+description: "Desde el 2026-11-24 el relay tiene cortadas las fotos (FND-059 de qdd-movile: realtime.send las guardaba de 3 a 4 días). qdd remoto seguía declarando capacidades: [fotos] en la cabecera del estado, así que la app ofrecía adjuntar. Al mandar una foto, el relay respondía 42501 y la app lo mostraba como «Tu sesión terminó. Vuelve a entrar» (FND-061 de qdd-movile)."
+impact: "La persona intentó mandar una foto desde la app 145 y leyó un mensaje falso de sesión terminada. No se guardó ninguna foto."
+action_taken: "CapacidadesPC queda vacía mientras dure el corte: sin la capacidad, la app no ofrece adjuntar. El PC sigue sabiendo recibir el evento foto. El transporte nuevo irá con otro nombre de capacidad (fotos2)."
+test_result: "TestEstado_ElPCNoDeclaraFotosMientrasElRelayLasTieneCortadas_FND333 fallaba antes del cambio (la cabecera traía fotos) y pasa; las pruebas de pkg/remoto pasan."
+status: resolved
+detectado_por: qdd-movile
+date: "2026-11-26"

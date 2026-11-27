@@ -1,0 +1,9 @@
+id: "FND-328"
+title: "La sesión no sabía que el modo goal se encendió o se apagó"
+description: "Issue #147 (MEJ-025, parte 2), en una sesión real: la persona encendió el modo goal desde el panel a mitad de un trabajo. Nada se lo dijo a la IA, que siguió escribiendo como de la persona decisiones que tomaba el modo. Al apagarlo tampoco sabía que sus pedidos y preguntas volvían a esperar a la persona."
+impact: "La IA atribuía a la persona lo que eligió el modo y no sabía quién iba a correr sus pedidos."
+action_taken: "El modo guarda la hora en que se encendió o se apagó y las sesiones que ya lo leyeron. qdd consola ciclo --contexto se lo dice una vez a cada sesión con su mensaje siguiente (el 🎯 del modo también lo es): encendido, que esas respuestas las elige el modo y no la persona; apagado, que todo vuelve a esperarla. Un archivo del modo anterior a este cambio no avisa."
+test_result: "TestGoal_LaSesionSabeQueSeEncendioYSeApago_MEJ025 fallaba antes del cambio (no compilaba: el modo no guardaba el cambio) y pasa; TestGoal_SinCambioRegistradoNoAvisa_MEJ025 fija que un archivo viejo no avisa. Las pruebas de goal y de ContextoCiclo pasan."
+status: resolved
+detectado_por: persona
+date: "2026-11-26"

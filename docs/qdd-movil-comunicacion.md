@@ -26,7 +26,7 @@ dio ida y vuelta en unos 450 ms con un teléfono mirando.
 | `accion` | app → relay → PC | RPC `qdd_remoto_accion` → `realtime.send` | `solicitud`, `proyecto`, `accion_id`, `dispositivo`, `dispositivo_nombre`, `en`, `firma` | relay (sesión, revocado, formato) y PC (firma HMAC, 5 min, id ofrecido) | `rechazada` o descartada al log |
 | `responder` | app → relay → PC | RPC `qdd_remoto_responder` | `pregunta`, `respuesta` (texto ≤ 4096), `nombre`, `firma`… | relay y PC (contra la pregunta guardada) | `rechazada`, `vencida` o `ya_aprobado` |
 | `ejecutar` | app → relay → PC | RPC `qdd_remoto_ejecutar` | `tipo` (qdd, ia, flujo), `texto`, `nombre`, `firma`… | relay (Pro, largo, caracteres) y PC (lista permitida, sin shell) | `rechazada` |
-| `foto` / `foto_ack` | app → relay → PC / PC → app | RPC `qdd_remoto_foto` / broadcast | la foto en partes (`parte`, `huella`…), como mucho 64 y 2 MB por foto, firmadas como una acción / `ok` y, si no, el motivo | relay (Pro) y PC (firma, partes, huella) | `foto_ack` con `ok: false` |
+| `foto2` / `foto_ack` | app → PC / PC → app | broadcast al tópico del PC, sin firma | `{version, proyecto, id, parte, de, datos}`; la parte 1 suma `tipo` y `bytes`. `id` = sha256 hex de la foto entera / `ok` y, si no, el motivo | PC (id, partes, huella, tipo; topes globales: 8 fotos y 16 MB en memoria, 2 MB y 64 partes por foto). Solo un `ejecutar` firmado que la nombra la escribe en el disco | `foto_ack` con `ok: false` |
 | `sonda` (nuevo) | PC → PC | broadcast con `self` | `version`, `marca` | PC | la sonda nombra el tramo `eco` |
 | Latido | PC → relay | RPC `qdd_remoto_latido` | en curso, consola, mensajes | relay | doctor REM-07 |
 | Push | PC → relay → FCM | Edge Function `avisar` | `topico`, `firma`, `tipo`, `proyecto`, `clave` | relay (`validarPedido`) | se loguea; nunca bloquea |
@@ -38,15 +38,16 @@ Los nombres de eventos, los campos y la firma (`solicitud|proyecto|…|dispositi
 
 Leído el 2026-11-24 en las migraciones de qdd-movile y en la documentación de Supabase (Broadcast y Broadcast Replay).
 qdd-movile contó ese día los mensajes guardados del 21 al 24: 62 `ejecutar`, 31 `accion`, 11 `responder` y ninguna `foto`.
-Desde las 21:18 el relay no acepta fotos.
+Desde las 21:18 el relay no acepta fotos. El 26-11 la persona eligió el canal directo: desde la rc.149 viajan como `foto2`, por broadcast de cliente, que no entra en esa tabla (qdd-movile contó ese día 0 filas de broadcast de cliente), y el PC declara `capacidades: ["fotos2"]`.
 
 | Mensaje | Cómo pasa | Qué queda |
 |---|---|---|
-| `accion`, `responder`, `ejecutar` y `foto` | La función del relay llama a `realtime.send` | El mensaje entero (la respuesta, el texto o la parte de la foto) en la tabla `realtime.messages`, de 72 horas a 4 días. Quien puede unirse al canal podría pedir su repetición |
+| `accion`, `responder`, `ejecutar` y el `foto` viejo | La función del relay llama a `realtime.send` | El mensaje entero (la respuesta, el texto o la parte de la foto) en la tabla `realtime.messages`, de 72 horas a 4 días. Quien puede unirse al canal podría pedir su repetición |
 | `estado`, `delta`, `flujo`, `consola`, `accion_estado`, `logrado` y los demás que publica el PC o la app | Broadcast por WebSocket | Según la documentación, solo lo enviado desde la base entra a esa tabla. No dice expresamente que lo demás no se guarde. En ese conteo no apareció ninguno: es un indicio, falta una prueba dirigida |
 
 No hay cifrado de extremo a extremo: Supabase ve pasar todo. Que lo del teléfono quede guardado no es lo que decidió la
-persona en el RFC 0013 (FND-321, FND-059 de qdd-movile). Cómo se arregla está por decidir.
+persona en el RFC 0013 (FND-321, FND-059 de qdd-movile). La persona decidió (2026-11-27) decirlo en la política de
+la app, que ya lo dice, y cifrarlo en el teléfono después de la 2.10.0 (RFC 0027).
 
 ## Desajustes encontrados
 
@@ -56,7 +57,7 @@ persona en el RFC 0013 (FND-321, FND-059 de qdd-movile). Cómo se arregla está 
 | 1b | PC | Contra el contrato `esperas.json` de qdd-movile, un pedido sin estado, en espera de otro o que falló y se puede reintentar no pedía push. | Arreglado (FND-210); qdd prueba los 23 casos del contrato (`cli/pkg/remoto/testdata/esperas.json`) |
 | 2 | PC | El estado completo de este PC pesa unos 170 KB tal como sale (JSON compacto), el 66 % de los 256 KB que Realtime acepta en el plan Free; pasado el tope se descarta sin aviso y nada lo medía. `qdd remoto estado --json` imprime con sangría y da unos 250 KB, que no es lo que viaja. | Medido y avisado en doctor REM-21 (FND-209). La salida de cada logro va recortada a 500 caracteres con «…» delante (antes 2000). Reducir cuántos logros o días van lo decide la persona. |
 | 3 | PC | Nada probaba de punta a punta que lo que el PC publica llega: el broadcast va sin `ack`. | Sonda nueva (REM-20), automática en el servicio. |
-| 4 | PC ↔ relay | La clave de un proyecto (`<carpeta>-<hash de 12>`) no tiene tope de largo, y el relay exige `^[a-z0-9-]{1,80}$` en acciones, respuestas, ejecutar y push: una carpeta de más de 67 caracteres deja ese proyecto sin acciones ni push desde el teléfono. | Pendiente: acortar la clave cambia la ruta de sus archivos locales (colas). Va como pregunta a la persona. |
+| 4 | PC ↔ relay | La clave de un proyecto (`<carpeta>-<hash de 12>`) no tiene tope de largo, y el relay exige `^[a-z0-9-]{1,80}$` en acciones, respuestas, ejecutar y push: una carpeta de más de 67 caracteres deja ese proyecto sin acciones ni push desde el teléfono. | Arreglado (FND-334, rc.150): la clave se acorta a 80 caracteres conservando el hash, y `qdd doctor --fix` renombra los archivos locales que quedaron con la clave larga. |
 | 5 | App | La app no muestra el nuevo campo `diagnostico` del estado (lo ignora, como todo campo desconocido). | Pendiente en qdd-movile: mostrar «el canal falló en X / se reparó» en la tarjeta del PC. |
 | 6 | App | La presence del teléfono no dice la versión de la app, así que el PC y doctor no pueden saber si el teléfono entiende un mensaje nuevo. | Acordado con qdd-movile: la presence trae `version_app` y `capacidades` (opcionales); el PC ya los lee. |
 | 7 | App | La app recibe el broadcast `sonda` (cuando está mirando) y lo ignora porque no se suscribe a ese evento: correcto. Cuenta como un mensaje entregado en la cuota de Realtime. | Sin cambio. |

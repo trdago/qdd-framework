@@ -44,6 +44,7 @@ func TestDetectTestCommands_RunsEveryStackPresent(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "package.json"), `{"scripts":{"test":"jest"}}`)
 	writeFile(t, filepath.Join(dir, "go.mod"), "module x\n")
+	writeFile(t, filepath.Join(dir, "x_test.go"), "package x\n")
 	writeFile(t, filepath.Join(dir, "pubspec.yaml"), "name: app\n")
 	writeFile(t, filepath.Join(dir, "test", "widget_test.dart"), "")
 

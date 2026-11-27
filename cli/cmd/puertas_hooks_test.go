@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -59,13 +60,35 @@ func TestDoctorPuertas_ActivaEInstala(t *testing.T) {
 	}
 }
 
-func TestDoctorPuertas_SinPoliticasNoLasInventa(t *testing.T) {
+// FND-325 (MEJ-102): un proyecto de QDD sin policies.yaml quedaba en un bucle: doctor --fix mandaba a qdd init e init
+// a sí mismo. --fix lo crea con las políticas que ya regían (las por defecto, sin adopción gradual) y las puertas.
+func TestDoctorPuertas_SinPoliticasLasCreaConLasQueYaRegian_FND325(t *testing.T) {
+	t.Setenv("QDD_HOME", t.TempDir())
 	repo := t.TempDir()
 	gitEn(t, repo, "init", "-q")
-	g := buildPuertasChecks(repo)
-	repairPuertas(repo, g)
-	if _, err := os.Stat(filepath.Join(repo, ".qdd", "policies.yaml")); !os.IsNotExist(err) {
-		t.Fatal("sin policies.yaml no se crea uno solo con puertas: las demás quedarían apagadas")
+	escribirEnRepo(t, repo, ".qdd/config.yaml", "languages: [Go]\n")
+	antes := audit.LoadPolicies(repo)
+	repairPuertas(repo, buildPuertasChecks(repo))
+	if g := buildPuertasChecks(repo); groupHasFailures(g) {
+		t.Fatalf("después de --fix las puertas quedan activas y con sus hooks: %+v", g.Items[0])
+	}
+	despues := audit.LoadPolicies(repo)
+	if despues.Puertas == nil {
+		t.Fatal("--fix activa las puertas")
+	}
+	despues.Puertas = nil
+	if !reflect.DeepEqual(antes, despues) {
+		t.Fatalf("las demás políticas quedan como regían sin el archivo:\nantes   %+v\ndespués %+v", antes, despues)
+	}
+}
+
+// FND-325: una carpeta sin QDD no recibe un .qdd inventado por doctor: ahí sí corresponde qdd init.
+func TestDoctorPuertas_SinQDDNoInventaPoliticas(t *testing.T) {
+	repo := t.TempDir()
+	gitEn(t, repo, "init", "-q")
+	repairPuertas(repo, buildPuertasChecks(repo))
+	if _, err := os.Stat(filepath.Join(repo, ".qdd")); !os.IsNotExist(err) {
+		t.Fatal("sin .qdd/config.yaml doctor no crea .qdd")
 	}
 }
 
@@ -73,8 +96,8 @@ func TestInit_ProyectoNuevoConPuertas(t *testing.T) {
 	repo := t.TempDir()
 	gitEn(t, repo, "init", "-q")
 	ensureAdopcion(repo, true)
-	if p := audit.LoadPolicies(repo); p.Puertas == nil || p.Adopcion != audit.AdopcionGradual {
-		t.Fatalf("un proyecto nuevo nace con puertas: %+v", p)
+	if p := audit.LoadPolicies(repo); p.Puertas == nil || p.Adopcion != audit.AdopcionGradual || p.GoSinPruebas != audit.GoSinPruebasBloquea {
+		t.Fatalf("un proyecto nuevo nace con puertas y exige pruebas en Go (FND-309): %+v", p)
 	}
 	for _, e := range puertas.EstadoHooks(repo) {
 		if e.Estado != puertas.HookAlDia {

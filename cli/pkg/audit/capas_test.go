@@ -290,7 +290,7 @@ func TestRunAll_LasPruebasCorrenDespuesDeLasReglas(t *testing.T) {
 	}
 }
 
-// FND-175: medido en sfrc, cuatro suites decían «incompletas» solo porque la copia no traía node_modules.
+// FND-175: medido en proyecto-a, cuatro suites decían «incompletas» solo porque la copia no traía node_modules.
 func TestVerificarRutas_LoQueGitIgnoraSeAlcanzaDesdeLaCopia_FND175(t *testing.T) {
 	r := repoConSuite(t, "true")
 	writeFile(t, filepath.Join(r.raiz, ".gitignore"), "node_modules/\nweb/dist/\n")

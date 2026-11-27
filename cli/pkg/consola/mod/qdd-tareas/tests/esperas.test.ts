@@ -51,8 +51,6 @@ async function montado($, on, r) {
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await esperar()
   const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
-  // Las preguntas quedan plegadas en «? N» (pedido de la persona, 2026-11-08): se abren para verlas.
-  if (await ui.find({ key: 'preguntas-ver' })) await ui.press({ key: 'preguntas-ver' })
   return ui
 }
 
@@ -94,13 +92,12 @@ test('si qdd ya no la ofrece, lo dice y no le envía nada a la IA', async ($, on
   expect(await ui.find({ type: 'Text', text: /ya no espera/ })).toBeDefined()
 })
 
-test('muestra 5 y «ver las N» trae el resto', async ($, on) => {
+// Sin tope (2026-11-26): con 30 ⏳ plegados la persona no veía ninguno; todos se ven.
+test('muestra todas las esperas, sin «ver las N»', async ($, on) => {
   const r = nuevo(Array.from({ length: 7 }, (_, i) => ({ atender: 'atender:t' + i + ':0', donde: 'T' + i + ' · PR', texto: '¿Pregunta ' + i + '?' })))
   const ui = await montado($, on, r)
-  expect(await ui.find({ key: 'espera-4' })).toBeDefined()
-  expect(await ui.find({ key: 'espera-5' })).toBeUndefined()
-  await ui.press({ key: 'esperas-todas' })
   expect(await ui.find({ key: 'espera-6' })).toBeDefined()
+  expect(await ui.find({ key: 'esperas-todas' })).toBeUndefined()
 })
 
 // Botones de los ⏳ (propuesta de qdd-movile aprobada por la persona, 2026-11-07): los mismos tres del teléfono.

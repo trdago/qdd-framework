@@ -6,6 +6,113 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-11-27
+
+Versión estable (`npm i -g qdd-framework`). Reúne las 150 previews de 2.10.0, con 442 h de uso real medido en 15
+proyectos (VER-05, `.qdd/project/evidence/uso/v2.10.0.yaml`). El detalle de cada cambio está en su preview, abajo. Lo
+principal:
+
+- **El panel en la terminal** (`qdd-tareas`): «▶ Para ti» junta lo que solo tú puedes hacer, los pedidos esperan tu
+  «Sí», y las vistas de proyectos, flujos, blueprints y baúl reemplazan a `qdd dashboard`, que queda obsoleto (RFC 0018).
+- **QDD Móvil**: el relay sale de un directorio firmado, el teléfono responde preguntas, aprueba pedidos y manda
+  mensajes a la sesión que ves, y las fotos van por canal directo, sin guardarse en Supabase. La política de la app dice
+  qué guarda el relay y cuánto (FND-321); el cifrado en el teléfono llega después (RFC 0027).
+- **Flujos**: se ven, se editan, se comentan y se les pregunta desde el panel y el teléfono.
+- **Baúl**: los accesos se guardan en el llavero del sistema, con asistente en el panel; los valores nunca pasan por el
+  chat.
+- **Modo goal**: elige la opción recomendada, corre los pedidos y aprueba las fichas, todo anotado; nunca se hace pasar
+  por la persona.
+- **Calidad**: cada invariante de las fichas aprobadas tiene su prueba, `qdd audit` revisa el formato como el CI, `qdd
+  init` conecta el servidor MCP (FND-308) y un proyecto sin pruebas no pasa el gate (FND-309).
+- **Documentación pública** reescrita, con imágenes del panel real y del teléfono.
+
+## [2.10.0-rc.150] - 2026-11-27
+
+### Fixed
+- **Un proyecto con una carpeta de nombre largo ya funciona desde el teléfono** (FND-334). Si el nombre de la carpeta pasaba de 67 caracteres, el relay rechazaba las acciones, respuestas y ejecuciones de ese proyecto. Ahora la clave del proyecto se acorta a 80 caracteres y `qdd doctor --fix` acomoda lo que ya estaba guardado en tu PC.
+
+## [2.10.0-rc.149] - 2026-11-26
+
+### Changed
+- **Las fotos del teléfono vuelven, por canal directo y sin guardarse en Supabase** (fotos2). Elegiste que las fotos no queden en el relay. Ahora el teléfono las manda directo a tu PC, que las guarda en memoria y solo las escribe en tu proyecto cuando un mensaje firmado a la IA las nombra. Una foto que no adjuntas a ningún mensaje nunca toca el disco. Requiere la versión de QDD Móvil que trae fotos2.
+
+## [2.10.0-rc.148] - 2026-11-26
+
+### Fixed
+- **La app ya no ofrece adjuntar fotos mientras el relay las tiene cortadas** (FND-333). Desde el 24-11 el relay no transporta fotos, pero qdd remoto seguía anunciándolas, y al intentarlo la app mostraba un falso «Tu sesión terminó». El PC deja de anunciarlas hasta que se decida el transporte nuevo, que irá con otro nombre.
+
+## [2.10.0-rc.147] - 2026-11-26
+
+### Fixed
+
+- **«Para ti» deja solo lo que es tuyo:** la revisión de la tecla `l` ahora le pide a la IA que tome ella las decisiones que su modo de permisos le permite, con la opción recomendada y anotadas como suyas. Lo que no es para ahora, como una función nueva durante un congelamiento o algo que espera a otra tarea, sale de «Para ti» con su dependencia. Te quedan solo las pruebas en tu equipo, los accesos que la IA no tiene y los cambios a lo ya definido.
+
+## [2.10.0-rc.146] - 2026-11-26
+
+### Changed
+
+- **La tecla `l` del panel revisa lo que te espera:** además de volver a leer el tablero, le manda a la IA la lista completa de lo que espera de ti, también lo que el panel esconde: cada ⏳ y cada pedido sin confirmar. La IA cierra con evidencia lo que ya se respondió o ya no va, y deja como pregunta clara, con la opción recomendada, solo lo que de verdad te espera. Nunca responde por ti. La lista sale del nuevo `qdd consola revisar --json`. Si nada te espera, la `l` solo relee, y dos `l` seguidas mandan una sola revisión.
+
+## [2.10.0-rc.145] - 2026-11-26
+
+### Fixed
+
+- **Desactivar el panel ya no borra las colas de los proyectos (FND-332):** `qdd consola desactivar` borraba toda la carpeta `claude` de QDD, donde también viven los pedidos, las preguntas, el modo goal y los turnos de cada proyecto. Ahora quita solo el panel (`plugins/`, `.claude-plugin/` y `activo.json`).
+
+## [2.10.0-rc.144] - 2026-11-26
+
+### Fixed
+
+- **El modo goal detenido vuelve solo cuando hay avance, y la IA lo sabe (FND-331, MEJ-105):** tras 3 recordatorios sin avance el modo se detenía hasta que la persona lo activara de nuevo, y la IA seguía esperando un 🎯 que no llegaba. Ahora la sesión lee que se detuvo, y con un cambio real en el tablero o en git el modo vuelve a trabajar y lo avisa.
+
+## [2.10.0-rc.143] - 2026-11-26
+
+### Fixed
+
+- **Una pregunta de varias partes ya no deja la consola esperando «Submit answers» en el PC (FND-330, MEJ-104):** QDD rechaza un AskUserQuestion con 2 o más preguntas antes de mostrarlo y la IA las hace de a una, cada una con sus botones en «▶ Para ti» y en QDD Móvil. El bloque de reglas (revisión 7) lo pide desde el principio.
+
+## [2.10.0-rc.142] - 2026-11-26
+
+### Fixed
+
+- **El repositorio ya no nombra proyectos reales (FND-329):** findings, fichas, evidencias, comentarios, la ayuda de `qdd baul guardar` y datos de prueba usan `proyecto-a`, `proyecto-b`… y `mi-organizacion`. `make test` revisa ahora todo lo versionado con las huellas privadas, no solo la documentación.
+
+## [2.10.0-rc.141] - 2026-11-26
+
+### Fixed
+
+- **Un proyecto Go sin pruebas ya no pasa el gate en silencio (FND-309):** `qdd audit` da `QA-00` cuando un módulo Go no tiene ningún `_test.go`. Bloquea en los proyectos que crea `qdd init` desde esta versión (`go_sin_pruebas: bloquea` en `.qdd/policies.yaml`) y solo avisa en los que ya usaban QDD.
+
+## [2.10.0-rc.140] - 2026-11-26
+
+### Fixed
+
+- **`qdd init` conecta el servidor MCP de QDD en Claude Code y OpenCode (FND-308):** escribe la entrada `qdd` en `.mcp.json` y `opencode.json` del proyecto, sin tocar lo demás que tengan. `qdd doctor` revisa que siga ahí y `--fix` la vuelve a poner. Antes había que correr `claude mcp add` a mano.
+
+## [2.10.0-rc.139] - 2026-11-26
+
+### Fixed
+
+- **La IA sabe cuando el modo goal se enciende o se apaga (FND-328, MEJ-025):** con su mensaje siguiente, cada sesión lee una vez que el modo se encendió (sus respuestas las elige el modo, no la persona) o se apagó (todo vuelve a esperar a la persona).
+
+## [2.10.0-rc.138] - 2026-11-26
+
+### Fixed
+
+- **Las preguntas del tablero se ven en «▶ Para ti» (FND-327):** antes llegaban plegadas en «? N» y, al abrirlas, solo 5. Ahora llegan desplegadas y todas; «? N» las pliega si quieres. Los pedidos y las fichas siguen primero.
+
+## [2.10.0-rc.137] - 2026-11-26
+
+### Fixed
+
+- **El modo goal ya no responde solo una pregunta de aprobación (FND-326, MEJ-025):** una pregunta con encabezado «Aprobar» o que empieza con «¿Apruebas…?» espera a la persona aunque traiga opción recomendada. El bloque de reglas (revisión 6) les pide a las IAs ese encabezado; `qdd doctor --fix` lo renueva en cada proyecto.
+
+## [2.10.0-rc.136] - 2026-11-26
+
+### Fixed
+
+- **`qdd init` y `qdd doctor --fix` activan las puertas en un proyecto sin `.qdd/policies.yaml` (FND-325, MEJ-102):** antes cada uno mandaba al otro y los dos fallaban. Ahora `doctor --fix` crea el archivo con las políticas que ya regían y las puertas. `qdd init` sale con 0 cuando su propio trabajo quedó bien y muestra como aviso lo que no es suyo, como un teléfono desvinculado.
+
 ## [2.10.0-rc.135] - 2026-11-24
 
 ### Fixed
@@ -633,7 +740,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Agregado
 
-- **Dirección estándar en el baúl:** cada acceso puede llevar `ambiente/servidor/servicio/clase/cuenta` (p. ej. `prod/db-01/notificador/postgres/app_user`), con ambiente dev, qa, prod o global. La misma dirección no se guarda dos veces con nombres distintos. Va con `qdd baul guardar --direccion` y con el campo Dirección en Config del panel.
+- **Dirección estándar en el baúl:** cada acceso puede llevar `ambiente/servidor/servicio/clase/cuenta` (p. ej. `prod/db-01/proyecto-b/postgres/app_user`), con ambiente dev, qa, prod o global. La misma dirección no se guarda dos veces con nombres distintos. Va con `qdd baul guardar --direccion` y con el campo Dirección en Config del panel.
 
 ## [2.10.0-rc.67] - 2026-11-11
 
@@ -1540,12 +1647,12 @@ en la rama `hotfix/2.8.3`.
   un ⏳ no llega al teléfono y su respuesta se rechaza. Antes la respuesta vencía a los 30 min mientras la pregunta seguía
   como «respondida», y se perdía.
 - **Un pedido armado ya no puede ejecutarse dos veces** (FND-125, MEJ-008). Si dos procesos quedaban esperando el mismo
-  pedido, los dos lo corrían al mismo tiempo: en sfrc lanzó dos despliegues en el mismo segundo. Ahora solo lo corre su
+  pedido, los dos lo corrían al mismo tiempo: en proyecto-a lanzó dos despliegues en el mismo segundo. Ahora solo lo corre su
   dueño, y el otro termina sin correrlo.
 
 ### ✨ Añadido
 
-- **Lo que la IA necesita de la persona no se queda en el chat** (pedido de sfrc). El bloque de `AGENTS.md` trae la
+- **Lo que la IA necesita de la persona no se queda en el chat** (pedido de proyecto-a). El bloque de `AGENTS.md` trae la
   regla: una decisión va con la herramienta de preguntar (AskUserQuestion en Claude Code) y una opción recomendada; lo
   que no es una elección, como ⏳ escrito con `¿…?`; un comando, con `qdd_consola_pedir`.
 - `qdd estado check` avisa, sin bloquear, de los ⏳ de la persona que no le llegan como pregunta: los que no preguntan
@@ -1618,7 +1725,7 @@ mejora-continua) y lo que el estado espera de la persona como pregunta en QDD M�
 
 - Lo que el estado espera de la persona llega a QDD Móvil como pregunta: cada ⏳ «de la persona» de una tarea abierta
   se responde desde el teléfono con texto libre, y la respuesta le llega a la IA del proyecto como un mensaje tuyo. Sale
-  sola cuando la celda cambia (pedido de sfrc, RFC 0013).
+  sola cuando la celda cambia (pedido de proyecto-a, RFC 0013).
 
 ## [2.8.0-rc.26] - 2026-11-03 (preview)
 
@@ -1785,7 +1892,7 @@ Decimoctava **preview** de 2.8.0: `npm i -g qdd-framework@preview`. Los ids de l
 
 ### 🏷️ Ids de QDD: nombrar una tarea ya no la crea (FND-109)
 
-- **Antes:** `qdd estado set <id> …` con un id que no existía creaba una tarea nueva, y le ponía el id como nombre. En notificador_de_ofertas la IA escribió `segmento-barra` y `qdd-estado` para tareas que ya existían (`barra-estado`, `estado-por-frente`), y hubo que descartarlas a mano.
+- **Antes:** `qdd estado set <id> …` con un id que no existía creaba una tarea nueva, y le ponía el id como nombre. En proyecto-b la IA escribió `segmento-barra` y `qdd-estado` para tareas que ya existían (`barra-estado`, `estado-por-frente`), y hubo que descartarlas a mano.
 - **Ahora, crear es explícito:** `qdd estado nueva "Quitar claves de Gemini"` le da el id `quitar-claves-gemini` y lo imprime. La IA hace lo mismo con la acción `nueva` de `qdd_estado`. `set` y `tarea` siguen creando con `--nombre`, pero solo con un id de QDD (minúsculas, números y guiones).
 - **Un id equivocado se rechaza con sugerencia:** «no hay una tarea "qdd-estado": ¿quisiste decir estado-por-frente («qdd estado (RFC 0006)»)?». Vale para `set`, `cerrar`, `activar`, `tarea`, `--objetivo`, `--depende-de`, `--ciclo` y el `--tarea` de un pedido. No se escribe nada.
 - **Sin duplicados:** una tarea cuyo nombre casi repite el de una abierta se rechaza nombrando la otra; `--aunque-exista` la crea igual.

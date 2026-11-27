@@ -69,6 +69,7 @@ func ensureAdopcion(cwd string, nuevo bool) {
 	p := audit.DefaultPolicies()
 	p.Adopcion = audit.AdopcionGradual
 	p.Puertas = &audit.PoliticaPuertas{}
+	p.GoSinPruebas = audit.GoSinPruebasBloquea
 	_ = audit.SavePolicies(cwd, p)
 	if !puertas.EsRaiz(cwd) {
 		return
@@ -83,9 +84,10 @@ func executeInitLoop(cwd string) {
 	lastFailCount := -1
 
 	for {
-		success, failCount := runInitIteration(cwd)
+		success, failCount, ajenas := runInitIteration(cwd)
 		if success {
 			printInitSummary(cwd)
+			printAjenas(ajenas)
 			return
 		}
 
@@ -135,7 +137,7 @@ func checkStagnation(iteration, failCount, lastFailCount int) {
 	}
 }
 
-func runInitIteration(cwd string) (bool, int) {
+func runInitIteration(cwd string) (bool, int, []string) {
 	fmt.Println("[+] Detectando entorno...")
 	meta := aplicarDeclaracion(detectProjectMetadata(cwd), initLenguajes, initArquitectura)
 	printMetadata(meta)
@@ -143,7 +145,7 @@ func runInitIteration(cwd string) (bool, int) {
 	fmt.Println("[+] Creando estructura .qdd/")
 	if err := createQDDStructure(cwd, meta); err != nil {
 		fmt.Printf("[✗] Error creando estructura: %v\n", err)
-		return false, 1 // Artificial error count to force retry or stagnation
+		return false, 1, nil // Artificial error count to force retry or stagnation
 	}
 	declararStack(cwd, meta)
 	limpiarPycacheDelCore(filepath.Join(cwd, ".qdd"))
@@ -158,7 +160,42 @@ func runInitIteration(cwd string) (bool, int) {
 	}
 
 	fmt.Println("[+] Verificando la instalación con QDD Doctor...")
-	return RunDoctorCheck(cwd, true)
+	propias, ajenas := anomaliasDeInit(revisarConDoctor(cwd, true))
+	return propias == 0, propias, ajenas
+}
+
+// gruposDeInit son los grupos del doctor que dependen de lo que init deja en el proyecto. Lo demás (QDD Móvil, la
+// consola, los blueprints…) es de la máquina o de otros comandos: init lo muestra como aviso y no falla por eso, para
+// que su código de salida diga si su propio trabajo quedó bien (FND-325).
+var gruposDeInit = map[string]bool{grupoEstructura: true, grupoIA: true, grupoDashboard: true, grupoPuertas: true}
+
+// anomaliasDeInit cuenta lo que falla de init y describe lo ajeno que falla.
+func anomaliasDeInit(c *Checklist) (int, []string) {
+	propias := 0
+	var ajenas []string
+	for _, g := range c.Groups {
+		for _, item := range g.Items {
+			if item.Success {
+				continue
+			}
+			if gruposDeInit[g.Name] {
+				propias++
+				continue
+			}
+			ajenas = append(ajenas, g.Name+" · "+item.Name+": "+item.Error)
+		}
+	}
+	return propias, ajenas
+}
+
+func printAjenas(ajenas []string) {
+	if len(ajenas) == 0 {
+		return
+	}
+	fmt.Printf("\n[i] QDD Doctor encontró %d detalle(s) fuera de lo que instala init; no cambian el resultado de init (qdd doctor --fix los revisa):\n", len(ajenas))
+	for _, a := range ajenas {
+		fmt.Println("    - " + a)
+	}
 }
 
 func printMetadata(meta ProjectMetadata) {

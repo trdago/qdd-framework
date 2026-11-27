@@ -13,7 +13,7 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Pedido de sfrc (2026-11-03): toda consulta a la persona pasa por el tablero. Un ⏳ «de la persona» en el estado es
+// Pedido de proyecto-a (2026-11-03): toda consulta a la persona pasa por el tablero. Un ⏳ «de la persona» en el estado es
 // una pregunta de respuesta libre (origen estado) que se saca del estado cada vez que se lee la cola: no hay copia que
 // se desincronice, y sale sola cuando la celda cambia. El id sale de la tarea, la etapa y lo que espera, así que es el
 // mismo en cada lectura. La respuesta del teléfono queda en la cola (solo para decir «ya respondida» y no volver a
@@ -156,7 +156,7 @@ func (e EsperaSinPregunta) Linea() string {
 	return recortar(e.Tarea+" · "+e.Etapa+": "+e.Bloqueo, maxLineaEspera)
 }
 
-// EsperasSinPregunta las lista para 'qdd estado check' (pedido de sfrc, decidido por la persona, 2026-11-03). Una nota
+// EsperasSinPregunta las lista para 'qdd estado check' (pedido de proyecto-a, decidido por la persona, 2026-11-03). Una nota
 // de avance es válida, así que no es una violación: es un aviso, y su cuenta es la medición que decide el gate en el
 // Stop hook.
 func EsperasSinPregunta(root string, now time.Time) []EsperaSinPregunta {

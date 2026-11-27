@@ -106,6 +106,7 @@ El panel muestra el tablero y lo que espera tu «Sí» (blueprint `consola-claud
 | `qdd consola estado` | Dice si la consola está activa y al día. **Solo lee.** |
 | `qdd consola panel [--con atender,pregunta,telefono,herramientas,mejoras,logrado,flujos,esperas_persona]` | Lo que dibuja el panel, en JSON (estado por frente y acciones). Con `herramientas` y `mejoras` agrega la lista de herramientas y si toca el ciclo de mejoras. Con `logrado`, lo que salió bien en los últimos 14 días (pedidos hechos, tareas cerradas, objetivos cumplidos y lo del teléfono; como mucho 60, del más nuevo al más viejo), para la pantalla Logrado de QDD Móvil. Los tipos opcionales (`atender`: pulsar una etapa ⏳ o ❌; `pregunta`: lo que la consola le pregunta a la persona, para QDD Móvil; `telefono`: lo mandado a ejecutar desde QDD Móvil, como pedidos `origen:"telefono"` con `dispositivo` y `solicitud`) salen solo con `--con`, para que un panel que no los conoce no los muestre (FND-092). Con QDD Móvil activado y Pro trae además `ejecutar: {qdd, ia, sugeridos}`: lo que el PC acepta desde el teléfono (`ia`: hay una sesión de Claude Code abierta en el proyecto). Nunca falla. **Puede lanzar en segundo plano la revisión de PR y de versión nueva.** |
 | `qdd consola proyectos [--json]` | Una fila por proyecto de este PC, en JSON: puntaje, hace cuánto, findings abiertos, ⏳ y ❌, y su historial (los últimos 30 días con datos). `null` significa «sin medir». Del proyecto solo entrega el nombre de la carpeta. Solo lee archivos locales: no corre auditorías ni usa la red. Nunca falla. Es lo que dibuja la vista Proyectos del panel (tecla `y`; cada fila abre su historial con su número o un clic). **Solo lee.** |
+| `qdd consola revisar [--json]` | Lo que espera a la persona, como mensaje para que la IA lo vuelva a evaluar: cada ⏳ suyo de las tareas abiertas, también los que el panel esconde, y cada pedido sin confirmar con su tecla, cada uno en una línea corta. Le dice a la IA cómo cerrar lo ya respondido o lo que ya no va, y que nunca responda por la persona. En JSON (`texto` y `total`; `texto` vacío si nada espera). La tecla `l` del panel se lo manda a la IA. **Solo lee.** |
 | `qdd consola accion <id> [--confirmado]` | Ejecuta una acción que ofrece el panel (aprobar una ficha, revisar el estado, auditar, un comando pedido). Lo que escribe corre solo con `--confirmado`, que el panel pasa después de «s  Sí». Un comando pedido se lanza aparte y vuelve en el acto: recargar el panel o cerrar la terminal no lo corta, y si igual muere queda con falla para reintentarlo (FND-089, qdd 2.8.0). Con `--sesion <id>` (lo pasa el panel de Claude Code) esa sesión recibe el resultado al terminar. |
 | `qdd consola avisado <id> --sesion <id>` | Lo que usa el panel antes de enviarle a la IA el resultado de un pedido que confirmó: lo marca avisado y sale con 0 solo la primera vez y solo para esa sesión, así el aviso llega una vez aunque haya varias sesiones o un reload. |
 | `qdd consola accion atender:<tarea>:<etapa>` | Lo que usa el panel al pulsar una etapa ⏳ o ❌: imprime el mensaje con que la IA la atiende (intenta completarla; si falta algo, deja un pedido o pregunta). El panel lo envía a la conversación. **Solo lee.** |
@@ -196,7 +197,7 @@ Los ejecutables del proyecto como pestañas del panel ([RFC 0011](../rfcs/0011-h
 
 ### Modo goal
 
-Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a la persona: qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3 recordatorios sin avance real se detiene y avisa. Sin una sesión abierta se pausa y nunca abre una. Siempre esperan a la persona: las preguntas de diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo.
+Con el modo activo, el trabajo del proyecto sigue hasta terminar sin esperar a la persona: qdd elige la opción recomendada de cada pregunta, corre los pedidos de la IA y aprueba las fichas. Con 2 min de silencio le recuerda a la IA lo que queda; tras 3 recordatorios sin avance real se detiene y avisa, también a la IA, y vuelve solo cuando hay avance (cambia el tablero o git). Sin una sesión abierta se pausa y nunca abre una. Siempre esperan a la persona: las preguntas de diseño de un blueprint, las que no traen opción recomendada, los permisos de Claude Code y los PRs que qdd ofrece solo.
 
 | Comando | Qué hace |
 |---|---|
@@ -379,7 +380,7 @@ El ciclo es siempre el mismo: la IA propone (`qdd_module_save`, en borrador), un
 
 | Regla | Qué detecta | Política |
 |---|---|---|
-| `QA-00-NO-TEST-COMMAND` | No hay cómo correr las pruebas. Decláralas en `.qdd/config.yaml` (`test_commands: ["…"]`). | siempre |
+| `QA-00-NO-TEST-COMMAND` | No hay cómo correr las pruebas, o un módulo Go no tiene ningún `_test.go`. Decláralas en `.qdd/config.yaml` (`test_commands: ["…"]`). | siempre; Go sin pruebas, recomendación sin `go_sin_pruebas: bloquea` (lo pone `init` en los proyectos nuevos) |
 | `QA-01-ALL-TESTS-PASS` | Las pruebas del proyecto fallan o no compilan. | siempre |
 | `QA-02-E2E-TESTS` | No hay pruebas E2E. | recomendación en adopción gradual |
 | `QA-03-SIN-MEDIR` | Una suite declarada como `{comando, requiere: [programas]}` no se corrió porque falta uno de esos programas en esta máquina (p. ej. la CLI de Claude en el CI). Queda sin medir: ni aprobada ni fallida. | recomendación (no bloquea) |
@@ -485,10 +486,10 @@ propio que tengas alrededor:
 
 | Asistente | Reglas | Servidor MCP |
 |---|---|---|
-| Claude Code | `.clauderc`, `.claude/commands/qdd.md` | `claude mcp add …` ([cómo](getting-started.md#conectar-el-servidor-mcp)) |
+| Claude Code | `.clauderc`, `.claude/commands/qdd.md` | `.mcp.json`, lo escribe `init` ([cómo](getting-started.md#conectar-el-servidor-mcp)) |
 | Cursor | `.cursorrules` | `.cursor/mcp.json`, lo escribe `init` |
 | Antigravity | `.antigravityrules`, `.agents/workflows/qdd.md`, `.agents/workflows/equipo_resolutor.md` | `init` escribe `.cursor/mcp.json` |
-| OpenCode y agentes genéricos | `AGENTS.md`, `.agentrules`, `.opencode/qdd.md` | A mano, en `opencode.json` |
+| OpenCode y agentes genéricos | `AGENTS.md`, `.agentrules`, `.opencode/qdd.md` | `opencode.json`, lo escribe `init` (`opencode.jsonc`, a mano) |
 
 Una carpeta que contiene proyectos no lleva `AGENTS.md`, y un bloque de una revisión más nueva no se pisa. El panel no lo
 instala `init`: es `qdd consola activar`.

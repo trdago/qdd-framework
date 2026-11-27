@@ -2,8 +2,8 @@ id: "FND-308"
 title: "qdd init no registra el servidor MCP en Claude Code ni en OpenCode"
 description: "2026-11-24, al comparar la documentación pública con el código (sprint 10). Los adaptadores solo escriben .cursor/mcp.json (pkg/integration/cursor.go y antigravity.go); ningún código escribe .mcp.json, opencode.json ni corre claude mcp add, aunque README, npm, getting-started y la referencia decían que quedaba conectado. Comprobado por lectura y con grep; en el PC de desarrollo funciona porque está registrado a mano a nivel de usuario. Además el command de .cursor/mcp.json es una ruta absoluta de la máquina, que se rompe al commitearla."
 impact: "Quien empieza con Claude Code tiene las reglas, pero la IA no tiene las tools de QDD."
-action_taken: "La documentación dice cómo registrarlo a mano (claude mcp add). Falta que init o consola activar lo registre y doctor lo revise."
-test_result: ""
-status: open
+action_taken: "init y doctor --fix agregan la entrada qdd (comando qdd, sin rutas de la máquina) a .mcp.json y opencode.json del proyecto, sin tocar lo demás ni una entrada qdd propia; no pisan un archivo ilegible ni crean opencode.json junto a opencode.jsonc. doctor revisa los dos archivos (ítems del grupo 2). README, npm, getting-started y la referencia lo dicen. Lo eligió el modo goal con la opción recomendada, no la persona (2026-11-26). Sin probar en Windows: ahí el comando qdd del PATH es un .cmd de npm."
+test_result: "mcp_proyecto_fnd308_test.go (7 pruebas, contrato integracion#a827c9a2): TestMCPProyecto_SyncAllLoConecta_FND308 fallaba antes del cambio (opencode.json sin qdd) y pasa; doctor_mcp_fnd308_test.go (2 pruebas). Golden set del doctor actualizado: un proyecto completo trae el servidor."
+status: resolved
 detectado_por: sesion
 date: "2026-11-24"

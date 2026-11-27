@@ -21,7 +21,7 @@ func estadoConDesfases() Estado {
 	}
 }
 
-// MEJ-010: en sfrc, 6 tareas cerradas seguían con un ⏳ a nombre de la persona y aparecían en esperas (FND-151).
+// MEJ-010: en proyecto-a, 6 tareas cerradas seguían con un ⏳ a nombre de la persona y aparecían en esperas (FND-151).
 func TestDatos_LoQuePendeDeUnaTareaCerradaNoSeLista_FND151(t *testing.T) {
 	d := Datos(estadoConDesfases(), time.Now())
 	if len(d.Esperas) != 1 || d.Esperas[0].Frente != "Viva" {

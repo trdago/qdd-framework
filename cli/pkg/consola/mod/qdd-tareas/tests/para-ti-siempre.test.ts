@@ -110,7 +110,6 @@ test('cada tipo de pregunta aparece en «Para ti»: lo de la terminal y las acci
   }
   expect(await ui.find({ type: 'Text', text: /4 por responder/ })).toBeDefined()
   expect((await ui.find({ key: 'preguntas-ver' })).props.label).toContain('? 1')
-  await ui.press({ key: 'preguntas-ver' })
   expect(await ui.find({ key: 'espera-0' })).toBeDefined()
 })
 
@@ -124,15 +123,15 @@ for (const tipo of ['espera', 'ia', 'permiso', 'qdd']) {
   })
 }
 
-test('más ⏳ que el tope visible: «? N» las cuenta todas y «ver las N» las muestra', async ($, on) => {
-  const esperas = Array.from({ length: 7 }, (_, i) => ({ pregunta: 'pregunta:e' + i, atender: 'atender:t:' + i, donde: 'T · ' + i, texto: '¿' + i + '?' }))
+// La persona no veía ninguna de 30 preguntas (2026-11-25): todas se ven, sin tope ni «ver las N» (el modo goal eligió
+// la opción recomendada «Desplegadas, sin tope», 2026-11-26).
+test('muchas ⏳: «? N» las cuenta todas y se ven todas, sin tope', async ($, on) => {
+  const esperas = Array.from({ length: 30 }, (_, i) => ({ pregunta: 'pregunta:e' + i, atender: 'atender:t:' + i, donde: 'T · ' + i, texto: '¿' + i + '?' }))
   const acciones = esperas.map((q, i) => ({ ...TIPOS.espera, id: q.pregunta, turno: 10 + i }))
   const ui = await montado($, on, nuevo({ acciones, esperas }))
-  expect((await ui.find({ key: 'preguntas-ver' })).props.label).toContain('? 7')
-  await ui.press({ key: 'preguntas-ver' })
-  expect(await ui.find({ key: 'espera-6' })).toBeUndefined()
-  await ui.press({ key: 'esperas-todas' })
-  expect(await ui.find({ key: 'espera-6' })).toBeDefined()
+  expect((await ui.find({ key: 'preguntas-ver' })).props.label).toContain('? 30')
+  expect(await ui.find({ key: 'espera-29' })).toBeDefined()
+  expect(await ui.find({ key: 'esperas-todas' })).toBeUndefined()
 })
 
 test('sin QDD Móvil la pregunta se registra y su sesión la sigue esperando, sin ofrecer el teléfono (MEJ-057)', async ($, on) => {

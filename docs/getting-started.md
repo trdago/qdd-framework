@@ -47,17 +47,15 @@ primera prueba antes del primer commit.
 
 ## Conectar el servidor MCP
 
-Las reglas le dicen a la IA qué hacer; el servidor MCP le da las herramientas. `qdd init` lo registra solo para Cursor.
+Las reglas le dicen a la IA qué hacer; el servidor MCP le da las herramientas. `qdd init` lo registra en Claude Code
+(`.mcp.json`), OpenCode (`opencode.json`) y Cursor (`.cursor/mcp.json`). Solo agrega la entrada `qdd`: lo demás que
+tengan esos archivos queda igual, y `qdd doctor` revisa que siga ahí (`--fix` la vuelve a poner).
 
-**Claude Code**, en la carpeta del proyecto (crea `.mcp.json`, que puedes versionar):
+**Claude Code** te pide aprobar el servidor `qdd` de `.mcp.json` la primera vez que abres el proyecto. `.mcp.json` se
+puede versionar: el comando es `qdd`, sin rutas de tu equipo. Suma el panel con `qdd consola activar`.
 
-```bash
-claude mcp add --scope project qdd -- qdd mcp-server
-```
-
-Con `--scope user` queda para todos tus proyectos. Suma el panel con `qdd consola activar`.
-
-**OpenCode**, en `opencode.json`:
+**OpenCode** queda con esto en `opencode.json`. Si tu proyecto usa `opencode.jsonc`, `init` no lo reescribe: agrégalo a
+mano:
 
 ```json
 {

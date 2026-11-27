@@ -172,6 +172,7 @@ func contiene(lista []string, s string) bool {
 func TestDetectTestCommands_Monorepo(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "backend", "go.mod"), "module x\n")
+	writeFile(t, filepath.Join(dir, "backend", "x_test.go"), "package x\n")
 	writeFile(t, filepath.Join(dir, "frontend", "package.json"), `{"scripts":{"test":"vitest run"}}`)
 	writeFile(t, filepath.Join(dir, "node_modules", "lib", "package.json"), `{"scripts":{"test":"jest"}}`)
 

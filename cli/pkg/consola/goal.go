@@ -89,6 +89,11 @@ type goalGuardado struct {
 	OcupadaEn     *time.Time `json:"ocupada_en,omitempty"`
 	// EsperaAvisada es la huella de lo que esperaba cuando avisó «todo espera»: con la misma no vuelve a avisar.
 	EsperaAvisada string `json:"espera_avisada,omitempty"`
+	// Cambio es cuándo se encendió o se apagó por última vez, y Enteradas, las sesiones que ya lo leyeron (MEJ-025).
+	Cambio    *time.Time `json:"cambio,omitempty"`
+	Enteradas []string   `json:"enteradas,omitempty"`
+	// CambioFue dice qué cambió: se encendió, se apagó, se detuvo sin avance o volvió con avance (FND-331).
+	CambioFue string `json:"cambio_fue,omitempty"`
 }
 
 // EntradaGoal es lo que el mod sabe de la sesión: cuánto lleva en silencio y si está haciendo algo.
@@ -107,6 +112,9 @@ type ResultadoGoal struct {
 
 var (
 	sufijoRecomendada = regexp.MustCompile(`(?i)\((recommended|recomendad[oa])\)\s*$`)
+	// Una pregunta de aprobación la responde la persona (MEJ-025): la marca su encabezado o su primer verbo.
+	encabezadoAprobacion = regexp.MustCompile(`(?i)^\s*(aprob|approv)`)
+	textoAprobacion      = regexp.MustCompile(`(?i)^[¿\s]*(apruebas|apruebo|aprueba usted|aprobamos|do you approve|approve)\b`)
 	// preguntasDeDiseno se puede reemplazar en las pruebas: el catálogo real necesita un blueprint instalado.
 	preguntasDeDiseno = disenoReal
 )
@@ -121,6 +129,11 @@ func disenoReal(root string) map[string]bool {
 
 func normalizarPregunta(s string) string {
 	return strings.ToLower(strings.Join(strings.Fields(s), " "))
+}
+
+// esDeAprobacion dice si la pregunta pide aprobar algo: el modo goal no la responde aunque traiga recomendada.
+func esDeAprobacion(q ItemPregunta) bool {
+	return encabezadoAprobacion.MatchString(q.Encabezado) || textoAprobacion.MatchString(q.Texto)
 }
 
 func esRecomendada(etiqueta string) bool {
@@ -216,6 +229,7 @@ func ActivarGoal(root, desde string, now time.Time) error {
 	return conGoalGuardado(root, func(g *goalGuardado) error {
 		g.Activo, g.Estado, g.Motivo, g.Desde, g.Recordatorios = true, GoalTrabajando, "", &now, 0
 		g.ActivadoDesde, g.Huella, g.Recordado, g.EsperaAvisada = desde, "", nil, ""
+		marcarCambio(g, cambioEncendido, now)
 		return nil
 	})
 }
@@ -225,6 +239,7 @@ func DesactivarGoal(root string, now time.Time) error {
 	return conGoalGuardado(root, func(g *goalGuardado) error {
 		g.Activo, g.Estado, g.Motivo, g.Desde, g.Recordatorios, g.Huella, g.Recordado = false, "", "", nil, 0, "", nil
 		g.EsperaAvisada = ""
+		marcarCambio(g, cambioApagado, now)
 		return nil
 	})
 }
@@ -249,12 +264,18 @@ func CicloGoal(root, bin string, in EntradaGoal, now time.Time) (ResultadoGoal, 
 
 func vueltaGoal(root, bin string, g *goalGuardado, in EntradaGoal, now time.Time) ResultadoGoal {
 	var r ResultadoGoal
-	if !g.Activo || g.Estado == GoalTerminado || (g.Estado == GoalPausado && g.Motivo == MotivoSinAvance) {
+	if !g.Activo || g.Estado == GoalTerminado {
 		return r
 	}
 	// Sin una sesión abierta nadie avanza (VistaGoal dice «sin consola»): ni recuerda ni cuenta (FND-294).
 	if !HaySesion(root, now) {
 		return r
+	}
+	if g.Estado == GoalPausado && g.Motivo == MotivoSinAvance {
+		if !reanudaConAvance(root, g, in, now) {
+			return r
+		}
+		r.Aviso = "🎯 Modo goal sigue: hubo avance desde que se detuvo por falta de avance."
 	}
 	if in.Ocupada {
 		g.OcupadaPor, g.OcupadaEn = in.Sesion, &now
@@ -299,13 +320,33 @@ func vueltaGoal(root, bin string, g *goalGuardado, in EntradaGoal, now time.Time
 		g.Huella, g.Recordatorios = huella, 0
 	}
 	if g.Recordatorios >= MaxRecordatoriosGoal {
-		r.Aviso = pausar(g, MotivoSinAvance, fmt.Sprintf("🎯 Modo goal detenido: %d recordatorios sin avance. Actívalo de nuevo cuando quieras seguir.", MaxRecordatoriosGoal))
+		r.Aviso = pausar(g, MotivoSinAvance, fmt.Sprintf("🎯 Modo goal detenido: %d recordatorios sin avance. Vuelve solo cuando haya avance, o actívalo de nuevo.", MaxRecordatoriosGoal))
+		marcarCambio(g, cambioDetenido, now)
 		return r
 	}
 	g.Recordatorios++
 	g.Recordado = &now
 	r.Mensaje = mensajeGoal(movibles, len(esperas))
 	return r
+}
+
+// reanudaConAvance (FND-331): detenido sin avance, el modo vuelve a trabajar si el tablero o git cambiaron desde el
+// último recordatorio. Mira solo cuando la consola calla y como mucho una vez por SilencioGoal: la huella corre git.
+func reanudaConAvance(root string, g *goalGuardado, in EntradaGoal, now time.Time) bool {
+	if in.Ocupada || in.Silencio < SilencioGoal {
+		return false
+	}
+	if g.Recordado != nil && now.Sub(*g.Recordado) < SilencioGoal {
+		return false
+	}
+	huella := huellaGoal(root)
+	if huella == g.Huella {
+		g.Recordado = &now
+		return false
+	}
+	g.Estado, g.Motivo, g.Recordatorios, g.Huella, g.Recordado = GoalTrabajando, "", 0, huella, nil
+	marcarCambio(g, cambioReanudado, now)
+	return true
 }
 
 // todoEspera deja el modo en pausa porque la IA no tiene nada que mover. Avisa a la persona cuando la consola calla, una
@@ -422,7 +463,7 @@ func elegirPreguntas(root string, now time.Time) ([]Elegida, int) {
 }
 
 // respuestaRecomendada arma la respuesta con la opción recomendada de cada ítem. No hay respuesta para un permiso, una
-// pregunta de diseño de un blueprint o un ítem sin opción recomendada.
+// pregunta de diseño de un blueprint, una de aprobación (MEJ-025) o un ítem sin opción recomendada.
 func respuestaRecomendada(p Pregunta, diseno map[string]bool) (string, string, bool) {
 	if p.Permiso != nil || len(p.Preguntas) == 0 {
 		return "", "", false
@@ -430,7 +471,7 @@ func respuestaRecomendada(p Pregunta, diseno map[string]bool) (string, string, b
 	respuesta := map[string]RespuestaItem{}
 	var etiquetas []string
 	for _, q := range p.Preguntas {
-		if diseno[normalizarPregunta(q.Texto)] {
+		if diseno[normalizarPregunta(q.Texto)] || esDeAprobacion(q) {
 			return "", "", false
 		}
 		valores, nombres := recomendadas(q)

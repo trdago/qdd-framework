@@ -1,0 +1,9 @@
+id: "FND-334"
+title: "Una carpeta larga dejaba el proyecto sin teléfono"
+description: "La clave local de un proyecto es <carpeta>-<hash de 12> y no tenía tope de largo. El relay exige ^[a-z0-9-]{1,80}$ en acciones, respuestas, ejecutar y push. Con una carpeta de más de 67 caracteres, el relay rechazaba todo lo de ese proyecto (desajuste 4 de docs/qdd-movil-comunicacion.md)."
+impact: "Ese proyecto se veía en el teléfono, pero sus acciones, respuestas y ejecuciones se rechazaban y no le llegaban avisos."
+action_taken: "La clave se acorta a 80 caracteres: se corta la carpeta y el hash queda entero. Una clave que ya cabía no cambia. qdd doctor --fix renombra lo local que quedó con la clave larga, en cualquier carpeta de <QDD_HOME>/claude, sin pisar un archivo que ya tenga la clave nueva. Opción recomendada, de acuerdo con qdd-movile."
+test_result: "TestClaveLocal_UnaCarpetaLargaNoPasaDe80YConservaElHash_FND334, TestClaveLocal_UnaCarpetaCortaQuedaIgual_FND334, TestClaveLocal_DoctorRenombraLoQueQuedoConLaClaveLarga_FND334 y TestDoctor_RenombraLoLocalConLaClaveLarga_FND334 pasan; las pruebas de pkg/estado y cmd pasan."
+status: resolved
+detectado_por: ia
+date: "2026-11-27"
