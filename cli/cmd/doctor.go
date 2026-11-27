@@ -157,6 +157,9 @@ func buildHerramientasChecks(projectPath string) *CheckGroup {
 	return g
 }
 
+// nombreClaveLarga es el chequeo de FND-334: lo local con la clave de antes, sin tope de largo.
+const nombreClaveLarga = "Clave local del proyecto (80 caracteres como máximo)"
+
 // grupoConsola revisa el panel y la barra de QDD en Claude Code, solo si se activaron en esta máquina (RFC 0006 §3.6).
 const grupoConsola = "6. Consola de Claude Code (qdd consola)"
 
@@ -169,6 +172,9 @@ func buildConsolaChecks(projectPath string) *CheckGroup {
 	}
 	if cola := consola.DiagnosticarCola(projectPath); len(g.Items) > 0 || !cola.OK {
 		g.Items = append(g.Items, &CheckItem{Name: cola.Nombre, Success: cola.OK, Error: cola.Detalle})
+	}
+	if largas := estado.ClavesLargas(projectPath); len(largas) > 0 {
+		g.Items = append(g.Items, &CheckItem{Name: nombreClaveLarga, Success: false, Error: fmt.Sprintf("%d archivo(s) locales del proyecto siguen con la clave de más de %d caracteres, que el relay rechaza (FND-334). 'qdd doctor --fix' los renombra a la clave nueva", len(largas), estado.MaxClave)})
 	}
 	activa := len(diagnostico) > 0
 	if item := checkUso(); activa || !item.Success {
@@ -246,6 +252,13 @@ func repairConsola(projectPath string, g *CheckGroup) {
 			hecho, err := uso.ApartarIlegibles()
 			imprimirReparado(hecho, err)
 			registrarAutorreparacion("doctor: "+nombreUso, "un registro de uso que escribió QDD estaba ilegible", hecho)
+			continue
+		}
+		if item.Name == nombreClaveLarga {
+			fmt.Println("  [~] Renombrando lo local a la clave de 80 caracteres...")
+			hecho, err := estado.MigrarClavesLargas(projectPath)
+			imprimirReparado(hecho, err)
+			registrarAutorreparacion("doctor: "+nombreClaveLarga, "lo local del proyecto seguía con la clave larga que el relay rechaza", hecho)
 			continue
 		}
 		if item.Name == consola.DiagnosticarCola(projectPath).Nombre {
