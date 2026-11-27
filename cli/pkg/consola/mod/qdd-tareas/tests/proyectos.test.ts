@@ -79,7 +79,7 @@ async function abrir($, on, filas, r, columnas = 170) {
   return ui
 }
 
-test('con la vista cerrada no se lee nada: el botón está y qdd no se llama', async ($, on) => {
+test('con la vista cerrada no se lee nada: el botón está y qdd no se llama (CCC-C39)', async ($, on) => {
   const r = nuevo()
   const ui = await montar($, on, { proyectos: ok({ proyectos: [COMPLETO] }) }, r)
   expect(await ui.find({ key: 'proyectos' })).toMatchObject({ props: { label: 'Proyectos', hotkey: 'y' } })
@@ -94,7 +94,7 @@ test('al abrirla pide las filas a qdd y dibuja una por proyecto, con las mismas 
   expect(await ui.find({ type: 'Text', text: /proyecto-b\s+90\s+hace 3 h\s+151\s+⏳ 6 ❌ 1/ })).toBeDefined()
 })
 
-test('null se ve «sin medir» y un cero medido se ve como cero', async ($, on) => {
+test('null se ve «sin medir» y un cero medido se ve como cero (CCC-C36)', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, [SIN_MEDIR, EN_CERO], r)
   expect(await ui.find({ type: 'Text', text: /sin-datos\s+sin medir\s+sin medir\s+sin medir\s+sin medir/ })).toBeDefined()
@@ -126,10 +126,11 @@ test('el contador más ancho cabe entero a 40 columnas, y el nombre completo sal
   expect(await ui.find({ type: 'Text', text: /notificador_de_ofertas_del_estado · hace 3 h/ })).toBeDefined()
 })
 
-test('una carpeta que ya no está dice «no existe» y no finge datos', async ($, on) => {
+test('una carpeta que ya no está dice «no existe», no finge datos y los demás se ven igual (CCC-C37)', async ($, on) => {
   const r = nuevo()
-  const ui = await abrir($, on, [SE_FUE], r)
+  const ui = await abrir($, on, [COMPLETO, SE_FUE], r)
   expect(await ui.find({ type: 'Text', text: /se-fue\s+no existe/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /proyecto-b\s+90\s+hace 3 h/ })).toBeDefined()
   await ui.press({ key: 'proy-c4' })
   expect(await ui.find({ type: 'Text', text: /La carpeta ya no existe/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Puntajes por día/ })).toBeUndefined()
@@ -154,7 +155,7 @@ test('un nombre largo no rompe la fila a 40 columnas', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /un-proyecto.*…\s+90\s+⏳ 6 ❌ 1/ })).toBeDefined()
 })
 
-test('al elegir una fila muestra su historial; otra escala va marcada y sin estado aparte', async ($, on) => {
+test('al elegir una fila muestra su historial; otra escala va marcada y sin estado aparte (CCC-C38)', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, [COMPLETO, SIN_MEDIR], r)
   expect(await ui.find({ type: 'Text', text: /Puntajes por día/ })).toBeUndefined()
@@ -178,7 +179,7 @@ test('un historial sin datos dice «sin medir», no una lista vacía', async ($,
   expect(await ui.find({ type: 'Text', text: /ninguno con fecha/ })).toBeUndefined()
 })
 
-test('↻ relee las filas; cerrarla no vuelve a leer', async ($, on) => {
+test('↻ relee las filas; cerrarla no vuelve a leer (CCC-C39)', async ($, on) => {
   const r = nuevo()
   const ui = await abrir($, on, [COMPLETO], r)
   expect(lecturas(r).length).toBe(1)

@@ -108,6 +108,7 @@ func TestProyectos_RegistroIlegibleAvisaSinDarLaRuta(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C37: una carpeta que ya no existe.
 func TestProyectos_CarpetaQueYaNoExiste(t *testing.T) {
 	registrar(t, filepath.Join(t.TempDir(), "se-fue"))
 	fila := unaFila(t)
@@ -119,6 +120,7 @@ func TestProyectos_CarpetaQueYaNoExiste(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C36: un proyecto sin historial no muestra un cero.
 func TestProyectos_SinFuentesTodoQuedaSinMedir(t *testing.T) {
 	root := t.TempDir()
 	registrar(t, root)
@@ -205,6 +207,7 @@ func TestProyectos_LaFilaSaleDeLasFuentesReales(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C38: escalas distintas no se comparan.
 func TestProyectos_PuntajeDeOtraEscalaNoSeCompara(t *testing.T) {
 	root := t.TempDir()
 	registrar(t, root)
@@ -298,6 +301,7 @@ func TestProyectos_LosHistorialesTienenTopeYGuardanLoUltimo(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C39: cada fila muestra solo el nombre de la carpeta.
 func TestProyectos_NoEntregaLaRutaCompleta(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "proyecto-privado")
 	if err := os.MkdirAll(root, 0o755); err != nil {
@@ -316,6 +320,7 @@ func TestProyectos_NoEntregaLaRutaCompleta(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C39: leer los proyectos no cambia ningún archivo de ellos.
 func TestProyectos_NoEscribeEnElProyecto(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".qdd", "project"), 0o755); err != nil {
