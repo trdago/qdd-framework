@@ -10,9 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
@@ -21,26 +20,31 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Fotos en los mensajes a la IA (pedido de la persona desde QDD Móvil; ADR-0003 de qdd-movile, contrato acordado el
-// 2026-11-23). El teléfono manda cada foto en partes de 48 KB por qdd_remoto_foto: el relay exige Pro y reenvía el
-// evento foto firmado sobre id|proyecto|parte|de|huella|dispositivo|en (los datos no van firmados: los cubre la huella,
-// SHA-256 de la foto entera). El PC las junta en memoria por teléfono e id, verifica bytes, huella y que sea una imagen,
-// la guarda con pkg/foto y responde foto_ack. Una ejecución ia nombra hasta 4 fotos del mismo teléfono y proyecto.
+// Fotos en los mensajes a la IA por canal directo (fotos2). La persona eligió en qdd-movile (2026-11-26) que las fotos
+// no se guarden en Supabase: el evento foto viejo pasaba por qdd_remoto_foto y realtime.send, que las guardaba de 3 a 4
+// días (FND-059 de qdd-movile), y el relay lo cortó el 24-11. Ahora el teléfono las manda en partes por broadcast al
+// tópico del PC, sin firma: el id es el sha256 de la foto entera, y lo que la firma cubre es el ejecutar que la nombra.
+// El PC las junta en memoria con topes globales (el dispositivo de un broadcast se puede falsificar, así que no van por
+// teléfono), verifica huella y tipo y responde foto_ack. Solo un ejecutar firmado que la nombra la escribe en el disco:
+// una foto que ninguno nombra nunca lo toca. Al llenarse responde tope y no echa a otra foto.
 
 const (
 	// EventoFoto es una parte de una foto; EventoFotoAck, la respuesta del PC cuando la foto queda o se descarta.
-	EventoFoto    = "foto"
+	EventoFoto    = "foto2"
 	EventoFotoAck = "foto_ack"
 	// CapacidadFotos la declara el PC en la cabecera del estado: la app solo ofrece adjuntar si la ve.
-	CapacidadFotos = "fotos"
-	// Topes del contrato (los mismos del relay).
-	MaxBytesFoto          = 2 << 20
-	MaxPartesFoto         = 64
-	MaxDatosParte         = 65536
-	MaxArmandoPorTelefono = 4
-	MaxFotosEjecucion     = 4
-	// VidaArmado es cuánto espera el PC las partes que faltan de una foto.
+	CapacidadFotos = "fotos2"
+	// Topes del contrato con qdd-movile.
+	MaxBytesFoto      = 2 << 20
+	MaxPartesFoto     = 64
+	MaxDatosParte     = 65536
+	MaxFotosArmando   = 8
+	MaxBytesArmando   = 16 << 20
+	MaxFotosEjecucion = 4
+	// VidaArmado es cuánto espera el PC las partes que faltan de una foto; VidaLista, cuánto guarda en memoria una foto
+	// completa a la espera del ejecutar que la nombre.
 	VidaArmado = 60 * time.Second
+	VidaLista  = 10 * time.Minute
 	// CadaPoda es cada cuánto borra qdd remoto las fotos del teléfono de más de foto.VidaTelefono (FND-315).
 	CadaPoda = time.Hour
 )
@@ -56,25 +60,22 @@ const (
 	MotivoID         = "id"
 )
 
-// CapacidadesPC es lo que este PC declara en la cabecera del estado. Sin fotos mientras el relay las tenga cortadas
-// (FND-059 de qdd-movile, desde el 2026-11-24): la app ofrecería adjuntar y el relay respondería 42501 (FND-333). El
-// transporte nuevo, cuando se decida, va con otro nombre de capacidad (fotos2).
-var CapacidadesPC = []string{}
+// IDFoto es el id de una foto: el sha256 hex de la foto entera, en minúscula. Es parte del nombre del archivo.
+var IDFoto = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
-// FotoParte es el evento foto que reenvía el relay. Tipo y Bytes vienen solo en la parte 1.
+// CapacidadesPC es lo que este PC declara en la cabecera del estado.
+var CapacidadesPC = []string{CapacidadFotos}
+
+// FotoParte es el evento foto2 que manda el teléfono. Tipo y Bytes vienen solo en la parte 1.
 type FotoParte struct {
-	Version     int    `json:"version"`
-	Proyecto    string `json:"proyecto"`
-	ID          string `json:"id"`
-	Parte       int    `json:"parte"`
-	De          int    `json:"de"`
-	Huella      string `json:"huella"`
-	Datos       string `json:"datos"`
-	Tipo        string `json:"tipo,omitempty"`
-	Bytes       int    `json:"bytes,omitempty"`
-	Dispositivo string `json:"dispositivo"`
-	En          string `json:"en"`
-	Firma       string `json:"firma"`
+	Version  int    `json:"version"`
+	Proyecto string `json:"proyecto"`
+	ID       string `json:"id"`
+	Parte    int    `json:"parte"`
+	De       int    `json:"de"`
+	Datos    string `json:"datos"`
+	Tipo     string `json:"tipo,omitempty"`
+	Bytes    int    `json:"bytes,omitempty"`
 }
 
 // FotoAck es la respuesta del PC a una foto.
@@ -86,37 +87,26 @@ type FotoAck struct {
 	Motivo   string `json:"motivo,omitempty"`
 }
 
-// FirmaFoto es la firma que pone el relay a cada parte (la misma clave que FirmaAccion).
-func FirmaFoto(firmaMaquina, id, proyecto string, parte, de int, huella, dispositivo, en string) string {
-	return firmar(firmaMaquina, id, proyecto, strconv.Itoa(parte), strconv.Itoa(de), huella, dispositivo, en)
-}
-
-// Verificar exige la firma de la máquina y que la parte sea de los últimos VigenciaAccion.
-func (p FotoParte) Verificar(firmaMaquina string, now time.Time) error {
-	if p.ID == "" || p.Proyecto == "" || p.Huella == "" || p.Dispositivo == "" || p.En == "" {
-		return errors.New("parte de foto incompleta")
-	}
-	esperada := FirmaFoto(firmaMaquina, p.ID, p.Proyecto, p.Parte, p.De, p.Huella, p.Dispositivo, p.En)
-	return verificarFirmada(esperada, p.Firma, p.En, now)
-}
-
 // fotoEnArmado son las partes que llegaron de una foto.
 type fotoEnArmado struct {
-	id          string
-	dispositivo string
-	proyecto    string
-	de          int
-	huella      string
-	bytes       int
-	partes      map[int][]byte
-	desde       time.Time
+	proyecto string
+	id       string
+	de       int
+	bytes    int
+	partes   map[int][]byte
+	desde    time.Time
 }
 
-// fotoLista es una foto ya guardada: de qué proyecto es y dónde quedó.
+// fotoLista es una foto completa en memoria, a la espera del ejecutar que la nombre.
 type fotoLista struct {
-	proyecto string
-	ruta     string
-	en       time.Time
+	datos []byte
+	en    time.Time
+}
+
+// fotoEscrita es una foto que un ejecutar ya escribió: otro ejecutar puede volver a nombrarla.
+type fotoEscrita struct {
+	ruta string
+	en   time.Time
 }
 
 // fotoVencida es una foto que no se completó a tiempo.
@@ -125,86 +115,131 @@ type fotoVencida struct {
 	id       string
 }
 
-// armador junta las partes por teléfono e id. Lo toca solo la goroutine del bucle.
+// armador junta las partes en memoria. Lo toca solo la goroutine del bucle.
 type armador struct {
-	armando map[string]*fotoEnArmado
-	listas  map[string]fotoLista
+	armando  map[string]*fotoEnArmado
+	listas   map[string]fotoLista
+	escritas map[string]fotoEscrita
+	ocupados int
 }
 
-func claveFoto(dispositivo, id string) string { return dispositivo + "\x00" + id }
+func claveFoto(proyecto, id string) string { return proyecto + "\x00" + id }
 
-// agregar suma una parte: devuelve la foto entera cuando está completa, o el motivo por el que se descarta.
-func (a *armador) agregar(p FotoParte, now time.Time) ([]byte, bool, string) {
+// agregar suma una parte. Devuelve el motivo por el que se descarta, o "" si sigue o quedó lista.
+func (a *armador) agregar(p FotoParte, now time.Time) string {
+	if !IDFoto.MatchString(p.ID) {
+		return MotivoID
+	}
+	clave := claveFoto(p.Proyecto, p.ID)
+	if _, ok := a.listas[clave]; ok {
+		return ""
+	}
 	if p.De < 1 || p.De > MaxPartesFoto || p.Bytes > MaxBytesFoto || len(p.Datos) > MaxDatosParte {
-		return nil, false, MotivoTope
+		return MotivoTope
 	}
 	if p.Parte < 1 || p.Parte > p.De {
-		return nil, false, MotivoIncompleta
+		return MotivoIncompleta
 	}
 	datos, err := base64.StdEncoding.DecodeString(p.Datos)
 	if err != nil {
-		return nil, false, MotivoHuella
+		return MotivoHuella
 	}
-	if a.armando == nil {
-		a.armando = map[string]*fotoEnArmado{}
+	f, err := a.armadoPara(p, len(datos), now)
+	if err != nil {
+		return err.Error()
 	}
-	clave := claveFoto(p.Dispositivo, p.ID)
-	f := a.armando[clave]
-	if f == nil && a.enArmado(p.Dispositivo) >= MaxArmandoPorTelefono {
-		return nil, false, MotivoTope
+	if f.de != p.De {
+		a.soltarArmado(clave)
+		return MotivoHuella
 	}
-	if f == nil {
-		f = &fotoEnArmado{id: p.ID, dispositivo: p.Dispositivo, proyecto: p.Proyecto, de: p.De, huella: p.Huella, partes: map[int][]byte{}, desde: now}
-		a.armando[clave] = f
+	if _, repetida := f.partes[p.Parte]; !repetida {
+		f.partes[p.Parte] = datos
+		a.ocupados += len(datos)
 	}
-	if f.proyecto != p.Proyecto || f.de != p.De || f.huella != p.Huella {
-		delete(a.armando, clave)
-		return nil, false, MotivoHuella
-	}
-	f.partes[p.Parte] = datos
 	if p.Parte == 1 {
 		f.bytes = p.Bytes
 	}
 	if len(f.partes) < f.de || f.bytes == 0 {
-		return nil, false, ""
+		return ""
 	}
-	delete(a.armando, clave)
-	return f.armar()
+	entera, motivo := f.armar()
+	a.soltarArmado(clave)
+	if motivo != "" {
+		return motivo
+	}
+	a.listas[clave] = fotoLista{datos: entera, en: now}
+	a.ocupados += len(entera)
+	return ""
 }
 
-// armar junta las partes en orden y las compara con bytes y huella.
-func (f *fotoEnArmado) armar() ([]byte, bool, string) {
+// armadoPara da la foto en armado de esa parte, o la empieza si caben una foto y sus bytes más.
+func (a *armador) armadoPara(p FotoParte, nuevos int, now time.Time) (*fotoEnArmado, error) {
+	if a.armando == nil {
+		a.armando, a.listas = map[string]*fotoEnArmado{}, map[string]fotoLista{}
+	}
+	if a.ocupados+nuevos > MaxBytesArmando {
+		return nil, errors.New(MotivoTope)
+	}
+	clave := claveFoto(p.Proyecto, p.ID)
+	if f := a.armando[clave]; f != nil {
+		return f, nil
+	}
+	if len(a.armando)+len(a.listas) >= MaxFotosArmando {
+		return nil, errors.New(MotivoTope)
+	}
+	f := &fotoEnArmado{proyecto: p.Proyecto, id: p.ID, de: p.De, partes: map[int][]byte{}, desde: now}
+	a.armando[clave] = f
+	return f, nil
+}
+
+// armar junta las partes en orden y las compara con los bytes, el id y el tipo.
+func (f *fotoEnArmado) armar() ([]byte, string) {
 	var entera bytes.Buffer
 	for i := 1; i <= f.de; i++ {
 		entera.Write(f.partes[i])
 	}
 	if entera.Len() > MaxBytesFoto {
-		return nil, false, MotivoTope
+		return nil, MotivoTope
 	}
 	suma := sha256.Sum256(entera.Bytes())
-	if entera.Len() != f.bytes || hex.EncodeToString(suma[:]) != f.huella {
-		return nil, false, MotivoHuella
+	if entera.Len() != f.bytes || hex.EncodeToString(suma[:]) != f.id {
+		return nil, MotivoHuella
 	}
-	return entera.Bytes(), true, ""
+	if _, err := foto.Validar(entera.Bytes()); err != nil {
+		return nil, MotivoTipo
+	}
+	return entera.Bytes(), ""
 }
 
-// enArmado dice cuántas fotos arma un teléfono.
-func (a *armador) enArmado(dispositivo string) int {
-	n := 0
-	for _, f := range a.armando {
-		if f.dispositivo == dispositivo {
-			n++
+func (a *armador) soltarArmado(clave string) {
+	for _, d := range a.armando[clave].partes {
+		a.ocupados -= len(d)
+	}
+	delete(a.armando, clave)
+}
+
+func (a *armador) soltarLista(clave string) {
+	a.ocupados -= len(a.listas[clave].datos)
+	delete(a.listas, clave)
+}
+
+// lista dice si la foto está completa en memoria.
+func (a *armador) lista(proyecto, id string) bool {
+	_, ok := a.listas[claveFoto(proyecto, id)]
+	return ok
+}
+
+// vencidas suelta las fotos que llevan más de VidaArmado sin completarse (las devuelve, para avisar), las completas que
+// llevan más de VidaLista sin ejecutar y olvida las escritas que ya se borraron del disco (foto.VidaTelefono).
+func (a *armador) vencidas(now time.Time) []fotoVencida {
+	for clave, f := range a.escritas {
+		if now.Sub(f.en) > foto.VidaTelefono {
+			delete(a.escritas, clave)
 		}
 	}
-	return n
-}
-
-// vencidas saca las fotos que llevan más de VidaArmado sin completarse, y olvida las guardadas que ya se borraron del
-// disco (foto.VidaTelefono).
-func (a *armador) vencidas(now time.Time) []fotoVencida {
 	for clave, f := range a.listas {
-		if now.Sub(f.en) > foto.VidaTelefono {
-			delete(a.listas, clave)
+		if now.Sub(f.en) > VidaLista {
+			a.soltarLista(clave)
 		}
 	}
 	var out []fotoVencida
@@ -212,39 +247,55 @@ func (a *armador) vencidas(now time.Time) []fotoVencida {
 		if now.Sub(f.desde) <= VidaArmado {
 			continue
 		}
-		delete(a.armando, clave)
+		a.soltarArmado(clave)
 		out = append(out, fotoVencida{proyecto: f.proyecto, id: f.id})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].id < out[j].id })
 	return out
 }
 
-// guardar recuerda una foto ya guardada.
-func (a *armador) guardar(dispositivo, id string, f fotoLista) {
-	if a.listas == nil {
-		a.listas = map[string]fotoLista{}
+// rutasDe escribe en el proyecto las fotos que nombra un ejecutar firmado y da sus rutas. Si falta una, no escribe
+// ninguna: dice cuál falta.
+func (a *armador) rutasDe(root, proyecto string, ids []string, now time.Time) ([]string, error) {
+	for _, id := range ids {
+		if a.lista(proyecto, id) {
+			continue
+		}
+		if _, err := os.Stat(a.escritas[claveFoto(proyecto, id)].ruta); err != nil {
+			return nil, fmt.Errorf("falta la foto %s: no llegó a este PC para este proyecto, o ya no está", id)
+		}
 	}
-	a.listas[claveFoto(dispositivo, id)] = f
-}
-
-// rutasDe da la ruta de cada foto que nombra una ejecución: del mismo teléfono y proyecto, y todavía en el disco.
-func (a *armador) rutasDe(dispositivo, proyecto string, ids []string) ([]string, error) {
 	var rutas []string
 	for _, id := range ids {
-		f, ok := a.listas[claveFoto(dispositivo, id)]
-		if !ok || f.proyecto != proyecto {
-			return nil, fmt.Errorf("falta la foto %s: no llegó a este PC desde este teléfono y proyecto", id)
+		ruta, err := a.escribir(root, proyecto, id, now)
+		if err != nil {
+			return nil, fmt.Errorf("foto %s: %v", id, err)
 		}
-		if _, err := os.Stat(f.ruta); err != nil {
-			return nil, fmt.Errorf("falta la foto %s: ya no está en el PC", id)
-		}
-		rutas = append(rutas, f.ruta)
+		rutas = append(rutas, ruta)
 	}
 	return rutas, nil
 }
 
+// escribir deja en el disco una foto lista (o da la ruta de una ya escrita) y la suelta de la memoria.
+func (a *armador) escribir(root, proyecto, id string, now time.Time) (string, error) {
+	clave := claveFoto(proyecto, id)
+	if e, ok := a.escritas[clave]; ok && !a.lista(proyecto, id) {
+		return e.ruta, nil
+	}
+	ruta, err := foto.GuardarDelTelefono(root, id, a.listas[clave].datos, now)
+	if err != nil {
+		return "", err
+	}
+	a.soltarLista(clave)
+	if a.escritas == nil {
+		a.escritas = map[string]fotoEscrita{}
+	}
+	a.escritas[clave] = fotoEscrita{ruta: ruta, en: now}
+	return ruta, nil
+}
+
 // ValidarFotos vuelve a hacer en el PC lo que exige el relay: solo una instrucción para la IA lleva fotos, hasta
-// MaxFotosEjecucion, distintas y con id válido.
+// MaxFotosEjecucion, distintas y nombradas por su sha256.
 func ValidarFotos(tipo string, ids []string) error {
 	if len(ids) == 0 {
 		return nil
@@ -257,7 +308,7 @@ func ValidarFotos(tipo string, ids []string) error {
 	}
 	vistos := map[string]bool{}
 	for _, id := range ids {
-		if !foto.IDTelefono.MatchString(id) || vistos[id] {
+		if !IDFoto.MatchString(id) || vistos[id] {
 			return fmt.Errorf("foto «%s»: id inválido o repetido", id)
 		}
 		vistos[id] = true
@@ -265,50 +316,34 @@ func ValidarFotos(tipo string, ids []string) error {
 	return nil
 }
 
-// alFoto recibe una parte: la verifica como una acción y, si completa la foto, la guarda y responde foto_ack.
+// alFoto recibe una parte y, si completa la foto, responde foto_ack. La foto queda en memoria hasta que la nombre un
+// ejecutar firmado.
 func (b *Bucle) alFoto(ctx context.Context, payload json.RawMessage) {
 	var p FotoParte
 	if err := json.Unmarshal(payload, &p); err != nil {
 		b.logf("parte de foto descartada: ilegible")
 		return
 	}
-	if err := p.Verificar(b.Cred.Firma, b.ahora()); err != nil {
-		b.logf("foto %s descartada: %v", p.ID, err)
+	if !b.plan.Pro() || p.Version != VersionProtocolo {
+		b.logf("foto %.12s descartada: sin Pro o versión %d", p.ID, p.Version)
 		return
 	}
-	if LeerRevocados()[strings.ToLower(p.Dispositivo)] || !b.plan.Pro() || p.Version != VersionProtocolo {
-		b.logf("foto %s descartada: teléfono revocado, sin Pro o versión %d", p.ID, p.Version)
-		return
-	}
-	if !foto.IDTelefono.MatchString(p.ID) {
+	if !IDFoto.MatchString(p.ID) {
 		b.ackFoto(ctx, p.Proyecto, p.ID, MotivoID)
 		return
 	}
-	proyecto, ok := b.proyectoPublicado(p.Proyecto)
-	if !ok {
+	if _, ok := b.proyectoPublicado(p.Proyecto); !ok {
 		b.ackFoto(ctx, p.Proyecto, p.ID, MotivoProyecto)
 		return
 	}
-	datos, completa, motivo := b.fotos.agregar(p, b.ahora())
-	if motivo != "" {
+	if motivo := b.fotos.agregar(p, b.ahora()); motivo != "" {
 		b.ackFoto(ctx, p.Proyecto, p.ID, motivo)
 		return
 	}
-	if !completa {
+	if !b.fotos.lista(p.Proyecto, p.ID) {
 		return
 	}
-	if _, err := foto.Validar(datos); err != nil {
-		b.ackFoto(ctx, p.Proyecto, p.ID, MotivoTipo)
-		return
-	}
-	ruta, err := foto.GuardarDelTelefono(proyecto.Ruta, p.ID, datos, b.ahora())
-	if err != nil {
-		b.logf("foto %s: %v", p.ID, err)
-		b.ackFoto(ctx, p.Proyecto, p.ID, MotivoDisco)
-		return
-	}
-	b.fotos.guardar(p.Dispositivo, p.ID, fotoLista{proyecto: p.Proyecto, ruta: ruta, en: b.ahora()})
-	b.logf("foto %s guardada (%d bytes)", p.ID, len(datos))
+	b.logf("foto %.12s lista en memoria", p.ID)
 	b.ackFoto(ctx, p.Proyecto, p.ID, "")
 }
 
@@ -322,7 +357,7 @@ func (b *Bucle) descartarVencidas(ctx context.Context) {
 // ackFoto responde una foto: ok sin motivo, o el motivo por el que se descartó.
 func (b *Bucle) ackFoto(ctx context.Context, proyecto, id, motivo string) {
 	if motivo != "" {
-		b.logf("foto %s descartada: %s", id, motivo)
+		b.logf("foto %.12s descartada: %s", id, motivo)
 	}
 	if len(b.telefonos) == 0 {
 		return

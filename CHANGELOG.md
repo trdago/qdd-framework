@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.10.0-rc.149] - 2026-11-26
+
+### Changed
+- **Las fotos del teléfono vuelven, por canal directo y sin guardarse en Supabase** (fotos2). Elegiste que las fotos no queden en el relay. Ahora el teléfono las manda directo a tu PC, que las guarda en memoria y solo las escribe en tu proyecto cuando un mensaje firmado a la IA las nombra. Una foto que no adjuntas a ningún mensaje nunca toca el disco. Requiere la versión de QDD Móvil que trae fotos2.
+
 ## [2.10.0-rc.148] - 2026-11-26
 
 ### Fixed

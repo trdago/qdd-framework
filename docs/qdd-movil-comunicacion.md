@@ -26,7 +26,7 @@ dio ida y vuelta en unos 450 ms con un teléfono mirando.
 | `accion` | app → relay → PC | RPC `qdd_remoto_accion` → `realtime.send` | `solicitud`, `proyecto`, `accion_id`, `dispositivo`, `dispositivo_nombre`, `en`, `firma` | relay (sesión, revocado, formato) y PC (firma HMAC, 5 min, id ofrecido) | `rechazada` o descartada al log |
 | `responder` | app → relay → PC | RPC `qdd_remoto_responder` | `pregunta`, `respuesta` (texto ≤ 4096), `nombre`, `firma`… | relay y PC (contra la pregunta guardada) | `rechazada`, `vencida` o `ya_aprobado` |
 | `ejecutar` | app → relay → PC | RPC `qdd_remoto_ejecutar` | `tipo` (qdd, ia, flujo), `texto`, `nombre`, `firma`… | relay (Pro, largo, caracteres) y PC (lista permitida, sin shell) | `rechazada` |
-| `foto` / `foto_ack` | app → relay → PC / PC → app | RPC `qdd_remoto_foto` / broadcast | la foto en partes (`parte`, `huella`…), como mucho 64 y 2 MB por foto, firmadas como una acción / `ok` y, si no, el motivo | relay (Pro) y PC (firma, partes, huella) | `foto_ack` con `ok: false` |
+| `foto2` / `foto_ack` | app → PC / PC → app | broadcast al tópico del PC, sin firma | `{version, proyecto, id, parte, de, datos}`; la parte 1 suma `tipo` y `bytes`. `id` = sha256 hex de la foto entera / `ok` y, si no, el motivo | PC (id, partes, huella, tipo; topes globales: 8 fotos y 16 MB en memoria, 2 MB y 64 partes por foto). Solo un `ejecutar` firmado que la nombra la escribe en el disco | `foto_ack` con `ok: false` |
 | `sonda` (nuevo) | PC → PC | broadcast con `self` | `version`, `marca` | PC | la sonda nombra el tramo `eco` |
 | Latido | PC → relay | RPC `qdd_remoto_latido` | en curso, consola, mensajes | relay | doctor REM-07 |
 | Push | PC → relay → FCM | Edge Function `avisar` | `topico`, `firma`, `tipo`, `proyecto`, `clave` | relay (`validarPedido`) | se loguea; nunca bloquea |
@@ -38,11 +38,11 @@ Los nombres de eventos, los campos y la firma (`solicitud|proyecto|…|dispositi
 
 Leído el 2026-11-24 en las migraciones de qdd-movile y en la documentación de Supabase (Broadcast y Broadcast Replay).
 qdd-movile contó ese día los mensajes guardados del 21 al 24: 62 `ejecutar`, 31 `accion`, 11 `responder` y ninguna `foto`.
-Desde las 21:18 el relay no acepta fotos.
+Desde las 21:18 el relay no acepta fotos. El 26-11 la persona eligió el canal directo: desde la rc.149 viajan como `foto2`, por broadcast de cliente, que no entra en esa tabla (qdd-movile contó ese día 0 filas de broadcast de cliente), y el PC declara `capacidades: ["fotos2"]`.
 
 | Mensaje | Cómo pasa | Qué queda |
 |---|---|---|
-| `accion`, `responder`, `ejecutar` y `foto` | La función del relay llama a `realtime.send` | El mensaje entero (la respuesta, el texto o la parte de la foto) en la tabla `realtime.messages`, de 72 horas a 4 días. Quien puede unirse al canal podría pedir su repetición |
+| `accion`, `responder`, `ejecutar` y el `foto` viejo | La función del relay llama a `realtime.send` | El mensaje entero (la respuesta, el texto o la parte de la foto) en la tabla `realtime.messages`, de 72 horas a 4 días. Quien puede unirse al canal podría pedir su repetición |
 | `estado`, `delta`, `flujo`, `consola`, `accion_estado`, `logrado` y los demás que publica el PC o la app | Broadcast por WebSocket | Según la documentación, solo lo enviado desde la base entra a esa tabla. No dice expresamente que lo demás no se guarde. En ese conteo no apareció ninguno: es un indicio, falta una prueba dirigida |
 
 No hay cifrado de extremo a extremo: Supabase ve pasar todo. Que lo del teléfono quede guardado no es lo que decidió la
