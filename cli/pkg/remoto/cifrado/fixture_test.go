@@ -74,7 +74,7 @@ func armarFixture(t *testing.T) fixture {
 			"sellado = «c1.» + base64url_sin_relleno(efimera_publica(32) ‖ AES-256-GCM(clave, nonce, claro, aad) con su etiqueta de 16 bytes al final)",
 			"efimera: X25519 nueva por campo (aquí, efimera_semilla como privada); compartido = X25519(efimera, x25519_publica del PC)",
 			"clave ‖ nonce = HKDF-SHA256(ikm = compartido, sal = efimera_publica ‖ x25519_publica, info = «qdd cifrado1», 44 bytes): los primeros 32 son la clave y los 12 siguientes el nonce",
-			"aad = «qdd cifrado1|» + evento + «|» + lo que el relay ve en claro, unido por «|»: ejecutar|solicitud|proyecto|tipo · responder|solicitud|proyecto|pregunta · accion|solicitud|proyecto · foto2|proyecto|id|parte|de",
+			"aad = «qdd cifrado1|» + evento + «|» + lo que el relay ve en claro, unido por «|»: ejecutar|solicitud|proyecto|tipo|ids de las fotos unidos por coma (vacío sin fotos) · responder|solicitud|proyecto|pregunta · accion|solicitud|proyecto · foto2|proyecto|id|parte|de",
 			"campos sellados: texto de ejecutar, respuesta de responder, accion_id de accion y datos de cada parte de foto2 (los bytes de la parte, no su base64)",
 			"clave del estado y de la oferta: {identidad, x25519, firma, desde}; firma = Ed25519(identidad, «qdd cifrado1 clave|» + x25519 + «|» + desde), con x25519 tal como viaja (base64url)",
 			"huella = sha256(identidad_publica), 8 primeros bytes en hex mayúscula, en cuatro grupos de cuatro separados por un espacio",
@@ -100,8 +100,8 @@ func armarFixture(t *testing.T) fixture {
 		texto               bool
 		efimera             byte
 	}{
-		{"comando qdd", "ejecutar", "texto", AADEjecutar(solicitud, proyecto, "qdd"), []byte("audit --completo"), true, 0x41},
-		{"instrucción con tildes y salto de línea", "ejecutar", "texto", AADEjecutar(solicitud, proyecto, "ia"), []byte("Revisa el «Para ti»\ny dime qué falta 🙂"), true, 0x42},
+		{"comando qdd", "ejecutar", "texto", AADEjecutar(solicitud, proyecto, "qdd", nil), []byte("audit --completo"), true, 0x41},
+		{"instrucción con tildes, salto de línea y una foto", "ejecutar", "texto", AADEjecutar(solicitud, proyecto, "ia", []string{idFoto}), []byte("Revisa el «Para ti»\ny dime qué falta 🙂"), true, 0x42},
 		{"respuesta a una pregunta", "responder", "respuesta", AADResponder(solicitud, proyecto, "p-7"), []byte(`{"respuesta":"Sí, publicar"}`), true, 0x43},
 		{"acción del panel", "accion", "accion_id", AADAccion(solicitud, proyecto), []byte("pedido:a"), true, 0x44},
 		{"parte de una foto", "foto2", "datos", AADFoto(proyecto, idFoto, 1, 4), foto, false, 0x45},
@@ -126,7 +126,7 @@ func armarFixture(t *testing.T) fixture {
 		fixtureMensaje{
 			Caso: "el mismo sellado en otra solicitud", Evento: "ejecutar", Campo: "texto", AAD: comando.AAD,
 			EfimeraSemilla: comando.EfimeraSemilla, ClaroBase64: comando.ClaroBase64, Sellado: comando.Sellado,
-			AADDelPC:        string(AADEjecutar("5d0c3a8e-1b2f-4c6d-8e9f-0a1b2c3d4e5f", proyecto, "qdd")),
+			AADDelPC:        string(AADEjecutar("5d0c3a8e-1b2f-4c6d-8e9f-0a1b2c3d4e5f", proyecto, "qdd", nil)),
 			ExplicacionMalo: "quien guarda el mensaje no puede repetirlo con otra solicitud",
 		},
 	)

@@ -136,9 +136,9 @@ func derivar(compartido, efimera, publica []byte) (cipher.AEAD, []byte, error) {
 // Datos asociados de cada campo: lo que el relay ve en claro y ata el sellado a su mensaje. Las partes van unidas por
 // «|», como las firmas del relay.
 
-// AADEjecutar es el de texto en un ejecutar.
-func AADEjecutar(solicitud, proyecto, tipo string) []byte {
-	return unir("ejecutar", solicitud, proyecto, tipo)
+// AADEjecutar es el de texto en un ejecutar: también ata los ids de sus fotos, unidos por coma (vacío sin fotos).
+func AADEjecutar(solicitud, proyecto, tipo string, fotos []string) []byte {
+	return unir("ejecutar", solicitud, proyecto, tipo, strings.Join(fotos, ","))
 }
 
 // AADResponder es el de respuesta en un responder.

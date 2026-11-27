@@ -26,7 +26,7 @@ func clavesDePrueba(t *testing.T) (ed25519.PrivateKey, *ecdh.PrivateKey) {
 
 func TestCifrado_LoQueSellaElTelefonoLoAbreElPC(t *testing.T) {
 	_, priv := clavesDePrueba(t)
-	aad := AADEjecutar("0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10", "qdd-a45873ff129c", "qdd")
+	aad := AADEjecutar("0b1f7c1e-6f3a-4f43-9d55-3c8a1f0e2b10", "qdd-a45873ff129c", "qdd", nil)
 	sellado, err := Sellar(nil, priv.PublicKey().Bytes(), aad, []byte("audit --completo"))
 	if err != nil {
 		t.Fatal(err)
@@ -40,20 +40,22 @@ func TestCifrado_LoQueSellaElTelefonoLoAbreElPC(t *testing.T) {
 	}
 }
 
-// Lo que el relay sí puede ver (solicitud, proyecto, tipo) va como datos asociados: un texto cifrado no sirve en otra
+// Lo que el relay sí puede ver (solicitud, proyecto, tipo, fotos) va como datos asociados: un texto cifrado no sirve en otra
 // solicitud, otro proyecto u otro campo, así que quien administra el relay no puede repetir un comando guardado.
 // contrato: remoto-cifrado#9be11cd3
 func TestCifrado_UnSelladoNoSirveEnOtroMensaje(t *testing.T) {
 	_, priv := clavesDePrueba(t)
-	aad := AADEjecutar("s-1", "qdd-a45873ff129c", "qdd")
+	aad := AADEjecutar("s-1", "qdd-a45873ff129c", "qdd", []string{"f1"})
 	sellado, err := Sellar(nil, priv.PublicKey().Bytes(), aad, []byte("audit"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	otros := map[string][]byte{
-		"otra solicitud": AADEjecutar("s-2", "qdd-a45873ff129c", "qdd"),
-		"otro proyecto":  AADEjecutar("s-1", "otro-123", "qdd"),
-		"otro tipo":      AADEjecutar("s-1", "qdd-a45873ff129c", "ia"),
+		"otra solicitud": AADEjecutar("s-2", "qdd-a45873ff129c", "qdd", []string{"f1"}),
+		"otro proyecto":  AADEjecutar("s-1", "otro-123", "qdd", []string{"f1"}),
+		"otro tipo":      AADEjecutar("s-1", "qdd-a45873ff129c", "ia", []string{"f1"}),
+		"otras fotos":    AADEjecutar("s-1", "qdd-a45873ff129c", "qdd", []string{"f2"}),
+		"sin sus fotos":  AADEjecutar("s-1", "qdd-a45873ff129c", "qdd", nil),
 		"otro campo":     AADAccion("s-1", "qdd-a45873ff129c"),
 	}
 	for nombre, otro := range otros {
