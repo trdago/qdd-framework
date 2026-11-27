@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+## [2.11.0-rc.1] - 2026-11-27
+
+### Added
+- **Lo que mandas desde QDD Móvil viaja cifrado hacia tu PC** (RFC 0027, fase 3). El texto de un mensaje o comando, tus respuestas, las acciones y las fotos salen del teléfono cifrados con una clave que solo tiene tu PC, así que el relay de Supabase guarda algo que no puede leer. Tu PC genera sus claves solo al arrancar `qdd remoto`; `qdd remoto dispositivos` muestra su huella, la misma que ves en el detalle del PC en la app. Si vuelves a emparejar, cambia la clave y la app te pide reenviar lo que mandaste con la anterior. Lo que llega sin cifrar sigue funcionando hasta que la app cifre todo. Requiere la versión de QDD Móvil que trae el cifrado.
+
 ## [2.10.0] - 2026-11-27
 
 Versión estable (`npm i -g qdd-framework`). Reúne las 150 previews de 2.10.0, con 442 h de uso real medido en 15
