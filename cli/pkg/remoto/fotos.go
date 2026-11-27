@@ -56,8 +56,10 @@ const (
 	MotivoID         = "id"
 )
 
-// CapacidadesPC es lo que este PC declara en la cabecera del estado.
-var CapacidadesPC = []string{CapacidadFotos}
+// CapacidadesPC es lo que este PC declara en la cabecera del estado. Sin fotos mientras el relay las tenga cortadas
+// (FND-059 de qdd-movile, desde el 2026-11-24): la app ofrecería adjuntar y el relay respondería 42501 (FND-333). El
+// transporte nuevo, cuando se decida, va con otro nombre de capacidad (fotos2).
+var CapacidadesPC = []string{}
 
 // FotoParte es el evento foto que reenvía el relay. Tipo y Bytes vienen solo en la parte 1.
 type FotoParte struct {
