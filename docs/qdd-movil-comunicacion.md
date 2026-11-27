@@ -46,7 +46,8 @@ Desde las 21:18 el relay no acepta fotos. El 26-11 la persona eligió el canal d
 | `estado`, `delta`, `flujo`, `consola`, `accion_estado`, `logrado` y los demás que publica el PC o la app | Broadcast por WebSocket | Según la documentación, solo lo enviado desde la base entra a esa tabla. No dice expresamente que lo demás no se guarde. En ese conteo no apareció ninguno: es un indicio, falta una prueba dirigida |
 
 No hay cifrado de extremo a extremo: Supabase ve pasar todo. Que lo del teléfono quede guardado no es lo que decidió la
-persona en el RFC 0013 (FND-321, FND-059 de qdd-movile). Cómo se arregla está por decidir.
+persona en el RFC 0013 (FND-321, FND-059 de qdd-movile). La persona decidió (2026-11-27) decirlo en la política de
+la app, que ya lo dice, y cifrarlo en el teléfono después de la 2.10.0 (RFC 0027).
 
 ## Desajustes encontrados
 
