@@ -1,10 +1,13 @@
 package remoto
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,60 +20,39 @@ import (
 )
 
 // Rule: Prohibido usar 'else'
-// Fotos en los mensajes a la IA (ADR-0003 de qdd-movile, contrato acordado el 2026-11-23): el teléfono manda la foto
-// en partes de 48 KB por qdd_remoto_foto (evento foto, firmado como ejecutar sobre id|proyecto|parte|de|huella|
-// dispositivo|en). El PC las junta por teléfono e id, verifica bytes, huella y que sea una imagen, la guarda en
-// tmp/fotos/movil-<id>.<ext> y responde foto_ack. Una ejecución ia con fotos (firma: lo de siempre más los ids unidos
-// por coma) llega a la sesión con «Fotos adjuntas:» y una ruta absoluta por línea; si falta una, termina en fallo
-// diciendo cuál. El PC declara capacidades: [fotos] en la cabecera del estado: la app solo ofrece adjuntar si la ve.
+// Fotos por canal directo (fotos2; decisión de la persona en qdd-movile el 2026-11-26, contrato acordado con
+// qdd-movile): el teléfono manda cada foto en partes por broadcast al tópico del PC, sin firma y sin que el relay la
+// guarde. El id es el sha256 de la foto entera. El PC las junta en memoria con topes globales (8 fotos y 16 MB, 2 MB y
+// 64 partes por foto; una incompleta se descarta a los 60 s y una completa sin ejecutar, a los 10 min), verifica huella
+// y tipo y responde foto_ack. Solo un ejecutar firmado que la nombra la escribe en el disco: una foto que ninguno nombra
+// nunca lo toca. El PC declara capacidades: [fotos2]; el evento foto viejo (qdd_remoto_foto) ya no se acepta.
 
-type fixtureFotos struct {
-	Secreto string `json:"secreto_firma"`
-	Foto    struct {
-		ID     string `json:"id"`
-		Tipo   string `json:"tipo"`
-		Bytes  int    `json:"bytes"`
-		Huella string `json:"huella"`
-	} `json:"foto"`
-	Partes   []FotoParte      `json:"partes"`
-	Ejecutar EjecucionFirmada `json:"ejecutar"`
-}
-
-// leerFixtureFotos es test/fixtures/foto_partes.json de qdd-movile (commit 0989589), copiado sin cambios.
-func leerFixtureFotos(t *testing.T) fixtureFotos {
+// imagenPrueba es un PNG real de lado×lado: foto.Validar mira sus bytes mágicos.
+func imagenPrueba(t *testing.T, lado int) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", "foto_partes.json"))
-	if err != nil {
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewGray(image.Rect(0, 0, lado, lado))); err != nil {
 		t.Fatal(err)
 	}
-	var f fixtureFotos
-	if err := json.Unmarshal(b, &f); err != nil {
-		t.Fatal(err)
-	}
-	return f
+	return b.Bytes()
 }
 
-// fotoEntera junta los datos de las partes del fixture.
-func fotoEntera(t *testing.T, partes []FotoParte) []byte {
-	t.Helper()
-	var out []byte
-	for _, p := range partes {
-		d, err := base64.StdEncoding.DecodeString(p.Datos)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out = append(out, d...)
-	}
-	return out
+func sha256Hex(datos []byte) string {
+	suma := sha256.Sum256(datos)
+	return hex.EncodeToString(suma[:])
 }
 
-// partesFirmadas son las partes del fixture para otro proyecto, teléfono y hora, firmadas con la firma de prueba.
-func partesFirmadas(t *testing.T, proyecto, dispositivo, en string) []FotoParte {
-	t.Helper()
+// partesDe corta la foto en n partes como el teléfono: la primera trae tipo y bytes.
+func partesDe(proyecto string, datos []byte, n int) []FotoParte {
+	id := sha256Hex(datos)
+	tam := (len(datos) + n - 1) / n
 	var out []FotoParte
-	for _, p := range leerFixtureFotos(t).Partes {
-		p.Proyecto, p.Dispositivo, p.En = proyecto, dispositivo, en
-		p.Firma = FirmaFoto(firmaPrueba, p.ID, p.Proyecto, p.Parte, p.De, p.Huella, p.Dispositivo, p.En)
+	for i := 0; i < n; i++ {
+		desde, hasta := i*tam, min((i+1)*tam, len(datos))
+		p := FotoParte{Version: 1, Proyecto: proyecto, ID: id, Parte: i + 1, De: n, Datos: base64.StdEncoding.EncodeToString(datos[desde:hasta])}
+		if i == 0 {
+			p.Tipo, p.Bytes = "image/png", len(datos)
+		}
 		out = append(out, p)
 	}
 	return out
@@ -89,223 +71,294 @@ func ackDe(t *testing.T, tr *transporteFalso, plazo time.Duration) FotoAck {
 	return a
 }
 
-func TestFotos_ElFixtureDeQDDMovilSeVerificaYSeArma(t *testing.T) {
-	f := leerFixtureFotos(t)
-	en, _ := time.Parse(time.RFC3339, f.Partes[0].En)
-	for _, p := range f.Partes {
-		if err := p.Verificar(f.Secreto, en.Add(time.Minute)); err != nil {
-			t.Fatalf("parte %d: %v", p.Parte, err)
-		}
+func ejecutarConFotos(t *testing.T, tr *transporteFalso, solicitud, proyecto, tipo string, fotos ...string) AccionEstado {
+	t.Helper()
+	texto := "mira esta captura"
+	if tipo == consola.EjecutarQDD {
+		texto = "audit"
 	}
-	mala := f.Partes[1]
-	mala.Huella = strings.Repeat("0", 64)
-	if err := mala.Verificar(f.Secreto, en); err == nil {
-		t.Fatal("cambiar la huella rompe la firma")
-	}
-	sinDatos := f.Partes[1]
-	sinDatos.Datos = "AAAA"
-	if err := sinDatos.Verificar(f.Secreto, en); err != nil {
-		t.Fatal("los datos no van firmados: los cubre la huella")
-	}
+	e := ejecucionFirmada(solicitud, proyecto, tipo, texto, "d1", ahoraEn())
+	e.Fotos = fotos
+	e.Firma = FirmaEjecucion(firmaPrueba, e.Solicitud, e.Proyecto, e.Tipo, e.Texto, e.Dispositivo, e.En, e.Fotos...)
+	mandarEjecucion(tr, e)
+	estadoDe(t, tr, time.Second)
+	return estadoDe(t, tr, 2*time.Second)
+}
 
+func carpetaFotos(root string) []string {
+	entradas, _ := os.ReadDir(filepath.Join(root, "tmp", "fotos"))
+	var out []string
+	for _, e := range entradas {
+		out = append(out, e.Name())
+	}
+	return out
+}
+
+func TestFotos_EnCualquierOrdenSeArmaYQuedaEnMemoria(t *testing.T) {
+	datos := imagenPrueba(t, 40)
+	partes := partesDe("p", datos, 4)
 	var a armador
-	var datos []byte
-	for _, i := range []int{2, 0, 3, 1} {
-		d, lista, motivo := a.agregar(f.Partes[i], en)
-		if motivo != "" {
-			t.Fatalf("parte %d: %s", f.Partes[i].Parte, motivo)
-		}
-		if lista {
-			datos = d
+	en := time.Now()
+	for _, i := range []int{2, 0, 3} {
+		if m := a.agregar(partes[i], en); m != "" {
+			t.Fatalf("parte %d: %s", partes[i].Parte, m)
 		}
 	}
-	suma := sha256.Sum256(datos)
-	if len(datos) != f.Foto.Bytes || hex.EncodeToString(suma[:]) != f.Foto.Huella {
-		t.Fatalf("en cualquier orden arma la foto entera: %d bytes", len(datos))
+	if a.lista("p", partes[0].ID) {
+		t.Fatal("con una parte menos no está lista")
 	}
-
-	if err := f.Ejecutar.Verificar(f.Secreto, en); err != nil {
-		t.Fatalf("la ejecución con fotos: %v", err)
+	if m := a.agregar(partes[1], en); m != "" {
+		t.Fatal(m)
 	}
-	otra := f.Ejecutar
-	otra.Fotos = []string{"otra"}
-	if err := otra.Verificar(f.Secreto, en); err == nil {
-		t.Fatal("las fotos van firmadas")
+	if !a.lista("p", partes[0].ID) {
+		t.Fatal("con todas las partes queda lista en memoria")
 	}
-	sin := f.Ejecutar
-	sin.Fotos = nil
-	sin.Firma = FirmaEjecucion(f.Secreto, sin.Solicitud, sin.Proyecto, sin.Tipo, sin.Texto, sin.Dispositivo, sin.En)
-	if err := sin.Verificar(f.Secreto, en); err != nil {
-		t.Fatal("sin fotos la firma es la de siempre")
+	if m := a.agregar(partes[1], en); m != "" {
+		t.Fatal("una parte repetida de una foto ya lista (el reenvío del teléfono) responde ok otra vez")
 	}
 }
 
 func TestFotos_ElArmadorDiceElMotivo(t *testing.T) {
-	f := leerFixtureFotos(t)
-	en, _ := time.Parse(time.RFC3339, f.Partes[0].En)
-
-	var a armador
-	mal := f.Partes[0]
-	mal.De = MaxPartesFoto + 1
-	if _, _, m := a.agregar(mal, en); m != MotivoTope {
-		t.Fatalf("más de %d partes: %q", MaxPartesFoto, m)
+	datos := imagenPrueba(t, 8)
+	en := time.Now()
+	casos := []struct {
+		nombre string
+		cambia func(*FotoParte)
+		motivo string
+	}{
+		{"id que no es un sha256", func(p *FotoParte) { p.ID = "../fuera" }, MotivoID},
+		{"id en mayúscula", func(p *FotoParte) { p.ID = strings.ToUpper(p.ID) }, MotivoID},
+		{"más de 64 partes", func(p *FotoParte) { p.De = MaxPartesFoto + 1 }, MotivoTope},
+		{"más de 2 MB", func(p *FotoParte) { p.Bytes = MaxBytesFoto + 1 }, MotivoTope},
+		{"datos de más", func(p *FotoParte) { p.Datos = strings.Repeat("A", MaxDatosParte+4) }, MotivoTope},
+		{"parte fuera de rango", func(p *FotoParte) { p.Parte = 2 }, MotivoIncompleta},
+		{"datos ilegibles", func(p *FotoParte) { p.Datos = "no es base64!" }, MotivoHuella},
+		{"no es la foto del id", func(p *FotoParte) { p.ID = strings.Repeat("0", 64) }, MotivoHuella},
+		{"bytes que no son los dichos", func(p *FotoParte) { p.Bytes++ }, MotivoHuella},
+		{"no es una imagen", func(p *FotoParte) {
+			texto := []byte("hola, no soy una imagen")
+			p.ID, p.Bytes, p.Datos = sha256Hex(texto), len(texto), base64.StdEncoding.EncodeToString(texto)
+		}, MotivoTipo},
 	}
-	grande := f.Partes[0]
-	grande.Bytes = MaxBytesFoto + 1
-	if _, _, m := a.agregar(grande, en); m != MotivoTope {
-		t.Fatalf("más de 2 MB: %q", m)
-	}
-
-	a = armador{}
-	otraHuella := strings.Repeat("0", 64)
-	var m string
-	for _, p := range f.Partes {
-		p.Huella = otraHuella
-		_, _, m = a.agregar(p, en)
-	}
-	if m != MotivoHuella {
-		t.Fatalf("la foto no es la de la huella: %q", m)
-	}
-
-	a = armador{}
-	for i := range MaxArmandoPorTelefono {
-		p := f.Partes[0]
-		p.ID = "f" + string(rune('a'+i))
-		if _, _, m := a.agregar(p, en); m != "" {
-			t.Fatal(m)
+	for _, c := range casos {
+		var a armador
+		p := partesDe("p", datos, 1)[0]
+		c.cambia(&p)
+		if m := a.agregar(p, en); m != c.motivo {
+			t.Errorf("%s: motivo %q, se esperaba %q", c.nombre, m, c.motivo)
 		}
-	}
-	quinta := f.Partes[0]
-	quinta.ID = "fz"
-	if _, _, m := a.agregar(quinta, en); m != MotivoTope {
-		t.Fatalf("un teléfono arma hasta %d a la vez: %q", MaxArmandoPorTelefono, m)
-	}
-	otroTelefono := quinta
-	otroTelefono.Dispositivo = "otro"
-	if _, _, m := a.agregar(otroTelefono, en); m != "" {
-		t.Fatal("el tope es por teléfono")
-	}
-	if v := a.vencidas(en.Add(VidaArmado - time.Second)); len(v) != 0 {
-		t.Fatalf("antes de %v no vence: %+v", VidaArmado, v)
-	}
-	if v := a.vencidas(en.Add(VidaArmado + time.Second)); len(v) != MaxArmandoPorTelefono+1 {
-		t.Fatalf("una incompleta se descarta a los %v: %d", VidaArmado, len(v))
-	}
-	if _, _, m := a.agregar(quinta, en.Add(VidaArmado+time.Second)); m != "" {
-		t.Fatal("las vencidas ya no cuentan para el tope")
+		if a.lista("p", p.ID) {
+			t.Errorf("%s: no queda lista", c.nombre)
+		}
 	}
 }
 
-func TestFotos_LlegaALaSesionConSuRutaAbsoluta(t *testing.T) {
+func TestFotos_LosTopesSonGlobalesYNoEchanAOtraFoto(t *testing.T) {
+	en := time.Now()
+	var a armador
+	var primera string
+	for i := range MaxFotosArmando {
+		p := partesDe("p", imagenPrueba(t, 2+i), 2)[0]
+		if i == 0 {
+			primera = p.ID
+		}
+		if m := a.agregar(p, en); m != "" {
+			t.Fatal(m)
+		}
+	}
+	novena := partesDe("p", imagenPrueba(t, 50), 2)[0]
+	if m := a.agregar(novena, en); m != MotivoTope {
+		t.Fatalf("hasta %d fotos a la vez, vengan de donde vengan: %q", MaxFotosArmando, m)
+	}
+	resto := partesDe("p", imagenPrueba(t, 2), 2)[1]
+	if m := a.agregar(resto, en); m != "" || !a.lista("p", primera) {
+		t.Fatalf("la novena no echa a una que ya estaba: %q", m)
+	}
+
+	var b armador
+	grande := partesDe("p", imagenPrueba(t, 3), 1)[0]
+	b.ocupados = MaxBytesArmando - 10
+	if m := b.agregar(grande, en); m != MotivoTope {
+		t.Fatalf("hasta %d bytes en memoria entre todas: %q", MaxBytesArmando, m)
+	}
+}
+
+func TestFotos_LasVencidasSeSueltan(t *testing.T) {
+	en := time.Now()
+	var a armador
+	incompleta := partesDe("p", imagenPrueba(t, 5), 2)[0]
+	completa := partesDe("p", imagenPrueba(t, 6), 1)[0]
+	a.agregar(incompleta, en)
+	a.agregar(completa, en)
+	if v := a.vencidas(en.Add(VidaArmado - time.Second)); len(v) != 0 {
+		t.Fatalf("antes de %v no vence: %+v", VidaArmado, v)
+	}
+	v := a.vencidas(en.Add(VidaArmado + time.Second))
+	if len(v) != 1 || v[0].id != incompleta.ID {
+		t.Fatalf("la incompleta se descarta a los %v, avisando: %+v", VidaArmado, v)
+	}
+	if !a.lista("p", completa.ID) {
+		t.Fatal("la completa espera su ejecutar")
+	}
+	if v := a.vencidas(en.Add(VidaLista + time.Second)); len(v) != 0 || a.lista("p", completa.ID) {
+		t.Fatalf("la completa sin ejecutar se suelta a los %v, sin ack: %+v", VidaLista, v)
+	}
+	if a.ocupados != 0 {
+		t.Fatalf("lo soltado deja de contar para el tope: %d bytes", a.ocupados)
+	}
+}
+
+func TestFotos_SoloElEjecutarFirmadoLaEscribeYLlegaALaSesion(t *testing.T) {
 	root, clave, _, tr := bucleConQDDFalso(t)
-	partes := partesFirmadas(t, clave, "d1", ahoraEn())
+	datos := imagenPrueba(t, 30)
+	partes := partesDe(clave, datos, 3)
 	for _, p := range partes {
 		mandarFoto(tr, p)
 	}
 	ack := ackDe(t, tr, 2*time.Second)
-	if !ack.OK || ack.ID != "f1a2b3c4" || ack.Proyecto != clave || ack.Version != 1 {
+	if !ack.OK || ack.ID != partes[0].ID || ack.Proyecto != clave || ack.Version != 1 {
 		t.Fatalf("la foto llegó entera: %+v", ack)
 	}
-	ruta := filepath.Join(root, "tmp", "fotos", "movil-f1a2b3c4.jpg")
-	guardada, err := os.ReadFile(ruta)
-	if err != nil {
-		t.Fatal(err)
+	if n := carpetaFotos(root); len(n) != 0 {
+		t.Fatalf("sin un ejecutar que la nombre, la foto no toca el disco: %v", n)
 	}
-	if string(guardada) != string(fotoEntera(t, partes)) {
-		t.Fatal("se guarda la foto tal cual")
+
+	got := ejecutarConFotos(t, tr, "d6b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", partes[0].ID)
+	if got.Estado != EstadoRecibida {
+		t.Fatalf("queda para la sesión: %+v", got)
+	}
+	ruta := filepath.Join(root, "tmp", "fotos", "movil-"+partes[0].ID+".png")
+	guardada, err := os.ReadFile(ruta)
+	if err != nil || !bytes.Equal(guardada, datos) {
+		t.Fatalf("se guarda la foto tal cual: %v", err)
 	}
 	info, _ := os.Stat(ruta)
 	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("0600: %v", info.Mode().Perm())
 	}
-
-	e := ejecucionFirmada("d6b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", "mira esta captura", "d1", ahoraEn())
-	e.Fotos = []string{"f1a2b3c4"}
-	e.Firma = FirmaEjecucion(firmaPrueba, e.Solicitud, e.Proyecto, e.Tipo, e.Texto, e.Dispositivo, e.En, e.Fotos...)
-	mandarEjecucion(tr, e)
-	estadoDe(t, tr, time.Second)
-	if got := estadoDe(t, tr, 2*time.Second); got.Estado != EstadoRecibida {
-		t.Fatalf("queda para la sesión: %+v", got)
-	}
 	tomadas, _ := consola.TomarInstrucciones(root, "sesion-a", time.Now())
-	if len(tomadas) != 1 || tomadas[0].Texto != "mira esta captura" {
-		t.Fatalf("el texto queda tal cual: %+v", tomadas)
+	if len(tomadas) != 1 {
+		t.Fatalf("una instrucción: %+v", tomadas)
 	}
-	msg := consola.MensajeInstruccion(tomadas[0])
-	if !strings.HasSuffix(msg, "mira esta captura\n\nFotos adjuntas:\n"+ruta) {
+	if msg := consola.MensajeInstruccion(tomadas[0]); !strings.HasSuffix(msg, "mira esta captura\n\nFotos adjuntas:\n"+ruta) {
 		t.Fatalf("la sesión recibe la ruta absoluta al final: %q", msg)
+	}
+
+	otra := ejecutarConFotos(t, tr, "c6b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", partes[0].ID)
+	if otra.Estado != EstadoRecibida {
+		t.Fatalf("una foto ya escrita sirve para otro ejecutar: %+v", otra)
 	}
 }
 
-func TestFotos_UnaQueFaltaODeOtroTelefonoTerminaEnFallo(t *testing.T) {
-	_, clave, _, tr := bucleConQDDFalso(t)
-	for _, p := range partesFirmadas(t, clave, "d1", ahoraEn()) {
-		mandarFoto(tr, p)
-	}
+func TestFotos_UnaQueFaltaTerminaEnFalloSinEscribirNinguna(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	partes := partesDe(clave, imagenPrueba(t, 12), 1)
+	mandarFoto(tr, partes[0])
 	if ack := ackDe(t, tr, 2*time.Second); !ack.OK {
 		t.Fatalf("%+v", ack)
 	}
-	casos := []struct {
-		solicitud, dispositivo string
-		fotos                  []string
-		falta                  string
-	}{
-		{"e6b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", "d1", []string{"f1a2b3c4", "nunca-llego"}, "nunca-llego"},
-		{"f6b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", "d2", []string{"f1a2b3c4"}, "f1a2b3c4"},
+	nunca := strings.Repeat("a", 64)
+	got := ejecutarConFotos(t, tr, "e6b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", partes[0].ID, nunca)
+	if got.Estado != EstadoFallo || !strings.Contains(got.Resultado, nunca) {
+		t.Fatalf("termina en fallo diciendo cuál: %+v", got)
 	}
-	for _, c := range casos {
-		e := ejecucionFirmada(c.solicitud, clave, "ia", "mira", c.dispositivo, ahoraEn())
-		e.Fotos = c.fotos
-		e.Firma = FirmaEjecucion(firmaPrueba, e.Solicitud, e.Proyecto, e.Tipo, e.Texto, e.Dispositivo, e.En, e.Fotos...)
-		mandarEjecucion(tr, e)
-		estadoDe(t, tr, time.Second)
-		got := estadoDe(t, tr, 2*time.Second)
-		if got.Estado != EstadoFallo || !strings.Contains(got.Resultado, c.falta) {
-			t.Fatalf("%s: termina en fallo diciendo cuál (%s): %+v", c.dispositivo, c.falta, got)
-		}
+	if n := carpetaFotos(root); len(n) != 0 {
+		t.Fatalf("si falta una, no escribe ninguna: %v", n)
 	}
 }
 
 func TestFotos_RechazosConMotivo(t *testing.T) {
 	_, clave, _, tr := bucleConQDDFalso(t)
-	ajena := partesFirmadas(t, "proyecto-que-no-esta", "d1", ahoraEn())[0]
-	mandarFoto(tr, ajena)
+	mandarFoto(tr, partesDe("proyecto-que-no-esta", imagenPrueba(t, 4), 1)[0])
 	if ack := ackDe(t, tr, time.Second); ack.OK || ack.Motivo != MotivoProyecto {
 		t.Fatalf("un proyecto que el PC no publica: %+v", ack)
 	}
-	mala := partesFirmadas(t, clave, "d1", ahoraEn())[0]
+	mala := partesDe(clave, imagenPrueba(t, 4), 1)[0]
 	mala.ID = "../fuera"
-	mala.Firma = FirmaFoto(firmaPrueba, mala.ID, mala.Proyecto, mala.Parte, mala.De, mala.Huella, mala.Dispositivo, mala.En)
 	mandarFoto(tr, mala)
 	if ack := ackDe(t, tr, time.Second); ack.OK || ack.Motivo != MotivoID {
-		t.Fatalf("un id que no es [A-Za-z0-9_-] no toca el disco: %+v", ack)
+		t.Fatalf("un id que no es un sha256 no toca el disco: %+v", ack)
 	}
 
-	e := ejecucionFirmada("a7b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", "audit", "d1", ahoraEn())
-	e.Fotos = []string{"f1a2b3c4"}
-	e.Firma = FirmaEjecucion(firmaPrueba, e.Solicitud, e.Proyecto, e.Tipo, e.Texto, e.Dispositivo, e.En, e.Fotos...)
-	mandarEjecucion(tr, e)
-	estadoDe(t, tr, time.Second)
-	if got := estadoDe(t, tr, 2*time.Second); got.Estado != EstadoRechazada || !strings.Contains(got.Resultado, "ia") {
+	sha := strings.Repeat("b", 64)
+	if got := ejecutarConFotos(t, tr, "a7b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "qdd", sha); got.Estado != EstadoRechazada || !strings.Contains(got.Resultado, "ia") {
 		t.Fatalf("solo una instrucción para la IA lleva fotos: %+v", got)
 	}
-	cinco := ejecucionFirmada("b7b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", "mira", "d1", ahoraEn())
-	cinco.Fotos = []string{"a", "b", "c", "d", "e"}
-	cinco.Firma = FirmaEjecucion(firmaPrueba, cinco.Solicitud, cinco.Proyecto, cinco.Tipo, cinco.Texto, cinco.Dispositivo, cinco.En, cinco.Fotos...)
-	mandarEjecucion(tr, cinco)
-	estadoDe(t, tr, time.Second)
-	if got := estadoDe(t, tr, 2*time.Second); got.Estado != EstadoRechazada {
+	cinco := []string{strings.Repeat("1", 64), strings.Repeat("2", 64), strings.Repeat("3", 64), strings.Repeat("4", 64), strings.Repeat("5", 64)}
+	if got := ejecutarConFotos(t, tr, "b7b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", cinco...); got.Estado != EstadoRechazada {
 		t.Fatalf("hasta %d fotos: %+v", MaxFotosEjecucion, got)
+	}
+	if got := ejecutarConFotos(t, tr, "b8b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", "f1a2b3c4"); got.Estado != EstadoRechazada {
+		t.Fatalf("una foto se nombra por su sha256: %+v", got)
 	}
 }
 
-// FND-333: desde el 2026-11-24 el relay tiene cortadas las fotos (FND-059 de qdd-movile: realtime.send las guardaba
-// de 3 a 4 días). Si el PC sigue declarando fotos, la app ofrece adjuntar, el relay responde 42501 y la persona lee
-// «Tu sesión terminó». Mientras dure el corte el PC no las declara; el transporte nuevo vendrá con otro nombre (fotos2).
-func TestEstado_ElPCNoDeclaraFotosMientrasElRelayLasTieneCortadas_FND333(t *testing.T) {
+func TestFotos_ElEventoViejoYaNoSeAcepta(t *testing.T) {
+	root, clave, _, tr := bucleConQDDFalso(t)
+	p := partesDe(clave, imagenPrueba(t, 4), 1)[0]
+	b, _ := json.Marshal(p)
+	tr.eventos <- Evento{Tipo: TipoBroadcast, Evento: "foto", Payload: b}
+	limite := time.After(300 * time.Millisecond)
+	for esperando := true; esperando; {
+		select {
+		case e := <-tr.broadcast:
+			if e.Evento == EventoFotoAck {
+				t.Fatalf("el evento foto de qdd_remoto_foto ya no se atiende: %s", e.Payload)
+			}
+		case <-limite:
+			esperando = false
+		}
+	}
+	if n := carpetaFotos(root); len(n) != 0 {
+		t.Fatalf("%v", n)
+	}
+}
+
+func TestEstado_ElPCDeclaraFotos2YNoFotos(t *testing.T) {
 	e := Armar("v", registro.Registro{}, time.Now(), 3)
 	b, _ := json.Marshal(e)
-	if strings.Contains(string(b), CapacidadFotos) {
-		t.Fatalf("con las fotos cortadas en el relay, la cabecera del estado no ofrece fotos: %s", b)
+	if !strings.Contains(string(b), `"capacidades":["fotos2"]`) {
+		t.Fatalf("la cabecera del estado dice que este PC recibe fotos por canal directo, y solo eso: %s", b)
+	}
+}
+
+// leerFixtureFoto2 es test/fixtures/foto2_partes.json de qdd-movile (main, 2026-11-26), copiado sin cambios: el payload
+// exacto que manda la app, una foto JPEG real de 175 150 bytes en 4 partes.
+func leerFixtureFoto2(t *testing.T) (string, []FotoParte) {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", "foto2_partes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Evento string      `json:"evento"`
+		Partes []FotoParte `json:"partes"`
+	}
+	if err := json.Unmarshal(b, &f); err != nil {
+		t.Fatal(err)
+	}
+	return f.Evento, f.Partes
+}
+
+func TestFotos_ElFixtureDeQDDMovilLlegaYSeEscribeConSuEjecutar(t *testing.T) {
+	evento, partes := leerFixtureFoto2(t)
+	if evento != EventoFoto || len(partes) != 4 {
+		t.Fatalf("el fixture es foto2 en 4 partes: %s, %d", evento, len(partes))
+	}
+	root, clave, _, tr := bucleConQDDFalso(t)
+	for _, i := range []int{3, 1, 0, 2} {
+		p := partes[i]
+		p.Proyecto = clave
+		mandarFoto(tr, p)
+	}
+	if ack := ackDe(t, tr, 2*time.Second); !ack.OK || ack.ID != partes[0].ID {
+		t.Fatalf("la foto de la app llega entera: %+v", ack)
+	}
+	if got := ejecutarConFotos(t, tr, "f7b1c1e0-6a2f-4f39-9f4e-4a1c2d3e4f50", clave, "ia", partes[0].ID); got.Estado != EstadoRecibida {
+		t.Fatalf("%+v", got)
+	}
+	guardada, err := os.ReadFile(filepath.Join(root, "tmp", "fotos", "movil-"+partes[0].ID+".jpg"))
+	if err != nil || len(guardada) != 175150 || sha256Hex(guardada) != partes[0].ID {
+		t.Fatalf("queda la JPEG de 175 150 bytes con su sha256: %v", err)
 	}
 }

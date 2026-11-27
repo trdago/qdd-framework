@@ -451,7 +451,7 @@ func (b *Bucle) ejecutarDelTelefono(ctx context.Context, s Solicitud, e Ejecucio
 		b.cerrar(ctx, s, EstadoRechazada, err.Error())
 		return
 	}
-	fotos, err := b.fotos.rutasDe(s.Dispositivo, s.Proyecto, e.Fotos)
+	fotos, err := b.fotos.rutasDe(s.Ruta, s.Proyecto, e.Fotos, b.ahora())
 	if err != nil {
 		b.cerrar(ctx, s, EstadoFallo, err.Error())
 		return
