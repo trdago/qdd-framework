@@ -1,0 +1,9 @@
+id: "FND-335"
+title: "Publicar consola-claude-code 11.0.0 bloqueó el gate del propio qdd"
+description: "2026-11-27, al armar la rc del cifrado: qdd audit falló en BP-08 (escenarios con prueba 31/38). La ficha estado implementa consola-claude-code sin fijar versión, y la conformidad usa la última publicada en la copia local. La 11.0.0 (qdd-blueprints v13.0.0) sumó CCC-C33 a CCC-C39, que salieron de código de qdd, pero el aporte se publicó sin que las pruebas de qdd nombraran esos escenarios."
+impact: "Desde que se publicó, ninguna rama de qdd pasaba qdd audit en esta máquina; el gate bloqueaba commits y releases sin relación con la consola."
+action_taken: "Las pruebas que ya cubrían cada escenario lo nombran (barra_directa_test.go, proyectos_test.go y tests/proyectos.test.ts del panel), y la de CCC-C37 ahora comprueba también que los demás proyectos se siguen viendo. Desde ahora, antes de proponer un aporte que nace de código de qdd, sus pruebas nombran los escenarios nuevos."
+test_result: "qdd audit aprobado (BP-08 de estado con todos los escenarios; CCC-C05 sigue fuera con su motivo). go test ./pkg/consola -run 'TestBarra|TestProyectos' pasa; claude plugin test del panel: 371 pasan, 0 fallan."
+status: resolved
+detectado_por: ia
+date: "2026-11-27"

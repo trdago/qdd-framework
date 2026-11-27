@@ -31,6 +31,7 @@ func settingsConBarra(comando string, extra string) string {
 	return `{"statusLine":{"type":"command","command":` + jsonStr(comando) + extra + `}}`
 }
 
+// consola-claude-code CCC-C33: con el binario de npm, la barra lo llama directo y qdd queda de respaldo.
 func TestBarra_ConBinarioLoLlamaDirectoConQDDDeRespaldo(t *testing.T) {
 	c := nuevaConsola(t, "2.2.0", &claudeFalso{})
 	c.Binario = binarioDePrueba
@@ -95,6 +96,7 @@ func TestBarra_AlActualizarRenuevaLaRutaYConservaLoDemas(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C35: un qdd compilado a mano no cambia la barra puesta, y doctor no tiene qué arreglar.
 func TestBarra_SinBinarioNoTocaUnaDirectaYaPuesta(t *testing.T) {
 	c := nuevaConsola(t, "2.2.0", &claudeFalso{})
 	directa := `"` + binarioDePrueba + `" consola statusline || qdd consola statusline`
@@ -110,6 +112,7 @@ func TestBarra_SinBinarioNoTocaUnaDirectaYaPuesta(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C35: una barra propia parecida tampoco se toca.
 // contrato: estado#6df16cc6
 func TestBarra_UnaPropiaParecidaNoSeToca(t *testing.T) {
 	for _, propia := range []string{
@@ -130,6 +133,7 @@ func TestBarra_UnaPropiaParecidaNoSeToca(t *testing.T) {
 	}
 }
 
+// consola-claude-code CCC-C34: una ruta con comillas, $, `, % o un salto de línea no se escribe.
 func TestBarra_UnaRutaConCaracteresDeShellNoSeEscribe(t *testing.T) {
 	for _, ruta := range []string{`/a"b/qdd`, `/a$HOME/qdd`, "/a`id`/qdd", `/a%PATH%/qdd`, "/a\nb/qdd"} {
 		if got := (Consola{Binario: ruta}).comandoBarra(); got != ComandoBarra {
@@ -174,6 +178,7 @@ func main() {
 
 // Se corre de verdad en cada shell donde Claude Code puede correrla (en Windows, también cmd): las comillas y el
 // || son justo lo que cambia entre ellas. La carpeta lleva un espacio, como un usuario de Windows con dos nombres.
+// consola-claude-code CCC-C33: sin la ruta, la barra sale por el respaldo con la misma entrada.
 func TestBarra_ElComandoCorreEnLaShellYElRespaldoRecibeLaEntrada(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "con espacio")
 	directo := falsoQDD(t, filepath.Join(dir, "version"), "qdd-directo", "DIRECTO")
