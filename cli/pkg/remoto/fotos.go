@@ -336,6 +336,12 @@ func (b *Bucle) alFoto(ctx context.Context, payload json.RawMessage) {
 		b.ackFoto(ctx, p.Proyecto, p.ID, MotivoProyecto)
 		return
 	}
+	priv, _ := b.Cred.privadaCifrado()
+	p, motivo := abrirParte(priv, p)
+	if motivo != "" {
+		b.ackFoto(ctx, p.Proyecto, p.ID, motivo)
+		return
+	}
 	if motivo := b.fotos.agregar(p, b.ahora()); motivo != "" {
 		b.ackFoto(ctx, p.Proyecto, p.ID, motivo)
 		return

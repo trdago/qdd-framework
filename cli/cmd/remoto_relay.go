@@ -342,7 +342,7 @@ func remotoCorrer(errores io.Writer) int {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1
 	}
-	cred, err := remoto.LeerCredenciales()
+	cred, err := remoto.AsegurarCifrado(time.Now())
 	if err != nil {
 		fmt.Fprintf(errores, "[!] %v\n", err)
 		return 1

@@ -70,6 +70,12 @@ func (b *Bucle) alResponder(ctx context.Context, payload json.RawMessage) {
 		b.responder(ctx, s)
 		return
 	}
+	respuesta, err := b.abrirRespuesta(r)
+	if err != nil {
+		b.rechazarClave(ctx, Solicitud{Solicitud: r.Solicitud, Proyecto: r.Proyecto, AccionID: accionID, Pregunta: id, Dispositivo: r.Dispositivo, Nombre: r.Nombre})
+		return
+	}
+	r.Respuesta = respuesta
 	s := Solicitud{Solicitud: r.Solicitud, Proyecto: r.Proyecto, AccionID: accionID, Pregunta: id, Dispositivo: r.Dispositivo, Nombre: r.Nombre, Estado: EstadoRecibida, Recibida: b.ahora().UTC()}
 	b.recordar(s)
 	b.responder(ctx, s)

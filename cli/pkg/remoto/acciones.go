@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/qdd-framework/qdd/pkg/consola"
+	"github.com/qdd-framework/qdd/pkg/remoto/cifrado"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -113,6 +114,8 @@ type AccionEstado struct {
 	Estado    string `json:"estado"`
 	Resultado string `json:"resultado,omitempty"`
 	Lugar     string `json:"lugar,omitempty"`
+	// Motivo es clave cuando el PC no pudo abrir lo sellado (RFC 0027): la app reconfirma la clave y ofrece reenviar.
+	Motivo string `json:"motivo,omitempty"`
 }
 
 // Solicitud es lo que el PC recuerda de una acción: su último estado y, si es un pedido, cuál.
@@ -128,6 +131,7 @@ type Solicitud struct {
 	Ruta        string    `json:"ruta,omitempty"`
 	Pedido      string    `json:"pedido,omitempty"`
 	Pregunta    string    `json:"pregunta,omitempty"`    // una respuesta a una pregunta de la consola (preguntas.go)
+	Motivo      string    `json:"motivo,omitempty"`      // clave: no abrió lo sellado (sellados.go)
 	Ejecutar    string    `json:"ejecutar,omitempty"`    // lo mandado a ejecutar desde el teléfono: qdd o ia (ejecutar.go)
 	Flujo       string    `json:"flujo,omitempty"`       // lo pendiente de este flujo viaja en la instrucción: si no llega, vuelve a quedar pendiente
 	Lineas      int       `json:"lineas,omitempty"`      // cuántas líneas de ese flujo lleva
@@ -136,7 +140,7 @@ type Solicitud struct {
 }
 
 func (s Solicitud) respuesta() AccionEstado {
-	return AccionEstado{Version: VersionProtocolo, Solicitud: s.Solicitud, Proyecto: s.Proyecto, AccionID: s.AccionID, Estado: s.Estado, Resultado: s.Resultado, Lugar: s.Lugar}
+	return AccionEstado{Version: VersionProtocolo, Solicitud: s.Solicitud, Proyecto: s.Proyecto, AccionID: s.AccionID, Estado: s.Estado, Resultado: s.Resultado, Lugar: s.Lugar, Motivo: s.Motivo}
 }
 
 func (s Solicitud) terminada() bool {
@@ -262,6 +266,12 @@ func (b *Bucle) alAccion(ctx context.Context, payload json.RawMessage) {
 		b.responder(ctx, s)
 		return
 	}
+	accionID, err := b.abrir(a.AccionID, cifrado.AADAccion(a.Solicitud, a.Proyecto))
+	if err != nil {
+		b.rechazarClave(ctx, Solicitud{Solicitud: a.Solicitud, Proyecto: a.Proyecto, Dispositivo: a.Dispositivo, Nombre: a.DispositivoNombre})
+		return
+	}
+	a.AccionID = accionID
 	s := Solicitud{Solicitud: a.Solicitud, Proyecto: a.Proyecto, AccionID: a.AccionID, Dispositivo: a.Dispositivo, Nombre: a.DispositivoNombre, Estado: EstadoRecibida, Recibida: now.UTC()}
 	b.recordar(s)
 	b.responder(ctx, s)

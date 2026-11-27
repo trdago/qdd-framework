@@ -4,6 +4,7 @@ estado: aprobado
 rutas:
     - cli/pkg/remoto/cifrado
     - cli/pkg/remoto/testdata/cifrado1.json
+    - cli/pkg/remoto/sellados.go
 objetivo_operativo:
     problema: 'El relay de QDD Móvil (Supabase) guarda entero, de 72 horas a 4 días, lo que manda el teléfono: el texto de un ejecutar, una respuesta, una acción y las fotos. Quien administra el proyecto de Supabase, o un error de permisos, puede leerlo (FND-321).'
     usuarios: La persona que usa QDD Móvil; la app (qdd-movile), que sella con el mismo fixture; qdd remoto, que abre.
@@ -16,17 +17,24 @@ objetivo_tecnologico:
         - 'El nonce sale de HKDF y no viaja: la efímera es nueva en cada campo, así que clave y nonce nunca se repiten.'
         - 'De una parte de foto2 se sellan sus bytes, no su base64: el id sigue siendo el sha256 de la foto en claro y el PC verifica la huella después de abrir.'
         - 'Huella de la identidad: sha256 de la pública, 8 bytes en hex mayúscula en cuatro grupos de cuatro; la misma en la app y en qdd remoto dispositivos.'
+        - 'Fase 3 (sellados.go, acordado con qdd-movile el 2026-11-27): identidad y X25519 en credenciales.json (0600, junto a la firma de la máquina); un PC emparejado antes las genera al arrancar el servicio (AsegurarCifrado), y volver a emparejar rota solo la X25519. El QR lleva la identidad; el estado, la clave firmada y la capacidad cifrado1.'
+        - 'Se abre después de verificar la firma del relay (firma el sellado tal cual) y antes de validar: las reglas del texto en claro (largo, controles, qdd delante, JSON del flujo) las aplica el PC, porque el relay ya no las ve. Una respuesta sellada llega como el string JSON "c1.…"; lo abierto es el objeto de siempre.'
+        - 'Una parte de foto2 sellada se acepta hasta 65603 caracteres y, abierta, hasta 48 KB (acordado con qdd-movile: la app no cambia el tamaño de parte).'
+        - 'Lo que no abre responde rechazada con motivo clave (accion_estado.motivo, o el motivo de foto_ack) y no se recuerda: la app reconfirma la clave y puede reenviar. Lo que llega en claro sigue valiendo hasta la fase 5.'
         - El fixture compartido (pkg/remoto/testdata/cifrado1.json) lo escribe qdd con efímeras fijas y lo copia qdd-movile sin cambios; un byte distinto se vuelve a acordar con qdd-movile. Sus claves son solo de prueba.
     invariantes:
         - Un campo que no abre (en claro, mal formado, hacia otra clave o con otros datos asociados) es ErrNoAbre y nunca devuelve texto
         - Un sellado abre solo con los datos asociados de su evento, su solicitud (o su foto y parte), su proyecto y su campo
         - La clave de cifrado solo se acepta firmada por la identidad que la acompaña
         - El fixture compartido es exactamente lo que sella este paquete con sus efímeras fijas
+        - Lo que el PC no puede abrir nunca se ejecuta ni se recuerda; responde rechazada con el motivo clave
+        - Las privadas del PC solo viven en credenciales.json; el estado y el QR llevan solo lo público
 pruebas:
     comandos:
         - cd cli && go test ./pkg/remoto/cifrado/
+        - cd cli && go test ./pkg/remoto/ -run 'RFC0027|SinClavesNoDeclara'
 fuentes:
     - rfcs/0027-cifrado-desde-el-telefono.md
     - cli/pkg/remoto/testdata/README.md
 ultima_revision: "2026-11-27"
-revisado_en_commit: 16beada39a28
+revisado_en_commit: d0f86ba3bed8

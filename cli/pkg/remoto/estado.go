@@ -10,6 +10,7 @@ import (
 
 	"github.com/qdd-framework/qdd/pkg/consola"
 	"github.com/qdd-framework/qdd/pkg/integration"
+	"github.com/qdd-framework/qdd/pkg/remoto/cifrado"
 	"github.com/qdd-framework/qdd/pkg/remoto/registro"
 )
 
@@ -57,6 +58,8 @@ type Estado struct {
 	Limites      *consola.Limites `json:"limites,omitempty"`
 	// Capacidades es lo que este PC sabe recibir del teléfono (CapacidadesPC): la app no ofrece lo que no ve aquí.
 	Capacidades []string `json:"capacidades,omitempty"`
+	// Clave es la X25519 del PC firmada por su identidad, con la que el teléfono sella (RFC 0027, sellados.go).
+	Clave *cifrado.Clave `json:"clave,omitempty"`
 	// Diagnostico: la última prueba del canal con el teléfono, solo si falló o reparó algo en el último día (sonda.go).
 	Diagnostico *DiagnosticoCanal `json:"diagnostico,omitempty"`
 	Proyectos   []ProyectoEstado  `json:"proyectos"`

@@ -179,6 +179,15 @@ func TestRemotoRevocar_LocalYEnElRelay(t *testing.T) {
 	if !strings.Contains(out.String(), "✕ revocado") {
 		t.Fatalf("la lista lo dice: %s", out.String())
 	}
+	cred, err := remoto.AsegurarCifrado(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	remotoDispositivos(context.Background(), &out, &errs)
+	if !strings.Contains(out.String(), "Huella de este PC: "+cred.HuellaIdentidad()) {
+		t.Fatalf("muestra la huella de la identidad, la misma que ve la app (RFC 0027): %s", out.String())
+	}
 }
 
 // FND-136: desactivar con otro QDD_HOME saca esa máquina, pero deja el servicio real y lo dice.

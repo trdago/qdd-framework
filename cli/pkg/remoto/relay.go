@@ -60,6 +60,11 @@ type Credenciales struct {
 	Topico     string    `json:"topico"`
 	Firma      string    `json:"firma"`
 	Emparejada time.Time `json:"emparejada"`
+	// Identidad (semilla Ed25519) y Cifrado (privada X25519), en base64url sin relleno (RFC 0027, sellados.go): nunca
+	// salen de este archivo.
+	Identidad    string    `json:"identidad,omitempty"`
+	Cifrado      string    `json:"cifrado,omitempty"`
+	CifradoDesde time.Time `json:"cifrado_desde,omitempty"`
 }
 
 // DirRemoto es <QDD_HOME>/remoto, privada.
